@@ -552,5 +552,6 @@ If you need a one-click badge:
 
 Replace link with a direct template once you create a blueprint.
 
-#   N C A A B  
+#   N C A A B 
+ 
  

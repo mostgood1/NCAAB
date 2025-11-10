@@ -804,6 +804,18 @@ def index():
                     df = df.merge(g2[keep], on="game_id", how="left", suffixes=("", "_g"))
         except Exception:
             pass
+        # Ensure actual_total is present/coalesced for all rows when scores are available
+        try:
+            if {"home_score","away_score"}.issubset(df.columns):
+                hs = pd.to_numeric(df["home_score"], errors="coerce")
+                aw = pd.to_numeric(df["away_score"], errors="coerce")
+                if "actual_total" not in df.columns:
+                    df["actual_total"] = np.where(hs.notna() & aw.notna(), hs + aw, np.nan)
+                else:
+                    mask = df["actual_total"].isna()
+                    df.loc[mask, "actual_total"] = hs[mask] + aw[mask]
+        except Exception:
+            pass
         # Pick best available start_time among candidates (prefer one that contains a time component)
         try:
             cands = ["start_time", "start_time_g", "commence_time", "commence_time_g"]
@@ -889,6 +901,18 @@ def index():
                 ])
                 if src is not None:
                     df["away_team"] = df[src]
+        # Ensure actual_total is present for upcoming/preds builds
+        try:
+            if {"home_score","away_score"}.issubset(df.columns):
+                hs = pd.to_numeric(df["home_score"], errors="coerce")
+                aw = pd.to_numeric(df["away_score"], errors="coerce")
+                if "actual_total" not in df.columns:
+                    df["actual_total"] = np.where(hs.notna() & aw.notna(), hs + aw, np.nan)
+                else:
+                    mask = df["actual_total"].isna()
+                    df.loc[mask, "actual_total"] = hs[mask] + aw[mask]
+        except Exception:
+            pass
 
     # Ensure game_id is consistently string before odds merge
     if "game_id" in df.columns:
