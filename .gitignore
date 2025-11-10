@@ -10,5 +10,8 @@ __pycache__/
 /outputs/*
 !outputs/.gitkeep
 
+# Vendors / embedded repos
+onnxruntime/
+
 # VSCode
 .vscode/
