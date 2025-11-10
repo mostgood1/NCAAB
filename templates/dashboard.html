@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NCAAB Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>Monitoring Dashboard</h1>
+      <div class="spacer"></div>
+      <a class="pill" href="/">Cards</a>
+    </div>
+    {% set closing = metrics.get('closing_backtest', {}) %}
+    {% set calib = metrics.get('calibration', {}) %}
+    {% set edgep = metrics.get('edge_persistence', {}) %}
+    <div class="grid grid1 gap12 mb8">
+      <div class="card">
+        <div class="title-sm">Calibration</div>
+        <div class="kpi">
+          <div class="pill">Brier: {{ '%.3f' % calib.brier if calib.brier is defined else '–' }}</div>
+          <div class="pill">LogLoss: {{ '%.3f' % calib.logloss if calib.logloss is defined else '–' }}</div>
+          <div class="pill">n: {{ calib.n if calib.n is defined else '–' }}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="title-sm">Closing Backtest</div>
+        <div class="kpi">
+          <div class="pill">Days: {{ closing.days if closing.days is defined else '–' }}</div>
+          <div class="pill">Total Bets: {{ closing.total_bets if closing.total_bets is defined else '–' }}</div>
+          <div class="pill">Avg Win Rate: {{ '%.2f' % closing.avg_daily_win_rate if closing.avg_daily_win_rate is defined and closing.avg_daily_win_rate is not none else '–' }}</div>
+          <div class="pill">Avg ROI: {{ '%.3f' % closing.avg_daily_roi if closing.avg_daily_roi is defined and closing.avg_daily_roi is not none else '–' }}</div>
+          <div class="pill">CLV Mean+: {{ '%.2f' % closing.clv_mean_of_means if closing.clv_mean_of_means is defined and closing.clv_mean_of_means is not none else '–' }}</div>
+          <div class="pill">CLV Pos Rate: {{ '%.2f' % closing.clv_mean_pos_rate if closing.clv_mean_pos_rate is defined and closing.clv_mean_pos_rate is not none else '–' }}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="title-sm">Edge Persistence</div>
+        <div class="kpi">
+          <div class="pill">Correlation Total: {{ edgep.corr_total if edgep.corr_total is defined else '–' }}</div>
+          <div class="pill">Sign Retention Total: {{ edgep.sign_retention_total if edgep.sign_retention_total is defined else '–' }}</div>
+          <div class="pill">Magnitude Decay Total: {{ edgep.magnitude_decay_total if edgep.magnitude_decay_total is defined else '–' }}</div>
+          <div class="pill">Bet Retention Total: {{ edgep.bet_retention_total if edgep.bet_retention_total is defined else '–' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

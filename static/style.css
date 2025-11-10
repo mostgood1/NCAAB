@@ -1,0 +1,67 @@
+:root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+body{font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+.container{max-width:1100px;margin:24px auto;padding:0 16px}
+h1{margin:0 0 8px 0;font-size:24px}
+.meta{color:var(--muted);font-size:12px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid1{grid-template-columns:1fr}
+.gap12{gap:12px}
+.mb8{margin-bottom:8px}
+.header{margin-bottom:12px}
+.spacer{flex:1}
+.filters{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.filters label input[type=checkbox]{margin-right:4px}
+.mt6{margin-top:6px}
+.mt8{margin-top:8px}
+.card{background:var(--card);border:1px solid var(--pill-br);border-radius:12px;padding:12px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.team{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.team .name{font-weight:700}
+.logo{width:28px;height:28px;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#152042}
+.logo img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.badge-team{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600;background:#152042;border:1px solid #2a3a63}
+.teams-row{display:flex;align-items:center;gap:12px;flex-wrap:nowrap}
+.badge-team .logo{width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:#0f172a;border-radius:6px;overflow:hidden}
+.badge-team .logo img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.score{font-weight:700}
+.muted{color:var(--muted);font-size:12px}
+.pill{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:999px;padding:3px 8px;font-size:12px}
+.pill.ok{background:#143d2a;border-color:#2d6a4f;color:#bff0cc}
+.pill.bad{background:#3b0d12;border-color:#7a1f2b;color:#ffc9c9}
+.pill.neutral{opacity:0.8}
+.pill.edge-pos{background:#0d3a1f;border-color:#1e6b3b;color:#c8f7d4}
+.pill.edge-neg{background:#3a0d0d;border-color:#7b1f1f;color:#ffcfcf}
+.pill.edge-zero{background:#1c2230;border-color:#2a3a63;color:#e2e8f5}
+.pill.edge-weak{background:#1d2a3d;border-color:#2f4b70;color:#d6e6f8}
+.pill.edge-mod{background:#153a55;border-color:#1f5d85;color:#cfe9ff}
+.pill.edge-strong{background:#0b4c6d;border-color:#0d6ea5;color:#c6ecff}
+.pill.edge-extreme{background:#074e3a;border-color:#0f8a62;color:#d0ffe9}
+.kpi{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+.section{margin-top:10px}
+.section .title{font-size:12px;color:var(--muted);margin-bottom:6px}
+.pred{display:flex;gap:10px;margin-top:6px;align-items:center}
+.pred .chip{background:#102243;border:1px solid #274070;border-radius:6px;padding:3px 6px;font-size:12px}
+a{color:var(--accent)}
+@media (max-width:760px){ .grid{grid-template-columns:1fr} }
+/* New uniform derivative rows for halves */
+.half-lines{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.line-row{display:flex;gap:10px;align-items:center;flex-wrap:nowrap;overflow:auto}
+.line-row .seg{background:var(--pill);border:1px solid var(--pill-br);border-radius:8px;padding:3px 8px;font-size:12px;white-space:nowrap}
+.line-row .label{background:transparent;border-color:transparent;color:var(--muted);font-weight:600}
+/* Derivative grouping */
+.deriv-group{display:flex;flex-direction:column;gap:4px;margin-top:8px;padding-top:4px;border-top:1px solid var(--pill-br)}
+.deriv-group:first-child{margin-top:0;padding-top:0;border-top:none}
+.group-title{font-size:11px;font-weight:600;color:var(--accent);opacity:0.9;margin:2px 0 2px}
+.seg.ok{background:#143d2a;border-color:#2d6a4f;color:#bff0cc}
+.seg.bad{background:#3b0d12;border-color:#7a1f2b;color:#ffc9c9}
+.seg.neutral{opacity:0.8}
+.block-pre{white-space:pre-wrap}
+/* Header endpoint nav */
+.nav-links{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.nav-links a{color:var(--accent);text-decoration:none}
+.nav-links a:hover{text-decoration:underline}
+/* Toast notifications */
+.toast{position:fixed;bottom:20px;right:20px;background:#152042;border:1px solid #2a3a63;padding:10px 14px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(12px);transition:all .25s ease;color:var(--text);z-index:9999}
+.toast.ok{background:#143d2a;border-color:#2d6a4f;color:#bff0cc}
+.toast.bad{background:#3b0d12;border-color:#7a1f2b;color:#ffc9c9}
+.toast.show{opacity:1;transform:translateY(0)}

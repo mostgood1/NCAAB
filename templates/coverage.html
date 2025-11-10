@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Coverage</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>Coverage Diagnostics</h1>
+      <div class="spacer"></div>
+      <a class="pill" href="/">Cards</a>
+    </div>
+    <div class="grid grid1 gap12 mb8">
+      <div class="card">
+        <div class="title-sm">Counts</div>
+        <div class="kpi">
+          <div class="pill">Games: {{ snap.n_games }}</div>
+          <div class="pill">Predictions: {{ snap.n_preds }}</div>
+          <div class="pill">Odds (full-game totals): {{ snap.n_odds }}</div>
+          <div class="pill">Picks: {{ snap.n_picks }}</div>
+          <div class="pill">Universe: {{ snap.n_universe }}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="title-sm">Intersections</div>
+        <div class="kpi">
+          <div class="pill">Games ∩ Predictions: {{ snap.intersect_game_pred }} (cov {{ snap.coverage_pred_vs_games if snap.coverage_pred_vs_games is not none else '–' }})</div>
+          <div class="pill">Games ∩ Odds: {{ snap.intersect_game_odds }} (cov {{ snap.coverage_odds_vs_games if snap.coverage_odds_vs_games is not none else '–' }})</div>
+          <div class="pill">Predictions ∩ Odds: {{ snap.intersect_pred_odds }}</div>
+          <div class="pill">All three: {{ snap.intersect_all }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid1 gap12">
+      <div class="card">
+        <div class="title-sm">Unmatched IDs (first 40)</div>
+        <div class="kpi">
+          <div class="pill neutral">Games without Predictions: {{ snap.games_without_preds|length }}</div>
+          <div class="pill neutral">Predictions without Games: {{ snap.preds_without_games|length }}</div>
+          <div class="pill neutral">Games without Odds: {{ snap.games_without_odds|length }}</div>
+          <div class="pill neutral">Odds without Games: {{ snap.odds_without_games|length }}</div>
+          <div class="pill neutral">Predictions without Odds: {{ snap.preds_without_odds|length }}</div>
+          <div class="pill neutral">Picks without Odds: {{ snap.picks_without_odds|length }}</div>
+        </div>
+  <pre class="muted block-pre">{{ (snap.games_without_preds or []) | join(', ') }}</pre>
+  <pre class="muted block-pre">{{ (snap.preds_without_games or []) | join(', ') }}</pre>
+  <pre class="muted block-pre">{{ (snap.games_without_odds or []) | join(', ') }}</pre>
+  <pre class="muted block-pre">{{ (snap.odds_without_games or []) | join(', ') }}</pre>
+  <pre class="muted block-pre">{{ (snap.preds_without_odds or []) | join(', ') }}</pre>
+  <pre class="muted block-pre">{{ (snap.picks_without_odds or []) | join(', ') }}</pre>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

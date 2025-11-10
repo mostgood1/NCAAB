@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB – Final Scores</title>
+  <style>
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text)}
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    h1{margin:0 0 8px 0;font-size:24px}
+    a{color:var(--accent)}
+    .muted{color:var(--muted);font-size:12px}
+    .card{background:var(--card);border:1px solid var(--pill-br);border-radius:12px;padding:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px 10px;border-bottom:1px solid var(--pill-br);text-align:left}
+    th{font-weight:700}
+    .row{display:flex;justify-content:space-between;align-items:center}
+    .header{margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>NCAAB – Final Scores</h1>
+      <div>
+        <a href="/">Cards</a>
+        &nbsp;|&nbsp;
+        <a href="/recommendations">Recommendations</a>
+      </div>
+    </div>
+    <div class="muted">{{ total_rows }} games{% if date_min and date_max %} ({{ date_min }} → {{ date_max }}){% endif %}</div>
+    {% if not rows %}
+      <div class="card"><div class="muted">No final scores found yet. Generate daily results with the CLI.</div></div>
+    {% else %}
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Home</th>
+              <th>Away</th>
+              <th>Final</th>
+              <th>Total</th>
+              <th>Pred</th>
+              <th>Closing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+              <tr>
+                <td>{{ r.date or '' }}</td>
+                <td>{{ r.home_team or '' }}</td>
+                <td>{{ r.away_team or '' }}</td>
+                <td>
+                  {% if r.home_score is not none and r.away_score is not none %}
+                    {{ r.home_score }} - {{ r.away_score }}
+                  {% else %}
+                    –
+                  {% endif %}
+                </td>
+                <td>{{ '%.0f' % r.actual_total if r.actual_total is not none else '–' }}</td>
+                <td>{{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}</td>
+                <td>{{ '%.1f' % r.closing_total if r.closing_total is not none else '–' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

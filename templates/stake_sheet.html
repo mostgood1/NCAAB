@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stake Sheet – {{ view|title }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>Stake Sheet ({{ view }})</h1>
+      <div class="spacer"></div>
+      <a class="pill" href="/">Cards</a>
+      <a class="pill" href="/stake-sheet?view=orig">Original</a>
+      <a class="pill" href="/stake-sheet?view=cal">Calibrated</a>
+      <a class="pill" href="/stake-sheet?view=compare">Comparison</a>
+      <a class="pill" href="/download/stake?view={{ view }}{% if date_val %}&date={{ date_val }}{% endif %}">Download CSV</a>
+    </div>
+    <div class="meta">Rows: {{ total_rows }}</div>
+    <form method="get" class="filters mb8">
+      <input type="hidden" name="view" value="{{ view }}" />
+      <label class="muted">Date: <input type="date" name="date" value="{{ date_val or '' }}" /></label>
+      <button type="submit" class="pill">Apply</button>
+      {% if date_val %}<a class="pill" href="/stake-sheet?view={{ view }}">Clear</a>{% endif %}
+    </form>
+    {% if summary.n == 0 %}
+      <div class="muted">No stake sheet found. Generate with bankroll CLI step.</div>
+    {% endif %}
+    {% if summary.n > 0 %}
+      <div class="grid grid1 gap12 mb8">
+        <div class="card">
+          <div class="title-sm">Aggregate</div>
+          <div class="kpi">
+            <div class="pill">Total Stake: {{ '%.2f' % summary.sum_stake if summary.sum_stake is defined else '–' }}</div>
+            <div class="pill">Avg Stake: {{ '%.2f' % summary.mean_stake if summary.mean_stake is defined else '–' }}</div>
+            <div class="pill">Avg Kelly: {{ '%.3f' % summary.mean_kelly_fraction if summary.mean_kelly_fraction is defined else '–' }}</div>
+            <div class="pill">Avg Prob: {{ '%.3f' % summary.mean_prob if summary.mean_prob is defined else '–' }}</div>
+            <div class="pill">Avg EV: {{ '%.3f' % summary.mean_ev if summary.mean_ev is defined else '–' }}</div>
+            {% if view == 'compare' %}
+              <div class="pill">Mean ΔProb: {{ '%.3f' % summary.mean_delta_prob if summary.mean_delta_prob is defined else '–' }}</div>
+              <div class="pill">Mean ΔKelly: {{ '%.3f' % summary.mean_delta_kelly if summary.mean_delta_kelly is defined else '–' }}</div>
+              <div class="pill">Mean ΔEV: {{ '%.3f' % summary.mean_delta_ev if summary.mean_delta_ev is defined else '–' }}</div>
+              <div class="pill">Total ΔStake: {{ '%.2f' % summary.sum_delta_stake if summary.sum_delta_stake is defined else '–' }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    {% if summary.book_stakes %}
+      <div class="grid grid1 gap12 mb8">
+        <div class="card">
+          <div class="title-sm">Stake by Book</div>
+          <div class="kpi">
+            {% for bk, amt in summary.book_stakes.items() %}
+              <div class="pill">{{ bk }}: {{ '%.2f' % amt }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    <div class="grid" id="stakeGrid">
+      {% for r in rows %}
+        <div class="card stake-row" data-prob="{{ r.prob if r.prob is defined and r.prob is not none else '' }}" data-ev="{{ r.ev if r.ev is defined and r.ev is not none else '' }}" data-stake="{{ r.stake if r.stake is defined and r.stake is not none else '' }}">
+          <div class="title-sm">{{ r.game_id or 'Game' }}</div>
+          <div class="kpi">
+            {% if r.home_team or r.away_team %}<div class="pill team-pill">{{ r.home_team or '' }} vs {{ r.away_team or '' }}</div>{% endif %}
+            {% if r.market is defined and r.market %}<div class="pill market-pill">Market: {{ r.market }}</div>{% endif %}
+            {% if r.selection is defined and r.selection %}<div class="pill selection-pill">Pick: {{ r.selection }}</div>{% endif %}
+            {% if r.line is defined and r.line is not none %}<div class="pill">Line: {{ r.line }}</div>{% endif %}
+            {% if r.price is defined and r.price is not none %}<div class="pill">Price: {{ r.price }}</div>{% endif %}
+            {% if r.prob is defined and r.prob is not none %}<div class="pill prob-pill">Prob: {{ '%.3f' % r.prob }}</div>{% endif %}
+            {% if r.kelly_fraction is defined and r.kelly_fraction is not none %}<div class="pill">Kelly: {{ '%.3f' % r.kelly_fraction }}</div>{% endif %}
+            {% if r.ev is defined and r.ev is not none %}<div class="pill ev-pill">EV: {{ '%.3f' % r.ev }}</div>{% endif %}
+            {% if r.stake is defined and r.stake is not none %}<div class="pill stake-pill">Stake: {{ '%.2f' % r.stake }}</div>{% endif %}
+            {% if r.delta_prob is defined and r.delta_prob is not none %}<div class="pill neutral">ΔProb: {{ '%.3f' % r.delta_prob }}</div>{% endif %}
+            {% if r.delta_kelly is defined and r.delta_kelly is not none %}<div class="pill neutral">ΔKelly: {{ '%.3f' % r.delta_kelly }}</div>{% endif %}
+            {% if r.delta_ev is defined and r.delta_ev is not none %}<div class="pill neutral">ΔEV: {{ '%.3f' % r.delta_ev }}</div>{% endif %}
+            {% if r.delta_stake is defined and r.delta_stake is not none %}<div class="pill neutral">ΔStake: {{ '%.2f' % r.delta_stake }}</div>{% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <script>
+  (function(){
+    // Lightweight client sorting via query params (prob, ev, stake) - optional extension
+    function sortBy(attr){
+      var grid = document.getElementById('stakeGrid');
+      if(!grid) return;
+      var cards = Array.from(grid.querySelectorAll('.stake-row'));
+      cards.sort(function(a,b){
+        var av = parseFloat(a.getAttribute('data-'+attr) || 'NaN');
+        var bv = parseFloat(b.getAttribute('data-'+attr) || 'NaN');
+        if(isNaN(av) && isNaN(bv)) return 0;
+        if(isNaN(av)) return 1;
+        if(isNaN(bv)) return -1;
+        return bv - av; // descending
+      });
+      cards.forEach(c=>grid.appendChild(c));
+    }
+    // Add simple keyboard shortcuts
+    document.addEventListener('keydown', function(e){
+      if(e.altKey && e.key==='p'){ sortBy('prob'); }
+      if(e.altKey && e.key==='e'){ sortBy('ev'); }
+      if(e.altKey && e.key==='s'){ sortBy('stake'); }
+    });
+  })();
+  </script>
+</body>
+</html>

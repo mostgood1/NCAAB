@@ -1,0 +1,155 @@
+Metadata-Version: 2.4
+Name: ncaab-model
+Version: 0.1.0
+Summary: Predictive NCAAB betting engine with ONNX DirectML inference
+Author: Mostg
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
+# NCAAB Predictive Betting Engine (Snapdragon NPU/DirectML)
+
+This project is a college basketball (NCAAB) predictive engine focused on:
+
+- Game totals (full game)
+- 1H/2H totals
+- Game winner
+- Against the spread (ATS)
+
+It is designed to run fast inference on Windows Copilot+/Snapdragon systems via ONNX Runtime with the DirectML execution provider (leveraging the NPU when supported). If available, it can also prefer the Qualcomm QNN Execution Provider for direct NPU acceleration.
+
+## Quick start
+
+1. Create a Python 3.10+ venv (Windows PowerShell):
+
+```powershell
+python -m venv .venv
+. .venv\Scripts\Activate.ps1
+```
+
+2. Install dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+3. If ONNX Runtime wheels are unavailable for your Windows ARM64 environment, use a local ORT build by setting a DLL directory or run the helper script:
+
+```powershell
+# Point to the folder that contains onnxruntime DLLs and provider DLLs
+$env:NCAAB_ORT_DLL_DIR = "C:\\path\\to\\onnxruntime-qnn-build\\bin"
+
+# Optional: QNN SDK root and/or explicit backend DLL
+$env:NCAAB_QNN_SDK_DIR = "C:\\Qualcomm\\QNN_SDK"
+# $env:NCAAB_QNN_BACKEND_DLL = "C:\\Qualcomm\\QNN_SDK\\lib\\htp\\Windows\\Release\\qnn-htp.dll"
+
+# If you have a local onnxruntime wheel or unpacked module directory, point Python at it:
+# (semicolon separate multiple entries; you can pass a .whl file path or a directory)
+$env:NCAAB_ORT_PY_DIR = "C:\\path\\to\\onnxruntime-<ver>-cp311-cp311-win_arm64.whl"
+
+# Or use the helper script to set everything and verify providers:
+# (edit the paths for your machine)
+pwsh -File scripts/enable_ort_qnn.ps1 -OrtBinDir "C:\\path\\to\\onnxruntime-qnn-build\\bin" -OrtPyWheelOrDir "C:\\path\\to\\onnxruntime-<ver>-cp311-cp311-win_arm64.whl" -QnnSdkDir "C:\\Qualcomm\\QNN_SDK" -InstallWheel
+```
+
+4. Run a tiny ONNX smoke test (creates a dummy ONNX model and runs inference via QNN if available, else DML, else CPU):
+
+```powershell
+python -m scripts.synthetic_demo --make-model --predict
+```
+
+Expected: it reports available ONNX providers, tries QNNExecutionProvider (if configured), else DmlExecutionProvider, and prints a small prediction batch.
+
+You can also inspect providers with:
+
+```powershell
+python -m ncaab_model.cli ort-info
+```
+
+## Season-start backfill (last two seasons)
+
+To initialize the model with enough history before the season tips off, run the end-to-end backfill, training, and evaluation for the last two seasons:
+
+```powershell
+python -m ncaab_model.cli evaluate-last2 --closing none
+```
+
+This will:
+
+- Fetch 2023–24 and 2024–25 games into `outputs/games_*.csv`,
+- Fetch ESPN boxscores and compute four-factors into `outputs/boxscores_last2.csv`,
+- Build enriched features (schedule, adjusted ratings, four-factors) into `outputs/features_last2.csv`,
+- Train baseline models and export ONNX into `outputs/models/`,
+- Score predictions into `outputs/predictions_last2.csv`,
+- Write accuracy reports into `outputs/eval_last2/`.
+
+Optional: If you have access to TheOddsAPI historical endpoint, you can add closing-line evaluation by setting `--closing history` (or use `current` to snapshot available books per day):
+
+```powershell
+python -m ncaab_model.cli evaluate-last2 --closing history
+```
+
+Reports are written to `outputs/eval_last2/` and include per-game and summary CSV/JSON files.
+
+## Project layout
+
+- `src/ncaab_model` — library code
+  - `onnx/export.py` — build/export ONNX models (includes a tiny dummy model generator)
+  - `onnx/infer.py` — ONNX Runtime inference with QNN/DirectML preference, CPU fallback, and Windows DLL bootstrap via `NCAAB_ORT_DLL_DIR`
+  - `cli.py` — Typer CLI entry points
+  - `config.py` — settings (paths, API keys)
+  - Future modules: `data/`, `features/`, `models/`, `train/`, `eval/`
+- `scripts/` — runnable helpers (synthetic demo)
+- `tests/` — minimal test(s) to validate setup
+- `outputs/` — artifacts (models, reports)
+
+## NPU acceleration (DirectML and Qualcomm QNN)
+
+We use ONNX Runtime with the `DmlExecutionProvider` on Windows to target supported GPUs and NPUs (e.g., Snapdragon X Elite). If DML is not available, we fall back to CPU automatically.
+
+If you have the Qualcomm QNN SDK installed (e.g., at `C:\\Qualcomm\\QNN_SDK`) and an ONNX Runtime build that includes the QNN Execution Provider, the engine will preferentially use `QNNExecutionProvider`.
+
+Environment variables and settings:
+
+- `NCAAB_QNN_SDK_DIR` — root of your QNN SDK (defaults to `C:\\Qualcomm\\QNN_SDK` if present)
+- `NCAAB_QNN_BACKEND_DLL` — optional absolute path to the QNN backend DLL to use
+ - `NCAAB_ORT_DLL_DIR` — optional directory containing ONNX Runtime DLLs (use this when pip wheels are not available)
+
+Note: An onnxruntime wheel with QNN EP may not be published for all Python/arch combos. If unavailable, use DirectML (`onnxruntime-directml`) or CPU (`onnxruntime`) until a compatible QNN EP build is installed. The code automatically falls back.
+
+## CLI commands (highlights)
+
+- Data
+  - `fetch-games` — fetch real games (ESPN/NCAA) to Parquet/CSV
+  - `fetch-boxscores` — ESPN box scores + possessions/four-factors
+  - `fetch-odds` / `fetch-odds-history` — current or historical odds snapshots
+  - `make-closing-lines` — aggregate snapshots into per-book closing lines
+  - `join-odds` / `join-closing` — join odds/closing to games
+  - `seed-team-map` — build/maintain a canonical team name map
+- Features & modeling
+  - `build-features` — rolling team features + schedule + opponent-adjusted ratings + four-factors
+  - `train-baseline` — ridge baselines (totals/margin) and ONNX export
+  - `predict-baseline` — score features using ONNX (QNN/DML/CPU) or NumPy fallback
+- Evaluation & operations
+  - `eval-accuracy` — MAE/RMSE/bias/R² for totals and margins
+  - `eval-accuracy-closing` — model vs closing (MAE delta, beat rate, edge correlation)
+  - `backtest` / `backtest-closing` — totals strategy PnL using current/closing lines
+  - `make-picks` — generate a clean pick sheet
+  - `evaluate-last2` — one-shot seasonal backfill + train + eval for last two seasons
+  - `daily-run` — fetch odds & games for today, build features, predict, generate picks, and ingest to SQLite
+
+## Daily run
+
+For in-season operation, use the daily pipeline:
+
+```powershell
+python -m ncaab_model.cli daily-run --threshold 2.0 --default-price -110 --book-whitelist "fanduel,betmgm" --target-picks 10
+```
+
+This fetches today’s games and odds, builds features, predicts, selects picks, and ingests outputs into SQLite (`data/ncaab.sqlite`).
+
+## Next steps
+
+- Improve totals modeling with richer tempo and shooting adjustments, and market-informed features near tipoff.
+- Integrate an alternate historical odds source if TheOddsAPI odds-history is unavailable; expand closing-line evaluation across seasons.
+- Add a multitask neural model (PyTorch) with ONNX export for accelerated inference on Snapdragon.
+

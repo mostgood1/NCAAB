@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calibration</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>Probability Calibration</h1>
+      <div class="spacer"></div>
+      <a class="pill" href="/">Cards</a>
+      <a class="pill" href="/stake-sheet?view=compare">Stake Compare</a>
+    </div>
+    {% if artifact %}
+      <div class="grid grid1 gap12 mb8">
+        <div class="card">
+          <div class="title-sm">Artifact (Z Recenter)</div>
+          <div class="kpi">
+            <div class="pill">Center: {{ '%.4f' % artifact.center if artifact.center is defined else '–' }}</div>
+            <div class="pill">Scale: {{ '%.4f' % artifact.scale if artifact.scale is defined else '–' }}</div>
+            <div class="pill">Samples: {{ artifact.n_samples if artifact.n_samples is defined else '–' }}</div>
+            <div class="pill">Method: {{ artifact.method if artifact.method is defined else 'z_recenter' }}</div>
+          </div>
+          <div class="muted">Adjusted z = (raw_z - center) / scale; probability = NormalCDF(adjusted_z). Moderates extreme tails to reduce over-staking.</div>
+        </div>
+      </div>
+    {% else %}
+      <div class="muted">No artifact found. Build with calibration CLI step.</div>
+    {% endif %}
+    {% if compare_rows and compare_rows|length > 0 %}
+      <div class="grid grid1 gap12 mb8">
+        <div class="card">
+          <div class="title-sm">Stake Deltas (first 50)</div>
+          <div class="kpi">
+            <div class="pill">Mean ΔProb: {{ '%.3f' % deltas.mean_delta_prob if deltas.mean_delta_prob is defined else '–' }}</div>
+            <div class="pill">Mean ΔKelly: {{ '%.3f' % deltas.mean_delta_kelly if deltas.mean_delta_kelly is defined else '–' }}</div>
+            <div class="pill">Mean ΔEV: {{ '%.3f' % deltas.mean_delta_ev if deltas.mean_delta_ev is defined else '–' }}</div>
+            <div class="pill">Sum ΔStake: {{ '%.2f' % deltas.sum_delta_stake if deltas.sum_delta_stake is defined else '–' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid">
+        {% for r in compare_rows %}
+          <div class="card">
+            <div class="title-sm">{{ r.game_id or 'Game' }}</div>
+            <div class="kpi">
+              {% if r.home_team or r.away_team %}<div class="pill">{{ r.home_team or '' }} vs {{ r.away_team or '' }}</div>{% endif %}
+              {% if r.market %}<div class="pill">{{ r.market }}</div>{% endif %}
+              {% if r.selection %}<div class="pill">{{ r.selection }}</div>{% endif %}
+              {% if r.line is not none %}<div class="pill">Line {{ r.line }}</div>{% endif %}
+              {% if r.prob_orig is not none %}<div class="pill">Prob Orig {{ '%.3f' % r.prob_orig }}</div>{% endif %}
+              {% if r.prob_cal is not none %}<div class="pill">Prob Cal {{ '%.3f' % r.prob_cal }}</div>{% endif %}
+              {% if r.kelly_fraction_orig is not none %}<div class="pill">Kelly Orig {{ '%.3f' % r.kelly_fraction_orig }}</div>{% endif %}
+              {% if r.kelly_fraction_cal is not none %}<div class="pill">Kelly Cal {{ '%.3f' % r.kelly_fraction_cal }}</div>{% endif %}
+              {% if r.ev_orig is not none %}<div class="pill">EV Orig {{ '%.3f' % r.ev_orig }}</div>{% endif %}
+              {% if r.ev_cal is not none %}<div class="pill">EV Cal {{ '%.3f' % r.ev_cal }}</div>{% endif %}
+              {% if r.stake_orig is not none %}<div class="pill">Stake Orig {{ '%.2f' % r.stake_orig }}</div>{% endif %}
+              {% if r.stake_cal is not none %}<div class="pill">Stake Cal {{ '%.2f' % r.stake_cal }}</div>{% endif %}
+              {% if r.delta_prob is not none %}<div class="pill neutral">ΔProb {{ '%.3f' % r.delta_prob }}</div>{% endif %}
+              {% if r.delta_kelly is not none %}<div class="pill neutral">ΔKelly {{ '%.3f' % r.delta_kelly }}</div>{% endif %}
+              {% if r.delta_ev is not none %}<div class="pill neutral">ΔEV {{ '%.3f' % r.delta_ev }}</div>{% endif %}
+              {% if r.delta_stake is not none %}<div class="pill neutral">ΔStake {{ '%.2f' % r.delta_stake }}</div>{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

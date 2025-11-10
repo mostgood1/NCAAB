@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB Expanded Picks</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .edge-high{background:#0b6623;color:#fff;}
+    .edge-med{background:#1e90ff;color:#fff;}
+    .edge-low{background:#555;color:#fff;}
+    .pill.ml{background:#6b2d5c;color:#fff;}
+    .pill.spreads{background:#8a4baf;color:#fff;}
+    .pill.totals{background:#b05f3c;color:#fff;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>Expanded Picks</h1>
+      <div class="spacer"></div>
+      <a href="/">Cards</a>
+      <a href="/recommendations">Recommendations</a>
+    </div>
+    <form method="get" class="filters">
+      <label>Date <input type="date" name="date" value="{{ date_val or '' }}"/></label>
+      <label>Market
+        <select name="market">
+          <option value="">All</option>
+          {% for m in ['totals','spreads','moneyline'] %}
+            <option value="{{ m }}" {% if market_val==m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Period
+        <select name="period">
+          <option value="">All</option>
+          {% for p in ['full_game','1h','2h'] %}
+            <option value="{{ p }}" {% if period_val==p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="pill">Apply</button>
+      {% if date_val or market_val or period_val %}<a href="/picks-raw" class="pill">Clear</a>{% endif %}
+    </form>
+    <div class="meta">{{ total_rows }} picks{% if date_val %} ({{ date_val }}){% endif %}</div>
+    {% if not rows %}<div class="muted">No picks match filters.</div>{% endif %}
+    <div class="grid">
+      {% for r in rows %}
+        {% set edge = r.edge if r.edge is not none else 0 %}
+        {% set cls = 'edge-low' %}
+        {% if edge >= 5 %}{% set cls='edge-high' %}{% elif edge >= 2 %}{% set cls='edge-med' %}{% endif %}
+        <div class="card">
+          <div class="row">
+            <div class="team">
+              <div class="badge-team k-{{ r.home_key }}"><div class="name">{{ r.home_team or 'Home' }}</div></div>
+              <div class="muted">vs</div>
+              <div class="badge-team k-{{ r.away_key }}"><div class="name">{{ r.away_team or 'Away' }}</div></div>
+            </div>
+            <div class="pill {{ r.market }}">{{ r.market }} • {{ r.period }}</div>
+          </div>
+          <div class="kpi">
+            <div class="pill {{ cls }}">Edge: {{ '%.2f' % edge }}</div>
+            {% if r.pick %}<div class="pill">Pick: {{ r.pick }}</div>{% endif %}
+            {% if r.line_value is not none %}<div class="pill">Line: {{ r.line_value }}</div>{% endif %}
+            {% if r.predicted_value is not none %}<div class="pill">Model: {{ '%.1f' % r.predicted_value }}</div>{% endif %}
+            {% if r.fair_price is not none %}<div class="pill">Fair: {{ r.fair_price }}</div>{% endif %}
+            {% if r.result %}<div class="pill">Result: {{ r.result }}</div>{% endif %}
+            {% if r.pnl_units is not none %}<div class="pill">PnL: {{ '%.2f' % r.pnl_units }}</div>{% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</body>
+</html>
