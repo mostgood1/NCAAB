@@ -29,5 +29,6 @@ COPY README.md ./
 # Expose port (Render sets $PORT, but this helps local runs)
 EXPOSE 5050
 
-# Default command (Render overrides with startCommand if using render.yaml)
-CMD ["gunicorn", "-w", "2", "-k", "gthread", "-b", "0.0.0.0:${PORT:-5050}", "app:app"]
+# Default command. Use exec form so we can expand $PORT via /bin/sh -c
+# Render sets $PORT; fall back to 5050 locally if unset.
+CMD ["/bin/sh", "-c", "gunicorn -w 2 -k gthread -b 0.0.0.0:${PORT:-5050} app:app"]
