@@ -150,17 +150,6 @@
                 <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}</div>
               </div>
               <div class="line-row">
-                <div class="seg label">Actuals</div>
-                {% set cls_ats_full = 'neutral' if (r.ats_result == 'Push') else ('ok' if r.eval_ats_ok else ('bad' if r.ats_result else 'neutral')) %}
-                {% set ats_team_full = (r.home_team if (r.ats_result and 'Home' in r.ats_result) else (r.away_team if (r.ats_result and 'Away' in r.ats_result) else ('Push' if r.ats_result == 'Push' else None))) %}
-                <div class="seg {{ cls_ats_full }}">ATS: {% if ats_team_full == 'Push' %}Push{% elif ats_team_full %}{{ ats_team_full }} Cover{% else %}–{% endif %}</div>
-                {% set winner_team = r.home_team if r.ml_result and 'Home' in r.ml_result else (r.away_team if r.ml_result and 'Away' in r.ml_result else ( 'Push' if r.ml_result and 'Push' in r.ml_result else None)) %}
-                {% set cls_ml_full = 'neutral' if (winner_team == 'Push') else ('ok' if r.eval_ml_ok else ('bad' if winner_team else 'neutral')) %}
-                <div class="seg {{ cls_ml_full }}">Winner: {{ winner_team or '–' }}</div>
-                <div class="seg">Team Totals: {% if r.home_score is not none and r.away_score is not none %}{{ r.away_team or '–' }} {{ r.away_score }} / {{ r.home_team or '–' }} {{ r.home_score }}{% else %}–{% endif %}</div>
-                <div class="seg">Overall: {% if r.actual_total is defined and r.actual_total is not none %}{{ '%.0f' % r.actual_total }}{% else %}–{% endif %}</div>
-              </div>
-              <div class="line-row">
                 <div class="seg label">Odds</div>
                 {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
                 {% set total_full = r.market_total if (r.market_total is not none and r.market_total == r.market_total) else None %}
@@ -196,6 +185,23 @@
                 <div class="seg">Team Totals: {% if total_full is not none and spread_full is not none %}{% set home_imp_full = (total_full / 2) - (spread_full / 2) %}{% set away_imp_full = total_full - home_imp_full %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp_full }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp_full }}{% else %}–{% endif %}</div>
                 <div class="seg">Overall: {% if total_full is not none %}{{ '%.1f' % total_full }}{% else %}–{% endif %}</div>
               </div>
+              <div class="line-row">
+                <div class="seg label">Actuals</div>
+                {% set cls_ats_full = 'neutral' if (r.ats_result == 'Push') else ('ok' if r.eval_ats_ok else ('bad' if r.ats_result else 'neutral')) %}
+                {% set ats_team_full = (r.home_team if (r.ats_result and 'Home' in r.ats_result) else (r.away_team if (r.ats_result and 'Away' in r.ats_result) else ('Push' if r.ats_result == 'Push' else None))) %}
+                <div class="seg {{ cls_ats_full }}">ATS: {% if ats_team_full == 'Push' %}Push{% elif ats_team_full %}{{ ats_team_full }} Cover{% else %}–{% endif %}</div>
+                {% set winner_team = r.home_team if r.ml_result and 'Home' in r.ml_result else (r.away_team if r.ml_result and 'Away' in r.ml_result else ( 'Push' if r.ml_result and 'Push' in r.ml_result else None)) %}
+                {% set cls_ml_full = 'neutral' if (winner_team == 'Push') else ('ok' if r.eval_ml_ok else ('bad' if winner_team else 'neutral')) %}
+                <div class="seg {{ cls_ml_full }}">Winner: {{ winner_team or '–' }}</div>
+                <div class="seg">Team Totals: {% if r.home_score is not none and r.away_score is not none %}{{ r.away_team or '–' }} {{ r.away_score }} / {{ r.home_team or '–' }} {{ r.home_score }}{% else %}–{% endif %}</div>
+                {% set ou_actual = ( 'Over' if (r.actual_total is not none and r.market_total is not none and r.actual_total > r.market_total) else ( 'Under' if (r.actual_total is not none and r.market_total is not none and r.actual_total < r.market_total) else ('Push' if (r.actual_total is not none and r.market_total is not none and r.actual_total == r.market_total) else None))) %}
+                {% set ou_cls = 'neutral' if (ou_actual == 'Push' or ou_actual is none) else ( 'ok' if (r.lean_ou_side is defined and r.lean_ou_side == ou_actual) else ('bad' if (r.lean_ou_side is defined and r.lean_ou_side and ou_actual and r.lean_ou_side != ou_actual) else 'neutral')) %}
+                {% set tooltip = '' %}
+                {% if r.actual_total is not none and r.market_total is not none %}
+                  {% set tooltip = 'vs Market: ' ~ (ou_actual or '–') ~ ' | Market: ' ~ ('%.1f' % r.market_total) ~ ( ' | Model Lean: ' ~ (r.lean_ou_side or '–') ) %}
+                {% endif %}
+                <div class="seg {{ ou_cls }}" title="{{ tooltip }}">Overall: {% if r.actual_total is defined and r.actual_total is not none %}{{ '%.0f' % r.actual_total }}{% else %}–{% endif %}</div>
+              </div>
             </div>
           </div>
           <div class="section">
@@ -228,40 +234,7 @@
                     <div class="seg">Overall: {% if at1_ok %}{{ '%.0f' % r.actual_total_1h }}{% else %}–{% endif %}</div>
                 </div>
                 <div class="line-row">
-                  <div class="seg label">Odds</div>
-                  {% set spread_1h_full = (r.spread_home_1h if (r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
-                  {% set total_1h_full = (r.market_total_1h if (r.market_total_1h is not none and r.market_total_1h == r.market_total_1h) else None) %}
-                  <div class="seg">ATS: {% if spread_1h_full is not none %}{% if spread_1h_full < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % spread_1h_full }}{% elif spread_1h_full > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % spread_1h_full }}{% else %}Pick{% endif %}{% if r.spread_home_1h_basis == 'derived' %}*{% endif %}{% else %}–{% endif %}</div>
-                  {% if spread_1h_full is not none %}
-                    <div class="seg">Winner: {% if spread_1h_full < 0 %}{{ r.home_team or '–' }}{% elif spread_1h_full > 0 %}{{ r.away_team or '–' }}{% else %}Even{% endif %}</div>
-                  {% else %}
-                    {# Fallback to moneyline if half spread missing; treat NaN as missing #}
-                    {% set mlh = r.ml_home if (r.ml_home is defined) else None %}
-                    {% set mla = r.ml_away if (r.ml_away is defined) else None %}
-                    {% set has_mlh = (mlh is not none and mlh == mlh) %}
-                    {% set has_mla = (mla is not none and mla == mla) %}
-                    {% if has_mlh or has_mla %}
-                      {% set winner_ml = None %}
-                      {% if has_mlh and has_mla %}
-                        {% if mlh < 0 and (mla >= 0 or (0-mlh) > (0-mla)) %}
-                          {% set winner_ml = r.home_team or '–' %}
-                        {% elif mla < 0 and (mlh >= 0 or (0-mla) > (0-mlh)) %}
-                          {% set winner_ml = r.away_team or '–' %}
-                        {% else %}
-                          {% set winner_ml = (r.home_team if (mlh|abs) >= (mla|abs) else r.away_team) %}
-                        {% endif %}
-                      {% elif has_mlh %}
-                        {% set winner_ml = r.home_team or '–' %}
-                      {% elif has_mla %}
-                        {% set winner_ml = r.away_team or '–' %}
-                      {% endif %}
-                      <div class="seg">Winner: {{ winner_ml }}</div>
-                    {% else %}
-                      <div class="seg">Winner: –</div>
-                    {% endif %}
-                  {% endif %}
-                  <div class="seg">Team Totals: {% if total_1h_full is not none and spread_1h_full is not none %}{% set home_imp = (total_1h_full / 2) - (spread_1h_full / 2) %}{% set away_imp = total_1h_full - home_imp %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp }}{% else %}–{% endif %}</div>
-                  <div class="seg">Overall: {% if total_1h_full is not none %}{{ '%.1f' % total_1h_full }}{% else %}–{% endif %}</div>
+                  {# 1H Odds removed per request #}
                 </div>
               </div>
               <div class="deriv-group">
@@ -294,39 +267,7 @@
                   <div class="seg">Overall: {% if at2_ok %}{{ '%.0f' % r.actual_total_2h }}{% else %}–{% endif %}</div>
                 </div>
                 <div class="line-row">
-                  <div class="seg label">Odds</div>
-                  {% set spread_2h_full = (r.spread_home_2h if (r.spread_home_2h is not none and r.spread_home_2h == r.spread_home_2h) else None) %}
-                  {% set total_2h_full = (r.market_total_2h if (r.market_total_2h is not none and r.market_total_2h == r.market_total_2h) else None) %}
-                  <div class="seg">ATS: {% if spread_2h_full is not none %}{% if spread_2h_full < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % spread_2h_full }}{% elif spread_2h_full > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % spread_2h_full }}{% else %}Pick{% endif %}{% if r.spread_home_2h_basis == 'derived' %}*{% endif %}{% else %}–{% endif %}</div>
-                  {% if spread_2h_full is not none %}
-                    <div class="seg">Winner: {% if spread_2h_full < 0 %}{{ r.home_team or '–' }}{% elif spread_2h_full > 0 %}{{ r.away_team or '–' }}{% else %}Even{% endif %}</div>
-                  {% else %}
-                    {% set mlh = r.ml_home if (r.ml_home is defined) else None %}
-                    {% set mla = r.ml_away if (r.ml_away is defined) else None %}
-                    {% set has_mlh = (mlh is not none and mlh == mlh) %}
-                    {% set has_mla = (mla is not none and mla == mla) %}
-                    {% if has_mlh or has_mla %}
-                      {% set winner_ml = None %}
-                      {% if has_mlh and has_mla %}
-                        {% if mlh < 0 and (mla >= 0 or (0-mlh) > (0-mla)) %}
-                          {% set winner_ml = r.home_team or '–' %}
-                        {% elif mla < 0 and (mlh >= 0 or (0-mla) > (0-mlh)) %}
-                          {% set winner_ml = r.away_team or '–' %}
-                        {% else %}
-                          {% set winner_ml = (r.home_team if (mlh|abs) >= (mla|abs) else r.away_team) %}
-                        {% endif %}
-                      {% elif has_mlh %}
-                        {% set winner_ml = r.home_team or '–' %}
-                      {% elif has_mla %}
-                        {% set winner_ml = r.away_team or '–' %}
-                      {% endif %}
-                      <div class="seg">Winner: {{ winner_ml }}</div>
-                    {% else %}
-                      <div class="seg">Winner: –</div>
-                    {% endif %}
-                  {% endif %}
-                  <div class="seg">Team Totals: {% if total_2h_full is not none and spread_2h_full is not none %}{% set home_imp2 = (total_2h_full / 2) - (spread_2h_full / 2) %}{% set away_imp2 = total_2h_full - home_imp2 %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp2 }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp2 }}{% else %}–{% endif %}</div>
-                  <div class="seg">Overall: {% if total_2h_full is not none %}{{ '%.1f' % total_2h_full }}{% else %}–{% endif %}</div>
+                  {# 2H Odds removed per request #}
                 </div>
               </div>
             </div>
