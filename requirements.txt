@@ -2,6 +2,7 @@ numpy>=1.26
 pandas>=2.1
 onnx>=1.16
 pydantic>=2.4
+pydantic-settings>=2.2
 matplotlib>=3.8
 rich>=13.7
 typer>=0.12.3
