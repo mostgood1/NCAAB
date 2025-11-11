@@ -965,7 +965,8 @@ def index():
         source_last = True if "event_id" in odds.columns and "total" in odds.columns and "closing_total" not in odds.columns else False
     except Exception:
         source_last = False
-    if not odds.empty:
+    # Skip odds enrichment entirely if base df is empty (nothing to merge onto)
+    if not odds.empty and not df.empty:
         oddf = odds.copy()
         if "market" in oddf.columns:
             oddf = oddf[oddf["market"].astype(str).str.lower() == "totals"]
@@ -1043,14 +1044,18 @@ def index():
                         else:
                             logger.warning("Skipping odds total merge: df missing game_id and team columns")
                     # Coalesce per-row to fill missing market_total only if helper column now exists
-                    if "_market_total_from_odds" in df.columns:
-                        if "market_total" in df.columns:
-                            try:
-                                df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_from_odds"])
-                            except Exception:
-                                pass
-                        else:
+                if "_market_total_from_odds" in df.columns:
+                    if "market_total" in df.columns:
+                        try:
+                            df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_from_odds"])
+                        except Exception:
+                            pass
+                    else:
+                        # Create market_total only when we actually have odds-derived values
+                        try:
                             df["market_total"] = df["_market_total_from_odds"]
+                        except Exception:
+                            logger.warning("Could not assign market_total from _market_total_from_odds despite column presence")
             # Build per-game odds list and start time from commence_time when present
             odds_map: dict[str, list[dict[str, Any]]] = {}
             start_map: dict[str, str] = {}
