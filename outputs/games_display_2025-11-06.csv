@@ -1,0 +1,42 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue,_home_norm,_away_norm
+401823441,2025,2025-11-06,2025-11-07 01:00:00+00:00,Florida Gators,North Florida Ospreys,104,64,52,28,52,36,False,Stephen C. O'Connell Center,floridagators,northfloridaospreys
+401817240,2025,2025-11-06,2025-11-07 00:00:00+00:00,Louisville Cardinals,Jackson State Tigers,106,70,55,35,51,35,False,KFC Yum! Center,louisville,jacksonstate
+401819871,2025,2025-11-06,2025-11-07 01:00:00+00:00,Iowa State Cyclones,Grambling Tigers,102,62,44,30,58,32,False,Hilton Coliseum,iowastate,grambling
+401823475,2025,2025-11-06,2025-11-07 01:00:00+00:00,Auburn Tigers,Merrimack Warriors,95,57,39,22,56,35,False,Neville Arena,auburn,merrimack
+401820183,2025,2025-11-06,2025-11-06 16:30:00+00:00,Loyola Maryland Greyhounds,Penn St Abington Nittany Lions,96,60,44,38,52,22,False,Reitz Arena,loyolamaryland,pennstateabingtonnittany
+401823550,2025,2025-11-06,2025-11-06 19:00:00+00:00,Cal State Bakersfield Roadrunners,Whittier Poets,83,61,44,26,39,35,False,Icardo Center,calstbakersfield,whittierpoets
+401826757,2025,2025-11-06,2025-11-06 23:00:00+00:00,New Hampshire Wildcats,Curry College Colonels,113,31,46,24,67,7,False,Lundholm Gymnasium,newhampshire,currycollegecolonels
+401813273,2025,2025-11-06,2025-11-06 23:00:00+00:00,Morgan State Bears,Central Penn Knights,101,77,52,40,49,37,False,Hill Field House,morganstate,centralpenn
+401830236,2025,2025-11-06,2025-11-07 00:00:00+00:00,Howard Bison,District Of Columbia Firebirds,103,71,60,33,43,38,False,Burr Gymnasium,howard,districtofcolumbiafirebirds
+401829497,2025,2025-11-06,2025-11-07 00:00:00+00:00,Old Dominion Monarchs,Randolph College Wildcats,93,53,40,26,53,27,False,Chartway Arena,olddominion,randolphcollege
+401829414,2025,2025-11-06,2025-11-07 00:00:00+00:00,Lehigh Mountain Hawks,Valley Forge Patriots,91,52,44,22,47,30,False,Stabler Arena,lehighmountain,valleyforgepatriots
+401829053,2025,2025-11-06,2025-11-07 00:00:00+00:00,Western Michigan Broncos,Northwood (MI) Timberwolves,81,85,39,44,42,41,False,University Arena (MI),westernmichigan,northwoodmitimberwolves
+401828913,2025,2025-11-06,2025-11-07 00:00:00+00:00,Indiana State Sycamores,Illinois Tech Scarlet Hawks,104,73,59,43,45,30,False,Hulman Center,indianastate,illinoistechscarlet
+401827521,2025,2025-11-06,2025-11-07 00:00:00+00:00,Hampton Pirates,Mid-Atlantic Christian Mustangs,103,43,58,21,45,22,False,Convocation Center (VA),hampton,midatlanticchristian
+401827484,2025,2025-11-06,2025-11-07 00:00:00+00:00,Cleveland State Vikings,Capital Crusaders,71,70,40,33,31,37,False,Wolstein Center,clevelandstate,capitalcrusaders
+401823416,2025,2025-11-06,2025-11-07 00:00:00+00:00,Bowling Green Falcons,Bethany (WV) Bison,120,65,56,34,64,31,False,Stroh Center,bowlinggreen,bethanywv
+401822370,2025,2025-11-06,2025-11-07 00:00:00+00:00,Lindenwood Lions,University of Health Sciences & Pharmacy Eutectics,116,51,62,24,54,27,False,Hyland Arena,lindenwood,ofhealthsciencesandpharmacyeutectics
+401819915,2025,2025-11-06,2025-11-07 00:00:00+00:00,West Virginia Mountaineers,Campbell Fighting Camels,73,65,33,25,40,40,False,WVU Coliseum,westvirginia,campbellfighting
+401817212,2025,2025-11-06,2025-11-07 00:00:00+00:00,Boston College Eagles,The Citadel Bulldogs,76,47,38,24,38,23,False,Conte Forum,bostoncollege,citadel
+401813346,2025,2025-11-06,2025-11-07 00:00:00+00:00,Canisius Golden Griffins,Allegheny Gators,84,43,42,23,42,20,False,Koessler Athletic Center,canisiusgolden,alleghenygators
+401813253,2025,2025-11-06,2025-11-07 00:00:00+00:00,Ohio Bobcats,Illinois State Redbirds,72,68,31,31,41,37,False,Convocation Center (OH),ohio,illinoisstate
+401812643,2025,2025-11-06,2025-11-07 00:00:00+00:00,Quinnipiac Bobcats,Central Connecticut Blue Devils,71,49,37,27,34,22,False,M&T Bank Arena,quinnipiac,centralconnecticutbluedevils
+401812333,2025,2025-11-06,2025-11-07 00:00:00+00:00,Xavier Musketeers,Le Moyne Dolphins,74,69,43,36,31,33,False,Cintas Center,xavier,lemoyne
+401809414,2025,2025-11-06,2025-11-07 00:00:00+00:00,Miami Hurricanes,Bethune-Cookman Wildcats,101,61,50,31,51,30,False,Watsco Center,miamihurricanes,bethunecookman
+401823399,2025,2025-11-06,2025-11-07 00:30:00+00:00,Drake Bulldogs,Robert Morris Colonials,79,81,35,40,33,28,False,Knapp Center,drake,robertmorriscolonials
+401829685,2025,2025-11-06,2025-11-07 01:00:00+00:00,South Alabama Jaguars,Alcorn State Braves,76,70,34,40,42,30,False,Mitchell Center,southalabama,alcornstate
+401828543,2025,2025-11-06,2025-11-07 01:00:00+00:00,Eastern Kentucky Colonels,Midway University Eagles,122,60,60,18,62,42,False,Baptist Health Arena,easternkentuckycolonels,midway
+401828275,2025,2025-11-06,2025-11-07 01:00:00+00:00,North Texas Mean Green,Northwestern State Demons,80,53,28,20,52,33,False,The Super Pit,northtexas,northwesternstate
+401827256,2025,2025-11-06,2025-11-07 01:00:00+00:00,Southern Miss Golden Eagles,Tougaloo Bulldogs,93,57,52,35,41,22,False,Reed Green Coliseum,southernmissgolden,tougaloo
+401827003,2025,2025-11-06,2025-11-07 01:00:00+00:00,Texas A&M Aggies,Texas Southern Tigers,104,70,41,36,63,34,False,Reed Arena,texasaandm,texassouthern
+401826042,2025,2025-11-06,2025-11-07 01:00:00+00:00,North Dakota Fighting Hawks,UC Riverside Highlanders,70,74,34,37,36,37,False,Betty Engelstad Sioux Center,northdakotafighting,californiariverside
+401823522,2025,2025-11-06,2025-11-07 01:00:00+00:00,Abilene Christian Wildcats,Omaha Mavericks,73,71,37,37,36,34,False,Moody Coliseum (Abilene),abilenechristian,omaha
+401823340,2025,2025-11-06,2025-11-07 01:00:00+00:00,Jacksonville Dolphins,Trinity (FL) Tigers,132,45,74,25,58,20,False,Swisher Gymnasium,jacksonville,trinityfl
+401820541,2025,2025-11-06,2025-11-07 01:00:00+00:00,Northern Iowa Panthers,Cal State Northridge Matadors,86,57,46,32,40,25,False,McLeod Center,northerniowa,calstatenorthridge
+401817453,2025,2025-11-06,2025-11-07 01:00:00+00:00,SMU Mustangs,Texas A&M-Corpus Christi Islanders,69,58,32,28,37,30,False,Moody Coliseum (Dallas),smu,texasaandmcorpuschristi
+401817183,2025,2025-11-06,2025-11-07 01:00:00+00:00,Saint Louis Billikens,Chicago State Cougars,108,86,51,40,57,46,False,Chaifetz Arena,stlouis,chicagostate
+401812250,2025,2025-11-06,2025-11-07 01:00:00+00:00,TCU Horned Frogs,Saint Francis Red Flash,104,63,53,29,51,34,False,Schollmaier Arena,tcuhornedfrogs,stfrancisredflash
+401817154,2025,2025-11-06,2025-11-07 02:00:00+00:00,Loyola Chicago Ramblers,Mercyhurst Lakers,65,73,27,34,38,39,False,Gentile Arena,loyolachicago,mercyhurst
+401826738,2025,2025-11-06,2025-11-07 03:00:00+00:00,Washington Huskies,Denver Pioneers,84,70,37,28,47,42,False,Alaska Airlines Arena,washington,denver
+401817219,2025,2025-11-06,2025-11-07 03:00:00+00:00,California Golden Bears,Wright State Raiders,77,67,34,28,43,39,False,Haas Pavilion,californiagolden,wrightstateraiders
+401824088,2025,2025-11-06,2025-11-07 03:30:00+00:00,Portland Pilots,Arkansas-Pine Bluff Golden Lions,83,74,45,29,38,45,False,Chiles Center,portlandpilots,arkansaspinebluffgolden

@@ -34,6 +34,8 @@ __pycache__/
 !outputs/games_with_odds_2026-*.csv
 !outputs/predictions_2025-*.csv
 !outputs/predictions_2026-*.csv
+!outputs/games_display_2025-*.csv
+!outputs/games_display_2026-*.csv
 
 # Vendors / embedded repos
 onnxruntime/

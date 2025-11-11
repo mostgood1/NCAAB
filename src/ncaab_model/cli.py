@@ -354,6 +354,72 @@ def backfill_start_times(
     gdf.to_csv(games_path, index=False)
     print(f"[green]Backfill complete.[/green] Updated ~{n_updated} rows in {games_path}")
 
+@app.command(name="backfill-display")
+def backfill_display(
+    start: str = typer.Argument(..., help="Start date (YYYY-MM-DD) inclusive"),
+    end: str = typer.Argument(..., help="End date (YYYY-MM-DD) inclusive"),
+    games_pattern: str = typer.Option("games_{}{}.csv", help="Pattern for per-date games files; '{}' placeholders will be replaced with date"),
+    out_dir: Path = typer.Option(settings.outputs_dir, help="Directory containing dated games CSVs and where display CSVs will be written"),
+    overwrite: bool = typer.Option(False, help="Overwrite existing games_display_<date>.csv if present"),
+):
+    """Backfill display-filtered games across a date span producing games_display_<date>.csv files.
+
+    Uses the D1-any rule: retain games where at least one team is Division I per data/d1_conferences.csv.
+    This retroactively fixes historical days after expanding the D1 list.
+    """
+    import datetime as _dt
+    import pandas as _pd
+    from .data.merge_odds import normalize_name as _norm
+
+    d1_df = _pd.read_csv(settings.data_dir / "d1_conferences.csv")
+    # Filter rows that look like real teams (reject any accidental conference placeholder rows where team==conference)
+    d1_df = d1_df[d1_df['team'] != d1_df['conference']]
+    d1_set = set(d1_df['team'].astype(str).map(_norm))
+
+    d0 = _dt.date.fromisoformat(start)
+    d1 = _dt.date.fromisoformat(end)
+    if d1 < d0:
+        raise typer.BadParameter("end date precedes start date")
+
+    cur = d0
+    results = []
+    while cur <= d1:
+        iso = cur.isoformat()
+        games_file = out_dir / f"games_{iso}.csv"
+        if not games_file.exists():
+            results.append({"date": iso, "status": "missing"})
+            cur += _dt.timedelta(days=1)
+            continue
+        try:
+            g = _pd.read_csv(games_file)
+        except Exception as e:
+            results.append({"date": iso, "status": f"read_error:{e}"})
+            cur += _dt.timedelta(days=1)
+            continue
+        if not {'home_team','away_team'}.issubset(g.columns):
+            results.append({"date": iso, "status": "bad_schema"})
+            cur += _dt.timedelta(days=1)
+            continue
+        g['_home_norm'] = g['home_team'].astype(str).map(_norm)
+        g['_away_norm'] = g['away_team'].astype(str).map(_norm)
+        mask = g['_home_norm'].isin(d1_set) | g['_away_norm'].isin(d1_set)
+        g_disp = g[mask].copy()
+        out_file = out_dir / f"games_display_{iso}.csv"
+        if out_file.exists() and (not overwrite):
+            status = "exists"
+        else:
+            g_disp.to_csv(out_file, index=False)
+            status = "written"
+        results.append({"date": iso, "status": status, "total": int(len(g)), "display": int(len(g_disp))})
+        cur += _dt.timedelta(days=1)
+
+    # Summary CSV
+    summary = _pd.DataFrame(results)
+    summary_path = out_dir / "display_backfill_summary.csv"
+    summary.to_csv(summary_path, index=False)
+    written = (summary['status'] == 'written').sum()
+    typer.secho(f"Backfill complete: {written} display files written. Summary at {summary_path}", fg=typer.colors.GREEN)
+
 @app.command(name="ort-env-hints")
 def ort_env_hints(
     qnn_sdk_dir: str = typer.Option("C:/Qualcomm/QNN_SDK", help="Path to Qualcomm QNN SDK root (contains lib/)"),
