@@ -36,6 +36,9 @@ app = Flask(__name__)
 # Basic logging setup (Render captures stdout/stderr)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ncaab_app")
+
+# Global diagnostic state variables
+_PREDICTIONS_SOURCE_PATH: str | None = None
 def _load_eval_metrics() -> dict[str, Any]:
     out: dict[str, Any] = {}
     # Calibration metrics
@@ -52,69 +55,36 @@ def _load_eval_metrics() -> dict[str, Any]:
             out["closing_backtest"] = json.loads(closing.read_text(encoding="utf-8"))
         except Exception:
             pass
-    # Edge persistence summary
-    edgep = OUT / "edge_persistence_summary.json"
-    if edgep.exists():
-        try:
-            out["edge_persistence"] = json.loads(edgep.read_text(encoding="utf-8"))
-        except Exception:
-            pass
     return out
 
-def _resolve_outputs_dir() -> Path:
-    """Pick an outputs directory robustly across local and Render.
 
-    Priority:
-      1) NCAAB_OUTPUTS_DIR env var if set and exists
-      2) settings.outputs_dir if exists
-      3) <repo_root>/outputs if exists
-      4) <repo_root> (as last resort)
-    """
-    candidates: list[Path] = []
+def _resolve_outputs_dir() -> Path:
+    """Determine outputs directory using env override, settings, or fallback."""
     env_dir = os.getenv("NCAAB_OUTPUTS_DIR", "").strip()
     if env_dir:
         try:
             p = Path(env_dir).resolve()
-            candidates.append(p)
+            if p.exists() and p.is_dir():
+                logger.info("Using outputs dir (env): %s", p)
+                return p
         except Exception:
             pass
+    # settings.outputs_dir may be a Path-like or string
     try:
-        if isinstance(settings.outputs_dir, Path):
-            candidates.append(settings.outputs_dir)
-        else:
-            candidates.append(Path(str(settings.outputs_dir)))
+        p2 = Path(str(settings.outputs_dir))
+        if p2.exists() and p2.is_dir():
+            logger.info("Using outputs dir (settings): %s", p2)
+            return p2
     except Exception:
         pass
-    candidates.append(ROOT / "outputs")
-    candidates.append(ROOT)
-    # Choose first existing directory with any expected artifact
-    expected = {
-        "games_curr.csv",
-        "predictions_week.csv",
-        "predictions_all.csv",
-        "games_with_last.csv",
-        "games_with_odds_today.csv",
-        "daily_results",
-    }
-    for c in candidates:
+    # common fallbacks
+    for cand in [ROOT / "outputs", ROOT]:
         try:
-            if c.exists() and c.is_dir():
-                items = {p.name for p in c.glob("*")}
-                if items & expected:
-                    logger.info("Using outputs dir: %s", str(c))
-                    return c
+            if cand.exists() and cand.is_dir():
+                logger.warning("Using fallback outputs dir: %s", cand)
+                return cand
         except Exception:
             continue
-    # Fallback to first candidate that exists
-    for c in candidates:
-        try:
-            if c.exists() and c.is_dir():
-                logger.warning("Using fallback outputs dir with no expected artifacts: %s", str(c))
-                return c
-        except Exception:
-            continue
-    # Last resort: repo root
-    logger.warning("No outputs directory found; defaulting to repo root: %s", str(ROOT))
     return ROOT
 
 OUT = _resolve_outputs_dir()
@@ -144,7 +114,7 @@ def _safe_read_csv(p: Path) -> pd.DataFrame:
 
 
 def _load_predictions_current() -> pd.DataFrame:
-    """Load predictions from common files with environment override and flexible fallbacks.
+    """Load predictions file using priority order with environment override.
 
     Priority:
       1) NCAAB_PREDICTIONS_FILE (absolute or relative to OUT)
@@ -152,9 +122,10 @@ def _load_predictions_current() -> pd.DataFrame:
       3) OUT/predictions.csv
       4) OUT/predictions_all.csv
       5) OUT/predictions_last2.csv
-      6) First non-empty OUT/predictions_*.csv (largest by rows)
+      6) Largest non-empty OUT/predictions_*.csv (by size)
     """
-    # Environment override
+    global _PREDICTIONS_SOURCE_PATH
+    _PREDICTIONS_SOURCE_PATH = None
     env_path = (os.getenv("NCAAB_PREDICTIONS_FILE") or "").strip()
     candidates: list[Path] = []
     if env_path:
@@ -164,10 +135,8 @@ def _load_predictions_current() -> pd.DataFrame:
         candidates.append(p)
     for name in ("predictions_week.csv", "predictions.csv", "predictions_all.csv", "predictions_last2.csv"):
         candidates.append(OUT / name)
-    # Add glob matches as last resort
     try:
         globbed = list(OUT.glob("predictions_*.csv"))
-        # Sort by file size (approx rows) descending to pick likely richer file
         globbed = sorted(globbed, key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)
         candidates += [p for p in globbed if p not in candidates]
     except Exception:
@@ -177,11 +146,12 @@ def _load_predictions_current() -> pd.DataFrame:
             if p.exists():
                 df = pd.read_csv(p)
                 if not df.empty:
-                    logger.info("Loaded predictions from: %s (rows=%s)", str(p), len(df))
+                    logger.info("Loaded predictions from: %s (rows=%s)", p, len(df))
+                    _PREDICTIONS_SOURCE_PATH = str(p)
                     return df
         except Exception:
             continue
-    logger.warning("No predictions file found in %s; proceeding without predictions", str(OUT))
+    logger.warning("No predictions file found in %s; proceeding without predictions", OUT)
     return pd.DataFrame()
 
 
@@ -754,18 +724,6 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
                             except Exception:
                                 pass
                         rows.append(r)
-                else:
-                    # group by normalized team pairs
-                    o["_home_norm"] = o.get("home_team", pd.Series(dtype=str)).astype(str).map(normalize_name) if "home_team" in o.columns else None
-                    o["_away_norm"] = o.get("away_team", pd.Series(dtype=str)).astype(str).map(normalize_name) if "away_team" in o.columns else None
-                    def _pair(row):
-                        h = row.get("_home_norm")
-                        a = row.get("_away_norm")
-                        return "::".join(sorted([str(h), str(a)])) if h and a else None
-                    try:
-                        o["_pair_key"] = o.apply(_pair, axis=1)
-                    except Exception:
-                        o["_pair_key"] = None
                     o2 = o.dropna(subset=["_pair_key"]) if "_pair_key" in o.columns else pd.DataFrame()
                     if not o2.empty:
                         for pk, g in o2.groupby("_pair_key"):
@@ -872,6 +830,28 @@ def index():
         "odds_load_rows": len(odds),
         "outputs_dir": str(OUT),
     }
+    # Attach source paths if available
+    try:
+        global _PREDICTIONS_SOURCE_PATH
+        pipeline_stats["predictions_source"] = _PREDICTIONS_SOURCE_PATH
+    except Exception:
+        pipeline_stats["predictions_source"] = None
+    try:
+        # odds loader can expose attribute _ODDS_SOURCE_PATH similarly if implemented; attempt best-effort detection
+        odds_source = None
+        for cand in [OUT/"odds_today.csv", OUT/"odds_curr.csv", OUT/"odds_" + str(date_q) + ".csv", OUT/"games_with_last.csv"]:
+            try:
+                if hasattr(cand, "exists") and cand.exists():
+                    # heuristic: if shape matches odds df row count within tolerance, pick
+                    if not odds.empty:
+                        # allow mismatch; we still record first existing for visibility
+                        odds_source = str(cand)
+                        break
+            except Exception:
+                continue
+        pipeline_stats["odds_source_guess"] = odds_source
+    except Exception:
+        pipeline_stats["odds_source_guess"] = None
     logger.info("Index request start date=%s games_cols=%s preds_cols=%s odds_cols=%s", date_q, list(games.columns), list(preds.columns), list(odds.columns))
     # Initialize coverage summary; will refine after merges to reflect coalesced closing lines
     coverage_summary = {"full": 0, "partial": 0, "none": 0}
@@ -1007,6 +987,12 @@ def index():
     pipeline_stats["games_after_date"] = len(games)
     pipeline_stats["preds_after_date"] = len(preds)
     pipeline_stats["daily_results_rows"] = len(daily_df)
+    # Zero-games reason (pre-synthetic) recorded now; may be updated later if synthetic schedule built
+    if pipeline_stats["games_after_date"] == 0:
+        if pipeline_stats.get("games_load_rows", 0) == 0:
+            pipeline_stats["zero_games_reason"] = "no_games_loaded"
+        else:
+            pipeline_stats["zero_games_reason"] = "date_filter_eliminated_all"
     daily_used = False
     results_note = None
     if not daily_df.empty:
@@ -1040,6 +1026,93 @@ def index():
                     results_note = f"Showing daily results for {date_q}."
         except Exception:
             daily_df = pd.DataFrame()
+
+    # ------------------------------------------------------------------
+    # Synthetic games fallback: if we have ZERO games rows for the target date
+    # but we do have predictions or odds, synthesize a minimal games frame so
+    # that cards can render instead of showing an empty slate.
+    # ------------------------------------------------------------------
+    if games.empty:
+        fallback_reason: list[str] = []
+        synth_df = pd.DataFrame()
+        # Prefer predictions for richer team naming
+        try:
+            if not preds.empty and "game_id" in preds.columns:
+                # Candidate columns already present
+                if {"home_team","away_team"}.issubset(preds.columns):
+                    cols = [c for c in ["game_id","home_team","away_team","date","start_time"] if c in preds.columns]
+                    synth_df = preds[cols].drop_duplicates("game_id")
+                    fallback_reason.append("preds_home_away_direct")
+                else:
+                    # Attempt reconstruction from team/opponent + home_away flag
+                    if {"team","opponent"}.issubset(preds.columns):
+                        ha_col = None
+                        for cand in ["home_away","homeaway","is_home"]:
+                            if cand in preds.columns:
+                                ha_col = cand
+                                break
+                        if ha_col:
+                            ha = preds[ha_col].astype(str).str.lower()
+                            home_mask = ha.isin(["home","h","1","true","t"])
+                            away_mask = ha.isin(["away","a","0","false","f"])
+                            home_side = preds[home_mask][[c for c in ["game_id","team"] if c in preds.columns]].rename(columns={"team":"home_team"})
+                            away_side = preds[away_mask][[c for c in ["game_id","team"] if c in preds.columns]].rename(columns={"team":"away_team"})
+                            if not home_side.empty and not away_side.empty:
+                                merged = home_side.merge(away_side, on="game_id", how="inner")
+                                if "date" in preds.columns:
+                                    merged = merged.merge(preds[["game_id","date"]].drop_duplicates(), on="game_id", how="left")
+                                synth_df = merged.drop_duplicates("game_id")
+                                fallback_reason.append("preds_reconstructed_home_away")
+                        # If still empty, last resort: pair team/opponent per row (may duplicate, but we dedupe game_id)
+                        if synth_df.empty:
+                            tmp = preds.copy()
+                            if {"team","opponent"}.issubset(tmp.columns):
+                                tmp = tmp.rename(columns={"team":"home_team","opponent":"away_team"})
+                                cols = [c for c in ["game_id","home_team","away_team","date","start_time"] if c in tmp.columns]
+                                synth_df = tmp[cols].drop_duplicates("game_id")
+                                fallback_reason.append("preds_team_opponent_pairing")
+        except Exception:
+            pass
+        # If predictions path failed, attempt odds-based synthesis
+        if synth_df.empty:
+            try:
+                if not odds.empty and {"game_id","home_team","away_team"}.issubset(odds.columns):
+                    cols = [c for c in ["game_id","home_team","away_team","date_line","commence_time"] if c in odds.columns]
+                    o2 = odds[cols].drop_duplicates("game_id")
+                    # Normalize date column name to "date"
+                    if "date_line" in o2.columns:
+                        o2 = o2.rename(columns={"date_line":"date"})
+                    if "commence_time" in o2.columns and "start_time" not in o2.columns:
+                        o2 = o2.rename(columns={"commence_time":"start_time"})
+                    synth_df = o2
+                    fallback_reason.append("odds_game_rows")
+            except Exception:
+                pass
+        # Constrain to requested date if a date column exists
+        if not synth_df.empty and date_q and "date" in synth_df.columns:
+            try:
+                synth_df["date"] = pd.to_datetime(synth_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                synth_df = synth_df[synth_df["date"].astype(str) == str(date_q)]
+            except Exception:
+                pass
+        if not synth_df.empty:
+            try:
+                synth_df["game_id"] = synth_df["game_id"].astype(str)
+            except Exception:
+                pass
+            games = synth_df.copy()
+            pipeline_stats["games_synthetic"] = len(games)
+            pipeline_stats["games_fallback_reason"] = fallback_reason
+            if results_note:
+                results_note += " | Synthetic schedule constructed (" + ",".join(fallback_reason) + ")"
+            else:
+                results_note = "Synthetic schedule constructed (" + ",".join(fallback_reason) + ")"
+        else:
+            pipeline_stats["games_synthetic"] = 0
+            if not fallback_reason:
+                pipeline_stats["games_fallback_reason"] = ["none_available"]
+            else:
+                pipeline_stats["games_fallback_reason"] = fallback_reason or ["attempted_no_rows"]
 
     # Merge predictions with game metadata
     if not daily_df.empty:
