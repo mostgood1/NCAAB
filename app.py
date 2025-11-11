@@ -1213,22 +1213,22 @@ def index():
             except Exception:
                 pass
 
-        # Coalesce any suffixed halftime columns into canonical names if daily_results introduced _x/_y during merges
-        # This ensures templates can rely on home_score_1h/away_score_1h and 2H counterparts.
+        # Coalesce halftime columns into canonical names even if base exists but is empty
+        # Prefer non-NaN across [base, base_x, base_y, base_m, base_bs, base_sec, base_ref, base_fused]
         for base in ["home_score_1h","away_score_1h","home_score_2h","away_score_2h"]:
-            if base not in df.columns:
-                # find candidates like base_x, base_y, base_m
-                cands = [c for c in df.columns if c.startswith(base + "_") or c == base]
-                if cands:
-                    vals = None
-                    for c in cands:
-                        try:
-                            s = pd.to_numeric(df[c], errors="coerce")
-                        except Exception:
-                            s = pd.Series(np.nan, index=df.index)
-                        vals = s if vals is None else vals.where(vals.notna(), s)
-                    if vals is not None:
-                        df[base] = vals
+            cands = [c for c in df.columns if c == base or c.startswith(base + "_")]
+            if cands:
+                vals = None
+                for c in [base] + [c for c in cands if c != base]:
+                    if c not in df.columns:
+                        continue
+                    try:
+                        s = pd.to_numeric(df[c], errors="coerce")
+                    except Exception:
+                        s = pd.Series(np.nan, index=df.index)
+                    vals = s if vals is None else vals.where(vals.notna(), s)
+                if vals is not None:
+                    df[base] = vals
     except Exception:
         pass
 

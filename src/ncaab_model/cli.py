@@ -738,30 +738,31 @@ def finalize_day(
                 print(f"[green]Applied scores override from[/green] {cand}")
     except Exception as e:
         print(f"[yellow]Overrides merge skipped[/yellow]: {e}")
-    # Derive half actuals if not present but full scores exist (always run; no dependency on overrides)
+    # Derive / coalesce half actuals: always attempt even if base columns exist but are NaN
     try:
         if {"home_score","away_score"}.issubset(games_df.columns):
             hs = pd.to_numeric(games_df["home_score"], errors="coerce")
             as_ = pd.to_numeric(games_df["away_score"], errors="coerce")
-            # Coalesce any suffixed half columns (from merges) to canonical names before derivation
+            # Coalesce suffixed half columns into canonical names even if canonical exists but is all NaN
             for base in ["home_score_1h","away_score_1h","home_score_2h","away_score_2h"]:
-                if base not in games_df.columns:
-                    cands = [c for c in games_df.columns if c.startswith(base + "_") or c == base]
-                    if cands:
-                        vals = None
-                        for c in cands:
-                            try:
-                                s = pd.to_numeric(games_df[c], errors="coerce")
-                            except Exception:
-                                s = pd.Series(np.nan, index=games_df.index)
-                            vals = s if vals is None else vals.where(vals.notna(), s)
-                        if vals is not None:
-                            games_df[base] = vals
+                cands = [c for c in games_df.columns if c == base or c.startswith(base + "_")]
+                if cands:
+                    vals = None
+                    # Order: base first then suffixed so existing non-NaN canonical values win
+                    for c in [base] + [c for c in cands if c != base]:
+                        if c not in games_df.columns: continue
+                        try:
+                            s = pd.to_numeric(games_df[c], errors="coerce")
+                        except Exception:
+                            s = pd.Series(np.nan, index=games_df.index)
+                        vals = s if vals is None else vals.where(vals.notna(), s)
+                    if vals is not None:
+                        games_df[base] = vals
             # Provide placeholders so downstream templates/API can rely on columns existing.
             for col in ["home_score_1h","away_score_1h","home_score_2h","away_score_2h","actual_total_1h","actual_total_2h"]:
                 if col not in games_df.columns:
                     games_df[col] = np.nan
-            # If we have 1H scores, compute 2H
+            # If we have 1H scores, compute 2H and actual totals for halves
             if {"home_score_1h","away_score_1h"}.issubset(games_df.columns):
                 h1 = pd.to_numeric(games_df["home_score_1h"], errors="coerce")
                 a1 = pd.to_numeric(games_df["away_score_1h"], errors="coerce")
@@ -771,6 +772,26 @@ def finalize_day(
                 games_df.loc[mask_half, "away_score_2h"] = as_[mask_half] - a1[mask_half]
                 games_df.loc[mask_half, "actual_total_1h"] = h1[mask_half] + a1[mask_half]
                 games_df.loc[mask_half, "actual_total_2h"] = games_df.loc[mask_half, "home_score_2h"] + games_df.loc[mask_half, "away_score_2h"]
+            # If 2H scores exist but 1H blank (edge-case), compute 1H = final - 2H
+            if {"home_score_2h","away_score_2h"}.issubset(games_df.columns):
+                h2 = pd.to_numeric(games_df["home_score_2h"], errors="coerce")
+                a2 = pd.to_numeric(games_df["away_score_2h"], errors="coerce")
+                mask_half2 = h2.notna() & a2.notna() & hs.notna() & as_.notna()
+                # Only fill where 1H is NaN
+                if "home_score_1h" in games_df.columns:
+                    mfill_h1 = mask_half2 & games_df["home_score_1h"].isna()
+                    games_df.loc[mfill_h1, "home_score_1h"] = hs[mfill_h1] - h2[mfill_h1]
+                if "away_score_1h" in games_df.columns:
+                    mfill_a1 = mask_half2 & games_df["away_score_1h"].isna()
+                    games_df.loc[mfill_a1, "away_score_1h"] = as_[mfill_a1] - a2[mfill_a1]
+                # Recompute actual totals where possible
+                if {"home_score_1h","away_score_1h"}.issubset(games_df.columns):
+                    h1b = pd.to_numeric(games_df["home_score_1h"], errors="coerce")
+                    a1b = pd.to_numeric(games_df["away_score_1h"], errors="coerce")
+                    mask_ht = h1b.notna() & a1b.notna()
+                    games_df.loc[mask_ht, "actual_total_1h"] = h1b[mask_ht] + a1b[mask_ht]
+                mask_ht2 = h2.notna() & a2.notna()
+                games_df.loc[mask_ht2, "actual_total_2h"] = h2[mask_ht2] + a2[mask_ht2]
     except Exception:
         pass
 
