@@ -2490,8 +2490,10 @@ def index():
     # 2. Re-check; if still missing all totals AND no spread or ML quotes, drop the row as it provides no actionable info.
     removed_empty_rows = 0
     try:
+        # Troubleshooting override: allow keeping rows even if both predictions and odds are missing
+        allow_empty = (request.args.get("show_empty") or "").strip().lower() in ("1","true","yes")
         needed_cols = {"pred_total", "market_total", "closing_total"}
-        if needed_cols.issubset(df_tpl.columns):
+        if needed_cols.issubset(df_tpl.columns) and not allow_empty:
             # Derive predictions where possible
             have_proj = {"proj_home", "proj_away"}.issubset(df_tpl.columns)
             if have_proj:
