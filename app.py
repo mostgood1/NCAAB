@@ -552,6 +552,95 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
             base_cols = [c for c in ["game_id","home_team","away_team","home_score","away_score","start_time","status","date"] if c in games.columns]
             df = games[base_cols].copy()
         meta["results_pending"] = True
+
+    # Odds-only fallback: if still empty but odds contain rows for the requested date, build a minimal slate from odds
+    try:
+        if df.empty and not odds.empty and date_str:
+            o = odds.copy()
+            # Filter odds to totals, full-game, and target date if possible
+            if "market" in o.columns:
+                o = o[o["market"].astype(str).str.lower() == "totals"]
+            if "period" in o.columns:
+                vals = o["period"].astype(str).str.lower()
+                o = o[vals.isin(["full_game","fg","full game","game","match"]) | vals.isna()]
+            # Date filter via commence_time/date_line if available
+            if "commence_time" in o.columns:
+                try:
+                    o["_commence_date"] = pd.to_datetime(o["commence_time"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    o = o[o["_commence_date"] == str(date_str)]
+                except Exception:
+                    pass
+            elif "date_line" in o.columns:
+                o = o[o["date_line"].astype(str) == str(date_str)]
+            if not o.empty:
+                # Prefer grouping by game_id when present, else by normalized team pair
+                grp_key = "game_id" if "game_id" in o.columns else None
+                rows: list[dict[str, Any]] = []
+                if grp_key:
+                    o["game_id"] = o["game_id"].astype(str)
+                    for gid, g in o.groupby("game_id"):
+                        r = {
+                            "game_id": str(gid),
+                            "home_team": g.get("home_team").dropna().astype(str).iloc[0] if "home_team" in g.columns and g["home_team"].notna().any() else None,
+                            "away_team": g.get("away_team").dropna().astype(str).iloc[0] if "away_team" in g.columns and g["away_team"].notna().any() else None,
+                            "start_time": None,
+                            "pred_total": None,
+                            "pred_margin": None,
+                            "market_total": pd.to_numeric(g.get("total"), errors="coerce").median() if "total" in g.columns else None,
+                            "date": str(date_str),
+                        }
+                        # earliest commence_time if available
+                        if "commence_time" in g.columns:
+                            try:
+                                t = pd.to_datetime(g["commence_time"], errors="coerce").min()
+                                r["start_time"] = t.strftime("%Y-%m-%d %H:%M") if pd.notna(t) else None
+                            except Exception:
+                                pass
+                        rows.append(r)
+                else:
+                    # group by normalized team pairs
+                    o["_home_norm"] = o.get("home_team", pd.Series(dtype=str)).astype(str).map(normalize_name) if "home_team" in o.columns else None
+                    o["_away_norm"] = o.get("away_team", pd.Series(dtype=str)).astype(str).map(normalize_name) if "away_team" in o.columns else None
+                    def _pair(row):
+                        h = row.get("_home_norm")
+                        a = row.get("_away_norm")
+                        return "::".join(sorted([str(h), str(a)])) if h and a else None
+                    try:
+                        o["_pair_key"] = o.apply(_pair, axis=1)
+                    except Exception:
+                        o["_pair_key"] = None
+                    o2 = o.dropna(subset=["_pair_key"]) if "_pair_key" in o.columns else pd.DataFrame()
+                    if not o2.empty:
+                        for pk, g in o2.groupby("_pair_key"):
+                            # reconstruct teams from first row; create surrogate game_id
+                            hn = g.get("_home_norm").dropna().astype(str).iloc[0] if "_home_norm" in g.columns and g["_home_norm"].notna().any() else None
+                            an = g.get("_away_norm").dropna().astype(str).iloc[0] if "_away_norm" in g.columns and g["_away_norm"].notna().any() else None
+                            ht = g.get("home_team").dropna().astype(str).iloc[0] if "home_team" in g.columns and g["home_team"].notna().any() else hn
+                            at = g.get("away_team").dropna().astype(str).iloc[0] if "away_team" in g.columns and g["away_team"].notna().any() else an
+                            gid = f"{date_str}:{an}:{hn}" if an and hn else f"{date_str}:{pk}"
+                            r = {
+                                "game_id": gid,
+                                "home_team": ht,
+                                "away_team": at,
+                                "start_time": None,
+                                "pred_total": None,
+                                "pred_margin": None,
+                                "market_total": pd.to_numeric(g.get("total"), errors="coerce").median() if "total" in g.columns else None,
+                                "date": str(date_str),
+                            }
+                            if "commence_time" in g.columns:
+                                try:
+                                    t = pd.to_datetime(g["commence_time"], errors="coerce").min()
+                                    r["start_time"] = t.strftime("%Y-%m-%d %H:%M") if pd.notna(t) else None
+                                except Exception:
+                                    pass
+                            rows.append(r)
+                if rows:
+                    df = pd.DataFrame(rows)
+                    results_note = f"Odds-only slate for {date_str} (no games/predictions available)"
+                    meta["results_pending"] = True
+    except Exception:
+        pass
     # Compute actual_total if scores present
     if {"home_score","away_score"}.issubset(df.columns):
         try:
@@ -648,7 +737,25 @@ def index():
                 has_live = st.str.contains("in").any() | st.str.contains("live").any()
         except Exception:
             pass
-        if has_today or has_live:
+        # Consider odds presence as a signal that today has a slate even if games/preds are missing
+        has_today_odds = False
+        try:
+            if not odds.empty:
+                # commence_time preferred
+                if "commence_time" in odds.columns:
+                    ct = pd.to_datetime(odds["commence_time"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    has_today_odds = (ct == today_str).any()
+                # fallback to date_line or _day_diff markers
+                if not has_today_odds and "date_line" in odds.columns:
+                    has_today_odds = (odds["date_line"].astype(str) == today_str).any()
+                if not has_today_odds and "_day_diff" in odds.columns:
+                    try:
+                        has_today_odds = (pd.to_numeric(odds["_day_diff"], errors="coerce") == 0).any()
+                    except Exception:
+                        pass
+        except Exception:
+            has_today_odds = False
+        if has_today or has_live or has_today_odds:
             date_q = today_str
         else:
             # Fallback to latest date seen in predictions or games
