@@ -29,6 +29,15 @@
       <button type="submit" class="pill">Apply</button>
       {% if date_val %}<a class="pill" href="/">Clear</a>{% endif %}
       {% if date_val %}<button type="button" class="pill" id="btnFinalize" data-date="{{ date_val }}">Finalize Results</button>{% endif %}
+      {% if show_bootstrap %}
+        <a class="pill accent" href="{{ bootstrap_url }}" title="Run minimal pipeline to generate today's games and predictions">Generate Today's Predictions</a>
+      {% endif %}
+      {% if show_diag %}
+        <a class="pill warn" href="{{ diag_url }}" title="Live fetch ESPN+NCAA to compare counts">Schedule Diagnostics</a>
+        {% if fused_bootstrap_url %}
+          <a class="pill accent" href="{{ fused_bootstrap_url }}" title="Fetch both providers (cache bypass) and rebuild slate">Fused Bootstrap</a>
+        {% endif %}
+      {% endif %}
     </form>
     <div class="meta">{{ total_rows }} rows{% if date_val %} ({{ date_val }}){% endif %}
       {% if coverage %}

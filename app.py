@@ -11,6 +11,7 @@ from flask import send_file
 import pandas as pd
 import datetime as dt
 import numpy as np
+from zoneinfo import ZoneInfo
 
 # Ensure src/ is importable
 import sys
@@ -22,11 +23,13 @@ if str(SRC) not in sys.path:
 from ncaab_model.config import settings  # type: ignore
 from ncaab_model.data.merge_odds import normalize_name  # type: ignore
 try:
-    # Import CLI finalize to reuse logic via API
+    # Import CLI routines we can safely invoke programmatically
     from ncaab_model.cli import finalize_day as cli_finalize_day  # type: ignore
+    from ncaab_model.cli import daily_run as cli_daily_run  # type: ignore
     import typer  # type: ignore
 except Exception:
     cli_finalize_day = None  # type: ignore
+    cli_daily_run = None  # type: ignore
     typer = None  # type: ignore
 
 app = Flask(__name__)
@@ -59,6 +62,20 @@ def _load_eval_metrics() -> dict[str, Any]:
     return out
 
 OUT = settings.outputs_dir
+
+
+def _today_local() -> dt.date:
+    """Return 'today' in the configured schedule timezone (defaults America/New_York).
+
+    Render dynos run UTC; college basketball slates are anchored to US/Eastern. Without
+    this adjustment early-morning UTC can cause us to still see yesterday's date and undercount games.
+    """
+    tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
+    try:
+        tz = ZoneInfo(tz_name)
+        return dt.datetime.now(tz).date()
+    except Exception:
+        return dt.date.today()
 
 
 def _safe_read_csv(p: Path) -> pd.DataFrame:
@@ -246,7 +263,7 @@ def _load_odds_joined(date_str: str | None = None) -> pd.DataFrame:
     candidate_files: list[Path] = []
     # If viewing a past date, try date-specific odds joins first
     try:
-        today_str = dt.date.today().strftime("%Y-%m-%d")
+        today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
     if date_str and today_str and date_str != today_str:
@@ -525,7 +542,7 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
         is_past = False
         try:
             if date_str:
-                is_past = dt.date.fromisoformat(date_str) < dt.date.today()
+                is_past = dt.date.fromisoformat(date_str) < _today_local()
         except Exception:
             is_past = False
         if force_use_daily or has_scores or has_preds or is_past:
@@ -699,7 +716,7 @@ def index():
 
     # Define today string once for consistent downstream comparisons
     try:
-        today_str = dt.date.today().strftime("%Y-%m-%d")
+        today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
 
@@ -726,7 +743,7 @@ def index():
 
     # If no date provided, prefer today if there are any games for today or any in-progress/live games
     if not date_q:
-        today_str = dt.date.today().strftime("%Y-%m-%d")
+        today_str = _today_local().strftime("%Y-%m-%d")
         has_today = False
         has_live = False
         try:
@@ -800,7 +817,7 @@ def index():
             # If targeting today but no rows due to timezone skew, fallback to any live rows regardless of date
             if filtered.empty:
                 try:
-                    today_str = dt.date.today().strftime("%Y-%m-%d")
+                    today_str = _today_local().strftime("%Y-%m-%d")
                     st = games_all.get("status")
                     if st is not None:
                         stl = st.astype(str).str.lower()
@@ -858,7 +875,7 @@ def index():
                 date_obj = None
             if not has_scores and not has_preds and not force_use_daily:
                 # Relax discard: if the date is in the past retain placeholder rows so user can see slate even without preds/scores.
-                if date_obj and date_obj < dt.date.today():
+                if date_obj and date_obj < _today_local():
                     daily_used = True
                     results_note = f"No scores/preds captured for {date_q}; retaining placeholder daily slate."  # past date placeholder
                 else:
@@ -881,7 +898,7 @@ def index():
             date_obj = dt.date.fromisoformat(date_q) if date_q else None
         except Exception:
             date_obj = None
-        if date_obj and date_obj < dt.date.today():
+        if date_obj and date_obj < _today_local():
             try:
                 master_path = OUT / "games_all.csv"
                 if master_path.exists() and "game_id" in df.columns:
@@ -2466,6 +2483,28 @@ def index():
     except Exception:
         archive_dates = []
 
+    # Optional bootstrap/diagnostics hints when today's slate looks underpopulated
+    show_bootstrap = False
+    bootstrap_url = None
+    fused_bootstrap_url = None
+    show_diag = False
+    diag_url = None
+    try:
+        tstr = _today_local().strftime("%Y-%m-%d")
+        sel_is_today = (str(date_q) == tstr)
+        has_pred_col = ("pred_total" in df.columns)
+        has_any_preds = bool(has_pred_col and pd.to_numeric(df.get("pred_total"), errors="coerce").notna().any())
+        show_bootstrap = bool(sel_is_today and (total_rows == 0 or not has_any_preds))
+        if show_bootstrap:
+            bootstrap_url = f"/api/bootstrap?date={str(date_q or tstr)}&provider=espn&force=1"
+        # If very few rows on today, surface diagnostics and fused bootstrap
+        if sel_is_today and (total_rows < 20):
+            show_diag = True
+            diag_url = f"/api/schedule-diagnostics?date={tstr}&refresh=1"
+            fused_bootstrap_url = f"/api/bootstrap?date={tstr}&provider=fused&force=1&refresh=1"
+    except Exception:
+        show_bootstrap = False
+
     return render_template(
         "index.html",
         rows=rows,
@@ -2480,6 +2519,11 @@ def index():
         show_edges=True,
         coverage=coverage_summary,
         archive_dates=archive_dates,
+        show_bootstrap=show_bootstrap,
+        bootstrap_url=bootstrap_url,
+        show_diag=show_diag,
+        diag_url=diag_url,
+        fused_bootstrap_url=fused_bootstrap_url,
     )
 
 
@@ -2589,6 +2633,156 @@ def api_health():
     except Exception as e:
         logger.exception("/api/health failure")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/bootstrap", methods=["POST", "GET"])
+def api_bootstrap():
+    """On-demand bootstrap to populate today's (or requested) games, features & predictions.
+
+    Query/JSON params:
+      - date: YYYY-MM-DD (optional; defaults to today)
+      - provider: espn|ncaa|fused (optional; default espn)
+      - force: if '1' or true, run even if predictions already exist for date
+
+    Returns JSON with counts and any warnings. Safe to call multiple times; will skip heavy work if data present.
+    """
+    if cli_daily_run is None:
+        return jsonify({"status": "error", "message": "daily_run not importable in this environment"}), 500
+    date_param = (request.args.get("date") or (request.json.get("date") if request.is_json else None) or "").strip()
+    provider_param = (request.args.get("provider") or (request.json.get("provider") if request.is_json else None) or "espn").strip().lower()
+    force_param = (request.args.get("force") or (request.json.get("force") if request.is_json else None) or "").strip().lower() in ("1","true","yes","force")
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    # use_cache override (refresh) param
+    use_cache_param = (request.args.get("use_cache") or (request.json.get("use_cache") if request.is_json else None) or "").strip().lower()
+    refresh_param = (request.args.get("refresh") or (request.json.get("refresh") if request.is_json else None) or "").strip().lower()
+    # Interpret: if use_cache in ['0','false','no'] OR refresh=1 => disable cache
+    disable_cache = use_cache_param in ("0","false","no") or refresh_param in ("1","true","yes")
+    target_date = date_param or today_str
+    if not target_date:
+        return jsonify({"status": "error", "message": "Unable to resolve target date"}), 400
+
+    # If predictions already exist for this date and not forced, short-circuit
+    existing_preds = _load_predictions_current()
+    already = False
+    pred_rows_for_date = 0
+    if not existing_preds.empty and "date" in existing_preds.columns:
+        try:
+            existing_preds["date"] = pd.to_datetime(existing_preds["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+        pred_rows_for_date = int((existing_preds["date"].astype(str) == target_date).sum())
+        already = pred_rows_for_date > 0
+    if already and not force_param:
+        return jsonify({
+            "status": "ok",
+            "message": f"Predictions already present for {target_date}; skipping bootstrap (use force=1 to override)",
+            "date": target_date,
+            "pred_rows": pred_rows_for_date,
+            "skipped": True,
+        }), 200
+
+    # Execute daily_run pipeline minimally (avoid retraining / heavy operations on server)
+    logs: list[str] = []
+    try:
+        # Wrap prints by temporarily redirecting stdout if desired; here we just call and rely on server logs
+        cli_daily_run(
+            date=target_date,
+            season=dt.date.fromisoformat(target_date).year,
+            region="us",
+            provider=provider_param,
+            threshold=2.0,
+            default_price=-110.0,
+            retrain=False,
+            segment="none",
+            conf_map=None,
+            use_cache=(not disable_cache),
+            preseason_weight=0.0,
+            preseason_only_sparse=True,
+            apply_guardrails=True,
+            half_ratio=0.485,
+            auto_train_halves=False,
+            halves_models_dir=OUT / "models_halves",
+            enable_ort=False,
+            accumulate_schedule=True,
+            accumulate_predictions=True,
+        )
+    except Exception as e:
+        logger.exception("Bootstrap daily_run failed")
+        return jsonify({"status": "error", "message": f"daily_run failed: {e}"}), 500
+
+    # Reload artifacts to report counts
+    games_after = _safe_read_csv(OUT / "games_curr.csv")
+    preds_after = _load_predictions_current()
+    if "date" in preds_after.columns:
+        try:
+            preds_after["date"] = pd.to_datetime(preds_after["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    pred_rows_after = int(preds_after[preds_after.get("date","") == target_date].shape[0]) if not preds_after.empty and "date" in preds_after.columns else 0
+    game_rows_after = int(games_after[games_after.get("date","") == target_date].shape[0]) if not games_after.empty and "date" in games_after.columns else len(games_after)
+
+    return jsonify({
+        "status": "ok",
+        "message": f"Bootstrap complete for {target_date}",
+        "date": target_date,
+        "pred_rows": pred_rows_after,
+        "game_rows": game_rows_after,
+        "provider": provider_param,
+        "forced": force_param,
+        "cache_used": not disable_cache,
+    }), 200
+
+
+@app.route("/api/schedule-diagnostics")
+def api_schedule_diagnostics():
+    """Fetch today's (or requested date) games from ESPN + NCAA live (cache bypass optional) and report counts.
+
+    Params:
+      - date: YYYY-MM-DD (default today)
+      - refresh=1 to bypass adapter cache
+    Returns JSON with counts and sample team lists to help diagnose under-coverage.
+    Does not write any output files.
+    """
+    date_param = (request.args.get("date") or "").strip()
+    refresh = (request.args.get("refresh") or "").strip().lower() in ("1","true","yes")
+    try:
+        target_date = dt.date.fromisoformat(date_param) if date_param else _today_local()
+    except Exception:
+        return jsonify({"status": "error", "message": f"Invalid date: {date_param}"}), 400
+    # Import adapters locally to avoid global import errors
+    try:
+        from ncaab_model.data.adapters.espn_scoreboard import _fetch_day as _espn_fetch, _parse_games as _espn_parse  # type: ignore
+        from ncaab_model.data.adapters.ncaa_scoreboard import _fetch_scoreboard as _ncaa_fetch, _parse_games as _ncaa_parse  # type: ignore
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Adapter import failed: {e}"}), 500
+    # Fetch raw payloads (optionally bypass cache)
+    espn_payload = _espn_fetch(target_date, use_cache=not refresh)
+    ncaa_payload = _ncaa_fetch(target_date, use_cache=not refresh)
+    espn_games = _espn_parse(target_date, espn_payload) if espn_payload else []
+    ncaa_games = _ncaa_parse(target_date, ncaa_payload) if ncaa_payload else []
+    # Build fused keys (normalized simple lower-case names)
+    def _norm(t: str | None) -> str | None:
+        if not t:
+            return None
+        return "".join(ch for ch in t.lower() if ch.isalnum() or ch in (" ","-"))
+    espn_set = {(_norm(g.home_team), _norm(g.away_team)) for g in espn_games}
+    ncaa_set = {(_norm(g.home_team), _norm(g.away_team)) for g in ncaa_games}
+    fused = espn_set | ncaa_set
+    missing_from_espn = sorted(list(ncaa_set - espn_set))
+    missing_from_ncaa = sorted(list(espn_set - ncaa_set))
+    return jsonify({
+        "status": "ok",
+        "date": target_date.isoformat(),
+        "refresh": refresh,
+        "espn_count": len(espn_games),
+        "ncaa_count": len(ncaa_games),
+        "fused_unique_matchups": len(fused),
+        "missing_from_espn": missing_from_espn[:25],
+        "missing_from_ncaa": missing_from_ncaa[:25],
+    }), 200
 
 
 @app.route("/recommendations")
