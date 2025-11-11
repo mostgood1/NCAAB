@@ -330,6 +330,13 @@ def _aggregate_full_game_totals(odds: pd.DataFrame) -> pd.DataFrame:
         o["game_id"] = o["game_id"].astype(str)
     except Exception:
         pass
+    # Drop rows with missing/placeholder game_id to avoid spurious 'nan' entries
+    try:
+        bad_keys = {"nan", "none", "", "null"}
+        mask_bad = o["game_id"].astype(str).str.strip().str.lower().isin(bad_keys)
+        o = o[~mask_bad]
+    except Exception:
+        pass
     # Filter to totals + full game periods
     if "market" in o.columns:
         o = o[o["market"].astype(str).str.lower() == "totals"]
@@ -552,6 +559,13 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
                 df_["date"] = pd.to_datetime(df_["date"], errors="coerce").dt.strftime("%Y-%m-%d")
             except Exception:
                 pass
+    # Ensure game_id is consistently string-typed across inputs to avoid merge dtype conflicts
+    for df_ in (games, preds):
+        try:
+            if not df_.empty and "game_id" in df_.columns:
+                df_["game_id"] = df_["game_id"].astype(str)
+        except Exception:
+            pass
     # Filter to date
     if date_str:
         if "date" in games.columns:
@@ -594,6 +608,9 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
             if not games.empty and "game_id" in preds.columns and "game_id" in games.columns:
                 try:
                     preds["game_id"] = preds["game_id"].astype(str)
+                except Exception:
+                    pass
+                try:
                     games["game_id"] = games["game_id"].astype(str)
                 except Exception:
                     pass
