@@ -5,6 +5,7 @@ from typing import Any
 import json
 import os
 import datetime as dt
+from zoneinfo import ZoneInfo
 import platform
 import struct
 import numpy as np
@@ -39,6 +40,21 @@ from .train.calibration import build_z_recenter_artifact, save_artifact, load_ar
 from .store.sqlite import connect as sqlite_connect, ingest_csv as sqlite_ingest
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
+
+
+def _today_local() -> dt.date:
+    """Return 'today' in the configured schedule timezone (defaults America/New_York).
+
+    Render dynos run UTC; college basketball slates are anchored to US/Eastern. Using
+    UTC early morning (00:00-04:59 UTC) can still reference the previous US date and
+    undercount games. This helper mirrors the Flask app's _today_local logic.
+    """
+    tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
+    try:
+        tz = ZoneInfo(tz_name)
+        return dt.datetime.now(tz).date()
+    except Exception:
+        return dt.date.today()
 
 @app.command(name="seed-priors")
 def seed_priors(
@@ -1101,7 +1117,7 @@ def daily_results(
       - ATS: full game + 1H (home_spread vs actual margin, push handling)
       - ML: full game (model margin -> probability vs moneyline implied; Brier/logloss)
     """
-    target = dt.date.fromisoformat(date) if date else (dt.date.today() - dt.timedelta(days=1))
+    target = dt.date.fromisoformat(date) if date else (_today_local() - dt.timedelta(days=1))
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Load games and filter to date
@@ -2462,7 +2478,7 @@ def probe_odds_events(
 
 @app.command(name="odds-snapshot")
 def odds_snapshot(
-    date: str = typer.Option(dt.date.today().isoformat(), help="Target date YYYY-MM-DD for odds snapshot (optional)"),
+    date: str = typer.Option(_today_local().isoformat(), help="Target date YYYY-MM-DD for odds snapshot (optional)"),
     region: str = typer.Option("us", help="Region for odds (e.g., us, uk, eu)"),
     markets: str = typer.Option("h2h,spreads,totals,spreads_1st_half,totals_1st_half", help="Markets to request"),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory to store timestamped snapshots"),
@@ -2490,7 +2506,7 @@ def odds_snapshot(
 
 @app.command(name="snapshot-loop")
 def snapshot_loop(
-    date: str = typer.Option(dt.date.today().isoformat(), help="Target date YYYY-MM-DD for odds snapshot"),
+    date: str = typer.Option(_today_local().isoformat(), help="Target date YYYY-MM-DD for odds snapshot"),
     regions: str = typer.Option("us", help="Comma-separated regions (e.g., us,uk)"),
     markets: str = typer.Option("h2h,spreads,totals,spreads_1st_half,totals_1st_half", help="Markets to request"),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory to store timestamped snapshots"),
@@ -5311,7 +5327,7 @@ def daily_run(
     accumulate_predictions: bool = typer.Option(True, help="Append today's predictions into predictions_all.csv (dedupe by game_id, keep latest)"),
 ):
     """End-to-end daily pipeline: fetch games and odds for a date, build features, predict, make picks, ingest to SQLite."""
-    target_date = dt.date.fromisoformat(date) if date else dt.date.today()
+    target_date = dt.date.fromisoformat(date) if date else _today_local()
 
     # 1) Fetch games for the target date -> games_curr.csv (with optional fused provider)
     prov = provider.lower()
