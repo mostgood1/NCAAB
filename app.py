@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from flask import Flask, render_template, jsonify, request
+import logging
 from flask import send_file
 import pandas as pd
 import datetime as dt
@@ -29,6 +30,9 @@ except Exception:
     typer = None  # type: ignore
 
 app = Flask(__name__)
+# Basic logging setup (Render captures stdout/stderr)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ncaab_app")
 def _load_eval_metrics() -> dict[str, Any]:
     out: dict[str, Any] = {}
     # Calibration metrics
@@ -613,6 +617,7 @@ def index():
     games = _load_games_current()
     preds = _load_predictions_current()
     odds = _load_odds_joined(date_q)
+    logger.info("Index request start date=%s games_cols=%s preds_cols=%s odds_cols=%s", date_q, list(games.columns), list(preds.columns), list(odds.columns))
     # Initialize coverage summary; will refine after merges to reflect coalesced closing lines
     coverage_summary = {"full": 0, "partial": 0, "none": 0}
     edges = _load_edges()
@@ -914,12 +919,25 @@ def index():
         except Exception:
             pass
 
-    # Ensure game_id is consistently string before odds merge
+    # Ensure game_id present: if missing attempt deterministic construction (only when teams available)
+    if "game_id" not in df.columns:
+        home_col = next((c for c in ["home_team","home"] if c in df.columns), None)
+        away_col = next((c for c in ["away_team","away"] if c in df.columns), None)
+        if home_col and away_col:
+            try:
+                # Build surrogate id: date + normalized team names
+                date_part = (df.get("date") or pd.Series([date_q]*len(df))).astype(str)
+                home_norm = df[home_col].astype(str).map(normalize_name)
+                away_norm = df[away_col].astype(str).map(normalize_name)
+                df["game_id"] = [f"{d}:{a}:{h}" for d,a,h in zip(date_part, away_norm, home_norm)]
+                logger.warning("Constructed surrogate game_id for %d rows (date/team based)", len(df))
+            except Exception:
+                logger.exception("Failed to construct surrogate game_id")
     if "game_id" in df.columns:
         try:
             df["game_id"] = df["game_id"].astype(str)
         except Exception:
-            pass
+            logger.warning("Could not cast game_id to string")
 
     # Coalesce start_time from games merge (start_time_g) if primary start_time is missing/blank
     try:
@@ -1002,7 +1020,10 @@ def index():
                         .rename(columns={"total": "_market_total_from_odds"})
                 )
                 if not line_by_game.empty:
-                    df = df.merge(line_by_game, on="game_id", how="left")
+                    if "game_id" in df.columns:
+                        df = df.merge(line_by_game, on="game_id", how="left")
+                    else:
+                        logger.warning("Skipping odds total merge: df missing game_id column")
                     # Coalesce per-row to fill missing market_total
                     if "market_total" in df.columns:
                         try:
@@ -1047,9 +1068,9 @@ def index():
                         start_map[str(gid)] = t.strftime("%Y-%m-%d %H:%M")
                     except Exception:
                         pass
-            if odds_map:
+            if odds_map and "game_id" in df.columns:
                 df["_odds_list"] = df["game_id"].map(lambda x: odds_map.get(str(x), []))
-            if start_map:
+            if start_map and "game_id" in df.columns:
                 # Only fill missing start_time from odds commence_time; don't overwrite existing game times
                 mapped = df["game_id"].map(lambda x: start_map.get(str(x)))
                 if "start_time" in df.columns:
@@ -1152,8 +1173,11 @@ def index():
         if ("market_total" not in df.columns or df["market_total"].isna().all()) and "total" in df.columns and "_market_total_from_odds" not in df.columns:
             try:
                 # If totals aggregated missing, compute median from raw total column.
-                df["_market_total_from_odds"] = df.groupby("game_id")["total"].transform(lambda s: pd.to_numeric(s, errors="coerce").median())
-                df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_from_odds"]) if "market_total" in df.columns else df["_market_total_from_odds"]
+                if "game_id" in df.columns:
+                    df["_market_total_from_odds"] = df.groupby("game_id")["total"].transform(lambda s: pd.to_numeric(s, errors="coerce").median())
+                    df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_from_odds"]) if "market_total" in df.columns else df["_market_total_from_odds"]
+                else:
+                    logger.warning("Skipping transform for market_total: df missing game_id column")
             except Exception:
                 pass
     except Exception:
@@ -1178,7 +1202,10 @@ def index():
                     # Convert Series to DataFrame with explicit key for merge
                     if isinstance(srs, pd.Series):
                         srs = srs.reset_index()  # columns: ["game_id", <named_col>]
-                    df = df.merge(srs, on="game_id", how="left")
+                    if "game_id" in df.columns:
+                        df = df.merge(srs, on="game_id", how="left")
+                    else:
+                        logger.warning("Skipping spread/ML merge: df missing game_id column")
 
             # 1H totals median
             def _agg_market_period(market: str, val_col: str, period_keys: set[str], out_col: str) -> pd.Series | None:
@@ -1197,7 +1224,10 @@ def index():
                 if srs is not None and not srs.empty:
                     if isinstance(srs, pd.Series):
                         srs = srs.reset_index()
-                    df = df.merge(srs, on="game_id", how="left")
+                    if "game_id" in df.columns:
+                        df = df.merge(srs, on="game_id", how="left")
+                    else:
+                        logger.warning("Skipping half-line merge: df missing game_id column")
 
             # Fallback: derive half spreads from full-game spread if provider 1H/2H spreads missing
             try:
@@ -2335,6 +2365,32 @@ def api_data_status():
     if acc is not None:
         st["accuracy_summary"] = acc
     return jsonify(st)
+
+@app.route("/api/health")
+def api_health():
+    """Health/status endpoint for deployment diagnostics."""
+    try:
+        out_dir = OUT
+        daily_dir = out_dir / "daily_results"
+        games_files = [p.name for p in out_dir.glob("games*.csv")]
+        odds_files = [p.name for p in out_dir.glob("odds*.csv")]
+        preds_files = [p.name for p in out_dir.glob("predictions*.csv")]
+        stake_files = [p.name for p in out_dir.glob("stake_sheet*.csv")]
+        daily_results = sorted(daily_dir.glob("results_*.csv")) if daily_dir.exists() else []
+        recent_results = [p.stem.split("_")[1] for p in daily_results[-7:]] if daily_results else []
+        payload = {
+            "status": "ok",
+            "games_files": games_files,
+            "odds_files": odds_files,
+            "predictions_files": preds_files,
+            "stake_files": stake_files,
+            "daily_results_count": len(daily_results),
+            "recent_result_dates": recent_results,
+        }
+        return jsonify(payload), 200
+    except Exception as e:
+        logger.exception("/api/health failure")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/recommendations")
