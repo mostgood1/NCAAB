@@ -86,8 +86,10 @@
               </div>
             </div>
             <div class="meta-row">
-              {% set st = r.start_time if (r.start_time is defined) else None %}
-              {% if st %}<span class="pill time-local" data-iso="{{ st }}">{{ st }}</span>{% endif %}
+              {# Prefer server-provided ISO-UTC for stable JS conversion; fallback to raw start_time #}
+              {% set iso = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined) else None)) %}
+              {% set disp = (r.start_time_local if (r.start_time_local is defined and r.start_time_local) else (r.start_time if (r.start_time is defined) else (r.start_time_iso if (r.start_time_iso is defined) else None))) %}
+              {% if iso or disp %}<span class="pill time-local" data-iso="{{ iso or '' }}">{{ disp or '' }}</span>{% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
               {% if venue %}<span class="pill venue">{{ venue }}{% if r.city and r.state %} – {{ r.city }}, {{ r.state }}{% elif r.city %} – {{ r.city }}{% endif %}</span>{% endif %}
               {% if r.neutral_site %}<span class="pill neutral">Neutral Site</span>{% endif %}
@@ -374,12 +376,13 @@
         if(tx){ name.style.color = tx; }
       }
     });
-    // Render start times in the user's local timezone with short TZ label
+    // Render start times in the user's local timezone with short TZ label (avoid UTC)
     try {
       var fmt = new Intl.DateTimeFormat(undefined, {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', timeZoneName:'short'});
       document.querySelectorAll('.time-local').forEach(function(el){
         var iso = el.getAttribute('data-iso');
         if(!iso) return;
+        // Normalize Z suffix (server provides UTC ISO); if no timezone, Date() treats as local in many browsers but inconsistently
         var d = new Date(iso);
         if(isNaN(d)) return;
         el.textContent = fmt.format(d);
