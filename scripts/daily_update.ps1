@@ -14,7 +14,9 @@ param(
   [switch]$NoCache,
   [switch]$SkipRetrain,
   [switch]$SkipFinalizePrev,
-  [switch]$SkipStakeSheets
+  [switch]$SkipStakeSheets,
+  [switch]$SkipGitPush,
+  [string]$GitCommitMessage
 )
 
 $ErrorActionPreference = 'Stop'
@@ -182,6 +184,36 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
   } else {
     Write-Host "SkipStakeSheets flag set; skipping stake sheet generation." -ForegroundColor Yellow
   }
+
+    if (-not $SkipGitPush) {
+      Write-Section "11) Commit and push updated data files"
+      # Add a small, curated set of whitelisted artifacts per .gitignore
+      $toStage = @()
+      $resPath = Join-Path $OutDir ("daily_results/results_" + $prevDate + ".csv")
+      if (Test-Path $resPath) { $toStage += $resPath }
+      $gwl = Join-Path $OutDir 'games_with_last.csv'
+      if (Test-Path $gwl) { $toStage += $gwl }
+      $gwc = Join-Path $OutDir 'games_with_closing.csv'
+      if (Test-Path $gwc) { $toStage += $gwc }
+      $pri = Join-Path $OutDir 'priors.csv'
+      if (Test-Path $pri) { $toStage += $pri }
+
+      if ($toStage.Count -gt 0) {
+        foreach ($p in $toStage) { git add $p }
+        $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data): update results and odds for $prevDate (today $todayIso)" }
+        $status = git status --porcelain
+        if ($status) {
+          git commit -m $msg
+          git push
+        }
+        else {
+          Write-Host "No data changes to commit." -ForegroundColor Yellow
+        }
+      }
+      else {
+        Write-Host "No whitelisted data artifacts found to stage." -ForegroundColor Yellow
+      }
+    }
 
   Write-Section 'DONE'
   $elapsed = (Get-Date) - $script:StartTime
