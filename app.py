@@ -282,16 +282,28 @@ def _load_odds_joined(date_str: str | None = None) -> pd.DataFrame:
                     candidate_files.append(p)
         except Exception:
             pass
-    # Today-first candidates
-    for base in (
-        "games_with_odds_today_edges.csv",
-        "merged_odds_predictions_today.csv",
-        "games_with_odds_today.csv",
-    ):
-        candidate_files.append(OUT / base)
-    # Historical baseline joins
-    for base in ("games_with_last.csv", "games_with_closing.csv"):
-        candidate_files.append(OUT / base)
+    # Prefer different priority depending on whether date_str targets today or a past/future date
+    if date_str and today_str and date_str != today_str:
+        # Past/future date: prefer historical baseline joins before considering today's temp files
+        for base in ("games_with_last.csv", "games_with_closing.csv"):
+            candidate_files.append(OUT / base)
+        # Only consider today's temp joins as a last resort (may not intersect the requested date)
+        for base in (
+            "games_with_odds_today_edges.csv",
+            "merged_odds_predictions_today.csv",
+            "games_with_odds_today.csv",
+        ):
+            candidate_files.append(OUT / base)
+    else:
+        # Today or unspecified date: try today's temp joins first, then historical baselines
+        for base in (
+            "games_with_odds_today_edges.csv",
+            "merged_odds_predictions_today.csv",
+            "games_with_odds_today.csv",
+        ):
+            candidate_files.append(OUT / base)
+        for base in ("games_with_last.csv", "games_with_closing.csv"):
+            candidate_files.append(OUT / base)
     for path in candidate_files:
         df = _safe_read_csv(path)
         if not df.empty:
