@@ -662,6 +662,24 @@ def index():
                     date_q = pd.to_datetime(games["date"]).max().strftime("%Y-%m-%d")
                 except Exception:
                     date_q = (games["date"].dropna().astype(str).max())
+            else:
+                # As a last resort (e.g., on Render with no games/preds), use the latest daily_results date if present
+                try:
+                    dr_dir = OUT / "daily_results"
+                    if dr_dir.exists():
+                        dates: list[str] = []
+                        for p in dr_dir.glob("results_*.csv"):
+                            stem = p.stem
+                            if stem.startswith("results_"):
+                                dates.append(stem.replace("results_", ""))
+                        if dates:
+                            # Pick max date string safely
+                            try:
+                                date_q = pd.to_datetime(pd.Series(dates)).max().strftime("%Y-%m-%d")
+                            except Exception:
+                                date_q = sorted(dates)[-1]
+                except Exception:
+                    pass
 
     # Apply date filter (prefer to filter predictions if they carry date; else games)
     # Keep originals for fallback when showing live/today slates
