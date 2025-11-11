@@ -144,11 +144,44 @@ def _safe_read_csv(p: Path) -> pd.DataFrame:
 
 
 def _load_predictions_current() -> pd.DataFrame:
-    # Prefer current-week predictions; fallback to predictions.csv/predictions_all.csv
-    for name in ("predictions_week.csv", "predictions.csv", "predictions_all.csv"):
-        df = _safe_read_csv(OUT / name)
-        if not df.empty:
-            return df
+    """Load predictions from common files with environment override and flexible fallbacks.
+
+    Priority:
+      1) NCAAB_PREDICTIONS_FILE (absolute or relative to OUT)
+      2) OUT/predictions_week.csv
+      3) OUT/predictions.csv
+      4) OUT/predictions_all.csv
+      5) OUT/predictions_last2.csv
+      6) First non-empty OUT/predictions_*.csv (largest by rows)
+    """
+    # Environment override
+    env_path = (os.getenv("NCAAB_PREDICTIONS_FILE") or "").strip()
+    candidates: list[Path] = []
+    if env_path:
+        p = Path(env_path)
+        if not p.is_absolute():
+            p = OUT / env_path
+        candidates.append(p)
+    for name in ("predictions_week.csv", "predictions.csv", "predictions_all.csv", "predictions_last2.csv"):
+        candidates.append(OUT / name)
+    # Add glob matches as last resort
+    try:
+        globbed = list(OUT.glob("predictions_*.csv"))
+        # Sort by file size (approx rows) descending to pick likely richer file
+        globbed = sorted(globbed, key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)
+        candidates += [p for p in globbed if p not in candidates]
+    except Exception:
+        pass
+    for p in candidates:
+        try:
+            if p.exists():
+                df = pd.read_csv(p)
+                if not df.empty:
+                    logger.info("Loaded predictions from: %s (rows=%s)", str(p), len(df))
+                    return df
+        except Exception:
+            continue
+    logger.warning("No predictions file found in %s; proceeding without predictions", str(OUT))
     return pd.DataFrame()
 
 
