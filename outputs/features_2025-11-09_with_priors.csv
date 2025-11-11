@@ -1,0 +1,35 @@
+game_id,date,home_team,away_team,home_pf5,home_pa5,home_tot5,away_pf5,away_pa5,away_tot5,home_pf15,home_pa15,home_tot15,away_pf15,away_pa15,away_tot15,target_1h_total,rest_home,rest_away,b2b_home,b2b_away,neutral_site,home_efg5,home_tov_rate5,home_orb_rate5,home_ftr5,home_poss5,away_efg5,away_tov_rate5,away_orb_rate5,away_ftr5,away_poss5,home_rating_margin,away_rating_margin,rating_margin_diff,home_off_rating,away_off_rating,off_rating_diff,home_def_rating,away_def_rating,def_rating_diff,home_tempo_rating,away_tempo_rating,tempo_rating_sum,target_total,target_margin
+401812600,2025-11-09,Harvard Crimson,New Hampshire Wildcats,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,2.990867272951843,2.0316660158665267,0.9592012570853163,,,,,,,,,,0,0
+401828296,2025-11-09,Campbell Fighting Camels,Western Michigan Broncos,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,2.6188785506055208,-2.108046617520114,4.726925168125635,,,,,,,,,,0,0
+401826732,2025-11-09,App State Mountaineers,North Carolina Central Eagles,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,,2.313577715147629,,,,,,,,,,,0,0
+401823022,2025-11-09,Marquette Golden Eagles,Indiana Hoosiers,,,,,,,,,,,,,,,,False,False,True,,,,,,,,,,,13.888431375083924,11.724820526235712,2.1636108488482115,,,,,,,,,,0,0
+401822758,2025-11-09,James Madison Dukes,Coppin State Eagles,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,8.524863839071207,-8.056156452604334,16.581020291675543,,,,,,,,,,0,0
+401812574,2025-11-09,American University Eagles,Pennsylvania Quakers,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,-5.6369406312055945,1.6979093852147575,-7.3348500164203525,,,,,,,,,,0,0
+401828576,2025-11-09,Georgia Bulldogs,Morehead State Eagles,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,6.765585226486639,-3.2604167836793025,10.026002010165941,,,,,,,,,,0,0
+401823485,2025-11-09,Mercer Bears,Lipscomb Bisons,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,5.208589411468287,1.467490661689649,3.741098749778638,,,,,,,,,,0,0
+401823417,2025-11-09,Bowling Green Falcons,Le Moyne Dolphins,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,-0.561363923399951,-3.1505262165324366,2.5891622931324854,,,,,,,,,,0,0
+401823393,2025-11-09,Purdue Fort Wayne Mastodons,Dominican (IL) Dominican,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,2.185962734647117,,,,,,,,,,,,0,0
+401823256,2025-11-09,North Dakota Fighting Hawks,Cal State Northridge Matadors,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,0.8587193445533314,-2.3918774531059555,3.250596797659287,,,,,,,,,,0,0
+401820542,2025-11-09,Northern Iowa Panthers,South Dakota State Jackrabbits,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,3.528384487253512,2.583568116609937,0.9448163706435753,,,,,,,,,,0,0
+401818548,2025-11-09,Brown Bears,Vermont Catamounts,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,-0.8921572390886676,5.91721092195336,-6.809368161042027,,,,,,,,,,0,0
+401813320,2025-11-09,Dartmouth Big Green,Marist Red Foxes,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,-1.898924771695998,-1.431436790885909,-0.46748798081008913,,,,,,,,,,0,0
+401813287,2025-11-09,Oklahoma State Cowboys,Texas A&M Aggies,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,9.264698997493864,12.131531027145623,-2.866832029651759,,,,,,,,,,0,0
+401813254,2025-11-09,Illinois State Redbirds,Cornell Big Red,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,-2.6072819051018747,-0.0139685355027306,-2.593313369599144,,,,,,,,,,0,0
+401811103,2025-11-09,South Dakota Coyotes,Ozark Christian Ambassadors,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,2.235542443171615,,,,,,,,,,,,0,0
+401826896,2025-11-09,Louisiana Tech Bulldogs,Lyon Scots,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,3.2891791107980204,,,,,,,,,,,,0,0
+401825577,2025-11-09,Montana State Bobcats,Denver Pioneers,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,1.960274259663952,-5.7380221490645145,7.698296408728466,,,,,,,,,,0,0
+401819916,2025-11-09,West Virginia Mountaineers,Lehigh Mountain Hawks,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,15.282508629919976,,,,,,,,,,,,0,0
+401819814,2025-11-09,Arizona State Sun Devils,Utah Tech Trailblazers,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,7.128169422576286,-0.4026590839322336,7.530828506508519,,,,,,,,,,0,0
+401828912,2025-11-09,Evansville Purple Aces,Oakland City Mighty Oaks,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,-6.150771613832381,,,,,,,,,,,,0,0
+401823515,2025-11-09,Missouri Tigers,VMI Keydets,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,10.065922709984337,,,,,,,,,,,,0,0
+401828276,2025-11-09,Loyola Chicago Ramblers,North Texas Mean Green,,,,,,,,,,,,,,,,False,False,True,,,,,,,,,,,7.718791129924962,4.42328877017266,3.2955023597523017,,,,,,,,,,0,0
+401824089,2025-11-09,Portland Pilots,UC Davis Aggies,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,1.1851652382300888,-0.5032760925396788,1.6884413307697677,,,,,,,,,,0,0
+401823555,2025-11-09,San Diego State Aztecs,Idaho State Bengals,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,12.57323718127354,,,,,,,,,,,,0,0
+401827088,2025-11-09,Howard Bison,Grambling Tigers,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,-2.2584845796772703,-7.19779903811421,4.9393144584369395,,,,,,,,,,0,0
+401826772,2025-11-09,Liberty Flames,Florida Atlantic Owls,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,5.836167241965968,8.28468006250012,-2.4485128205341526,,,,,,,,,,0,0
+401823858,2025-11-09,USC Trojans,Manhattan Jaspers,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,10.115580145627325,-6.969925172412123,17.08550531803945,,,,,,,,,,0,0
+401823808,2025-11-09,Colorado State Rams,Omaha Mavericks,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,4.316964425919847,-5.551832057201914,9.868796483121763,,,,,,,,,,0,0
+401827257,2025-11-09,South Carolina Gamecocks,Southern Miss Golden Eagles,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,8.388862261306782,-1.767503294682402,10.156365555989185,,,,,,,,,,0,0
+401829390,2025-11-09,UT Martin Skyhawks,Kentucky Christian Knights,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,1.0833814082173807,,,,,,,,,,,,0,0
+401819824,2025-11-09,Baylor Bears,Washington Huskies,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,19.064653969577265,5.191095219476611,13.873558750100653,,,,,,,,,,0,0
+401824896,2025-11-09,Hawai'i Rainbow Warriors,East Texas A&M Lions,,,,,,,,,,,,,,,,False,False,False,,,,,,,,,,,0.2495382065401385,-1.9720213371773707,2.2215595437175093,,,,,,,,,,0,0
