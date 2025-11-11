@@ -1044,6 +1044,55 @@ def index():
         except Exception:
             pass
 
+    # Odds-only fallback (index route): if df still empty but odds present for selected date, synthesize minimal slate
+    try:
+        if df.empty and not odds.empty and date_q:
+            o = odds.copy()
+            # Restrict to totals + full game period markers
+            if "market" in o.columns:
+                o = o[o["market"].astype(str).str.lower() == "totals"]
+            if "period" in o.columns:
+                vals = o["period"].astype(str).str.lower()
+                o = o[vals.isin(["full_game","fg","full game","game","match"]) | vals.isna()]
+            # Date filter via commence_time or date_line
+            if "commence_time" in o.columns:
+                try:
+                    o["_commence_date"] = pd.to_datetime(o["commence_time"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    o = o[o["_commence_date"] == str(date_q)]
+                except Exception:
+                    pass
+            elif "date_line" in o.columns:
+                o = o[o["date_line"].astype(str) == str(date_q)]
+            if not o.empty:
+                rows: list[dict[str, Any]] = []
+                o["game_id"] = o.get("game_id", pd.Series(range(len(o)))).astype(str)
+                for gid, g in o.groupby("game_id"):
+                    r = {
+                        "game_id": str(gid),
+                        "home_team": g.get("home_team").dropna().astype(str).iloc[0] if "home_team" in g.columns and g["home_team"].notna().any() else g.get("home_team_name").dropna().astype(str).iloc[0] if "home_team_name" in g.columns and g["home_team_name"].notna().any() else None,
+                        "away_team": g.get("away_team").dropna().astype(str).iloc[0] if "away_team" in g.columns and g["away_team"].notna().any() else g.get("away_team_name").dropna().astype(str).iloc[0] if "away_team_name" in g.columns and g["away_team_name"].notna().any() else None,
+                        "start_time": None,
+                        "pred_total": None,
+                        "pred_margin": None,
+                        "market_total": pd.to_numeric(g.get("total"), errors="coerce").median() if "total" in g.columns else None,
+                        "date": str(date_q),
+                        "home_score": None,
+                        "away_score": None,
+                    }
+                    if "commence_time" in g.columns:
+                        try:
+                            t = pd.to_datetime(g["commence_time"], errors="coerce").min()
+                            r["start_time"] = t.strftime("%Y-%m-%d %H:%M") if pd.notna(t) else None
+                        except Exception:
+                            pass
+                    rows.append(r)
+                if rows:
+                    df = pd.DataFrame(rows)
+                    results_note = f"Odds-only slate for {date_q} (no games/predictions available)"
+                    coverage_summary = {"full": 0, "partial": 0, "none": 0}
+    except Exception:
+        pass
+
     # Ensure game_id present: if missing attempt deterministic construction (only when teams available)
     if "game_id" not in df.columns:
         home_col = next((c for c in ["home_team","home"] if c in df.columns), None)
