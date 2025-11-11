@@ -1,0 +1,270 @@
+book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name,pair_key,date,game_id,pred_total,pred_margin,pred_total_mu,pred_total_sigma
+FanDuel,2025-11-09 03:33:55.067367+00:00,-50000.0,3500.0,-15.5,166.5,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,chattanoogamocs::unlvrebels,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-8500.0,2000.0,-15.5,167.5,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,chattanoogamocs::unlvrebels,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-10000.0,1350.0,-13.5,164.5,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,chattanoogamocs::unlvrebels,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,-5000.0,1400.0,-14.5,165.5,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,chattanoogamocs::unlvrebels,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,-6000.0,1800.0,-14.5,166.5,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,chattanoogamocs::unlvrebels,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,,,-15.5,168.5,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,chattanoogamocs::unlvrebels,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-10000.0,2200.0,-15.5,165.5,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,chattanoogamocs::unlvrebels,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-21.5,162.5,2025-11-09 02:02:34+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,arkansas-pinebluffgoldenlions::loyolamarymountlions,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-10000.0,3300.0,-21.5,162.5,2025-11-09 02:02:34+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,arkansas-pinebluffgoldenlions::loyolamarymountlions,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,,,-22.5,162.5,2025-11-09 02:02:34+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,arkansas-pinebluffgoldenlions::loyolamarymountlions,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-21.5,162.5,2025-11-09 02:02:34+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,arkansas-pinebluffgoldenlions::loyolamarymountlions,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,,,-21.5,163.5,2025-11-09 02:02:34+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,arkansas-pinebluffgoldenlions::loyolamarymountlions,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-20.5,163.5,2025-11-09 02:02:34+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,arkansas-pinebluffgoldenlions::loyolamarymountlions,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,,,-20.5,160.5,2025-11-09 02:02:34+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,arkansas-pinebluffgoldenlions::loyolamarymountlions,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,,,-44.5,156.5,2025-11-09 02:05:00+00:00,BYU Cougars,Holy Cross Crusaders,holycrosscrusaders::byucougars,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-10000.0,3300.0,-45.5,156.5,2025-11-09 02:05:00+00:00,BYU Cougars,Holy Cross Crusaders,holycrosscrusaders::byucougars,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-45.5,155.5,2025-11-09 02:05:00+00:00,BYU Cougars,Holy Cross Crusaders,holycrosscrusaders::byucougars,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,,,-45.5,156.5,2025-11-09 02:05:00+00:00,BYU Cougars,Holy Cross Crusaders,holycrosscrusaders::byucougars,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-45.5,155.5,2025-11-09 02:05:00+00:00,BYU Cougars,Holy Cross Crusaders,holycrosscrusaders::byucougars,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-44.5,155.5,2025-11-09 02:05:00+00:00,BYU Cougars,Holy Cross Crusaders,holycrosscrusaders::byucougars,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,,,-44.5,156.5,2025-11-09 02:05:00+00:00,BYU Cougars,Holy Cross Crusaders,holycrosscrusaders::byucougars,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-1150.0,650.0,-13.5,139.5,2025-11-09 03:02:29+00:00,UC San Diego Tritons,Houston Christian Huskies,houstonchristianhuskies::ucsandiegotritons,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-800.0,500.0,-10.5,136.5,2025-11-09 03:02:29+00:00,UC San Diego Tritons,Houston Christian Huskies,houstonchristianhuskies::ucsandiegotritons,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-3335.0,650.0,-12.5,137.5,2025-11-09 03:02:29+00:00,UC San Diego Tritons,Houston Christian Huskies,houstonchristianhuskies::ucsandiegotritons,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,-800.0,475.0,-10.5,138.5,2025-11-09 03:02:29+00:00,UC San Diego Tritons,Houston Christian Huskies,houstonchristianhuskies::ucsandiegotritons,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-1400.0,680.0,-12.5,138.5,2025-11-09 03:02:29+00:00,UC San Diego Tritons,Houston Christian Huskies,houstonchristianhuskies::ucsandiegotritons,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,-1000.0,600.0,-11.5,137.5,2025-11-09 03:02:29+00:00,UC San Diego Tritons,Houston Christian Huskies,houstonchristianhuskies::ucsandiegotritons,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-700.0,425.0,-10.5,138.5,2025-11-09 03:02:29+00:00,UC San Diego Tritons,Houston Christian Huskies,houstonchristianhuskies::ucsandiegotritons,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-1750.0,850.0,-15.5,167.5,2025-11-09 03:03:07+00:00,Seattle Redhawks,Cal Poly Mustangs,calpolymustangs::seattleredhawks,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-900.0,525.0,,166.5,2025-11-09 03:03:07+00:00,Seattle Redhawks,Cal Poly Mustangs,calpolymustangs::seattleredhawks,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,-1200.0,650.0,-12.5,165.5,2025-11-09 03:03:07+00:00,Seattle Redhawks,Cal Poly Mustangs,calpolymustangs::seattleredhawks,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,-1000.0,600.0,-12.5,168.5,2025-11-09 03:03:07+00:00,Seattle Redhawks,Cal Poly Mustangs,calpolymustangs::seattleredhawks,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-2500.0,550.0,-11.5,168.5,2025-11-09 03:03:07+00:00,Seattle Redhawks,Cal Poly Mustangs,calpolymustangs::seattleredhawks,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-1800.0,800.0,-13.5,168.5,2025-11-09 03:03:07+00:00,Seattle Redhawks,Cal Poly Mustangs,calpolymustangs::seattleredhawks,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-1500.0,800.0,-13.5,167.5,2025-11-09 03:03:07+00:00,Seattle Redhawks,Cal Poly Mustangs,calpolymustangs::seattleredhawks,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-4000.0,1100.0,-15.5,136.5,2025-11-09 03:10:00+00:00,Nevada Wolf Pack,Pacific Tigers,pacifictigers::nevadawolfpack,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-3200.0,1300.0,-14.5,133.5,2025-11-09 03:10:00+00:00,Nevada Wolf Pack,Pacific Tigers,pacifictigers::nevadawolfpack,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-5000.0,1200.0,-17.5,137.5,2025-11-09 03:10:00+00:00,Nevada Wolf Pack,Pacific Tigers,pacifictigers::nevadawolfpack,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,-3300.0,1200.0,-15.5,136.5,2025-11-09 03:10:00+00:00,Nevada Wolf Pack,Pacific Tigers,pacifictigers::nevadawolfpack,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-14.5,134.5,2025-11-09 03:10:00+00:00,Nevada Wolf Pack,Pacific Tigers,pacifictigers::nevadawolfpack,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-5000.0,800.0,-13.5,135.5,2025-11-09 03:10:00+00:00,Nevada Wolf Pack,Pacific Tigers,pacifictigers::nevadawolfpack,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-3000.0,1200.0,-15.5,134.5,2025-11-09 03:10:00+00:00,Nevada Wolf Pack,Pacific Tigers,pacifictigers::nevadawolfpack,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-580.0,380.0,-10.5,168.5,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-590.0,360.0,-10.5,168.5,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-450.0,310.0,-9.5,167.5,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-720.0,450.0,-10.5,168.5,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,-450.0,320.0,-9.5,169.5,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,-650.0,476.0,-10.0,167.0,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,-650.0,476.0,-10.0,167.0,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,-650.0,475.0,-10.5,167.0,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,-650.0,450.0,-10.5,167.0,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-700.0,475.0,-10.5,167.0,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,oklahomasooners::gonzagabulldogs,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-450.0,340.0,-8.5,153.5,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-8.0,151.0,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-8.0,151.0,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-7.5,152.5,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-350.0,275.0,-8.5,152.5,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-7.5,153.0,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,-350.0,260.0,-7.5,153.0,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-7.5,153.5,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,-375.0,270.0,-7.5,153.5,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-8.0,151.0,2025-11-09 17:00:00+00:00,Campbell Fighting Camels,Western Michigan Broncos,westernmichiganbroncos::campbellfightingcamels,2025-11-09,401828296,141.85124,2.9149399,142.10663,22.0
+FanDuel,2025-11-09 03:33:55.067367+00:00,-1450.0,810.0,-13.5,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,-1300.0,800.0,-14.0,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-14.5,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-14.5,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-14.5,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-14.5,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-1200.0,750.0,-14.5,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,-1250.0,650.0,-13.5,147.5,2025-11-09 17:00:00+00:00,Harvard Crimson,New Hampshire Wildcats,newhampshirewildcats::harvardcrimson,2025-11-09,401812600,141.85124,2.9149399,141.6738,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-1.5,156.5,2025-11-09 18:00:00+00:00,American Eagles,Pennsylvania Quakers,pennsylvaniaquakers::americaneagles,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-1.0,155.5,2025-11-09 18:00:00+00:00,American Eagles,Pennsylvania Quakers,pennsylvaniaquakers::americaneagles,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-1.0,155.5,2025-11-09 18:00:00+00:00,American Eagles,Pennsylvania Quakers,pennsylvaniaquakers::americaneagles,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-120.0,100.0,-1.0,156.5,2025-11-09 18:00:00+00:00,American Eagles,Pennsylvania Quakers,pennsylvaniaquakers::americaneagles,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-118.0,-104.0,-1.5,156.5,2025-11-09 18:00:00+00:00,American Eagles,Pennsylvania Quakers,pennsylvaniaquakers::americaneagles,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-6.5,131.5,2025-11-09 18:00:00+00:00,Appalachian St Mountaineers,North Carolina Central Eagles,northcarolinacentraleagles::appalachianstmountaineers,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-7.0,132.0,2025-11-09 18:00:00+00:00,Appalachian St Mountaineers,North Carolina Central Eagles,northcarolinacentraleagles::appalachianstmountaineers,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-300.0,240.0,-7.0,131.5,2025-11-09 18:00:00+00:00,Appalachian St Mountaineers,North Carolina Central Eagles,northcarolinacentraleagles::appalachianstmountaineers,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-7.0,132.0,2025-11-09 18:00:00+00:00,Appalachian St Mountaineers,North Carolina Central Eagles,northcarolinacentraleagles::appalachianstmountaineers,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-325.0,250.0,-6.5,131.5,2025-11-09 18:00:00+00:00,Appalachian St Mountaineers,North Carolina Central Eagles,northcarolinacentraleagles::appalachianstmountaineers,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-20.5,147.5,2025-11-09 18:00:00+00:00,James Madison Dukes,Coppin St Eagles,coppinsteagles::jamesmadisondukes,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-20.5,146.5,2025-11-09 18:00:00+00:00,James Madison Dukes,Coppin St Eagles,coppinsteagles::jamesmadisondukes,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-2200.0,1200.0,-21.0,147.5,2025-11-09 18:00:00+00:00,James Madison Dukes,Coppin St Eagles,coppinsteagles::jamesmadisondukes,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-20.5,146.5,2025-11-09 18:00:00+00:00,James Madison Dukes,Coppin St Eagles,coppinsteagles::jamesmadisondukes,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-3500.0,1200.0,-20.5,147.5,2025-11-09 18:00:00+00:00,James Madison Dukes,Coppin St Eagles,coppinsteagles::jamesmadisondukes,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,114.0,-137.0,2.5,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,2.0,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,2.0,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,2.0,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,114.0,-135.0,2.5,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,2.0,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,115.0,-140.0,2.5,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,115.0,-140.0,2.0,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,108.0,-137.0,2.5,152.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,2.0,153.5,2025-11-09 18:00:00+00:00,Marquette Golden Eagles,Indiana Hoosiers,indianahoosiers::marquettegoldeneagles,2025-11-09,401823022,142.77293,1.8584595,141.82516,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-13.5,157.5,2025-11-09 19:00:00+00:00,Bowling Green Falcons,Le Moyne Dolphins,lemoynedolphins::bowlinggreenfalcons,2025-11-09,401823417,141.85124,2.9149399,142.13263,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-13.5,157.0,2025-11-09 19:00:00+00:00,Bowling Green Falcons,Le Moyne Dolphins,lemoynedolphins::bowlinggreenfalcons,2025-11-09,401823417,141.85124,2.9149399,142.13263,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,-1100.0,700.0,-13.5,157.5,2025-11-09 19:00:00+00:00,Bowling Green Falcons,Le Moyne Dolphins,lemoynedolphins::bowlinggreenfalcons,2025-11-09,401823417,141.85124,2.9149399,142.13263,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-13.5,157.0,2025-11-09 19:00:00+00:00,Bowling Green Falcons,Le Moyne Dolphins,lemoynedolphins::bowlinggreenfalcons,2025-11-09,401823417,141.85124,2.9149399,142.13263,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,170.0,-205.0,4.5,155.5,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,4.5,156.0,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,4.5,156.0,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,172.0,-215.0,4.5,156.5,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,165.0,-200.0,4.5,156.5,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,4.5,156.0,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,4.5,156.0,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,165.0,-200.0,4.5,156.0,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,155.0,-200.0,4.5,156.5,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,4.5,156.0,2025-11-09 19:00:00+00:00,North Dakota Fighting Hawks,CSU Northridge Matadors,csunorthridgematadors::northdakotafightinghawks,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-375.0,295.0,-8.5,166.5,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-8.0,166.0,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-8.0,166.0,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-385.0,290.0,-8.5,165.5,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-400.0,300.0,-8.5,165.5,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-8.5,166.0,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-375.0,300.0,-9.0,165.5,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-8.5,165.5,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-385.0,280.0,-8.5,165.5,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-8.0,166.0,2025-11-09 19:00:00+00:00,Illinois St Redbirds,Cornell Big Red,cornellbigred::illinoisstredbirds,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-112.0,-108.0,-1.5,140.5,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-1.0,140.0,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-1.0,140.0,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+FanDuel,2025-11-09 03:33:55.067367+00:00,-114.0,-106.0,-1.5,140.5,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-118.0,-102.0,-1.5,140.5,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-1.5,140.0,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-1.0,140.0,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,-110.0,-110.0,-1.0,140.0,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,-108.0,-118.0,1.5,140.5,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-1.0,140.0,2025-11-09 19:00:00+00:00,Dartmouth Big Green,Marist Red Foxes,maristredfoxes::dartmouthbiggreen,2025-11-09,401813320,141.85124,2.9149399,141.91278,22.0
+FanDuel,2025-11-09 03:33:55.067367+00:00,-10000.0,2500.0,-24.5,147.5,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-25.5,148.0,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-25.5,148.0,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-10000.0,3000.0,-25.5,148.5,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,,,-25.5,148.5,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-25.5,148.5,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-25.0,148.5,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-10000.0,2500.0,-25.0,148.5,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,,,-24.5,148.5,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-25.5,148.0,2025-11-09 19:00:00+00:00,Georgia Bulldogs,Morehead St Eagles,moreheadsteagles::georgiabulldogs,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-4.5,161.5,2025-11-09 19:00:00+00:00,Mercer Bears,Lipscomb Bisons,lipscombbisons::mercerbears,2025-11-09,401823485,141.85124,2.9149399,141.79378,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-5.0,162.5,2025-11-09 19:00:00+00:00,Mercer Bears,Lipscomb Bisons,lipscombbisons::mercerbears,2025-11-09,401823485,141.85124,2.9149399,141.79378,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,-210.0,175.0,-5.0,161.5,2025-11-09 19:00:00+00:00,Mercer Bears,Lipscomb Bisons,lipscombbisons::mercerbears,2025-11-09,401823485,141.85124,2.9149399,141.79378,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-5.0,162.5,2025-11-09 19:00:00+00:00,Mercer Bears,Lipscomb Bisons,lipscombbisons::mercerbears,2025-11-09,401823485,141.85124,2.9149399,141.79378,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,-380.0,300.0,-9.5,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-9.0,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-9.0,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-430.0,320.0,-9.5,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-375.0,300.0,-9.5,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-9.5,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-9.5,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-400.0,310.0,-9.5,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-345.0,255.0,-8.5,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-9.0,152.5,2025-11-09 19:00:00+00:00,Northern Iowa Panthers,South Dakota St Jackrabbits,southdakotastjackrabbits::northerniowapanthers,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,130.0,-156.0,2.5,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,2.0,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,2.0,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,124.0,-148.0,2.5,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,3.0,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,120.0,-145.0,2.5,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,125.0,-150.0,2.5,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,2.5,170.0,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,114.0,-148.0,2.5,168.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,2.0,169.5,2025-11-09 19:00:00+00:00,Oklahoma St Cowboys,Texas A&M Aggies,texasa&maggies::oklahomastcowboys,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-1450.0,850.0,-14.5,153.5,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-15.0,153.0,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-15.0,153.0,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-1400.0,775.0,-14.5,153.5,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-14.5,153.5,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-14.5,153.5,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-1430.0,700.0,-14.5,153.5,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-15.0,153.0,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-1300.0,800.0,-14.5,153.5,2025-11-09 20:00:00+00:00,Arizona St Sun Devils,Utah Tech Trailblazers,utahtechtrailblazers::arizonastsundevils,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-325.0,260.0,-7.5,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-8.0,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-8.0,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-340.0,260.0,-7.5,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-325.0,260.0,-7.5,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,-345.0,270.0,-7.5,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-8.0,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-345.0,255.0,-7.5,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-8.0,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+Fanatics,2025-11-09 03:33:55.067367+00:00,-325.0,250.0,-8.0,149.5,2025-11-09 20:00:00+00:00,Montana St Bobcats,Denver Pioneers,denverpioneers::montanastbobcats,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-4000.0,1400.0,-18.5,140.5,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,-2800.0,1300.0,-18.5,139.5,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-18.5,140.0,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-19.0,139.0,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-19.0,139.0,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-3000.0,1250.0,-18.5,139.5,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,-3335.0,1100.0,-18.5,140.5,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,-3000.0,1400.0,-18.5,140.0,2025-11-09 20:00:00+00:00,West Virginia Mountaineers,Lehigh Mountain Hawks,lehighmountainhawks::westvirginiamountaineers,2025-11-09,401819916,141.85124,2.9149399,141.53156,22.0
+FanDuel,2025-11-09 03:33:55.067367+00:00,-8000.0,2200.0,-22.5,160.5,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-22.0,161.0,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-22.0,161.0,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,-8000.0,2200.0,-21.5,160.5,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-10000.0,1700.0,-22.5,160.5,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-21.5,161.0,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-22.0,160.0,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-22.0,161.0,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,,,-22.5,160.5,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+Fanatics,2025-11-09 03:33:55.067367+00:00,-9000.0,2200.0,-22.0,160.0,2025-11-09 20:30:44+00:00,Missouri Tigers,VMI Keydets,vmikeydets::missouritigers,2025-11-09,401823515,141.85124,2.9149399,141.62685,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-22.5,139.5,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-22.5,140.0,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-22.5,140.0,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,,,-22.5,139.5,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-22.5,139.5,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-22.5,139.0,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,,,-22.5,139.5,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-22.5,140.0,2025-11-09 22:00:00+00:00,San Diego St Aztecs,Idaho State Bengals,idahostatebengals::sandiegostaztecs,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,134.0,-162.0,2.5,141.5,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,3.0,142.0,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,3.0,142.0,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,124.0,-148.0,2.5,141.5,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,125.0,-150.0,2.5,141.5,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,3.0,141.5,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,3.5,141.5,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,118.0,-150.0,2.5,141.5,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,3.0,142.0,2025-11-09 22:00:00+00:00,Loyola (Chi) Ramblers,North Texas Mean Green,northtexasmeangreen::loyola(chi)ramblers,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-122.0,102.0,-1.5,153.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,1.0,152.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,1.0,152.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,-105.0,-115.0,1.5,152.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-105.0,-115.0,1.5,153.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,1.5,152.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,1.0,153.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,-115.0,-110.0,-1.5,152.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,1.0,152.5,2025-11-09 22:00:00+00:00,Portland Pilots,UC Davis Aggies,ucdavisaggies::portlandpilots,2025-11-09,401824089,141.85124,2.9149399,141.89642,22.0
+FanDuel,2025-11-09 03:33:55.067367+00:00,-1400.0,800.0,-13.5,156.5,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-13.0,156.0,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-13.0,156.0,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,-1050.0,675.0,-13.5,156.5,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-1100.0,675.0,-13.5,156.5,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-13.0,156.5,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-13.5,157.0,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-13.0,156.0,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-835.0,500.0,-12.5,156.5,2025-11-09 23:00:00+00:00,Colorado St Rams,Omaha Mavericks,omahamavericks::coloradostrams,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,-285.0,230.0,-5.5,151.5,2025-11-09 23:00:00+00:00,Liberty Flames,Florida Atlantic Owls,floridaatlanticowls::libertyflames,2025-11-09,401826772,141.85124,2.9149399,141.08142,22.0
+FanDuel,2025-11-09 03:33:55.067367+00:00,-188.0,155.0,-3.5,155.5,2025-11-09 23:00:00+00:00,Howard Bison,Grambling St Tigers,gramblingsttigers::howardbison,,nan,,,,
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-3.5,155.5,2025-11-09 23:00:00+00:00,Howard Bison,Grambling St Tigers,gramblingsttigers::howardbison,,nan,,,,
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-3.5,155.0,2025-11-09 23:00:00+00:00,Howard Bison,Grambling St Tigers,gramblingsttigers::howardbison,,nan,,,,
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-4.0,155.0,2025-11-09 23:00:00+00:00,Howard Bison,Grambling St Tigers,gramblingsttigers::howardbison,,nan,,,,
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-4.0,155.0,2025-11-09 23:00:00+00:00,Howard Bison,Grambling St Tigers,gramblingsttigers::howardbison,,nan,,,,
+BetRivers,2025-11-09 03:33:55.067367+00:00,-190.0,145.0,-3.5,155.5,2025-11-09 23:00:00+00:00,Howard Bison,Grambling St Tigers,gramblingsttigers::howardbison,,nan,,,,
+BetMGM,2025-11-09 03:33:55.067367+00:00,-185.0,150.0,-4.5,155.5,2025-11-09 23:00:00+00:00,Howard Bison,Grambling St Tigers,gramblingsttigers::howardbison,,nan,,,,
+FanDuel,2025-11-09 03:33:55.067367+00:00,,,-28.5,160.5,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-27.5,161.0,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-27.5,161.0,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,,,-27.5,161.5,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,,,-27.5,161.5,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-28.0,161.0,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-27.5,161.0,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,,,-27.5,160.5,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-27.5,161.0,2025-11-09 23:00:00+00:00,USC Trojans,Manhattan Jaspers,manhattanjaspers::usctrojans,2025-11-09,401823858,141.85124,2.9149399,142.82828,22.0
+FanDuel,2025-11-09 03:33:55.067367+00:00,-4000.0,1400.0,-18.5,150.5,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-18.5,151.0,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-18.5,151.0,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,-3600.0,1500.0,-18.5,151.5,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-3000.0,1200.0,-18.5,151.5,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-18.5,151.5,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-18.5,151.5,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-18.5,151.0,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,-3335.0,1150.0,-18.5,150.5,2025-11-09 23:30:00+00:00,South Carolina Gamecocks,Southern Miss Golden Eagles,southernmissgoldeneagles::southcarolinagamecocks,2025-11-09,401827257,141.85124,2.9149399,142.22534,22.0
+DraftKings,2025-11-09 03:33:55.067367+00:00,-250.0,205.0,-6.5,155.5,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
+BetOnline.ag,2025-11-09 03:33:55.067367+00:00,,,-6.0,155.0,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
+LowVig.ag,2025-11-09 03:33:55.067367+00:00,,,-6.0,155.0,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
+Caesars,2025-11-09 03:33:55.067367+00:00,,,-6.0,155.5,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
+BetMGM,2025-11-09 03:33:55.067367+00:00,-250.0,200.0,-6.5,155.5,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
+Bovada,2025-11-09 03:33:55.067367+00:00,,,-6.5,155.5,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
+BetUS,2025-11-09 03:33:55.067367+00:00,,,-6.0,155.0,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
+BetRivers,2025-11-09 03:33:55.067367+00:00,-265.0,200.0,-6.5,155.5,2025-11-10 01:30:00+00:00,Baylor Bears,Washington Huskies,washingtonhuskies::baylorbears,2025-11-09,401819824,141.85124,2.9149399,141.76802,22.0
