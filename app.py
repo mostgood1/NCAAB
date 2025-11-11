@@ -127,31 +127,58 @@ def _load_predictions_current() -> pd.DataFrame:
     global _PREDICTIONS_SOURCE_PATH
     _PREDICTIONS_SOURCE_PATH = None
     env_path = (os.getenv("NCAAB_PREDICTIONS_FILE") or "").strip()
+    today_str = None
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
     candidates: list[Path] = []
+    # 1) Explicit env override
     if env_path:
         p = Path(env_path)
         if not p.is_absolute():
             p = OUT / env_path
         candidates.append(p)
+    # 2) Date-specific file for today first (if exists) to avoid picking a large historical file
+    if today_str:
+        candidates.append(OUT / f"predictions_{today_str}.csv")
+    # 3) Conventional aggregate files
     for name in ("predictions_week.csv", "predictions.csv", "predictions_all.csv", "predictions_last2.csv"):
         candidates.append(OUT / name)
+    # 4) All predictions_*.csv (other dates) ordered by size so richest historical fallback last
     try:
         globbed = list(OUT.glob("predictions_*.csv"))
-        globbed = sorted(globbed, key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)
-        candidates += [p for p in globbed if p not in candidates]
+        # Put today's file (if present) at front; others sorted by size desc
+        globbed_other = [p for p in globbed if not today_str or p.name != f"predictions_{today_str}.csv"]
+        globbed_other = sorted(globbed_other, key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)
+        for p in globbed_other:
+            if p not in candidates:
+                candidates.append(p)
     except Exception:
         pass
+    loaded: list[pd.DataFrame] = []
+    chosen_path: Path | None = None
     for p in candidates:
         try:
             if p.exists():
                 df = pd.read_csv(p)
                 if not df.empty:
-                    logger.info("Loaded predictions from: %s (rows=%s)", p, len(df))
-                    _PREDICTIONS_SOURCE_PATH = str(p)
-                    return df
+                    # If this is a dated file and matches today, select immediately
+                    if today_str and p.name == f"predictions_{today_str}.csv":
+                        logger.info("Loaded today's predictions from: %s (rows=%s)", p, len(df))
+                        _PREDICTIONS_SOURCE_PATH = str(p)
+                        return df
+                    if chosen_path is None:
+                        chosen_path = p
+                        loaded.append(df)
         except Exception:
             continue
-    logger.warning("No predictions file found in %s; proceeding without predictions", OUT)
+    if loaded:
+        df = loaded[0]
+        logger.info("Loaded predictions fallback from: %s (rows=%s)", chosen_path, len(df))
+        _PREDICTIONS_SOURCE_PATH = str(chosen_path)
+        return df
+    logger.warning("No predictions file found or all empty in %s; proceeding without predictions", OUT)
     return pd.DataFrame()
 
 
