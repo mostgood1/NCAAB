@@ -1690,16 +1690,27 @@ def index():
     except Exception:
         pass
 
-    # Targeted per-row fuzzy odds fill for residual missing lines (post-threshold fallback)
+    # Targeted per-row fuzzy odds fill for residual missing lines (row-level, regardless of global missing share)
     try:
         from rapidfuzz import process, fuzz  # type: ignore
         if date_q:
-            raw_file = OUT / ("odds_today.csv" if (today_str and date_q == today_str) else f"odds_{date_q}.csv")
-            # Fallback to historical snapshot if root-level per-date file not present
-            if (not raw_file.exists()) and (today_str and date_q != today_str):
-                alt_hist = OUT / "odds_history" / f"odds_{date_q}.csv"
-                if alt_hist.exists():
-                    raw_file = alt_hist
+            # Resolve a raw odds file for the selected date. Prefer odds_today.csv for today, else odds_<date>.csv; always also consider odds_history.
+            candidates = []
+            if today_str and date_q == today_str:
+                candidates.append(OUT / "odds_today.csv")
+            candidates.append(OUT / f"odds_{date_q}.csv")
+            candidates.append(OUT / "odds_history" / f"odds_{date_q}.csv")
+            # As a last resort, glob any variant odds_<date>_*.csv under outputs and odds_history
+            try:
+                for p in sorted(OUT.glob(f"odds_{date_q}_*.csv")):
+                    candidates.append(p)
+                hist_dir = OUT / "odds_history"
+                if hist_dir.exists():
+                    for p in sorted(hist_dir.glob(f"odds_{date_q}_*.csv")):
+                        candidates.append(p)
+            except Exception:
+                pass
+            raw_file = next((p for p in candidates if p.exists()), None)
             if raw_file.exists() and not df.empty and {"home_team","away_team"}.issubset(df.columns):
                 # Only attempt for rows still missing critical odds
                 miss_mask = df["market_total"].isna() if "market_total" in df.columns else pd.Series([True]*len(df))
@@ -1712,6 +1723,13 @@ def index():
                         away_col = next((c for c in ["away_team_name","away_team","away"] if c in raw.columns), None)
                         if not (home_col and away_col):
                             raise Exception("raw odds missing team columns")
+                        # Constrain by date if commence_time present
+                        if "commence_time" in raw.columns:
+                            try:
+                                _dt = pd.to_datetime(raw["commence_time"], errors="coerce")
+                                raw = raw[_dt.dt.strftime("%Y-%m-%d") == str(date_q)]
+                            except Exception:
+                                pass
                         raw["_home_norm"] = raw[home_col].astype(str).map(normalize_name)
                         raw["_away_norm"] = raw[away_col].astype(str).map(normalize_name)
                         # Pre-build list of pair variants for fuzzy search
