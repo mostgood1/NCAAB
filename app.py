@@ -61,7 +61,63 @@ def _load_eval_metrics() -> dict[str, Any]:
             pass
     return out
 
-OUT = settings.outputs_dir
+def _resolve_outputs_dir() -> Path:
+    """Pick an outputs directory robustly across local and Render.
+
+    Priority:
+      1) NCAAB_OUTPUTS_DIR env var if set and exists
+      2) settings.outputs_dir if exists
+      3) <repo_root>/outputs if exists
+      4) <repo_root> (as last resort)
+    """
+    candidates: list[Path] = []
+    env_dir = os.getenv("NCAAB_OUTPUTS_DIR", "").strip()
+    if env_dir:
+        try:
+            p = Path(env_dir).resolve()
+            candidates.append(p)
+        except Exception:
+            pass
+    try:
+        if isinstance(settings.outputs_dir, Path):
+            candidates.append(settings.outputs_dir)
+        else:
+            candidates.append(Path(str(settings.outputs_dir)))
+    except Exception:
+        pass
+    candidates.append(ROOT / "outputs")
+    candidates.append(ROOT)
+    # Choose first existing directory with any expected artifact
+    expected = {
+        "games_curr.csv",
+        "predictions_week.csv",
+        "predictions_all.csv",
+        "games_with_last.csv",
+        "games_with_odds_today.csv",
+        "daily_results",
+    }
+    for c in candidates:
+        try:
+            if c.exists() and c.is_dir():
+                items = {p.name for p in c.glob("*")}
+                if items & expected:
+                    logger.info("Using outputs dir: %s", str(c))
+                    return c
+        except Exception:
+            continue
+    # Fallback to first candidate that exists
+    for c in candidates:
+        try:
+            if c.exists() and c.is_dir():
+                logger.warning("Using fallback outputs dir with no expected artifacts: %s", str(c))
+                return c
+        except Exception:
+            continue
+    # Last resort: repo root
+    logger.warning("No outputs directory found; defaulting to repo root: %s", str(ROOT))
+    return ROOT
+
+OUT = _resolve_outputs_dir()
 
 
 def _today_local() -> dt.date:
@@ -2833,6 +2889,7 @@ def api_health():
             preds_today_rows = None
         payload = {
             "status": "ok",
+            "outputs_dir": str(OUT),
             "games_files": games_files,
             "odds_files": odds_files,
             "predictions_files": preds_files,
