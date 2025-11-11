@@ -521,6 +521,11 @@ The current deployment strategy serves a static snapshot. To update:
 2. Commit updated `outputs/` artifacts.
 3. Push – Render will redeploy with new data.
 
+Notes on git hygiene for data artifacts:
+- Only dated files are tracked (e.g., `outputs/games_YYYY-MM-DD.csv`, `outputs/odds_YYYY-MM-DD.csv`, `outputs/games_with_odds_YYYY-MM-DD.csv`, `outputs/predictions_YYYY-MM-DD.csv`, and `outputs/odds_history/odds_YYYY-MM-DD.csv`).
+- Stable merged references kept for the UI: `outputs/games_with_last.csv` and `outputs/games_with_closing.csv`.
+- Ephemeral helpers (e.g., `outputs/games_curr.csv`, `outputs/odds_today.csv`, `outputs/predictions_week.csv`, `outputs/games_with_last_today.csv`) are intentionally untracked to reduce churn.
+
 For dynamic refresh (future): add lightweight authenticated endpoints to trigger odds fetch + predictions, writing refreshed CSVs. On Render you’d typically store generated files on persistent disk or an external object store. (Current setup does not mutate data.)
 
 ### Health & Verification

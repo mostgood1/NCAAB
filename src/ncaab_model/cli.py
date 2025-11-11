@@ -157,7 +157,18 @@ def coverage_report(
     # Start time completeness flags
     g["_missing_start_time"] = g.get("start_time").isna() | (g.get("start_time").astype(str).str.len() == 0)
     ml = pd.read_csv(merged_last_csv)
-    ml["date_game"] = pd.to_datetime(ml.get("date_game"), errors="coerce")
+    # Robust date column for filtering: prefer date_game if present/valid, else fall back to 'date'
+    # Some historical joins may have 'date_game' as None/strings; coerce both safely.
+    if "date_game" in ml.columns:
+        ml["date_game"] = pd.to_datetime(ml.get("date_game"), errors="coerce")
+    # Build a unified datetime column used for per-day filtering
+    ml_date_fallback = pd.to_datetime(ml.get("date"), errors="coerce") if "date" in ml.columns else pd.Series(pd.NaT, index=ml.index)
+    ml["_date_filter"] = ml.get("date_game") if "date_game" in ml.columns else None
+    if "_date_filter" not in ml.columns or ml["_date_filter"].isna().all():
+        ml["_date_filter"] = ml_date_fallback
+    else:
+        # Where date_game is NaT, fill from 'date'
+        ml["_date_filter"] = ml["_date_filter"].where(ml["_date_filter"].notna(), ml_date_fallback)
     try:
         from .data.merge_odds import normalize_name as _norm
         d1 = pd.read_csv(settings.data_dir / "d1_conferences.csv")
@@ -172,9 +183,22 @@ def coverage_report(
     for d in days:
         gday = g[g['date'].dt.date == d.date()].copy()
         elig = gday[gday['eligible']]
-        ml_day = ml[ml['date_game'].dt.date == d.date()].copy()
-        covered_exact = ml_day[ml_day.get('partial_pair') != True]['game_id'].nunique() if 'game_id' in ml_day.columns else 0
-        covered_partial = ml_day[ml_day.get('partial_pair') == True]['game_id'].nunique() if 'game_id' in ml_day.columns else 0
+        # Filter by the robust per-row date
+        try:
+            ml_day = ml[ml['_date_filter'].dt.date == d.date()].copy()
+        except Exception:
+            # In case of unexpected types, produce empty day slice rather than crash
+            ml_day = ml.iloc[0:0].copy()
+        if 'game_id' in ml_day.columns:
+            if 'partial_pair' in ml_day.columns:
+                covered_exact = ml_day[ml_day['partial_pair'] != True]['game_id'].nunique()
+                covered_partial = ml_day[ml_day['partial_pair'] == True]['game_id'].nunique()
+            else:
+                covered_exact = ml_day['game_id'].nunique()
+                covered_partial = 0
+        else:
+            covered_exact = 0
+            covered_partial = 0
         missing_start = int(gday["_missing_start_time"].sum()) if not gday.empty else 0
         rows.append({
             'date': d.date().isoformat(),
@@ -3856,6 +3880,155 @@ def backfill_range(
             print(f"[red]Backfill failed for {cur}:[/red] {e}")
         cur += dt.timedelta(days=1)
     print({"ok_days": n_ok, "err_days": n_err, "start": d0.isoformat(), "end": d1.isoformat(), "provider": provider})
+
+@app.command(name="backfill-last-odds")
+def backfill_last_odds(
+    start: str = typer.Argument(..., help="Start date YYYY-MM-DD inclusive"),
+    end: str = typer.Argument(..., help="End date YYYY-MM-DD inclusive"),
+    region: str = typer.Option("us", help="Odds region (unused in backfill; assumes snapshots already exist)"),
+    games_dir: Path = typer.Option(settings.outputs_dir, help="Directory containing games_<date>.csv files"),
+    odds_history_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory containing odds_<date>.csv snapshots"),
+    out_merged: Path = typer.Option(settings.outputs_dir / "games_with_last.csv", help="Master merged output (concatenated)"),
+    tolerance_seconds: int = typer.Option(60, help="Skew tolerance for last selection per date"),
+    filter_mode: str = typer.Option("any", help="D1 filter mode: any|both|none applied post-merge"),
+    allow_partial: bool = typer.Option(True, help="Allow partial pair matches when exact pair absent (tag partial_pair)"),
+    overwrite: bool = typer.Option(False, help="Overwrite per-date games_with_last_<date>.csv if present"),
+):
+    """Rebuild historical last odds merges across a date range and refresh master games_with_last.csv.
+
+    Expects odds_history/odds_<date>.csv and games_<date>.csv to exist (produce via backfill-range or daily pipeline).
+    For each date:
+      - Select last pre-tip odds rows (per event/book/market/period) honoring tolerance_seconds after commence_time.
+      - Join to games_<date>.csv producing games_with_last_<date>.csv (respecting D1 filter).
+    Concatenate all per-date merged files into a new master games_with_last.csv.
+    Writes summary to games_with_last_backfill_summary.csv.
+    """
+    import datetime as _dt
+    import pandas as _pd
+    from .data.merge_odds import normalize_name as _norm
+    # Generic pair/date join helper located in this module (import locally to avoid circulars)
+    try:
+        from .data.odds_closing import compute_last_odds  # noqa: F401
+    except Exception:
+        pass
+
+    d0 = _dt.date.fromisoformat(start)
+    d1 = _dt.date.fromisoformat(end)
+    if d1 < d0:
+        raise typer.BadParameter("end date precedes start date")
+    dates = []
+    cur = d0
+    while cur <= d1:
+        dates.append(cur)
+        cur += _dt.timedelta(days=1)
+
+    summary_rows = []
+    per_paths = []
+    for day in dates:
+        iso = day.isoformat()
+        g_path = games_dir / f"games_{iso}.csv"
+        o_path = odds_history_dir / f"odds_{iso}.csv"
+        if not g_path.exists():
+            summary_rows.append({"date": iso, "status": "missing_games"})
+            continue
+        if not o_path.exists():
+            summary_rows.append({"date": iso, "status": "missing_odds"})
+            continue
+        try:
+            games_df = _pd.read_csv(g_path)
+            odds_df = _pd.read_csv(o_path)
+            if odds_df.empty:
+                summary_rows.append({"date": iso, "status": "empty_odds"})
+                continue
+            # Normalize time columns
+            if 'commence_time' in odds_df.columns:
+                odds_df['commence_time'] = _pd.to_datetime(odds_df['commence_time'], errors='coerce')
+            if 'last_update' in odds_df.columns:
+                odds_df['last_update'] = _pd.to_datetime(odds_df['last_update'], errors='coerce')
+            tol = _dt.timedelta(seconds=int(max(0, tolerance_seconds)))
+            key_cols = [c for c in ['event_id','book','market','period'] if c in odds_df.columns]
+            def _select(grp):
+                ct = grp['commence_time'].iloc[0] if 'commence_time' in grp.columns else None
+                if ct is not None and not _pd.isna(ct):
+                    grp = grp[grp['last_update'] <= ct + tol]
+                grp = grp.sort_values('last_update')
+                return grp.tail(1)
+            if key_cols:
+                last_df = _pd.concat([_select(g) for _, g in odds_df.groupby(key_cols)], ignore_index=True)
+            else:
+                last_df = odds_df.copy()
+            per_date_out = games_dir / f"games_with_last_{iso}.csv"
+            if per_date_out.exists() and not overwrite:
+                status = "exists"
+                per_paths.append(per_date_out)
+                summary_rows.append({"date": iso, "status": status})
+                continue
+            # Reuse existing join helper via closure from earlier scope (join_games_with_closing defined above with closing merge logic)
+            try:
+                from .data.odds_closing import compute_last_odds as _dummy  # force module load
+            except Exception:
+                pass
+            # We replicate minimal join: normalized pair_key on games & odds then left merge by pair+date
+            def _norm_pair(s: str) -> str:
+                return str(s).lower().replace(' ', '').replace('.', '')
+            games_df = games_df.copy()
+            games_df['date'] = pd.to_datetime(games_df.get('date'), errors='coerce')
+            games_df['game_date'] = games_df['date'].dt.date
+            games_df['pair_key'] = games_df['away_team'].map(_norm_pair) + "::" + games_df['home_team'].map(_norm_pair)
+            last_df = last_df.copy()
+            if 'home_team_name' in last_df.columns and 'away_team_name' in last_df.columns:
+                last_df['pair_key'] = last_df['away_team_name'].map(_norm_pair) + "::" + last_df['home_team_name'].map(_norm_pair)
+            if 'commence_time' in last_df.columns:
+                last_df['commence_time'] = pd.to_datetime(last_df['commence_time'], errors='coerce')
+                last_df['odds_date'] = last_df['commence_time'].dt.date
+            else:
+                last_df['odds_date'] = pd.NaT
+            merged = games_df.merge(
+                last_df,
+                left_on=['pair_key','game_date'],
+                right_on=['pair_key','odds_date'],
+                how='left',
+                suffixes=("","_odds")
+            )
+            # D1 filter post-merge
+            mode = (filter_mode or 'any').lower().strip()
+            if mode in {'any','both'}:
+                try:
+                    d1_df = _pd.read_csv(settings.data_dir / 'd1_conferences.csv')
+                    d1_teams = set(d1_df['team'].astype(str).map(_norm))
+                    merged['_home_ok'] = merged['home_team'].astype(str).map(_norm).isin(d1_teams)
+                    merged['_away_ok'] = merged['away_team'].astype(str).map(_norm).isin(d1_teams)
+                    if mode == 'both':
+                        msk = merged['_home_ok'] & merged['_away_ok']
+                    else:
+                        msk = merged['_home_ok'] | merged['_away_ok']
+                    merged = merged[msk].copy()
+                    merged.drop(columns=['_home_ok','_away_ok'], inplace=True)
+                except Exception:
+                    pass
+            merged.to_csv(per_date_out, index=False)
+            per_paths.append(per_date_out)
+            summary_rows.append({"date": iso, "status": "written", "games": int(len(games_df)), "last_rows": int(len(last_df)), "merged_rows": int(len(merged))})
+        except Exception as e:
+            summary_rows.append({"date": iso, "status": f"error:{e}"})
+
+    # Concatenate per-date merges
+    frames = []
+    for p in per_paths:
+        try:
+            frames.append(_pd.read_csv(p))
+        except Exception:
+            pass
+    if frames:
+        master = _pd.concat(frames, ignore_index=True)
+        out_merged.parent.mkdir(parents=True, exist_ok=True)
+        master.to_csv(out_merged, index=False)
+        print(f"[green]Refreshed master games_with_last.csv[/green] ({len(master)} rows)")
+    else:
+        print("[yellow]No per-date merged files produced; master not updated.[/yellow]")
+    summary_path = games_dir / "games_with_last_backfill_summary.csv"
+    _pd.DataFrame(summary_rows).to_csv(summary_path, index=False)
+    print(f"[green]Backfill summary written ->[/green] {summary_path}")
 
 
 @app.command(name="merge-predictions-odds")
