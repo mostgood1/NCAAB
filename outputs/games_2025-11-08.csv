@@ -1,0 +1,69 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401824810,2025,2025-11-08,2025-11-08 20:00:00+00:00,Houston Cougars,Towson Tigers,65,48,33,26,32,22,False,Fertitta Center
+401812261,2025,2025-11-08,2025-11-08 17:00:00+00:00,St. John's Red Storm,Alabama Crimson Tide,96,103,44,53,52,50,False,Madison Square Garden
+401817229,2025,2025-11-08,2025-11-08 18:30:00+00:00,Duke Blue Devils,Western Carolina Catamounts,95,54,45,21,50,33,False,Cameron Indoor Stadium
+401812660,2025,2025-11-08,2025-11-09 02:00:00+00:00,BYU Cougars,Holy Cross Crusaders,98,53,58,25,40,28,False,Marriott Center
+401826785,2025,2025-11-08,2025-11-09 00:00:00+00:00,Michigan State Spartans,Arkansas Razorbacks,69,66,36,39,33,27,False,Breslin Center
+401823382,2025,2025-11-08,2025-11-08 20:00:00+00:00,Tennessee Volunteers,Northern Kentucky Norse,95,56,52,31,43,25,False,Food City Center
+401824032,2025,2025-11-08,2025-11-09 03:30:00+00:00,Gonzaga Bulldogs,Oklahoma Sooners,83,68,49,30,34,38,False,Spokane Arena
+401827233,2025,2025-11-08,2025-11-08 17:00:00+00:00,Minnesota Golden Gophers,Alcorn State Braves,95,50,48,17,47,33,False,Williams Arena
+401827059,2025,2025-11-08,2025-11-08 17:00:00+00:00,South Carolina Upstate Spartans,Southern Virginia Knights,105,46,56,25,49,21,False,G.B. Hodge Center
+401820596,2025,2025-11-08,2025-11-08 17:00:00+00:00,Akron Zips,Princeton Tigers,104,69,47,27,57,42,False,James A. Rhodes Arena
+401828336,2025,2025-11-08,2025-11-08 18:00:00+00:00,Florida A&M Rattlers,Kennesaw State Owls,72,92,34,48,38,44,False,Al Lawson Center
+401827277,2025,2025-11-08,2025-11-08 18:00:00+00:00,New Haven Chargers,Penn State Nittany Lions,43,87,21,41,22,46,False,Jeffery P. Hazell Athletics Center
+401827237,2025,2025-11-08,2025-11-08 18:00:00+00:00,Nebraska Cornhuskers,Florida International Panthers,96,66,49,28,47,38,False,Pinnacle Bank Arena
+401822667,2025,2025-11-08,2025-11-08 18:00:00+00:00,Saint Joseph's Hawks,Drexel Dragons,76,65,34,37,42,28,False,Michael J. Hagan '85 Arena
+401817477,2025,2025-11-08,2025-11-08 18:00:00+00:00,Syracuse Orange,Delaware State Hornets,83,43,40,17,43,26,False,JMA Wireless Dome
+401817142,2025,2025-11-08,2025-11-08 18:30:00+00:00,George Washington Revolutionaries,South Florida Bulls,99,95,44,40,55,55,True,Mohegan Sun Arena
+401826843,2025,2025-11-08,2025-11-08 19:00:00+00:00,Tulane Green Wave,Texas State Bobcats,79,71,26,39,53,32,False,Devlin Fieldhouse
+401824854,2025,2025-11-08,2025-11-08 19:00:00+00:00,Central Arkansas Bears,Champion Christian Tigers,110,63,53,38,57,25,False,Farris Center
+401823469,2025,2025-11-08,2025-11-08 19:00:00+00:00,Toledo Rockets,Marshall Thundering Herd,73,85,40,30,33,55,False,Savage Arena
+401823188,2025,2025-11-08,2025-11-08 19:00:00+00:00,NJIT Highlanders,Fairfield Stags,53,74,29,34,24,40,False,Joel & Diane Bloom Wellness and Events Center
+401822309,2025,2025-11-08,2025-11-08 19:00:00+00:00,Wofford Terriers,Milwaukee Panthers,86,76,47,33,39,43,False,Jerry Richardson Indoor Stadium
+401813435,2025,2025-11-08,2025-11-08 19:00:00+00:00,Dayton Flyers,UMBC Retrievers,77,71,41,37,36,34,False,UD Arena
+401813374,2025,2025-11-08,2025-11-08 19:00:00+00:00,Binghamton Bearcats,Niagara Purple Eagles,59,67,25,22,34,45,False,Events Center (Binghamton)
+401812283,2025,2025-11-08,2025-11-08 19:00:00+00:00,Saint Peter's Peacocks,Fairleigh Dickinson Knights,93,83,38,29,55,54,False,Yanitelli Center
+401829488,2025,2025-11-08,2025-11-08 20:00:00+00:00,Georgia Southern Eagles,UNC Asheville Bulldogs,93,90,32,39,61,51,False,Jack and Ruth Ann Hill Convocation Center
+401829412,2025,2025-11-08,2025-11-08 20:00:00+00:00,Texas Longhorns,Lafayette Leopards,97,60,46,28,51,32,False,Moody Center
+401826725,2025,2025-11-08,2025-11-08 20:00:00+00:00,Memphis Tigers,San Francisco Dons,76,70,36,22,40,48,False,FedExForum
+401820210,2025,2025-11-08,2025-11-08 20:00:00+00:00,Mercyhurst Lakers,Penn State-New Kensington Lions,93,43,44,17,49,26,False,Mercyhurst Athletic Center
+401822177,2025,2025-11-08,2025-11-08 20:30:00+00:00,La Salle Explorers,Monmouth Hawks,73,60,38,35,35,25,False,John Glaser Arena
+401831377,2025,2025-11-08,2025-11-08 21:00:00+00:00,South Alabama Jaguars,Spring Hill Badgers,99,50,60,32,39,18,False,Mitchell Center
+401829324,2025,2025-11-08,2025-11-08 21:00:00+00:00,UC Santa Barbara Gauchos,San José State Spartans,85,74,45,28,40,46,False,The Thunderdome
+401827518,2025,2025-11-08,2025-11-08 21:00:00+00:00,UNC Greensboro Spartans,Elon Phoenix,90,92,44,44,42,42,False,First Horizon Coliseum
+401827504,2025,2025-11-08,2025-11-08 21:00:00+00:00,Norfolk State Spartans,William & Mary Tribe,78,81,37,36,41,45,False,Joseph G. Echols Hall
+401824824,2025,2025-11-08,2025-11-08 21:00:00+00:00,UCF Knights,Vanderbilt Commodores,93,105,36,52,57,53,False,Addition Financial Arena
+401823865,2025,2025-11-08,2025-11-08 21:00:00+00:00,New Mexico Lobos,UT Arlington Mavericks,74,56,31,19,43,37,False,The Pit
+401823814,2025,2025-11-08,2025-11-08 21:00:00+00:00,Boise State Broncos,Utah Valley Wolverines,101,77,46,35,55,42,False,ExtraMile Arena
+401822729,2025,2025-11-08,2025-11-08 21:00:00+00:00,Wyoming Cowboys,Cal State Fullerton Titans,92,82,38,38,54,44,False,Arena-Auditorium
+401820550,2025,2025-11-08,2025-11-08 21:00:00+00:00,Air Force Falcons,Austin Peay Governors,54,74,22,33,32,41,False,Clune Arena
+401819861,2025,2025-11-08,2025-11-08 21:00:00+00:00,Colorado Buffaloes,Eastern Washington Eagles,102,97,41,39,44,46,False,CU Events Center
+401817465,2025,2025-11-08,2025-11-08 21:00:00+00:00,Stanford Cardinal,Montana Grizzlies,91,68,35,25,56,43,False,Maples Pavilion
+401813347,2025,2025-11-08,2025-11-08 21:00:00+00:00,St. Bonaventure Bonnies,Canisius Golden Griffins,89,70,50,35,39,35,False,Reilly Center
+401823037,2025,2025-11-08,2025-11-08 21:30:00+00:00,Maryland Eastern Shore Hawks,Cheyney (PA) Wolves,104,59,43,26,61,33,False,Hytche Center
+401817518,2025,2025-11-08,2025-11-08 21:30:00+00:00,Virginia Tech Hokies,Providence Friars,107,101,40,46,46,40,True,Mohegan Sun Arena
+401826977,2025,2025-11-08,2025-11-08 22:00:00+00:00,High Point Panthers,Averett Cougars,127,52,55,22,72,30,False,Qubein Center
+401823305,2025,2025-11-08,2025-11-08 22:00:00+00:00,Fresno State Bulldogs,Long Beach State Beach,82,62,28,20,54,42,False,Save Mart Center
+401820823,2025,2025-11-08,2025-11-08 22:00:00+00:00,Butler Bulldogs,IU Indianapolis Jaguars,112,80,51,38,61,42,False,Hinkle Fieldhouse
+401820622,2025,2025-11-08,2025-11-08 22:00:00+00:00,Stony Brook Seawolves,Maine Black Bears,71,60,38,37,33,23,False,Stony Brook Arena
+401827757,2025,2025-11-08,2025-11-08 23:00:00+00:00,Massachusetts Minutemen,UAlbany Great Danes,83,62,38,32,45,30,False,Mullins Center
+401826771,2025,2025-11-08,2025-11-08 23:00:00+00:00,Charleston Cougars,Florida Atlantic Owls,77,94,32,48,45,46,True,Liberty Arena (VA)
+401824885,2025,2025-11-08,2025-11-08 23:00:00+00:00,Presbyterian Blue Hose,East Tennessee State Buccaneers,68,64,25,26,43,38,False,Templeton Center
+401817173,2025,2025-11-08,2025-11-08 23:00:00+00:00,Richmond Spiders,East Carolina Pirates,87,72,42,30,45,42,False,Robins Center
+401826880,2025,2025-11-08,2025-11-09 00:00:00+00:00,Wichita State Shockers,Prairie View A&M Panthers,105,62,53,36,52,26,False,Charles Koch Arena
+401823451,2025,2025-11-08,2025-11-09 00:00:00+00:00,Villanova Wildcats,Queens University Royals,94,74,51,37,43,37,False,Finneran Pavilion
+401820485,2025,2025-11-08,2025-11-09 00:00:00+00:00,Tarleton State Texans,Texas A&M-Corpus Christi Islanders,85,77,47,28,38,49,False,Wisdom Gym
+401819906,2025,2025-11-08,2025-11-09 00:00:00+00:00,Utah Utes,Weber State Wildcats,92,89,42,49,42,35,False,Jon M. Huntsman Center
+401822994,2025,2025-11-08,2025-11-09 00:30:00+00:00,Middle Tennessee Blue Raiders,Webster Gorloks,109,56,54,23,55,33,False,Murphy Center
+401828526,2025,2025-11-08,2025-11-09 01:00:00+00:00,Oral Roberts Golden Eagles,John Brown Golden Eagles,84,50,40,33,44,17,False,Mabee Center
+401826793,2025,2025-11-08,2025-11-09 01:00:00+00:00,St. Thomas-Minnesota Tommies,Army Black Knights,83,76,44,29,39,47,False,Lee & Penny Anderson Arena
+401823455,2025,2025-11-08,2025-11-09 01:00:00+00:00,Bradley Braves,Central Michigan Chippewas,85,54,35,25,50,29,False,Carver Arena
+401823322,2025,2025-11-08,2025-11-09 01:00:00+00:00,Missouri State Bears,Northwestern Oklahoma State Rangers,106,57,55,21,51,36,False,Great Southern Bank Arena
+401819889,2025,2025-11-08,2025-11-09 01:00:00+00:00,Kansas State Wildcats,Bellarmine Knights,98,71,46,30,52,41,False,Bramlage Coliseum
+401811966,2025,2025-11-08,2025-11-09 01:00:00+00:00,Belmont Bruins,Tennessee State Tigers,87,79,34,32,53,47,False,Curb Event Center Arena
+401823539,2025,2025-11-08,2025-11-09 01:30:00+00:00,Southern Utah Thunderbirds,UT Rio Grande Valley Vaqueros,72,95,35,40,37,55,False,America First Events Center
+401824038,2025,2025-11-08,2025-11-09 02:00:00+00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,94,72,38,31,56,41,False,Gersten Pavilion
+401820396,2025,2025-11-08,2025-11-09 02:00:00+00:00,UNLV Rebels,Chattanooga Mocs,101,69,47,36,54,33,False,Thomas & Mack Center
+401826907,2025,2025-11-08,2025-11-09 03:00:00+00:00,UC San Diego Tritons,Houston Christian Huskies,78,60,35,21,43,39,False,LionTree Arena
+401824126,2025,2025-11-08,2025-11-09 03:00:00+00:00,Seattle U Redhawks,Cal Poly Mustangs,71,73,38,39,33,34,False,Redhawk Center
+401824062,2025,2025-11-08,2025-11-09 03:00:00+00:00,Nevada Wolf Pack,Pacific Tigers,78,77,40,40,38,37,False,Lawlor Events Center

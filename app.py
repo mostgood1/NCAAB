@@ -456,6 +456,28 @@ def _load_branding_map() -> dict[str, dict[str, Any]]:
     return out
 
 
+def _load_d1_team_set() -> set[str]:
+    """Load normalized Division I team names from data/d1_conferences.csv.
+
+    Returns a set of normalized team names using normalize_name(). If the file
+    is missing or unreadable, returns an empty set.
+    """
+    path = settings.data_dir / "d1_conferences.csv"
+    d1set: set[str] = set()
+    if not path.exists():
+        return d1set
+    try:
+        df = pd.read_csv(path)
+        # Prefer a column named 'team'/'school'/'name', else fallback to first column
+        cols = {c.lower().strip(): c for c in df.columns}
+        team_col = cols.get("team") or cols.get("school") or cols.get("name") or list(df.columns)[0]
+        ser = df[team_col].astype(str).map(normalize_name)
+        d1set = set(ser.dropna().astype(str))
+    except Exception:
+        d1set = set()
+    return d1set
+
+
 def _load_all_finals(limit: int | None = 1000) -> pd.DataFrame:
     """Load all per-day results files and return a consolidated DataFrame of finals.
 
@@ -2484,6 +2506,26 @@ def index():
         pass
 
     rows = [_brand_row(r) for r in df_tpl.to_dict(orient="records")]
+
+    # Display filter: keep only games with at least one Division I team unless override flag set (?all=1)
+    # We apply after all enrichments so market lines/predictions remain intact; this is purely a view-level restriction.
+    try:
+        show_all = (request.args.get("all") or "").strip().lower() in ("1","true","yes")
+        if not show_all and rows:
+            d1set = _load_d1_team_set()
+            if d1set:
+                filtered_rows: list[dict[str, Any]] = []
+                for r in rows:
+                    h = normalize_name(str(r.get("home_team") or ""))
+                    a = normalize_name(str(r.get("away_team") or ""))
+                    if (h in d1set) or (a in d1set):
+                        filtered_rows.append(r)
+                # Only replace if we removed something (avoid accidental emptying on name mismatch)
+                if filtered_rows and len(filtered_rows) <= len(rows):
+                    rows = filtered_rows
+            # If d1set empty, silently skip filter (avoid hiding everything)
+    except Exception:
+        pass
     total_rows = len(rows)
     accuracy = _load_accuracy_summary()
     coverage_note = None

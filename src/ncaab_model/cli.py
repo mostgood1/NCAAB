@@ -3606,10 +3606,17 @@ def join_last_odds(
     last_odds_path: Path = typer.Argument(..., help="last_odds.csv from make-last-odds"),
     out: Path = typer.Option(settings.outputs_dir / "games_with_last.csv", help="Output merged CSV (last odds per book)"),
     mapping_csv: Path | None = typer.Option(None, help="Optional mapping CSV (diagnostics odds_name_mapping_<date>.csv or data/team_map.csv)"),
-    filter_exhibitions: bool = typer.Option(True, help="Drop games where either team not in D1 conferences list (data/d1_conferences.csv)"),
+    filter_exhibitions: bool = typer.Option(True, help="[Deprecated] legacy toggle; see --filter-mode"),
+    filter_mode: str = typer.Option("any", help="D1 filter: 'both' keep only D1 vs D1; 'any' keep games with at least one D1 team; 'none' keep all"),
     allow_partial: bool = typer.Option(True, help="If exact pair not found, include partial matches where one team slug matches; rows are tagged partial_pair=True"),
 ):
-    """Join last odds to games by normalized team pair and date (same logic as join-closing)."""
+    """Join last odds to games by normalized team pair and date (same logic as join-closing).
+
+    Filtering behavior:
+      - filter_mode="any" (default): keep games where at least one team is in the D1 list
+      - filter_mode="both": keep only games where both teams are D1 (excludes D1 vs non-D1 exhibitions)
+      - filter_mode="none": no D1-based filtering
+    """
     if games_path.suffix.lower() == ".csv":
         games = pd.read_csv(games_path)
     else:
@@ -3624,8 +3631,22 @@ def join_last_odds(
                 print("[red]Could not read games Parquet and no CSV fallback found.[/red]")
                 raise typer.Exit(code=1)
     last_df = pd.read_csv(last_odds_path)
-    # Optional: filter out exhibitions by restricting to D1 team set
-    if filter_exhibitions:
+    # Optional: filter out exhibitions via D1 list per selected mode
+    mode = (filter_mode or "any").strip().lower()
+    if mode not in {"both", "any", "none"}:
+        mode = "any"
+    # Back-compat: if legacy flag is explicitly false and no mode provided, treat as none; if true and mode is default, treat as both
+    try:
+        if filter_exhibitions is False and filter_mode == "any":
+            mode = "none"
+        elif filter_exhibitions is True and filter_mode == "any":
+            # Historical default was both-D1; prefer 'any' unless explicitly forced by legacy expectations.
+            # No-op here to keep new default; users can pass --filter-mode both to restore old behavior.
+            pass
+    except Exception:
+        pass
+
+    if mode != "none":
         try:
             d1 = pd.read_csv(settings.data_dir / "d1_conferences.csv")
             team_col = None
@@ -3639,12 +3660,18 @@ def join_last_odds(
                 games["_home_ok"] = games.get("home_team", pd.Series(dtype=str)).astype(str).map(_norm).isin(d1set)
                 games["_away_ok"] = games.get("away_team", pd.Series(dtype=str)).astype(str).map(_norm).isin(d1set)
                 before = len(games)
-                games = games[games["_home_ok"] & games["_away_ok"]].copy()
+                if mode == "both":
+                    mask = games["_home_ok"] & games["_away_ok"]
+                else:  # mode == "any"
+                    mask = games["_home_ok"] | games["_away_ok"]
+                games = games[mask].copy()
                 games.drop(columns=["_home_ok","_away_ok"], inplace=True, errors="ignore")
                 if len(games) < before:
-                    print(f"[cyan]Filtered exhibitions:[/cyan] {before - len(games)} games removed (non-D1 opponent)")
+                    removed = before - len(games)
+                    detail = "both-D1 required" if mode == "both" else "kept any-D1"
+                    print(f"[cyan]D1 filter ({detail}):[/cyan] {removed} games removed")
         except Exception as e:
-            print(f"[yellow]Exhibition filter skipped:[/yellow] {e}")
+            print(f"[yellow]D1 filter skipped:[/yellow] {e}")
     merged = join_games_with_closing(games, last_df, mapping_csv=mapping_csv, allow_partial=allow_partial)
     out.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(out, index=False)
@@ -3695,6 +3722,74 @@ def compute_edges_cmd(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     edged.to_csv(out_path, index=False)
     print(f"[green]Wrote edges to[/green] {out_path} ({len(edged)} rows)")
+
+
+@app.command(name="backfill-range")
+def backfill_range(
+    start: str = typer.Argument(..., help="Start date YYYY-MM-DD (inclusive)"),
+    end: str = typer.Argument(..., help="End date YYYY-MM-DD (inclusive)"),
+    provider: str = typer.Option("espn", help="Games provider: espn|ncaa|fused"),
+    region: str = typer.Option("us", help="Odds region for TheOddsAPI"),
+    season: int | None = typer.Option(None, help="Season year override; default derives from each date"),
+    use_cache: bool = typer.Option(True, help="Use provider cache (set --no-use-cache to refresh)"),
+    enable_ort: bool = typer.Option(False, help="Attempt ORT/QNN; defaults to False for backfill speed"),
+    preseason_weight: float = typer.Option(0.0, help="Preseason blend weight for early-season dates"),
+    preseason_only_sparse: bool = typer.Option(True, help="Only apply preseason blend for sparse features"),
+    apply_guardrails: bool = typer.Option(True, help="Apply totals guardrail blend for implausibly low predictions"),
+    accumulate_schedule: bool = typer.Option(True, help="Accumulate into games_all.csv"),
+    accumulate_predictions: bool = typer.Option(True, help="Accumulate into predictions_all.csv"),
+):
+    """Run daily-run for every date in [start, end], writing dated artifacts.
+
+    This backfills games_YYYY-MM-DD.csv, odds_YYYY-MM-DD.csv, games_with_odds_YYYY-MM-DD.csv,
+    predictions_YYYY-MM-DD.csv and updates games_all.csv/predictions_all.csv.
+    The join-last-odds default keeps games with at least one D1 team via filter_mode='any'.
+    """
+    try:
+        d0 = dt.date.fromisoformat(start)
+        d1 = dt.date.fromisoformat(end)
+    except Exception:
+        print("[red]Invalid start/end date. Use YYYY-MM-DD.[/red]")
+        raise typer.Exit(code=1)
+    if d1 < d0:
+        print("[red]End date is before start date.[/red]")
+        raise typer.Exit(code=1)
+    cur = d0
+    n_ok = 0
+    n_err = 0
+    while cur <= d1:
+        try:
+            print(f"[cyan]Backfill {cur}[/cyan] provider={provider} cache={use_cache}")
+            daily_run(
+                date=cur.isoformat(),
+                season=(season if season is not None else cur.year),
+                region=region,
+                provider=provider,
+                threshold=2.0,
+                default_price=-110.0,
+                retrain=False,
+                segment="none",
+                conf_map=None,
+                use_cache=use_cache,
+                preseason_weight=preseason_weight,
+                preseason_only_sparse=preseason_only_sparse,
+                db=settings.data_dir / "ncaab.sqlite",
+                book_whitelist=None,
+                target_picks=None,
+                apply_guardrails=apply_guardrails,
+                half_ratio=0.485,
+                auto_train_halves=False,
+                halves_models_dir=settings.outputs_dir / "models_halves",
+                enable_ort=enable_ort,
+                accumulate_schedule=accumulate_schedule,
+                accumulate_predictions=accumulate_predictions,
+            )
+            n_ok += 1
+        except Exception as e:
+            n_err += 1
+            print(f"[red]Backfill failed for {cur}:[/red] {e}")
+        cur += dt.timedelta(days=1)
+    print({"ok_days": n_ok, "err_days": n_err, "start": d0.isoformat(), "end": d1.isoformat(), "provider": provider})
 
 
 @app.command(name="merge-predictions-odds")
