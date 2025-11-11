@@ -15,7 +15,9 @@ __pycache__/
 /outputs/*
 !outputs/.gitkeep
 !outputs/daily_results/
-!outputs/daily_results/*.csv
+/outputs/daily_results/*
+!outputs/daily_results/results_2025-*.csv
+!outputs/daily_results/results_2026-*.csv
 !outputs/games_with_last.csv
 !outputs/games_with_closing.csv
 !outputs/priors.csv
