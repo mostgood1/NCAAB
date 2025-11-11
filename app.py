@@ -863,6 +863,15 @@ def index():
     games = _load_games_current()
     preds = _load_predictions_current()
     odds = _load_odds_joined(date_q)
+    # Initial diagnostics snapshot before filtering
+    diag_enabled = (request.args.get("diag") or "").strip().lower() in ("1","true","yes")
+    pipeline_stats: dict[str, Any] = {
+        "date_param": date_q,
+        "games_load_rows": len(games),
+        "preds_load_rows": len(preds),
+        "odds_load_rows": len(odds),
+        "outputs_dir": str(OUT),
+    }
     logger.info("Index request start date=%s games_cols=%s preds_cols=%s odds_cols=%s", date_q, list(games.columns), list(preds.columns), list(odds.columns))
     # Initialize coverage summary; will refine after merges to reflect coalesced closing lines
     coverage_summary = {"full": 0, "partial": 0, "none": 0}
@@ -995,6 +1004,9 @@ def index():
     # If daily_results exist for the date, prefer it only if games have real scores (>0) or explicit predictions;
     # for future/upcoming slates daily_results may be a placeholder with 0 scores and missing preds.
     daily_df = _load_daily_results_for(date_q) if date_q else pd.DataFrame()
+    pipeline_stats["games_after_date"] = len(games)
+    pipeline_stats["preds_after_date"] = len(preds)
+    pipeline_stats["daily_results_rows"] = len(daily_df)
     daily_used = False
     results_note = None
     if not daily_df.empty:
@@ -2726,6 +2738,7 @@ def index():
                 if filtered_rows and len(filtered_rows) <= len(rows):
                     rows = filtered_rows
             # If d1set empty, silently skip filter (avoid hiding everything)
+        pipeline_stats["rows_after_d1_filter"] = len(rows)
     except Exception:
         pass
     total_rows = len(rows)
@@ -2782,6 +2795,24 @@ def index():
         show_bootstrap = False
         refresh_odds_url = None
 
+    if diag_enabled:
+        # Summarize missing prediction / odds counts
+        mt_missing = 0
+        pt_missing = 0
+        try:
+            if rows:
+                for r in rows:
+                    if r.get("market_total") is None and r.get("closing_total") is None:
+                        mt_missing += 1
+                    if r.get("pred_total") is None:
+                        pt_missing += 1
+        except Exception:
+            pass
+        pipeline_stats["missing_market_total_rows"] = mt_missing
+        pipeline_stats["missing_pred_total_rows"] = pt_missing
+        pipeline_stats["final_rows"] = len(rows)
+        logger.info("Render pipeline stats: %s", json.dumps(pipeline_stats))
+
     return render_template(
         "index.html",
         rows=rows,
@@ -2803,7 +2834,60 @@ def index():
         fused_bootstrap_url=fused_bootstrap_url,
         refresh_odds_url=refresh_odds_url,
         removed_empty_rows=removed_empty_rows,
+        pipeline_stats=pipeline_stats if diag_enabled else None,
     )
+
+
+@app.route("/api/render-diagnostics")
+def api_render_diagnostics():
+    """Return detailed diagnostics for the render pipeline for a given date (or resolved date)."""
+    date_q = (request.args.get("date") or "").strip()
+    # Re-run lightweight portions to avoid duplicating heavy enrichment.
+    games = _load_games_current()
+    preds = _load_predictions_current()
+    odds = _load_odds_joined(date_q)
+    out: dict[str, Any] = {
+        "date_param": date_q,
+        "outputs_dir": str(OUT),
+        "games_load_rows": len(games),
+        "preds_load_rows": len(preds),
+        "odds_load_rows": len(odds),
+    }
+    # Date resolution logic (similar to index start) for transparency
+    if not date_q:
+        try:
+            today_str = _today_local().strftime("%Y-%m-%d")
+        except Exception:
+            today_str = None
+        if today_str and "date" in games.columns and (games["date"].astype(str) == today_str).any():
+            date_q = today_str
+        elif "date" in preds.columns and not preds.empty:
+            try:
+                date_q = pd.to_datetime(preds["date"]).max().strftime("%Y-%m-%d")
+            except Exception:
+                date_q = preds["date"].dropna().astype(str).max()
+        out["resolved_date"] = date_q
+    # Filter by date
+    games_date = games
+    preds_date = preds
+    if date_q:
+        if "date" in games.columns:
+            games_date = games[games["date"].astype(str) == date_q]
+        if "date" in preds.columns:
+            preds_date = preds[preds["date"].astype(str) == date_q]
+    out["games_after_date"] = len(games_date)
+    out["preds_after_date"] = len(preds_date)
+    # Sample IDs missing preds or odds
+    try:
+        g_ids = set(games_date.get("game_id", pd.Series()).astype(str)) if not games_date.empty else set()
+        p_ids = set(preds_date.get("game_id", pd.Series()).astype(str)) if not preds_date.empty else set()
+        o_ids = set(odds.get("game_id", pd.Series()).astype(str)) if not odds.empty else set()
+        out["games_without_preds"] = sorted(list(g_ids - p_ids))[:40]
+        out["games_without_odds"] = sorted(list(g_ids - o_ids))[:40]
+        out["preds_without_games"] = sorted(list(p_ids - g_ids))[:40]
+    except Exception:
+        pass
+    return jsonify(out)
 
 
 @app.route("/dashboard")
