@@ -995,7 +995,12 @@ def index():
             except Exception:
                 pass
             if "total" in oddf.columns:
-                line_by_game = oddf.groupby("game_id")["total"].median().rename("_market_total_from_odds")
+                # Ensure groupby result is a DataFrame with an explicit game_id column for safe merge
+                line_by_game = (
+                    oddf.groupby("game_id", as_index=False)["total"]
+                        .median()
+                        .rename(columns={"total": "_market_total_from_odds"})
+                )
                 if not line_by_game.empty:
                     df = df.merge(line_by_game, on="game_id", how="left")
                     # Coalesce per-row to fill missing market_total
@@ -1170,6 +1175,9 @@ def index():
             m_fg = _agg_market("h2h", "moneyline_home", "ml_home")
             for srs in [s_fg, m_fg]:
                 if srs is not None and not srs.empty:
+                    # Convert Series to DataFrame with explicit key for merge
+                    if isinstance(srs, pd.Series):
+                        srs = srs.reset_index()  # columns: ["game_id", <named_col>]
                     df = df.merge(srs, on="game_id", how="left")
 
             # 1H totals median
@@ -1187,6 +1195,8 @@ def index():
             s_2h = _agg_market_period("spreads", "home_spread", {"2h","second_half","2nd_half"}, "spread_home_2h")
             for srs in [t_1h, t_2h, s_1h, s_2h]:
                 if srs is not None and not srs.empty:
+                    if isinstance(srs, pd.Series):
+                        srs = srs.reset_index()
                     df = df.merge(srs, on="game_id", how="left")
 
             # Fallback: derive half spreads from full-game spread if provider 1H/2H spreads missing
