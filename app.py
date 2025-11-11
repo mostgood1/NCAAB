@@ -1815,8 +1815,9 @@ def index():
             pass
 
     # Projected team scores from pred_total and pred_margin
-    # Fallback / adjustment for implausibly low totals (e.g., early-season sparse features causing collapsed predictions).
-    # We derive a tempo/off/def based estimate from features CSV when available and blend if prediction < thresholds.
+    # Fallback / adjustment for implausibly low or missing totals (e.g., early-season sparse features causing collapsed predictions).
+    # We derive a tempo/off/def based estimate from features CSV when available and use it to fill missing
+    # predictions or blend if the raw prediction looks implausibly low.
     try:
         if "pred_total" in df.columns:
             # Preserve raw value
@@ -1832,6 +1833,7 @@ def index():
                     except Exception:
                         feat_df = pd.DataFrame()
             derived_map: dict[str, float] = {}
+            derived_margin_map: dict[str, float] = {}
             if not feat_df.empty and "game_id" in feat_df.columns:
                 feat_df["game_id"] = feat_df["game_id"].astype(str)
                 # Ensure needed columns exist
@@ -1862,11 +1864,28 @@ def index():
                         exp_away_pp100 = np.clip(off_away - def_home, 80, 130)
                         # Convert to per-game using tempo average (possessions ~ tempo_avg)
                         derived_total = (exp_home_pp100 + exp_away_pp100) / 100.0 * tempo_avg
+                        # Simple derived margin: difference in per-100 scaled by tempo
+                        derived_margin = (exp_home_pp100 - exp_away_pp100) / 100.0 * tempo_avg
                         # Clamp plausible NCAA range
                         derived_total = float(np.clip(derived_total, 110, 185))
+                        derived_margin = float(np.clip(derived_margin, -35, 35))
                         derived_map[gid] = derived_total
+                        derived_margin_map[gid] = derived_margin
                     except Exception:
                         continue
+            # If pred_total missing, fill from derived when available; also fill pred_margin if missing
+            if derived_map:
+                if "pred_total" in df.columns:
+                    mask_missing_pt = df["pred_total"].isna()
+                    if mask_missing_pt.any():
+                        df.loc[mask_missing_pt, "pred_total"] = df.loc[mask_missing_pt, "game_id"].map(lambda g: derived_map.get(str(g)))
+                        # Mark basis for visibility
+                        df.loc[mask_missing_pt, "pred_total_basis"] = df.loc[mask_missing_pt, "pred_total_basis"].where(df.loc[mask_missing_pt, "pred_total_basis"].notna(), "features_derived") if "pred_total_basis" in df.columns else "features_derived"
+                if "pred_margin" in df.columns and derived_margin_map:
+                    mask_missing_pm = df["pred_margin"].isna()
+                    if mask_missing_pm.any():
+                        df.loc[mask_missing_pm, "pred_margin"] = df.loc[mask_missing_pm, "game_id"].map(lambda g: derived_margin_map.get(str(g)))
+                        df.loc[mask_missing_pm, "pred_margin_basis"] = df.loc[mask_missing_pm, "pred_margin_basis"].where(df.loc[mask_missing_pm, "pred_margin_basis"].notna(), "features_derived") if "pred_margin_basis" in df.columns else "features_derived"
             # Blend predictions when implausibly low vs derived
             pred_total_was_adj = []
             if derived_map:
