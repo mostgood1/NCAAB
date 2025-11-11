@@ -43,7 +43,9 @@ def _fetch_day(date: dt.date, use_cache: bool = True) -> dict | None:
             count = len(events) if isinstance(events, list) else 0
         except Exception:
             count = 0
-        if count < 12:
+        # Fallback threshold: if fewer than 20 events (typical mid-season multi-provider slate >30),
+        # attempt broader site.web.api endpoint with groups=50 & limit=1000 to capture additional D1 games.
+        if count < 20:
             alt_url = ESPN_WEB_URL.format(YYYYMMDD=date.strftime("%Y%m%d"))
             try:
                 r2 = requests.get(alt_url, timeout=20)

@@ -24,11 +24,6 @@ __pycache__/
 !outputs/*with_priors*.csv
 !outputs/models_preseason/
 !outputs/models_preseason/**
-!outputs/predictions_today.csv
-!outputs/predictions_week.csv
-!outputs/games_curr.csv
-!outputs/games_with_last_today.csv
-!outputs/odds_today.csv
 !outputs/odds_history/odds_2025-*.csv
 !outputs/odds_history/odds_2026-*.csv
 !outputs/games_2025-*.csv

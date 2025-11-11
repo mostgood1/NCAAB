@@ -195,28 +195,29 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
       $toStage = @()
       $resPath = Join-Path $OutDir ("daily_results/results_" + $prevDate + ".csv")
       if (Test-Path $resPath) { $toStage += $resPath }
+      # Keep small set of stable merged references
       $gwl = Join-Path $OutDir 'games_with_last.csv'
       if (Test-Path $gwl) { $toStage += $gwl }
       $gwc = Join-Path $OutDir 'games_with_closing.csv'
       if (Test-Path $gwc) { $toStage += $gwc }
       $pri = Join-Path $OutDir 'priors.csv'
       if (Test-Path $pri) { $toStage += $pri }
-      # Today's slate helpers so Render can display current day without manual bootstrap
-      $predToday = Join-Path $OutDir 'predictions_today.csv'
-      if (Test-Path $predToday) { $toStage += $predToday }
-      $predWeek = Join-Path $OutDir 'predictions_week.csv'
-      if (Test-Path $predWeek) { $toStage += $predWeek }
-      $gamesCurr = Join-Path $OutDir 'games_curr.csv'
-      if (Test-Path $gamesCurr) { $toStage += $gamesCurr }
-      $gwlToday = Join-Path $OutDir 'games_with_last_today.csv'
-      if (Test-Path $gwlToday) { $toStage += $gwlToday }
-      $oddsToday = Join-Path $OutDir 'odds_today.csv'
-      if (Test-Path $oddsToday) { $toStage += $oddsToday }
-  # Allowlist per-date odds snapshots so historical odds persist on Render
-  $oddsPrev = Join-Path $OutDir ("odds_history/odds_" + $prevDate + ".csv")
-  if (Test-Path $oddsPrev) { $toStage += $oddsPrev }
-  $oddsTodayHist = Join-Path $OutDir ("odds_history/odds_" + $todayIso + ".csv")
-  if (Test-Path $oddsTodayHist) { $toStage += $oddsTodayHist }
+
+      # Dated artifacts for reproducibility (allowlisted in .gitignore)
+      $gamesToday = Join-Path $OutDir ("games_" + $todayIso + ".csv")
+      if (Test-Path $gamesToday) { $toStage += $gamesToday }
+      $oddsTodayDated = Join-Path $OutDir ("odds_" + $todayIso + ".csv")
+      if (Test-Path $oddsTodayDated) { $toStage += $oddsTodayDated }
+      $mergedTodayDated = Join-Path $OutDir ("games_with_odds_" + $todayIso + ".csv")
+      if (Test-Path $mergedTodayDated) { $toStage += $mergedTodayDated }
+      $predsTodayDated = Join-Path $OutDir ("predictions_" + $todayIso + ".csv")
+      if (Test-Path $predsTodayDated) { $toStage += $predsTodayDated }
+
+      # Allowlist per-date odds snapshots so historical odds persist on Render
+      $oddsPrev = Join-Path $OutDir ("odds_history/odds_" + $prevDate + ".csv")
+      if (Test-Path $oddsPrev) { $toStage += $oddsPrev }
+      $oddsTodayHist = Join-Path $OutDir ("odds_history/odds_" + $todayIso + ".csv")
+      if (Test-Path $oddsTodayHist) { $toStage += $oddsTodayHist }
 
       if ($toStage.Count -gt 0) {
         foreach ($p in $toStage) { git add $p }
