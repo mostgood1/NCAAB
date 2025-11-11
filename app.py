@@ -2620,6 +2620,27 @@ def api_health():
         stake_files = [p.name for p in out_dir.glob("stake_sheet*.csv")]
         daily_results = sorted(daily_dir.glob("results_*.csv")) if daily_dir.exists() else []
         recent_results = [p.stem.split("_")[1] for p in daily_results[-7:]] if daily_results else []
+        # Today counts for quick diagnostics
+        try:
+            today_str = _today_local().strftime("%Y-%m-%d")
+        except Exception:
+            today_str = None
+        games_today_rows = None
+        preds_today_rows = None
+        try:
+            gm = _safe_read_csv(out_dir / "games_curr.csv")
+            if not gm.empty and today_str and "date" in gm.columns:
+                gm["date"] = gm["date"].astype(str)
+                games_today_rows = int((gm["date"] == today_str).sum())
+        except Exception:
+            games_today_rows = None
+        try:
+            pr = _load_predictions_current()
+            if not pr.empty and today_str and "date" in pr.columns:
+                pr["date"] = pd.to_datetime(pr["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                preds_today_rows = int((pr["date"].astype(str) == today_str).sum())
+        except Exception:
+            preds_today_rows = None
         payload = {
             "status": "ok",
             "games_files": games_files,
@@ -2628,6 +2649,11 @@ def api_health():
             "stake_files": stake_files,
             "daily_results_count": len(daily_results),
             "recent_result_dates": recent_results,
+            "today": {
+                "date": today_str,
+                "games_today_rows": games_today_rows,
+                "preds_today_rows": preds_today_rows,
+            },
         }
         return jsonify(payload), 200
     except Exception as e:
@@ -2724,6 +2750,68 @@ def api_bootstrap():
     pred_rows_after = int(preds_after[preds_after.get("date","") == target_date].shape[0]) if not preds_after.empty and "date" in preds_after.columns else 0
     game_rows_after = int(games_after[games_after.get("date","") == target_date].shape[0]) if not games_after.empty and "date" in games_after.columns else len(games_after)
 
+    # Optional auto-fallback: if today's slate looks sparse with provider 'espn' or 'ncaa', try fused
+    fallback_info: dict[str, Any] = {"triggered": False}
+    try:
+        min_thresh = int(os.environ.get("NCAAB_MIN_TODAY_GAMES", "25"))
+    except Exception:
+        min_thresh = 25
+    if (
+        provider_param != "fused"
+        and target_date == today_str
+        and isinstance(game_rows_after, int)
+        and game_rows_after < min_thresh
+    ):
+        try:
+            cli_daily_run(
+                date=target_date,
+                season=dt.date.fromisoformat(target_date).year,
+                region="us",
+                provider="fused",
+                threshold=2.0,
+                default_price=-110.0,
+                retrain=False,
+                segment="none",
+                conf_map=None,
+                use_cache=(not disable_cache),
+                preseason_weight=0.0,
+                preseason_only_sparse=True,
+                apply_guardrails=True,
+                half_ratio=0.485,
+                auto_train_halves=False,
+                halves_models_dir=OUT / "models_halves",
+                enable_ort=False,
+                accumulate_schedule=True,
+                accumulate_predictions=True,
+            )
+            # Recompute counts after fallback
+            games_after2 = _safe_read_csv(OUT / "games_curr.csv")
+            preds_after2 = _load_predictions_current()
+            if "date" in preds_after2.columns:
+                try:
+                    preds_after2["date"] = pd.to_datetime(preds_after2["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+            pred_rows_after2 = int(preds_after2[preds_after2.get("date","") == target_date].shape[0]) if not preds_after2.empty and "date" in preds_after2.columns else 0
+            game_rows_after2 = int(games_after2[games_after2.get("date","") == target_date].shape[0]) if not games_after2.empty and "date" in games_after2.columns else len(games_after2)
+            fallback_info = {
+                "triggered": True,
+                "reason": f"sparse slate ({game_rows_after}) with provider={provider_param}; retried fused",
+                "prev": {"game_rows": game_rows_after, "pred_rows": pred_rows_after, "provider": provider_param},
+                "after": {"game_rows": game_rows_after2, "pred_rows": pred_rows_after2, "provider": "fused"},
+            }
+            # Promote fused counts in primary response
+            game_rows_after = game_rows_after2
+            pred_rows_after = pred_rows_after2
+            provider_param = f"{provider_param}->fused"
+        except Exception as e:
+            logger.exception("Fallback to fused provider failed")
+            fallback_info = {
+                "triggered": True,
+                "error": str(e),
+                "prev": {"game_rows": game_rows_after, "pred_rows": pred_rows_after, "provider": provider_param},
+            }
+
     return jsonify({
         "status": "ok",
         "message": f"Bootstrap complete for {target_date}",
@@ -2733,6 +2821,7 @@ def api_bootstrap():
         "provider": provider_param,
         "forced": force_param,
         "cache_used": not disable_cache,
+        "fallback": fallback_info,
     }), 200
 
 
