@@ -31,6 +31,14 @@ __pycache__/
 !outputs/odds_today.csv
 !outputs/odds_history/odds_2025-*.csv
 !outputs/odds_history/odds_2026-*.csv
+!outputs/games_2025-*.csv
+!outputs/games_2026-*.csv
+!outputs/odds_2025-*.csv
+!outputs/odds_2026-*.csv
+!outputs/games_with_odds_2025-*.csv
+!outputs/games_with_odds_2026-*.csv
+!outputs/predictions_2025-*.csv
+!outputs/predictions_2026-*.csv
 
 # Vendors / embedded repos
 onnxruntime/

@@ -5392,6 +5392,13 @@ def daily_run(
     games_curr_path = settings.outputs_dir / "games_curr.csv"
     df_games.to_csv(games_curr_path, index=False)
     print(f"[green]Wrote {len(df_games)} games to[/green] {games_curr_path}")
+    # Also write a dated copy for deterministic history navigation
+    try:
+        dated_games_path = settings.outputs_dir / f"games_{target_date.isoformat()}.csv"
+        df_games.to_csv(dated_games_path, index=False)
+        print(f"[green]Wrote dated games to[/green] {dated_games_path}")
+    except Exception as _e_gd:
+        print(f"[yellow]Skipping dated games write:[/yellow] {_e_gd}")
 
     # Optional schedule accumulation into games_all.csv so downstream daily-results has full slate
     try:
@@ -5433,6 +5440,35 @@ def daily_run(
     odds_today_path = settings.outputs_dir / "odds_today.csv"
     df_odds.to_csv(odds_today_path, index=False)
     print(f"[green]Wrote {len(df_odds)} odds rows to[/green] {odds_today_path}")
+    # Build a per-date odds frame focused on the target date; fallback to odds_history snapshot if empty
+    df_odds_day = df_odds.copy()
+    try:
+        if "commence_time" in df_odds_day.columns:
+            dtc = pd.to_datetime(df_odds_day["commence_time"], errors="coerce").dt.strftime("%Y-%m-%d")
+            df_odds_day = df_odds_day[dtc == target_date.isoformat()].copy()
+    except Exception:
+        pass
+    hist_dir = settings.outputs_dir / "odds_history"
+    hist_path = hist_dir / f"odds_{target_date.isoformat()}.csv"
+    df_odds_join = df_odds_day
+    if (df_odds_join is None) or df_odds_join.empty:
+        try:
+            if hist_path.exists():
+                df_odds_join = pd.read_csv(hist_path)
+                print(f"[cyan]Using historical odds snapshot for join:[/cyan] {hist_path}")
+        except Exception as _e_hist:
+            print(f"[yellow]Historical odds snapshot unavailable:[/yellow] {_e_hist}")
+    # Also persist a root-level dated odds file for app fallbacks
+    try:
+        dated_odds_path = settings.outputs_dir / f"odds_{target_date.isoformat()}.csv"
+        to_write = df_odds_day if (df_odds_day is not None and not df_odds_day.empty) else (df_odds_join if df_odds_join is not None else pd.DataFrame())
+        if to_write is not None and not to_write.empty:
+            to_write.to_csv(dated_odds_path, index=False)
+            print(f"[green]Wrote dated odds to[/green] {dated_odds_path} ({len(to_write)} rows)")
+        else:
+            print(f"[yellow]No per-date odds rows for {target_date}; dated odds CSV skipped.[/yellow]")
+    except Exception as _e_od:
+        print(f"[yellow]Skipping dated odds write:[/yellow] {_e_od}")
 
     # 2b) Fetch expanded odds snapshot for derivatives (full + halves) into odds_history/odds_YYYY-MM-DD.csv
     try:
@@ -5475,6 +5511,17 @@ def daily_run(
     merged = join_odds_to_games(df_games, df_odds, team_map=mapping) if not df_odds.empty else df_games.copy()
     merged.to_csv(merged_odds_path, index=False)
     print(f"[green]Wrote merged games+odds to[/green] {merged_odds_path} ({len(merged)} rows)")
+    # Also write a dated merged games+odds using per-date odds or historical snapshot if needed
+    try:
+        merged_dated_path = settings.outputs_dir / f"games_with_odds_{target_date.isoformat()}.csv"
+        if df_odds_join is not None and not df_odds_join.empty:
+            merged_d = join_odds_to_games(df_games, df_odds_join, team_map=mapping)
+        else:
+            merged_d = merged.copy()
+        merged_d.to_csv(merged_dated_path, index=False)
+        print(f"[green]Wrote dated merged games+odds to[/green] {merged_dated_path} ({len(merged_d)} rows)")
+    except Exception as _e_md:
+        print(f"[yellow]Skipping dated merged write:[/yellow] {_e_md}")
 
     # 4) Build features for current games -> features_curr.csv
     feats_curr_path = settings.outputs_dir / "features_curr.csv"
@@ -5821,6 +5868,13 @@ def daily_run(
                     out_df["pred_margin_2h"] = pd.to_numeric(out_df["pred_margin"], errors="coerce") * 0.5
 
                 _append_week(out_df, preds_out)
+                # Also write dated predictions for the target date
+                try:
+                    pred_dated = settings.outputs_dir / f"predictions_{target_date.isoformat()}.csv"
+                    out_df.to_csv(pred_dated, index=False)
+                    print(f"[green]Wrote dated predictions to[/green] {pred_dated}")
+                except Exception as _e_pd:
+                    print(f"[yellow]Skipping dated predictions write:[/yellow] {_e_pd}")
             except Exception as se:
                 print(f"[yellow]Segmented prediction failed, falling back to global:[/yellow] {se}")
                 use_segmented = False
@@ -5928,6 +5982,13 @@ def daily_run(
                 out_df["pred_margin_2h"] = pd.to_numeric(out_df["pred_margin"], errors="coerce") * 0.5
 
             _append_week(out_df, preds_out)
+            # Also write dated predictions for the target date
+            try:
+                pred_dated = settings.outputs_dir / f"predictions_{target_date.isoformat()}.csv"
+                out_df.to_csv(pred_dated, index=False)
+                print(f"[green]Wrote dated predictions to[/green] {pred_dated}")
+            except Exception as _e_pd2:
+                print(f"[yellow]Skipping dated predictions write:[/yellow] {_e_pd2}")
 
         # Accumulate predictions into predictions_all.csv (union & dedupe by game_id)
         try:
