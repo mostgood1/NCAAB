@@ -1306,10 +1306,18 @@ def index():
         if len(df) and missing_mt_mask.sum() > 0 and missing_mt_mask.sum() >= int(0.5*len(df)):
             # Determine raw odds file path per date (supports today and historical) with pattern fallback for prefetch variants.
             primary_raw = OUT / ("odds_today.csv" if (not date_q or (today_str and date_q == today_str)) else f"odds_{date_q}.csv")
+            # Also support historical snapshots under outputs/odds_history/odds_<date>.csv
+            history_raw = OUT / "odds_history" / (f"odds_{date_q}.csv" if date_q else "")
             raw = pd.DataFrame()
             if primary_raw.exists():
                 try:
                     raw = pd.read_csv(primary_raw)
+                except Exception:
+                    raw = pd.DataFrame()
+            # Fallback to odds_history for past dates
+            if raw.empty and date_q and history_raw.exists():
+                try:
+                    raw = pd.read_csv(history_raw)
                 except Exception:
                     raw = pd.DataFrame()
             if raw.empty and date_q:
@@ -1615,6 +1623,11 @@ def index():
         from rapidfuzz import process, fuzz  # type: ignore
         if date_q:
             raw_file = OUT / ("odds_today.csv" if (today_str and date_q == today_str) else f"odds_{date_q}.csv")
+            # Fallback to historical snapshot if root-level per-date file not present
+            if (not raw_file.exists()) and (today_str and date_q != today_str):
+                alt_hist = OUT / "odds_history" / f"odds_{date_q}.csv"
+                if alt_hist.exists():
+                    raw_file = alt_hist
             if raw_file.exists() and not df.empty and {"home_team","away_team"}.issubset(df.columns):
                 # Only attempt for rows still missing critical odds
                 miss_mask = df["market_total"].isna() if "market_total" in df.columns else pd.Series([True]*len(df))

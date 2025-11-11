@@ -212,6 +212,11 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
       if (Test-Path $gwlToday) { $toStage += $gwlToday }
       $oddsToday = Join-Path $OutDir 'odds_today.csv'
       if (Test-Path $oddsToday) { $toStage += $oddsToday }
+  # Allowlist per-date odds snapshots so historical odds persist on Render
+  $oddsPrev = Join-Path $OutDir ("odds_history/odds_" + $prevDate + ".csv")
+  if (Test-Path $oddsPrev) { $toStage += $oddsPrev }
+  $oddsTodayHist = Join-Path $OutDir ("odds_history/odds_" + $todayIso + ".csv")
+  if (Test-Path $oddsTodayHist) { $toStage += $oddsTodayHist }
 
       if ($toStage.Count -gt 0) {
         foreach ($p in $toStage) { git add $p }
