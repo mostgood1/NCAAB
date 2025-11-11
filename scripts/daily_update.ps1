@@ -197,6 +197,17 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
       if (Test-Path $gwc) { $toStage += $gwc }
       $pri = Join-Path $OutDir 'priors.csv'
       if (Test-Path $pri) { $toStage += $pri }
+      # Today's slate helpers so Render can display current day without manual bootstrap
+      $predToday = Join-Path $OutDir 'predictions_today.csv'
+      if (Test-Path $predToday) { $toStage += $predToday }
+      $predWeek = Join-Path $OutDir 'predictions_week.csv'
+      if (Test-Path $predWeek) { $toStage += $predWeek }
+      $gamesCurr = Join-Path $OutDir 'games_curr.csv'
+      if (Test-Path $gamesCurr) { $toStage += $gamesCurr }
+      $gwlToday = Join-Path $OutDir 'games_with_last_today.csv'
+      if (Test-Path $gwlToday) { $toStage += $gwlToday }
+      $oddsToday = Join-Path $OutDir 'odds_today.csv'
+      if (Test-Path $oddsToday) { $toStage += $oddsToday }
 
       if ($toStage.Count -gt 0) {
         foreach ($p in $toStage) { git add $p }
