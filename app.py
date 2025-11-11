@@ -1021,17 +1021,36 @@ def index():
                 )
                 if not line_by_game.empty:
                     if "game_id" in df.columns:
-                        df = df.merge(line_by_game, on="game_id", how="left")
-                    else:
-                        logger.warning("Skipping odds total merge: df missing game_id column")
-                    # Coalesce per-row to fill missing market_total
-                    if "market_total" in df.columns:
                         try:
-                            df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_from_odds"])
+                            df = df.merge(line_by_game, on="game_id", how="left")
                         except Exception:
-                            pass
+                            logger.exception("Odds total merge failed; proceeding without _market_total_from_odds")
                     else:
-                        df["market_total"] = df["_market_total_from_odds"]
+                        # Attempt to synthesize game_id on the fly if teams present
+                        home_col = next((c for c in ["home_team","home"] if c in df.columns), None)
+                        away_col = next((c for c in ["away_team","away"] if c in df.columns), None)
+                        date_col = "date" if "date" in df.columns else None
+                        if home_col and away_col:
+                            try:
+                                date_part = (df.get(date_col) or pd.Series([None]*len(df))).astype(str)
+                                home_norm = df[home_col].astype(str).map(normalize_name)
+                                away_norm = df[away_col].astype(str).map(normalize_name)
+                                df["game_id"] = [f"{d}:{a}:{h}" for d,a,h in zip(date_part, away_norm, home_norm)]
+                                logger.warning("Synthesized game_id for odds total merge (%d rows)", len(df))
+                                df = df.merge(line_by_game, on="game_id", how="left")
+                            except Exception:
+                                logger.exception("Failed synthesizing game_id for odds total merge; skipping")
+                        else:
+                            logger.warning("Skipping odds total merge: df missing game_id and team columns")
+                    # Coalesce per-row to fill missing market_total only if helper column now exists
+                    if "_market_total_from_odds" in df.columns:
+                        if "market_total" in df.columns:
+                            try:
+                                df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_from_odds"])
+                            except Exception:
+                                pass
+                        else:
+                            df["market_total"] = df["_market_total_from_odds"]
             # Build per-game odds list and start time from commence_time when present
             odds_map: dict[str, list[dict[str, Any]]] = {}
             start_map: dict[str, str] = {}
