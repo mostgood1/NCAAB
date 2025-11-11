@@ -1641,16 +1641,37 @@ def index():
         except Exception:
             pass
 
-    # Hide market/closing for games with no predictions and no odds to reduce clutter
-    if "pred_total" in df.columns:
-        try:
-            mask_no_pred = df["pred_total"].isna()
-            if "market_total" in df.columns:
-                df.loc[mask_no_pred & df["market_total"].isna(), "market_total"] = None
-            if "closing_total" in df.columns:
-                df.loc[mask_no_pred & df["closing_total"].isna(), "closing_total"] = None
-        except Exception:
-            pass
+    # Prediction fallback enrichment: ensure we rarely render a card with odds but no predictions.
+    # Removes previous logic that hid odds when predictions were missing; instead we synthesize a baseline prediction.
+    try:
+        if "pred_total" in df.columns:
+            mt_series = pd.to_numeric(df.get("market_total"), errors="coerce") if "market_total" in df.columns else None
+            pm_series = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else None
+            missing_pred = df["pred_total"].isna()
+            # Fallback 1: if market_total exists but pred_total missing, copy market_total (mark basis) so edge=0 but UI populated.
+            if mt_series is not None and missing_pred.any():
+                can_copy = missing_pred & mt_series.notna()
+                if can_copy.any():
+                    df.loc[can_copy, "pred_total"] = mt_series[can_copy]
+                    df.loc[can_copy, "pred_total_basis"] = "market_copy"
+            # Fallback 2: derive team projections if absent using pred_total & pred_margin
+            if {"pred_total","pred_margin"}.issubset(df.columns):
+                pt = pd.to_numeric(df["pred_total"], errors="coerce")
+                pm2 = pd.to_numeric(df["pred_margin"], errors="coerce")
+                need_proj_home = ("proj_home" not in df.columns) or df["proj_home"].isna().all()
+                need_proj_away = ("proj_away" not in df.columns) or df["proj_away"].isna().all()
+                if need_proj_home:
+                    df["proj_home"] = np.where(pt.notna() & pm2.notna(), (pt/2) + (pm2/2), df.get("proj_home"))
+                if need_proj_away:
+                    # Use proj_home if just created
+                    if "proj_home" in df.columns:
+                        ph = pd.to_numeric(df["proj_home"], errors="coerce")
+                        df["proj_away"] = np.where(pt.notna() & ph.notna(), pt - ph, df.get("proj_away"))
+                # Mark adjusted flag when basis is copied from market (for template optional badge)
+                if "pred_total_basis" in df.columns:
+                    df["pred_total_adjusted"] = np.where(df["pred_total_basis"]=="market_copy", True, df.get("pred_total_adjusted"))
+    except Exception:
+        pass
 
     # Targeted per-row fuzzy odds fill for residual missing lines (post-threshold fallback)
     try:
@@ -2446,6 +2467,40 @@ def index():
     except Exception:
         df_tpl = df
 
+    # Post-construction cleanup: ensure no rows reach the template with BOTH missing predictions and odds.
+    # Strategy:
+    # 1. If pred_total & all market/closing totals are missing, but proj_home/proj_away exist, derive pred_total = proj_home + proj_away.
+    # 2. Re-check; if still missing all totals AND no spread or ML quotes, drop the row as it provides no actionable info.
+    removed_empty_rows = 0
+    try:
+        needed_cols = {"pred_total", "market_total", "closing_total"}
+        if needed_cols.issubset(df_tpl.columns):
+            # Derive predictions where possible
+            have_proj = {"proj_home", "proj_away"}.issubset(df_tpl.columns)
+            if have_proj:
+                ph = pd.to_numeric(df_tpl.get("proj_home"), errors="coerce")
+                pa = pd.to_numeric(df_tpl.get("proj_away"), errors="coerce")
+                missing_pred = df_tpl["pred_total"].isna() if "pred_total" in df_tpl.columns else pd.Series(True, index=df_tpl.index)
+                can_derive = missing_pred & ph.notna() & pa.notna()
+                if can_derive.any():
+                    df_tpl.loc[can_derive, "pred_total"] = (ph + pa)[can_derive]
+            # Identify rows still empty of both odds & predictions (no totals, no spreads, no ML) after derivation
+            still_empty = (
+                df_tpl["pred_total"].isna() &
+                df_tpl["market_total"].isna() &
+                df_tpl["closing_total"].isna()
+            )
+            if "spread_home" in df_tpl.columns:
+                still_empty = still_empty & df_tpl["spread_home"].isna() & df_tpl.get("closing_spread_home", pd.Series([True]*len(df_tpl))).isna()
+            if "ml_home" in df_tpl.columns:
+                still_empty = still_empty & df_tpl["ml_home"].isna()
+            # Drop those rows; capture count for diagnostics
+            if still_empty.any():
+                removed_empty_rows = int(still_empty.sum())
+                df_tpl = df_tpl[~still_empty].reset_index(drop=True)
+    except Exception:
+        pass
+
     # Recompute coverage summary post enrichment: treat presence of any of (market_total, closing_total, spread_home, closing_spread_home, ml_home) as odds coverage signals.
     try:
         coverage_summary = {"full": 0, "partial": 0, "none": 0}
@@ -2538,6 +2593,9 @@ def index():
                     coverage_note = f"Schedule anomaly: only {int(row.iloc[0]['n_games'])} games on {date_q}."
     except Exception:
         pass
+    # Suppress anomaly note specifically for 2025-11-11 per UI request
+    if str(date_q) == "2025-11-11":
+        coverage_note = None
     # Archive dates list (daily_results) for navigation
     try:
         archive_dates: list[str] = []
@@ -2569,8 +2627,13 @@ def index():
             show_diag = True
             diag_url = f"/api/schedule-diagnostics?date={tstr}&refresh=1"
             fused_bootstrap_url = f"/api/bootstrap?date={tstr}&provider=fused&force=1&refresh=1"
+        # Offer odds refresh shortcut when on today's slate
+        refresh_odds_url = None
+        if sel_is_today:
+            refresh_odds_url = f"/api/refresh-odds?date={tstr}"
     except Exception:
         show_bootstrap = False
+        refresh_odds_url = None
 
     return render_template(
         "index.html",
@@ -2591,6 +2654,8 @@ def index():
         show_diag=show_diag,
         diag_url=diag_url,
         fused_bootstrap_url=fused_bootstrap_url,
+        refresh_odds_url=refresh_odds_url,
+        removed_empty_rows=removed_empty_rows,
     )
 
 
