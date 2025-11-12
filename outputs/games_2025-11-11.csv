@@ -1,17 +1,17 @@
 game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401823375,2025,2025-11-11,2025-11-11 16:00:00+00:00,IU Indianapolis Jaguars,IU Columbus Crimson Pride,63,47,48.0,38.0,15.0,9.0,False,The Jungle
-401824303,2025,2025-11-11,2025-11-11 18:00:00+00:00,Kansas City Roos,Iona Gaels,0,0,,,,,False,Swinney Center
-401823523,2025,2025-11-11,2025-11-11 21:00:00+00:00,Abilene Christian Wildcats,Southwestern Adventist Knights,0,0,,,,,False,Moody Coliseum (Abilene)
-401812353,2025,2025-11-11,2025-11-11 21:00:00+00:00,Air Force Falcons,Long Island University Sharks,0,0,,,,,False,Clune Arena
-401828496,2025,2025-11-11,2025-11-11 23:00:00+00:00,Incarnate Word Cardinals,Southwestern Christian Eagles,0,0,,,,,False,McDermott Center
-401827109,2025,2025-11-11,2025-11-11 23:00:00+00:00,Bethune-Cookman Wildcats,Coastal Georgia Mariner,0,0,,,,,False,Moore Gymnasium (FL)
-401813274,2025,2025-11-11,2025-11-11 23:00:00+00:00,Morgan State Bears,UMBC Retrievers,0,0,,,,,False,Hill Field House
-401817529,2025,2025-11-11,2025-11-11 23:30:00+00:00,Michigan Wolverines,Wake Forest Demon Deacons,0,0,,,,,True,Little Caesars Arena
-401828267,2025,2025-11-11,2025-11-11 23:30:00+00:00,UAlbany Great Danes,SUNY Delhi Broncos,0,0,,,,,False,Broadview Center
-401827495,2025,2025-11-11,2025-11-11 23:30:00+00:00,Stony Brook Seawolves,Saint Josephs Long Island Golden Eagles,0,0,,,,,False,Stony Brook Arena
-401826733,2025,2025-11-11,2025-11-11 23:30:00+00:00,Ohio State Buckeyes,App State Mountaineers,0,0,,,,,False,Value City Arena
-401824947,2025,2025-11-11,2025-11-11 23:30:00+00:00,UNC Asheville Bulldogs,Lipscomb Bisons,0,0,,,,,False,Kimmel Arena
-401820150,2025,2025-11-11,2025-11-11 23:30:00+00:00,Penn State Nittany Lions,Navy Midshipmen,0,0,,,,,False,Bryce Jordan Center
+401828496,2025,2025-11-11,2025-11-11 23:00:00+00:00,Incarnate Word Cardinals,Southwestern Christian Eagles,47,40,47.0,40.0,,,False,McDermott Center
+401813274,2025,2025-11-11,2025-11-11 23:00:00+00:00,Morgan State Bears,UMBC Retrievers,34,45,34.0,45.0,,,False,Hill Field House
+401827109,2025,2025-11-11,2025-11-11 23:20:00+00:00,Bethune-Cookman Wildcats,Coastal Georgia Mariner,40,22,40.0,22.0,,,False,Moore Gymnasium (FL)
+401817529,2025,2025-11-11,2025-11-11 23:30:00+00:00,Michigan Wolverines,Wake Forest Demon Deacons,22,21,22.0,21.0,,,True,Little Caesars Arena
+401828267,2025,2025-11-11,2025-11-11 23:30:00+00:00,UAlbany Great Danes,SUNY Delhi Broncos,35,14,35.0,14.0,,,False,Broadview Center
+401827495,2025,2025-11-11,2025-11-11 23:30:00+00:00,Stony Brook Seawolves,Saint Josephs Long Island Golden Eagles,38,16,38.0,16.0,,,False,Stony Brook Arena
+401826733,2025,2025-11-11,2025-11-11 23:30:00+00:00,Ohio State Buckeyes,App State Mountaineers,10,22,10.0,22.0,,,False,Value City Arena
+401824947,2025,2025-11-11,2025-11-11 23:30:00+00:00,UNC Asheville Bulldogs,Lipscomb Bisons,19,15,19.0,15.0,,,False,Kimmel Arena
+401820150,2025,2025-11-11,2025-11-11 23:30:00+00:00,Penn State Nittany Lions,Navy Midshipmen,29,23,29.0,23.0,,,False,Bryce Jordan Center
+401823375,2025,2025-11-11,2025-11-11 16:00:00+00:00,IU Indianapolis Jaguars,IU Columbus Crimson Pride,121,77,48.0,38.0,73.0,39.0,False,The Jungle
+401824303,2025,2025-11-11,2025-11-11 18:00:00+00:00,Kansas City Roos,Iona Gaels,91,105,47.0,52.0,44.0,53.0,False,Swinney Center
+401823523,2025,2025-11-11,2025-11-11 21:00:00+00:00,Abilene Christian Wildcats,Southwestern Adventist Knights,104,63,56.0,25.0,48.0,38.0,False,Moody Coliseum (Abilene)
+401812353,2025,2025-11-11,2025-11-11 21:00:00+00:00,Air Force Falcons,Long Island University Sharks,72,76,33.0,32.0,39.0,44.0,False,Clune Arena
 401817230,2025,2025-11-11,2025-11-12 00:00:00+00:00,Army Black Knights,Duke Blue Devils,0,0,,,,,False,Christl Arena
 401826707,2025,2025-11-11,2025-11-12 00:00:00+00:00,Florida Gators,Florida State Seminoles,0,0,,,,,False,Stephen C. O'Connell Center
 401817264,2025,2025-11-11,2025-11-12 00:00:00+00:00,North Carolina Tar Heels,Radford Highlanders,0,0,,,,,False,Dean E. Smith Center
