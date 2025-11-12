@@ -3104,6 +3104,13 @@ def api_health():
                 preds_today_rows = int((pr["date"].astype(str) == today_str).sum())
         except Exception:
             preds_today_rows = None
+        # Expose predictions source path if previously loaded during this process lifetime
+        try:
+            global _PREDICTIONS_SOURCE_PATH
+            predictions_source = _PREDICTIONS_SOURCE_PATH
+        except Exception:
+            predictions_source = None
+        need_bootstrap = bool(today_str and (preds_today_rows is None or preds_today_rows == 0))
         payload = {
             "status": "ok",
             "outputs_dir": str(OUT),
@@ -3113,6 +3120,8 @@ def api_health():
             "stake_files": stake_files,
             "daily_results_count": len(daily_results),
             "recent_result_dates": recent_results,
+            "predictions_source": predictions_source,
+            "need_bootstrap": need_bootstrap,
             "today": {
                 "date": today_str,
                 "games_today_rows": games_today_rows,
