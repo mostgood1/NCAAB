@@ -1,0 +1,27 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401831227,2025,2025-11-13,2025-11-13 16:00:00+00:00,South Alabama Jaguars,Central Michigan Chippewas,0,0,,,,,True,McArthur Center
+401829413,2025,2025-11-13,2025-11-13 23:00:00+00:00,Lafayette Leopards,Cornell Big Red,0,0,,,,,False,Kirby Sports Center
+401817444,2025,2025-11-13,2025-11-13 23:00:00+00:00,West Virginia Mountaineers,Pittsburgh Panthers,0,0,,,,,False,WVU Coliseum
+401827220,2025,2025-11-13,2025-11-13 23:30:00+00:00,Michigan State Spartans,San José State Spartans,0,0,,,,,False,Breslin Center
+401830421,2025,2025-11-13,2025-11-13 23:30:00+00:00,UNC Asheville Bulldogs,Bryan (TN) Lions,0,0,,,,,False,Kimmel Arena
+401812262,2025,2025-11-13,2025-11-14 00:00:00+00:00,Alabama Crimson Tide,Purdue Boilermakers,0,0,,,,,False,Coleman Coliseum
+401829686,2025,2025-11-13,2025-11-14 00:00:00+00:00,Howard Bison,Alcorn State Braves,0,0,,,,,False,Burr Gymnasium
+401829493,2025,2025-11-13,2025-11-14 00:00:00+00:00,Georgia State Panthers,Fort Valley State Wildcats,0,0,,,,,False,GSU Convocation Center
+401828297,2025,2025-11-13,2025-11-14 00:00:00+00:00,Campbell Fighting Camels,Barber Scotia BARBER SCOTIA,0,0,,,,,False,John W. Pope Jr. Convocation Center
+401827527,2025,2025-11-13,2025-11-14 00:00:00+00:00,North Carolina A&T Aggies,Washington Adventist Shock,0,0,,,,,False,Corbett Sports Center
+401826862,2025,2025-11-13,2025-11-14 00:00:00+00:00,Princeton Tigers,John Jay College Bloodhounds,0,0,,,,,False,Jadwin Gymnasium
+401826856,2025,2025-11-13,2025-11-14 00:00:00+00:00,Massachusetts Minutemen,Le Moyne Dolphins,0,0,,,,,False,Mullins Center
+401826830,2025,2025-11-13,2025-11-14 00:00:00+00:00,Tennessee Tech Golden Eagles,Berea Mountaineers,0,0,,,,,False,Hooper Eblen Center
+401826750,2025,2025-11-13,2025-11-14 00:00:00+00:00,Western Carolina Catamounts,Voorhees Tigers,0,0,,,,,False,Ramsey Center
+401824861,2025,2025-11-13,2025-11-14 00:00:00+00:00,Seton Hall Pirates,Monmouth Hawks,0,0,,,,,False,Prudential Center
+401823401,2025,2025-11-13,2025-11-14 00:00:00+00:00,Robert Morris Colonials,Pittsburgh - Greensburg Bobcats,0,0,,,,,False,UPMC Events Center
+401820807,2025,2025-11-13,2025-11-14 00:00:00+00:00,East Carolina Pirates,Elizabeth City State Vikings,0,0,,,,,False,Minges Coliseum
+401818368,2025,2025-11-13,2025-11-14 00:00:00+00:00,Columbia Lions,UMass Lowell River Hawks,0,0,,,,,False,Levien Gymnasium
+401827089,2025,2025-11-13,2025-11-14 00:30:00+00:00,Grambling Tigers,Southern Miss Golden Eagles,0,0,,,,,False,Fredrick C. Hobdy Assembly Center
+401817155,2025,2025-11-13,2025-11-14 00:30:00+00:00,Wichita State Shockers,Loyola Chicago Ramblers,0,0,,,,,False,Charles Koch Arena
+401829043,2025,2025-11-13,2025-11-14 01:00:00+00:00,LSU Tigers,Florida International Panthers,0,0,,,,,False,Pete Maravich Assembly Center
+401828477,2025,2025-11-13,2025-11-14 01:00:00+00:00,St. Thomas-Minnesota Tommies,Green Bay Phoenix,0,0,,,,,False,Lee & Penny Anderson Arena
+401828331,2025,2025-11-13,2025-11-14 01:00:00+00:00,Houston Christian Huskies,UL Monroe Warhawks,0,0,,,,,False,Sharp Gymnasium
+401823463,2025,2025-11-13,2025-11-14 01:00:00+00:00,Northern Illinois Huskies,Benedictine University (IL) Eagles,0,0,,,,,False,NIU Convocation Center
+401820839,2025,2025-11-13,2025-11-14 01:00:00+00:00,Alabama A&M Bulldogs,Charleston Southern Buccaneers,0,0,,,,,False,Event Center
+401817221,2025,2025-11-13,2025-11-14 02:00:00+00:00,Kansas State Wildcats,California Golden Bears,0,0,,,,,False,Bramlage Coliseum
