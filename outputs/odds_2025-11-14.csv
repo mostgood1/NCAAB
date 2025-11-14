@@ -1,0 +1,35 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+19f9d68f00982ab4b7dcc8385b280240,FanDuel,2025-11-14 14:42:25.230340+00:00,-600.0,430.0,-9.5,144.5,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,LowVig.ag,2025-11-14 14:42:25.230340+00:00,-600.0,446.0,-10.0,143.0,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,BetOnline.ag,2025-11-14 14:42:25.230340+00:00,-600.0,446.0,-10.0,143.0,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,DraftKings,2025-11-14 14:42:25.230340+00:00,-600.0,440.0,-9.5,143.5,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,Caesars,2025-11-14 14:42:25.230340+00:00,-600.0,430.0,-10.0,143.5,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,BetMGM,2025-11-14 14:42:25.230340+00:00,-625.0,450.0,-10.5,143.5,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,Fanatics,2025-11-14 14:42:25.230340+00:00,-550.0,400.0,-9.5,143.5,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,Bovada,2025-11-14 14:42:25.230340+00:00,-600.0,425.0,-10.0,144.5,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+19f9d68f00982ab4b7dcc8385b280240,BetRivers,2025-11-14 14:42:25.230340+00:00,-560.0,360.0,-9.5,143.5,2025-11-14 16:00:00+00:00,Central Michigan Chippewas,Coppin St Eagles
+ef3972b9d28e04dd11342475593c9d1f,DraftKings,2025-11-14 14:42:25.230340+00:00,-155.0,130.0,-3.5,156.5,2025-11-14 23:30:00+00:00,Lindenwood Lions,Charleston Southern Buccaneers
+ef3972b9d28e04dd11342475593c9d1f,BetMGM,2025-11-14 14:42:25.230340+00:00,-155.0,125.0,-3.5,156.5,2025-11-14 23:30:00+00:00,Lindenwood Lions,Charleston Southern Buccaneers
+ef3972b9d28e04dd11342475593c9d1f,LowVig.ag,2025-11-14 14:42:25.230340+00:00,,,-3.0,157.0,2025-11-14 23:30:00+00:00,Lindenwood Lions,Charleston Southern Buccaneers
+ef3972b9d28e04dd11342475593c9d1f,BetOnline.ag,2025-11-14 14:42:25.230340+00:00,,,-3.0,157.0,2025-11-14 23:30:00+00:00,Lindenwood Lions,Charleston Southern Buccaneers
+ef3972b9d28e04dd11342475593c9d1f,FanDuel,2025-11-14 14:42:25.230340+00:00,-168.0,136.0,-2.5,156.5,2025-11-14 23:30:00+00:00,Lindenwood Lions,Charleston Southern Buccaneers
+ef3972b9d28e04dd11342475593c9d1f,Fanatics,2025-11-14 14:42:25.230340+00:00,-150.0,125.0,-3.0,156.5,2025-11-14 23:30:00+00:00,Lindenwood Lions,Charleston Southern Buccaneers
+ef3972b9d28e04dd11342475593c9d1f,BetRivers,2025-11-14 14:42:25.230340+00:00,-150.0,118.0,-2.5,156.5,2025-11-14 23:30:00+00:00,Lindenwood Lions,Charleston Southern Buccaneers
+1a30506073314e98c9d3ec37b18818ae,FanDuel,2025-11-14 14:42:25.230340+00:00,-295.0,235.0,-5.5,187.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,LowVig.ag,2025-11-14 14:42:25.230340+00:00,-265.0,219.0,-6.0,188.0,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,BetOnline.ag,2025-11-14 14:42:25.230340+00:00,-265.0,219.0,-6.0,188.0,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,Caesars,2025-11-14 14:42:25.230340+00:00,,,-5.5,188.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,DraftKings,2025-11-14 14:42:25.230340+00:00,-278.0,225.0,-6.5,188.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,BetMGM,2025-11-14 14:42:25.230340+00:00,-235.0,190.0,-5.5,188.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,BetRivers,2025-11-14 14:42:25.230340+00:00,-275.0,200.0,-5.5,187.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,Bovada,2025-11-14 14:42:25.230340+00:00,-260.0,215.0,-5.5,187.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,Fanatics,2025-11-14 14:42:25.230340+00:00,-260.0,210.0,-6.0,187.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+1a30506073314e98c9d3ec37b18818ae,BetUS,2025-11-14 14:42:25.230340+00:00,-260.0,218.0,-5.5,188.5,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IUPUI Jaguars
+4a975523ace52d53c3de9933e5fd83ac,FanDuel,2025-11-14 14:42:25.230340+00:00,-3500.0,1280.0,-17.5,138.5,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
+4a975523ace52d53c3de9933e5fd83ac,LowVig.ag,2025-11-14 14:42:25.230340+00:00,,,-17.5,139.0,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
+4a975523ace52d53c3de9933e5fd83ac,BetOnline.ag,2025-11-14 14:42:25.230340+00:00,,,-17.5,139.0,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
+4a975523ace52d53c3de9933e5fd83ac,DraftKings,2025-11-14 14:42:25.230340+00:00,,,-17.5,137.5,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
+4a975523ace52d53c3de9933e5fd83ac,BetMGM,2025-11-14 14:42:25.230340+00:00,-2500.0,1100.0,-17.5,137.5,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
+4a975523ace52d53c3de9933e5fd83ac,Fanatics,2025-11-14 14:42:25.230340+00:00,-5000.0,1700.0,-17.5,138.5,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
+4a975523ace52d53c3de9933e5fd83ac,BetRivers,2025-11-14 14:42:25.230340+00:00,-5000.0,1100.0,-17.5,138.5,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
+4a975523ace52d53c3de9933e5fd83ac,Bovada,2025-11-14 14:42:25.230340+00:00,,,-17.0,138.5,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks
