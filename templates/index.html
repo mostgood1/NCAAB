@@ -239,22 +239,6 @@
                   <div class="seg">Team Totals: {% if r.proj_home_1h is not none and r.proj_away_1h is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away_1h }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home_1h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if r.pred_total_1h is not none %}{{ '%.1f' % r.pred_total_1h }}{% else %}–{% endif %}</div>
                 </div>
-                <div class="line-row">
-                  <div class="seg label">Actuals</div>
-                  {% set cls_ats_1h = 'neutral' if (r.ats_result_1h == 'Push') else ('ok' if r.eval_ats_1h_ok else ('bad' if r.ats_result_1h else 'neutral')) %}
-                  {% set ats_team_1h = (r.home_team if (r.ats_result_1h and 'Home' in r.ats_result_1h) else (r.away_team if (r.ats_result_1h and 'Away' in r.ats_result_1h) else ('Push' if r.ats_result_1h == 'Push' else None))) %}
-                  <div class="seg {{ cls_ats_1h }}">ATS: {% if ats_team_1h == 'Push' %}Push{% elif ats_team_1h %}{{ ats_team_1h }} Cover{% else %}–{% endif %}</div>
-                  {# Compute 1H margin from scores (keys actual_margin_1h may be absent) #}
-                    {% set h1_ok = (r.home_score_1h is not none and r.home_score_1h == r.home_score_1h) %}
-                    {% set a1_ok = (r.away_score_1h is not none and r.away_score_1h == r.away_score_1h) %}
-                    {% set margin_1h = (r.home_score_1h - r.away_score_1h) if (h1_ok and a1_ok) else None %}
-                    {% set winner_team_1h = (r.home_team if (margin_1h is not none and margin_1h>0) else (r.away_team if (margin_1h is not none and margin_1h<0) else ('Push' if (margin_1h is not none and margin_1h == margin_1h and margin_1h == 0) else None))) %}
-                  {% set cls_win_1h = 'neutral' if (winner_team_1h == 'Push') else ('ok' if r.eval_winner_1h_ok else ('bad' if winner_team_1h else 'neutral')) %}
-                  <div class="seg {{ cls_win_1h }}">Winner: {{ winner_team_1h or '–' }}</div>
-                    <div class="seg">Team Totals: {% if h1_ok and a1_ok %}{{ r.away_team or '–' }} {{ r.away_score_1h }} / {{ r.home_team or '–' }} {{ r.home_score_1h }}{% else %}–{% endif %}</div>
-                    {% set at1_ok = (r.actual_total_1h is not none and r.actual_total_1h == r.actual_total_1h) %}
-                    <div class="seg">Overall: {% if at1_ok %}{{ '%.0f' % r.actual_total_1h }}{% else %}–{% endif %}</div>
-                </div>
                 <div class="line-row odds-row">
                   <div class="seg label">Odds</div>
                   {% set spread_1h = r.spread_home_1h if (r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None %}
@@ -290,6 +274,22 @@
                   <div class="seg">Team Totals: {% if total_1h is not none and spread_1h is not none %}{% set home_imp_1h = (total_1h / 2) - (spread_1h / 2) %}{% set away_imp_1h = total_1h - home_imp_1h %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp_1h }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp_1h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if total_1h is not none %}{{ '%.1f' % total_1h }}{% else %}–{% endif %}</div>
                 </div>
+                <div class="line-row">
+                  <div class="seg label">Actuals</div>
+                  {% set cls_ats_1h = 'neutral' if (r.ats_result_1h == 'Push') else ('ok' if r.eval_ats_1h_ok else ('bad' if r.ats_result_1h else 'neutral')) %}
+                  {% set ats_team_1h = (r.home_team if (r.ats_result_1h and 'Home' in r.ats_result_1h) else (r.away_team if (r.ats_result_1h and 'Away' in r.ats_result_1h) else ('Push' if r.ats_result_1h == 'Push' else None))) %}
+                  <div class="seg {{ cls_ats_1h }}">ATS: {% if ats_team_1h == 'Push' %}Push{% elif ats_team_1h %}{{ ats_team_1h }} Cover{% else %}–{% endif %}</div>
+                  {# Compute 1H margin from scores (keys actual_margin_1h may be absent) #}
+                    {% set h1_ok = (r.home_score_1h is not none and r.home_score_1h == r.home_score_1h) %}
+                    {% set a1_ok = (r.away_score_1h is not none and r.away_score_1h == r.away_score_1h) %}
+                    {% set margin_1h = (r.home_score_1h - r.away_score_1h) if (h1_ok and a1_ok) else None %}
+                    {% set winner_team_1h = (r.home_team if (margin_1h is not none and margin_1h>0) else (r.away_team if (margin_1h is not none and margin_1h<0) else ('Push' if (margin_1h is not none and margin_1h == margin_1h and margin_1h == 0) else None))) %}
+                  {% set cls_win_1h = 'neutral' if (winner_team_1h == 'Push') else ('ok' if r.eval_winner_1h_ok else ('bad' if winner_team_1h else 'neutral')) %}
+                  <div class="seg {{ cls_win_1h }}">Winner: {{ winner_team_1h or '–' }}</div>
+                    <div class="seg">Team Totals: {% if h1_ok and a1_ok %}{{ r.away_team or '–' }} {{ r.away_score_1h }} / {{ r.home_team or '–' }} {{ r.home_score_1h }}{% else %}–{% endif %}</div>
+                    {% set at1_ok = (r.actual_total_1h is not none and r.actual_total_1h == r.actual_total_1h) %}
+                    <div class="seg">Overall: {% if at1_ok %}{{ '%.0f' % r.actual_total_1h }}{% else %}–{% endif %}</div>
+                </div>
               </div>
               <div class="deriv-group">
                 <div class="group-title">2nd Half</div>
@@ -299,26 +299,6 @@
                   <div class="seg">Winner: {% if r.pred_margin_2h is not none %}{% if r.pred_margin_2h > 0 %}{{ r.home_team }}{% elif r.pred_margin_2h < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
                   <div class="seg">Team Totals: {% if r.proj_home_2h is not none and r.proj_away_2h is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away_2h }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home_2h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if r.pred_total_2h is not none %}{{ '%.1f' % r.pred_total_2h }}{% else %}–{% endif %}</div>
-                </div>
-                <div class="line-row">
-                  <div class="seg label">Actuals</div>
-                  {% set cls_ats_2h = 'neutral' if (r.ats_result_2h == 'Push') else ('ok' if r.eval_ats_2h_ok else ('bad' if r.ats_result_2h else 'neutral')) %}
-                  {% set ats_team_2h = (r.home_team if (r.ats_result_2h and 'Home' in r.ats_result_2h) else (r.away_team if (r.ats_result_2h and 'Away' in r.ats_result_2h) else ('Push' if r.ats_result_2h == 'Push' else None))) %}
-                  <div class="seg {{ cls_ats_2h }}">ATS: {% if ats_team_2h == 'Push' %}Push{% elif ats_team_2h %}{{ ats_team_2h }} Cover{% else %}–{% endif %}</div>
-                  {# Compute 2H margin from second-half scores (avoid missing actual_margin_2h key) #}
-                  {% set hs_ok = (r.home_score is not none and r.home_score == r.home_score) %}
-                  {% set as_ok = (r.away_score is not none and r.away_score == r.away_score) %}
-                  {% set h1_ok2 = (r.home_score_1h is not none and r.home_score_1h == r.home_score_1h) %}
-                  {% set a1_ok2 = (r.away_score_1h is not none and r.away_score_1h == r.away_score_1h) %}
-                  {% set home_2h = (r.home_score - r.home_score_1h) if (hs_ok and h1_ok2) else None %}
-                  {% set away_2h = (r.away_score - r.away_score_1h) if (as_ok and a1_ok2) else None %}
-                  {% set margin_2h = (home_2h - away_2h) if (home_2h is not none and home_2h == home_2h and away_2h is not none and away_2h == away_2h) else None %}
-                  {% set winner_team_2h = (r.home_team if (margin_2h is not none and margin_2h>0) else (r.away_team if (margin_2h is not none and margin_2h<0) else ('Push' if (margin_2h is not none and margin_2h == margin_2h and margin_2h == 0) else None))) %}
-                  {% set cls_win_2h = 'neutral' if (winner_team_2h == 'Push') else ('ok' if r.eval_winner_2h_ok else ('bad' if winner_team_2h else 'neutral')) %}
-                  <div class="seg {{ cls_win_2h }}">Winner: {{ winner_team_2h or '–' }}</div>
-                  <div class="seg">Team Totals: {% if hs_ok and as_ok and h1_ok2 and a1_ok2 %}{{ r.away_team or '–' }} {{ r.away_score - r.away_score_1h }} / {{ r.home_team or '–' }} {{ r.home_score - r.home_score_1h }}{% else %}–{% endif %}</div>
-                  {% set at2_ok = (r.actual_total_2h is not none and r.actual_total_2h == r.actual_total_2h) %}
-                  <div class="seg">Overall: {% if at2_ok %}{{ '%.0f' % r.actual_total_2h }}{% else %}–{% endif %}</div>
                 </div>
                 <div class="line-row odds-row">
                   <div class="seg label">Odds</div>
@@ -354,6 +334,26 @@
                   {% endif %}
                   <div class="seg">Team Totals: {% if total_2h is not none and spread_2h is not none %}{% set home_imp_2h = (total_2h / 2) - (spread_2h / 2) %}{% set away_imp_2h = total_2h - home_imp_2h %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp_2h }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp_2h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if total_2h is not none %}{{ '%.1f' % total_2h }}{% else %}–{% endif %}</div>
+                </div>
+                <div class="line-row">
+                  <div class="seg label">Actuals</div>
+                  {% set cls_ats_2h = 'neutral' if (r.ats_result_2h == 'Push') else ('ok' if r.eval_ats_2h_ok else ('bad' if r.ats_result_2h else 'neutral')) %}
+                  {% set ats_team_2h = (r.home_team if (r.ats_result_2h and 'Home' in r.ats_result_2h) else (r.away_team if (r.ats_result_2h and 'Away' in r.ats_result_2h) else ('Push' if r.ats_result_2h == 'Push' else None))) %}
+                  <div class="seg {{ cls_ats_2h }}">ATS: {% if ats_team_2h == 'Push' %}Push{% elif ats_team_2h %}{{ ats_team_2h }} Cover{% else %}–{% endif %}</div>
+                  {# Compute 2H margin from second-half scores (avoid missing actual_margin_2h key) #}
+                  {% set hs_ok = (r.home_score is not none and r.home_score == r.home_score) %}
+                  {% set as_ok = (r.away_score is not none and r.away_score == r.away_score) %}
+                  {% set h1_ok2 = (r.home_score_1h is not none and r.home_score_1h == r.home_score_1h) %}
+                  {% set a1_ok2 = (r.away_score_1h is not none and r.away_score_1h == r.away_score_1h) %}
+                  {% set home_2h = (r.home_score - r.home_score_1h) if (hs_ok and h1_ok2) else None %}
+                  {% set away_2h = (r.away_score - r.away_score_1h) if (as_ok and a1_ok2) else None %}
+                  {% set margin_2h = (home_2h - away_2h) if (home_2h is not none and home_2h == home_2h and away_2h is not none and away_2h == away_2h) else None %}
+                  {% set winner_team_2h = (r.home_team if (margin_2h is not none and margin_2h>0) else (r.away_team if (margin_2h is not none and margin_2h<0) else ('Push' if (margin_2h is not none and margin_2h == margin_2h and margin_2h == 0) else None))) %}
+                  {% set cls_win_2h = 'neutral' if (winner_team_2h == 'Push') else ('ok' if r.eval_winner_2h_ok else ('bad' if winner_team_2h else 'neutral')) %}
+                  <div class="seg {{ cls_win_2h }}">Winner: {{ winner_team_2h or '–' }}</div>
+                  <div class="seg">Team Totals: {% if hs_ok and as_ok and h1_ok2 and a1_ok2 %}{{ r.away_team or '–' }} {{ r.away_score - r.away_score_1h }} / {{ r.home_team or '–' }} {{ r.home_score - r.home_score_1h }}{% else %}–{% endif %}</div>
+                  {% set at2_ok = (r.actual_total_2h is not none and r.actual_total_2h == r.actual_total_2h) %}
+                  <div class="seg">Overall: {% if at2_ok %}{{ '%.0f' % r.actual_total_2h }}{% else %}–{% endif %}</div>
                 </div>
               </div>
             </div>
