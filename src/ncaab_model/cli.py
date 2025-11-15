@@ -1336,6 +1336,28 @@ def daily_results(
         except Exception as e:
             print(f"[yellow]Failed to attach odds:[/yellow] {e}")
 
+    # Fallbacks: if halves markets were not available from the provider, derive simple approximations from full-game lines
+    try:
+        # Totals: split full-game line using half_ratio when 1H/2H market medians are missing
+        if ("market_total" in df.columns) and (
+            ("market_total_1h" not in df.columns) or df.get("market_total_1h").isna().all()
+        ):
+            try:
+                hratio = max(0.0, min(1.0, float(half_ratio)))
+            except Exception:
+                hratio = 0.485
+            mt = pd.to_numeric(df["market_total"], errors="coerce")
+            df["market_total_1h"] = mt * hratio
+            df["market_total_2h"] = mt - df["market_total_1h"]
+        # Spreads: approximate 1H spread as half the full-game spread when missing
+        if ("spread_home" in df.columns) and (
+            ("spread_home_1h" not in df.columns) or df.get("spread_home_1h").isna().all()
+        ):
+            sp = pd.to_numeric(df["spread_home"], errors="coerce")
+            df["spread_home_1h"] = sp * 0.5
+    except Exception:
+        pass
+
     # Errors and comparison vs closing
     if "pred_total" in df.columns and df["pred_total"].notna().any():
         df["err_model_total"] = df["pred_total"] - df["actual_total"]
@@ -3812,6 +3834,110 @@ def compute_edges_cmd(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     edged.to_csv(out_path, index=False)
     print(f"[green]Wrote edges to[/green] {out_path} ({len(edged)} rows)")
+
+
+@app.command(name="align-period-preds")
+def align_period_preds(
+    merged_csv: Path = typer.Option(settings.outputs_dir / "games_with_last.csv", help="Merged games+odds CSV (must include 'period' column)"),
+    predictions_csv: Path = typer.Option(settings.outputs_dir / "predictions_week.csv", help="Predictions CSV with columns [game_id,pred_total,pred_margin,(optional halves)]"),
+    out: Path = typer.Option(settings.outputs_dir / "merged_with_period_preds.csv", help="Output CSV with pred_total/pred_margin aligned to row period"),
+    half_ratio: float = typer.Option(0.485, help="If half projections missing, derive 1H total as pred_total*half_ratio and 2H as remainder"),
+    margin_half_ratio: float = typer.Option(0.5, help="If half margin projections missing, derive 1H margin as pred_margin*margin_half_ratio (2H remainder)"),
+    write_edges: bool = typer.Option(True, help="Also compute edges and write *_edges.csv (or to --edges-out if provided)"),
+    edges_out: Path | None = typer.Option(None, help="Optional explicit output path for edges CSV"),
+):
+    """Attach predictions and align them to each odds row's period, optionally writing edges.
+
+    - Inputs: merged_csv produced by join-last-odds or join-closing (columns: game_id, market, period, total/spreads/ml...)
+    - Predictions: baseline with optional half projections (pred_total_1h/_2h, pred_margin_1h/_2h)
+    - Output: pred_total/pred_margin aligned to period (full_game uses pred_total/pred_margin; 1H/2H use half projections or derived heuristics)
+    """
+    if not merged_csv.exists():
+        print(f"[red]Merged odds file not found:[/red] {merged_csv}")
+        raise typer.Exit(code=1)
+    if not predictions_csv.exists():
+        print(f"[red]Predictions file not found:[/red] {predictions_csv}")
+        raise typer.Exit(code=1)
+    try:
+        m = pd.read_csv(merged_csv)
+        p = pd.read_csv(predictions_csv)
+    except Exception as e:
+        print(f"[red]Failed reading inputs:[/red] {e}")
+        raise typer.Exit(code=1)
+    if "period" not in m.columns:
+        print("[red]merged_csv missing 'period' column; cannot align by period.[/red]")
+        raise typer.Exit(code=1)
+    # Normalize dtypes
+    for df in (m, p):
+        if "game_id" in df.columns:
+            df["game_id"] = df["game_id"].astype(str)
+    # Merge available prediction columns
+    keep = [
+        "game_id",
+        "pred_total",
+        "pred_margin",
+        "pred_total_1h",
+        "pred_total_2h",
+        "pred_margin_1h",
+        "pred_margin_2h",
+    ]
+    pcols = [c for c in keep if c in p.columns]
+    if not {"game_id","pred_total","pred_margin"}.issubset(pcols):
+        print("[yellow]Predictions missing pred_total/pred_margin; alignment will yield empty preds.[/yellow]")
+    e = m.merge(p[pcols], on="game_id", how="left")
+    per = e["period"].astype(str).str.lower()
+    # Start with full-game
+    pt = e.get("pred_total")
+    pm = e.get("pred_margin")
+    # If explicit half projections exist, prefer them
+    if "pred_total_1h" in e.columns:
+        pt = np.where(per == "1h", e["pred_total_1h"], pt)
+    if "pred_total_2h" in e.columns:
+        pt = np.where(per == "2h", e["pred_total_2h"], pt)
+    if "pred_margin_1h" in e.columns:
+        pm = np.where(per == "1h", e["pred_margin_1h"], pm)
+    if "pred_margin_2h" in e.columns:
+        pm = np.where(per == "2h", e["pred_margin_2h"], pm)
+    # If halves not present, derive from full-game heuristics
+    try:
+        hr = float(half_ratio)
+    except Exception:
+        hr = 0.485
+    try:
+        mhr = float(margin_half_ratio)
+    except Exception:
+        mhr = 0.5
+    # Build fallback half projections only for rows where half-specific columns are missing
+    pt = np.where((per == "1h") & (~e.columns.isin(["pred_total_1h"]).any()), pd.to_numeric(e.get("pred_total"), errors="coerce") * hr, pt)
+    pt = np.where((per == "2h") & (~e.columns.isin(["pred_total_2h"]).any()), pd.to_numeric(e.get("pred_total"), errors="coerce") * (1.0 - hr), pt)
+    pm = np.where((per == "1h") & (~e.columns.isin(["pred_margin_1h"]).any()), pd.to_numeric(e.get("pred_margin"), errors="coerce") * mhr, pm)
+    pm = np.where((per == "2h") & (~e.columns.isin(["pred_margin_2h"]).any()), pd.to_numeric(e.get("pred_margin"), errors="coerce") * (1.0 - mhr), pm)
+
+    # Preserve originals if present for reference
+    if "pred_total" in e.columns:
+        e.rename(columns={"pred_total": "pred_total_full"}, inplace=True)
+    if "pred_margin" in e.columns:
+        e.rename(columns={"pred_margin": "pred_margin_full"}, inplace=True)
+    # Set aligned canonical columns
+    e["pred_total"] = pd.to_numeric(pt, errors="coerce")
+    e["pred_margin"] = pd.to_numeric(pm, errors="coerce")
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        e.to_csv(out, index=False)
+    except Exception as ex:
+        print(f"[red]Failed writing output:[/red] {ex}")
+        raise typer.Exit(code=1)
+    print(f"[green]Wrote period-aligned predictions to[/green] {out} ({len(e)} rows)")
+
+    if write_edges:
+        try:
+            edged = compute_edges(e)
+            eout = edges_out if edges_out is not None else out.parent / (out.stem + "_edges.csv")
+            edged.to_csv(eout, index=False)
+            print(f"[green]Edges written ->[/green] {eout} ({len(edged)} rows)")
+        except Exception as ex:
+            print(f"[yellow]Failed to compute edges:[/yellow] {ex}")
 
 
 @app.command(name="backfill-range")

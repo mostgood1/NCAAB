@@ -152,19 +152,30 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
       Write-Warning "Merged last odds file not found at $mergedAll; stake sheet generation may fail."
     }
 
+    Write-Section "7b) Align predictions to period and compute edges"
+    $predsToday = Join-Path $OutDir ("predictions_" + $todayIso + ".csv")
+    $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
+    $alignEdges = Join-Path $OutDir ("align_period_" + $todayIso + "_edges.csv")
+    try {
+      & $VenvPython -m ncaab_model.cli align-period-preds --merged-csv $mergedToday --predictions-csv $predsToday --out $alignCsv --half-ratio 0.485 --margin-half-ratio 0.5
+    }
+    catch {
+      Write-Warning "align-period-preds failed: $($_)"
+    }
+
     Write-Section "8) Generate baseline stake sheet (edge-based Kelly)"
     $stakeBase = Join-Path $OutDir 'stake_sheet_today.csv'
     try {
-      & $VenvPython -m ncaab_model.cli bankroll-optimize --merged-csv $mergedToday --out $stakeBase --bankroll 1000 --kelly-fraction 0.5 --include-markets 'totals,spreads,h2h' --min-edge-total 0.5 --min-edge-margin 0.5 --min-kelly 0.01 --max-pct-per-bet 0.03 --max-daily-risk-pct 0.10
+      & $VenvPython -m ncaab_model.cli bankroll-optimize --merged-csv $alignEdges --out $stakeBase --bankroll 1000 --kelly-fraction 0.5 --include-markets 'totals,spreads' --min-edge-total 0.5 --min-edge-margin 0.5 --min-kelly 0.01 --max-pct-per-bet 0.03 --max-daily-risk-pct 0.10
     }
     catch {
       Write-Warning "bankroll-optimize baseline failed: $($_)"
     }
 
     Write-Section "9) Generate calibrated distributional stake sheet (if distributional columns present)"
-    $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
-    $calArtifact = Join-Path $OutDir 'models_dist\calibration_totals.json'
-    $distributionalArgs = @('--merged-csv', $mergedToday, '--out', $stakeCal, '--bankroll', '1000', '--kelly-fraction', '0.5', '--include-markets', 'totals,spreads,h2h', '--use-distributional', '--calibrate-probabilities')
+  $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
+  $calArtifact = Join-Path $OutDir 'models_dist\calibration_totals.json'
+  $distributionalArgs = @('--merged-csv', $alignEdges, '--out', $stakeCal, '--bankroll', '1000', '--kelly-fraction', '0.5', '--include-markets', 'totals,spreads', '--use-distributional', '--calibrate-probabilities')
     if (Test-Path $calArtifact) { $distributionalArgs += @('--calibration-artifact', $calArtifact) }
     try {
       & $VenvPython -m ncaab_model.cli bankroll-optimize @distributionalArgs
@@ -212,6 +223,16 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
       if (Test-Path $mergedTodayDated) { $toStage += $mergedTodayDated }
       $predsTodayDated = Join-Path $OutDir ("predictions_" + $todayIso + ".csv")
       if (Test-Path $predsTodayDated) { $toStage += $predsTodayDated }
+
+  # Newly produced aligned and stake artifacts
+  $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
+  if (Test-Path $alignCsv) { $toStage += $alignCsv }
+  $alignEdges = Join-Path $OutDir ("align_period_" + $todayIso + "_edges.csv")
+  if (Test-Path $alignEdges) { $toStage += $alignEdges }
+  $stakeBase = Join-Path $OutDir 'stake_sheet_today.csv'
+  if (Test-Path $stakeBase) { $toStage += $stakeBase }
+  $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
+  if (Test-Path $stakeCal) { $toStage += $stakeCal }
 
       # Allowlist per-date odds snapshots so historical odds persist on Render
       $oddsPrev = Join-Path $OutDir ("odds_history/odds_" + $prevDate + ".csv")
