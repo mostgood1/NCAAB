@@ -1695,7 +1695,12 @@ def index():
             t_2h = _agg_market_period("totals", "total", {"2h","second_half","2nd_half"}, "market_total_2h")
             s_1h = _agg_market_period("spreads", "home_spread", {"1h","1h_1","first_half","1st_half"}, "spread_home_1h")
             s_2h = _agg_market_period("spreads", "home_spread", {"2h","second_half","2nd_half"}, "spread_home_2h")
-            for srs in [t_1h, t_2h, s_1h, s_2h]:
+            # Half moneylines (when available)
+            m_1h_h = _agg_market_period("h2h", "moneyline_home", {"1h","1h_1","first_half","1st_half"}, "ml_home_1h")
+            m_2h_h = _agg_market_period("h2h", "moneyline_home", {"2h","second_half","2nd_half"}, "ml_home_2h")
+            m_1h_a = _agg_market_period("h2h", "moneyline_away", {"1h","1h_1","first_half","1st_half"}, "ml_away_1h")
+            m_2h_a = _agg_market_period("h2h", "moneyline_away", {"2h","second_half","2nd_half"}, "ml_away_2h")
+            for srs in [t_1h, t_2h, s_1h, s_2h, m_1h_h, m_2h_h, m_1h_a, m_2h_a]:
                 if srs is not None and not srs.empty:
                     if isinstance(srs, pd.Series):
                         srs = srs.reset_index()
@@ -2661,7 +2666,14 @@ def index():
             "market_total_2h", "spread_home_2h", "ats_result_2h", "actual_total_2h", "home_score_2h", "away_score_2h",
             "spread_home_2h_basis",
         ]
+        # Half moneylines optional columns for template guards
+        extra_opt_cols = [
+            "ml_home_1h", "ml_away_1h", "ml_home_2h", "ml_away_2h"
+        ]
         for c in required_cols:
+            if c not in df.columns:
+                df[c] = None
+        for c in extra_opt_cols:
             if c not in df.columns:
                 df[c] = None
     except Exception:
