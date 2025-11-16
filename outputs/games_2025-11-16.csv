@@ -1,0 +1,35 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401830742,2025,2025-11-16,2025-11-16 17:00:00+00:00,Dartmouth Big Green,App State Mountaineers,0,0,,,,,False,Leede Arena
+401826053,2025,2025-11-16,2025-11-16 17:00:00+00:00,UMBC Retrievers,Wagner Seahawks,0,0,,,,,False,Chesapeake Employers Insurance Arena
+401823012,2025,2025-11-16,2025-11-16 17:00:00+00:00,Kent State Golden Flashes,Wright State Raiders,0,0,,,,,True,Colonial Hall
+401828577,2025,2025-11-16,2025-11-16 17:30:00+00:00,Morehead State Eagles,Kentucky Christian Knights,0,0,,,,,False,Ellis T. Johnson Arena
+401817434,2025,2025-11-16,2025-11-16 17:30:00+00:00,Ohio State Buckeyes,Notre Dame Fighting Irish,0,0,,,,,False,Value City Arena
+401825205,2025,2025-11-16,2025-11-16 18:00:00+00:00,Western Carolina Catamounts,Stetson Hatters,0,0,,,,,False,Ramsey Center
+401823384,2025,2025-11-16,2025-11-16 18:00:00+00:00,Northern Kentucky Norse,Cumberland (KY) Patriots,0,0,,,,,False,Truist Arena
+401820616,2025,2025-11-16,2025-11-16 18:00:00+00:00,Valparaiso Beacons,Bryant Bulldogs,0,0,,,,,False,Athletics-Recreation Center
+401812662,2025,2025-11-16,2025-11-16 18:00:00+00:00,Holy Cross Crusaders,Hampton Pirates,0,0,,,,,True,Pizzitola Sports Center
+401826813,2025,2025-11-16,2025-11-16 19:00:00+00:00,Kennesaw State Owls,South Florida Bulls,0,0,,,,,False,KSU Convocation Center
+401824936,2025,2025-11-16,2025-11-16 19:00:00+00:00,Central Arkansas Bears,Samford Bulldogs,0,0,,,,,False,Farris Center
+401820578,2025,2025-11-16,2025-11-16 19:00:00+00:00,Maine Black Bears,Quinnipiac Bobcats,0,0,,,,,False,Skip Chappelle Court in Memorial Gymnasium
+401820186,2025,2025-11-16,2025-11-16 19:00:00+00:00,Fairfield Stags,Loyola Maryland Greyhounds,0,0,,,,,False,Leo D. Mahoney Arena
+401817530,2025,2025-11-16,2025-11-16 19:00:00+00:00,Wake Forest Demon Deacons,UMass Lowell River Hawks,0,0,,,,,False,LJVM Coliseum
+401817520,2025,2025-11-16,2025-11-16 19:00:00+00:00,Virginia Tech Hokies,Charlotte 49ers,0,0,,,,,False,Cassell Coliseum
+401813289,2025,2025-11-16,2025-11-16 19:00:00+00:00,Oklahoma State Cowboys,Texas A&M-Corpus Christi Islanders,0,0,,,,,False,Gallagher-Iba Arena
+401812645,2025,2025-11-16,2025-11-16 19:00:00+00:00,Massachusetts Minutemen,Central Connecticut Blue Devils,0,0,,,,,False,Mullins Center
+401811105,2025,2025-11-16,2025-11-16 19:00:00+00:00,South Dakota Coyotes,Western Michigan Broncos,0,0,,,,,False,Sanford Coyote Sports Center
+401826070,2025,2025-11-16,2025-11-16 19:30:00+00:00,Cleveland State Vikings,Radford Highlanders,0,0,,,,,True,Colonial Hall
+401809305,2025,2025-11-16,2025-11-16 20:00:00+00:00,Auburn Tigers,Houston Cougars,0,0,,,,,True,Legacy Arena at BJCC
+401829352,2025,2025-11-16,2025-11-16 21:00:00+00:00,Southern Indiana Screaming Eagles,Loras Duhawks,0,0,,,,,False,Liberty Arena (IN)
+401826940,2025,2025-11-16,2025-11-16 21:00:00+00:00,Sacramento State Hornets,Presbyterian Blue Hose,0,0,,,,,False,Hornet Pavilion
+401822371,2025,2025-11-16,2025-11-16 21:00:00+00:00,Alabama A&M Bulldogs,Lindenwood Lions,0,0,,,,,False,Event Center
+401822169,2025,2025-11-16,2025-11-16 21:00:00+00:00,Fordham Rams,Manhattanville Valiants,0,0,,,,,False,Rose Hill Gym
+401820398,2025,2025-11-16,2025-11-16 22:00:00+00:00,Memphis Tigers,UNLV Rebels,0,0,,,,,False,FedExForum
+401817156,2025,2025-11-16,2025-11-16 22:00:00+00:00,Loyola Chicago Ramblers,Colorado State Rams,0,0,,,,,False,Gentile Arena
+401812603,2025,2025-11-16,2025-11-16 22:00:00+00:00,Marist Red Foxes,Harvard Crimson,0,0,,,,,False,McCann Arena
+401827189,2025,2025-11-16,2025-11-16 22:30:00+00:00,Indiana Hoosiers,Incarnate Word Cardinals,0,0,,,,,False,Simon Skjodt Assembly Hall
+401813398,2025,2025-11-16,2025-11-16 23:00:00+00:00,Cincinnati Bearcats,Mount St. Mary's Mountaineers,0,0,,,,,False,Fifth Third Arena
+401813256,2025,2025-11-16,2025-11-17 00:00:00+00:00,Long Beach State Beach,Illinois State Redbirds,0,0,,,,,False,Walter Pyramid
+401820598,2025,2025-11-16,2025-11-17 00:30:00+00:00,Purdue Boilermakers,Akron Zips,0,0,,,,,False,Mackey Arena
+401823360,2025,2025-11-16,2025-11-17 00:30:00+00:00,Western Kentucky Hilltoppers,Tennessee State Tigers,0,0,,,,,False,E.A. Diddle Arena
+401823258,2025,2025-11-16,2025-11-17 01:00:00+00:00,Cal State Northridge Matadors,Troy Trojans,0,0,,,,,False,Premier America Credit Union Arena
+401809416,2025,2025-11-16,2025-11-17 01:30:00+00:00,Florida Gators,Miami Hurricanes,0,0,,,,,True,Veterans Memorial Arena
