@@ -1,0 +1,35 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401829420,2025,2025-11-17,2025-11-17 23:30:00+00:00,Georgia Bulldogs,Florida A&M Rattlers,0,0,,,,,False,Stegeman Coliseum
+401828470,2025,2025-11-17,2025-11-18 00:00:00+00:00,Liberty Flames,Carolina University Bruins,0,0,,,,,False,Liberty Arena (VA)
+401827451,2025,2025-11-17,2025-11-18 00:00:00+00:00,Charleston Cougars,Drake Bulldogs,0,0,,,,,False,TD Arena
+401826773,2025,2025-11-17,2025-11-18 00:00:00+00:00,Florida Atlantic Owls,Coastal Georgia Mariner,0,0,,,,,False,Eleanor R. Baldwin Arena
+401825384,2025,2025-11-17,2025-11-18 00:00:00+00:00,Tennessee Tech Golden Eagles,West Georgia Wolves,0,0,,,,,False,Hooper Eblen Center
+401824827,2025,2025-11-17,2025-11-18 00:00:00+00:00,UCF Knights,Oakland Golden Grizzlies,0,0,,,,,False,Addition Financial Arena
+401822833,2025,2025-11-17,2025-11-18 00:00:00+00:00,Siena Saints,Colgate Raiders,0,0,,,,,False,MVP Arena
+401819917,2025,2025-11-17,2025-11-18 00:00:00+00:00,West Virginia Mountaineers,Lafayette Leopards,0,0,,,,,False,WVU Coliseum
+401817255,2025,2025-11-17,2025-11-18 00:00:00+00:00,NC State Wolfpack,VCU Rams,0,0,,,,,False,Lenovo Center
+401813376,2025,2025-11-17,2025-11-18 00:00:00+00:00,Le Moyne Dolphins,Niagara Purple Eagles,0,0,,,,,False,Ted Grant Court
+401813349,2025,2025-11-17,2025-11-18 00:00:00+00:00,High Point Panthers,Canisius Golden Griffins,0,0,,,,,False,Qubein Center
+401812576,2025,2025-11-17,2025-11-18 00:00:00+00:00,Pennsylvania Quakers,Saint Joseph's Hawks,0,0,,,,,False,The Palestra
+401809077,2025,2025-11-17,2025-11-18 00:00:00+00:00,Pittsburgh Panthers,Bucknell Bison,0,0,,,,,False,Petersen Events Center
+401830121,2025,2025-11-17,2025-11-18 00:30:00+00:00,UT Rio Grande Valley Vaqueros,Southwestern Adventist Knights,0,0,,,,,False,UTRGV Fieldhouse
+401828512,2025,2025-11-17,2025-11-18 00:30:00+00:00,UL Monroe Warhawks,Lamar Cardinals,0,0,,,,,False,Fant-Ewing Coliseum
+401826853,2025,2025-11-17,2025-11-18 00:30:00+00:00,UAB Blazers,Rhodes Lynx,0,0,,,,,False,Bartow Arena
+401819873,2025,2025-11-17,2025-11-18 01:00:00+00:00,Iowa State Cyclones,Stonehill Skyhawks,0,0,,,,,False,Hilton Coliseum
+401826912,2025,2025-11-17,2025-11-18 01:00:00+00:00,Wisconsin Badgers,SIU Edwardsville Cougars,0,0,,,,,False,Kohl Center
+401829473,2025,2025-11-17,2025-11-18 01:00:00+00:00,South Dakota State Jackrabbits,Peru State PERU STATE,0,0,,,,,False,First Bank & Trust Arena
+401828919,2025,2025-11-17,2025-11-18 01:00:00+00:00,North Dakota State Bison,Southern Illinois Salukis,0,0,,,,,False,Scheels Center
+401827041,2025,2025-11-17,2025-11-18 01:00:00+00:00,Missouri Tigers,Prairie View A&M Panthers,0,0,,,,,False,Mizzou Arena
+401826997,2025,2025-11-17,2025-11-18 01:00:00+00:00,Tarleton State Texans,Angelo State Rams,0,0,,,,,False,Wisdom Gym
+401819890,2025,2025-11-17,2025-11-18 01:00:00+00:00,Kansas State Wildcats,Tulsa Golden Hurricane,0,0,,,,,False,Bramlage Coliseum
+401826807,2025,2025-11-17,2025-11-18 01:30:00+00:00,Tennessee Volunteers,Rice Owls,0,0,,,,,False,Food City Center
+401830633,2025,2025-11-17,2025-11-18 01:30:00+00:00,Western Illinois Leathernecks,Coe Kohawks,0,0,,,,,False,Western Hall
+401823542,2025,2025-11-17,2025-11-18 02:00:00+00:00,Gonzaga Bulldogs,Southern Utah Thunderbirds,0,0,,,,,False,McCarthey Athletic Center
+401824041,2025,2025-11-17,2025-11-18 02:00:00+00:00,UC Santa Barbara Gauchos,Loyola Marymount Lions,0,0,,,,,False,The Thunderdome
+401819863,2025,2025-11-17,2025-11-18 02:00:00+00:00,Colorado Buffaloes,Alabama State Hornets,0,0,,,,,False,CU Events Center
+401819816,2025,2025-11-17,2025-11-18 02:00:00+00:00,Arizona State Sun Devils,Georgia State Panthers,0,0,,,,,False,Desert Financial Arena
+401812920,2025,2025-11-17,2025-11-18 02:00:00+00:00,Clemson Tigers,North Alabama Lions,0,0,,,,,False,Littlejohn Coliseum
+401829325,2025,2025-11-17,2025-11-18 03:00:00+00:00,San José State Spartans,Bethesda University Flames,0,0,,,,,False,Provident Credit Union Event Center
+401824057,2025,2025-11-17,2025-11-18 03:00:00+00:00,Oregon Ducks,Oregon State Beavers,0,0,,,,,False,Matthew Knight Arena
+401823733,2025,2025-11-17,2025-11-18 03:00:00+00:00,Portland State Vikings,Cal State Bakersfield Roadrunners,0,0,,,,,False,Viking Pavilion
+401823501,2025,2025-11-17,2025-11-18 03:30:00+00:00,Eastern Washington Eagles,Eastern Oregon Mountaineers,0,0,,,,,False,Reese Court
