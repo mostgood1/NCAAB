@@ -320,7 +320,7 @@
                         {% elif mla2 < 0 and (mlh2 >= 0 or (0-mla2) > (0-mlh2)) %}
                           {% set winner_2h_ml = r.away_team or '–' %}
                         {% else %}
-                          {% set winner_2h_ml = (r.home_team if abs(mlh2) >= abs(mla2) else r.away_team) %}
+                          {% set winner_2h_ml = (r.home_team if (mlh2|abs) >= (mla2|abs) else r.away_team) %}
                         {% endif %}
                       {% elif has_mlh2 %}
                         {% set winner_2h_ml = (r.home_team if mlh2 < 0 else r.away_team) %}
