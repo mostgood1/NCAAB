@@ -2384,6 +2384,38 @@ def index():
                 df['edge_margin_model'] = pm + sh  # since sh is negative when home favored
             except Exception:
                 df['edge_margin_model'] = None
+        # Unify: prefer model predictions as primary displayed values; override legacy pred_total/pred_margin if present
+        try:
+            if 'pred_total_model' in df.columns:
+                # Optional bias correction using model_tuning.json totals_bias (if loaded earlier in pipeline_stats)
+                bias = None
+                try:
+                    bias = float(pipeline_stats.get('totals_bias')) if 'pipeline_stats' in locals() and isinstance(pipeline_stats.get('totals_bias'), (int,float)) else None
+                except Exception:
+                    bias = None
+                adj_model_total = pd.to_numeric(df['pred_total_model'], errors='coerce')
+                if bias is not None and not adj_model_total.isna().all():
+                    adj_model_total = adj_model_total + bias  # shift model totals by bias
+                df['pred_total'] = adj_model_total
+                df['pred_total_basis'] = df.get('pred_total_basis')
+                df['pred_total_basis'] = df['pred_total_basis'].where(df['pred_total_basis'].notna(), 'model')
+                # Recompute edge_total using unified pred_total
+                if 'market_total' in df.columns:
+                    df['edge_total'] = pd.to_numeric(df['pred_total'], errors='coerce') - pd.to_numeric(df['market_total'], errors='coerce')
+            if 'pred_margin_model' in df.columns:
+                adj_model_margin = pd.to_numeric(df['pred_margin_model'], errors='coerce')
+                df['pred_margin'] = adj_model_margin
+                df['pred_margin_basis'] = df.get('pred_margin_basis')
+                df['pred_margin_basis'] = df['pred_margin_basis'].where(df['pred_margin_basis'].notna(), 'model')
+                if 'spread_home' in df.columns:
+                    sh2 = pd.to_numeric(df['spread_home'], errors='coerce')
+                    df['edge_ats'] = pd.to_numeric(df['pred_margin'], errors='coerce') - sh2
+                # Recompute favored side / by values
+                pm_num = pd.to_numeric(df['pred_margin'], errors='coerce')
+                df['favored_side'] = np.where(pm_num > 0, 'Home', np.where(pm_num < 0, 'Away', 'Even'))
+                df['favored_by'] = pm_num.abs()
+        except Exception:
+            pass
         # Correlation & divergence diagnostics
         if 'pipeline_stats' in locals():
             try:
@@ -2401,6 +2433,9 @@ def index():
                     pipeline_stats['synthetic_spread_home_count'] = int((df['spread_home_basis'].astype(str).str.startswith('synthetic')).sum())
                 if 'edge_total_model' in df.columns:
                     pipeline_stats['model_edge_rows'] = int(df['edge_total_model'].notna().sum())
+                # Record bias applied if any
+                if 'totals_bias' in pipeline_stats and 'pred_total_model' in df.columns:
+                    pipeline_stats['model_totals_bias_applied'] = pipeline_stats.get('totals_bias')
             except Exception:
                 pass
     except Exception:

@@ -157,21 +157,12 @@
             {% if r.neutral_site %}
               <div class="pill">Neutral Site</div>
             {% endif %}
-            <div class="pill">Pred Total: {{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}{% if r.pred_total_adjusted %} (adj){% endif %}</div>
-            {% if r.pred_total_model is defined and r.pred_total_model is not none %}
-              <div class="pill">Model Total: {{ '%.1f' % r.pred_total_model }}</div>
-            {% endif %}
+            <div class="pill">Total: {{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}{% if r.pred_total_basis == 'model' %} (model){% elif r.pred_total_adjusted %} (adj){% endif %}</div>
             <div class="pill">
               {% if r.pred_margin is not none %}
-                {% if r.favored_side == 'Home' %}Pred Margin: {{ r.home_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}
-                {% elif r.favored_side == 'Away' %}Pred Margin: {{ r.away_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}
-                {% else %}Pred Margin: Even{% endif %}
-              {% else %}Pred Margin: –{% endif %}
+                {% if r.favored_side == 'Home' %}Margin: {{ r.home_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% elif r.favored_side == 'Away' %}Margin: {{ r.away_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% else %}Margin: Even{% endif %}
+              {% else %}Margin: –{% endif %}
             </div>
-            {% if r.pred_margin_model is defined and r.pred_margin_model is not none %}
-              {% set fav_m = (r.home_team if r.pred_margin_model > 0 else (r.away_team if r.pred_margin_model < 0 else 'Even')) %}
-              <div class="pill">Model Margin: {% if fav_m != 'Even' %}{{ fav_m }} by {{ '%.1f' % (r.pred_margin_model|abs) }}{% else %}Even{% endif %}</div>
-            {% endif %}
             {% if r.proj_home is not none and r.proj_away is not none %}
               <div class="pill">Projected: {{ '%.1f' % r.proj_away }} - {{ '%.1f' % r.proj_home }}</div>
             {% endif %}
@@ -190,18 +181,7 @@
                   'edge-strong' if abs_et < 3.5 else
                   'edge-extreme'
                 ) %}
-                <div class="pill {{ cls_et }}">Edge: {{ '%.1f' % r.edge_total }}</div>
-              {% endif %}
-              {% if r.edge_total_model is defined and r.edge_total_model is not none and r.edge_total_model == r.edge_total_model %}
-                {% set abs_etm = r.edge_total_model|abs %}
-                {% set cls_etm = (
-                  'edge-zero' if abs_etm < 0.1 else
-                  'edge-weak' if abs_etm < 1.0 else
-                  'edge-mod' if abs_etm < 2.0 else
-                  'edge-strong' if abs_etm < 3.5 else
-                  'edge-extreme'
-                ) %}
-                <div class="pill {{ cls_etm }}">Model Edge: {{ '%.1f' % r.edge_total_model }}</div>
+                <div class="pill {{ cls_et }}">Total Edge: {{ '%.1f' % r.edge_total }}</div>
               {% endif %}
               {% if r.lean_ou_side is defined and r.lean_ou_side %}
                 <div class="pill">OU Lean: {{ r.lean_ou_side }} {% if r.lean_ou_edge_abs is not none %}(+{{ '%.1f' % r.lean_ou_edge_abs }}){% endif %}</div>
@@ -494,17 +474,6 @@
                       'edge-extreme'
                     ) %}
                     <div class="pill {{ cls_ats_edge }}">ATS Edge: {{ '%.1f' % ats_edge }}</div>
-                  {% endif %}
-                  {% if r.edge_margin_model is defined and r.edge_margin_model is not none and r.edge_margin_model == r.edge_margin_model %}
-                    {% set abs_mem = r.edge_margin_model|abs %}
-                    {% set cls_mem = (
-                      'edge-zero' if abs_mem < 0.1 else
-                      'edge-weak' if abs_mem < 1.0 else
-                      'edge-mod' if abs_mem < 2.0 else
-                      'edge-strong' if abs_mem < 3.5 else
-                      'edge-extreme'
-                    ) %}
-                    <div class="pill {{ cls_mem }}">Model ATS Edge: {{ '%.1f' % r.edge_margin_model }}</div>
                   {% endif %}
                   {% if r.lean_ats_side is defined and r.lean_ats_side %}
                     {% set ats_team = r.home_team if r.lean_ats_side == 'Home ATS' else (r.away_team if r.lean_ats_side == 'Away ATS' else None) %}
