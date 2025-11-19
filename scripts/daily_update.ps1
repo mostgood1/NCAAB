@@ -119,10 +119,61 @@ try {
     Write-Host 'SkipRetrain flag set; using existing models.'
   }
 
+  # Optional: model-first LightGBM/XGBoost training artifacts (independent from baseline) – only if not skipped and artifacts appear stale
+  $modelDir = Join-Path $OutDir 'models'
+  $latestModelTotal = Get-ChildItem -Path $modelDir -Filter 'total_model.pkl' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  $latestModelMargin = Get-ChildItem -Path $modelDir -Filter 'margin_model.pkl' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if (-not $SkipRetrain -and (-not $latestModelTotal -or -not $latestModelMargin)) {
+    Write-Section '5b) Train model-first total & margin predictors (LightGBM)'
+    try {
+      & $VenvPython -m src.modeling.train_total --algo auto
+    } catch { Write-Warning "train_total failed: $($_)" }
+    try {
+      & $VenvPython -m src.modeling.train_margin --algo auto
+    } catch { Write-Warning "train_margin failed: $($_)" }
+  } else {
+    Write-Host 'Model-first artifacts present; skipping explicit retrain.'
+  }
+
+  # Ensure deterministic per-day feature rows exist for inference (lightweight placeholder ratings)
+  $featuresCurr = Join-Path $OutDir 'features_curr.csv'
+  if (-not (Test-Path $featuresCurr)) {
+    Write-Section "5c) Generate today's placeholder features (features_curr.csv)"
+    try {
+      & $VenvPython -m src.modeling.gen_features_today --date $todayIso
+    } catch { Write-Warning "gen_features_today failed: $($_)" }
+  } else {
+    Write-Host 'features_curr.csv already exists; skipping generation.'
+  }
+
+  # Run model inference to produce predictions_model_<date>.csv (used for independent edges in UI)
+  $modelPredPath = Join-Path $OutDir ("predictions_model_" + $todayIso + ".csv")
+  if (-not (Test-Path $modelPredPath)) {
+    Write-Section '5d) Run model inference harness'
+    try {
+      & $VenvPython -m src.modeling.infer --date $todayIso
+    } catch { Write-Warning "model inference failed: $($_)" }
+  } else {
+    Write-Host "Model predictions already exist for $todayIso; skipping inference." -ForegroundColor DarkGray
+  }
+
   Write-Section "6) Fetch today's schedule, odds, and run predictions/picks"
   $dailyArgs = @('daily-run', '--date', $todayIso, '--season', $todayDate.Year, '--region', $Region, '--provider', $Provider, '--segment', 'team', '--preseason-weight', '0.4', '--threshold', '1.5', '--default-price', '-110')
   if ($NoCache.IsPresent) { $dailyArgs += '--no-use-cache' }
   & $VenvPython -m ncaab_model.cli @dailyArgs
+
+  # Guard: daily-run may overwrite the historical games_with_last.csv with a subset (today's slate).
+  # Reconstruct full historical last odds merge to ensure persistence before filtering for stake sheets.
+  Write-Section '6a) Restore full games_with_last.csv (historical) after daily-run'
+  try {
+    $gamesAll = Join-Path $OutDir 'games_all.csv'
+    $lastOdds = Join-Path $OutDir 'last_odds.csv'
+    if ((Test-Path $gamesAll) -and (Test-Path $lastOdds)) {
+      & $VenvPython -m ncaab_model.cli join-last-odds $gamesAll $lastOdds --out (Join-Path $OutDir 'games_with_last.csv')
+    } else {
+      Write-Warning 'Cannot restore games_with_last.csv (missing games_all.csv or last_odds.csv)'
+    }
+  } catch { Write-Warning "Restore games_with_last.csv failed: $($_)" }
 
   if (-not $SkipStakeSheets) {
     Write-Section "7) Filter merged last odds to today's slate"
@@ -223,6 +274,8 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
       if (Test-Path $mergedTodayDated) { $toStage += $mergedTodayDated }
       $predsTodayDated = Join-Path $OutDir ("predictions_" + $todayIso + ".csv")
       if (Test-Path $predsTodayDated) { $toStage += $predsTodayDated }
+  $predsModelToday = Join-Path $OutDir ("predictions_model_" + $todayIso + ".csv")
+  if (Test-Path $predsModelToday) { $toStage += $predsModelToday }
 
   # Newly produced aligned and stake artifacts
   $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")

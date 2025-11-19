@@ -158,13 +158,30 @@ def join_games_with_closing(
         cand2["partial_pair"] = True
         partial_rows.append(cand2)
     if partial_rows:
-        pr_df = pd.concat(partial_rows, ignore_index=True)
-        # Harmonize columns with merged
-        for col in merged.columns:
-            if col not in pr_df.columns:
-                pr_df[col] = None
-        # Ensure consistent naming
-        if "partial_pair" not in merged.columns:
-            merged["partial_pair"] = False
-        merged = pd.concat([merged, pr_df[merged.columns]], ignore_index=True)
+        # Filter out completely empty DataFrames to avoid FutureWarning about dtype inference
+        non_empty = []
+        for r in partial_rows:
+            try:
+                # Drop columns that are entirely NA to stabilize dtypes
+                r2 = r.copy()
+                na_all_cols = [c for c in r2.columns if r2[c].isna().all()]
+                if na_all_cols:
+                    r2 = r2.drop(columns=na_all_cols)
+                # Keep only if there is at least one non-NA value row-wise
+                if not r2.dropna(how='all').empty:
+                    non_empty.append(r2)
+            except Exception:
+                non_empty.append(r)
+        if non_empty:
+            pr_df = pd.concat(non_empty, ignore_index=True, sort=False)
+            # Harmonize columns with merged (add missing with explicit None)
+            for col in merged.columns:
+                if col not in pr_df.columns:
+                    pr_df[col] = None
+            # Ensure consistent naming flag present on merged
+            if "partial_pair" not in merged.columns:
+                merged["partial_pair"] = False
+            # Concatenate using existing column order; drop duplicate empty columns if any
+            pr_df = pr_df[merged.columns]
+            merged = pd.concat([merged, pr_df], ignore_index=True, sort=False)
     return merged
