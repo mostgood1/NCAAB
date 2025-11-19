@@ -3519,115 +3519,116 @@ def api_finalize_day():
             return jsonify({"ok": True, "date": date_q, "note": "completed with exit"})
         return jsonify({"ok": False, "date": date_q, "error": str(e)}), 500
 
-    @app.route("/api/refresh-odds")
-    def api_refresh_odds():
-        """Refresh today's (or provided date's) odds snapshot and rebuild last odds merge.
 
-        Query params:
-          - date=YYYY-MM-DD (optional; defaults to local today)
-          - region=us (optional TheOddsAPI region)
-          - markets=comma,separated markets (defaults spreads,totals,h2h)
-          - tolerance=seconds skew tolerance for last selection (default 60)
+@app.route("/api/refresh-odds")
+def api_refresh_odds():
+    """Refresh today's (or provided date's) odds snapshot and rebuild last odds merge.
 
-        Steps:
-          1. Fetch current odds snapshot for the date into odds_history/odds_<date>.csv (multi-region not yet).
-          2. Rebuild last_odds.csv across odds_history directory.
-          3. Join last odds for that date into games_with_last_<date>.csv (any-D1, allow partial).
-          4. Refresh master games_with_last.csv for that single date (append/replace row subset).
-          5. Return coverage counts.
-        """
-        date_q = (request.args.get("date") or "").strip()
-        region = (request.args.get("region") or "us").strip()
-        markets = (request.args.get("markets") or "h2h,spreads,totals").strip()
-        tolerance = int((request.args.get("tolerance") or "60").strip() or 60)
-        # Default date = local today (same logic as schedule timezone)
-        if not date_q:
-            try:
-                from zoneinfo import ZoneInfo as _ZoneInfo
-                tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
-                date_q = dt.datetime.now(_ZoneInfo(tz_name)).date().isoformat()
-            except Exception:
-                date_q = dt.date.today().isoformat()
-        # Validate games file exists
-        games_file = OUT / f"games_{date_q}.csv"
-        if not games_file.exists():
-            return jsonify({"ok": False, "error": f"games file missing for {date_q}"}), 404
-        # 1. Fetch snapshot (single region)
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults to local today)
+      - region=us (optional TheOddsAPI region)
+      - markets=comma,separated markets (defaults spreads,totals,h2h)
+      - tolerance=seconds skew tolerance for last selection (default 60)
+
+    Steps:
+      1. Fetch current odds snapshot for the date into odds_history/odds_<date>.csv (multi-region not yet).
+      2. Rebuild last_odds.csv across odds_history directory.
+      3. Join last odds for that date into games_with_last_<date>.csv (any-D1, allow partial).
+      4. Refresh master games_with_last.csv for that single date (append/replace row subset).
+      5. Return coverage counts.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    region = (request.args.get("region") or "us").strip()
+    markets = (request.args.get("markets") or "h2h,spreads,totals").strip()
+    tolerance = int((request.args.get("tolerance") or "60").strip() or 60)
+    # Default date = local today (same logic as schedule timezone)
+    if not date_q:
         try:
-            if TheOddsAPIAdapter is None:  # type: ignore
-                raise RuntimeError("Odds adapter unavailable")
-            adapter = TheOddsAPIAdapter(region=region)  # type: ignore
-            rows = []
-            for row in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_q):  # type: ignore
-                rows.append(row.model_dump())
-            if rows:
-                oh_dir = OUT / "odds_history"; oh_dir.mkdir(parents=True, exist_ok=True)
-                snap_path = oh_dir / f"odds_{date_q}.csv"
-                pd.DataFrame(rows).to_csv(snap_path, index=False)
-            else:
-                return jsonify({"ok": False, "error": "no odds rows fetched"}), 500
-        except Exception as e:
-            return jsonify({"ok": False, "error": f"fetch failed: {e}"}), 500
-        # 2. Rebuild last_odds.csv
+            from zoneinfo import ZoneInfo as _ZoneInfo
+            tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
+            date_q = dt.datetime.now(_ZoneInfo(tz_name)).date().isoformat()
+        except Exception:
+            date_q = dt.date.today().isoformat()
+    # Validate games file exists
+    games_file = OUT / f"games_{date_q}.csv"
+    if not games_file.exists():
+        return jsonify({"ok": False, "error": f"games file missing for {date_q}"}), 404
+    # 1. Fetch snapshot (single region)
+    try:
+        # Local import to avoid global import errors at app startup
+        from ncaab_model.data.adapters.odds_theoddsapi import TheOddsAPIAdapter  # type: ignore
+        adapter = TheOddsAPIAdapter(region=region)  # type: ignore
+        rows = []
+        for row in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_q):  # type: ignore
+            rows.append(row.model_dump())
+        if rows:
+            oh_dir = OUT / "odds_history"; oh_dir.mkdir(parents=True, exist_ok=True)
+            snap_path = oh_dir / f"odds_{date_q}.csv"
+            pd.DataFrame(rows).to_csv(snap_path, index=False)
+        else:
+            return jsonify({"ok": False, "error": "no odds rows fetched"}), 500
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"fetch failed: {e}"}), 500
+    # 2. Rebuild last_odds.csv
+    try:
+        from ncaab_model.data.odds_closing import make_last_odds as _make_last
+        last_path = OUT / "last_odds.csv"
+        _make_last(OUT / "odds_history", last_path, tolerance_seconds=tolerance)  # type: ignore
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"make_last_odds failed: {e}"}), 500
+    # 3. Join for date
+    try:
+        from ncaab_model.data.join_closing import join_games_with_closing as _join
+        last_df = pd.read_csv(last_path)
+        games_df = pd.read_csv(games_file)
+        # Any-D1 filter (re-apply minimal subset like CLI) - optional
         try:
-            from ncaab_model.data.odds_closing import make_last_odds as _make_last
-            last_path = OUT / "last_odds.csv"
-            _make_last(OUT / "odds_history", last_path, tolerance_seconds=tolerance)  # type: ignore
-        except Exception as e:
-            return jsonify({"ok": False, "error": f"make_last_odds failed: {e}"}), 500
-        # 3. Join for date
-        try:
-            from ncaab_model.data.join_closing import join_games_with_closing as _join
-            last_df = pd.read_csv(last_path)
-            games_df = pd.read_csv(games_file)
-            # Any-D1 filter (re-apply minimal subset like CLI) - optional
-            try:
-                d1 = pd.read_csv(DATA / "d1_conferences.csv")
-                from ncaab_model.data.merge_odds import normalize_name as _norm
-                d1set = set(d1['team'].astype(str).map(_norm))
-                games_df['_home_ok'] = games_df['home_team'].astype(str).map(_norm).isin(d1set)
-                games_df['_away_ok'] = games_df['away_team'].astype(str).map(_norm).isin(d1set)
-                games_df = games_df[games_df['_home_ok'] | games_df['_away_ok']].copy()
-                games_df.drop(columns=['_home_ok','_away_ok'], inplace=True, errors='ignore')
-            except Exception:
-                pass
-            merged_date = _join(games_df, last_df)
-            per_date_out = OUT / f"games_with_last_{date_q}.csv"
-            merged_date.to_csv(per_date_out, index=False)
-        except Exception as e:
-            return jsonify({"ok": False, "error": f"join failed: {e}"}), 500
-        # 4. Refresh master: replace rows for date
-        master_path = OUT / "games_with_last.csv"
-        try:
-            if master_path.exists():
-                master_df = pd.read_csv(master_path)
-                if 'date' in master_df.columns:
-                    master_df['date'] = pd.to_datetime(master_df['date'], errors='coerce')
-                # Remove existing rows for this date (match by date string if date parsing missing)
-                mask_remove = (master_df.get('date').dt.strftime('%Y-%m-%d') == date_q) if 'date' in master_df.columns else (master_df.get('date_game', pd.Series(dtype=str)).astype(str) == date_q)
-                master_df = master_df[~mask_remove]
-                # Append new
-                append_df = merged_date.copy()
-                master_df = pd.concat([master_df, append_df], ignore_index=True)
-            else:
-                master_df = merged_date.copy()
-            master_df.to_csv(master_path, index=False)
-        except Exception as e:
-            return jsonify({"ok": False, "error": f"master refresh failed: {e}"}), 500
-        # 5. Coverage counts
-        try:
-            covered_exact = merged_date['game_id'].nunique() if 'game_id' in merged_date.columns else 0
-            games_total = len(games_df)
-            return jsonify({
-                "ok": True,
-                "date": date_q,
-                "snapshot_rows": len(rows),
-                "merged_rows": len(merged_date),
-                "games_total": games_total,
-                "covered_exact_games": covered_exact,
-            })
-        except Exception as e:
-            return jsonify({"ok": True, "date": date_q, "note": "completed", "coverage_error": str(e)})
+            d1 = pd.read_csv(settings.data_dir / "d1_conferences.csv")
+            from ncaab_model.data.merge_odds import normalize_name as _norm
+            d1set = set(d1['team'].astype(str).map(_norm))
+            games_df['_home_ok'] = games_df['home_team'].astype(str).map(_norm).isin(d1set)
+            games_df['_away_ok'] = games_df['away_team'].astype(str).map(_norm).isin(d1set)
+            games_df = games_df[games_df['_home_ok'] | games_df['_away_ok']].copy()
+            games_df.drop(columns=['_home_ok','_away_ok'], inplace=True, errors='ignore')
+        except Exception:
+            pass
+        merged_date = _join(games_df, last_df)
+        per_date_out = OUT / f"games_with_last_{date_q}.csv"
+        merged_date.to_csv(per_date_out, index=False)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"join failed: {e}"}), 500
+    # 4. Refresh master: replace rows for date
+    master_path = OUT / "games_with_last.csv"
+    try:
+        if master_path.exists():
+            master_df = pd.read_csv(master_path)
+            if 'date' in master_df.columns:
+                master_df['date'] = pd.to_datetime(master_df['date'], errors='coerce')
+            # Remove existing rows for this date (match by date string if date parsing missing)
+            mask_remove = (master_df.get('date').dt.strftime('%Y-%m-%d') == date_q) if 'date' in master_df.columns else (master_df.get('date_game', pd.Series(dtype=str)).astype(str) == date_q)
+            master_df = master_df[~mask_remove]
+            # Append new
+            append_df = merged_date.copy()
+            master_df = pd.concat([master_df, append_df], ignore_index=True)
+        else:
+            master_df = merged_date.copy()
+        master_df.to_csv(master_path, index=False)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"master refresh failed: {e}"}), 500
+    # 5. Coverage counts
+    try:
+        covered_exact = merged_date['game_id'].nunique() if 'game_id' in merged_date.columns else 0
+        games_total = len(games_df)
+        return jsonify({
+            "ok": True,
+            "date": date_q,
+            "snapshot_rows": len(rows),
+            "merged_rows": len(merged_date),
+            "games_total": games_total,
+            "covered_exact_games": covered_exact,
+        })
+    except Exception as e:
+        return jsonify({"ok": True, "date": date_q, "note": "completed", "coverage_error": str(e)})
 
 
 @app.route("/api/results")
