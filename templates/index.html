@@ -69,6 +69,40 @@
     {% if coverage_note %}
       <div class="card mb8"><div class="muted">{{ coverage_note }}</div></div>
     {% endif %}
+    {% if pipeline_stats %}
+      <div class="card mb8">
+        <details open>
+          <summary class="pill">Diagnostics</summary>
+          <div class="muted" style="margin:4px 0 8px 0;">
+            Date: {{ pipeline_stats.date_param or date_val or 'n/a' }} · Rows: {{ pipeline_stats.final_rows or total_rows }} · Predictions Loaded: {{ pipeline_stats.preds_load_rows }} · Model Rows: {{ pipeline_stats.model_preds_load_rows }}
+          </div>
+          <div class="diag-grid" style="display:flex;flex-wrap:wrap;gap:6px;">
+            {% if pipeline_stats.corr_pred_total_model_market is defined %}<span class="pill" title="Correlation between model totals and market totals">Corr(model,market): {{ '%.3f' % pipeline_stats.corr_pred_total_model_market }}</span>{% endif %}
+            {% if pipeline_stats.mae_pred_total_model_vs_pred_total is defined %}<span class="pill" title="MAE between model total and heuristic/synthetic pred_total">MAE(model vs pred): {{ '%.2f' % pipeline_stats.mae_pred_total_model_vs_pred_total }}</span>{% endif %}
+            {% if pipeline_stats.pred_equal_market_count is defined %}<span class="pill" title="Count of games where pred_total ~= market_total (rounded .1)">Pred==Market: {{ pipeline_stats.pred_equal_market_count }}</span>{% endif %}
+            {% if pipeline_stats.low_pred_count_lt115 is defined %}<span class="pill" title="Pred totals below 115 (post-adjustment)">LowPred&lt;115: {{ pipeline_stats.low_pred_count_lt115 }}</span>{% endif %}
+            {% if pipeline_stats.synthetic_market_total_count is defined %}<span class="pill" title="Synthetic market totals filled from pred/derived">Synthetic Totals: {{ pipeline_stats.synthetic_market_total_count }}</span>{% endif %}
+            {% if pipeline_stats.synthetic_spread_home_count is defined %}<span class="pill" title="Synthetic spreads from pred_margin">Synthetic Spreads: {{ pipeline_stats.synthetic_spread_home_count }}</span>{% endif %}
+            {% if pipeline_stats.missing_market_total_rows is defined %}<span class="pill" title="Games lacking market_total & closing_total">Missing Totals: {{ pipeline_stats.missing_market_total_rows }}</span>{% endif %}
+            {% if pipeline_stats.missing_pred_total_rows is defined %}<span class="pill" title="Games lacking pred_total">Missing Preds: {{ pipeline_stats.missing_pred_total_rows }}</span>{% endif %}
+          </div>
+          {% if pipeline_stats.pred_total_basis_counts %}
+            <div class="muted" style="margin-top:4px;">Basis Distribution:
+              {% for k,v in pipeline_stats.pred_total_basis_counts.items() %}<span class="pill small" title="{{ k }} basis count">{{ k }}={{ v }}</span>{% endfor %}
+            </div>
+          {% endif %}
+          {% if pipeline_stats.pred_equal_market_sample %}
+            <div class="muted" style="margin-top:4px;">Sample Pred==Market IDs: {{ pipeline_stats.pred_equal_market_sample|join(', ') }}</div>
+          {% endif %}
+          {% if pipeline_stats.low_pred_game_ids %}
+            <div class="muted" style="margin-top:4px;">Low Pred IDs (&lt;115): {{ pipeline_stats.low_pred_game_ids|join(', ') }}</div>
+          {% endif %}
+          {% if pipeline_stats.missing_odds_game_ids %}
+            <div class="muted" style="margin-top:4px;">Missing Odds IDs: {{ pipeline_stats.missing_odds_game_ids|join(', ') }}</div>
+          {% endif %}
+        </details>
+      </div>
+    {% endif %}
     {% if removed_empty_rows is defined and removed_empty_rows and removed_empty_rows > 0 %}
       <div class="card mb8"><div class="muted">Filtered {{ removed_empty_rows }} empty game{% if removed_empty_rows>1 %}s{% endif %} (no odds or predictions).</div></div>
     {% endif %}
