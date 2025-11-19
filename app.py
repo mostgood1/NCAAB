@@ -12,6 +12,7 @@ import pandas as pd
 import datetime as dt
 import numpy as np
 from zoneinfo import ZoneInfo
+import re
 
 # Ensure src/ is importable
 import sys
@@ -1682,24 +1683,34 @@ def index():
                     else:
                         logger.warning("Skipping spread/ML merge: df missing game_id column")
 
-            # 1H totals median
+            # 1H/2H medians with robust period normalization (spaces/hyphens/variants)
+            def _norm_period(v: Any) -> str:
+                try:
+                    s = str(v).lower().strip()
+                except Exception:
+                    return ""
+                s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
+                return s
             def _agg_market_period(market: str, val_col: str, period_keys: set[str], out_col: str) -> pd.Series | None:
                 sub = o2[o2["market"].astype(str).str.lower() == market]
                 if "period" in sub.columns:
-                    vals = sub["period"].astype(str).str.lower()
+                    vals = sub["period"].map(_norm_period)
                     sub = sub[vals.isin(period_keys)]
                 if val_col not in sub.columns or sub.empty:
                     return None
                 return sub.groupby("game_id")[val_col].median().rename(out_col)
-            t_1h = _agg_market_period("totals", "total", {"1h","1h_1","first_half","1st_half"}, "market_total_1h")
-            t_2h = _agg_market_period("totals", "total", {"2h","second_half","2nd_half"}, "market_total_2h")
-            s_1h = _agg_market_period("spreads", "home_spread", {"1h","1h_1","first_half","1st_half"}, "spread_home_1h")
-            s_2h = _agg_market_period("spreads", "home_spread", {"2h","second_half","2nd_half"}, "spread_home_2h")
+            # Accept many variants for half labels
+            PERIOD_1H = {"1h","1st_half","first_half","h1","half_1","1_h","1sthalf","firsthalf"}
+            PERIOD_2H = {"2h","2nd_half","second_half","h2","half_2","2_h","2ndhalf","secondhalf"}
+            t_1h = _agg_market_period("totals", "total", PERIOD_1H, "market_total_1h")
+            t_2h = _agg_market_period("totals", "total", PERIOD_2H, "market_total_2h")
+            s_1h = _agg_market_period("spreads", "home_spread", PERIOD_1H, "spread_home_1h")
+            s_2h = _agg_market_period("spreads", "home_spread", PERIOD_2H, "spread_home_2h")
             # Half moneylines (when available)
-            m_1h_h = _agg_market_period("h2h", "moneyline_home", {"1h","1h_1","first_half","1st_half"}, "ml_home_1h")
-            m_2h_h = _agg_market_period("h2h", "moneyline_home", {"2h","second_half","2nd_half"}, "ml_home_2h")
-            m_1h_a = _agg_market_period("h2h", "moneyline_away", {"1h","1h_1","first_half","1st_half"}, "ml_away_1h")
-            m_2h_a = _agg_market_period("h2h", "moneyline_away", {"2h","second_half","2nd_half"}, "ml_away_2h")
+            m_1h_h = _agg_market_period("h2h", "moneyline_home", PERIOD_1H, "ml_home_1h")
+            m_2h_h = _agg_market_period("h2h", "moneyline_home", PERIOD_2H, "ml_home_2h")
+            m_1h_a = _agg_market_period("h2h", "moneyline_away", PERIOD_1H, "ml_away_1h")
+            m_2h_a = _agg_market_period("h2h", "moneyline_away", PERIOD_2H, "ml_away_2h")
             for srs in [t_1h, t_2h, s_1h, s_2h, m_1h_h, m_2h_h, m_1h_a, m_2h_a]:
                 if srs is not None and not srs.empty:
                     if isinstance(srs, pd.Series):
@@ -1991,6 +2002,71 @@ def index():
                                         break
                         for idx in df[miss_mask].index:
                             _apply_fill(idx)
+                # Half-lines fallback fill (1H/2H) using raw odds period labels when joined odds lack halves
+                need_1h = ("market_total_1h" not in df.columns) or df["market_total_1h"].isna().sum() >= int(0.5*len(df))
+                need_2h = ("market_total_2h" not in df.columns) or df["market_total_2h"].isna().sum() >= int(0.5*len(df))
+                if (need_1h or need_2h) and raw_file.exists():
+                    raw = pd.read_csv(raw_file)
+                    if not raw.empty:
+                        # Normalize period in raw
+                        per = raw.get("period")
+                        if per is not None:
+                            raw["_period_norm"] = per.map(lambda v: re.sub(r"[^a-z0-9]+","_", str(v).lower()).strip("_"))
+                        else:
+                            raw["_period_norm"] = ""
+                        # Prepare normalized team keys
+                        home_col = next((c for c in ["home_team_name","home_team","home"] if c in raw.columns), None)
+                        away_col = next((c for c in ["away_team_name","away_team","away"] if c in raw.columns), None)
+                        if home_col and away_col:
+                            raw["_home_norm"] = raw[home_col].astype(str).map(normalize_name)
+                            raw["_away_norm"] = raw[away_col].astype(str).map(normalize_name)
+                            # Helper to aggregate from a subset filtered by period and unordered team set
+                            def _fill_half_for_idx(idx, period_keys: set[str], tgt_prefix: str):
+                                row = df.loc[idx]
+                                hn = normalize_name(str(row.get("home_team") or ""))
+                                an = normalize_name(str(row.get("away_team") or ""))
+                                if not hn or not an:
+                                    return
+                                sub = raw[raw["_period_norm"].isin(period_keys)] if "_period_norm" in raw.columns else raw
+                                if sub.empty:
+                                    return
+                                # Filter to unordered pair
+                                sub = sub[((sub["_home_norm"]==hn) & (sub["_away_norm"]==an)) | ((sub["_home_norm"]==an) & (sub["_away_norm"]==hn))]
+                                if sub.empty:
+                                    return
+                                # Totals
+                                if (tgt_prefix+"total") in ["market_total_1h","market_total_2h"]:
+                                    if (df.get(tgt_prefix+"total") is None) or pd.isna(df.at[idx, tgt_prefix+"total"]):
+                                        for tc in ["total","over_under","market_total","line_total"]:
+                                            if tc in sub.columns and sub[tc].notna().any():
+                                                df.at[idx, tgt_prefix+"total"] = float(pd.to_numeric(sub[tc], errors="coerce").median())
+                                                break
+                                # Spreads
+                                if (tgt_prefix+"spread_home") in ["spread_home_1h","spread_home_2h"]:
+                                    if (df.get(tgt_prefix+"spread_home") is None) or pd.isna(df.at[idx, tgt_prefix+"spread_home"]):
+                                        for sc in ["home_spread","spread","handicap_home","spread_home"]:
+                                            if sc in sub.columns and sub[sc].notna().any():
+                                                df.at[idx, tgt_prefix+"spread_home"] = float(pd.to_numeric(sub[sc], errors="coerce").median())
+                                                break
+                                # Moneyline
+                                if (tgt_prefix+"ml_home") in ["ml_home_1h","ml_home_2h"]:
+                                    if (df.get(tgt_prefix+"ml_home") is None) or pd.isna(df.at[idx, tgt_prefix+"ml_home"]):
+                                        for mc in ["moneyline_home","ml_home","price_home","h2h_home"]:
+                                            if mc in sub.columns and sub[mc].notna().any():
+                                                df.at[idx, tgt_prefix+"ml_home"] = float(pd.to_numeric(sub[mc], errors="coerce").median())
+                                                break
+                            # Apply per row
+                            PERIOD_1H = {"1h","1st_half","first_half","h1","half_1","1_h","1sthalf","firsthalf"}
+                            PERIOD_2H = {"2h","2nd_half","second_half","h2","half_2","2_h","2ndhalf","secondhalf"}
+                            for idx in df.index:
+                                if need_1h:
+                                    _fill_half_for_idx(idx, PERIOD_1H, "market_total_1h"[:-6])  # prefix 'market_total_'
+                                    _fill_half_for_idx(idx, PERIOD_1H, "spread_home_1h"[:-3])   # prefix 'spread_home_'
+                                    _fill_half_for_idx(idx, PERIOD_1H, "ml_home_1h"[:-3])       # prefix 'ml_home_'
+                                if need_2h:
+                                    _fill_half_for_idx(idx, PERIOD_2H, "market_total_2h"[:-6])
+                                    _fill_half_for_idx(idx, PERIOD_2H, "spread_home_2h"[:-3])
+                                    _fill_half_for_idx(idx, PERIOD_2H, "ml_home_2h"[:-3])
     except Exception:
         pass
 
