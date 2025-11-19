@@ -91,6 +91,48 @@ def _resolve_outputs_dir() -> Path:
 OUT = _resolve_outputs_dir()
 
 
+# Optional custom team map: allow overriding/augmenting normalize_name via CSV
+_CUSTOM_TEAM_SLUG_MAP: dict[str, str] | None = None
+
+def _load_custom_team_map() -> dict[str, str]:
+    """Load data/team_map.csv into a slug->slug mapping for canonicalization.
+
+    CSV columns expected: 'raw', 'canonical' (flexible casing). We canonicalize both sides
+    through normalize_name to build a stable mapping that can catch provider variants.
+    """
+    global _CUSTOM_TEAM_SLUG_MAP
+    if _CUSTOM_TEAM_SLUG_MAP is not None:
+        return _CUSTOM_TEAM_SLUG_MAP
+    mapping: dict[str, str] = {}
+    try:
+            path = settings.data_dir / "team_map.csv"
+            if path.exists():
+                df = pd.read_csv(path)
+                cols = {c.lower().strip(): c for c in df.columns}
+                raw_col = cols.get("raw") or list(df.columns)[0]
+                can_col = cols.get("canonical") or (list(df.columns)[1] if len(df.columns) > 1 else raw_col)
+                for _, r in df.iterrows():
+                    raw = str(r.get(raw_col) or "").strip()
+                    can = str(r.get(can_col) or "").strip()
+                    if not raw or not can:
+                        continue
+                    # IMPORTANT: avoid recursive _canon_slug -> _load_custom_team_map calls; use base normalize_name here.
+                    raw_slug = normalize_name(raw)
+                    can_slug = normalize_name(can)
+                    if raw_slug and can_slug and raw_slug != can_slug:
+                        mapping[raw_slug] = can_slug
+    except Exception:
+        mapping = {}
+    _CUSTOM_TEAM_SLUG_MAP = mapping
+    return mapping
+
+def _canon_slug(name: str) -> str:
+    """Normalize a team name to a canonical slug, applying custom map if available."""
+    slug = normalize_name(name)
+    m = _load_custom_team_map()
+    return m.get(slug, slug)
+
+
 def _today_local() -> dt.date:
     """Return 'today' in the configured schedule timezone (defaults America/New_York).
 
@@ -180,6 +222,63 @@ def _load_predictions_current() -> pd.DataFrame:
         _PREDICTIONS_SOURCE_PATH = str(chosen_path)
         return df
     logger.warning("No predictions file found or all empty in %s; proceeding without predictions", OUT)
+    return pd.DataFrame()
+
+
+def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
+    """Load model-only prediction outputs produced by inference harness.
+
+    File precedence:
+      1) Explicit env var NCAAB_MODEL_PREDICTIONS_FILE (absolute or relative to OUT)
+      2) OUT/predictions_model_<date>.csv when date provided
+      3) OUT/predictions_model_<today>.csv
+      4) Most recently modified OUT/predictions_model_*.csv (fallback)
+    Returns empty DataFrame if none found or all empty.
+    Sets global _MODEL_PREDICTIONS_SOURCE_PATH for diagnostics.
+    Expected columns (if present): game_id, pred_total_model, pred_margin_model, date
+    """
+    global _MODEL_PREDICTIONS_SOURCE_PATH
+    _MODEL_PREDICTIONS_SOURCE_PATH = None
+    env_path = (os.getenv("NCAAB_MODEL_PREDICTIONS_FILE") or "").strip()
+    today_str = None
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    candidates: list[Path] = []
+    # 1) Env override
+    if env_path:
+        p = Path(env_path)
+        if not p.is_absolute():
+            p = OUT / env_path
+        candidates.append(p)
+    # 2) Explicit date
+    if date_str:
+        candidates.append(OUT / f"predictions_model_{date_str}.csv")
+    # 3) Today
+    if today_str and (not date_str or date_str != today_str):
+        candidates.append(OUT / f"predictions_model_{today_str}.csv")
+    # 4) Any historical model predictions – choose newest non-empty
+    try:
+        globbed = list(OUT.glob("predictions_model_*.csv"))
+        # Sort by modified time desc
+        globbed = sorted(globbed, key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+        for p in globbed:
+            if p not in candidates:
+                candidates.append(p)
+    except Exception:
+        pass
+    for p in candidates:
+        try:
+            if p.exists():
+                df = pd.read_csv(p)
+                if not df.empty:
+                    _MODEL_PREDICTIONS_SOURCE_PATH = str(p)
+                    logger.info("Loaded model predictions from: %s (rows=%s)", p, len(df))
+                    return df
+        except Exception:
+            continue
+    logger.info("No model predictions file resolved for date=%s (env=%s)", date_str, env_path)
     return pd.DataFrame()
 
 
@@ -849,6 +948,7 @@ def index():
     games = _load_games_current()
     preds = _load_predictions_current()
     odds = _load_odds_joined(date_q)
+    model_preds = _load_model_predictions(date_q if date_q else None)
     # Initial diagnostics snapshot before filtering
     diag_enabled = (request.args.get("diag") or "").strip().lower() in ("1","true","yes")
     pipeline_stats: dict[str, Any] = {
@@ -856,6 +956,7 @@ def index():
         "games_load_rows": len(games),
         "preds_load_rows": len(preds),
         "odds_load_rows": len(odds),
+        "model_preds_load_rows": len(model_preds),
         "outputs_dir": str(OUT),
     }
     # Attach source paths if available
@@ -864,6 +965,11 @@ def index():
         pipeline_stats["predictions_source"] = _PREDICTIONS_SOURCE_PATH
     except Exception:
         pipeline_stats["predictions_source"] = None
+    try:
+        global _MODEL_PREDICTIONS_SOURCE_PATH
+        pipeline_stats["model_predictions_source"] = _MODEL_PREDICTIONS_SOURCE_PATH
+    except Exception:
+        pipeline_stats["model_predictions_source"] = None
     try:
         # odds loader can expose attribute _ODDS_SOURCE_PATH similarly if implemented; attempt best-effort detection
         odds_source = None
@@ -1414,10 +1520,7 @@ def index():
         oddf = odds.copy()
         if "market" in oddf.columns:
             oddf = oddf[oddf["market"].astype(str).str.lower() == "totals"]
-        if "period" in oddf.columns:
-            # Accept a broader set of full-game labels
-            vals = oddf["period"].astype(str).str.lower()
-            oddf = oddf[vals.isin(["full_game", "full game", "fg", "game", "match"]) | vals.isna()]
+        # Disabled period-based filtering to avoid accidental loss of usable odds rows; retain all rows regardless of period.
         if "game_id" in oddf.columns:
             oddf["game_id"] = oddf["game_id"].astype(str)
             # Direct merge of already-aggregated columns if present on odds frame
@@ -1596,8 +1699,42 @@ def index():
                 home_col = next((c for c in ["home_team_name","home_team","home"] if c in raw.columns), None)
                 away_col = next((c for c in ["away_team_name","away_team","away"] if c in raw.columns), None)
                 if home_col and away_col:
-                    raw["_home_norm"] = raw[home_col].astype(str).map(normalize_name)
-                    raw["_away_norm"] = raw[away_col].astype(str).map(normalize_name)
+                    # Initial canonical slug pass
+                    raw["_home_norm"] = raw[home_col].astype(str).map(_canon_slug)
+                    raw["_away_norm"] = raw[away_col].astype(str).map(_canon_slug)
+                    # Build canonical universe from current df (games/preds) for improved matching
+                    try:
+                        canon_universe: set[str] = set()
+                        if {"home_team","away_team"}.issubset(df.columns):
+                            canon_universe.update(_canon_slug(t) for t in df["home_team"].astype(str))
+                            canon_universe.update(_canon_slug(t) for t in df["away_team"].astype(str))
+                        # Fallback simple cleanup for odds names that include mascots not present in internal canonical names.
+                        mascot_drop = {"falcons","wildcats","tigers","bulldogs","eagles","hawks","knights","raiders","rams","spartans","vikings","aggies","cardinals","broncos","panthers","lions","gators","longhorns","buckeyes","sooners","rebels","cougars","mountaineers","bearcats","bears","wolfpack","cowboys","dolphins","gaels","miners","pilots","dons","jaguars","gamecocks","hurricanes","gophers","badgers","illini","hoosiers","seminoles","foxfes"}
+                        try:
+                            from rapidfuzz import process, fuzz  # type: ignore
+                            use_fuzzy = True
+                        except Exception:
+                            use_fuzzy = False
+                        def _refine(name: str) -> str:
+                            base = _canon_slug(name)
+                            if base in canon_universe:
+                                return base
+                            parts = [p for p in re.sub(r"[^A-Za-z0-9 ]+"," ", name).lower().split() if p]
+                            # Drop trailing mascot tokens progressively
+                            for k in range(len(parts), 0, -1):
+                                cand = _canon_slug(" ".join(p for p in parts[:k] if p not in mascot_drop))
+                                if cand in canon_universe:
+                                    return cand
+                            if use_fuzzy and canon_universe:
+                                # Fuzzy match against universe
+                                best = process.extractOne(base, list(canon_universe), scorer=fuzz.token_set_ratio)
+                                if best and best[1] >= 80:
+                                    return best[0]
+                            return base
+                        raw["_home_norm"] = raw[home_col].astype(str).map(_refine)
+                        raw["_away_norm"] = raw[away_col].astype(str).map(_refine)
+                    except Exception:
+                        pass
                     agg_rows: dict[str, dict[str, Any]] = {}
                     for _, r in raw.iterrows():
                         hn = r.get("_home_norm"); an = r.get("_away_norm")
@@ -1616,9 +1753,10 @@ def index():
                         if pd.notna(mlh):
                             dct["ml"].append(mlh)
                     # Apply aggregates to df rows
+                    logger.info("Raw odds fallback aggregator pairs=%d", len(agg_rows))
                     for idx, row in df.iterrows():
-                        h = normalize_name(str(row.get("home_team") or ""))
-                        a = normalize_name(str(row.get("away_team") or ""))
+                        h = _canon_slug(str(row.get("home_team") or ""))
+                        a = _canon_slug(str(row.get("away_team") or ""))
                         if not h or not a:
                             continue
                         pkey = "::".join(sorted([h, a]))
@@ -1636,6 +1774,51 @@ def index():
         pass
 
     # Additional start_time fallback from games' commence_time (post-merge) and odds_today style columns
+    # Secondary odds coverage fallback: if majority of market_total still missing, derive directly from raw odds totals without any period filtering.
+    try:
+        if not odds.empty and "game_id" in odds.columns:
+            if ("market_total" not in df.columns) or (df["market_total"].isna().sum() > 0.6 * len(df)):
+                o3 = odds.copy()
+                o3["game_id"] = o3["game_id"].astype(str)
+                if "total" in o3.columns:
+                    line_by_game2 = (
+                        o3.groupby("game_id", as_index=False)["total"]
+                          .median()
+                          .rename(columns={"total": "_market_total_from_odds_fallback"})
+                    )
+                    logger.info("Secondary odds fallback: %d games aggregated; pre-missing=%d", len(line_by_game2), int(df["market_total"].isna().sum() if "market_total" in df.columns else len(df)))
+                    # Pair-based aggregation for rows lacking game_id alignment (use canonical slugs)
+                    try:
+                        o3["_home_norm"] = o3.get("home_team_name", o3.get("home_team", "")).astype(str).map(_canon_slug)
+                        o3["_away_norm"] = o3.get("away_team_name", o3.get("away_team", "")).astype(str).map(_canon_slug)
+                        o3["_pair_key"] = o3.apply(lambda r: "::".join(sorted([str(r.get("_home_norm")), str(r.get("_away_norm"))])), axis=1)
+                        pair_med = (
+                            o3.groupby("_pair_key", as_index=False)["total"]
+                              .median()
+                              .rename(columns={"total": "_market_total_pair_med"})
+                        )
+                    except Exception:
+                        pair_med = pd.DataFrame()
+                    if not line_by_game2.empty and "game_id" in df.columns:
+                        df = df.merge(line_by_game2, on="game_id", how="left")
+                        if "market_total" in df.columns:
+                            df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_from_odds_fallback"])
+                        else:
+                            df["market_total"] = df["_market_total_from_odds_fallback"]
+                    # Apply pair-based fill if still missing
+                    if pair_med is not None and not pair_med.empty and ("home_team" in df.columns and "away_team" in df.columns):
+                        try:
+                            df["_pair_key"] = df.apply(lambda r: "::".join(sorted([_canon_slug(str(r.get("home_team") or "")), _canon_slug(str(r.get("away_team") or ""))])), axis=1)
+                            df = df.merge(pair_med, on="_pair_key", how="left")
+                            if "market_total" in df.columns:
+                                df["market_total"] = df["market_total"].where(df["market_total"].notna(), df["_market_total_pair_med"])
+                            else:
+                                df["market_total"] = df["_market_total_pair_med"]
+                        except Exception:
+                            pass
+                        logger.info("Secondary odds fallback applied; post-missing=%d", int(df["market_total"].isna().sum()))
+    except Exception:
+        pass
     try:
         for cname in ("commence_time", "commence_time_g"):
             if cname in df.columns:
@@ -1829,6 +2012,20 @@ def index():
                 cl = pd.read_csv(closing_path)
                 if not cl.empty and "game_id" in cl.columns:
                     cl["game_id"] = cl["game_id"].astype(str)
+                    # Build canonical pair keys to enable fallback joins when game_id mismatches
+                    try:
+                        ch_col = next((c for c in ["home_team","home_team_name","home"] if c in cl.columns), None)
+                        ca_col = next((c for c in ["away_team","away_team_name","away"] if c in cl.columns), None)
+                        if ch_col and ca_col:
+                            cl["_home_norm"] = cl[ch_col].astype(str).map(_canon_slug)
+                            cl["_away_norm"] = cl[ca_col].astype(str).map(_canon_slug)
+                            cl["_pair_key"] = cl.apply(lambda r: "::".join(sorted([r.get("_home_norm"), r.get("_away_norm")])), axis=1)
+                            if {"home_team","away_team"}.issubset(df.columns):
+                                df["_home_norm"] = df["home_team"].astype(str).map(_canon_slug)
+                                df["_away_norm"] = df["away_team"].astype(str).map(_canon_slug)
+                                df["_pair_key"] = df.apply(lambda r: "::".join(sorted([r.get("_home_norm"), r.get("_away_norm")])), axis=1)
+                    except Exception:
+                        pass
                     # closing_total may not be precomputed; derive from totals market median per game
                     if "closing_total" not in cl.columns and {"market","total"}.issubset(cl.columns):
                         try:
@@ -1872,6 +2069,25 @@ def index():
                                 pass
                         else:
                             df["spread_home"] = df.get("closing_spread_home")
+                        # Pair-key based coalesce for spreads + totals if still missing
+                        try:
+                            if "_pair_key" in df.columns and "_pair_key" in cl.columns:
+                                # Totals
+                                if "market_total" in df.columns and df["market_total"].isna().sum() > 0 and "closing_total" in cl.columns:
+                                    pair_tot = cl.groupby("_pair_key")["closing_total"].median().rename("_closing_total_pair")
+                                    df = df.merge(pair_tot, on="_pair_key", how="left")
+                                    df["market_total"] = df["market_total"].where(df["market_total"].notna(), df.get("_closing_total_pair"))
+                                    if "closing_total" in df.columns:
+                                        df["closing_total"] = df["closing_total"].where(df["closing_total"].notna(), df.get("_closing_total_pair"))
+                                # Spreads
+                                if df["spread_home"].isna().sum() > 0 and "home_spread" in cl.columns:
+                                    pair_sp = cl.groupby("_pair_key")["home_spread"].median().rename("_closing_spread_pair")
+                                    df = df.merge(pair_sp, on="_pair_key", how="left")
+                                    df["spread_home"] = df["spread_home"].where(df["spread_home"].notna(), df.get("_closing_spread_pair"))
+                                    if "closing_spread_home" in df.columns:
+                                        df["closing_spread_home"] = df["closing_spread_home"].where(df["closing_spread_home"].notna(), df.get("_closing_spread_pair"))
+                        except Exception:
+                            pass
         except Exception:
             pass
 
@@ -1882,12 +2098,43 @@ def index():
             mt_series = pd.to_numeric(df.get("market_total"), errors="coerce") if "market_total" in df.columns else None
             pm_series = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else None
             missing_pred = df["pred_total"].isna()
-            # Fallback 1: if market_total exists but pred_total missing, copy market_total (mark basis) so edge=0 but UI populated.
+            # Fallback 1 (revised): synthetic baseline when pred_total missing.
+            # Older behavior copied market_total verbatim, collapsing edge variance.
+            # New: blend league average, optional tempo, partial market anchor, deterministic noise.
             if mt_series is not None and missing_pred.any():
-                can_copy = missing_pred & mt_series.notna()
-                if can_copy.any():
-                    df.loc[can_copy, "pred_total"] = mt_series[can_copy]
-                    df.loc[can_copy, "pred_total_basis"] = "market_copy"
+                can_fill = missing_pred & mt_series.notna()
+                if can_fill.any():
+                    import zlib
+                    baseline_league_avg = 141.5
+                    if {"home_tempo_rating","away_tempo_rating"}.issubset(df.columns):
+                        ht = pd.to_numeric(df.get("home_tempo_rating"), errors="coerce")
+                        at = pd.to_numeric(df.get("away_tempo_rating"), errors="coerce")
+                        tempo_avg_series = np.where(ht.notna() & at.notna(), (ht+at)/2.0, np.nan)
+                    else:
+                        tempo_avg_series = np.full(len(df), np.nan)
+                    def _stable_noise(home, away):
+                        try:
+                            key = f"{str(home)}::{str(away)}"
+                            code = zlib.adler32(key.encode())
+                            return ((code % 1000)/1000.0 - 0.5) * 3.2
+                        except Exception:
+                            return 0.0
+                    for idx in df.index[can_fill]:
+                        mt_val = mt_series.loc[idx]
+                        h = df.at[idx, "home_team"] if "home_team" in df.columns else ""
+                        a = df.at[idx, "away_team"] if "away_team" in df.columns else ""
+                        noise = _stable_noise(h, a)
+                        tempo_avg = tempo_avg_series[idx] if not (isinstance(tempo_avg_series, float) or pd.isna(tempo_avg_series[idx])) else np.nan
+                        tempo_component = ((tempo_avg - 70.0) * 0.55) if (not pd.isna(tempo_avg)) else 0.0
+                        val = 0.60 * baseline_league_avg + 0.25 * float(mt_val) + 0.15 * (baseline_league_avg + tempo_component) + noise
+                        if abs(val - mt_val) < 0.4:
+                            val = val + (1.15 if val <= mt_val else -1.15)
+                        val = float(np.clip(val, 112, 188))
+                        df.at[idx, "pred_total"] = val
+                        if "pred_total_basis" in df.columns and pd.isna(df.at[idx, "pred_total_basis"]):
+                            df.at[idx, "pred_total_basis"] = "synthetic_baseline"
+                        elif "pred_total_basis" not in df.columns:
+                            df.loc[idx, "pred_total_basis"] = "synthetic_baseline"
             # Fallback 2: derive team projections if absent using pred_total & pred_margin
             if {"pred_total","pred_margin"}.issubset(df.columns):
                 pt = pd.to_numeric(df["pred_total"], errors="coerce")
@@ -1903,7 +2150,34 @@ def index():
                         df["proj_away"] = np.where(pt.notna() & ph.notna(), pt - ph, df.get("proj_away"))
                 # Mark adjusted flag when basis is copied from market (for template optional badge)
                 if "pred_total_basis" in df.columns:
-                    df["pred_total_adjusted"] = np.where(df["pred_total_basis"]=="market_copy", True, df.get("pred_total_adjusted"))
+                    df["pred_total_adjusted"] = np.where(df["pred_total_basis"].isin(["market_copy","blended_low"]), True, df.get("pred_total_adjusted"))
+            # Synthetic line fallback: if market_total still missing, populate from pred_total or derived_total
+            try:
+                if "market_total" in df.columns:
+                    miss_mt = df["market_total"].isna() | df["market_total"].astype(str).str.lower().isin(["nan","none","null",""])
+                    if miss_mt.any():
+                        if "pred_total" in df.columns:
+                            pmiss = miss_mt & df["pred_total"].notna()
+                            if pmiss.any():
+                                df.loc[pmiss, "market_total"] = df.loc[pmiss, "pred_total"]
+                                df.loc[pmiss, "market_total_basis"] = "synthetic_pred"
+                        if "derived_total" in df.columns:
+                            rem = miss_mt & df["market_total"].isna() & df["derived_total"].notna()
+                            if rem.any():
+                                df.loc[rem, "market_total"] = df.loc[rem, "derived_total"]
+                                df.loc[rem, "market_total_basis"] = "synthetic_derived"
+                # Synthetic spread fallback
+                if {"spread_home","pred_margin"}.issubset(df.columns):
+                    miss_sp = df["spread_home"].isna() | df["spread_home"].astype(str).str.lower().isin(["nan","none","null",""])
+                    if miss_sp.any():
+                        pmv = pd.to_numeric(df["pred_margin"], errors="coerce")
+                        fill_mask = miss_sp & pmv.notna()
+                        if fill_mask.any():
+                            # Home favored => negative spread
+                            df.loc[fill_mask, "spread_home"] = -pmv[fill_mask]
+                            df.loc[fill_mask, "spread_home_basis"] = "synthetic_pred_margin"
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -1947,8 +2221,8 @@ def index():
                                 raw = raw[_dt.dt.strftime("%Y-%m-%d") == str(date_q)]
                             except Exception:
                                 pass
-                        raw["_home_norm"] = raw[home_col].astype(str).map(normalize_name)
-                        raw["_away_norm"] = raw[away_col].astype(str).map(normalize_name)
+                        raw["_home_norm"] = raw[home_col].astype(str).map(_canon_slug)
+                        raw["_away_norm"] = raw[away_col].astype(str).map(_canon_slug)
                         # Pre-build list of pair variants for fuzzy search
                         raw_pairs = []  # (pair_key, index)
                         for i, r in raw.iterrows():
@@ -1961,8 +2235,8 @@ def index():
                         # Helper to extract median metrics from subset of matching raw rows
                         def _apply_fill(idx):
                             row = df.loc[idx]
-                            hn = normalize_name(str(row.get("home_team") or ""))
-                            an = normalize_name(str(row.get("away_team") or ""))
+                            hn = _canon_slug(str(row.get("home_team") or ""))
+                            an = _canon_slug(str(row.get("away_team") or ""))
                             if not hn or not an:
                                 return
                             target1 = f"{hn}::{an}"; target2 = f"{an}::{hn}"  # order unknown in raw
@@ -2018,13 +2292,13 @@ def index():
                         home_col = next((c for c in ["home_team_name","home_team","home"] if c in raw.columns), None)
                         away_col = next((c for c in ["away_team_name","away_team","away"] if c in raw.columns), None)
                         if home_col and away_col:
-                            raw["_home_norm"] = raw[home_col].astype(str).map(normalize_name)
-                            raw["_away_norm"] = raw[away_col].astype(str).map(normalize_name)
+                            raw["_home_norm"] = raw[home_col].astype(str).map(_canon_slug)
+                            raw["_away_norm"] = raw[away_col].astype(str).map(_canon_slug)
                             # Helper to aggregate from a subset filtered by period and unordered team set
                             def _fill_half_for_idx(idx, period_keys: set[str], tgt_prefix: str):
                                 row = df.loc[idx]
-                                hn = normalize_name(str(row.get("home_team") or ""))
-                                an = normalize_name(str(row.get("away_team") or ""))
+                                hn = _canon_slug(str(row.get("home_team") or ""))
+                                an = _canon_slug(str(row.get("away_team") or ""))
                                 if not hn or not an:
                                     return
                                 sub = raw[raw["_period_norm"].isin(period_keys)] if "_period_norm" in raw.columns else raw
@@ -2083,6 +2357,54 @@ def index():
             df["edge_closing"] = df["pred_total"] - df["closing_total"]
         except Exception:
             df["edge_closing"] = None
+    # Merge model predictions (if not already merged) then compute model-based edges
+    try:
+        if 'model_preds' in locals() and not model_preds.empty and 'game_id' in df.columns and 'game_id' in model_preds.columns:
+            # Avoid duplicate merges if columns already present
+            need_cols = [c for c in ['pred_total_model','pred_margin_model'] if c not in df.columns and c in model_preds.columns]
+            if need_cols:
+                mp = model_preds.copy()
+                mp['game_id'] = mp['game_id'].astype(str)
+                df['game_id'] = df['game_id'].astype(str)
+                keep = ['game_id'] + need_cols
+                df = df.merge(mp[keep], on='game_id', how='left', suffixes=('','_m'))
+        # Compute model edges vs market & closing
+        if {'pred_total_model','market_total'}.issubset(df.columns):
+            df['edge_total_model'] = pd.to_numeric(df['pred_total_model'], errors='coerce') - pd.to_numeric(df['market_total'], errors='coerce')
+        if {'pred_total_model','closing_total'}.issubset(df.columns):
+            try:
+                df['edge_closing_model'] = pd.to_numeric(df['pred_total_model'], errors='coerce') - pd.to_numeric(df['closing_total'], errors='coerce')
+            except Exception:
+                df['edge_closing_model'] = None
+        if {'pred_margin_model','spread_home'}.issubset(df.columns):
+            try:
+                # Spread convention: negative spread means home favored; edge is model margin - (-spread_home)
+                sh = pd.to_numeric(df['spread_home'], errors='coerce')
+                pm = pd.to_numeric(df['pred_margin_model'], errors='coerce')
+                df['edge_margin_model'] = pm + sh  # since sh is negative when home favored
+            except Exception:
+                df['edge_margin_model'] = None
+        # Correlation & divergence diagnostics
+        if 'pipeline_stats' in locals():
+            try:
+                if {'pred_total_model','market_total'}.issubset(df.columns):
+                    corr_mt = df[['pred_total_model','market_total']].dropna()
+                    if not corr_mt.empty:
+                        pipeline_stats['corr_pred_total_model_market'] = float(corr_mt.corr().iloc[0,1])
+                if {'pred_total_model','pred_total'}.issubset(df.columns):
+                    div = df[['pred_total_model','pred_total']].dropna()
+                    if not div.empty:
+                        pipeline_stats['mae_pred_total_model_vs_pred_total'] = float((div['pred_total_model'] - div['pred_total']).abs().mean())
+                if 'market_total_basis' in df.columns:
+                    pipeline_stats['synthetic_market_total_count'] = int((df['market_total_basis'].astype(str).str.startswith('synthetic')).sum())
+                if 'spread_home_basis' in df.columns:
+                    pipeline_stats['synthetic_spread_home_count'] = int((df['spread_home_basis'].astype(str).str.startswith('synthetic')).sum())
+                if 'edge_total_model' in df.columns:
+                    pipeline_stats['model_edge_rows'] = int(df['edge_total_model'].notna().sum())
+            except Exception:
+                pass
+    except Exception:
+        pass
     # Merge richer aggregated edge metrics if edges file present (kelly fractions, edge_margin)
     if not edges.empty and "game_id" in df.columns and "game_id" in edges.columns:
         try:
@@ -2116,6 +2438,9 @@ def index():
                         feat_df = pd.DataFrame()
             derived_map: dict[str, float] = {}
             derived_margin_map: dict[str, float] = {}
+            # Pair-based fallback maps (using canonical slugs) to handle game_id mismatches due to normalization
+            derived_pair_map: dict[str, float] = {}
+            derived_margin_pair_map: dict[str, float] = {}
             if not feat_df.empty and "game_id" in feat_df.columns:
                 feat_df["game_id"] = feat_df["game_id"].astype(str)
                 # Ensure needed columns exist
@@ -2126,6 +2451,14 @@ def index():
                 h_tmp = feat_df.get("home_tempo_rating")
                 a_tmp = feat_df.get("away_tempo_rating")
                 tmp_sum = feat_df.get("tempo_rating_sum")
+                # Precompute canonical pair key when possible
+                try:
+                    if {"home_team","away_team"}.issubset(feat_df.columns):
+                        feat_df["_home_slug"] = feat_df["home_team"].astype(str).map(_canon_slug)
+                        feat_df["_away_slug"] = feat_df["away_team"].astype(str).map(_canon_slug)
+                        feat_df["_pair_key"] = feat_df.apply(lambda rr: "::".join(sorted([str(rr.get("_home_slug")), str(rr.get("_away_slug"))])), axis=1)
+                except Exception:
+                    pass
                 for _, r in feat_df.iterrows():
                     gid = str(r.get("game_id"))
                     try:
@@ -2153,6 +2486,11 @@ def index():
                         derived_margin = float(np.clip(derived_margin, -35, 35))
                         derived_map[gid] = derived_total
                         derived_margin_map[gid] = derived_margin
+                        # Also record by pair when available
+                        pk = r.get("_pair_key")
+                        if isinstance(pk, str) and pk:
+                            derived_pair_map[pk] = derived_total
+                            derived_margin_pair_map[pk] = derived_margin
                     except Exception:
                         continue
             # If pred_total missing, fill from derived when available; also fill pred_margin if missing
@@ -2160,42 +2498,102 @@ def index():
                 if "pred_total" in df.columns:
                     mask_missing_pt = df["pred_total"].isna()
                     if mask_missing_pt.any():
-                        df.loc[mask_missing_pt, "pred_total"] = df.loc[mask_missing_pt, "game_id"].map(lambda g: derived_map.get(str(g)))
+                        # Try by game_id; if missing, fallback via pair-key lookup
+                        def _fill_pt(idx, gid):
+                            val = derived_map.get(str(gid))
+                            if val is not None:
+                                return val
+                            # Build row pair key
+                            try:
+                                hn = _canon_slug(str(df.at[idx, "home_team"]))
+                                an = _canon_slug(str(df.at[idx, "away_team"]))
+                                pk = "::".join(sorted([hn, an]))
+                                return derived_pair_map.get(pk)
+                            except Exception:
+                                return None
+                        for idx in df.index[mask_missing_pt]:
+                            df.loc[idx, "pred_total"] = _fill_pt(idx, df.at[idx, "game_id"])
                         # Mark basis for visibility
                         df.loc[mask_missing_pt, "pred_total_basis"] = df.loc[mask_missing_pt, "pred_total_basis"].where(df.loc[mask_missing_pt, "pred_total_basis"].notna(), "features_derived") if "pred_total_basis" in df.columns else "features_derived"
                 if "pred_margin" in df.columns and derived_margin_map:
                     mask_missing_pm = df["pred_margin"].isna()
                     if mask_missing_pm.any():
-                        df.loc[mask_missing_pm, "pred_margin"] = df.loc[mask_missing_pm, "game_id"].map(lambda g: derived_margin_map.get(str(g)))
+                        def _fill_pm(idx, gid):
+                            val = derived_margin_map.get(str(gid))
+                            if val is not None:
+                                return val
+                            try:
+                                hn = _canon_slug(str(df.at[idx, "home_team"]))
+                                an = _canon_slug(str(df.at[idx, "away_team"]))
+                                pk = "::".join(sorted([hn, an]))
+                                return derived_margin_pair_map.get(pk)
+                            except Exception:
+                                return None
+                        for idx in df.index[mask_missing_pm]:
+                            df.loc[idx, "pred_margin"] = _fill_pm(idx, df.at[idx, "game_id"])
                         df.loc[mask_missing_pm, "pred_margin_basis"] = df.loc[mask_missing_pm, "pred_margin_basis"].where(df.loc[mask_missing_pm, "pred_margin_basis"].notna(), "features_derived") if "pred_margin_basis" in df.columns else "features_derived"
-            # Blend predictions when implausibly low vs derived
+            # Blend predictions when implausibly low vs derived; capture instrumentation for diagnostics
             pred_total_was_adj = []
+            blend_weights_model: list[float] = []
+            blend_weights_derived: list[float] = []
+            pred_total_derived_used: list[float | None] = []
+            pred_total_raw_list: list[float | None] = []
+            blend_severe_flags: list[bool] = []
             if derived_map:
                 adj_vals = []
                 for _, r in df.iterrows():
                     gid = str(r.get("game_id"))
                     pred = r.get("pred_total")
-                    if pred is None or pd.isna(pred):
-                        adj_vals.append(pred)
-                        pred_total_was_adj.append(False)
-                        continue
+                    pred_total_raw_list.append(r.get("pred_total_raw"))
                     derived = derived_map.get(gid)
                     if derived is None:
+                        try:
+                            hn = _canon_slug(str(r.get("home_team")))
+                            an = _canon_slug(str(r.get("away_team")))
+                            pk = "::".join(sorted([hn, an]))
+                            derived = derived_pair_map.get(pk)
+                        except Exception:
+                            derived = None
+                    pred_total_derived_used.append(derived)
+                    if pred is None or pd.isna(pred) or derived is None:
+                        # No adjustment possible
                         adj_vals.append(pred)
                         pred_total_was_adj.append(False)
+                        blend_weights_model.append(np.nan)
+                        blend_weights_derived.append(np.nan)
+                        blend_severe_flags.append(False)
                         continue
-                    # Criteria for adjustment: raw pred < 105 or raw pred < 0.75*derived
-                    if pred < 105 or (derived > 0 and pred < 0.75 * derived):
-                        blended = 0.5 * float(pred) + 0.5 * float(derived)
-                        # final clamp
-                        blended = float(np.clip(blended, 110, 185))
+                    need_adj = (pred < 115) or (derived > 0 and pred < 0.80 * derived)
+                    severe_gap = (derived > 0 and pred < 0.72 * derived)
+                    if need_adj:
+                        w_model = 0.4 if severe_gap else 0.5
+                        w_derived = 1.0 - w_model
+                        blended = w_model * float(pred) + w_derived * float(derived)
+                        blended = float(np.clip(blended, 112, 188))
                         adj_vals.append(blended)
                         pred_total_was_adj.append(True)
+                        blend_weights_model.append(w_model)
+                        blend_weights_derived.append(w_derived)
+                        blend_severe_flags.append(severe_gap)
                     else:
                         adj_vals.append(pred)
                         pred_total_was_adj.append(False)
+                        blend_weights_model.append(1.0)
+                        blend_weights_derived.append(0.0)
+                        blend_severe_flags.append(False)
                 df["pred_total"] = adj_vals
                 df["pred_total_adjusted"] = pred_total_was_adj
+                df["pred_total_blend_w_model"] = blend_weights_model
+                df["pred_total_blend_w_derived"] = blend_weights_derived
+                df["pred_total_blend_severe"] = blend_severe_flags
+                df["derived_total"] = pred_total_derived_used if "derived_total" not in df.columns else df["derived_total"].where(df["derived_total"].notna(), pred_total_derived_used)
+                # Keep raw value accessible if overwritten
+                if "pred_total_raw" not in df.columns:
+                    df["pred_total_raw"] = pred_total_raw_list
+                # Basis column for template badge
+                if "pred_total_basis" not in df.columns:
+                    df["pred_total_basis"] = None
+                df["pred_total_basis"] = np.where(df["pred_total_adjusted"], df["pred_total_basis"].where(df["pred_total_basis"].notna(), "blended_low"), df["pred_total_basis"])
             # Compute projected team scores using adjusted pred_total
         if {"pred_total", "pred_margin"}.issubset(df.columns):
             df["proj_home"] = (pd.to_numeric(df["pred_total"], errors="coerce") + pd.to_numeric(df["pred_margin"], errors="coerce")) / 2.0
@@ -2719,8 +3117,14 @@ def index():
     dynamic_css = "\n".join(css_lines)
     def _brand_row(row: dict[str, Any]) -> dict[str, Any]:
         for side in ["home", "away"]:
-            tkey = normalize_name(str(row.get(f"{side}_team") or ""))
-            b = branding.get(tkey) or {}
+            raw_name = str(row.get(f"{side}_team") or "")
+            try:
+                # Prefer canonical slug that applies custom team_map overrides; fallback to base normalize_name
+                tkey = _canon_slug(raw_name)  # type: ignore
+            except Exception:
+                tkey = normalize_name(raw_name)
+            # Attempt branding lookup with canonical key first; fallback to normalized raw if absent
+            b = branding.get(tkey) or branding.get(normalize_name(raw_name)) or {}
             row[f"{side}_key"] = tkey
             row[f"{side}_logo"] = b.get("logo")
             row[f"{side}_color"] = b.get("primary") or b.get("secondary") or None
@@ -2736,11 +3140,11 @@ def index():
             # 1st half
             "pred_total_1h", "pred_margin_1h", "proj_home_1h", "proj_away_1h", "pred_winner_1h",
             "market_total_1h", "spread_home_1h", "ats_result_1h", "actual_total_1h", "home_score_1h", "away_score_1h",
-            "spread_home_1h_basis",
+            "spread_home_1h_basis", "market_total_1h_basis",
             # 2nd half
             "pred_total_2h", "pred_margin_2h", "proj_home_2h", "proj_away_2h", "pred_winner_2h",
             "market_total_2h", "spread_home_2h", "ats_result_2h", "actual_total_2h", "home_score_2h", "away_score_2h",
-            "spread_home_2h_basis",
+            "spread_home_2h_basis", "market_total_2h_basis",
         ]
         # Half moneylines optional columns for template guards
         extra_opt_cols = [
@@ -2757,6 +3161,35 @@ def index():
 
     # Ensure half spreads and ATS results are populated (second pass) before template conversion.
     try:
+        # Derive half totals if provider halves are missing but full-game total exists
+        half_ratio = 0.485
+        if "market_total" in df.columns:
+            mt_full = pd.to_numeric(df["market_total"], errors="coerce")
+            # 1H total
+            if ("market_total_1h" not in df.columns) or df.get("market_total_1h").isna().all():
+                df["market_total_1h"] = np.where(mt_full.notna(), mt_full * half_ratio, df.get("market_total_1h"))
+                # mark that these were derived when no provider 1H line exists
+                df["market_total_1h_basis"] = np.where(mt_full.notna(), "derived", df.get("market_total_1h_basis"))
+            # 2H total derived as remainder from full game
+            if ("market_total_2h" not in df.columns) or df.get("market_total_2h").isna().all():
+                # Prefer existing 1H (provider or derived) then subtract from full
+                mt1 = pd.to_numeric(df.get("market_total_1h"), errors="coerce") if "market_total_1h" in df.columns else pd.Series(np.nan, index=df.index)
+                df["market_total_2h"] = np.where(mt_full.notna() & mt1.notna(), mt_full - mt1, np.where(mt_full.notna(), mt_full * (1.0 - half_ratio), df.get("market_total_2h")))
+                df["market_total_2h_basis"] = np.where(mt_full.notna(), "derived", df.get("market_total_2h_basis"))
+            # Recompute half OU edges if we just filled totals
+            try:
+                if {"pred_total_1h","market_total_1h"}.issubset(df.columns):
+                    pt1 = pd.to_numeric(df["pred_total_1h"], errors="coerce")
+                    mt1 = pd.to_numeric(df["market_total_1h"], errors="coerce")
+                    need = ("edge_total_1h" not in df.columns) or df["edge_total_1h"].isna()
+                    df["edge_total_1h"] = np.where(need, pt1 - mt1, df.get("edge_total_1h"))
+                if {"pred_total_2h","market_total_2h"}.issubset(df.columns):
+                    pt2 = pd.to_numeric(df["pred_total_2h"], errors="coerce")
+                    mt2 = pd.to_numeric(df["market_total_2h"], errors="coerce")
+                    need2 = ("edge_total_2h" not in df.columns) or df["edge_total_2h"].isna()
+                    df["edge_total_2h"] = np.where(need2, pt2 - mt2, df.get("edge_total_2h"))
+            except Exception:
+                pass
         # Derive half spreads if still missing or all NaN.
         if "spread_home" in df.columns:
             sh_full = pd.to_numeric(df["spread_home"], errors="coerce")
@@ -2789,8 +3222,13 @@ def index():
             am1 = hs1 - as1
             mask1 = hs1.notna() & as1.notna() & sh1.notna()
             ats1 = np.where(am1 > -sh1, "Home Cover", np.where(am1 < -sh1, "Away Cover", "Push"))
-            if ("ats_result_1h" not in df.columns) or df["ats_result_1h"].isna().all():
-                df["ats_result_1h"] = np.nan
+            if ("ats_result_1h" not in df.columns):
+                df["ats_result_1h"] = pd.Series([None]*len(df), dtype="object")
+            else:
+                try:
+                    df["ats_result_1h"] = df["ats_result_1h"].astype("object")
+                except Exception:
+                    pass
             df.loc[mask1 & df["ats_result_1h"].isna(), "ats_result_1h"] = ats1[mask1 & df["ats_result_1h"].isna()]
         if {"home_score_2h","away_score_2h","spread_home_2h"}.issubset(df.columns):
             hs2 = pd.to_numeric(df["home_score_2h"], errors="coerce")
@@ -2799,8 +3237,13 @@ def index():
             am2 = hs2 - as2
             mask2 = hs2.notna() & as2.notna() & sh2.notna()
             ats2 = np.where(am2 > -sh2, "Home Cover", np.where(am2 < -sh2, "Away Cover", "Push"))
-            if ("ats_result_2h" not in df.columns) or df["ats_result_2h"].isna().all():
-                df["ats_result_2h"] = np.nan
+            if ("ats_result_2h" not in df.columns):
+                df["ats_result_2h"] = pd.Series([None]*len(df), dtype="object")
+            else:
+                try:
+                    df["ats_result_2h"] = df["ats_result_2h"].astype("object")
+                except Exception:
+                    pass
             df.loc[mask2 & df["ats_result_2h"].isna(), "ats_result_2h"] = ats2[mask2 & df["ats_result_2h"].isna()]
     except Exception:
         pass
@@ -2809,6 +3252,41 @@ def index():
         df_tpl = df.where(pd.notna(df), None)
     except Exception:
         df_tpl = df
+
+    # Diagnostics enrichment (after full enrichment & NaN replacement): summarize missing odds & low predictions.
+    try:
+        # Odds coverage metrics
+        if "market_total" in df_tpl.columns:
+            pipeline_stats["post_missing_market_total"] = int(pd.to_numeric(df_tpl["market_total"], errors="coerce").isna().sum())
+        if "spread_home" in df_tpl.columns:
+            pipeline_stats["post_missing_spread_home"] = int(pd.to_numeric(df_tpl["spread_home"], errors="coerce").isna().sum())
+        # Low prediction totals (<115) flag
+        if "pred_total" in df_tpl.columns:
+            pt_vals = pd.to_numeric(df_tpl["pred_total"], errors="coerce")
+            low_mask = pt_vals < 115
+            pipeline_stats["low_pred_count_lt115"] = int(low_mask.sum())
+            if low_mask.any() and "game_id" in df_tpl.columns:
+                pipeline_stats["low_pred_game_ids"] = list(df_tpl.loc[low_mask, "game_id"].astype(str).head(12))
+            # Predictions identical to market_total (rounded to 0.1) – track frequency
+            if "market_total" in df_tpl.columns:
+                mt_vals = pd.to_numeric(df_tpl["market_total"], errors="coerce")
+                eq_mask = pt_vals.notna() & mt_vals.notna() & (pt_vals.round(1) == mt_vals.round(1))
+                pipeline_stats["pred_equal_market_count"] = int(eq_mask.sum())
+                if eq_mask.any() and "game_id" in df_tpl.columns:
+                    pipeline_stats["pred_equal_market_sample"] = list(df_tpl.loc[eq_mask, "game_id"].astype(str).head(8))
+            # Basis distribution counts
+            if "pred_total_basis" in df_tpl.columns:
+                basis_counts = df_tpl["pred_total_basis"].value_counts(dropna=True).to_dict()
+                pipeline_stats["pred_total_basis_counts"] = basis_counts
+                pipeline_stats["pred_synthetic_baseline_count"] = int(df_tpl["pred_total_basis"].eq("synthetic_baseline").sum())
+                pipeline_stats["pred_market_copy_count"] = int(df_tpl["pred_total_basis"].eq("market_copy").sum())
+        # Explicit list of games missing market_total (first 12)
+        if {"game_id","market_total"}.issubset(df_tpl.columns):
+            miss_mask = df_tpl["market_total"].isna()
+            if miss_mask.any():
+                pipeline_stats["missing_odds_game_ids"] = list(df_tpl.loc[miss_mask, "game_id"].astype(str).head(12))
+    except Exception:
+        pass
 
     # Post-construction cleanup: ensure no rows reach the template with BOTH missing predictions and odds.
     # Strategy:

@@ -16,3 +16,7 @@ gunicorn>=21.2
 # Training (to be added later / optional):
 # Option A (CPU): torch>=2.2; sys_platform == "win32"
 # Option B (DirectML): pip install torch-directml (manual step, see docs)
+lightgbm>=4.1
+xgboost>=2.0
+scikit-learn>=1.4
+joblib>=1.3

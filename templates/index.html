@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NCAAB Betting – Cards</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .basis-badge{display:inline-block;padding:0 4px;margin-left:4px;border-radius:3px;font-size:10px;line-height:14px;vertical-align:middle;}
+    .basis-derived{background:#663399;color:#fff;}
+    .basis-provider{background:#1b6d85;color:#fff;}
+  </style>
 </head>
 <body>
   {# Dynamic CSS removed; will apply colors via data attributes and a script to avoid template/CSS lint conflicts #}
@@ -119,6 +124,9 @@
               <div class="pill">Neutral Site</div>
             {% endif %}
             <div class="pill">Pred Total: {{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}{% if r.pred_total_adjusted %} (adj){% endif %}</div>
+            {% if r.pred_total_model is defined and r.pred_total_model is not none %}
+              <div class="pill">Model Total: {{ '%.1f' % r.pred_total_model }}</div>
+            {% endif %}
             <div class="pill">
               {% if r.pred_margin is not none %}
                 {% if r.favored_side == 'Home' %}Pred Margin: {{ r.home_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}
@@ -126,6 +134,10 @@
                 {% else %}Pred Margin: Even{% endif %}
               {% else %}Pred Margin: –{% endif %}
             </div>
+            {% if r.pred_margin_model is defined and r.pred_margin_model is not none %}
+              {% set fav_m = (r.home_team if r.pred_margin_model > 0 else (r.away_team if r.pred_margin_model < 0 else 'Even')) %}
+              <div class="pill">Model Margin: {% if fav_m != 'Even' %}{{ fav_m }} by {{ '%.1f' % (r.pred_margin_model|abs) }}{% else %}Even{% endif %}</div>
+            {% endif %}
             {% if r.proj_home is not none and r.proj_away is not none %}
               <div class="pill">Projected: {{ '%.1f' % r.proj_away }} - {{ '%.1f' % r.proj_home }}</div>
             {% endif %}
@@ -145,6 +157,17 @@
                   'edge-extreme'
                 ) %}
                 <div class="pill {{ cls_et }}">Edge: {{ '%.1f' % r.edge_total }}</div>
+              {% endif %}
+              {% if r.edge_total_model is defined and r.edge_total_model is not none and r.edge_total_model == r.edge_total_model %}
+                {% set abs_etm = r.edge_total_model|abs %}
+                {% set cls_etm = (
+                  'edge-zero' if abs_etm < 0.1 else
+                  'edge-weak' if abs_etm < 1.0 else
+                  'edge-mod' if abs_etm < 2.0 else
+                  'edge-strong' if abs_etm < 3.5 else
+                  'edge-extreme'
+                ) %}
+                <div class="pill {{ cls_etm }}">Model Edge: {{ '%.1f' % r.edge_total_model }}</div>
               {% endif %}
               {% if r.lean_ou_side is defined and r.lean_ou_side %}
                 <div class="pill">OU Lean: {{ r.lean_ou_side }} {% if r.lean_ou_edge_abs is not none %}(+{{ '%.1f' % r.lean_ou_edge_abs }}){% endif %}</div>
@@ -222,6 +245,7 @@
                 {% set tooltip = 'vs Market: ' ~ (ou_actual or '–') ~ ' | Market: ' ~ ('%.1f' % r.market_total) ~ ( ' | Model Lean: ' ~ (r.lean_ou_side or '–') ) %}
               {% endif %}
               <div class="seg {{ ou_cls }}" title="{{ tooltip }}">Overall: {% if r.actual_total is defined and r.actual_total is not none %}{{ '%.0f' % r.actual_total }}{% else %}–{% endif %}</div>
+              {# Removed half basis badges from Full Game Actuals; now shown in Derivatives Odds rows #}
             </div>
           </div>
           <div class="actions">
@@ -289,6 +313,11 @@
                   {% endif %}
                   <div class="seg">Team Totals: {% if total_1h is not none and spread_1h is not none %}{% set home_imp_1h = (total_1h / 2) - (spread_1h / 2) %}{% set away_imp_1h = total_1h - home_imp_1h %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp_1h }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp_1h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if total_1h is not none %}{{ '%.1f' % total_1h }}{% else %}–{% endif %}</div>
+                  {% if total_1h is not none and r.market_total_1h_basis is defined and r.market_total_1h_basis %}
+                    <div class="seg">
+                      <span class="basis-badge {% if r.market_total_1h_basis == 'derived' %}basis-derived{% else %}basis-provider{% endif %}" title="1H total basis: {{ r.market_total_1h_basis }}">{% if r.market_total_1h_basis == 'derived' %}D{% else %}P{% endif %}</span>
+                    </div>
+                  {% endif %}
                 </div>
                 <div class="line-row">
                   <div class="seg label">Actuals</div>
@@ -350,6 +379,11 @@
                   {% endif %}
                   <div class="seg">Team Totals: {% if total_2h is not none and spread_2h is not none %}{% set home_imp_2h = (total_2h / 2) - (spread_2h / 2) %}{% set away_imp_2h = total_2h - home_imp_2h %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp_2h }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp_2h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if total_2h is not none %}{{ '%.1f' % total_2h }}{% else %}–{% endif %}</div>
+                  {% if total_2h is not none and r.market_total_2h_basis is defined and r.market_total_2h_basis %}
+                    <div class="seg">
+                      <span class="basis-badge {% if r.market_total_2h_basis == 'derived' %}basis-derived{% else %}basis-provider{% endif %}" title="2H total basis: {{ r.market_total_2h_basis }}">{% if r.market_total_2h_basis == 'derived' %}D{% else %}P{% endif %}</span>
+                    </div>
+                  {% endif %}
                 </div>
                 <div class="line-row">
                   <div class="seg label">Actuals</div>
@@ -426,6 +460,17 @@
                       'edge-extreme'
                     ) %}
                     <div class="pill {{ cls_ats_edge }}">ATS Edge: {{ '%.1f' % ats_edge }}</div>
+                  {% endif %}
+                  {% if r.edge_margin_model is defined and r.edge_margin_model is not none and r.edge_margin_model == r.edge_margin_model %}
+                    {% set abs_mem = r.edge_margin_model|abs %}
+                    {% set cls_mem = (
+                      'edge-zero' if abs_mem < 0.1 else
+                      'edge-weak' if abs_mem < 1.0 else
+                      'edge-mod' if abs_mem < 2.0 else
+                      'edge-strong' if abs_mem < 3.5 else
+                      'edge-extreme'
+                    ) %}
+                    <div class="pill {{ cls_mem }}">Model ATS Edge: {{ '%.1f' % r.edge_margin_model }}</div>
                   {% endif %}
                   {% if r.lean_ats_side is defined and r.lean_ats_side %}
                     {% set ats_team = r.home_team if r.lean_ats_side == 'Home ATS' else (r.away_team if r.lean_ats_side == 'Away ATS' else None) %}
