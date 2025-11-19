@@ -182,7 +182,7 @@
                     {% elif mla < 0 and (mlh >= 0 or (0-mla) > (0-mlh)) %}
                       {% set winner_ml = r.away_team or '–' %}
                     {% else %}
-                      {% set winner_ml = (r.home_team if abs(mlh) >= abs(mla) else r.away_team) %}
+                      {% set winner_ml = (r.home_team if (mlh|abs) >= (mla|abs) else r.away_team) %}
                     {% endif %}
                   {% elif has_mlh %}
                     {% set winner_ml = r.home_team or '–' %}
@@ -259,7 +259,7 @@
                         {% elif mla1 < 0 and (mlh1 >= 0 or (0-mla1) > (0-mlh1)) %}
                           {% set winner_1h_ml = r.away_team or '–' %}
                         {% else %}
-                          {% set winner_1h_ml = (r.home_team if abs(mlh1) >= abs(mla1) else r.away_team) %}
+                          {% set winner_1h_ml = (r.home_team if (mlh1|abs) >= (mla1|abs) else r.away_team) %}
                         {% endif %}
                       {% elif has_mlh1 %}
                         {% set winner_1h_ml = (r.home_team if mlh1 < 0 else r.away_team) %}
