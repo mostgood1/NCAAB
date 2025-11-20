@@ -122,9 +122,11 @@ try {
     Write-Host 'SkipRetrain flag set; using existing models.'
   }
 
-  # Defer team-level feature regeneration + model-first training until after today's schedule ingestion
-  # (ensures latest completed games are included and maximizes feature coverage).
-  Write-Host 'Deferring team_features generation and model-first retrain until after daily-run.' -ForegroundColor DarkGray
+  # Generate team-level historical features EARLY so inference has the freshest aggregates
+  Write-Section '5b) Generate/refresh team-level historical features (pre-inference)'
+  try {
+    & $VenvPython -m src.modeling.team_features --out (Join-Path $OutDir 'team_features.csv')
+  } catch { Write-Warning "team_features pre-inference generation failed: $($_)" }
 
   # Ensure deterministic per-day feature rows exist for inference (lightweight placeholder ratings)
   $featuresCurr = Join-Path $OutDir 'features_curr.csv'
@@ -138,13 +140,47 @@ try {
   }
 
   # Run model inference to produce predictions_model_<date>.csv (used for independent edges in UI)
-  # Inference will merge latest team_features if models expect those columns.
+  # Inference now consumes freshly generated team_features.
   $modelPredPath = Join-Path $OutDir ("predictions_model_" + $todayIso + ".csv")
   if (-not (Test-Path $modelPredPath)) {
     Write-Section '5d) Run model inference harness'
     try {
       & $VenvPython -m src.modeling.infer --date $todayIso
     } catch { Write-Warning "model inference failed: $($_)" }
+    # Post-inference variance summary (inference-level dispersion)
+    try {
+      $predCsv = Get-Content $modelPredPath | Select-Object -Skip 1
+      $totals = @(); $margins = @()
+      foreach ($line in $predCsv) {
+        if (-not $line) { continue }
+        $parts = $line.Split(',')
+        if ($parts.Length -ge 3) {
+          [double]$t = $parts[1]; [double]$m = $parts[2];
+          if ($t -ne [double]::NaN) { $totals += $t }
+          if ($m -ne [double]::NaN) { $margins += $m }
+        }
+      }
+      if ($totals.Count -gt 0) {
+        $totVar = [Math]::Round(([System.Linq.Enumerable]::Average($totals) - ([System.Linq.Enumerable]::Average($totals))) + ([System.Linq.Enumerable]::Average($totals | ForEach-Object { ($_ - ([System.Linq.Enumerable]::Average($totals))) * ($_ - ([System.Linq.Enumerable]::Average($totals))) })),2)
+        # Simpler manual variance
+        $totMean = ([System.Linq.Enumerable]::Average($totals))
+        $totVar = [Math]::Round((($totals | ForEach-Object { ($_ - $totMean) * ($_ - $totMean) } | Measure-Object -Sum).Sum / $totals.Count),2)
+        $totStd = [Math]::Round([Math]::Sqrt($totVar),2)
+        $totMin = ($totals | Measure-Object -Minimum).Minimum
+        $totMax = ($totals | Measure-Object -Maximum).Maximum
+        $margMean = ($margins.Count -gt 0) ? ([System.Linq.Enumerable]::Average($margins)) : 0
+        $margVar = ($margins.Count -gt 0) ? ((($margins | ForEach-Object { ($_ - $margMean) * ($_ - $margMean) } | Measure-Object -Sum).Sum / $margins.Count)) : 0
+        $margStd = [Math]::Round(([Math]::Sqrt($margVar)),2)
+        $margMin = ($margins | Measure-Object -Minimum).Minimum
+        $margMax = ($margins | Measure-Object -Maximum).Maximum
+        $infVarDir = Join-Path $OutDir 'variance'
+        New-Item -ItemType Directory -Path $infVarDir -Force | Out-Null
+        $infVarPath = Join-Path $infVarDir ("inference_variance_" + $todayIso + ".json")
+        $payload = @{date=$todayIso; rows=$totals.Count; total_mean=[Math]::Round($totMean,2); total_var=$totVar; total_std=$totStd; total_min=$totMin; total_max=$totMax; margin_mean=[Math]::Round($margMean,2); margin_var=[Math]::Round($margVar,2); margin_std=$margStd; margin_min=$margMin; margin_max=$margMax; timestamp_utc=(Get-Date).ToUniversalTime().ToString('o') }
+        ($payload | ConvertTo-Json -Depth 4) | Out-File -FilePath $infVarPath -Encoding UTF8
+        Write-Host "Inference variance summary -> $infVarPath"
+      }
+    } catch { Write-Warning "inference variance summary failed: $($_)" }
   } else {
     Write-Host "Model predictions already exist for $todayIso; skipping inference." -ForegroundColor DarkGray
   }
