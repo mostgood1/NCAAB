@@ -121,6 +121,14 @@ def main():
                 date_lookup = pd.to_datetime(date_str, errors="coerce")
                 # Build map of latest prior row per team_slug before slate date
                 tf = tf[tf["date"].notna()].copy()
+                # Precompute league medians for backfill (exclude identifiers)
+                feat_cols_for_median = [c for c in tf.columns if c not in {"team_slug","date","team","season"}]
+                league_medians = {}
+                for c in feat_cols_for_median:
+                    try:
+                        league_medians[c] = pd.to_numeric(tf[c], errors="coerce").median()
+                    except Exception:
+                        league_medians[c] = None
                 latest_prior_map: dict[str, pd.Series] = {}
                 for team_slug, sub in tf.groupby("team_slug"):
                     sub = sub.sort_values("date")
@@ -128,8 +136,13 @@ def main():
                         # Allow same-date rows which represent pre-game aggregates
                         prior = sub[sub["date"] <= date_lookup]
                         if prior.empty:
-                            continue
-                        latest_prior_map[team_slug] = prior.iloc[-1]
+                            # Synthesize minimal prior row using medians so model has differentiated inputs
+                            synth = {"team_slug": team_slug, "date": date_lookup}
+                            for c in feat_cols_for_median:
+                                synth[c] = league_medians.get(c)
+                            latest_prior_map[team_slug] = pd.Series(synth)
+                        else:
+                            latest_prior_map[team_slug] = prior.iloc[-1]
                 # Resolve home/away slugs
                 slate_df["_home_slug"] = slate_df["home_team"].astype(str).map(canon_slug)
                 slate_df["_away_slug"] = slate_df["away_team"].astype(str).map(canon_slug)
@@ -148,6 +161,17 @@ def main():
                 if not away_df.empty:
                     away_df = away_df.add_prefix("away_team_")
                 slate_df = pd.concat([slate_df.reset_index(drop=True), home_df.reset_index(drop=True), away_df.reset_index(drop=True)], axis=1)
+                # Reconstruct differential features mirroring training logic
+                def _mk_diff(pair_name: str):
+                    hc = f"home_team_{pair_name}"; ac = f"away_team_{pair_name}"; dc = f"diff_{pair_name}"
+                    if hc in slate_df.columns and ac in slate_df.columns and dc not in slate_df.columns:
+                        slate_df[dc] = pd.to_numeric(slate_df[hc], errors="coerce") - pd.to_numeric(slate_df[ac], errors="coerce")
+                for base in [
+                    "season_off_ppg","season_def_ppg","last5_off_ppg","last5_def_ppg","last10_off_ppg","last10_def_ppg",
+                    "rolling15_off_ppg","rolling15_def_ppg","rest_days","season_margin_std","season_total_std","ewm_off_ppg",
+                    "ewm_def_ppg","ewm_margin_avg","back_to_back"
+                ]:
+                    _mk_diff(base)
     except Exception:
         pass
     # Dynamically reconstruct feature matrix based on model meta (ensures uniformity with training)
@@ -191,6 +215,13 @@ def main():
             if pd.isna(med):
                 med = 0.0
             X[c] = X[c].fillna(med)
+    # Simple variance check to warn if uniform feature rows
+    try:
+        unique_rows = X.nunique(axis=0).sum()
+        if X.nunique().sum() == len(X.columns):  # each column single value
+            print("WARNING: Inference feature columns all constant; predictions likely uniform", file=sys.stderr)
+    except Exception:
+        pass
     try:
         pred_total = total_model.predict(X)
     except Exception:
