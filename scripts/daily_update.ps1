@@ -375,6 +375,9 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
   if (Test-Path $predsModelCalibToday) { $toStage += $predsModelCalibToday }
   $predsModelIntervalToday = Join-Path $OutDir ("predictions_model_interval_" + $todayIso + ".csv")
   if (Test-Path $predsModelIntervalToday) { $toStage += $predsModelIntervalToday }
+  # Interval meta JSON (RMSE + z values) for reproducibility if present
+  $predsModelIntervalMetaToday = Join-Path $OutDir ("predictions_model_interval_" + $todayIso + ".json")
+  if (Test-Path $predsModelIntervalMetaToday) { $toStage += $predsModelIntervalMetaToday }
 
   # Newly produced aligned and stake artifacts
   $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
@@ -399,6 +402,9 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
         $varMarginPath = Join-Path $OutDir ("variance/variance_margin_" + $todayIso + ".json")
         if (Test-Path $varTotalPath) { git add $varTotalPath }
         if (Test-Path $varMarginPath) { git add $varMarginPath }
+  # Inference variance summary (produced earlier in step 5d) if present
+  $infVarSummaryPath = Join-Path $OutDir ("variance/inference_variance_" + $todayIso + ".json")
+  if (Test-Path $infVarSummaryPath) { git add $infVarSummaryPath }
         $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data): update results and odds for $prevDate (today $todayIso)" }
         $status = git status --porcelain
         if ($status) {
