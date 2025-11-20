@@ -38,6 +38,10 @@ __pycache__/
 !outputs/games_display_2026-*.csv
 !outputs/predictions_model_2025-*.csv
 !outputs/predictions_model_2026-*.csv
+!outputs/predictions_model_calibrated_2025-*.csv
+!outputs/predictions_model_calibrated_2026-*.csv
+!outputs/predictions_model_interval_2025-*.csv
+!outputs/predictions_model_interval_2026-*.csv
 !outputs/align_period_2025-*.csv
 !outputs/align_period_2025-*_edges.csv
 !outputs/align_period_2026-*.csv
