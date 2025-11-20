@@ -166,22 +166,27 @@ try {
         }
       }
       if ($totals.Count -gt 0) {
-        $totVar = [Math]::Round(([System.Linq.Enumerable]::Average($totals) - ([System.Linq.Enumerable]::Average($totals))) + ([System.Linq.Enumerable]::Average($totals | ForEach-Object { ($_ - ([System.Linq.Enumerable]::Average($totals))) * ($_ - ([System.Linq.Enumerable]::Average($totals))) })),2)
-        # Simpler manual variance
-        $totMean = ([System.Linq.Enumerable]::Average($totals))
-        $totVar = [Math]::Round((($totals | ForEach-Object { ($_ - $totMean) * ($_ - $totMean) } | Measure-Object -Sum).Sum / $totals.Count),2)
-        $totStd = [Math]::Round([Math]::Sqrt($totVar),2)
+        # Mean & variance (manual, PowerShell 5.1 compatible – no ternary or LINQ average shortcuts)
+        $totMean = ($totals | Measure-Object -Average).Average
+        if ($totals.Count -gt 1) {
+          $totVarSum = ($totals | ForEach-Object { $d = ($_ - $totMean); $d * $d } | Measure-Object -Sum).Sum
+          $totVar = [Math]::Round(($totVarSum / $totals.Count), 4)
+        } else { $totVar = 0 }
+        $totStd = [Math]::Round([Math]::Sqrt($totVar), 4)
         $totMin = ($totals | Measure-Object -Minimum).Minimum
         $totMax = ($totals | Measure-Object -Maximum).Maximum
-        $margMean = ($margins.Count -gt 0) ? ([System.Linq.Enumerable]::Average($margins)) : 0
-        $margVar = ($margins.Count -gt 0) ? ((($margins | ForEach-Object { ($_ - $margMean) * ($_ - $margMean) } | Measure-Object -Sum).Sum / $margins.Count)) : 0
-        $margStd = [Math]::Round(([Math]::Sqrt($margVar)),2)
+        $margMean = ($margins | Measure-Object -Average).Average
+        if ($margins.Count -gt 1) {
+          $margVarSum = ($margins | ForEach-Object { $d = ($_ - $margMean); $d * $d } | Measure-Object -Sum).Sum
+          $margVar = [Math]::Round(($margVarSum / $margins.Count), 4)
+        } else { $margVar = 0 }
+        $margStd = [Math]::Round([Math]::Sqrt($margVar), 4)
         $margMin = ($margins | Measure-Object -Minimum).Minimum
         $margMax = ($margins | Measure-Object -Maximum).Maximum
         $infVarDir = Join-Path $OutDir 'variance'
         New-Item -ItemType Directory -Path $infVarDir -Force | Out-Null
         $infVarPath = Join-Path $infVarDir ("inference_variance_" + $todayIso + ".json")
-        $payload = @{date=$todayIso; rows=$totals.Count; total_mean=[Math]::Round($totMean,2); total_var=$totVar; total_std=$totStd; total_min=$totMin; total_max=$totMax; margin_mean=[Math]::Round($margMean,2); margin_var=[Math]::Round($margVar,2); margin_std=$margStd; margin_min=$margMin; margin_max=$margMax; timestamp_utc=(Get-Date).ToUniversalTime().ToString('o') }
+        $payload = @{date=$todayIso; rows=$totals.Count; total_mean=[Math]::Round($totMean,2); total_var=$totVar; total_std=$totStd; total_min=$totMin; total_max=$totMax; margin_mean=[Math]::Round($margMean,2); margin_var=$margVar; margin_std=$margStd; margin_min=$margMin; margin_max=$margMax; timestamp_utc=(Get-Date).ToUniversalTime().ToString('o') }
         ($payload | ConvertTo-Json -Depth 4) | Out-File -FilePath $infVarPath -Encoding UTF8
         Write-Host "Inference variance summary -> $infVarPath"
       }
