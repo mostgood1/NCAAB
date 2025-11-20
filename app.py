@@ -252,16 +252,17 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
         if not p.is_absolute():
             p = OUT / env_path
         candidates.append(p)
-    # 2) Explicit date
+    # 2) Explicit date (prefer calibrated then raw)
     if date_str:
+        candidates.append(OUT / f"predictions_model_calibrated_{date_str}.csv")
         candidates.append(OUT / f"predictions_model_{date_str}.csv")
-    # 3) Today
+    # 3) Today (prefer calibrated)
     if today_str and (not date_str or date_str != today_str):
+        candidates.append(OUT / f"predictions_model_calibrated_{today_str}.csv")
         candidates.append(OUT / f"predictions_model_{today_str}.csv")
     # 4) Any historical model predictions – choose newest non-empty
     try:
-        globbed = list(OUT.glob("predictions_model_*.csv"))
-        # Sort by modified time desc
+        globbed = list(OUT.glob("predictions_model_calibrated_*.csv")) + list(OUT.glob("predictions_model_*.csv"))
         globbed = sorted(globbed, key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
         for p in globbed:
             if p not in candidates:
@@ -273,8 +274,24 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
             if p.exists():
                 df = pd.read_csv(p)
                 if not df.empty:
+                    # Normalize calibrated column names to generic model columns for downstream merging
+                    if 'pred_total_model' not in df.columns and 'pred_total_calibrated' in df.columns:
+                        try:
+                            df['pred_total_model'] = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+                        except Exception:
+                            df['pred_total_model'] = df['pred_total_calibrated']
+                    if 'pred_margin_model' not in df.columns and 'pred_margin_calibrated' in df.columns:
+                        try:
+                            df['pred_margin_model'] = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
+                        except Exception:
+                            df['pred_margin_model'] = df['pred_margin_calibrated']
+                    # Fallback: some raw inference artifacts may store columns as pred_total / pred_margin only
+                    if 'pred_total_model' not in df.columns and 'pred_total' in df.columns:
+                        df['pred_total_model'] = pd.to_numeric(df['pred_total'], errors='coerce')
+                    if 'pred_margin_model' not in df.columns and 'pred_margin' in df.columns:
+                        df['pred_margin_model'] = pd.to_numeric(df['pred_margin'], errors='coerce')
                     _MODEL_PREDICTIONS_SOURCE_PATH = str(p)
-                    logger.info("Loaded model predictions from: %s (rows=%s)", p, len(df))
+                    logger.info("Loaded model predictions from: %s (rows=%s, cols=%s)", p, len(df), list(df.columns))
                     return df
         except Exception:
             continue
@@ -461,6 +478,9 @@ def _load_odds_joined(date_str: str | None = None) -> pd.DataFrame:
             candidate_files.append(OUT / base)
         # Pattern expansion: handle enriched/dist/blend/cal variants produced by pipeline
         try:
+
+            # Declare globals early to avoid Python complaining about prior usage before global statement
+            global _PREDICTIONS_SOURCE_PATH, _MODEL_PREDICTIONS_SOURCE_PATH
             # Glob all files starting with games_with_odds_{date_str}
             pattern = f"games_with_odds_{date_str}*.csv"
             for p in sorted(OUT.glob(pattern)):
@@ -938,6 +958,9 @@ def index():
     date_q = (request.args.get("date") or "").strip()
     force_use_daily = (request.args.get("use_daily") or "").strip() in ("1","true","yes")
 
+    # Declare globals early for prediction source path tracking
+    global _PREDICTIONS_SOURCE_PATH, _MODEL_PREDICTIONS_SOURCE_PATH
+
     # Define today string once for consistent downstream comparisons
     try:
         today_str = _today_local().strftime("%Y-%m-%d")
@@ -958,14 +981,36 @@ def index():
         "model_preds_load_rows": len(model_preds),
         "outputs_dir": str(OUT),
     }
+    # Instrumentation: capture early model predictions stats after pipeline_stats exists
+    try:
+        if not model_preds.empty:
+            pipeline_stats['model_preds_source'] = _MODEL_PREDICTIONS_SOURCE_PATH
+            pipeline_stats['model_preds_cols'] = list(model_preds.columns)
+            if 'pred_total_model' in model_preds.columns:
+                ptm_early = pd.to_numeric(model_preds['pred_total_model'], errors='coerce')
+                pipeline_stats['model_preds_total_stats_early'] = {
+                    'count': int(ptm_early.notna().sum()),
+                    'min': float(ptm_early.min()) if ptm_early.notna().any() else None,
+                    'max': float(ptm_early.max()) if ptm_early.notna().any() else None,
+                    'mean': float(ptm_early.mean()) if ptm_early.notna().any() else None,
+                    'std': float(ptm_early.std()) if ptm_early.notna().any() else None,
+                    'unique': int(ptm_early.nunique()) if ptm_early.notna().any() else 0
+                }
+                pipeline_stats['model_preds_total_head'] = ptm_early.head(10).tolist()
+            if 'pred_total_calibrated' in model_preds.columns:
+                ptc_early = pd.to_numeric(model_preds['pred_total_calibrated'], errors='coerce')
+                pipeline_stats['model_preds_total_calibrated_head'] = ptc_early.head(10).tolist()
+            if 'pred_margin_model' in model_preds.columns:
+                pmm_early = pd.to_numeric(model_preds['pred_margin_model'], errors='coerce')
+                pipeline_stats['model_preds_margin_head'] = pmm_early.head(10).tolist()
+    except Exception:
+        pass
     # Attach source paths if available
     try:
-        global _PREDICTIONS_SOURCE_PATH
         pipeline_stats["predictions_source"] = _PREDICTIONS_SOURCE_PATH
     except Exception:
         pipeline_stats["predictions_source"] = None
     try:
-        global _MODEL_PREDICTIONS_SOURCE_PATH
         pipeline_stats["model_predictions_source"] = _MODEL_PREDICTIONS_SOURCE_PATH
     except Exception:
         pipeline_stats["model_predictions_source"] = None
@@ -2359,8 +2404,9 @@ def index():
     # Merge model predictions (if not already merged) then compute model-based edges
     try:
         if 'model_preds' in locals() and not model_preds.empty and 'game_id' in df.columns and 'game_id' in model_preds.columns:
-            # Avoid duplicate merges if columns already present
-            need_cols = [c for c in ['pred_total_model','pred_margin_model'] if c not in df.columns and c in model_preds.columns]
+            # Avoid duplicate merges; include calibrated columns when present
+            all_model_cols = ['pred_total_model','pred_margin_model','pred_total_calibrated','pred_margin_calibrated','pred_total_model_basis','pred_margin_model_basis']
+            need_cols = [c for c in all_model_cols if c not in df.columns and c in model_preds.columns]
             if need_cols:
                 mp = model_preds.copy()
                 mp['game_id'] = mp['game_id'].astype(str)
@@ -2392,12 +2438,58 @@ def index():
                     bias = float(pipeline_stats.get('totals_bias')) if 'pipeline_stats' in locals() and isinstance(pipeline_stats.get('totals_bias'), (int,float)) else None
                 except Exception:
                     bias = None
-                adj_model_total = pd.to_numeric(df['pred_total_model'], errors='coerce')
-                if bias is not None and not adj_model_total.isna().all():
-                    adj_model_total = adj_model_total + bias  # shift model totals by bias
-                df['pred_total'] = adj_model_total
+                raw_model_total = pd.to_numeric(df['pred_total_model'], errors='coerce')
+                if bias is not None and not raw_model_total.isna().all():
+                    raw_model_total = raw_model_total + bias  # shift raw model totals by bias if tuning bias provided
+                # Prefer calibrated totals if present; fall back to raw model
+                calibrated_available = 'pred_total_calibrated' in df.columns
+                calibrated_total = pd.to_numeric(df['pred_total_calibrated'], errors='coerce') if calibrated_available else pd.Series([np.nan]*len(df))
+                # Use calibrated when it has any non-NaN values; else fallback to raw
+                use_calibrated = calibrated_available and calibrated_total.notna().any()
+                chosen_total = calibrated_total if use_calibrated else raw_model_total
+                # Record stats for both raw and calibrated distributions
+                try:
+                    pipeline_stats['pred_total_model_raw_stats'] = {
+                        'count': int(raw_model_total.notna().sum()),
+                        'min': float(raw_model_total.min()) if raw_model_total.notna().any() else None,
+                        'max': float(raw_model_total.max()) if raw_model_total.notna().any() else None,
+                        'mean': float(raw_model_total.mean()) if raw_model_total.notna().any() else None,
+                        'std': float(raw_model_total.std()) if raw_model_total.notna().any() else None,
+                        'unique': int(raw_model_total.nunique()) if raw_model_total.notna().any() else 0
+                    }
+                except Exception:
+                    pass
+                if use_calibrated:
+                    try:
+                        pipeline_stats['pred_total_model_calibrated_stats'] = {
+                            'count': int(calibrated_total.notna().sum()),
+                            'min': float(calibrated_total.min()) if calibrated_total.notna().any() else None,
+                            'max': float(calibrated_total.max()) if calibrated_total.notna().any() else None,
+                            'mean': float(calibrated_total.mean()) if calibrated_total.notna().any() else None,
+                            'std': float(calibrated_total.std()) if calibrated_total.notna().any() else None,
+                            'unique': int(calibrated_total.nunique()) if calibrated_total.notna().any() else 0
+                        }
+                        pipeline_stats['pred_total_model_calibrated_head'] = calibrated_total.head(10).tolist()
+                    except Exception:
+                        pass
+                try:
+                    pipeline_stats['pred_total_model_unified_stats'] = {
+                        'count': int(chosen_total.notna().sum()),
+                        'min': float(chosen_total.min()) if chosen_total.notna().any() else None,
+                        'max': float(chosen_total.max()) if chosen_total.notna().any() else None,
+                        'mean': float(chosen_total.mean()) if chosen_total.notna().any() else None,
+                        'std': float(chosen_total.std()) if chosen_total.notna().any() else None,
+                        'unique': int(chosen_total.nunique()) if chosen_total.notna().any() else 0,
+                        'source': 'calibrated' if use_calibrated else 'raw_model'
+                    }
+                    pipeline_stats['pred_total_model_head_unified'] = chosen_total.head(10).tolist()
+                except Exception:
+                    pass
+                # Preserve raw model under separate column for diagnostics if calibrated used
+                df['pred_total_model_raw'] = raw_model_total
+                df['pred_total'] = chosen_total
                 df['pred_total_basis'] = df.get('pred_total_basis')
-                df['pred_total_basis'] = df['pred_total_basis'].where(df['pred_total_basis'].notna(), 'model')
+                df['pred_total_basis'] = df['pred_total_basis'].where(df['pred_total_basis'].notna(), 'model_calibrated' if use_calibrated else 'model_raw')
                 # Recompute edge_total using unified pred_total
                 if 'market_total' in df.columns:
                     df['edge_total'] = pd.to_numeric(df['pred_total'], errors='coerce') - pd.to_numeric(df['market_total'], errors='coerce')
@@ -2593,20 +2685,30 @@ def index():
                         blend_weights_derived.append(np.nan)
                         blend_severe_flags.append(False)
                         continue
-                    need_adj = (pred < 115) or (derived > 0 and pred < 0.80 * derived)
-                    severe_gap = (derived > 0 and pred < 0.72 * derived)
-                    if need_adj:
-                        w_model = 0.4 if severe_gap else 0.5
+                    # Revised adjustment criteria:
+                    # Only blend when derived appears substantially higher AND credible (>=130) and raw pred is far lower.
+                    # Skip adjustment if derived is near lower clamp (<=120) to avoid uniform floor inflation.
+                    derived_val = float(derived) if derived is not None else None
+                    pred_val = float(pred) if pred is not None else None
+                    severe_gap = False
+                    do_blend = False
+                    if derived_val is not None and pred_val is not None:
+                        if derived_val >= 130 and pred_val < 0.78 * derived_val and (derived_val - pred_val) >= 18:
+                            do_blend = True
+                            severe_gap = pred_val < 0.70 * derived_val
+                    if do_blend:
+                        w_model = 0.45 if severe_gap else 0.55  # lean slightly more to model than before
                         w_derived = 1.0 - w_model
-                        blended = w_model * float(pred) + w_derived * float(derived)
-                        blended = float(np.clip(blended, 112, 188))
+                        blended = w_model * pred_val + w_derived * derived_val
+                        # Allow lower values (remove hard 112 floor); retain upper plausibility cap
+                        blended = float(np.clip(blended, 100, 188))
                         adj_vals.append(blended)
                         pred_total_was_adj.append(True)
                         blend_weights_model.append(w_model)
                         blend_weights_derived.append(w_derived)
                         blend_severe_flags.append(severe_gap)
                     else:
-                        adj_vals.append(pred)
+                        adj_vals.append(pred_val)
                         pred_total_was_adj.append(False)
                         blend_weights_model.append(1.0)
                         blend_weights_derived.append(0.0)
@@ -2616,6 +2718,19 @@ def index():
                 df["pred_total_blend_w_model"] = blend_weights_model
                 df["pred_total_blend_w_derived"] = blend_weights_derived
                 df["pred_total_blend_severe"] = blend_severe_flags
+                try:
+                    pt_post = pd.to_numeric(df['pred_total'], errors='coerce')
+                    pipeline_stats['pred_total_post_blend_stats'] = {
+                        'min': float(pt_post.min()) if pt_post.notna().any() else None,
+                        'max': float(pt_post.max()) if pt_post.notna().any() else None,
+                        'mean': float(pt_post.mean()) if pt_post.notna().any() else None,
+                        'std': float(pt_post.std()) if pt_post.notna().any() else None,
+                        'unique': int(pt_post.nunique()) if pt_post.notna().any() else 0,
+                        'adjusted_rows': int(pd.Series(pred_total_was_adj).sum()),
+                        'skipped_rows': int(len(pred_total_was_adj) - pd.Series(pred_total_was_adj).sum())
+                    }
+                except Exception:
+                    pass
                 df["derived_total"] = pred_total_derived_used if "derived_total" not in df.columns else df["derived_total"].where(df["derived_total"].notna(), pred_total_derived_used)
                 # Keep raw value accessible if overwritten
                 if "pred_total_raw" not in df.columns:
@@ -2624,6 +2739,20 @@ def index():
                 if "pred_total_basis" not in df.columns:
                     df["pred_total_basis"] = None
                 df["pred_total_basis"] = np.where(df["pred_total_adjusted"], df["pred_total_basis"].where(df["pred_total_basis"].notna(), "blended_low"), df["pred_total_basis"])
+                try:
+                    final_pt = pd.to_numeric(df['pred_total'], errors='coerce')
+                    pipeline_stats['pred_total_final_stats'] = {
+                        'count': int(final_pt.notna().sum()),
+                        'min': float(final_pt.min()) if final_pt.notna().any() else None,
+                        'max': float(final_pt.max()) if final_pt.notna().any() else None,
+                        'mean': float(final_pt.mean()) if final_pt.notna().any() else None,
+                        'std': float(final_pt.std()) if final_pt.notna().any() else None,
+                        'unique': int(final_pt.nunique()) if final_pt.notna().any() else 0,
+                        'adjusted_rows': int(df.get('pred_total_adjusted', pd.Series(dtype=int)).sum() if 'pred_total_adjusted' in df.columns else 0)
+                    }
+                    pipeline_stats['pred_total_head_final'] = final_pt.head(10).tolist()
+                except Exception:
+                    pass
             # Compute projected team scores using adjusted pred_total
         if {"pred_total", "pred_margin"}.issubset(df.columns):
             df["proj_home"] = (pd.to_numeric(df["pred_total"], errors="coerce") + pd.to_numeric(df["pred_margin"], errors="coerce")) / 2.0
@@ -3508,6 +3637,24 @@ def index():
         pipeline_stats["missing_pred_total_rows"] = pt_missing
         pipeline_stats["final_rows"] = len(rows)
         logger.info("Render pipeline stats: %s", json.dumps(pipeline_stats))
+
+        # Optional diagnostics JSON direct response: /?diag=1&diag_json=1
+        try:
+            if (request.args.get('diag_json') or '').strip().lower() in ('1','true','yes'):
+                pipeline_stats['final_columns'] = list(df.columns)
+                if 'pred_total' in df.columns:
+                    pt_final = pd.to_numeric(df['pred_total'], errors='coerce')
+                    pipeline_stats['pred_total_final_preview'] = pt_final.head(25).tolist()
+                if 'pred_total_raw' in df.columns:
+                    pt_raw_prev = pd.to_numeric(df['pred_total_raw'], errors='coerce')
+                    pipeline_stats['pred_total_raw_preview'] = pt_raw_prev.head(25).tolist()
+                if 'derived_total' in df.columns:
+                    dt_prev = pd.to_numeric(df['derived_total'], errors='coerce')
+                    pipeline_stats['derived_total_preview'] = dt_prev.head(25).tolist()
+                from flask import jsonify
+                return jsonify(pipeline_stats)
+        except Exception:
+            pass
 
     return render_template(
         "index.html",

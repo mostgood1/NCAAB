@@ -9,6 +9,12 @@
     .basis-badge{display:inline-block;padding:0 4px;margin-left:4px;border-radius:3px;font-size:10px;line-height:14px;vertical-align:middle;}
     .basis-derived{background:#663399;color:#fff;}
     .basis-provider{background:#1b6d85;color:#fff;}
+    .badge{display:inline-block;padding:0 4px;margin-left:4px;border-radius:3px;font-size:10px;line-height:14px;background:#444;color:#fff;vertical-align:middle;cursor:default;}
+    .badge.cal{background:#0b7285;}
+    .badge.raw{background:#5c940d;}
+    .badge.adj{background:#d9480f;}
+    .badge.toggle-raw{background:#495057;cursor:pointer;}
+    .badge.toggle-raw:hover,.badge:hover{opacity:0.85;}
   </style>
 </head>
 <body>
@@ -157,7 +163,17 @@
             {% if r.neutral_site %}
               <div class="pill">Neutral Site</div>
             {% endif %}
-            <div class="pill">Total: {{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}{% if r.pred_total_basis == 'model' %} (model){% elif r.pred_total_adjusted %} (adj){% endif %}</div>
+            {# Calibrated/raw/adjustment badges with interactive toggle #}
+            {% set is_cal = r.pred_total_basis in ['model_calibrated','model_calibrated_bias'] %}
+            {% set is_raw = r.pred_total_basis in ['model_raw','model'] %}
+            <div class="pill">Total: {{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}
+              {% if is_cal %}<span class="badge cal" title="Calibrated (scaled & distribution-aligned)">Cal</span>{% endif %}
+              {% if is_raw and not is_cal %}<span class="badge raw" title="Raw model prediction">Raw</span>{% endif %}
+              {% if r.pred_total_adjusted %}<span class="badge adj" title="Low-total blend adjustment applied">Adj</span>{% endif %}
+              {% if r.pred_total_model_raw is defined and r.pred_total_model_raw is not none and is_cal %}
+                <span class="badge toggle-raw" data-raw="{{ '%.1f' % r.pred_total_model_raw }}" data-cal="{{ '%.1f' % r.pred_total }}" onclick="toggleRaw(this)" title="Click to toggle raw vs calibrated">↔</span>
+              {% endif %}
+            </div>
             <div class="pill">
               {% if r.pred_margin is not none %}
                 {% if r.favored_side == 'Home' %}Margin: {{ r.home_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% elif r.favored_side == 'Away' %}Margin: {{ r.away_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% else %}Margin: Even{% endif %}
@@ -197,7 +213,9 @@
               <div class="seg">ATS: {% if r.pred_margin is not none %}{% set imp = (r.pred_margin * -1) %}{% if imp < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp }}{% elif imp > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp }}{% else %}Pick{% endif %}{% else %}–{% endif %}</div>
               <div class="seg">Winner: {% if r.pred_margin is not none %}{% if r.pred_margin > 0 %}{{ r.home_team }}{% elif r.pred_margin < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
               <div class="seg">Team Totals: {% if r.proj_home is not none and r.proj_away is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
-              <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}</div>
+              <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}
+                {% if is_cal %}<span class="badge cal" title="Calibrated">Cal</span>{% elif is_raw %}<span class="badge raw" title="Raw model">Raw</span>{% endif %}
+              </div>
             </div>
             {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
             {% set total_full = r.market_total if (r.market_total is not none and r.market_total == r.market_total) else None %}
@@ -529,6 +547,21 @@
       setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, 2200);
     }
   })();
+  // Toggle raw vs calibrated total inline without reloading
+  function toggleRaw(el){
+    if(!el) return;
+    var cal = el.getAttribute('data-cal');
+    var raw = el.getAttribute('data-raw');
+    var parent = el.parentElement;
+    if(!parent) return;
+    var showingRaw = el.getAttribute('data-state') === 'raw';
+    var newVal = showingRaw ? cal : raw;
+    // Replace first numeric occurrence after 'Total:' (simple heuristic)
+    var re = /Total:\s*[0-9]+(\.[0-9])?/;
+    parent.innerHTML = parent.innerHTML.replace(re, 'Total: ' + newVal);
+    el.setAttribute('data-state', showingRaw ? 'cal' : 'raw');
+    el.title = showingRaw ? 'Click to show raw model' : 'Click to show calibrated';
+  }
   </script>
 </body>
 </html>

@@ -1389,26 +1389,30 @@ def daily_results(
         except Exception:
             df["actual_total_2h"] = None
 
-    # Derived model half projections (heuristic until half models available)
-    if "pred_total" in df.columns:
+    # Derived model half projections (prefer calibrated totals/margins if present)
+    point_total_col = "pred_total_calibrated" if "pred_total_calibrated" in df.columns else "pred_total"
+    point_margin_col = "pred_margin_calibrated" if "pred_margin_calibrated" in df.columns else "pred_margin"
+    if point_total_col in df.columns:
         try:
             hratio = max(0.0, min(1.0, float(half_ratio)))
         except Exception:
             hratio = 0.485
         try:
-            df["pred_total_1h"] = pd.to_numeric(df["pred_total"], errors="coerce") * hratio
-            df["pred_total_2h"] = pd.to_numeric(df["pred_total"], errors="coerce") - df["pred_total_1h"]
+            pt_series = pd.to_numeric(df[point_total_col], errors="coerce")
+            df["pred_total_1h"] = pt_series * hratio
+            df["pred_total_2h"] = pt_series - df["pred_total_1h"]
         except Exception:
             df["pred_total_1h"] = None
             df["pred_total_2h"] = None
-    if "pred_margin" in df.columns:
+    if point_margin_col in df.columns:
         try:
             mhr = max(0.0, min(1.0, float(margin_half_ratio)))
         except Exception:
             mhr = 0.5
         try:
-            df["pred_margin_1h"] = pd.to_numeric(df["pred_margin"], errors="coerce") * mhr
-            df["pred_margin_2h"] = pd.to_numeric(df["pred_margin"], errors="coerce") - df["pred_margin_1h"]
+            pm_series = pd.to_numeric(df[point_margin_col], errors="coerce")
+            df["pred_margin_1h"] = pm_series * mhr
+            df["pred_margin_2h"] = pm_series - df["pred_margin_1h"]
         except Exception:
             df["pred_margin_1h"] = None
             df["pred_margin_2h"] = None
@@ -3872,6 +3876,11 @@ def align_period_preds(
         if "game_id" in df.columns:
             df["game_id"] = df["game_id"].astype(str)
     # Merge available prediction columns
+    # Support calibrated prediction columns by mapping them to canonical names if base absent
+    if "pred_total" not in p.columns and "pred_total_calibrated" in p.columns:
+        p.rename(columns={"pred_total_calibrated":"pred_total"}, inplace=True)
+    if "pred_margin" not in p.columns and "pred_margin_calibrated" in p.columns:
+        p.rename(columns={"pred_margin_calibrated":"pred_margin"}, inplace=True)
     keep = [
         "game_id",
         "pred_total",
@@ -3908,10 +3917,15 @@ def align_period_preds(
     except Exception:
         mhr = 0.5
     # Build fallback half projections only for rows where half-specific columns are missing
-    pt = np.where((per == "1h") & (~e.columns.isin(["pred_total_1h"]).any()), pd.to_numeric(e.get("pred_total"), errors="coerce") * hr, pt)
-    pt = np.where((per == "2h") & (~e.columns.isin(["pred_total_2h"]).any()), pd.to_numeric(e.get("pred_total"), errors="coerce") * (1.0 - hr), pt)
-    pm = np.where((per == "1h") & (~e.columns.isin(["pred_margin_1h"]).any()), pd.to_numeric(e.get("pred_margin"), errors="coerce") * mhr, pm)
-    pm = np.where((per == "2h") & (~e.columns.isin(["pred_margin_2h"]).any()), pd.to_numeric(e.get("pred_margin"), errors="coerce") * (1.0 - mhr), pm)
+    # Use logical checks rather than columns.isin(...) any() misuse; just test column presence
+    if "pred_total_1h" not in e.columns:
+        pt = np.where(per == "1h", pd.to_numeric(e.get("pred_total"), errors="coerce") * hr, pt)
+    if "pred_total_2h" not in e.columns:
+        pt = np.where(per == "2h", pd.to_numeric(e.get("pred_total"), errors="coerce") * (1.0 - hr), pt)
+    if "pred_margin_1h" not in e.columns:
+        pm = np.where(per == "1h", pd.to_numeric(e.get("pred_margin"), errors="coerce") * mhr, pm)
+    if "pred_margin_2h" not in e.columns:
+        pm = np.where(per == "2h", pd.to_numeric(e.get("pred_margin"), errors="coerce") * (1.0 - mhr), pm)
 
     # Preserve originals if present for reference
     if "pred_total" in e.columns:

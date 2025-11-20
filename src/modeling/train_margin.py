@@ -55,6 +55,15 @@ class _ZeroBaseline:
         import numpy as _np
         return _np.zeros(len(X_any))
 
+class _LinearOLS:
+    def __init__(self, coeffs):
+        self._coeffs = coeffs
+    def predict(self, X_any):  # noqa: ANN001
+        import numpy as _np
+        arr = X_any.to_numpy(dtype=float)
+        b0 = self._coeffs[0]; w = _np.asarray(self._coeffs[1:])
+        return b0 + arr.dot(w)
+
 
 class _BoosterWrapper:
     def __init__(self, booster):
@@ -167,7 +176,18 @@ def train(algo: str, split: str) -> Dict[str, Any]:
         )
         model.fit(X_train, y_train)
     else:
-        model = _ZeroBaseline()
+        # Attempt linear OLS before zero baseline
+        try:
+            import numpy as _np
+            Xmat = X_train.to_numpy(dtype=float)
+            yvec = y_train.to_numpy(dtype=float)
+            A = _np.concatenate([_np.ones((Xmat.shape[0],1)), Xmat], axis=1)
+            coeffs, *_ = _np.linalg.lstsq(A, yvec, rcond=None)
+            model = _LinearOLS(coeffs)
+            algo = algo + "+ols_fallback"
+        except Exception:
+            model = _ZeroBaseline()
+            algo = algo + "+zero_fallback"
 
     preds = model.predict(X_test)
     mae = float(mean_absolute_error(y_test, preds))

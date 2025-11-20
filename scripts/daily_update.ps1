@@ -139,61 +139,69 @@ try {
     Write-Host 'features_curr.csv already exists; skipping generation.'
   }
 
-  # Run model inference to produce predictions_model_<date>.csv (used for independent edges in UI)
-  # Inference now consumes freshly generated team_features.
+  # Force fresh prediction artifacts: always remove and regenerate today's model predictions, calibration & intervals
   $modelPredPath = Join-Path $OutDir ("predictions_model_" + $todayIso + ".csv")
-  if (-not (Test-Path $modelPredPath)) {
-    Write-Section '5d) Run model inference harness'
-    try {
-      & $VenvPython -m src.modeling.infer --date $todayIso
-    } catch { Write-Warning "model inference failed: $($_)" }
-    # Calibrate predictions using recent finalized results (simple linear residual correction)
-    Write-Section '5e) Calibrate model predictions'
-    try {
-      & $VenvPython -m src.modeling.calibrate_predictions --date $todayIso --predictions-file $modelPredPath --results-dir (Join-Path $OutDir 'daily_results') --window-days 14
-    } catch { Write-Warning "calibration failed: $($_)" }
-    # Post-inference variance summary (inference-level dispersion)
-    try {
-      $predCsv = Get-Content $modelPredPath | Select-Object -Skip 1
-      $totals = @(); $margins = @()
-      foreach ($line in $predCsv) {
-        if (-not $line) { continue }
-        $parts = $line.Split(',')
-        if ($parts.Length -ge 3) {
-          [double]$t = $parts[1]; [double]$m = $parts[2];
-          if ($t -ne [double]::NaN) { $totals += $t }
-          if ($m -ne [double]::NaN) { $margins += $m }
-        }
+  $calibratedPath = Join-Path $OutDir ("predictions_model_calibrated_" + $todayIso + ".csv")
+  $intervalPath = Join-Path $OutDir ("predictions_model_interval_" + $todayIso + ".csv")
+  foreach ($p in @($intervalPath,$calibratedPath,$modelPredPath)) { if (Test-Path $p) { Write-Host "Removing stale artifact -> $p" -ForegroundColor DarkGray; Remove-Item $p -Force } }
+
+  Write-Section '5d) Run model inference harness (forced refresh)'
+  try {
+    & $VenvPython -m src.modeling.infer --date $todayIso
+  } catch { Write-Warning "model inference failed: $($_)" }
+
+  Write-Section '5e) Calibrate model predictions (forced refresh)'
+  try {
+    & $VenvPython -m src.modeling.calibrate_predictions --date $todayIso --predictions-file $modelPredPath --results-dir (Join-Path $OutDir 'daily_results') --window-days 14
+  } catch { Write-Warning "calibration failed: $($_)" }
+
+  Write-Section '5f) Generate prediction intervals (forced refresh)'
+  try {
+    if (Test-Path $calibratedPath) {
+      & $VenvPython -m src.modeling.interval_predictions --date $todayIso --predictions-file $modelPredPath --calibrated-file $calibratedPath --results-dir (Join-Path $OutDir 'daily_results') --window-days 30
+    } else {
+      & $VenvPython -m src.modeling.interval_predictions --date $todayIso --predictions-file $modelPredPath --results-dir (Join-Path $OutDir 'daily_results') --window-days 30
+    }
+  } catch { Write-Warning "interval predictions failed: $($_)" }
+
+  # Post-inference variance summary (inference-level dispersion)
+  try {
+    $predCsv = Get-Content $modelPredPath | Select-Object -Skip 1
+    $totals = @(); $margins = @()
+    foreach ($line in $predCsv) {
+      if (-not $line) { continue }
+      $parts = $line.Split(',')
+      if ($parts.Length -ge 3) {
+        [double]$t = $parts[1]; [double]$m = $parts[2];
+        if ($t -ne [double]::NaN) { $totals += $t }
+        if ($m -ne [double]::NaN) { $margins += $m }
       }
-      if ($totals.Count -gt 0) {
-        # Mean & variance (manual, PowerShell 5.1 compatible – no ternary or LINQ average shortcuts)
-        $totMean = ($totals | Measure-Object -Average).Average
-        if ($totals.Count -gt 1) {
-          $totVarSum = ($totals | ForEach-Object { $d = ($_ - $totMean); $d * $d } | Measure-Object -Sum).Sum
-          $totVar = [Math]::Round(($totVarSum / $totals.Count), 4)
-        } else { $totVar = 0 }
-        $totStd = [Math]::Round([Math]::Sqrt($totVar), 4)
-        $totMin = ($totals | Measure-Object -Minimum).Minimum
-        $totMax = ($totals | Measure-Object -Maximum).Maximum
-        $margMean = ($margins | Measure-Object -Average).Average
-        if ($margins.Count -gt 1) {
-          $margVarSum = ($margins | ForEach-Object { $d = ($_ - $margMean); $d * $d } | Measure-Object -Sum).Sum
-          $margVar = [Math]::Round(($margVarSum / $margins.Count), 4)
-        } else { $margVar = 0 }
-        $margStd = [Math]::Round([Math]::Sqrt($margVar), 4)
-        $margMin = ($margins | Measure-Object -Minimum).Minimum
-        $margMax = ($margins | Measure-Object -Maximum).Maximum
-        $infVarDir = Join-Path $OutDir 'variance'
-        New-Item -ItemType Directory -Path $infVarDir -Force | Out-Null
-        $infVarPath = Join-Path $infVarDir ("inference_variance_" + $todayIso + ".json")
-        $payload = @{date=$todayIso; rows=$totals.Count; total_mean=[Math]::Round($totMean,2); total_var=$totVar; total_std=$totStd; total_min=$totMin; total_max=$totMax; margin_mean=[Math]::Round($margMean,2); margin_var=$margVar; margin_std=$margStd; margin_min=$margMin; margin_max=$margMax; timestamp_utc=(Get-Date).ToUniversalTime().ToString('o') }
-        ($payload | ConvertTo-Json -Depth 4) | Out-File -FilePath $infVarPath -Encoding UTF8
-        Write-Host "Inference variance summary -> $infVarPath"
-      }
-    } catch { Write-Warning "inference variance summary failed: $($_)" }
-  } else {
-    Write-Host "Model predictions already exist for $todayIso; skipping inference." -ForegroundColor DarkGray
-  }
+    }
+    if ($totals.Count -gt 0) {
+      $totMean = ($totals | Measure-Object -Average).Average
+      if ($totals.Count -gt 1) {
+        $totVarSum = ($totals | ForEach-Object { $d = ($_ - $totMean); $d * $d } | Measure-Object -Sum).Sum
+        $totVar = [Math]::Round(($totVarSum / $totals.Count), 4)
+      } else { $totVar = 0 }
+      $totStd = [Math]::Round([Math]::Sqrt($totVar), 4)
+      $totMin = ($totals | Measure-Object -Minimum).Minimum
+      $totMax = ($totals | Measure-Object -Maximum).Maximum
+      $margMean = ($margins | Measure-Object -Average).Average
+      if ($margins.Count -gt 1) {
+        $margVarSum = ($margins | ForEach-Object { $d = ($_ - $margMean); $d * $d } | Measure-Object -Sum).Sum
+        $margVar = [Math]::Round(($margVarSum / $margins.Count), 4)
+      } else { $margVar = 0 }
+      $margStd = [Math]::Round([Math]::Sqrt($margVar), 4)
+      $margMin = ($margins | Measure-Object -Minimum).Minimum
+      $margMax = ($margins | Measure-Object -Maximum).Maximum
+      $infVarDir = Join-Path $OutDir 'variance'
+      New-Item -ItemType Directory -Path $infVarDir -Force | Out-Null
+      $infVarPath = Join-Path $infVarDir ("inference_variance_" + $todayIso + ".json")
+      $payload = @{date=$todayIso; rows=$totals.Count; total_mean=[Math]::Round($totMean,2); total_var=$totVar; total_std=$totStd; total_min=$totMin; total_max=$totMax; margin_mean=[Math]::Round($margMean,2); margin_var=$margVar; margin_std=$margStd; margin_min=$margMin; margin_max=$margMax; timestamp_utc=(Get-Date).ToUniversalTime().ToString('o') }
+      ($payload | ConvertTo-Json -Depth 4) | Out-File -FilePath $infVarPath -Encoding UTF8
+      Write-Host "Inference variance summary -> $infVarPath"
+    }
+  } catch { Write-Warning "inference variance summary failed: $($_)" }
 
   Write-Section "6) Fetch today's schedule, odds, and run predictions/picks"
   $dailyArgs = @('daily-run', '--date', $todayIso, '--season', $todayDate.Year, '--region', $Region, '--provider', $Provider, '--segment', 'team', '--preseason-weight', '0.4', '--threshold', '1.5', '--default-price', '-110')
@@ -363,6 +371,10 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
       if (Test-Path $predsTodayDated) { $toStage += $predsTodayDated }
   $predsModelToday = Join-Path $OutDir ("predictions_model_" + $todayIso + ".csv")
   if (Test-Path $predsModelToday) { $toStage += $predsModelToday }
+  $predsModelCalibToday = Join-Path $OutDir ("predictions_model_calibrated_" + $todayIso + ".csv")
+  if (Test-Path $predsModelCalibToday) { $toStage += $predsModelCalibToday }
+  $predsModelIntervalToday = Join-Path $OutDir ("predictions_model_interval_" + $todayIso + ".csv")
+  if (Test-Path $predsModelIntervalToday) { $toStage += $predsModelIntervalToday }
 
   # Newly produced aligned and stake artifacts
   $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")

@@ -80,10 +80,39 @@ def calibrate(pred_path: pathlib.Path, date_str: str, window_days: int, results_
     total_cal = _fit_linear(hist.get("total_points", pd.Series(dtype=float)).to_numpy(), hist.get("pred_total_model", pd.Series(dtype=float)).to_numpy()) if not hist.empty else {"a":0.0,"b":1.0,"mode":"none"}
     margin_cal = _fit_linear(hist.get("margin", pd.Series(dtype=float)).to_numpy(), hist.get("pred_margin_model", pd.Series(dtype=float)).to_numpy()) if not hist.empty else {"a":0.0,"b":1.0,"mode":"none"}
     # Apply
-    preds["pred_total_calibrated"] = total_cal["a"] + total_cal["b"] * preds["pred_total_model"].to_numpy()
+    # Detect systematic scale compression (compare against historical typical NCAA D1 totals ~135-155).
+    raw_tot = preds["pred_total_model"].to_numpy()
+    scale_factor = 1.0
+    median_raw = float(np.nanmedian(raw_tot)) if raw_tot.size else 0.0
+    # If median raw < 90 and > 20, assume totals are roughly half and scale using historical results if available, else heuristic 2.2.
+    if median_raw and median_raw < 90:
+        # Derive scale factor from historical residual set if present
+        if not hist.empty and "total_points" in hist.columns and "pred_total_model" in hist.columns:
+            # Use robust median ratio
+            hist_ratio = np.nanmedian(hist["total_points"].to_numpy() / np.maximum(hist["pred_total_model"].to_numpy(), 1e-6))
+            if np.isfinite(hist_ratio) and 1.5 < hist_ratio < 3.5:
+                scale_factor = float(hist_ratio)
+            else:
+                scale_factor = 2.2
+        else:
+            # Fall back to median market vs model if a joined market column exists (rare here). Placeholder constant.
+            scale_factor = 2.2
+    preds["pred_total_calibrated"] = (total_cal["a"] + total_cal["b"] * raw_tot) * scale_factor
     preds["pred_margin_calibrated"] = margin_cal["a"] + margin_cal["b"] * preds["pred_margin_model"].to_numpy()
-    # Clamp totals to reasonable basketball range (80-220) to avoid pathological linear overshoot
-    preds["pred_total_calibrated"] = preds["pred_total_calibrated"].clip(lower=80, upper=220)
+    # Adaptive clamp: use empirical quantiles if enough rows else fallback 80-220
+    try:
+        cal_vals = preds["pred_total_calibrated"].to_numpy()
+        if cal_vals.size >= 25:
+            low_q = float(np.nanpercentile(cal_vals, 2))
+            high_q = float(np.nanpercentile(cal_vals, 98))
+            # Expand slightly to avoid edge hard-cuts
+            lower_bound = max(70.0, low_q - 5)
+            upper_bound = min(240.0, high_q + 5)
+            preds["pred_total_calibrated"] = np.clip(cal_vals, lower_bound, upper_bound)
+        else:
+            preds["pred_total_calibrated"] = np.clip(cal_vals, 80, 220)
+    except Exception:
+        preds["pred_total_calibrated"] = preds["pred_total_calibrated"].clip(lower=80, upper=220)
     # Persist
     out_path = out_path or (OUT / f"predictions_model_calibrated_{date_str}.csv")
     preds.to_csv(out_path, index=False)
@@ -91,7 +120,7 @@ def calibrate(pred_path: pathlib.Path, date_str: str, window_days: int, results_
     meta = {
         "date": date_str,
         "window_days": window_days,
-        "total_calibration": total_cal,
+    "total_calibration": {**total_cal, "scale_factor": scale_factor, "median_raw": median_raw},
         "margin_calibration": margin_cal,
         "rows_used": int(len(hist)),
         "pred_rows": int(len(preds)),

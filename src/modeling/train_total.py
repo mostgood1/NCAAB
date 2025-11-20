@@ -62,6 +62,16 @@ class _MeanBaseline:
         import numpy as _np
         return _np.full(len(X_any), self.value)
 
+class _LinearOLS:
+    def __init__(self, coeffs):
+        self._coeffs = coeffs  # first element intercept, rest feature weights
+    def predict(self, X_any):  # noqa: ANN001
+        import numpy as _np
+        arr = X_any.to_numpy(dtype=float)
+        b0 = self._coeffs[0]
+        w = _np.asarray(self._coeffs[1:])
+        return b0 + arr.dot(w)
+
 
 class _BoosterWrapper:
     def __init__(self, booster):
@@ -180,8 +190,20 @@ def train(algo: str, split: str) -> Dict[str, Any]:
         )
         model.fit(X_train, y_train)
     else:
-        # Baseline mean fallback
-        model = _MeanBaseline(float(y_train.mean()))
+        # Fallback hierarchy: try simple OLS linear regression (no external deps) then mean baseline
+        try:
+            import numpy as _np
+            Xmat = X_train.to_numpy(dtype=float)
+            yvec = y_train.to_numpy(dtype=float)
+            # Add intercept column
+            ones = _np.ones((Xmat.shape[0], 1))
+            A = _np.concatenate([ones, Xmat], axis=1)
+            coeffs, *_ = _np.linalg.lstsq(A, yvec, rcond=None)
+            model = _LinearOLS(coeffs)
+            algo = algo + "+ols_fallback"
+        except Exception:
+            model = _MeanBaseline(float(y_train.mean()))
+            algo = algo + "+mean_fallback"
 
     preds = model.predict(X_test)
     mae = float(mean_absolute_error(y_test, preds))
