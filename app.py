@@ -683,6 +683,8 @@ def _load_d1_team_set() -> set[str]:
         # Prefer a column named 'team'/'school'/'name', else fallback to first column
         cols = {c.lower().strip(): c for c in df.columns}
         team_col = cols.get("team") or cols.get("school") or cols.get("name") or list(df.columns)[0]
+        # Drop comment/header lines beginning with '#'
+        df = df[~df[team_col].astype(str).str.strip().str.startswith('#')]
         ser = df[team_col].astype(str).map(normalize_name)
         d1set = set(ser.dropna().astype(str))
     except Exception:
@@ -1000,6 +1002,21 @@ def index():
             if 'pred_total_calibrated' in model_preds.columns:
                 ptc_early = pd.to_numeric(model_preds['pred_total_calibrated'], errors='coerce')
                 pipeline_stats['model_preds_total_calibrated_head'] = ptc_early.head(10).tolist()
+                pipeline_stats['model_preds_total_calibrated_stats_early'] = {
+                    'count': int(ptc_early.notna().sum()),
+                    'min': float(ptc_early.min()) if ptc_early.notna().any() else None,
+                    'max': float(ptc_early.max()) if ptc_early.notna().any() else None,
+                    'mean': float(ptc_early.mean()) if ptc_early.notna().any() else None,
+                    'std': float(ptc_early.std()) if ptc_early.notna().any() else None,
+                    'unique': int(ptc_early.nunique()) if ptc_early.notna().any() else 0
+                }
+                # Preferred initial source determination (calibrated when any non-NaN values present)
+                if ptc_early.notna().any():
+                    pipeline_stats['model_preds_preferred_initial_source'] = 'calibrated'
+                else:
+                    pipeline_stats['model_preds_preferred_initial_source'] = 'raw_model'
+            else:
+                pipeline_stats['model_preds_preferred_initial_source'] = 'raw_model'
             if 'pred_margin_model' in model_preds.columns:
                 pmm_early = pd.to_numeric(model_preds['pred_margin_model'], errors='coerce')
                 pipeline_stats['model_preds_margin_head'] = pmm_early.head(10).tolist()
@@ -3558,21 +3575,51 @@ def index():
     # We apply after all enrichments so market lines/predictions remain intact; this is purely a view-level restriction.
     try:
         show_all = (request.args.get("all") or "").strip().lower() in ("1","true","yes")
+        strict_d1 = (request.args.get("strict_d1") or "").strip().lower() in ("1","true","yes")
         if not show_all and rows:
             d1set = _load_d1_team_set()
             if d1set:
                 filtered_rows: list[dict[str, Any]] = []
+                excluded_rows: list[dict[str, Any]] = []
                 for r in rows:
                     h = normalize_name(str(r.get("home_team") or ""))
                     a = normalize_name(str(r.get("away_team") or ""))
-                    if (h in d1set) or (a in d1set):
+                    # Detect usable data presence (predictions or odds) to allow graceful inclusion
+                    pred_val = r.get("pred_total")
+                    market_val = r.get("market_total")
+                    odds_list = r.get("_odds_list") or []
+                    def _has_val(v: Any) -> bool:
+                        if v is None: return False
+                        try:
+                            # Treat NaN/None/"" as missing
+                            if isinstance(v, (float,int)) and (pd.isna(v)): return False
+                            s = str(v).strip().lower()
+                            return s not in ("", "nan", "none", "null")
+                        except Exception:
+                            return False
+                    has_pred = _has_val(pred_val)
+                    has_market = _has_val(market_val)
+                    has_any_odds = bool(odds_list)
+                    in_d1 = (h in d1set) or (a in d1set)
+                    # Inclusion logic:
+                    #  - Always include if at least one team is D1
+                    #  - If strict_d1 flag set, require D1 team (legacy behavior)
+                    #  - Else, include non-D1 pair when we have predictions OR odds lines (so legitimate slate data isn’t hidden)
+                    if in_d1 or (not strict_d1 and (has_pred or has_market or has_any_odds)):
                         filtered_rows.append(r)
-                # Only replace if we removed something (avoid accidental emptying on name mismatch)
+                    else:
+                        excluded_rows.append(r)
+                # Replace only if we didn't accidentally drop everything
                 if filtered_rows and len(filtered_rows) <= len(rows):
                     rows = filtered_rows
-            # If d1set empty, silently skip filter (avoid hiding everything)
+                pipeline_stats["rows_excluded_d1"] = len(excluded_rows)
+                pipeline_stats["excluded_game_ids_d1"] = [str(er.get("game_id")) for er in excluded_rows if er.get("game_id")]
+                pipeline_stats["excluded_non_d1_pairs_strict_count"] = int(sum(1 for er in excluded_rows if strict_d1))
+            # If d1set empty, skip filter entirely
         pipeline_stats["rows_after_d1_filter"] = len(rows)
-    except Exception:
+        pipeline_stats["d1_filter_strict"] = strict_d1
+    except Exception as _d1e:
+        pipeline_stats["d1_filter_error"] = str(_d1e)
         pass
     total_rows = len(rows)
     accuracy = _load_accuracy_summary()
