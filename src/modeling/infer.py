@@ -112,68 +112,79 @@ def main():
             sys.exit(0)
     slate_df["game_id"] = slate_df.get("game_id").astype(str)
     # Attach latest prior team-level features (team_features.csv) if available so model meta feature list is satisfied
+    # Attach team-level aggregates using exact-date merge then merge_asof fallback (vectorized)
     try:
         tf_path = OUT / "team_features.csv"
         if tf_path.exists() and {"home_team","away_team"}.issubset(slate_df.columns):
             tf = pd.read_csv(tf_path)
             if not tf.empty and {"team_slug","date"}.issubset(tf.columns):
+                # Prepare types
                 tf["date"] = pd.to_datetime(tf["date"], errors="coerce")
-                date_lookup = pd.to_datetime(date_str, errors="coerce")
-                # Build map of latest prior row per team_slug before slate date
-                tf = tf[tf["date"].notna()].copy()
-                # Precompute league medians for backfill (exclude identifiers)
-                feat_cols_for_median = [c for c in tf.columns if c not in {"team_slug","date","team","season"}]
-                league_medians = {}
-                for c in feat_cols_for_median:
-                    try:
-                        league_medians[c] = pd.to_numeric(tf[c], errors="coerce").median()
-                    except Exception:
-                        league_medians[c] = None
-                latest_prior_map: dict[str, pd.Series] = {}
-                for team_slug, sub in tf.groupby("team_slug"):
-                    sub = sub.sort_values("date")
-                    if date_lookup is not None:
-                        # Allow same-date rows which represent pre-game aggregates
-                        prior = sub[sub["date"] <= date_lookup]
-                        if prior.empty:
-                            # Synthesize minimal prior row using medians so model has differentiated inputs
-                            synth = {"team_slug": team_slug, "date": date_lookup}
-                            for c in feat_cols_for_median:
-                                synth[c] = league_medians.get(c)
-                            latest_prior_map[team_slug] = pd.Series(synth)
-                        else:
-                            latest_prior_map[team_slug] = prior.iloc[-1]
-                # Resolve home/away slugs
+                slate_df["date"] = pd.to_datetime(slate_df.get("date"), errors="coerce")
+                # Slugs
                 slate_df["_home_slug"] = slate_df["home_team"].astype(str).map(canon_slug)
                 slate_df["_away_slug"] = slate_df["away_team"].astype(str).map(canon_slug)
-                # Collect feature rows
-                home_rows = []
-                away_rows = []
-                for _, r in slate_df.iterrows():
-                    hs = r.get("_home_slug")
-                    as_ = r.get("_away_slug")
-                    home_rows.append(latest_prior_map.get(hs))
-                    away_rows.append(latest_prior_map.get(as_))
-                home_df = pd.DataFrame(home_rows)
-                away_df = pd.DataFrame(away_rows)
-                if not home_df.empty:
-                    home_df = home_df.add_prefix("home_team_")
-                if not away_df.empty:
-                    away_df = away_df.add_prefix("away_team_")
-                slate_df = pd.concat([slate_df.reset_index(drop=True), home_df.reset_index(drop=True), away_df.reset_index(drop=True)], axis=1)
-                # Reconstruct differential features mirroring training logic
+                # Exact date merge first
+                home_tfeat = tf.copy(); away_tfeat = tf.copy()
+                home_tfeat = home_tfeat.rename(columns={c: f"home_team_{c}" for c in home_tfeat.columns if c not in {"team_slug","date"}})
+                away_tfeat = away_tfeat.rename(columns={c: f"away_team_{c}" for c in away_tfeat.columns if c not in {"team_slug","date"}})
+                merged = slate_df.merge(home_tfeat, left_on=["_home_slug","date"], right_on=["team_slug","date"], how="left")
+                merged = merged.merge(away_tfeat, left_on=["_away_slug","date"], right_on=["team_slug","date"], how="left", suffixes=("","_awaydup"))
+                for drop_col in ["team_slug","team_slug_awaydup"]:
+                    if drop_col in merged.columns:
+                        merged.drop(columns=[drop_col], inplace=True)
+                # Fallback merge_asof for missing team rows
+                if not any(c.startswith("home_team_season_off_ppg") for c in merged.columns):
+                    tf_sorted = tf.sort_values(["team_slug","date"]).copy()
+                    merged_sorted = merged.sort_values(["_home_slug","date"]).copy()
+                    import pandas as _pd
+                    merged_sorted["date_dt"] = merged_sorted["date"]
+                    tf_sorted["date_dt"] = tf_sorted["date"]
+                    home_asof = _pd.merge_asof(
+                        merged_sorted,
+                        tf_sorted.sort_values(["team_slug","date_dt"]),
+                        left_on="date_dt", right_on="date_dt", left_by="_home_slug", right_by="team_slug",
+                        direction="backward", allow_exact_matches=True
+                    )
+                    away_asof = _pd.merge_asof(
+                        merged_sorted,
+                        tf_sorted.sort_values(["team_slug","date_dt"]),
+                        left_on="date_dt", right_on="date_dt", left_by="_away_slug", right_by="team_slug",
+                        direction="backward", allow_exact_matches=True
+                    )
+                    team_cols = [c for c in tf_sorted.columns if c not in {"team_slug","date","date_dt"}]
+                    for c in team_cols:
+                        hc = f"home_team_{c}"; ac = f"away_team_{c}"
+                        if hc not in merged.columns:
+                            merged[hc] = home_asof[c]
+                        if ac not in merged.columns:
+                            merged[ac] = away_asof[c]
+                    if "date_dt" in merged.columns:
+                        merged.drop(columns=["date_dt"], inplace=True)
+                slate_df = merged
+                # Differential features
                 def _mk_diff(pair_name: str):
                     hc = f"home_team_{pair_name}"; ac = f"away_team_{pair_name}"; dc = f"diff_{pair_name}"
                     if hc in slate_df.columns and ac in slate_df.columns and dc not in slate_df.columns:
-                        slate_df[dc] = pd.to_numeric(slate_df[hc], errors="coerce") - pd.to_numeric(slate_df[ac], errors="coerce")
+                        try:
+                            # Boolean cast safeguard
+                            if slate_df[hc].dtype == bool or slate_df[ac].dtype == bool:
+                                lhs = slate_df[hc].astype(int)
+                                rhs = slate_df[ac].astype(int)
+                            else:
+                                lhs = pd.to_numeric(slate_df[hc], errors="coerce")
+                                rhs = pd.to_numeric(slate_df[ac], errors="coerce")
+                            slate_df[dc] = lhs - rhs
+                        except Exception:
+                            pass
                 for base in [
                     "season_off_ppg","season_def_ppg","last5_off_ppg","last5_def_ppg","last10_off_ppg","last10_def_ppg",
                     "rolling15_off_ppg","rolling15_def_ppg","rest_days","season_margin_std","season_total_std","ewm_off_ppg",
                     "ewm_def_ppg","ewm_margin_avg","back_to_back"
                 ]:
                     _mk_diff(base)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"WARNING: team feature merge failed: {e}", file=sys.stderr)
     # Dynamically reconstruct feature matrix based on model meta (ensures uniformity with training)
     meta_path_total = pathlib.Path(str(total_p).replace("total_model.pkl","total_meta.json")) if total_p else None
     meta_path_margin = pathlib.Path(str(margin_p).replace("margin_model.pkl","margin_meta.json")) if margin_p else None
@@ -236,6 +247,8 @@ def main():
         "pred_margin_model": pred_margin,
         "pred_total_model_basis": "model_v1"
     })
+    # Deduplicate game rows (keep first prediction per game_id)
+    out_df = out_df.groupby("game_id", as_index=False).first()
     out_path = OUT / f"predictions_model_{date_str}.csv"
     out_df.to_csv(out_path, index=False)
     print(f"Wrote {len(out_df)} rows to {out_path}")
