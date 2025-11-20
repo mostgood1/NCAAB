@@ -147,6 +147,11 @@ try {
     try {
       & $VenvPython -m src.modeling.infer --date $todayIso
     } catch { Write-Warning "model inference failed: $($_)" }
+    # Calibrate predictions using recent finalized results (simple linear residual correction)
+    Write-Section '5e) Calibrate model predictions'
+    try {
+      & $VenvPython -m src.modeling.calibrate_predictions --date $todayIso --predictions-file $modelPredPath --results-dir (Join-Path $OutDir 'daily_results') --window-days 14
+    } catch { Write-Warning "calibration failed: $($_)" }
     # Post-inference variance summary (inference-level dispersion)
     try {
       $predCsv = Get-Content $modelPredPath | Select-Object -Skip 1
