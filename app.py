@@ -2173,7 +2173,15 @@ def index():
                         val = 0.60 * baseline_league_avg + 0.25 * float(mt_val) + 0.15 * (baseline_league_avg + tempo_component) + noise
                         if abs(val - mt_val) < 0.4:
                             val = val + (1.15 if val <= mt_val else -1.15)
-                        val = float(np.clip(val, 112, 188))
+                        # Remove hard lower floor (112) which was causing uniform fallback totals when model preds absent.
+                        # Apply only an upper plausibility cap; allow natural lower values for early-season slow tempos.
+                        val = float(np.clip(val, 60, 188))
+                        try:
+                            pipeline_stats.setdefault('synthetic_baseline_fills', 0)
+                            pipeline_stats['synthetic_baseline_fills'] += 1
+                            pipeline_stats.setdefault('synthetic_baseline_vals', []).append(val)
+                        except Exception:
+                            pass
                         df.at[idx, "pred_total"] = val
                         if "pred_total_basis" in df.columns and pd.isna(df.at[idx, "pred_total_basis"]):
                             df.at[idx, "pred_total_basis"] = "synthetic_baseline"
