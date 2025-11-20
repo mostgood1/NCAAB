@@ -13,9 +13,12 @@ param(
   [string]$Provider = 'espn',
   [switch]$NoCache,
   [switch]$SkipRetrain,
+  [switch]$ForceModelRetrain,
   [switch]$SkipFinalizePrev,
   [switch]$SkipStakeSheets,
   [switch]$SkipGitPush,
+  [switch]$SkipModelTests,
+  [switch]$SkipVarianceDiag,
   [string]$GitCommitMessage
 )
 
@@ -119,21 +122,9 @@ try {
     Write-Host 'SkipRetrain flag set; using existing models.'
   }
 
-  # Optional: model-first LightGBM/XGBoost training artifacts (independent from baseline) – only if not skipped and artifacts appear stale
-  $modelDir = Join-Path $OutDir 'models'
-  $latestModelTotal = Get-ChildItem -Path $modelDir -Filter 'total_model.pkl' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-  $latestModelMargin = Get-ChildItem -Path $modelDir -Filter 'margin_model.pkl' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-  if (-not $SkipRetrain -and (-not $latestModelTotal -or -not $latestModelMargin)) {
-    Write-Section '5b) Train model-first total & margin predictors (LightGBM)'
-    try {
-      & $VenvPython -m src.modeling.train_total --algo auto
-    } catch { Write-Warning "train_total failed: $($_)" }
-    try {
-      & $VenvPython -m src.modeling.train_margin --algo auto
-    } catch { Write-Warning "train_margin failed: $($_)" }
-  } else {
-    Write-Host 'Model-first artifacts present; skipping explicit retrain.'
-  }
+  # Defer team-level feature regeneration + model-first training until after today's schedule ingestion
+  # (ensures latest completed games are included and maximizes feature coverage).
+  Write-Host 'Deferring team_features generation and model-first retrain until after daily-run.' -ForegroundColor DarkGray
 
   # Ensure deterministic per-day feature rows exist for inference (lightweight placeholder ratings)
   $featuresCurr = Join-Path $OutDir 'features_curr.csv'
@@ -147,6 +138,7 @@ try {
   }
 
   # Run model inference to produce predictions_model_<date>.csv (used for independent edges in UI)
+  # Inference will merge latest team_features if models expect those columns.
   $modelPredPath = Join-Path $OutDir ("predictions_model_" + $todayIso + ".csv")
   if (-not (Test-Path $modelPredPath)) {
     Write-Section '5d) Run model inference harness'
@@ -161,6 +153,55 @@ try {
   $dailyArgs = @('daily-run', '--date', $todayIso, '--season', $todayDate.Year, '--region', $Region, '--provider', $Provider, '--segment', 'team', '--preseason-weight', '0.4', '--threshold', '1.5', '--default-price', '-110')
   if ($NoCache.IsPresent) { $dailyArgs += '--no-use-cache' }
   & $VenvPython -m ncaab_model.cli @dailyArgs
+
+  # Now regenerate team-level historical features with any newly completed games merged by daily-run
+  Write-Section '6b) Refresh team-level historical features post-ingestion'
+  try {
+    & $VenvPython -m src.modeling.team_features --out (Join-Path $OutDir 'team_features.csv')
+  } catch { Write-Warning "team_features post-ingestion generation failed: $($_)" }
+
+  if (-not $SkipModelTests) {
+    Write-Section '6b.i) Run model integrity tests'
+    try {
+      & $VenvPython -m pytest tests/test_team_feature_artifact.py tests/test_training_frame_richness.py -q
+    } catch {
+      Write-Error "Model integrity tests failed: $($_)"; throw
+    }
+  } else { Write-Host 'SkipModelTests flag set; skipping pytest integrity checks.' -ForegroundColor Yellow }
+  $modelDir = Join-Path $OutDir 'models'
+  $latestModelTotal = Get-ChildItem -Path $modelDir -Filter 'total_model.pkl' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  $latestModelMargin = Get-ChildItem -Path $modelDir -Filter 'margin_model.pkl' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  $teamFeatPath = Join-Path $OutDir 'team_features.csv'
+  $teamFeatStamp = if (Test-Path $teamFeatPath) { (Get-Item $teamFeatPath).LastWriteTimeUtc } else { Get-Date }
+  $modelTotalStamp = if ($latestModelTotal) { $latestModelTotal.LastWriteTimeUtc } else { (Get-Date).AddYears(-10) }
+  $modelMarginStamp = if ($latestModelMargin) { $latestModelMargin.LastWriteTimeUtc } else { (Get-Date).AddYears(-10) }
+  $needModelRefresh = (-not $latestModelTotal -or -not $latestModelMargin) -or ($teamFeatStamp -gt $modelTotalStamp) -or ($teamFeatStamp -gt $modelMarginStamp) -or $ForceModelRetrain.IsPresent
+  if (-not $SkipRetrain -and $needModelRefresh) {
+    Write-Section '6c) Train/refresh model-first total & margin predictors (LightGBM/XGBoost)'
+    try {
+      & $VenvPython -m src.modeling.train_total --algo auto --split random
+    } catch { Write-Warning "train_total (post-ingestion) failed: $($_)" }
+    try {
+      & $VenvPython -m src.modeling.train_margin --algo auto --split random
+    } catch { Write-Warning "train_margin (post-ingestion) failed: $($_)" }
+  } else {
+    Write-Host 'Model-first artifacts considered fresh post-ingestion; skipping retrain.' -ForegroundColor DarkGray
+  }
+
+  if (-not $SkipVarianceDiag) {
+    Write-Section '6d) Prediction variance diagnostics'
+    try {
+      $varTotal = (& $VenvPython -m src.modeling.diagnose_variance --target total --algo auto --split random) | Out-String
+      $varMargin = (& $VenvPython -m src.modeling.diagnose_variance --target margin --algo auto --split random) | Out-String
+      $varDir = Join-Path $OutDir 'variance'
+      New-Item -ItemType Directory -Path $varDir -Force | Out-Null
+      $varTotalPath = Join-Path $varDir ("variance_total_" + $todayIso + ".json")
+      $varMarginPath = Join-Path $varDir ("variance_margin_" + $todayIso + ".json")
+      $varTotal | Out-File -FilePath $varTotalPath -Encoding UTF8
+      $varMargin | Out-File -FilePath $varMarginPath -Encoding UTF8
+      Write-Host "Wrote variance diagnostics -> $varTotalPath, $varMarginPath"
+    } catch { Write-Warning "Variance diagnostics failed: $($_)" }
+  } else { Write-Host 'SkipVarianceDiag flag set; skipping prediction variance diagnostics.' -ForegroundColor Yellow }
 
   # Guard: daily-run may overwrite the historical games_with_last.csv with a subset (today's slate).
   # Reconstruct full historical last odds merge to ensure persistence before filtering for stake sheets.
@@ -295,6 +336,11 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
 
       if ($toStage.Count -gt 0) {
         foreach ($p in $toStage) { git add $p }
+        # Optionally stage variance diagnostics if produced today
+        $varTotalPath = Join-Path $OutDir ("variance/variance_total_" + $todayIso + ".json")
+        $varMarginPath = Join-Path $OutDir ("variance/variance_margin_" + $todayIso + ".json")
+        if (Test-Path $varTotalPath) { git add $varTotalPath }
+        if (Test-Path $varMarginPath) { git add $varMarginPath }
         $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data): update results and odds for $prevDate (today $todayIso)" }
         $status = git status --porcelain
         if ($status) {

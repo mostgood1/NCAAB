@@ -354,7 +354,7 @@ def _summarize_stake_sheet(df: pd.DataFrame) -> dict[str, Any]:
 
 def _load_calibration_artifact() -> dict[str, Any] | None:
     # Artifact name (totals) introduced earlier; keep flexible for future variants
-    candidates = [OUT / "calibration_totals.json", OUT / "calibration" / "artifact_totals.json"]
+    candidates = [OUT / "calibration" / "artifact_totals.json", OUT / "calibration_totals.json"]
     for p in candidates:
         if p.exists():
             try:
@@ -577,8 +577,7 @@ def _load_daily_results_for(date_str: str) -> pd.DataFrame:
     try:
         p = OUT / "daily_results" / f"results_{date_str}.csv"
         if p.exists():
-            df = pd.read_csv(p)
-            return df
+            return pd.read_csv(p)
     except Exception:
         pass
     return pd.DataFrame()
@@ -2416,17 +2415,13 @@ def index():
                 df['favored_by'] = pm_num.abs()
         except Exception:
             pass
-        # Correlation & divergence diagnostics
+        # Correlation & aggregate diagnostics (legacy divergence vs pred_total removed post-unification)
         if 'pipeline_stats' in locals():
             try:
                 if {'pred_total_model','market_total'}.issubset(df.columns):
                     corr_mt = df[['pred_total_model','market_total']].dropna()
                     if not corr_mt.empty:
                         pipeline_stats['corr_pred_total_model_market'] = float(corr_mt.corr().iloc[0,1])
-                if {'pred_total_model','pred_total'}.issubset(df.columns):
-                    div = df[['pred_total_model','pred_total']].dropna()
-                    if not div.empty:
-                        pipeline_stats['mae_pred_total_model_vs_pred_total'] = float((div['pred_total_model'] - div['pred_total']).abs().mean())
                 if 'market_total_basis' in df.columns:
                     pipeline_stats['synthetic_market_total_count'] = int((df['market_total_basis'].astype(str).str.startswith('synthetic')).sum())
                 if 'spread_home_basis' in df.columns:

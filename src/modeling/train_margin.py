@@ -89,12 +89,25 @@ def pick_algo(preference: str):
     return preference if preference in {"lightgbm","xgboost","gbr","baseline"} else "baseline"
 
 
-def train(algo: str) -> Dict[str, Any]:
-    X, _, y_margin = build_training_frame()
+def _chronological_split(X, y, dates, test_size=0.25):
+    import numpy as _np
+    order = _np.argsort(dates.fillna(dates.max()))
+    n_test = int(len(X) * test_size)
+    test_idx = order[-n_test:]
+    train_idx = order[:-n_test]
+    return X.iloc[train_idx], X.iloc[test_idx], y.iloc[train_idx], y.iloc[test_idx]
+
+def train(algo: str, split: str) -> Dict[str, Any]:
+    X, _, y_margin, dates = build_training_frame(return_dates=(split == "date"))
     if X.empty or y_margin.empty:
         print("No training data found (features or games missing).", file=sys.stderr)
         return {"status":"no_data"}
-    X_train, X_test, y_train, y_test = train_test_split(X, y_margin, test_size=0.25, random_state=42)
+    if split == "date" and dates is not None and not dates.isna().all():
+        X_train, X_test, y_train, y_test = _chronological_split(X, y_margin, dates, test_size=0.25)
+        split_used = "date"
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(X, y_margin, test_size=0.25, random_state=42)
+        split_used = "random"
 
     if algo == "lightgbm" and lgb is not None:
         if SKLEARN_AVAILABLE and hasattr(lgb, "LGBMRegressor"):
@@ -163,6 +176,20 @@ def train(algo: str) -> Dict[str, Any]:
     artifact_dir = OUT / "models" / dt.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     artifact_dir.mkdir(parents=True, exist_ok=True)
     dump(model, artifact_dir / "margin_model.pkl")
+    # Feature importances (if available)
+    importances = None
+    try:
+        if hasattr(model, "feature_importances_"):
+            import numpy as _np
+            vals = _np.asarray(model.feature_importances_)
+            order = vals.argsort()[::-1][:15]
+            importances = {X.columns[i]: float(vals[i]) for i in order}
+        elif hasattr(model, "_b") and hasattr(model._b, "feature_importance"):
+            vals = model._b.feature_importance()  # type: ignore
+            order = sorted(range(len(vals)), key=lambda i: vals[i], reverse=True)[:15]
+            importances = {X.columns[i]: float(vals[i]) for i in order}
+    except Exception:
+        pass
     meta = {
         "algo": algo,
         "features": list(X.columns),
@@ -171,6 +198,8 @@ def train(algo: str) -> Dict[str, Any]:
         "mae": mae,
         "rmse": rmse,
         "baseline_mae": baseline_mae,
+        "split": split_used,
+        "top_feature_importances": importances,
         "timestamp_utc": dt.datetime.utcnow().isoformat(),
         "status":"ok"
     }
@@ -183,9 +212,10 @@ def train(algo: str) -> Dict[str, Any]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--algo", default="auto", help="Preferred algo: auto|lightgbm|xgboost|gbr")
+    ap.add_argument("--split", default="random", choices=["random","date"], help="Train/test split strategy")
     args = ap.parse_args()
     algo = pick_algo(args.algo)
-    train(algo)
+    train(algo, args.split)
 
 if __name__ == "__main__":
     main()

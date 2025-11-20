@@ -457,49 +457,7 @@
               {% endfor %}
             </div>
           {% endif %}
-          {% if r.spread_home is defined or r.ml_home is defined %}
-            <div class="section">
-              <div class="title">ATS / Moneyline</div>
-              <div class="kpi">
-                {% if r.spread_home is not none %}
-                  <div class="pill">Spread ({{ r.home_team or '–' }}): {{ '%.1f' % r.spread_home }}</div>
-                  {% if r.pred_margin is not none %}
-                    {% set ats_edge = r.pred_margin - r.spread_home %}
-                    {% set abs_edge = ats_edge|abs %}
-                    {% set cls_ats_edge = (
-                      'edge-zero' if abs_edge < 0.1 else
-                      'edge-weak' if abs_edge < 1.0 else
-                      'edge-mod' if abs_edge < 2.0 else
-                      'edge-strong' if abs_edge < 3.5 else
-                      'edge-extreme'
-                    ) %}
-                    <div class="pill {{ cls_ats_edge }}">ATS Edge: {{ '%.1f' % ats_edge }}</div>
-                  {% endif %}
-                  {% if r.lean_ats_side is defined and r.lean_ats_side %}
-                    {% set ats_team = r.home_team if r.lean_ats_side == 'Home ATS' else (r.away_team if r.lean_ats_side == 'Away ATS' else None) %}
-                    <div class="pill">ATS Lean: {{ ats_team or r.lean_ats_side }} {% if r.lean_ats_edge_abs is not none %}(+{{ '%.1f' % r.lean_ats_edge_abs }}){% endif %}</div>
-                  {% endif %}
-                {% endif %}
-                {% if r.ml_home is not none %}
-                    <div class="pill">ML ({{ r.away_team or '–' }}): {{ r.ml_away if r.ml_away is not none else '–' }}</div>
-                        {% if r.kelly_fraction_ml_home is defined and r.kelly_fraction_ml_home is not none %}
-                          {% set kf = r.kelly_fraction_ml_home %}
-                          {% set cls_kf = 'edge-pos' if kf>0 else ('edge-neg' if kf<0 else 'edge-zero') %}
-                          <div class="pill {{ cls_kf }}">Kelly% {{ '%.1f' % (kf*100) }}</div>
-                        {% endif %}
-                  {% if r.ml_prob_model is defined and r.ml_prob_model is not none %}
-                    <div class="pill">Model P({{ r.away_team or '–' }}): {{ '%.0f' % (r.ml_prob_model*100) }}%</div>
-                  {% endif %}
-                  {% if r.ml_prob_implied is defined and r.ml_prob_implied is not none %}
-                    <div class="pill">Implied P({{ r.away_team or '–' }}): {{ '%.0f' % (r.ml_prob_implied*100) }}%</div>
-                  {% endif %}
-                  {% if r.ml_prob_edge is defined and r.ml_prob_edge is not none %}
-                    <div class="pill">ML Edge: {{ '%.1f' % (r.ml_prob_edge*100) }}%</div>
-                  {% endif %}
-                {% endif %}
-              </div>
-            </div>
-          {% endif %}
+          {# ATS / Moneyline section removed to reduce duplication #}
         </div>
       {% endfor %}
     </div>

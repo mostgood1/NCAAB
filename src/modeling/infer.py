@@ -20,6 +20,7 @@ from . import train_total as _train_total_mod  # noqa: F401  # Ensure custom wra
 from . import train_margin as _train_margin_mod  # noqa: F401
 
 from .data import load_features
+from .utils import canon_slug
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "outputs"
@@ -110,28 +111,86 @@ def main():
             print("No feature rows for date", file=sys.stderr)
             sys.exit(0)
     slate_df["game_id"] = slate_df.get("game_id").astype(str)
-    # Build model input features (mirror training selection logic)
-    cols_needed = [
-        "home_off_rating","away_off_rating","home_def_rating","away_def_rating",
-        "home_tempo_rating","away_tempo_rating","tempo_rating_sum"
-    ]
-    for c in cols_needed:
+    # Attach latest prior team-level features (team_features.csv) if available so model meta feature list is satisfied
+    try:
+        tf_path = OUT / "team_features.csv"
+        if tf_path.exists() and {"home_team","away_team"}.issubset(slate_df.columns):
+            tf = pd.read_csv(tf_path)
+            if not tf.empty and {"team_slug","date"}.issubset(tf.columns):
+                tf["date"] = pd.to_datetime(tf["date"], errors="coerce")
+                date_lookup = pd.to_datetime(date_str, errors="coerce")
+                # Build map of latest prior row per team_slug before slate date
+                tf = tf[tf["date"].notna()].copy()
+                latest_prior_map: dict[str, pd.Series] = {}
+                for team_slug, sub in tf.groupby("team_slug"):
+                    sub = sub.sort_values("date")
+                    if date_lookup is not None:
+                        # Allow same-date rows which represent pre-game aggregates
+                        prior = sub[sub["date"] <= date_lookup]
+                        if prior.empty:
+                            continue
+                        latest_prior_map[team_slug] = prior.iloc[-1]
+                # Resolve home/away slugs
+                slate_df["_home_slug"] = slate_df["home_team"].astype(str).map(canon_slug)
+                slate_df["_away_slug"] = slate_df["away_team"].astype(str).map(canon_slug)
+                # Collect feature rows
+                home_rows = []
+                away_rows = []
+                for _, r in slate_df.iterrows():
+                    hs = r.get("_home_slug")
+                    as_ = r.get("_away_slug")
+                    home_rows.append(latest_prior_map.get(hs))
+                    away_rows.append(latest_prior_map.get(as_))
+                home_df = pd.DataFrame(home_rows)
+                away_df = pd.DataFrame(away_rows)
+                if not home_df.empty:
+                    home_df = home_df.add_prefix("home_team_")
+                if not away_df.empty:
+                    away_df = away_df.add_prefix("away_team_")
+                slate_df = pd.concat([slate_df.reset_index(drop=True), home_df.reset_index(drop=True), away_df.reset_index(drop=True)], axis=1)
+    except Exception:
+        pass
+    # Dynamically reconstruct feature matrix based on model meta (ensures uniformity with training)
+    meta_path_total = pathlib.Path(str(total_p).replace("total_model.pkl","total_meta.json")) if total_p else None
+    meta_path_margin = pathlib.Path(str(margin_p).replace("margin_model.pkl","margin_meta.json")) if margin_p else None
+    feature_list = []
+    for mp in [meta_path_total, meta_path_margin]:
+        if mp and mp.exists():
+            try:
+                import json as _json
+                meta_obj = _json.loads(mp.read_text(encoding="utf-8"))
+                fl = meta_obj.get("features") or []
+                feature_list.extend([f for f in fl if f not in feature_list])
+            except Exception:
+                pass
+    if not feature_list:
+        # Fallback to baseline list
+        feature_list = [
+            "home_off_rating","away_off_rating","home_def_rating","away_def_rating",
+            "off_diff","def_diff","tempo_avg","tempo_rating_sum"
+        ]
+    # Guarantee base columns present for diff computations
+    base_ensure = ["home_off_rating","away_off_rating","home_def_rating","away_def_rating","home_tempo_rating","away_tempo_rating","tempo_rating_sum"]
+    for c in base_ensure:
         if c not in slate_df.columns:
             slate_df[c] = np.nan
-    X = pd.DataFrame({
-        "home_off_rating": slate_df["home_off_rating"],
-        "away_off_rating": slate_df["away_off_rating"],
-        "home_def_rating": slate_df["home_def_rating"],
-        "away_def_rating": slate_df["away_def_rating"],
-        "off_diff": slate_df["home_off_rating"] - slate_df["away_off_rating"],
-        "def_diff": slate_df["home_def_rating"] - slate_df["away_def_rating"],
-        "tempo_avg": (pd.to_numeric(slate_df["home_tempo_rating"], errors="coerce") + pd.to_numeric(slate_df["away_tempo_rating"], errors="coerce")) / 2.0,
-        "tempo_rating_sum": slate_df["tempo_rating_sum"],
-    })
+    # Reconstruct derived columns if referenced
+    if "off_diff" in feature_list and "off_diff" not in slate_df.columns:
+        slate_df["off_diff"] = slate_df["home_off_rating"] - slate_df["away_off_rating"]
+    if "def_diff" in feature_list and "def_diff" not in slate_df.columns:
+        slate_df["def_diff"] = slate_df["home_def_rating"] - slate_df["away_def_rating"]
+    if "tempo_avg" in feature_list and "tempo_avg" not in slate_df.columns:
+        slate_df["tempo_avg"] = (pd.to_numeric(slate_df["home_tempo_rating"], errors="coerce") + pd.to_numeric(slate_df["away_tempo_rating"], errors="coerce")) / 2.0
+    # Build X by selecting available columns (including newly merged team aggregates), imputing with medians
+    X = pd.DataFrame({f: slate_df.get(f) for f in feature_list})
     X = X.apply(pd.to_numeric, errors="coerce")
     for c in X.columns:
         if X[c].isna().any():
-            X[c] = X[c].fillna(X[c].median())
+            # Fill with median or 0 if all NaN
+            med = X[c].median()
+            if pd.isna(med):
+                med = 0.0
+            X[c] = X[c].fillna(med)
     try:
         pred_total = total_model.predict(X)
     except Exception:
