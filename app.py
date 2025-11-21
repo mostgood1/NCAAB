@@ -2918,6 +2918,34 @@ def index():
                             df["pred_margin"] = diff
                             if "pred_margin_basis" in df.columns:
                                 df["pred_margin_basis"] = df["pred_margin_basis"].where(df["pred_margin_basis"].notna(), "synthetic_rating_diff")
+            # Fallback 3b: if still missing pred_margin (no spread, no ratings), force even margin to enable projections
+            try:
+                if "pred_margin" in df.columns:
+                    remaining_pm_nan = df["pred_margin"].isna()
+                    if remaining_pm_nan.any():
+                        df.loc[remaining_pm_nan, "pred_margin"] = 0.0
+                        if "pred_margin_basis" not in df.columns:
+                            df["pred_margin_basis"] = None
+                        df.loc[remaining_pm_nan, "pred_margin_basis"] = df.loc[remaining_pm_nan, "pred_margin_basis"].where(df.loc[remaining_pm_nan, "pred_margin_basis"].notna(), "synthetic_even")
+                        pipeline_stats["pred_margin_even_fills"] = int(remaining_pm_nan.sum())
+            except Exception:
+                pass
+            # Projection population (unconditional): build proj_home/proj_away wherever both pred_total & pred_margin exist
+            try:
+                if {"pred_total","pred_margin"}.issubset(df.columns):
+                    pt_num = pd.to_numeric(df["pred_total"], errors="coerce")
+                    pm_num = pd.to_numeric(df["pred_margin"], errors="coerce")
+                    if "proj_home" not in df.columns:
+                        df["proj_home"] = np.nan
+                    if "proj_away" not in df.columns:
+                        df["proj_away"] = np.nan
+                    mask_proj = pt_num.notna() & pm_num.notna()
+                    df.loc[mask_proj, "proj_home"] = (pt_num[mask_proj] / 2.0) + (pm_num[mask_proj] / 2.0)
+                    df.loc[mask_proj, "proj_away"] = pt_num[mask_proj] - df.loc[mask_proj, "proj_home"]
+                    pipeline_stats["proj_home_rows"] = int(df["proj_home"].notna().sum())
+                    pipeline_stats["proj_away_rows"] = int(df["proj_away"].notna().sum())
+            except Exception:
+                pipeline_stats["proj_population_error"] = True
             # Instrument missing prediction counts
             try:
                 pipeline_stats["missing_pred_total_rows"] = int(df["pred_total"].isna().sum())
