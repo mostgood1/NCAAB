@@ -4551,6 +4551,172 @@ def index():
                         pipeline_stats['forced_game_insertion'] = pipeline_stats.get('forced_game_insertion', []) + [tgt]
             pipeline_stats['post_coverage_rows'] = int(len(df))
             pipeline_stats['post_coverage_unique_games'] = int(df['game_id'].nunique())
+            # Half prediction fallback derivation (1H/2H) from full-game projections if missing
+            try:
+                # We will create: pred_total_1h, pred_total_2h, pred_margin_1h, pred_margin_2h, proj_home_1h, proj_away_1h, proj_home_2h, proj_away_2h
+                have_full_total = 'pred_total' in df.columns
+                have_full_margin = 'pred_margin' in df.columns
+                # Market half totals/spreads (may exist)
+                mt1 = pd.to_numeric(df.get('market_total_1h'), errors='coerce') if 'market_total_1h' in df.columns else None
+                mt2 = pd.to_numeric(df.get('market_total_2h'), errors='coerce') if 'market_total_2h' in df.columns else None
+                sh1 = pd.to_numeric(df.get('spread_home_1h'), errors='coerce') if 'spread_home_1h' in df.columns else None
+                sh2 = pd.to_numeric(df.get('spread_home_2h'), errors='coerce') if 'spread_home_2h' in df.columns else None
+                pt_full = pd.to_numeric(df['pred_total'], errors='coerce') if have_full_total else pd.Series([np.nan]*len(df))
+                pm_full = pd.to_numeric(df['pred_margin'], errors='coerce') if have_full_margin else pd.Series([np.nan]*len(df))
+                # Factors: first half scoring tends to be slightly lower; use 0.465 of total as baseline (empirical NCAA median ≈ 46-47%).
+                HALF_TOTAL_FACTOR = 0.465
+                # Margin often scales roughly linearly; use 0.48 for first half margin expectation.
+                HALF_MARGIN_FACTOR = 0.48
+                # Build first half total prediction
+                if 'pred_total_1h' not in df.columns or df['pred_total_1h'].isna().all():
+                    pred_total_1h = []
+                    basis_1h = []
+                    for i in range(len(df)):
+                        base = pt_full.iloc[i]
+                        if not pd.isna(base):
+                            val1 = base * HALF_TOTAL_FACTOR
+                            # If market 1H total present, minor blend (70% model-derived, 30% market) to anchor extreme cases
+                            if mt1 is not None and not pd.isna(mt1.iloc[i]):
+                                val1 = 0.70 * val1 + 0.30 * float(mt1.iloc[i])
+                                basis_1h.append('blend_model_market')
+                            else:
+                                basis_1h.append('derived_full')
+                            pred_total_1h.append(float(np.clip(val1, 20, base - 10)) if not pd.isna(base) else np.nan)
+                        else:
+                            # fallback from market if full model missing
+                            if mt1 is not None and not pd.isna(mt1.iloc[i]):
+                                pred_total_1h.append(float(mt1.iloc[i]))
+                                basis_1h.append('market_copy')
+                            else:
+                                pred_total_1h.append(np.nan)
+                                basis_1h.append(None)
+                    df['pred_total_1h'] = pred_total_1h
+                    df['pred_total_1h_basis'] = basis_1h
+                # Second half total prediction: either model remainder or derived from first-half + adjustments
+                if 'pred_total_2h' not in df.columns or df['pred_total_2h'].isna().all():
+                    pred_total_2h = []
+                    basis_2h = []
+                    pt1 = pd.to_numeric(df.get('pred_total_1h'), errors='coerce')
+                    for i in range(len(df)):
+                        full = pt_full.iloc[i]
+                        first = pt1.iloc[i] if i < len(pt1) else np.nan
+                        if not pd.isna(full) and not pd.isna(first):
+                            remain = full - first
+                            # Blend with market 2H if present (if market total 2H known). Often absent pre-game.
+                            if mt2 is not None and not pd.isna(mt2.iloc[i]):
+                                val2 = 0.70 * remain + 0.30 * float(mt2.iloc[i])
+                                basis_2h.append('blend_model_market')
+                            else:
+                                val2 = remain
+                                basis_2h.append('derived_remainder')
+                            pred_total_2h.append(float(np.clip(val2, 20, full - 15)) if not pd.isna(val2) else np.nan)
+                        else:
+                            if mt2 is not None and not pd.isna(mt2.iloc[i]):
+                                pred_total_2h.append(float(mt2.iloc[i]))
+                                basis_2h.append('market_copy')
+                            else:
+                                pred_total_2h.append(np.nan)
+                                basis_2h.append(None)
+                    df['pred_total_2h'] = pred_total_2h
+                    df['pred_total_2h_basis'] = basis_2h
+                # Half margins
+                if 'pred_margin_1h' not in df.columns or df['pred_margin_1h'].isna().all():
+                    pm1_vals = []
+                    pm1_basis = []
+                    for i in range(len(df)):
+                        mfull = pm_full.iloc[i]
+                        if not pd.isna(mfull):
+                            valm = mfull * HALF_MARGIN_FACTOR
+                            if sh1 is not None and not pd.isna(sh1.iloc[i]):
+                                # Spread-based anchor: blend margin with negative half spread
+                                valm = 0.55 * valm + 0.45 * float(-sh1.iloc[i])
+                                pm1_basis.append('blend_model_spread')
+                            else:
+                                pm1_basis.append('derived_full')
+                            pm1_vals.append(float(np.clip(valm, -40, 40)))
+                        else:
+                            if sh1 is not None and not pd.isna(sh1.iloc[i]):
+                                pm1_vals.append(float(-sh1.iloc[i]))
+                                pm1_basis.append('spread_copy')
+                            else:
+                                pm1_vals.append(0.0)
+                                pm1_basis.append('even')
+                    df['pred_margin_1h'] = pm1_vals
+                    df['pred_margin_1h_basis'] = pm1_basis
+                if 'pred_margin_2h' not in df.columns or df['pred_margin_2h'].isna().all():
+                    pm2_vals = []
+                    pm2_basis = []
+                    pm1_series = pd.to_numeric(df.get('pred_margin_1h'), errors='coerce')
+                    for i in range(len(df)):
+                        mfull = pm_full.iloc[i]
+                        m1 = pm1_series.iloc[i] if i < len(pm1_series) else np.nan
+                        if not pd.isna(mfull) and not pd.isna(m1):
+                            remain_m = mfull - m1
+                            if sh2 is not None and not pd.isna(sh2.iloc[i]):
+                                remain_m = 0.55 * remain_m + 0.45 * float(-sh2.iloc[i])
+                                pm2_basis.append('blend_model_spread')
+                            else:
+                                pm2_basis.append('derived_remainder')
+                            pm2_vals.append(float(np.clip(remain_m, -50, 50)))
+                        else:
+                            if sh2 is not None and not pd.isna(sh2.iloc[i]):
+                                pm2_vals.append(float(-sh2.iloc[i]))
+                                pm2_basis.append('spread_copy')
+                            else:
+                                pm2_vals.append(0.0)
+                                pm2_basis.append('even')
+                    df['pred_margin_2h'] = pm2_vals
+                    df['pred_margin_2h_basis'] = pm2_basis
+                # Team half projections from total + margin splits
+                if {'proj_home','proj_away','pred_total','pred_margin'}.issubset(df.columns):
+                    ph = pd.to_numeric(df['proj_home'], errors='coerce')
+                    pa = pd.to_numeric(df['proj_away'], errors='coerce')
+                    # Use ratio rather than simple constant factor for team halves preserving distribution
+                    if 'pred_total_1h' in df.columns and 'pred_total_2h' in df.columns:
+                        t1 = pd.to_numeric(df['pred_total_1h'], errors='coerce')
+                        t2 = pd.to_numeric(df['pred_total_2h'], errors='coerce')
+                        # Split team projections proportionally
+                        home_1h = []
+                        away_1h = []
+                        home_2h = []
+                        away_2h = []
+                        for i in range(len(df)):
+                            full_total = ph.iloc[i] + pa.iloc[i] if (i < len(ph) and i < len(pa) and not pd.isna(ph.iloc[i]) and not pd.isna(pa.iloc[i])) else np.nan
+                            first_total = t1.iloc[i]
+                            second_total = t2.iloc[i]
+                            if not pd.isna(full_total) and not pd.isna(first_total) and full_total > 0:
+                                ratio1 = max(min(first_total / full_total, 0.9), 0.1)
+                                ratio2 = max(min(second_total / full_total, 0.95), 0.05)
+                                # distribute proportionally preserving relative offensive ratio
+                                off_share_home = ph.iloc[i] / full_total if not pd.isna(ph.iloc[i]) and not pd.isna(full_total) and full_total > 0 else 0.5
+                                home_1h.append(off_share_home * first_total)
+                                away_1h.append((1 - off_share_home) * first_total)
+                                home_2h.append(off_share_home * second_total)
+                                away_2h.append((1 - off_share_home) * second_total)
+                            else:
+                                home_1h.append(np.nan)
+                                away_1h.append(np.nan)
+                                home_2h.append(np.nan)
+                                away_2h.append(np.nan)
+                        df['proj_home_1h'] = home_1h
+                        df['proj_away_1h'] = away_1h
+                        df['proj_home_2h'] = home_2h
+                        df['proj_away_2h'] = away_2h
+                # Instrumentation
+                if 'pred_total_1h' in df.columns:
+                    pipeline_stats['pred_total_1h_rows'] = int(df['pred_total_1h'].notna().sum())
+                if 'pred_total_2h' in df.columns:
+                    pipeline_stats['pred_total_2h_rows'] = int(df['pred_total_2h'].notna().sum())
+                if 'pred_margin_1h' in df.columns:
+                    pipeline_stats['pred_margin_1h_rows'] = int(df['pred_margin_1h'].notna().sum())
+                if 'pred_margin_2h' in df.columns:
+                    pipeline_stats['pred_margin_2h_rows'] = int(df['pred_margin_2h'].notna().sum())
+                if 'proj_home_1h' in df.columns:
+                    pipeline_stats['proj_home_1h_rows'] = int(df['proj_home_1h'].notna().sum())
+                if 'proj_away_1h' in df.columns:
+                    pipeline_stats['proj_away_1h_rows'] = int(df['proj_away_1h'].notna().sum())
+            except Exception:
+                pipeline_stats['half_pred_error'] = True
             # Second-pass synthetic + margin fill after coverage filtering: some earlier synthetic fills
             # may have been dropped if those games were excluded. Re-fill remaining NaNs so exports
             # reflect predictions for all covered games.
