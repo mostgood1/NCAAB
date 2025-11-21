@@ -5443,6 +5443,70 @@ def index():
                 except Exception:
                     export_date = None
         if export_date and not df.empty and (export_flag or diag_enabled or bool(date_q)):
+            # Final defensive fill pass: ensure no remaining NaNs before export (coverage + adjustments may have introduced new rows).
+            try:
+                def _finalize_predictions_frame(_df: pd.DataFrame) -> pd.DataFrame:
+                    # Fill pred_total
+                    if 'pred_total' in _df.columns:
+                        pt_ser = pd.to_numeric(_df['pred_total'], errors='coerce')
+                        mt_ser = pd.to_numeric(_df.get('market_total'), errors='coerce') if 'market_total' in _df.columns else pd.Series([np.nan]*len(_df))
+                        ht = pd.to_numeric(_df.get('home_tempo_rating'), errors='coerce') if 'home_tempo_rating' in _df.columns else pd.Series([np.nan]*len(_df))
+                        at = pd.to_numeric(_df.get('away_tempo_rating'), errors='coerce') if 'away_tempo_rating' in _df.columns else pd.Series([np.nan]*len(_df))
+                        tempo_avg = np.where(ht.notna() & at.notna(), (ht+at)/2.0, np.nan)
+                        import zlib
+                        missing_mask = pt_ser.isna()
+                        if missing_mask.any():
+                            for ridx in _df.index[missing_mask]:
+                                h = _df.at[ridx,'home_team'] if 'home_team' in _df.columns else ''
+                                a = _df.at[ridx,'away_team'] if 'away_team' in _df.columns else ''
+                                try:
+                                    noise = (((zlib.adler32(f"{h}::{a}".encode()) % 1000)/1000.0) - 0.5) * 3.5
+                                except Exception:
+                                    noise = 0.0
+                                baseline = 141.5
+                                tval = tempo_avg[ridx] if not (isinstance(tempo_avg, float) or pd.isna(tempo_avg[ridx])) else np.nan
+                                tempo_comp = ((tval - 70.0) * 0.6) if not pd.isna(tval) else 0.0
+                                mt_val = mt_ser[ridx] if ridx in mt_ser.index and not pd.isna(mt_ser[ridx]) else np.nan
+                                if not pd.isna(mt_val):
+                                    valf = 0.50*baseline + 0.35*float(mt_val) + 0.15*(baseline + tempo_comp) + noise
+                                else:
+                                    valf = baseline + tempo_comp + noise
+                                valf = float(np.clip(valf, 60, 194))
+                                _df.at[ridx,'pred_total'] = valf
+                                if 'pred_total_basis' in _df.columns and pd.isna(_df.at[ridx,'pred_total_basis']):
+                                    _df.at[ridx,'pred_total_basis'] = 'synthetic_final'
+                                elif 'pred_total_basis' not in _df.columns:
+                                    _df.loc[ridx,'pred_total_basis'] = 'synthetic_final'
+                    # Fill pred_margin
+                    if 'pred_margin' in _df.columns:
+                        pm_ser = pd.to_numeric(_df['pred_margin'], errors='coerce')
+                        miss_pm = pm_ser.isna()
+                        if miss_pm.any():
+                            spread_ser = pd.to_numeric(_df.get('spread_home'), errors='coerce') if 'spread_home' in _df.columns else pd.Series([np.nan]*len(_df))
+                            # spread-based first
+                            can_spread = miss_pm & spread_ser.notna()
+                            for ridx in _df.index[can_spread]:
+                                _df.at[ridx,'pred_margin'] = float(-spread_ser[ridx])
+                                if 'pred_margin_basis' in _df.columns and pd.isna(_df.at[ridx,'pred_margin_basis']):
+                                    _df.at[ridx,'pred_margin_basis'] = 'synthetic_spread_final'
+                                elif 'pred_margin_basis' not in _df.columns:
+                                    _df.loc[ridx,'pred_margin_basis'] = 'synthetic_spread_final'
+                            # even margin for remainder
+                            remaining = pd.to_numeric(_df['pred_margin'], errors='coerce').isna()
+                            for ridx in _df.index[remaining]:
+                                _df.at[ridx,'pred_margin'] = 0.0
+                                if 'pred_margin_basis' in _df.columns and pd.isna(_df.at[ridx,'pred_margin_basis']):
+                                    _df.at[ridx,'pred_margin_basis'] = 'synthetic_even_final2'
+                                elif 'pred_margin_basis' not in _df.columns:
+                                    _df.loc[ridx,'pred_margin_basis'] = 'synthetic_even_final2'
+                    return _df
+                before_missing_export = int(pd.to_numeric(df.get('pred_total'), errors='coerce').isna().sum()) if 'pred_total' in df.columns else None
+                df = _finalize_predictions_frame(df)
+                after_missing_export = int(pd.to_numeric(df.get('pred_total'), errors='coerce').isna().sum()) if 'pred_total' in df.columns else None
+                pipeline_stats['finalize_export_pred_total_missing_before'] = before_missing_export
+                pipeline_stats['finalize_export_pred_total_missing_after'] = after_missing_export
+            except Exception:
+                pipeline_stats['finalize_export_error'] = True
             cols_pref = [
                 "game_id","date","home_team","away_team","pred_total","pred_margin",
                 "pred_total_model","pred_margin_model","pred_total_calibrated","pred_margin_calibrated",
