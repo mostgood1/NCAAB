@@ -5391,6 +5391,16 @@ def index():
             ]
             keep = [c for c in cols_pref if c in df.columns]
             uni = df[keep].copy()
+            # Deduplicate: prefer rows with non-null predictions/margins
+            try:
+                uni['__pred_score'] = uni['pred_total'].notna().astype(int) + uni['pred_margin'].notna().astype(int)
+                uni = uni.sort_values(['__pred_score'], ascending=False).drop_duplicates(subset=['game_id'])
+                dropped_dupes = len(df[keep]) - len(uni)
+                if dropped_dupes > 0:
+                    pipeline_stats['unified_export_dupes_dropped'] = int(dropped_dupes)
+                uni = uni.drop(columns=['__pred_score'])
+            except Exception:
+                pass
             uni_path = OUT / f"predictions_unified_{export_date}.csv"
             try:
                 uni.to_csv(uni_path, index=False)
@@ -5402,6 +5412,13 @@ def index():
             try:
                 enrich_cols = [c for c in df.columns if c not in {"edge_total","edge_total_model","edge_closing","edge_closing_model","edge_margin_model"}]
                 enrich = df[enrich_cols].copy()
+                # Deduplicate enriched similarly
+                try:
+                    enrich['__pred_score'] = enrich.get('pred_total').notna().astype(int) + enrich.get('pred_margin').notna().astype(int)
+                    enrich = enrich.sort_values(['__pred_score'], ascending=False).drop_duplicates(subset=['game_id'])
+                    enrich = enrich.drop(columns=['__pred_score'])
+                except Exception:
+                    pass
                 enrich_path = OUT / f"predictions_enriched_{export_date}.csv"
                 enrich.to_csv(enrich_path, index=False)
                 pipeline_stats["enriched_export_path"] = str(enrich_path)
@@ -5541,10 +5558,25 @@ def api_diag():
     sample_rows: list[dict[str, Any]] = []
     try:
         if not preds.empty:
+            # Deduplicate again in case enriched/unified not yet deduped for this date
+            try:
+                preds['__pred_score'] = preds.get('pred_total').notna().astype(int) + preds.get('pred_margin').notna().astype(int)
+                preds = preds.sort_values(['__pred_score'], ascending=False).drop_duplicates(subset=['game_id'])
+                preds = preds.drop(columns=['__pred_score'])
+            except Exception:
+                pass
             keep = [c for c in ["game_id","date","pred_total","pred_total_basis","pred_margin","pred_margin_basis","market_total"] if c in preds.columns]
-            sample_rows = preds.head(8)[keep].to_dict(orient="records")
+            # Prefer showing filled prediction rows; if fewer than 8, pad with remaining
+            filled = preds[preds['pred_total'].notna() | preds['pred_margin'].notna()]
+            base_sample = filled.head(8)
+            if len(base_sample) < 8:
+                remaining = preds[~preds['game_id'].isin(base_sample['game_id'])].head(8 - len(base_sample))
+                base_sample = pd.concat([base_sample, remaining], ignore_index=True)
+            sample_rows = base_sample[keep].to_dict(orient="records")
     except Exception:
         sample_rows = []
+    missing_pred_rows = int((preds.get('pred_total').isna() & preds.get('pred_margin').isna()).sum()) if 'pred_total' in preds.columns and 'pred_margin' in preds.columns else None
+    filled_pred_rows = int(len(preds) - missing_pred_rows) if missing_pred_rows is not None else None
     global _LAST_PIPELINE_STATS, _PREDICTIONS_SOURCE_PATH
     out: dict[str, Any] = {
         "today": today_str,
@@ -5552,6 +5584,8 @@ def api_diag():
         "last_pipeline_stats": _LAST_PIPELINE_STATS,
         "predictions_rows": int(len(preds)) if not preds.empty else 0,
         "sample": sample_rows,
+        "pred_rows_filled": filled_pred_rows,
+        "pred_rows_missing": missing_pred_rows,
     }
     return jsonify(out)
 
