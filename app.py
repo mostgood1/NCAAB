@@ -5398,6 +5398,16 @@ def index():
                 pipeline_stats["unified_export_rows"] = int(len(uni))
             except Exception:
                 pipeline_stats["unified_export_error"] = "write_failed"
+            # Write enriched snapshot (full predictions with synthetic fills) for diagnostics
+            try:
+                enrich_cols = [c for c in df.columns if c not in {"edge_total","edge_total_model","edge_closing","edge_closing_model","edge_margin_model"}]
+                enrich = df[enrich_cols].copy()
+                enrich_path = OUT / f"predictions_enriched_{export_date}.csv"
+                enrich.to_csv(enrich_path, index=False)
+                pipeline_stats["enriched_export_path"] = str(enrich_path)
+                pipeline_stats["enriched_export_rows"] = int(len(enrich))
+            except Exception:
+                pipeline_stats["enriched_export_error"] = "write_failed"
     except Exception:
         pass
 
@@ -5513,8 +5523,21 @@ def api_diag():
         today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
-    # Live shallow loads (avoid heavy enrichment)
-    preds = _load_predictions_current()
+    # Prefer enriched/unified exports if present for more representative sample
+    preds = pd.DataFrame()
+    try:
+        if today_str:
+            enrich_path = OUT / f"predictions_enriched_{today_str}.csv"
+            if enrich_path.exists():
+                preds = pd.read_csv(enrich_path)
+        if preds.empty and today_str:
+            uni_path = OUT / f"predictions_unified_{today_str}.csv"
+            if uni_path.exists():
+                preds = pd.read_csv(uni_path)
+        if preds.empty:
+            preds = _load_predictions_current()
+    except Exception:
+        preds = _load_predictions_current()
     sample_rows: list[dict[str, Any]] = []
     try:
         if not preds.empty:
