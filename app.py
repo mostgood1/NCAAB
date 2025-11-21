@@ -2734,10 +2734,19 @@ def index():
             mt_series = pd.to_numeric(df.get("market_total"), errors="coerce") if "market_total" in df.columns else None
             pm_series = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else None
             missing_pred = df["pred_total"].isna()
+            # If market_total column itself missing, create it from closing_total or leave None so downstream logic can still inspect.
+            if mt_series is None:
+                if "closing_total" in df.columns:
+                    df["market_total"] = pd.to_numeric(df["closing_total"], errors="coerce")
+                else:
+                    df["market_total"] = np.nan
+                mt_series = pd.to_numeric(df.get("market_total"), errors="coerce")
+            # If entire market_total is NaN, we'll still attempt a tempo-based synthetic baseline.
+            all_market_nan = mt_series.isna().all() if mt_series is not None else True
             # Fallback 1 (revised): synthetic baseline when pred_total missing.
             # Older behavior copied market_total verbatim, collapsing edge variance.
             # New: blend league average, optional tempo, partial market anchor, deterministic noise.
-            if mt_series is not None and missing_pred.any():
+            if missing_pred.any():
                 can_fill = missing_pred & mt_series.notna()
                 if can_fill.any():
                     import zlib
@@ -2779,6 +2788,42 @@ def index():
                             df.at[idx, "pred_total_basis"] = "synthetic_baseline"
                         elif "pred_total_basis" not in df.columns:
                             df.loc[idx, "pred_total_basis"] = "synthetic_baseline"
+                # Secondary path: fill rows where market_total is NaN (or entire column NaN) using pure league avg + tempo/noise.
+                if (all_market_nan or (missing_pred & mt_series.isna()).any()):
+                    import zlib
+                    baseline_league_avg = 141.5
+                    if {"home_tempo_rating","away_tempo_rating"}.issubset(df.columns):
+                        ht = pd.to_numeric(df.get("home_tempo_rating"), errors="coerce")
+                        at = pd.to_numeric(df.get("away_tempo_rating"), errors="coerce")
+                        tempo_avg_series = np.where(ht.notna() & at.notna(), (ht+at)/2.0, np.nan)
+                    else:
+                        tempo_avg_series = np.full(len(df), np.nan)
+                    def _stable_noise2(home, away):
+                        try:
+                            key = f"{str(home)}::{str(away)}"
+                            code = zlib.adler32(key.encode())
+                            return ((code % 1000)/1000.0 - 0.5) * 5.0
+                        except Exception:
+                            return 0.0
+                    can_fill2 = missing_pred & df["pred_total"].isna()
+                    for idx in df.index[can_fill2]:
+                        h = df.at[idx, "home_team"] if "home_team" in df.columns else ""
+                        a = df.at[idx, "away_team"] if "away_team" in df.columns else ""
+                        noise = _stable_noise2(h, a)
+                        tempo_avg = tempo_avg_series[idx] if not (isinstance(tempo_avg_series, float) or pd.isna(tempo_avg_series[idx])) else np.nan
+                        tempo_component = ((tempo_avg - 70.0) * 0.65) if (not pd.isna(tempo_avg)) else 0.0
+                        val = baseline_league_avg + tempo_component + noise
+                        val = float(np.clip(val, 60, 192))
+                        df.at[idx, "pred_total"] = val
+                        try:
+                            pipeline_stats.setdefault("synthetic_baseline_fills_no_market", 0)
+                            pipeline_stats["synthetic_baseline_fills_no_market"] += 1
+                        except Exception:
+                            pass
+                        if "pred_total_basis" in df.columns and pd.isna(df.at[idx, "pred_total_basis"]):
+                            df.at[idx, "pred_total_basis"] = "synthetic_baseline_nomkt"
+                        elif "pred_total_basis" not in df.columns:
+                            df.loc[idx, "pred_total_basis"] = "synthetic_baseline_nomkt"
             # Fallback 2: derive team projections if absent using pred_total & pred_margin
             if {"pred_total","pred_margin"}.issubset(df.columns):
                 pt = pd.to_numeric(df["pred_total"], errors="coerce")
@@ -2795,6 +2840,34 @@ def index():
                 # Mark adjusted flag when basis is copied from market (for template optional badge)
                 if "pred_total_basis" in df.columns:
                     df["pred_total_adjusted"] = np.where(df["pred_total_basis"].isin(["market_copy","blended_low"]), True, df.get("pred_total_adjusted"))
+            # Fallback 3: create pred_margin from spread or rating differentials if entirely missing
+            if "pred_margin" in df.columns and df["pred_margin"].isna().all():
+                spread_src = None
+                for cand in ["spread_home","closing_spread_home"]:
+                    if cand in df.columns:
+                        spread_src = pd.to_numeric(df[cand], errors="coerce")
+                        break
+                if spread_src is not None and spread_src.notna().any():
+                    df["pred_margin"] = spread_src.map(lambda x: -x if pd.notna(x) else x)
+                    df["pred_margin_basis"] = df.get("pred_margin_basis")
+                    if "pred_margin_basis" in df.columns:
+                        df["pred_margin_basis"] = df["pred_margin_basis"].where(df["pred_margin_basis"].notna(), "synthetic_from_spread")
+                else:
+                    # Rating differential approach (offensive/defensive or power ratings)
+                    if {"home_rtg","away_rtg"}.issubset(df.columns):
+                        hr = pd.to_numeric(df["home_rtg"], errors="coerce")
+                        ar = pd.to_numeric(df["away_rtg"], errors="coerce")
+                        diff = hr - ar
+                        if diff.notna().any():
+                            df["pred_margin"] = diff
+                            if "pred_margin_basis" in df.columns:
+                                df["pred_margin_basis"] = df["pred_margin_basis"].where(df["pred_margin_basis"].notna(), "synthetic_rating_diff")
+            # Instrument missing prediction counts
+            try:
+                pipeline_stats["missing_pred_total_rows"] = int(df["pred_total"].isna().sum())
+                pipeline_stats["missing_pred_margin_rows"] = int(df["pred_margin"].isna().sum())
+            except Exception:
+                pass
             # Synthetic line fallback: if market_total still missing, populate from pred_total or derived_total
             try:
                 if "market_total" in df.columns:
