@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from typing import Any, Iterable
 
 # Feature fallback utility (rolling averages) ----------------------------------------------------
@@ -248,6 +249,67 @@ def _load_predictions_current() -> pd.DataFrame:
         today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
+    # Auto-generate today's predictions file if missing by promoting model outputs or synthesizing from games.
+    try:
+        if today_str:
+            today_pred = OUT / f"predictions_{today_str}.csv"
+            if not today_pred.exists():
+                model_cal = OUT / f"predictions_model_calibrated_{today_str}.csv"
+                model_raw = OUT / f"predictions_model_{today_str}.csv"
+                src_path = None
+                if model_cal.exists():
+                    src_path = model_cal
+                elif model_raw.exists():
+                    src_path = model_raw
+                if src_path is not None:
+                    try:
+                        mdf = pd.read_csv(src_path)
+                        if not mdf.empty and 'game_id' in mdf.columns:
+                            # Detect prediction columns
+                            pt_col = next((c for c in mdf.columns if c.startswith('pred_total')), None)
+                            pm_col = next((c for c in mdf.columns if c.startswith('pred_margin')), None)
+                            out_cols = ['game_id']
+                            if 'date' in mdf.columns:
+                                out_cols.append('date')
+                            build = pd.DataFrame({'game_id': mdf['game_id'].astype(str)})
+                            if 'date' in mdf.columns:
+                                build['date'] = mdf['date']
+                            if pt_col:
+                                build['pred_total'] = pd.to_numeric(mdf[pt_col], errors='coerce')
+                            if pm_col:
+                                build['pred_margin'] = pd.to_numeric(mdf[pm_col], errors='coerce')
+                            build['pred_total_basis'] = np.where(build.get('pred_total').notna(), 'model_v1', None)
+                            build['pred_margin_basis'] = np.where(build.get('pred_margin').notna(), 'model_v1', None)
+                            try:
+                                build.to_csv(today_pred, index=False)
+                                logger.warning("Generated missing predictions file from model source: %s -> %s (rows=%s)", src_path, today_pred, len(build))
+                            except Exception as e:
+                                logger.error("Failed writing promoted predictions file %s: %s", today_pred, e)
+                    except Exception as e:
+                        logger.error("Failed promoting model predictions to predictions_<date>.csv: %s", e)
+                # If still missing create synthetic shell from games_curr.csv for later fallback enrichment
+                if not today_pred.exists():
+                    games_curr = OUT / 'games_curr.csv'
+                    try:
+                        if games_curr.exists():
+                            gdf = pd.read_csv(games_curr)
+                            if 'date' in gdf.columns:
+                                gdf['date'] = pd.to_datetime(gdf['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                gdf = gdf[gdf['date'] == today_str]
+                            cols = [c for c in ['game_id','date','home_team','away_team'] if c in gdf.columns]
+                            shell = gdf[cols].copy()
+                            if 'game_id' in shell.columns:
+                                shell['game_id'] = shell['game_id'].astype(str)
+                            shell['pred_total'] = np.nan
+                            shell['pred_margin'] = np.nan
+                            shell['pred_total_basis'] = None
+                            shell['pred_margin_basis'] = None
+                            shell.to_csv(today_pred, index=False)
+                            logger.warning("Created synthetic shell predictions file (no model) at %s (rows=%s)", today_pred, len(shell))
+                    except Exception as e:
+                        logger.error("Failed generating synthetic shell predictions file: %s", e)
+    except Exception:
+        pass
     candidates: list[Path] = []
     # 1) Explicit env override
     if env_path:
