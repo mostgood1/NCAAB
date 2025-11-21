@@ -193,13 +193,17 @@
             {# Calibrated/raw/adjustment badges with interactive toggle #}
             {% set is_cal = r.pred_total_basis in ['model_calibrated','model_calibrated_bias'] %}
             {% set is_raw = r.pred_total_basis in ['model_raw','model'] %}
-            <div class="pill">Total: {{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}
+            {% set _pt = r.pred_total %}
+            {% set _pt_valid = (_pt is not none and _pt == _pt) %} {# treat NaN as invalid (NaN != NaN) #}
+            {% set _mt = r.market_total if (r.market_total is defined) else None %}
+            {% set _mt_valid = (_mt is not none and _mt == _mt) %}
+            <div class="pill">Total: {{ '%.1f' % _pt if _pt_valid else ( '%.1f' % _mt if _mt_valid else '–') }}
               {# Existing calibrated/raw indicator remains #}
               {% if is_cal %}<span class="badge cal" title="Calibrated (scaled & distribution-aligned)">Cal</span>{% endif %}
               {% if is_raw and not is_cal %}<span class="badge raw" title="Raw model prediction">Raw</span>{% endif %}
               {% if r.pred_total_adjusted %}<span class="badge adj" title="Low-total blend adjustment applied">Adj</span>{% endif %}
-              {% if r.pred_total_model_raw is defined and r.pred_total_model_raw is not none and is_cal %}
-                <span class="badge toggle-raw" data-raw="{{ '%.1f' % r.pred_total_model_raw }}" data-cal="{{ '%.1f' % r.pred_total }}" onclick="toggleRaw(this)" title="Click to toggle raw vs calibrated">↔</span>
+              {% if r.pred_total_model_raw is defined and r.pred_total_model_raw is not none and r.pred_total_model_raw == r.pred_total_model_raw and is_cal and _pt_valid %}
+                <span class="badge toggle-raw" data-raw="{{ '%.1f' % r.pred_total_model_raw }}" data-cal="{{ '%.1f' % _pt }}" onclick="toggleRaw(this)" title="Click to toggle raw vs calibrated">↔</span>
               {% endif %}
               {# New basis micro-badge summarizing the origin of the total prediction #}
               {% set tb = r.pred_total_basis %}

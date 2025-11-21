@@ -2745,6 +2745,25 @@ def index():
             pm_series = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else None
             missing_pred = df["pred_total"].isna()
             pipeline_stats["missing_pred_total_rows_initial"] = int(missing_pred.sum())
+            # Instrumentation: capture column presence and a small sample of missing prediction rows pre-fill
+            try:
+                cols_needed = [
+                    "market_total","home_tempo_rating","away_tempo_rating","home_rtg","away_rtg",
+                    "spread_home","closing_spread_home","home_team","away_team","pred_margin","closing_total"
+                ]
+                pipeline_stats["pred_pipeline_columns_present"] = [c for c in cols_needed if c in df.columns]
+                pipeline_stats["pred_total_missing_initial"] = int(missing_pred.sum())
+                if missing_pred.any():
+                    sample_cols = [
+                        "home_team","away_team","market_total","closing_total","pred_total","pred_total_basis",
+                        "home_tempo_rating","away_tempo_rating","home_rtg","away_rtg","spread_home","pred_margin"
+                    ]
+                    sample_view_cols = [c for c in sample_cols if c in df.columns]
+                    pipeline_stats["pred_total_missing_sample"] = (
+                        df.loc[missing_pred, sample_view_cols].head(5).to_dict(orient="records")
+                    )
+            except Exception:
+                pass
             # If market_total column itself missing, create it from closing_total or leave None so downstream logic can still inspect.
             if mt_series is None:
                 if "closing_total" in df.columns:
@@ -2835,6 +2854,21 @@ def index():
                             df.at[idx, "pred_total_basis"] = "synthetic_baseline_nomkt"
                         elif "pred_total_basis" not in df.columns:
                             df.loc[idx, "pred_total_basis"] = "synthetic_baseline_nomkt"
+            # Post synthetic fill instrumentation
+            try:
+                post_missing = df["pred_total"].isna()
+                pipeline_stats["pred_total_missing_post_fill"] = int(post_missing.sum())
+                if (pipeline_stats.get("synthetic_baseline_fills", 0) + pipeline_stats.get("synthetic_baseline_fills_no_market", 0)) > 0:
+                    sample_cols2 = [
+                        "home_team","away_team","market_total","pred_total","pred_total_basis",
+                        "home_tempo_rating","away_tempo_rating","home_rtg","away_rtg","spread_home","pred_margin"
+                    ]
+                    view_cols2 = [c for c in sample_cols2 if c in df.columns]
+                    pipeline_stats["pred_total_filled_sample"] = (
+                        df.loc[~post_missing, view_cols2].head(5).to_dict(orient="records")
+                    )
+            except Exception:
+                pass
             # Fallback 2: derive team projections if absent using pred_total & pred_margin
             if {"pred_total","pred_margin"}.issubset(df.columns):
                 pt = pd.to_numeric(df["pred_total"], errors="coerce")
@@ -4002,6 +4036,10 @@ def index():
                         'adjusted_rows': int(df.get('pred_total_adjusted', pd.Series(dtype=int)).sum() if 'pred_total_adjusted' in df.columns else 0)
                     }
                     pipeline_stats['pred_total_head_final'] = final_pt.head(10).tolist()
+                    try:
+                        pipeline_stats['pred_total_missing_final'] = int(final_pt.isna().sum())
+                    except Exception:
+                        pass
                 except Exception:
                     pass
             # Compute projected team scores using adjusted pred_total
