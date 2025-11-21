@@ -2730,6 +2730,17 @@ def index():
     # Prediction fallback enrichment: ensure we rarely render a card with odds but no predictions.
     # Removes previous logic that hid odds when predictions were missing; instead we synthesize a baseline prediction.
     try:
+        # Ensure prediction columns always exist so fallback logic executes even when model merge failed entirely.
+        if "pred_total" not in df.columns:
+            df["pred_total"] = np.nan
+            pipeline_stats["pred_total_column_injected"] = True
+        else:
+            pipeline_stats["pred_total_column_injected"] = False
+        if "pred_margin" not in df.columns:
+            df["pred_margin"] = np.nan
+            pipeline_stats["pred_margin_column_injected"] = True
+        else:
+            pipeline_stats["pred_margin_column_injected"] = False
         if "pred_total" in df.columns:
             # Coerce textual placeholders ('nan','None','') to actual NaN before missing mask
             try:
