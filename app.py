@@ -2280,7 +2280,37 @@ def index():
     try:
         for cname in ("commence_time", "commence_time_g"):
             if cname in df.columns:
-                mapped = pd.to_datetime(df[cname], errors="coerce").dt.strftime("%Y-%m-%d %H:%M")
+                # Normalize commence_time to user's local timezone and standard display format
+                try:
+                    _local_tz = dt.datetime.now().astimezone().tzinfo
+                except Exception:
+                    _local_tz = None
+                try:
+                    # Parse as UTC to correctly handle 'Z' or offset inputs; treat naive as UTC as well
+                    raw_series = df[cname]
+                    s = pd.to_datetime(raw_series, utc=True, errors="coerce")
+                    # If any entries remained NaT, attempt second pass without forcing UTC then localize
+                    if s.isna().any():
+                        alt = pd.to_datetime(raw_series, errors="coerce")
+                        # Localize naive alt timestamps to UTC before convert
+                        if alt.notna().any():
+                            # Build result combining successes from alt where s failed
+                            fill_mask = s.isna() & alt.notna()
+                            # Assign tzinfo UTC to naive alt
+                            try:
+                                alt_localized = alt.map(lambda x: x.replace(tzinfo=dt.timezone.utc) if (pd.notna(x) and x.tzinfo is None) else x)
+                                s[fill_mask] = alt_localized[fill_mask]
+                            except Exception:
+                                s[fill_mask] = alt[fill_mask]
+                    if _local_tz is not None:
+                        s = s.dt.tz_convert(_local_tz)
+                    else:
+                        # Fallback: leave as UTC if local tz not determinable
+                        pass
+                    mapped = s.dt.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    # Fallback naive parse/format without tz conversion
+                    mapped = pd.to_datetime(df[cname], errors="coerce").dt.strftime("%Y-%m-%d %H:%M")
                 if "start_time" in df.columns:
                     df["start_time"] = df["start_time"].where(df["start_time"].notna(), mapped)
                 else:
@@ -2475,18 +2505,27 @@ def index():
             tz_mask = st_raw.str.contains(r'\+\d{2}:\d{2}')
             local_tz = dt.datetime.now().astimezone().tzinfo
             def _norm_start(v: str) -> str:
-                # Attempt UTC-aware parse first
+                # Attempt offset/UTC-aware parse first; convert to local
                 try:
-                    ts = pd.to_datetime(v, utc=True, errors='coerce')
+                    ts = pd.to_datetime(v, errors='coerce', utc=True)
                     if ts is not None and not pd.isna(ts):
-                        ts_local = ts.astimezone(local_tz)
-                        return ts_local.strftime('%Y-%m-%d %H:%M')
+                        return ts.astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
                 except Exception:
                     pass
-                # Fallback naive parse
+                # Fallback: naive parse interpreted as LOCAL (previously UTC leading to -offset shift)
                 try:
-                    ts2 = pd.to_datetime(v, errors='coerce')
+                    ts2 = pd.to_datetime(v, errors='coerce', utc=False)
                     if ts2 is not None and not pd.isna(ts2):
+                        if ts2.tzinfo is None:
+                            try:
+                                ts2 = ts2.replace(tzinfo=local_tz)
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                ts2 = ts2.astimezone(local_tz)
+                            except Exception:
+                                pass
                         return ts2.strftime('%Y-%m-%d %H:%M')
                 except Exception:
                     pass
@@ -2507,6 +2546,48 @@ def index():
                 if mmask.any():
                     pipeline_stats['marshall_start_time_raw'] = st_raw[mmask].iloc[0]
                     pipeline_stats['marshall_start_time_final'] = df['start_time'][mmask].iloc[0]
+    except Exception:
+        pass
+
+    # Final cleanup: drop placeholder TBD games, re-filter by date using localized start_time, and deduplicate
+    try:
+        if not df.empty:
+            # Drop rows where teams are placeholders (TBD/Unknown)
+            bads = {"tbd", "unknown", "na", "n/a", ""}
+            def _is_bad(x):
+                try:
+                    return str(x).strip().lower() in bads
+                except Exception:
+                    return True
+            if {"home_team","away_team"}.issubset(df.columns):
+                mask_bad = df["home_team"].map(_is_bad) | df["away_team"].map(_is_bad)
+                if mask_bad.any():
+                    pipeline_stats["dropped_tbd_rows"] = int(mask_bad.sum())
+                    df = df[~mask_bad].copy()
+            # If date_q provided, ensure rows align by either explicit date or start_time's date (post-localization)
+            if date_q:
+                try:
+                    ok = pd.Series([True]*len(df))
+                    if "date" in df.columns:
+                        ok = ok & (df["date"].astype(str) == str(date_q))
+                    if "start_time" in df.columns:
+                        st_date = pd.to_datetime(df["start_time"], errors="coerce").dt.strftime("%Y-%m-%d")
+                        ok = ok | (st_date == str(date_q))
+                    before = len(df)
+                    df = df[ok].copy()
+                    pipeline_stats["post_time_date_filter_dropped"] = int(before - len(df))
+                except Exception:
+                    pass
+            # Deduplicate by game_id when present, else by teams+start_time
+            try:
+                before = len(df)
+                if "game_id" in df.columns:
+                    df = df.drop_duplicates(subset=["game_id"], keep="last")
+                elif {"home_team","away_team","start_time"}.issubset(df.columns):
+                    df = df.drop_duplicates(subset=["home_team","away_team","start_time"], keep="last")
+                pipeline_stats["post_cleanup_dedup_dropped"] = int(before - len(df))
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -4182,26 +4263,43 @@ def index():
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
         except Exception:
             pass
-    # Accept start_time as either datetime or string; parse robustly with controlled formats to avoid inference warnings
+    # Accept start_time as either datetime or string; parse robustly.
+    # Revised: Treat naive timestamps as LOCAL timezone (previously assumed UTC causing double offset subtraction).
     if "start_time" in df.columns:
         try:
-            st_series = df["start_time"].astype(str).str.strip()
-            # Normalize common patterns: 'YYYY-MM-DD HH:MM:SS+00:00' or 'YYYY-MM-DD HH:MM'
-            st_series = st_series.str.replace("Z", "+00:00", regex=False)
-            # If a time is present but no timezone, assume UTC and append +00:00
+            st_series_orig = df["start_time"].astype(str).str.strip()
+            st_series = st_series_orig.str.replace("Z", "+00:00", regex=False)
             has_time = st_series.str.contains(r"\d{1,2}:\d{2}", regex=True)
-            needs_tz = has_time & ~st_series.str.contains("[+-][0-9]{2}:[0-9]{2}$", regex=True)
-            st_series = st_series.where(~needs_tz, st_series + "+00:00")
-            df["_start_dt"] = pd.to_datetime(st_series, errors="coerce", utc=True)
-            # If parsing failed for rows with a time component, try stripping seconds or rebuilding ISO
+            has_offset = st_series.str.contains(r"[+-]\d{2}:\d{2}$", regex=True) | st_series.str.endswith("Z")
+            local_tz = dt.datetime.now().astimezone().tzinfo
+            # Parse offset-aware values as UTC then convert to UTC tzinfo; naive values localized to system tz directly.
+            parsed = pd.to_datetime(st_series.where(has_offset, None), errors="coerce", utc=True)
+            naive_part = pd.to_datetime(st_series.where(~has_offset, None), errors="coerce", utc=False)
+            # Localize naive part
+            if naive_part.notna().any():
+                # Attach local tz (interpret given clock time as local)
+                naive_part = naive_part.map(lambda x: x.replace(tzinfo=local_tz) if pd.notna(x) else x)
+            # Combine
+            combined = parsed.where(parsed.notna(), naive_part)
+            df["_start_dt"] = combined
+            # Fallback reparsing for failures with time component
             if "_start_dt" in df.columns:
                 mask_fail = df["_start_dt"].isna() & has_time
                 if mask_fail.any():
                     raw = st_series[mask_fail]
-                    # Remove seconds if present
                     raw2 = raw.str.replace(r":(\d{2})(?::\d{2})?", r":\1", regex=True)
-                    reparsed = pd.to_datetime(raw2, errors="coerce", utc=True)
-                    df.loc[mask_fail & reparsed.notna(), "_start_dt"] = reparsed[reparsed.notna()]
+                    reparsed_offset = pd.to_datetime(raw2.where(has_offset[mask_fail], None), errors="coerce", utc=True)
+                    reparsed_naive = pd.to_datetime(raw2.where(~has_offset[mask_fail], None), errors="coerce", utc=False)
+                    if reparsed_naive.notna().any():
+                        reparsed_naive = reparsed_naive.map(lambda x: x.replace(tzinfo=local_tz) if pd.notna(x) else x)
+                    reparsed_combined = reparsed_offset.where(reparsed_offset.notna(), reparsed_naive)
+                    df.loc[mask_fail & reparsed_combined.notna(), "_start_dt"] = reparsed_combined[reparsed_combined.notna()]
+            # Parse mode instrumentation
+            parse_mode = np.where(df["_start_dt"].isna(), "fail", np.where(has_offset, "offset", np.where(has_time, "naive_local", "date_only")))
+            df["start_time_parse_mode"] = parse_mode
+            pipeline_stats["start_time_naive_local_count"] = int((parse_mode == "naive_local").sum())
+            pipeline_stats["start_time_offset_count"] = int((parse_mode == "offset").sum())
+            pipeline_stats["start_time_fail_count"] = int((parse_mode == "fail").sum())
         except Exception:
             df["_start_dt"] = pd.NaT
     if "_start_dt" in df.columns and df["_start_dt"].notna().any():
