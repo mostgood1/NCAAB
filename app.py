@@ -113,6 +113,73 @@ logger = logging.getLogger("ncaab_app")
 
 # Global diagnostic state variables
 _PREDICTIONS_SOURCE_PATH: str | None = None
+_MODEL_PREDICTIONS_SOURCE_PATH: str | None = None
+# Cache last in-request pipeline_stats for out-of-band diagnostics
+_LAST_PIPELINE_STATS: dict[str, Any] | None = None
+
+def ensure_runtime_artifacts() -> None:
+    """Best-effort bootstrap of minimal daily artifacts on cold start.
+
+    Creates today's `games_curr.csv` if absent by extracting rows from any games_*.csv
+    that contain today's date. Autogeneration of predictions_<date>.csv is handled inside
+    _load_predictions_current; we trigger that load once to make sure promotion/shell
+    creation runs early. Idempotent via sentinel file.
+    """
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    if not today_str:
+        return
+    sentinel = OUT / ".bootstrap_done"
+    if sentinel.exists():
+        return
+    try:
+        games_curr = OUT / "games_curr.csv"
+        need_games = True
+        if games_curr.exists():
+            try:
+                gdf = pd.read_csv(games_curr)
+                if not gdf.empty and "date" in gdf.columns and (gdf["date"].astype(str) == today_str).any():
+                    need_games = False
+            except Exception:
+                need_games = True
+        if need_games:
+            collected: list[pd.DataFrame] = []
+            for p in OUT.glob("games_*.csv"):
+                try:
+                    if p.name.startswith("games_curr"):  # skip accidental patterns
+                        continue
+                    df = pd.read_csv(p)
+                    if df.empty or "date" not in df.columns:
+                        continue
+                    mask = df["date"].astype(str) == today_str
+                    if mask.any():
+                        collected.append(df[mask].copy())
+                except Exception:
+                    continue
+            if collected:
+                merged = pd.concat(collected, ignore_index=True)
+                try:
+                    merged.to_csv(games_curr, index=False)
+                    logger.warning("Bootstrap wrote games_curr.csv for %s (rows=%s)", today_str, len(merged))
+                except Exception as e:
+                    logger.error("Bootstrap failed writing games_curr.csv: %s", e)
+            else:
+                logger.warning("Bootstrap found no games rows for %s; games_curr.csv remains absent or empty", today_str)
+        # Trigger predictions autogeneration logic (promotion/shell) once.
+        try:
+            _ = _load_predictions_current()
+        except Exception:
+            pass
+        try:
+            sentinel.write_text(f"bootstrapped {today_str}\n", encoding="utf-8")
+        except Exception:
+            pass
+    except Exception as e:
+        logger.error("ensure_runtime_artifacts error: %s", e)
+
+# (Deferred bootstrap invocation moved below prediction loader definition to avoid calling before function exists.)
 def _load_eval_metrics() -> dict[str, Any]:
     out: dict[str, Any] = {}
     # Calibration metrics
@@ -361,6 +428,12 @@ def _load_predictions_current() -> pd.DataFrame:
     logger.warning("No predictions file found or all empty in %s; proceeding without predictions", OUT)
     return pd.DataFrame()
 
+    
+    
+## End _load_predictions_current
+
+# Perform bootstrap now that _load_predictions_current is defined.
+ensure_runtime_artifacts()
 
 def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
     """Load model-only prediction outputs produced by inference harness.
@@ -5328,6 +5401,30 @@ def index():
     except Exception:
         pass
 
+    # Persist pipeline stats globally for /api/diag access
+    try:
+        global _LAST_PIPELINE_STATS
+        _LAST_PIPELINE_STATS = dict(pipeline_stats)
+    except Exception:
+        pass
+    # Summary log for remote quick glance
+    try:
+        if pipeline_stats.get("pred_total_missing_initial") is not None:
+            logger.info(
+                "fills summary date=%s missing_initial=%s post_fill=%s final_missing=%s synthetic_with_market=%s synthetic_no_market=%s even_margin=%s proj_home=%s proj_away=%s source=%s",
+                today_str,
+                pipeline_stats.get("pred_total_missing_initial"),
+                pipeline_stats.get("pred_total_missing_post_fill"),
+                pipeline_stats.get("pred_total_missing_final"),
+                pipeline_stats.get("synthetic_baseline_fills"),
+                pipeline_stats.get("synthetic_baseline_fills_no_market"),
+                pipeline_stats.get("pred_margin_even_fills"),
+                pipeline_stats.get("proj_home_rows"),
+                pipeline_stats.get("proj_away_rows"),
+                _PREDICTIONS_SOURCE_PATH,
+            )
+    except Exception:
+        pass
     return render_template(
         "index.html",
         rows=rows,
@@ -5403,6 +5500,36 @@ def api_render_diagnostics():
         out["preds_without_games"] = sorted(list(p_ids - g_ids))[:40]
     except Exception:
         pass
+    return jsonify(out)
+
+
+@app.route("/api/diag")
+def api_diag():
+    """Return last pipeline_stats snapshot plus live lightweight context.
+
+    Provides quick remote introspection without re-running full index synthesis.
+    """
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    # Live shallow loads (avoid heavy enrichment)
+    preds = _load_predictions_current()
+    sample_rows: list[dict[str, Any]] = []
+    try:
+        if not preds.empty:
+            keep = [c for c in ["game_id","date","pred_total","pred_total_basis","pred_margin","pred_margin_basis","market_total"] if c in preds.columns]
+            sample_rows = preds.head(8)[keep].to_dict(orient="records")
+    except Exception:
+        sample_rows = []
+    global _LAST_PIPELINE_STATS, _PREDICTIONS_SOURCE_PATH
+    out: dict[str, Any] = {
+        "today": today_str,
+        "predictions_source": _PREDICTIONS_SOURCE_PATH,
+        "last_pipeline_stats": _LAST_PIPELINE_STATS,
+        "predictions_rows": int(len(preds)) if not preds.empty else 0,
+        "sample": sample_rows,
+    }
     return jsonify(out)
 
 
