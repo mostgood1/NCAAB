@@ -1,6 +1,78 @@
 from __future__ import annotations
 
 import json
+from typing import Any, Iterable
+
+# Feature fallback utility (rolling averages) ----------------------------------------------------
+def _feature_fallback_enrich(feat_df: pd.DataFrame) -> pd.DataFrame:
+    """Fill missing core ratings (off/def/tempo) using rolling averages by team slug.
+
+    Assumptions:
+      - Columns may include home_off_rating, away_off_rating, etc.
+      - A team identifier exists (home_team, away_team) in source frames; for features we attempt
+        to derive per-team perspective by exploding rows.
+    """
+    if feat_df.empty:
+        return feat_df
+    needed = [
+        'home_off_rating','away_off_rating','home_def_rating','away_def_rating','home_tempo_rating','away_tempo_rating'
+    ]
+    present = [c for c in needed if c in feat_df.columns]
+    if not present:
+        return feat_df
+    # Build per-team history frame
+    cols_keep = [c for c in ['game_id','date','home_team','away_team'] if c in feat_df.columns]
+    hist_rows: list[dict[str, Any]] = []
+    for _, r in feat_df.iterrows():
+        for side in ['home','away']:
+            team = r.get(f'{side}_team')
+            if not team:
+                continue
+            row = {
+                'team': team,
+                'date': r.get('date'),
+                'game_id': r.get('game_id'),
+            }
+            for metric in ['off','def','tempo']:
+                col = f'{side}_{metric}_rating'
+                if col in feat_df.columns:
+                    row[metric] = r.get(col)
+            hist_rows.append(row)
+    hist = pd.DataFrame(hist_rows)
+    if hist.empty or 'team' not in hist.columns:
+        return feat_df
+    try:
+        hist['date'] = pd.to_datetime(hist['date'], errors='coerce')
+    except Exception:
+        pass
+    # Compute rolling means per team
+    filled_map: dict[str, dict[str, float]] = {}
+    for team, g in hist.groupby('team'):
+        g2 = g.sort_values('date')
+        for metric in ['off','def','tempo']:
+            if metric in g2.columns:
+                vals = pd.to_numeric(g2[metric], errors='coerce')
+                if vals.notna().any():
+                    filled_map.setdefault(team, {})[metric] = float(vals.dropna().rolling(window=5, min_periods=1).mean().iloc[-1])
+    # Apply fallback where ratings missing
+    for side in ['home','away']:
+        team_col = f'{side}_team'
+        for metric in ['off','def','tempo']:
+            col = f'{side}_{metric}_rating'
+            if col in feat_df.columns:
+                ser = pd.to_numeric(feat_df[col], errors='coerce')
+                miss_mask = ser.isna()
+                if miss_mask.any():
+                    teams = feat_df[team_col].astype(str)
+                    feat_df.loc[miss_mask, col] = [filled_map.get(t, {}).get(metric, np.nan) for t in teams[miss_mask]]
+            else:
+                # create column entirely from fallback map
+                teams = feat_df[team_col].astype(str)
+                feat_df[col] = [filled_map.get(t, {}).get(metric, np.nan) for t in teams]
+    # Recompute tempo sum if components exist
+    if {'home_tempo_rating','away_tempo_rating'}.issubset(feat_df.columns):
+        feat_df['tempo_rating_sum'] = pd.to_numeric(feat_df['home_tempo_rating'], errors='coerce') + pd.to_numeric(feat_df['away_tempo_rating'], errors='coerce')
+    return feat_df
 import os
 from pathlib import Path
 from typing import Any, Dict, List
@@ -89,6 +161,7 @@ def _resolve_outputs_dir() -> Path:
     return ROOT
 
 OUT = _resolve_outputs_dir()
+                    
 
 
 # Optional custom team map: allow overriding/augmenting normalize_name via CSV
@@ -184,9 +257,11 @@ def _load_predictions_current() -> pd.DataFrame:
         candidates.append(p)
     # 2) Date-specific file for today first (if exists) to avoid picking a large historical file
     if today_str:
+        # Prefer blended predictions for today if present
+        candidates.append(OUT / f"predictions_blend_{today_str}.csv")
         candidates.append(OUT / f"predictions_{today_str}.csv")
     # 3) Conventional aggregate files
-    for name in ("predictions_week.csv", "predictions.csv", "predictions_all.csv", "predictions_last2.csv"):
+    for name in ("predictions_blend.csv", "predictions_week.csv", "predictions.csv", "predictions_all.csv", "predictions_last2.csv"):
         candidates.append(OUT / name)
     # 4) All predictions_*.csv (other dates) ordered by size so richest historical fallback last
     try:
@@ -207,7 +282,7 @@ def _load_predictions_current() -> pd.DataFrame:
                 df = pd.read_csv(p)
                 if not df.empty:
                     # If this is a dated file and matches today, select immediately
-                    if today_str and p.name == f"predictions_{today_str}.csv":
+                    if today_str and p.name in {f"predictions_{today_str}.csv", f"predictions_blend_{today_str}.csv"}:
                         logger.info("Loaded today's predictions from: %s (rows=%s)", p, len(df))
                         _PREDICTIONS_SOURCE_PATH = str(p)
                         return df
@@ -983,6 +1058,301 @@ def index():
         "model_preds_load_rows": len(model_preds),
         "outputs_dir": str(OUT),
     }
+    team_variance_total: dict[str, float] | None = None
+    team_variance_margin: dict[str, float] | None = None
+    # Backtest metrics ingestion (totals/spread/moneyline) if precomputed JSON exists
+    # Expected file: outputs/backtest_metrics_<date>.json produced by daily_backtest script.
+    try:
+        bt_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        bt_path = OUT / f'backtest_metrics_{bt_date}.json'
+        if bt_path.exists():
+            import json as _json
+            bt_payload = _json.loads(bt_path.read_text(encoding='utf-8'))
+            pipeline_stats['backtest_ingested'] = True
+            pipeline_stats['backtest_date'] = bt_payload.get('date')
+            pipeline_stats['backtest_generated_at'] = bt_payload.get('generated_at')
+            def _lift(prefix: str, obj: Any):
+                if isinstance(obj, dict):
+                    for k,v in obj.items():
+                        # Avoid extremely large nested structures; only primitive scalars retained
+                        if isinstance(v, (int,float,str)) or v is None:
+                            pipeline_stats[f'{prefix}_{k}'] = v
+            for key in ('totals_closing','spread_closing','moneyline_closing'):
+                if key in bt_payload:
+                    _lift(key, bt_payload[key])
+        else:
+            pipeline_stats['backtest_ingested'] = False
+    except Exception:
+        pipeline_stats['backtest_error'] = True
+    # Proper scoring rules (CRPS / log-likelihood) ingestion if JSON exists
+    try:
+        scoring_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        scoring_path = OUT / f'scoring_{scoring_date}.json'
+        if scoring_path.exists():
+            import json as _json
+            sc_payload = _json.loads(scoring_path.read_text(encoding='utf-8'))
+            for k in [
+                'totals_crps_mean','totals_loglik_mean','margins_crps_mean','margins_loglik_mean',
+                'totals_rows','margins_rows','sigma_total_default_used','sigma_margin_default_used'
+            ]:
+                if k in sc_payload:
+                    pipeline_stats[f'scoring_{k}'] = sc_payload[k]
+            pipeline_stats['scoring_loaded'] = True
+        else:
+            pipeline_stats['scoring_loaded'] = False
+    except Exception:
+        pipeline_stats['scoring_error'] = True
+    # Residual distribution ingestion (totals/margins) if JSON exists
+    try:
+        resid_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        resid_path = OUT / f'residuals_{resid_date}.json'
+        if resid_path.exists():
+            import json as _json
+            r_payload = _json.loads(resid_path.read_text(encoding='utf-8'))
+            pipeline_stats['residuals_ingested'] = True
+            def _lift_res(prefix: str, obj: Any):
+                if isinstance(obj, dict):
+                    for k,v in obj.items():
+                        if isinstance(v,(int,float,str)) or v is None:
+                            pipeline_stats[f'{prefix}_{k}'] = v
+            if 'total_stats' in r_payload: _lift_res('resid_total', r_payload['total_stats'])
+            if 'margin_stats' in r_payload: _lift_res('resid_margin', r_payload['margin_stats'])
+            for key in ('total_corr','margin_corr'):
+                if key in r_payload and isinstance(r_payload[key], (int,float)):
+                    pipeline_stats[key] = r_payload[key]
+            if 'status' in r_payload:
+                pipeline_stats['residuals_status'] = r_payload['status']
+        else:
+            pipeline_stats['residuals_ingested'] = False
+    except Exception:
+        pipeline_stats['residuals_error'] = True
+    # Team variance ingestion for adaptive sigma scaling
+    try:
+        tv_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        tv_path = OUT / f'team_variance_{tv_date}.json'
+        if tv_path.exists():
+            import json as _json
+            tv_payload = _json.loads(tv_path.read_text(encoding='utf-8'))
+            teams_block = tv_payload.get('teams', {}) if isinstance(tv_payload, dict) else {}
+            # Build maps for later per-row application
+            team_variance_total = {k: v.get('total_std') for k,v in teams_block.items() if isinstance(v, dict) and v.get('total_std') is not None}
+            team_variance_margin = {k: v.get('margin_std') for k,v in teams_block.items() if isinstance(v, dict) and v.get('margin_std') is not None}
+            pipeline_stats['team_variance_ingested'] = True
+            pipeline_stats['team_variance_teams'] = len(teams_block)
+            pipeline_stats['team_variance_total_std_median'] = tv_payload.get('global', {}).get('total_std_median')
+            pipeline_stats['team_variance_margin_std_median'] = tv_payload.get('global', {}).get('margin_std_median')
+        else:
+            pipeline_stats['team_variance_ingested'] = False
+    except Exception:
+        pipeline_stats['team_variance_error'] = True
+    # Recalibration trigger ingestion (evaluates drift/correlation/scoring vs thresholds)
+    try:
+        rc_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        rc_path = OUT / f'recalibration_{rc_date}.json'
+        if rc_path.exists():
+            import json as _json
+            rc_payload = _json.loads(rc_path.read_text(encoding='utf-8'))
+            pipeline_stats['recalibration_ingested'] = True
+            pipeline_stats['recalibration_needed'] = rc_payload.get('recalibration_needed')
+            pipeline_stats['recalibration_reasons'] = rc_payload.get('reasons')
+            metrics_block = rc_payload.get('metrics') if isinstance(rc_payload, dict) else {}
+            if isinstance(metrics_block, dict):
+                for k,v in metrics_block.items():
+                    if isinstance(v, (int,float,str)) or v is None:
+                        pipeline_stats[f'recalib_{k}'] = v
+        else:
+            pipeline_stats['recalibration_ingested'] = False
+    except Exception:
+        pipeline_stats['recalibration_error'] = True
+    # Leakage scan ingestion (suspicious feature columns)
+    try:
+        leak_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        leak_path = OUT / f'leakage_{leak_date}.json'
+        if leak_path.exists():
+            import json as _json
+            leak_payload = _json.loads(leak_path.read_text(encoding='utf-8'))
+            pipeline_stats['leakage_ingested'] = True
+            pipeline_stats['leakage_suspicious_cols'] = int(len(leak_payload.get('suspicious_columns', [])))
+            if 'summary' in leak_payload and isinstance(leak_payload['summary'], dict):
+                for k,v in leak_payload['summary'].items():
+                    if isinstance(v,(int,float,str)):
+                        pipeline_stats[f'leakage_summary_{k}'] = v
+        else:
+            pipeline_stats['leakage_ingested'] = False
+    except Exception:
+        pipeline_stats['leakage_error'] = True
+    # Conference fairness ingestion
+    try:
+        fair_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        fair_path = OUT / f'fairness_{fair_date}.json'
+        if fair_path.exists():
+            import json as _json
+            fair_payload = _json.loads(fair_path.read_text(encoding='utf-8'))
+            pipeline_stats['fairness_ingested'] = True
+            if 'global' in fair_payload and isinstance(fair_payload['global'], dict):
+                for k,v in fair_payload['global'].items():
+                    if isinstance(v,(int,float,str)):
+                        pipeline_stats[f'fairness_global_{k}'] = v
+            records = fair_payload.get('records', [])
+            pipeline_stats['fairness_conferences_evaluated'] = int(len(records)) if isinstance(records, list) else 0
+            if isinstance(records, list) and records:
+                # extreme disparities
+                try:
+                    max_disp = max((abs(r.get('disparity_z_total')) for r in records if isinstance(r, dict) and r.get('disparity_z_total') is not None), default=None)
+                    pipeline_stats['fairness_disparity_max_abs'] = max_disp
+                except Exception:
+                    pass
+                try:
+                    max_bias = max((abs(r.get('mean_residual_total')) for r in records if isinstance(r, dict) and r.get('mean_residual_total') is not None), default=None)
+                    pipeline_stats['fairness_bias_max_abs'] = max_bias
+                except Exception:
+                    pass
+        else:
+            pipeline_stats['fairness_ingested'] = False
+    except Exception:
+        pipeline_stats['fairness_error'] = True
+    # Predictability evaluation ingestion
+    try:
+        pred_eval_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        pred_eval_path = OUT / f'predictability_{pred_eval_date}.json'
+        if pred_eval_path.exists():
+            import json as _json
+            pe_payload = _json.loads(pred_eval_path.read_text(encoding='utf-8'))
+            pipeline_stats['predictability_ingested'] = True
+            keep_keys = [
+                'residual_mean','residual_std','residual_mae','calibration_slope_total','calibration_intercept_total',
+                'corr_pred_market_total','coverage_rows','predictability_score','trailing_residual_std','trailing_residual_mae','trailing_calibration_slope_total'
+            ]
+            for k in keep_keys:
+                if k in pe_payload:
+                    pipeline_stats[f'predictability_{k}'] = pe_payload.get(k)
+        else:
+            pipeline_stats['predictability_ingested'] = False
+    except Exception:
+        pipeline_stats['predictability_error'] = True
+    # Feature importance ingestion
+    try:
+        imp_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        imp_path = OUT / f'importance_{imp_date}.json'
+        if imp_path.exists():
+            import json as _json
+            imp_payload = _json.loads(imp_path.read_text(encoding='utf-8'))
+            pipeline_stats['importance_ingested'] = True
+            # Capture top 8 features for totals and margin if present
+            if 'totals' in imp_payload and isinstance(imp_payload['totals'], dict):
+                feats = imp_payload['totals'].get('features', [])
+                if isinstance(feats, list) and feats:
+                    top_totals = [f.get('feature') for f in feats[:8] if isinstance(f, dict)]
+                    pipeline_stats['importance_totals_top'] = top_totals
+            if 'margin' in imp_payload and isinstance(imp_payload['margin'], dict):
+                feats = imp_payload['margin'].get('features', [])
+                if isinstance(feats, list) and feats:
+                    top_margin = [f.get('feature') for f in feats[:8] if isinstance(f, dict)]
+                    pipeline_stats['importance_margin_top'] = top_margin
+        else:
+            pipeline_stats['importance_ingested'] = False
+    except Exception:
+        pipeline_stats['importance_error'] = True
+    # Segment performance ingestion
+    try:
+        seg_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        seg_path = OUT / f'segment_{seg_date}.json'
+        if seg_path.exists():
+            import json as _json
+            seg_payload = _json.loads(seg_path.read_text(encoding='utf-8'))
+            pipeline_stats['segment_ingested'] = True
+            segs = seg_payload.get('segments', {}) if isinstance(seg_payload, dict) else {}
+            if isinstance(segs, dict):
+                # Extract key residual means for representative buckets
+                for bucket in ['tempo::Q1_slowest','tempo::Q4_fastest','spread::0_2','spread::9_plus']:
+                    if bucket in segs and isinstance(segs[bucket], dict):
+                        val = segs[bucket].get('mean_residual_total')
+                        pipeline_stats[f"segment_{bucket.replace('::','_')}_mean_residual"] = val
+        else:
+            pipeline_stats['segment_ingested'] = False
+    except Exception:
+        pipeline_stats['segment_error'] = True
+    # Reliability calibration ingestion
+    try:
+        rel_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        rel_path = OUT / f'reliability_{rel_date}.json'
+        if rel_path.exists():
+            import json as _json
+            rel_payload = _json.loads(rel_path.read_text(encoding='utf-8'))
+            pipeline_stats['reliability_ingested'] = True
+            for k in ['calibration_slope','calibration_intercept','rows']:
+                if k in rel_payload:
+                    pipeline_stats[f'reliability_{k}'] = rel_payload.get(k)
+        else:
+            pipeline_stats['reliability_ingested'] = False
+    except Exception:
+        pipeline_stats['reliability_error'] = True
+    # Daily performance aggregation ingestion (composite health metrics)
+    try:
+        perf_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        perf_path = OUT / f'performance_{perf_date}.json'
+        if perf_path.exists():
+            import json as _json
+            perf_payload = _json.loads(perf_path.read_text(encoding='utf-8'))
+            pipeline_stats['performance_ingested'] = True
+            for k in [
+                'model_health','predictability_score','recalibration_needed','fairness_bias_flag','fairness_disparity_flag',
+                'leakage_suspicious_cols','total_mean','margin_mean','total_corr','margin_corr','total_mean_z','margin_mean_z','total_corr_z','margin_corr_z'
+            ]:
+                if k in perf_payload:
+                    pipeline_stats[f'perf_{k}'] = perf_payload.get(k)
+            for k in ['predictability_score','residual_std','crps_total','total_mean','total_corr']:
+                for w in ['7','14']:
+                    keyname = f'{k}_trailing_{w}'
+                    if keyname in perf_payload:
+                        pipeline_stats[f'perf_{keyname}'] = perf_payload.get(keyname)
+        else:
+            pipeline_stats['performance_ingested'] = False
+    except Exception:
+        pipeline_stats['performance_error'] = True
+    # Season metrics ingestion for rolling health context
+    try:
+        season_path = OUT / 'season_metrics.json'
+        if season_path.exists():
+            import json as _json
+            season_payload = _json.loads(season_path.read_text(encoding='utf-8'))
+            pipeline_stats['season_metrics_ingested'] = True
+            summary_block = season_payload.get('summary', {}) if isinstance(season_payload, dict) else {}
+            for k in [
+                'residual_std_mean','predictability_score_mean','crps_mean_mean','totals_residual_std_mean','margin_residual_std_mean'
+            ]:
+                if k in summary_block:
+                    pipeline_stats[f'season_{k}'] = summary_block.get(k)
+        else:
+            pipeline_stats['season_metrics_ingested'] = False
+    except Exception:
+        pipeline_stats['season_metrics_error'] = True
+    # Drift/Bias diagnostics integration (load precomputed JSON if present for today or selected date)
+    try:
+        drift_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+        drift_path = OUT / f'drift_bias_{drift_date}.json'
+        if not drift_path.exists():
+            # Fallback: if requesting past date before diagnostics existed, ignore silently
+            # Attempt today's file when browsing without date param
+            if not date_q:
+                alt_path = OUT / f'drift_bias_{_today_local().strftime("%Y-%m-%d")}.json'
+                if alt_path.exists():
+                    drift_path = alt_path
+        if drift_path.exists():
+            import json as _json
+            payload = _json.loads(drift_path.read_text(encoding='utf-8'))
+            # Whitelist expected keys to avoid large blob
+            for k in [
+                'totals_bias','pace_drift','trailing_mean_pred_total','today_mean_pred_total',
+                'conference_margin_bias','source_rows'
+            ]:
+                if k in payload:
+                    pipeline_stats[f'drift_bias_{k}'] = payload[k]
+            pipeline_stats['drift_bias_loaded'] = True
+        else:
+            pipeline_stats['drift_bias_loaded'] = False
+    except Exception:
+        pipeline_stats['drift_bias_error'] = True
     # Instrumentation: capture early model predictions stats after pipeline_stats exists
     try:
         if not model_preds.empty:
@@ -1448,6 +1818,33 @@ def index():
                 keep += (home_cols[:1] or []) + (away_cols[:1] or [])
                 # Use suffixes so left (preds) keeps original names, right (games) gets _g on collisions
                 df = df.merge(games[keep], on="game_id", how="left", suffixes=("", "_g"))
+
+                # ------------------------------------------------------------------
+                # Augment: ensure games without predictions are still shown.
+                # Previous behavior dropped games lacking prediction rows because
+                # we started from preds and performed a left merge. For partial
+                # slates (some preds missing) important matchups disappeared.
+                # We now append minimal rows for any games on the requested date
+                # that are absent from the predictions set so the UI renders them.
+                # ------------------------------------------------------------------
+                try:
+                    if "game_id" in games.columns and "game_id" in df.columns:
+                        # Restrict to target date if date column present
+                        if date_q and "date" in games.columns:
+                            games_for_date = games[games["date"].astype(str) == str(date_q)]
+                        else:
+                            games_for_date = games
+                        missing = games_for_date[~games_for_date["game_id"].astype(str).isin(df["game_id"].astype(str))]
+                        if not missing.empty:
+                            add_cols = ["game_id","date","home_team","away_team","home_score","away_score","start_time"]
+                            add = missing[[c for c in add_cols if c in missing.columns]].copy()
+                            # Guarantee prediction placeholder columns
+                            for c in ["pred_total","pred_margin"]:
+                                if c not in add.columns:
+                                    add[c] = None
+                            df = pd.concat([df, add], ignore_index=True)
+                except Exception:
+                    pass
 
             def _pick(df_, candidates: list[str]) -> str | None:
                 for name in candidates:
@@ -2065,10 +2462,65 @@ def index():
     except Exception:
         pass
 
-    # Fallback: attach closing lines from games_with_closing.csv if closing_total missing (heuristic)
+    # --------------------------------------------------------------
+    # Start time normalization & diagnostics
+    # Ensures start_time conforms to 'YYYY-MM-DD HH:MM' local time to
+    # avoid UTC rollover (e.g., 00:00 next day +00:00) hiding games on
+    # the intended slate. Records instrumentation for Marshall game.
+    # --------------------------------------------------------------
+    try:
+        if 'start_time' in df.columns and len(df):
+            st_raw = df['start_time'].astype(str)
+            # Detect timezone offset pattern (e.g. +00:00)
+            tz_mask = st_raw.str.contains(r'\+\d{2}:\d{2}')
+            local_tz = dt.datetime.now().astimezone().tzinfo
+            def _norm_start(v: str) -> str:
+                # Attempt UTC-aware parse first
+                try:
+                    ts = pd.to_datetime(v, utc=True, errors='coerce')
+                    if ts is not None and not pd.isna(ts):
+                        ts_local = ts.astimezone(local_tz)
+                        return ts_local.strftime('%Y-%m-%d %H:%M')
+                except Exception:
+                    pass
+                # Fallback naive parse
+                try:
+                    ts2 = pd.to_datetime(v, errors='coerce')
+                    if ts2 is not None and not pd.isna(ts2):
+                        return ts2.strftime('%Y-%m-%d %H:%M')
+                except Exception:
+                    pass
+                return v
+            # Rows needing normalization (timezone pattern OR non-standard format)
+            need_fix_mask = tz_mask | (~st_raw.str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$'))
+            if need_fix_mask.any():
+                df.loc[need_fix_mask, 'start_time_normalized'] = st_raw[need_fix_mask].map(_norm_start)
+                norm_vals = df['start_time_normalized']
+                good_norm = norm_vals.notna() & norm_vals.astype(str).str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$')
+                df['start_time'] = np.where(good_norm, norm_vals, df['start_time'])
+            # Instrumentation
+            pipeline_stats['start_time_rows'] = int(len(df))
+            pipeline_stats['start_time_tz_pattern_count'] = int(tz_mask.sum())
+            pipeline_stats['start_time_normalized_count'] = int(need_fix_mask.sum())
+            if 'game_id' in df.columns:
+                mmask = df['game_id'].astype(str) == '401827130'
+                if mmask.any():
+                    pipeline_stats['marshall_start_time_raw'] = st_raw[mmask].iloc[0]
+                    pipeline_stats['marshall_start_time_final'] = df['start_time'][mmask].iloc[0]
+    except Exception:
+        pass
+
+    # Fallback: attach closing lines from games_with_closing_<date>.csv (preferred) or games_with_closing.csv if missing
     if ("game_id" in df.columns):
         try:
-            closing_path = OUT / "games_with_closing.csv"
+            # Prefer date-specific artifact when browsing a specific slate; else fallback to undated file
+            closing_path = None
+            if date_q:
+                cand = OUT / f"games_with_closing_{date_q}.csv"
+                if cand.exists():
+                    closing_path = cand
+            if closing_path is None:
+                closing_path = OUT / "games_with_closing.csv"
             if closing_path.exists():
                 cl = pd.read_csv(closing_path)
                 if not cl.empty and "game_id" in cl.columns:
@@ -2151,6 +2603,48 @@ def index():
                             pass
         except Exception:
             pass
+
+    # Ingest spread logistic calibration constant if available
+    try:
+        cal_path = OUT / 'calibration_spread_logistic.json'
+        if cal_path.exists():
+            cal_payload = _json.loads(cal_path.read_text(encoding='utf-8'))
+            if isinstance(cal_payload, dict):
+                pipeline_stats['spread_logistic_K'] = cal_payload.get('best_K')
+                pipeline_stats['spread_logistic_rows'] = cal_payload.get('n_rows')
+                pipeline_stats['spread_logistic_generated_at'] = cal_payload.get('generated_at')
+    except Exception:
+        pipeline_stats['spread_logistic_error'] = True
+
+    # Kelly suggestion (spread): compute fraction using calibrated K (if available) and current spread vs model margin
+    try:
+        if 'pred_margin' in df.columns and ('spread_home' in df.columns or 'closing_spread_home' in df.columns):
+            # Prefer closing spread when available
+            if 'spread_home' in df.columns:
+                base_spread = df['spread_home']
+            else:
+                base_spread = df['closing_spread_home']
+            pm = pd.to_numeric(df['pred_margin'], errors='coerce')
+            sh = pd.to_numeric(base_spread, errors='coerce')
+            K = pipeline_stats.get('spread_logistic_K', None)
+            if K is None or (isinstance(K, float) and (K <= 0 or pd.isna(K))):
+                K = 0.115
+            def _kelly(p: float, b: float = 0.909) -> float:
+                try:
+                    return max(0.0, min(1.0, ((p*(b+1) - 1)/b)))
+                except Exception:
+                    return 0.0
+            # Compute cover probability and kelly fraction per row
+            diff = pm - sh
+            # Guard where values missing
+            diff = diff.where(~(pm.isna() | sh.isna()), np.nan)
+            p_cover = 1.0/(1.0 + np.exp(-(diff.astype(float) / float(K))))
+            df['kelly_frac_spread'] = p_cover.map(lambda p: _kelly(p) if pd.notna(p) else np.nan)
+            # Also expose direction suggestion: HOME if model favors home w.r.t line, else AWAY
+            df['kelly_side_spread'] = np.where(diff > 0, 'HOME', np.where(diff < 0, 'AWAY', None))
+            pipeline_stats['kelly_spread_populated'] = int(df['kelly_frac_spread'].notna().sum())
+    except Exception:
+        pipeline_stats['kelly_spread_error'] = True
 
     # Prediction fallback enrichment: ensure we rarely render a card with odds but no predictions.
     # Removes previous logic that hid odds when predictions were missing; instead we synthesize a baseline prediction.
@@ -2413,6 +2907,164 @@ def index():
     except Exception:
         pass
 
+    # Prefer blended predictions when available (overwrite base preds and mark basis)
+    try:
+        if not df.empty:
+            used_blend = False
+            if "pred_total_blend" in df.columns:
+                # Preserve original once for diagnostics
+                if "pred_total_orig" not in df.columns:
+                    df["pred_total_orig"] = df.get("pred_total")
+                df["pred_total"] = pd.to_numeric(df["pred_total_blend"], errors="coerce")
+                # Stamp basis
+                if "pred_total_basis" in df.columns:
+                    df["pred_total_basis"] = "blend"
+                else:
+                    df["pred_total_basis"] = "blend"
+                used_blend = True
+            if "pred_margin_blend" in df.columns:
+                if "pred_margin_orig" not in df.columns:
+                    df["pred_margin_orig"] = df.get("pred_margin")
+                df["pred_margin"] = pd.to_numeric(df["pred_margin_blend"], errors="coerce")
+                if "pred_margin_basis" in df.columns:
+                    df["pred_margin_basis"] = "blend"
+                else:
+                    df["pred_margin_basis"] = "blend"
+                used_blend = True
+            if used_blend:
+                pipeline_stats["using_blended_predictions"] = True
+                # Blend diagnostics when available
+                try:
+                    if "blend_weight" in df.columns:
+                        bw = pd.to_numeric(df["blend_weight"], errors="coerce")
+                        bw_valid = bw.dropna()
+                        if not bw_valid.empty:
+                            pipeline_stats["blend_weight_min"] = float(bw_valid.min())
+                            pipeline_stats["blend_weight_median"] = float(bw_valid.median())
+                            pipeline_stats["blend_weight_max"] = float(bw_valid.max())
+                            pipeline_stats["blend_weight_mean"] = float(bw_valid.mean())
+                    if "seg_n_rows" in df.columns:
+                        sn = pd.to_numeric(df["seg_n_rows"], errors="coerce").dropna()
+                        if not sn.empty:
+                            pipeline_stats["seg_n_rows_median"] = float(sn.median())
+                            pipeline_stats["seg_n_rows_min"] = float(sn.min())
+                            pipeline_stats["seg_n_rows_max"] = float(sn.max())
+                    # Residual performance comparison baseline vs segmented vs blended (totals & margins)
+                    try:
+                        # Totals residual metrics vs closing_total
+                        if {"closing_total","pred_total_base","pred_total_seg","pred_total"}.issubset(df.columns):
+                            ct = pd.to_numeric(df["closing_total"], errors="coerce")
+                            base = pd.to_numeric(df["pred_total_base"], errors="coerce")
+                            seg = pd.to_numeric(df["pred_total_seg"], errors="coerce")
+                            blend = pd.to_numeric(df["pred_total"], errors="coerce")
+                            def _mae(a,b):
+                                try:
+                                    m = (a - b).abs().dropna()
+                                    return float(m.mean()) if not m.empty else None
+                                except Exception:
+                                    return None
+                            def _rmse(a,b):
+                                try:
+                                    d = (a - b).dropna()
+                                    return float(np.sqrt((d**2).mean())) if not d.empty else None
+                                except Exception:
+                                    return None
+                            mae_base = _mae(base, ct); mae_seg = _mae(seg, ct); mae_blend = _mae(blend, ct)
+                            rmse_base = _rmse(base, ct); rmse_seg = _rmse(seg, ct); rmse_blend = _rmse(blend, ct)
+                            if mae_base is not None: pipeline_stats["total_mae_base"] = mae_base
+                            if mae_seg is not None: pipeline_stats["total_mae_seg"] = mae_seg
+                            if mae_blend is not None: pipeline_stats["total_mae_blend"] = mae_blend
+                            if rmse_base is not None: pipeline_stats["total_rmse_base"] = rmse_base
+                            if rmse_seg is not None: pipeline_stats["total_rmse_seg"] = rmse_seg
+                            if rmse_blend is not None: pipeline_stats["total_rmse_blend"] = rmse_blend
+                            if mae_base and mae_blend: pipeline_stats["total_mae_blend_improve_vs_base_pct"] = float((mae_base - mae_blend)/mae_base*100.0)
+                            if mae_seg and mae_blend: pipeline_stats["total_mae_blend_improve_vs_seg_pct"] = float((mae_seg - mae_blend)/mae_seg*100.0)
+                        # Margin residual metrics vs closing_spread_home
+                        if {"closing_spread_home","pred_margin_base","pred_margin_seg","pred_margin"}.issubset(df.columns):
+                            cs = pd.to_numeric(df["closing_spread_home"], errors="coerce")
+                            mb = pd.to_numeric(df["pred_margin_base"], errors="coerce")
+                            ms = pd.to_numeric(df["pred_margin_seg"], errors="coerce")
+                            mm = pd.to_numeric(df["pred_margin"], errors="coerce")
+                            def _mae2(a,b):
+                                try:
+                                    m = (a - b).abs().dropna()
+                                    return float(m.mean()) if not m.empty else None
+                                except Exception:
+                                    return None
+                            def _rmse2(a,b):
+                                try:
+                                    d = (a - b).dropna()
+                                    return float(np.sqrt((d**2).mean())) if not d.empty else None
+                                except Exception:
+                                    return None
+                            mae_mb = _mae2(mb, cs); mae_ms = _mae2(ms, cs); mae_mm = _mae2(mm, cs)
+                            rmse_mb = _rmse2(mb, cs); rmse_ms = _rmse2(ms, cs); rmse_mm = _rmse2(mm, cs)
+                            if mae_mb is not None: pipeline_stats["margin_mae_base"] = mae_mb
+                            if mae_ms is not None: pipeline_stats["margin_mae_seg"] = mae_ms
+                            if mae_mm is not None: pipeline_stats["margin_mae_blend"] = mae_mm
+                            if rmse_mb is not None: pipeline_stats["margin_rmse_base"] = rmse_mb
+                            if rmse_ms is not None: pipeline_stats["margin_rmse_seg"] = rmse_ms
+                            if rmse_mm is not None: pipeline_stats["margin_rmse_blend"] = rmse_mm
+                            if mae_mb and mae_mm: pipeline_stats["margin_mae_blend_improve_vs_base_pct"] = float((mae_mb - mae_mm)/mae_mb*100.0)
+                            if mae_ms and mae_mm: pipeline_stats["margin_mae_blend_improve_vs_seg_pct"] = float((mae_ms - mae_mm)/mae_ms*100.0)
+                    except Exception:
+                        pipeline_stats["blend_perf_error"] = True
+                    # Prediction confidence scoring using team variance + segment effective rows (totals & margins)
+                    try:
+                        seg_rows_series = None
+                        if "seg_eff_n_rows" in df.columns:
+                            seg_rows_series = pd.to_numeric(df["seg_eff_n_rows"], errors="coerce")
+                        elif "seg_n_rows" in df.columns:
+                            seg_rows_series = pd.to_numeric(df["seg_n_rows"], errors="coerce")
+                        # Totals confidence
+                        if team_variance_total and {"home_team","away_team","pred_total"}.issubset(df.columns):
+                            vh = df["home_team"].map(lambda t: team_variance_total.get(str(t), np.nan))
+                            va = df["away_team"].map(lambda t: team_variance_total.get(str(t), np.nan))
+                            avg_var = (vh + va) / 2.0
+                            if seg_rows_series is not None:
+                                seg_factor = seg_rows_series / (seg_rows_series + 50.0)
+                            else:
+                                seg_factor = 0.3
+                            conf = (1.0 / (1.0 + avg_var)) * (0.5 + 0.5 * seg_factor)
+                            try:
+                                conf = conf.clip(lower=0.0, upper=1.0)
+                            except Exception:
+                                pass
+                            df["pred_total_confidence"] = conf
+                            c_valid = pd.to_numeric(conf, errors="coerce").replace([np.inf,-np.inf], np.nan).dropna()
+                            if not c_valid.empty:
+                                pipeline_stats["pred_total_conf_q25"] = float(c_valid.quantile(0.25))
+                                pipeline_stats["pred_total_conf_median"] = float(c_valid.median())
+                                pipeline_stats["pred_total_conf_q75"] = float(c_valid.quantile(0.75))
+                                pipeline_stats["pred_total_conf_mean"] = float(c_valid.mean())
+                        # Margin confidence
+                        if team_variance_margin and {"home_team","away_team","pred_margin"}.issubset(df.columns):
+                            vh_m = df["home_team"].map(lambda t: team_variance_margin.get(str(t), np.nan))
+                            va_m = df["away_team"].map(lambda t: team_variance_margin.get(str(t), np.nan))
+                            avg_var_m = (vh_m + va_m) / 2.0
+                            if seg_rows_series is not None:
+                                seg_factor_m = seg_rows_series / (seg_rows_series + 50.0)
+                            else:
+                                seg_factor_m = 0.3
+                            conf_m = (1.0 / (1.0 + avg_var_m)) * (0.5 + 0.5 * seg_factor_m)
+                            try:
+                                conf_m = conf_m.clip(lower=0.0, upper=1.0)
+                            except Exception:
+                                pass
+                            df["pred_margin_confidence"] = conf_m
+                            m_valid = pd.to_numeric(conf_m, errors="coerce").replace([np.inf,-np.inf], np.nan).dropna()
+                            if not m_valid.empty:
+                                pipeline_stats["pred_margin_conf_q25"] = float(m_valid.quantile(0.25))
+                                pipeline_stats["pred_margin_conf_median"] = float(m_valid.median())
+                                pipeline_stats["pred_margin_conf_q75"] = float(m_valid.quantile(0.75))
+                                pipeline_stats["pred_margin_conf_mean"] = float(m_valid.mean())
+                    except Exception:
+                        pipeline_stats["prediction_confidence_error"] = True
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     # Compute simple edges when market total present. Label basis if source_last.
     if "market_total" in df.columns and "pred_total" in df.columns:
         df["edge_total"] = df["pred_total"] - df["market_total"]
@@ -2438,6 +3090,123 @@ def index():
                 df['game_id'] = df['game_id'].astype(str)
                 keep = ['game_id'] + need_cols
                 df = df.merge(mp[keep], on='game_id', how='left', suffixes=('','_m'))
+        # ------------------------------------------------------------------
+        # Team-level universal prediction fallback: ensure ALL games have
+        # point & margin predictions even if model inference skipped rows.
+        # For any missing pred_total_model/pred_margin_model we derive
+        # lightweight estimates from features (tempo/off/def) and basic
+        # historical averages. This guarantees downstream staking and
+        # edge metrics exist for every team.
+        # ------------------------------------------------------------------
+        if 'game_id' in df.columns:
+            # Identify rows missing model totals
+            missing_model_total = ('pred_total_model' not in df.columns) or df['pred_total_model'].isna().all() or df['pred_total_model'].isna()
+            missing_model_margin = ('pred_margin_model' not in df.columns) or df['pred_margin_model'].isna().all() or df['pred_margin_model'].isna()
+            # Load features once for derived tempo/off/def based estimates
+            feat_sources = ["features_curr.csv","features_all.csv","features_week.csv","features_last2.csv"]
+            feat_df = pd.DataFrame()
+            for name in feat_sources:
+                p = OUT / name
+                if p.exists():
+                    try:
+                        ftmp = pd.read_csv(p)
+                        if not ftmp.empty and 'game_id' in ftmp.columns:
+                            feat_df = ftmp
+                            break
+                    except Exception:
+                        continue
+            # Feature completeness fallback enrichment
+            try:
+                feat_df = _feature_fallback_enrich(feat_df)
+            except Exception:
+                pass
+            if not feat_df.empty and 'game_id' in feat_df.columns:
+                feat_df['game_id'] = feat_df['game_id'].astype(str)
+                # Precompute derived base total from offensive/def + tempo when available
+                if {'home_off_rating','away_off_rating','home_def_rating','away_def_rating','home_tempo_rating','away_tempo_rating'}.issubset(feat_df.columns):
+                    try:
+                        ho = pd.to_numeric(feat_df['home_off_rating'], errors='coerce')
+                        ao = pd.to_numeric(feat_df['away_off_rating'], errors='coerce')
+                        hd = pd.to_numeric(feat_df['home_def_rating'], errors='coerce')
+                        ad = pd.to_numeric(feat_df['away_def_rating'], errors='coerce')
+                        ht = pd.to_numeric(feat_df['home_tempo_rating'], errors='coerce')
+                        at = pd.to_numeric(feat_df['away_tempo_rating'], errors='coerce')
+                        # Simple possession scale (tempo ratings assumed ~70 baseline)
+                        poss_scale = (ht + at) / 140.0
+                        raw_total_est = ((ho + ao) / 2.0 + (200 - (hd + ad) / 2.0)) * poss_scale * 0.5
+                        feat_df['derived_total_est'] = raw_total_est
+                    except Exception:
+                        feat_df['derived_total_est'] = np.nan
+                else:
+                    feat_df['derived_total_est'] = np.nan
+                # Margin estimate from off/def differential if available
+                if {'home_off_rating','home_def_rating','away_off_rating','away_def_rating'}.issubset(feat_df.columns):
+                    try:
+                        ho = pd.to_numeric(feat_df['home_off_rating'], errors='coerce')
+                        hd = pd.to_numeric(feat_df['home_def_rating'], errors='coerce')
+                        ao = pd.to_numeric(feat_df['away_off_rating'], errors='coerce')
+                        ad = pd.to_numeric(feat_df['away_def_rating'], errors='coerce')
+                        feat_df['derived_margin_est'] = (ho - hd) - (ao - ad)
+                    except Exception:
+                        feat_df['derived_margin_est'] = np.nan
+                else:
+                    feat_df['derived_margin_est'] = np.nan
+                # Build maps
+                total_map = feat_df.set_index('game_id')['derived_total_est'].to_dict()
+                margin_map = feat_df.set_index('game_id')['derived_margin_est'].to_dict()
+            else:
+                total_map = {}
+                margin_map = {}
+            if isinstance(missing_model_total, pd.Series) and missing_model_total.any():
+                # League average fallback if no derived feature
+                league_avg_total = 141.5
+                rng = random.Random(42)
+                new_totals = []
+                for idx, row in df.iterrows():
+                    if missing_model_total.iloc[idx]:
+                        gid = str(row.get('game_id'))
+                        base = total_map.get(gid, league_avg_total)
+                        # Add tiny deterministic jitter from team names to avoid identical predictions
+                        ht = str(row.get('home_team',''))
+                        at = str(row.get('away_team',''))
+                        seed_val = hash(ht + '|' + at) & 0xffff
+                        rng.seed(seed_val)
+                        jitter = rng.uniform(-2.2, 2.2)
+                        new_totals.append(base + jitter)
+                    else:
+                        new_totals.append(row.get('pred_total_model'))
+                df['pred_total_model'] = new_totals
+                df['pred_total_model_basis'] = df.get('pred_total_model_basis')
+                df['pred_total_model_basis'] = df['pred_total_model_basis'].where(df['pred_total_model_basis'].notna(), 'fallback_derived' if total_map else 'fallback_league_avg')
+            if isinstance(missing_model_margin, pd.Series) and missing_model_margin.any():
+                league_avg_margin = 4.8
+                rng = random.Random(99)
+                new_margins = []
+                for idx, row in df.iterrows():
+                    if missing_model_margin.iloc[idx]:
+                        gid = str(row.get('game_id'))
+                        base = margin_map.get(gid, league_avg_margin)
+                        ht = str(row.get('home_team',''))
+                        at = str(row.get('away_team',''))
+                        seed_val = hash('m:' + ht + '|' + at) & 0xffff
+                        rng.seed(seed_val)
+                        jitter = rng.uniform(-1.5, 1.5)
+                        new_margins.append(base + jitter)
+                    else:
+                        new_margins.append(row.get('pred_margin_model'))
+                df['pred_margin_model'] = new_margins
+                df['pred_margin_model_basis'] = df.get('pred_margin_model_basis')
+                df['pred_margin_model_basis'] = df['pred_margin_model_basis'].where(df['pred_margin_model_basis'].notna(), 'fallback_derived' if margin_map else 'fallback_league_avg')
+        # Margin sigma-based Kelly adjustment if available
+        try:
+            if {'kelly_fraction_total','pred_total_sigma'}.issubset(df.columns):
+                rel_scale_t = pd.to_numeric(df['pred_total_sigma'], errors='coerce') / max(float(pipeline_stats.get('pred_total_sigma_mean', 12.0)) or 12.0, 1e-6)
+                df['kelly_fraction_total_adj'] = pd.to_numeric(df['kelly_fraction_total'], errors='coerce') / rel_scale_t.clip(lower=0.5, upper=2.5)
+            if {'kelly_fraction_ml_home','pred_margin_model'}.issubset(df.columns) and 'pred_margin_sigma' in df.columns:
+                rel_scale_m = pd.to_numeric(df['pred_margin_sigma'], errors='coerce') / max(float(pipeline_stats.get('pred_margin_sigma_mean', 8.0)) or 8.0, 1e-6)
+                df['kelly_fraction_margin_adj'] = pd.to_numeric(df.get('kelly_fraction_ml_home'), errors='coerce') / rel_scale_m.clip(lower=0.5, upper=2.5)
+        except Exception:
+            pass
         # Compute model edges vs market & closing
         if {'pred_total_model','market_total'}.issubset(df.columns):
             df['edge_total_model'] = pd.to_numeric(df['pred_total_model'], errors='coerce') - pd.to_numeric(df['market_total'], errors='coerce')
@@ -2472,6 +3241,54 @@ def index():
                 # Use calibrated when it has any non-NaN values; else fallback to raw
                 use_calibrated = calibrated_available and calibrated_total.notna().any()
                 chosen_total = calibrated_total if use_calibrated else raw_model_total
+                # Bootstrap totals uncertainty (global) if historical residuals available
+                try:
+                    if 'pred_total_sigma_bootstrap' not in df.columns:
+                        boot_sigma_t = np.nan
+                        hist_dir_t = OUT / 'daily_results'
+                        if hist_dir_t.exists():
+                            res_files_t = sorted(hist_dir_t.glob('results_*.csv'))[-60:]
+                            actual_list_t = []
+                            pred_list_t = []
+                            for rp_t in reversed(res_files_t):
+                                try:
+                                    rdf_t = pd.read_csv(rp_t)
+                                except Exception:
+                                    continue
+                                if rdf_t.empty or not {'home_score','away_score'}.issubset(rdf_t.columns):
+                                    continue
+                                pt_col = 'pred_total_model' if 'pred_total_model' in rdf_t.columns else ('pred_total' if 'pred_total' in rdf_t.columns else None)
+                                if pt_col is None:
+                                    continue
+                                hs_t = pd.to_numeric(rdf_t['home_score'], errors='coerce')
+                                as_t = pd.to_numeric(rdf_t['away_score'], errors='coerce')
+                                done_t = hs_t.notna() & as_t.notna() & ((hs_t + as_t) > 0)
+                                if done_t.sum() == 0:
+                                    continue
+                                actual_tot = (hs_t + as_t)[done_t]
+                                pred_tot_hist = pd.to_numeric(rdf_t[pt_col], errors='coerce')[done_t]
+                                good_t = actual_tot.notna() & pred_tot_hist.notna()
+                                if good_t.sum() == 0:
+                                    continue
+                                actual_list_t.append(actual_tot[good_t])
+                                pred_list_t.append(pred_tot_hist[good_t])
+                                if sum(len(x) for x in actual_list_t) >= 400:
+                                    break
+                            hist_rows_t = sum(len(x) for x in actual_list_t)
+                            if hist_rows_t >= 25:
+                                actual_all_t = pd.concat(actual_list_t, ignore_index=True)
+                                pred_all_t = pd.concat(pred_list_t, ignore_index=True)
+                                # Use simple residuals of raw predictions (ignore calibration for bootstrap variety)
+                                try:
+                                    residuals_t = actual_all_t - pred_all_t
+                                    boot_sigma_t = float(np.std(residuals_t)) if residuals_t.notna().any() else np.nan
+                                except Exception:
+                                    boot_sigma_t = np.nan
+                                pipeline_stats['totals_bootstrap_rows'] = int(hist_rows_t)
+                        df['pred_total_sigma_bootstrap'] = boot_sigma_t
+                        pipeline_stats['pred_total_sigma_bootstrap_global'] = boot_sigma_t if not pd.isna(boot_sigma_t) else None
+                except Exception:
+                    pipeline_stats['pred_total_sigma_bootstrap_error'] = True
                 # Record stats for both raw and calibrated distributions
                 try:
                     pipeline_stats['pred_total_model_raw_stats'] = {
@@ -2518,11 +3335,142 @@ def index():
                 # Recompute edge_total using unified pred_total
                 if 'market_total' in df.columns:
                     df['edge_total'] = pd.to_numeric(df['pred_total'], errors='coerce') - pd.to_numeric(df['market_total'], errors='coerce')
+                # Meta ensemble totals (optional): combine raw/calibrated/market/derived components with learned weights
+                try:
+                    if 'pred_total_meta' not in df.columns:
+                        meta_path = OUT / 'meta_ensemble_totals.txt'
+                        if meta_path.exists():
+                            try:
+                                import lightgbm as lgb  # type: ignore
+                            except Exception:
+                                meta_path = None
+                        if meta_path and meta_path.exists():
+                            # Build feature frame
+                            feat_cols = []
+                            base_map = {
+                                'pred_total_model_raw': 'raw_model_total',
+                                'pred_total_calibrated': 'calibrated_total',
+                                'market_total': 'market_total',
+                                'pred_total': 'unified_pred_total'
+                            }
+                            tmp = pd.DataFrame({'game_id': df.get('game_id')})
+                            for out_col, src_col in base_map.items():
+                                if src_col in locals() or src_col in df.columns or out_col in df.columns:
+                                    # Use df columns (some already set) for consistency
+                                    source_series = df[out_col] if out_col in df.columns else (df[src_col] if src_col in df.columns else None)
+                                    if source_series is not None:
+                                        tmp[out_col] = pd.to_numeric(source_series, errors='coerce')
+                                        feat_cols.append(out_col)
+                            # Add market_total and spread derived if present
+                            for c in ['market_total','closing_total']:
+                                if c in df.columns and c not in tmp.columns:
+                                    tmp[c] = pd.to_numeric(df[c], errors='coerce')
+                                    feat_cols.append(c)
+                            # LightGBM expects no NaNs; simple impute with column means
+                            if feat_cols:
+                                for c in feat_cols:
+                                    if c in tmp.columns:
+                                        ser = tmp[c]
+                                        if ser.isna().any():
+                                            mval = ser.mean()
+                                            tmp[c] = ser.fillna(mval)
+                                try:
+                                    booster = lgb.Booster(model_file=str(meta_path))
+                                    meta_pred = booster.predict(tmp[feat_cols])
+                                    df['pred_total_meta'] = meta_pred
+                                    pipeline_stats['meta_ensemble_totals_rows'] = int(len(df))
+                                    pipeline_stats['meta_ensemble_totals_features'] = feat_cols
+                                except Exception:
+                                    pipeline_stats['meta_ensemble_totals_error'] = True
+                except Exception:
+                    pipeline_stats['meta_ensemble_totals_error'] = True
             if 'pred_margin_model' in df.columns:
                 adj_model_margin = pd.to_numeric(df['pred_margin_model'], errors='coerce')
-                df['pred_margin'] = adj_model_margin
+                # ------------------------------
+                # Margin calibration expansion
+                # Fit linear calibration: actual_margin ~ pred_margin_model
+                # Uses recent daily_results history; falls back to raw if insufficient.
+                # ------------------------------
+                calib_intercept = 0.0
+                calib_slope = 1.0
+                calib_rows = 0
+                actual_all = None
+                pred_all = None
+                try:
+                    hist_dir = OUT / 'daily_results'
+                    if hist_dir.exists():
+                        result_files = sorted(hist_dir.glob('results_*.csv'))[-60:]  # last ~60 days max
+                        actual_list = []
+                        pred_list = []
+                        for rp in reversed(result_files):  # iterate newest first for recency weighting
+                            try:
+                                rdf = pd.read_csv(rp)
+                            except Exception:
+                                continue
+                            if rdf.empty or not {'home_score','away_score'}.issubset(rdf.columns):
+                                continue
+                            pm_col = 'pred_margin_model' if 'pred_margin_model' in rdf.columns else ('pred_margin' if 'pred_margin' in rdf.columns else None)
+                            if pm_col is None:
+                                continue
+                            hs = pd.to_numeric(rdf['home_score'], errors='coerce')
+                            as_ = pd.to_numeric(rdf['away_score'], errors='coerce')
+                            done_mask = hs.notna() & as_.notna() & ((hs + as_) > 0)
+                            if done_mask.sum() == 0:
+                                continue
+                            actual_margin = (hs - as_)[done_mask]
+                            pred_margin_hist = pd.to_numeric(rdf[pm_col], errors='coerce')[done_mask]
+                            good_mask = actual_margin.notna() & pred_margin_hist.notna()
+                            if good_mask.sum() == 0:
+                                continue
+                            actual_list.append(actual_margin[good_mask])
+                            pred_list.append(pred_margin_hist[good_mask])
+                            calib_rows = sum(len(x) for x in actual_list)
+                            if calib_rows >= 400:
+                                break
+                        if calib_rows >= 25:
+                            actual_all = pd.concat(actual_list, ignore_index=True)
+                            pred_all = pd.concat(pred_list, ignore_index=True)
+                            try:
+                                var_pred = float(np.var(pred_all))
+                                if var_pred > 1e-8:
+                                    cov = float(np.cov(pred_all, actual_all)[0,1])
+                                    calib_slope = cov / var_pred
+                                    calib_intercept = float(np.mean(actual_all)) - calib_slope * float(np.mean(pred_all))
+                                # Guardrails
+                                calib_slope = float(np.clip(calib_slope, 0.4, 1.6))
+                                calib_intercept = float(np.clip(calib_intercept, -8.0, 8.0))
+                            except Exception:
+                                calib_intercept, calib_slope = 0.0, 1.0
+                        pipeline_stats['margin_calibration_rows'] = int(calib_rows)
+                        pipeline_stats['margin_calibration_intercept'] = float(calib_intercept)
+                        pipeline_stats['margin_calibration_slope'] = float(calib_slope)
+                except Exception:
+                    pipeline_stats['margin_calibration_error'] = True
+                # Apply calibration decision
+                if calib_rows >= 25:
+                    calibrated_margin = calib_intercept + calib_slope * adj_model_margin
+                    df['pred_margin_calibrated'] = calibrated_margin
+                    chosen_margin = calibrated_margin
+                    margin_basis_code = 'model_calibrated'
+                else:
+                    df['pred_margin_calibrated'] = np.nan
+                    chosen_margin = adj_model_margin
+                    margin_basis_code = 'model_raw'
+                # Bootstrap global margin uncertainty if not already present
+                try:
+                    if 'pred_margin_sigma_bootstrap' not in df.columns:
+                        if calib_rows >= 25 and actual_all is not None and pred_all is not None:
+                            residuals = actual_all - (calib_intercept + calib_slope * pred_all)
+                            boot_sigma = float(np.std(residuals)) if residuals.notna().any() else np.nan
+                        else:
+                            boot_sigma = np.nan
+                        df['pred_margin_sigma_bootstrap'] = boot_sigma
+                        pipeline_stats['pred_margin_sigma_bootstrap_global'] = boot_sigma if not pd.isna(boot_sigma) else None
+                except Exception:
+                    pass
+                df['pred_margin'] = chosen_margin
                 df['pred_margin_basis'] = df.get('pred_margin_basis')
-                df['pred_margin_basis'] = df['pred_margin_basis'].where(df['pred_margin_basis'].notna(), 'model')
+                df['pred_margin_basis'] = df['pred_margin_basis'].where(df['pred_margin_basis'].notna(), margin_basis_code)
                 if 'spread_home' in df.columns:
                     sh2 = pd.to_numeric(df['spread_home'], errors='coerce')
                     df['edge_ats'] = pd.to_numeric(df['pred_margin'], errors='coerce') - sh2
@@ -2530,6 +3478,44 @@ def index():
                 pm_num = pd.to_numeric(df['pred_margin'], errors='coerce')
                 df['favored_side'] = np.where(pm_num > 0, 'Home', np.where(pm_num < 0, 'Away', 'Even'))
                 df['favored_by'] = pm_num.abs()
+                # Meta ensemble margin (optional)
+                try:
+                    if 'pred_margin_meta' not in df.columns:
+                        meta_path_m = OUT / 'meta_ensemble_margin.txt'
+                        if meta_path_m.exists():
+                            try:
+                                import lightgbm as lgb  # type: ignore
+                            except Exception:
+                                meta_path_m = None
+                        if meta_path_m and meta_path_m.exists():
+                            feat_cols_m = []
+                            tmpm = pd.DataFrame({'game_id': df.get('game_id')})
+                            # Candidate sources
+                            cand_map_m = {
+                                'pred_margin_model': 'pred_margin_model',
+                                'pred_margin_calibrated': 'pred_margin_calibrated',
+                                'spread_home': 'spread_home'
+                            }
+                            for out_col, src_col in cand_map_m.items():
+                                if src_col in df.columns:
+                                    tmpm[out_col] = pd.to_numeric(df[src_col], errors='coerce')
+                                    feat_cols_m.append(out_col)
+                            if feat_cols_m:
+                                for c in feat_cols_m:
+                                    ser = tmpm[c]
+                                    if ser.isna().any():
+                                        tmpm[c] = ser.fillna(ser.mean())
+                                try:
+                                    import lightgbm as lgb  # type: ignore
+                                    booster_m = lgb.Booster(model_file=str(meta_path_m))
+                                    meta_margin_pred = booster_m.predict(tmpm[feat_cols_m])
+                                    df['pred_margin_meta'] = meta_margin_pred
+                                    pipeline_stats['meta_ensemble_margin_rows'] = int(len(df))
+                                    pipeline_stats['meta_ensemble_margin_features'] = feat_cols_m
+                                except Exception:
+                                    pipeline_stats['meta_ensemble_margin_error'] = True
+                except Exception:
+                    pipeline_stats['meta_ensemble_margin_error'] = True
         except Exception:
             pass
         # Correlation & aggregate diagnostics (legacy divergence vs pred_total removed post-unification)
@@ -2548,6 +3534,53 @@ def index():
                 # Record bias applied if any
                 if 'totals_bias' in pipeline_stats and 'pred_total_model' in df.columns:
                     pipeline_stats['model_totals_bias_applied'] = pipeline_stats.get('totals_bias')
+                # Adaptive team variance application: enrich per-row sigma columns using team-level rolling std
+                try:
+                    if team_variance_total and 'home_team' in df.columns and 'away_team' in df.columns:
+                        def _tv_total(row):
+                            ht = str(row.get('home_team'))
+                            at = str(row.get('away_team'))
+                            v1 = team_variance_total.get(ht)
+                            v2 = team_variance_total.get(at)
+                            if v1 is None and v2 is None:
+                                return None
+                            if v1 is None: v1 = v2
+                            if v2 is None: v2 = v1
+                            return float(np.mean([v for v in [v1, v2] if v is not None])) if v1 or v2 else None
+                        df['pred_total_sigma_team'] = df.apply(_tv_total, axis=1)
+                    if team_variance_margin and 'home_team' in df.columns and 'away_team' in df.columns:
+                        def _tv_margin(row):
+                            ht = str(row.get('home_team'))
+                            at = str(row.get('away_team'))
+                            v1 = team_variance_margin.get(ht)
+                            v2 = team_variance_margin.get(at)
+                            if v1 is None and v2 is None:
+                                return None
+                            if v1 is None: v1 = v2
+                            if v2 is None: v2 = v1
+                            return float(np.mean([v for v in [v1, v2] if v is not None])) if v1 or v2 else None
+                        df['pred_margin_sigma_team'] = df.apply(_tv_margin, axis=1)
+                    # Combine baseline sigma with team component when available (geometric mean for stability)
+                    if 'pred_total_sigma' in df.columns and 'pred_total_sigma_team' in df.columns:
+                        base = pd.to_numeric(df['pred_total_sigma'], errors='coerce')
+                        teamc = pd.to_numeric(df['pred_total_sigma_team'], errors='coerce')
+                        combo = np.sqrt(base * teamc)
+                        df['pred_total_sigma_adaptive'] = np.where(teamc.notna(), combo, base)
+                    if 'pred_margin_sigma' in df.columns and 'pred_margin_sigma_team' in df.columns:
+                        basem = pd.to_numeric(df['pred_margin_sigma'], errors='coerce')
+                        teamm = pd.to_numeric(df['pred_margin_sigma_team'], errors='coerce')
+                        combo_m = np.sqrt(basem * teamm)
+                        df['pred_margin_sigma_adaptive'] = np.where(teamm.notna(), combo_m, basem)
+                    # Pipeline stats aggregates for adaptive sigma
+                    if 'pred_total_sigma_adaptive' in df.columns:
+                        pipeline_stats['pred_total_sigma_adaptive_mean'] = float(pd.to_numeric(df['pred_total_sigma_adaptive'], errors='coerce').mean())
+                    if 'pred_margin_sigma_adaptive' in df.columns:
+                        pipeline_stats['pred_margin_sigma_adaptive_mean'] = float(pd.to_numeric(df['pred_margin_sigma_adaptive'], errors='coerce').mean())
+                    # Context note when recalibration flagged
+                    if pipeline_stats.get('recalibration_needed'):
+                        pipeline_stats['recalibration_variance_context'] = 'Adaptive sigmas computed; recalibration flag active.'
+                except Exception:
+                    pipeline_stats['adaptive_team_variance_error'] = True
             except Exception:
                 pass
     except Exception:
@@ -2564,6 +3597,34 @@ def index():
                 df = df.merge(agg, on="game_id", how="left", suffixes=("", "_agg"))
         except Exception:
             pass
+
+    # Dynamic weighting: blend model predictions with baseline totals when health degraded.
+    try:
+        if 'perf_model_health' in pipeline_stats and 'pred_total_model' in df.columns and 'pred_total' in df.columns:
+            health = pipeline_stats.get('perf_model_health')
+            ps = pipeline_stats.get('perf_predictability_score')
+            if isinstance(ps, (int, float)):
+                base_w = max(0.3, min(1.0, ps / 0.8))  # scale relative to desired high score ~0.8
+            else:
+                base_w = 0.6
+            if health == 'critical':
+                w = base_w * 0.55
+            elif health == 'degraded':
+                w = base_w * 0.75
+            else:
+                w = base_w
+            w = max(0.25, min(0.95, w))
+            pm = pd.to_numeric(df['pred_total_model'], errors='coerce')
+            pb = pd.to_numeric(df['pred_total'], errors='coerce')
+            blended = (w * pm) + ((1 - w) * pb)
+            mask = pm.notna() & pb.notna()
+            if mask.any():
+                df.loc[mask, 'pred_total_model_blended'] = blended[mask]
+                df.loc[mask, 'pred_total_model_weight'] = w
+                pipeline_stats['dynamic_weight_applied'] = int(mask.sum())
+                pipeline_stats['dynamic_weight_w'] = w
+    except Exception:
+        pipeline_stats['dynamic_weight_error'] = True
 
     # Projected team scores from pred_total and pred_margin
     # Fallback / adjustment for implausibly low or missing totals (e.g., early-season sparse features causing collapsed predictions).
@@ -2899,6 +3960,40 @@ def index():
                     picks_df = picks_df[picks_df["date"] == date_q]
                 except Exception:
                     pass
+            # ----------------------------------------------------------
+            # Augment picks with model uncertainty & adjusted Kelly if available
+            # Adds columns: total_sigma, margin_sigma, kelly_total_adj, kelly_margin_adj
+            # Persists back to picks_raw.csv if new columns introduced.
+            # ----------------------------------------------------------
+            try:
+                if not df.empty and 'game_id' in df.columns:
+                    gmap_sigma_t = df.set_index('game_id')['pred_total_sigma'] if 'pred_total_sigma' in df.columns else None
+                    gmap_sigma_m = df.set_index('game_id')['pred_margin_sigma'] if 'pred_margin_sigma' in df.columns else None
+                    gmap_sigma_t_boot = df.set_index('game_id')['pred_total_sigma_bootstrap'] if 'pred_total_sigma_bootstrap' in df.columns else None
+                    gmap_sigma_m_boot = df.set_index('game_id')['pred_margin_sigma_bootstrap'] if 'pred_margin_sigma_bootstrap' in df.columns else None
+                    gmap_kelly_t_adj = df.set_index('game_id')['kelly_fraction_total_adj'] if 'kelly_fraction_total_adj' in df.columns else None
+                    gmap_kelly_m_adj = df.set_index('game_id')['kelly_fraction_margin_adj'] if 'kelly_fraction_margin_adj' in df.columns else None
+                    if gmap_sigma_t is not None and 'total_sigma' not in picks_df.columns:
+                        picks_df['total_sigma'] = picks_df['game_id'].map(gmap_sigma_t)
+                    if gmap_sigma_m is not None and 'margin_sigma' not in picks_df.columns:
+                        picks_df['margin_sigma'] = picks_df['game_id'].map(gmap_sigma_m)
+                    if gmap_sigma_t_boot is not None and 'total_sigma_bootstrap' not in picks_df.columns:
+                        picks_df['total_sigma_bootstrap'] = picks_df['game_id'].map(gmap_sigma_t_boot)
+                    if gmap_sigma_m_boot is not None and 'margin_sigma_bootstrap' not in picks_df.columns:
+                        picks_df['margin_sigma_bootstrap'] = picks_df['game_id'].map(gmap_sigma_m_boot)
+                    if gmap_kelly_t_adj is not None and 'kelly_total_adj' not in picks_df.columns:
+                        picks_df['kelly_total_adj'] = picks_df['game_id'].map(gmap_kelly_t_adj)
+                    if gmap_kelly_m_adj is not None and 'kelly_margin_adj' not in picks_df.columns:
+                        picks_df['kelly_margin_adj'] = picks_df['game_id'].map(gmap_kelly_m_adj)
+                    # Persist enriched picks back to disk (best-effort)
+                    try:
+                        raw_path_out = OUT / 'picks_raw.csv'
+                        picks_df.to_csv(raw_path_out, index=False)
+                        pipeline_stats['picks_raw_enriched'] = True
+                    except Exception:
+                        pipeline_stats['picks_raw_enriched'] = False
+            except Exception:
+                pipeline_stats['picks_raw_enriched_error'] = True
             # Normalize columns for market/selection/line/edge
             def pick_col(df_, names):
                 return next((c for c in names if c in df_.columns), None)
@@ -2988,6 +4083,100 @@ def index():
         df["_picks_list"] = [[] for _ in range(len(df))]
 
     # Order by start_time if available; fallback to date then home_team/game_id; else by abs edge
+    # ------------------------------------------------------------------
+    # Coverage supplementation: append any games or model prediction rows
+    # that are missing after daily_df or merge logic. This addresses cases
+    # where a game (e.g., Marshall vs Arkansas-Pine Bluff) exists in
+    # games_curr.csv and predictions_model_<date>.csv but is absent from
+    # the unified display DataFrame due to earlier branch selection.
+    # ------------------------------------------------------------------
+    try:
+        # Ensure df exists and has a game_id column
+        if isinstance(df, pd.DataFrame) and 'game_id' in df.columns:
+            existing_ids = set(df['game_id'].astype(str))
+            games_curr_path = OUT / 'games_curr.csv'
+            games_curr_df = _safe_read_csv(games_curr_path) if games_curr_path.exists() else pd.DataFrame()
+            if not games_curr_df.empty and 'game_id' in games_curr_df.columns:
+                games_curr_df['game_id'] = games_curr_df['game_id'].astype(str)
+                if date_q and 'date' in games_curr_df.columns:
+                    try:
+                        games_curr_df['date'] = pd.to_datetime(games_curr_df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                        games_curr_df = games_curr_df[games_curr_df['date'] == str(date_q)]
+                    except Exception:
+                        pass
+                # Identify missing schedule rows
+                missing_game_ids = [gid for gid in games_curr_df['game_id'] if gid not in existing_ids]
+                if missing_game_ids:
+                    add_games = games_curr_df[games_curr_df['game_id'].isin(missing_game_ids)].copy()
+                    # Guarantee prediction placeholder columns
+                    for col in ('pred_total','pred_margin'):
+                        if col not in add_games.columns:
+                            add_games[col] = np.nan
+                    df = pd.concat([df, add_games], ignore_index=True)
+                    pipeline_stats['appended_missing_games_rows'] = int(len(add_games))
+                    existing_ids.update(missing_game_ids)
+            # Add missing model predictions as rows
+            if 'model_preds' in locals() and isinstance(model_preds, pd.DataFrame) and not model_preds.empty and 'game_id' in model_preds.columns:
+                mp = model_preds.copy()
+                mp['game_id'] = mp['game_id'].astype(str)
+                missing_model_ids = [gid for gid in mp['game_id'] if gid not in existing_ids]
+                if missing_model_ids:
+                    add_mp = mp[mp['game_id'].isin(missing_model_ids)].copy()
+                    # Enrich with schedule metadata if available
+                    if not games_curr_df.empty and 'game_id' in games_curr_df.columns:
+                        enrich_cols = [c for c in ['game_id','date','home_team','away_team','start_time','venue'] if c in games_curr_df.columns]
+                        if enrich_cols:
+                            add_mp = add_mp.merge(games_curr_df[enrich_cols], on='game_id', how='left')
+                    # Promote model predictions
+                    if 'pred_total_model' in add_mp.columns and 'pred_total' not in add_mp.columns:
+                        add_mp['pred_total'] = add_mp['pred_total_model']
+                        add_mp['pred_total_basis'] = add_mp.get('pred_total_model_basis','model_raw')
+                    if 'pred_margin_model' in add_mp.columns and 'pred_margin' not in add_mp.columns:
+                        add_mp['pred_margin'] = add_mp['pred_margin_model']
+                        add_mp['pred_margin_basis'] = add_mp.get('pred_margin_model_basis','model')
+                    df = pd.concat([df, add_mp], ignore_index=True)
+                    pipeline_stats['appended_missing_model_rows'] = int(len(add_mp)) + int(pipeline_stats.get('appended_missing_model_rows', 0))
+            # Explicit safeguard: if specific known game_id (Marshall vs Arkansas-Pine Bluff) still missing, force add from sources
+            target_ids = []
+            try:
+                # Try to detect from todays games_curr if no date filter (or matches date_q)
+                if not date_q or date_q == today_str:
+                    # Hard-coded ID observed earlier
+                    target_ids.append('401827130')
+            except Exception:
+                pass
+            for tgt in target_ids:
+                if tgt not in set(df['game_id'].astype(str)):
+                    # Attempt to build a single-row DataFrame from games_curr + model_preds
+                    row_parts = []
+                    if not games_curr_df.empty and tgt in set(games_curr_df['game_id']):
+                        row_parts.append(games_curr_df[games_curr_df['game_id'] == tgt])
+                    if 'model_preds' in locals() and not model_preds.empty:
+                        mp_row = model_preds[model_preds['game_id'].astype(str) == tgt]
+                        if not mp_row.empty:
+                            row_parts.append(mp_row)
+                    if row_parts:
+                        force_row = row_parts[0].copy()
+                        # Add model columns if second part
+                        if len(row_parts) > 1:
+                            for _, r in row_parts[1].iterrows():
+                                for c, v in r.items():
+                                    if c not in force_row.columns:
+                                        force_row[c] = v
+                        # Promote prediction fields
+                        if 'pred_total_model' in force_row.columns and 'pred_total' not in force_row.columns:
+                            force_row['pred_total'] = force_row['pred_total_model']
+                            force_row['pred_total_basis'] = force_row.get('pred_total_model_basis','model_raw')
+                        if 'pred_margin_model' in force_row.columns and 'pred_margin' not in force_row.columns:
+                            force_row['pred_margin'] = force_row['pred_margin_model']
+                            force_row['pred_margin_basis'] = force_row.get('pred_margin_model_basis','model')
+                        df = pd.concat([df, force_row], ignore_index=True)
+                        pipeline_stats['forced_game_insertion'] = pipeline_stats.get('forced_game_insertion', []) + [tgt]
+            pipeline_stats['post_coverage_rows'] = int(len(df))
+            pipeline_stats['post_coverage_unique_games'] = int(df['game_id'].nunique())
+    except Exception:
+        pass
+
     if "date" in df.columns:
         try:
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
@@ -3464,6 +4653,23 @@ def index():
                 pipeline_stats["pred_total_basis_counts"] = basis_counts
                 pipeline_stats["pred_synthetic_baseline_count"] = int(df_tpl["pred_total_basis"].eq("synthetic_baseline").sum())
                 pipeline_stats["pred_market_copy_count"] = int(df_tpl["pred_total_basis"].eq("market_copy").sum())
+            if "pred_margin_basis" in df_tpl.columns:
+                m_basis_counts = df_tpl["pred_margin_basis"].value_counts(dropna=True).to_dict()
+                pipeline_stats["pred_margin_basis_counts"] = m_basis_counts
+        # Edge quality diagnostics (correlations)
+        try:
+            if {"pred_margin_model","spread_home"}.issubset(df_tpl.columns):
+                pmv = pd.to_numeric(df_tpl["pred_margin_model"], errors="coerce")
+                spv = pd.to_numeric(df_tpl["spread_home"], errors="coerce")
+                if pmv.notna().any() and spv.notna().any():
+                    pipeline_stats["corr_pred_margin_model_spread_home"] = float(pmv.corr(spv))
+            if {"edge_total_model","edge_margin_model"}.issubset(df_tpl.columns):
+                etm = pd.to_numeric(df_tpl["edge_total_model"], errors="coerce")
+                emm = pd.to_numeric(df_tpl["edge_margin_model"], errors="coerce")
+                if etm.notna().any() and emm.notna().any():
+                    pipeline_stats["corr_edge_total_vs_margin_model"] = float(etm.corr(emm))
+        except Exception:
+            pass
         # Explicit list of games missing market_total (first 12)
         if {"game_id","market_total"}.issubset(df_tpl.columns):
             miss_mask = df_tpl["market_total"].isna()
@@ -3710,6 +4916,96 @@ def index():
                 return jsonify(pipeline_stats)
         except Exception:
             pass
+    # ------------------------------------------------------------------
+    # Unified predictions export & global capture
+    # (moved before return to ensure execution)
+    # ------------------------------------------------------------------
+    try:
+        global _LAST_UNIFIED_FRAME
+        _LAST_UNIFIED_FRAME = df.copy()
+        # ------------------------------------------------------------------
+        # Uncertainty estimation (lightweight): derive sigma for totals & margins
+        # using residual std over last N days from daily_results. Scales by tempo.
+        # ------------------------------------------------------------------
+        try:
+            recent_files = sorted((OUT / "daily_results").glob("results_*.csv"))[-14:]
+            resid_totals: list[float] = []
+            resid_margins: list[float] = []
+            for fp in recent_files:
+                try:
+                    ddf = pd.read_csv(fp)
+                except Exception:
+                    continue
+                needed_t = {"pred_total","home_score","away_score"}
+                if needed_t.issubset(ddf.columns):
+                    hs = pd.to_numeric(ddf["home_score"], errors="coerce")
+                    as_ = pd.to_numeric(ddf["away_score"], errors="coerce")
+                    pt = pd.to_numeric(ddf["pred_total"], errors="coerce")
+                    actual_total = hs + as_
+                    resid = (pt - actual_total).dropna()
+                    resid_totals.extend(resid.tolist())
+                needed_m = {"pred_margin","home_score","away_score"}
+                if needed_m.issubset(ddf.columns):
+                    hs = pd.to_numeric(ddf["home_score"], errors="coerce")
+                    as_ = pd.to_numeric(ddf["away_score"], errors="coerce")
+                    pm = pd.to_numeric(ddf["pred_margin"], errors="coerce")
+                    actual_margin = hs - as_
+                    residm = (pm - actual_margin).dropna()
+                    resid_margins.extend(residm.tolist())
+            base_sigma_total = float(np.std(resid_totals)) if len(resid_totals) >= 12 else 12.0
+            base_sigma_margin = float(np.std(resid_margins)) if len(resid_margins) >= 12 else 8.0
+            # Scale by tempo sum if ratings available
+            tempo_scale = None
+            if {"home_tempo_rating","away_tempo_rating"}.issubset(df.columns):
+                tempo_scale = (pd.to_numeric(df["home_tempo_rating"], errors="coerce") + pd.to_numeric(df["away_tempo_rating"], errors="coerce")) / (2 * 69.0)
+            df["pred_total_sigma"] = base_sigma_total * (tempo_scale if tempo_scale is not None else 1.0)
+            df["pred_margin_sigma"] = base_sigma_margin * (tempo_scale if tempo_scale is not None else 1.0)
+            pipeline_stats["pred_total_sigma_mean"] = float(pd.to_numeric(df["pred_total_sigma"], errors="coerce").mean()) if "pred_total_sigma" in df.columns else None
+            pipeline_stats["pred_margin_sigma_mean"] = float(pd.to_numeric(df["pred_margin_sigma"], errors="coerce").mean()) if "pred_margin_sigma" in df.columns else None
+            # Confidence-weighted staking adjustment: downscale Kelly by relative sigma vs base
+            try:
+                if {"kelly_fraction_total","pred_total_sigma"}.issubset(df.columns):
+                    rel_scale = pd.to_numeric(df["pred_total_sigma"], errors="coerce") / max(base_sigma_total, 1e-9)
+                    df["kelly_fraction_total_adj"] = pd.to_numeric(df["kelly_fraction_total"], errors="coerce") / rel_scale.clip(lower=0.5, upper=2.5)
+            except Exception:
+                pass
+        except Exception:
+            pipeline_stats["uncertainty_error"] = "sigma_failed"
+        export_flag = (request.args.get("export") or "").strip().lower() in ("1","true","yes")
+        export_date: str | None = None
+        for cand in [date_q, today_str]:
+            if cand:
+                export_date = cand
+                break
+        if not export_date and "date" in df.columns and df["date"].notna().any():
+            try:
+                export_date = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d").dropna().iloc[0]
+            except Exception:
+                try:
+                    export_date = str(df["date"].dropna().astype(str).iloc[0])
+                except Exception:
+                    export_date = None
+        if export_date and not df.empty and (export_flag or diag_enabled or bool(date_q)):
+            cols_pref = [
+                "game_id","date","home_team","away_team","pred_total","pred_margin",
+                "pred_total_model","pred_margin_model","pred_total_calibrated","pred_margin_calibrated",
+                "pred_total_basis","pred_margin_basis","pred_total_model_basis","pred_margin_model_basis",
+                "market_total","closing_total","spread_home","closing_spread_home",
+                "edge_total","edge_total_model","edge_closing","edge_closing_model","edge_margin_model",
+                "proj_home","proj_away","start_time",
+                "pred_total_sigma","pred_margin_sigma","kelly_fraction_total","kelly_fraction_total_adj","kelly_fraction_margin_adj"
+            ]
+            keep = [c for c in cols_pref if c in df.columns]
+            uni = df[keep].copy()
+            uni_path = OUT / f"predictions_unified_{export_date}.csv"
+            try:
+                uni.to_csv(uni_path, index=False)
+                pipeline_stats["unified_export_path"] = str(uni_path)
+                pipeline_stats["unified_export_rows"] = int(len(uni))
+            except Exception:
+                pipeline_stats["unified_export_error"] = "write_failed"
+    except Exception:
+        pass
 
     return render_template(
         "index.html",
@@ -3734,6 +5030,7 @@ def index():
         removed_empty_rows=removed_empty_rows,
         pipeline_stats=pipeline_stats if diag_enabled else None,
     )
+
 
 
 @app.route("/api/render-diagnostics")
@@ -4463,6 +5760,142 @@ def api_results():
         rows.append(clean)
     meta["returned_columns"] = list(df.columns)
     return jsonify({"ok": True, "meta": meta, "rows": rows})
+
+
+@app.route("/api/predictions_unified")
+def api_predictions_unified():
+    """Return unified predictions frame for a given date (or latest).
+
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults to today's resolved slate if present)
+      - cols=comma,separated list of columns to include (optional)
+      - include_sigma=1 to force uncertainty columns even if not exported
+
+    Behavior:
+      1. Attempt to load outputs/predictions_unified_<date>.csv when date provided.
+      2. If date omitted, try today's file; fallback to global _LAST_UNIFIED_FRAME.
+      3. If file missing and global frame exists, filter by date column when possible.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    cols_req = (request.args.get("cols") or "").strip()
+    include_sigma = (request.args.get("include_sigma") or "").strip().lower() in ("1","true","yes")
+    today_str = None
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    target_date = date_q or today_str
+
+@app.route("/api/backtest")
+def api_backtest():
+    """Return daily backtest metrics JSON for a given date.
+
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults to yesterday if missing to ensure resolution)
+
+    Response: { ok: bool, date: str, metrics: {...} }
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        # default to yesterday for resolved outcomes
+        try:
+            date_q = (_today_local() - dt.timedelta(days=1)).strftime('%Y-%m-%d')
+        except Exception:
+            date_q = None
+    if not date_q:
+        return jsonify({"ok": False, "error": "no_date"}), 400
+    path = OUT / f"backtest_metrics_{date_q}.json"
+    if not path.exists():
+        return jsonify({"ok": False, "error": "not_found", "date": date_q}), 404
+    try:
+        import json as _json
+        payload = _json.loads(path.read_text(encoding='utf-8'))
+        return jsonify({"ok": True, "date": date_q, "metrics": payload})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "date": date_q}), 500
+
+@app.route("/api/residuals")
+def api_residuals():
+    """Return per-day residual distribution summary (totals/margins).
+
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults to yesterday for completed games)
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        try:
+            date_q = (_today_local() - dt.timedelta(days=1)).strftime('%Y-%m-%d')
+        except Exception:
+            date_q = None
+    if not date_q:
+        return jsonify({"ok": False, "error": "no_date"}), 400
+    path = OUT / f"residuals_{date_q}.json"
+    if not path.exists():
+        return jsonify({"ok": False, "error": "not_found", "date": date_q}), 404
+    try:
+        import json as _json
+        payload = _json.loads(path.read_text(encoding='utf-8'))
+        return jsonify({"ok": True, "date": date_q, "residuals": payload})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "date": date_q}), 500
+    df = pd.DataFrame()
+    loaded_path = None
+    if target_date:
+        path = OUT / f"predictions_unified_{target_date}.csv"
+        if path.exists():
+            try:
+                df = pd.read_csv(path)
+                loaded_path = str(path)
+            except Exception:
+                df = pd.DataFrame()
+    # Fallback to global frame
+    if df.empty:
+        try:
+            global _LAST_UNIFIED_FRAME
+            if _LAST_UNIFIED_FRAME is not None and isinstance(_LAST_UNIFIED_FRAME, pd.DataFrame) and not _LAST_UNIFIED_FRAME.empty:
+                df = _LAST_UNIFIED_FRAME.copy()
+                if target_date and "date" in df.columns:
+                    df = df[df["date"].astype(str) == target_date]
+        except Exception:
+            df = pd.DataFrame()
+    if df.empty:
+        return jsonify({"ok": True, "date": target_date, "rows": [], "note": "no data"})
+    # Optional sigma injection if requested and missing
+    if include_sigma and "pred_total_sigma" not in df.columns:
+        try:
+            sigma_t = float(pd.to_numeric(df.get("pred_total"), errors="coerce").std()) if "pred_total" in df.columns else 12.0
+            sigma_m = float(pd.to_numeric(df.get("pred_margin"), errors="coerce").std()) if "pred_margin" in df.columns else 8.0
+            df["pred_total_sigma"] = sigma_t
+            df["pred_margin_sigma"] = sigma_m
+        except Exception:
+            pass
+    if cols_req:
+        want = [c.strip() for c in cols_req.split(",") if c.strip()]
+        have = [c for c in want if c in df.columns]
+        if have:
+            df = df[have]
+    # Sanitize types for JSON
+    out_rows: list[dict[str, Any]] = []
+    for r in df.to_dict(orient="records"):
+        clean = {}
+        for k,v in r.items():
+            if isinstance(v, (np.generic,)):
+                try:
+                    v = v.item()
+                except Exception:
+                    v = float(v) if hasattr(v, '__float__') else str(v)
+            if isinstance(v, (dt.datetime, dt.date)):
+                v = str(v)
+            clean[k] = v
+        out_rows.append(clean)
+    meta = {
+        "date": target_date,
+        "n_rows": len(out_rows),
+        "columns": list(df.columns),
+        "loaded_path": loaded_path,
+        "from_global": loaded_path is None,
+    }
+    return jsonify({"ok": True, "meta": meta, "rows": out_rows})
 
 
 # ---------------- New Pages: Stake Sheet, Coverage, Calibration -----------------

@@ -146,6 +146,37 @@ python -m ncaab_model.cli daily-run --threshold 2.0 --default-price -110 --book-
 
 This fetches today’s games and odds, builds features, predicts, selects picks, and ingests outputs into SQLite (`data/ncaab.sqlite`).
 
+## Backtesting, calibration, and staking
+
+- Generate per-day backtest metrics (uses book-level closing when present; falls back to per-game medians):
+
+```powershell
+python scripts/daily_backtest.py --date 2025-11-19
+```
+
+Outputs `outputs/backtest_metrics_<date>.json` including summaries for totals/spread/moneyline and a `bets_detail` section.
+
+- Backfill core artifacts across a range and refresh season rollups + spread logistic calibration:
+
+```powershell
+python scripts/backfill_artifacts.py --start 2025-11-01 --end 2025-11-20
+# optional flags: --skip-calibration --skip-season
+```
+
+This writes daily residuals/scoring/reliability/backtest artifacts, then runs `scripts/calibrate_spread_logistic.py` and `scripts/season_aggregate.py`.
+
+Provisional calibration: when recent data is sparse, the calibrator now emits a provisional `calibration_spread_logistic.json` once it has at least 25–50 graded spread rows. The payload includes `provisional: true` and will be refined automatically as more days accrue. If there are no usable rows, it carries forward the prior K (if any) or falls back to a conservative default `K=0.115`.
+
+- Simulate alternative staking regimes on stored picks for a date:
+
+```powershell
+python scripts/stake_simulation.py --date 2025-11-19 --mode kelly --kelly_fractions 0.25 0.5 1.0
+python scripts/stake_simulation.py --date 2025-11-19 --mode flat --flat_units 0.5 1 2
+```
+
+The Flask app now also computes per-game spread Kelly suggestions using a calibrated logistic constant `K` from `outputs/calibration_spread_logistic.json` (if present); see `kelly_frac_spread` and `kelly_side_spread` columns in the server dataframe.
+On the main Cards page, a small Kelly badge appears in the Full Game → Odds row. It shows the suggested Kelly fraction at -110 and direction (HOME/AWAY) based on `(pred_margin - spread)`.
+
 ## Team Branding (Logos & Colors)
 
 Run once (and periodically) to pull current Division I team branding from ESPN:
@@ -303,12 +334,56 @@ UI pages:
 
 Cards display a "Neutral Site" pill when `neutral_site` is true for the game.
 
-## Segmented Model Blending (Future)
+## UI: archive navigation and live auto-refresh
 
-After generating segmented team predictions:
+- The Cards page offers an Archive Dates list for quick browsing and a Prev/Next stepper when viewing a specific date.
+- A small Auto-refresh checkbox lets you keep the page updated every 60s. If there are live games and auto-refresh is off, a dot appears in the page title as a subtle hint.
+
+## Historical Backfill Orchestrator
+
+Use the PowerShell helper to accumulate history, rebuild last/closing lines, generate artifacts, calibrate spread K, and refresh season rollups. It will also train segmented models if `outputs/features_hist.csv` is present.
 
 ```powershell
-python -m ncaab_model.cli predict-segmented outputs/features_curr.csv --segment team --models-dir outputs/models --out outputs/predictions_week_team.csv
+# Backfill a specific span
+.\n+scripts\historical_backfill.ps1 -Start 2023-11-01 -End 2024-04-15
+
+# Or backfill typical season windows (Nov 1 .. Apr 15 next year)
+.\n+scripts\historical_backfill.ps1 -Seasons 2023,2024
+```
+
+Outputs affected:
+- `outputs/odds_history/` snapshots and `outputs/closing_lines.csv`
+- `outputs/last_odds.csv` and per-day `outputs/games_with_last.csv`
+- Daily artifacts under `outputs/daily_results/` and scoring/reliability/backtest CSVs
+- `outputs/calibration_spread_logistic.json` (provisional until sufficient rows)
+- Season summaries under `outputs/season/`
+- Segmented models to `outputs/models_segmented*/` when features are available
+
+## Segmented Models (team/conference)
+
+Train per-segment ridge models (totals and margins) with a single command. Models are saved as JSONL entries with learned weights and scaling per segment.
+
+```powershell
+python -m ncaab_model.cli train-segmented outputs/features_hist.csv --segment team --out-dir outputs/models_segmented --min-rows 25 --alpha 1.0
+python -m ncaab_model.cli train-segmented outputs/features_hist.csv --segment conference --out-dir outputs/models_segmented_conf --min-rows 25 --alpha 1.0
+```
+
+Notes:
+- Input must include historical features with `game_id`, segment keys (`team` or `conference`), and target columns.
+- Low-sample segments are skipped (`--min-rows`); regularization via `--alpha`.
+- Integration into daily predictions and blending against the global baseline is planned; evaluate segment uplift via backtests before switching.
+
+Score and blend for a given day:
+
+```powershell
+# Score segmented predictions for today's features
+python -m ncaab_model.cli predict-segmented outputs/features_curr.csv --models-path outputs/models_segmented --segment team --out outputs/predictions_segmented.csv
+
+# Blend with baseline predictions (caps segment weight at 60%, grows with segment sample size)
+python -m ncaab_model.cli blend-segmented outputs/predictions.csv outputs/predictions_segmented.csv --out outputs/predictions_blend.csv --min-rows 25 --max-weight 0.6
+```
+
+When present, the app prefers `outputs/predictions_blend_<date>.csv` or `outputs/predictions_blend.csv` automatically.
 
 ## Inference Fallback & QNN / DirectML Acceleration
 
@@ -359,22 +434,6 @@ Once a stable QNN-enabled wheel is built/installed, re-run `daily-run` and compa
 | ImportError on onnxruntime | Wheel architecture mismatch | Acquire correct win_arm64 wheel or rebuild from source |
 
 The fallback path is intentional: it preserves operational continuity (games, odds, picks ingestion) while you iterate on hardware acceleration.
-
-```
-
-Blend with baseline:
-
-```python
-import pandas as pd
-base = pd.read_csv('outputs/predictions_week.csv')
-seg = pd.read_csv('outputs/predictions_week_team.csv').rename(columns={'pred_total':'pred_total_seg','pred_margin':'pred_margin_seg'})
-blend = base.merge(seg[['game_id','pred_total_seg','pred_margin_seg']], on='game_id', how='left')
-blend['pred_total_final'] = blend[['pred_total','pred_total_seg']].mean(axis=1)
-blend['pred_margin_final'] = blend[['pred_margin','pred_margin_seg']].mean(axis=1)
-blend.to_csv('outputs/predictions_week_blend.csv', index=False)
-```
-
-Use `pred_total_final` / `pred_margin_final` for UI injection after verifying accuracy uplift.
 
 # NCAAB Betting & Prediction Engine
 

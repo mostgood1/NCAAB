@@ -32,13 +32,9 @@ __pycache__/
 !outputs/odds_2026-*.csv
 !outputs/games_with_odds_2025-*.csv
 !outputs/games_with_odds_2026-*.csv
-!outputs/predictions_2025-*.csv
-!outputs/predictions_2026-*.csv
-!outputs/games_display_2025-*.csv
-!outputs/games_display_2026-*.csv
-!outputs/predictions_model_2025-*.csv
-!outputs/predictions_model_2026-*.csv
-!outputs/predictions_model_calibrated_2025-*.csv
+# Daily model prediction artifacts and stake sheets are large/noisy; keep local only
+# (Previously whitelisted; removing to prevent repo churn and size growth)
+# If archival needed, add Parquet outputs under a separate retained directory.
 !outputs/predictions_model_calibrated_2026-*.csv
 !outputs/predictions_model_interval_2025-*.csv
 !outputs/predictions_model_interval_2026-*.csv
@@ -49,6 +45,11 @@ __pycache__/
 !outputs/stake_sheet_today.csv
 !outputs/stake_sheet_today_cal.csv
 !outputs/stake_sheet_today_compare.csv
+
+# Large per-date artifacts: do not commit (size and churn)
+outputs/predictions_*.csv
+outputs/align_period_*.csv
+outputs/align_period_*_edges.csv
 
 # Vendors / embedded repos
 onnxruntime/

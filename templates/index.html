@@ -32,6 +32,17 @@
         <a href="/calibration">Calibration</a>
       </nav>
     </div>
+    {% if pipeline_stats and pipeline_stats.using_blended_predictions %}
+      <div class="mb8" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+        <span class="pill" title="Blended predictions active (segmented + baseline)">Blended Active</span>
+        {% if pipeline_stats.blend_weight_median is defined %}
+          <span class="pill" title="Blend weight median (min–max)">Wmed {{ '%.2f' % pipeline_stats.blend_weight_median }} ({{ '%.2f' % pipeline_stats.blend_weight_min }}–{{ '%.2f' % pipeline_stats.blend_weight_max }})</span>
+        {% endif %}
+        {% if pipeline_stats.seg_n_rows_median is defined %}
+          <span class="pill" title="Segment sample size median (min–max)">Nmed {{ '%.0f' % pipeline_stats.seg_n_rows_median }} ({{ '%.0f' % pipeline_stats.seg_n_rows_min }}–{{ '%.0f' % pipeline_stats.seg_n_rows_max }})</span>
+        {% endif %}
+      </div>
+    {% endif %}
     <form method="get" class="filters">
       <label class="muted">Date:
         <input type="date" name="date" value="{{ date_val or '' }}" />
@@ -39,7 +50,8 @@
       <label class="muted"><input type="checkbox" name="use_daily" value="1" {% if request.args.get('use_daily') in ['1','true','yes'] %}checked{% endif %}/> Use daily results</label>
       <button type="submit" class="pill">Apply</button>
       {% if date_val %}<a class="pill" href="/">Clear</a>{% endif %}
-      {% if date_val %}<button type="button" class="pill" id="btnFinalize" data-date="{{ date_val }}">Finalize Results</button>{% endif %}
+  {% if date_val %}<button type="button" class="pill" id="btnFinalize" data-date="{{ date_val }}">Finalize Results</button>{% endif %}
+  <label class="muted" style="margin-left:8px;"><input type="checkbox" id="autoRefreshChk" /> Auto-refresh</label>
       {% if show_bootstrap %}
         <a class="pill accent" href="{{ bootstrap_url }}" title="Run minimal pipeline to generate today's games and predictions">Generate Today's Predictions</a>
       {% endif %}
@@ -57,6 +69,20 @@
         <span class="pill">None: {{ coverage.none }}</span>
       {% endif %}
     </div>
+    {% if archive_dates and date_val %}
+      {% set prev_date = None %}
+      {% set next_date = None %}
+      {% for d in archive_dates %}
+        {% if d == date_val %}
+          {% if loop.index0 > 0 %}{% set prev_date = archive_dates[loop.index0 - 1] %}{% endif %}
+          {% if loop.index0 + 1 < archive_dates|length %}{% set next_date = archive_dates[loop.index0 + 1] %}{% endif %}
+        {% endif %}
+      {% endfor %}
+      <div class="archive-stepper" style="margin:4px 0 8px 0; display:flex; gap:6px;">
+        {% if prev_date %}<a class="pill" href="/?date={{ prev_date }}&use_daily=1">◀ Prev</a>{% endif %}
+        {% if next_date %}<a class="pill" href="/?date={{ next_date }}&use_daily=1">Next ▶</a>{% endif %}
+      </div>
+    {% endif %}
     {% if archive_dates %}
       <div class="archive-nav">
         <details>
@@ -167,12 +193,22 @@
             {% set is_cal = r.pred_total_basis in ['model_calibrated','model_calibrated_bias'] %}
             {% set is_raw = r.pred_total_basis in ['model_raw','model'] %}
             <div class="pill">Total: {{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}
+              {# Existing calibrated/raw indicator remains #}
               {% if is_cal %}<span class="badge cal" title="Calibrated (scaled & distribution-aligned)">Cal</span>{% endif %}
               {% if is_raw and not is_cal %}<span class="badge raw" title="Raw model prediction">Raw</span>{% endif %}
               {% if r.pred_total_adjusted %}<span class="badge adj" title="Low-total blend adjustment applied">Adj</span>{% endif %}
               {% if r.pred_total_model_raw is defined and r.pred_total_model_raw is not none and is_cal %}
                 <span class="badge toggle-raw" data-raw="{{ '%.1f' % r.pred_total_model_raw }}" data-cal="{{ '%.1f' % r.pred_total }}" onclick="toggleRaw(this)" title="Click to toggle raw vs calibrated">↔</span>
               {% endif %}
+              {# New basis micro-badge summarizing the origin of the total prediction #}
+              {% set tb = r.pred_total_basis %}
+              {% if tb %}
+                <span class="badge" title="Total basis: {{ tb }}">
+                  {% if tb.startswith('model_calibrated') %}CAL{% elif tb in ['model_raw','model'] %}RAW{% elif tb == 'features_derived' %}DER{% elif tb == 'synthetic_baseline' %}SYN{% elif tb == 'market_copy' %}COPY{% elif tb == 'blended_low' %}BLEND{% else %}{{ tb|upper|slice(0,4) }}{% endif %}
+                </span>
+              {% endif %}
+              {% if r.blend_weight is defined and r.blend_weight is not none %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
+              {% if r.seg_n_rows is defined and r.seg_n_rows is not none %}<span class="badge sample" title="Segment sample size (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
             </div>
             <div class="pill">
               {% if r.pred_margin is not none %}
@@ -215,6 +251,16 @@
               <div class="seg">Team Totals: {% if r.proj_home is not none and r.proj_away is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
               <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}
                 {% if is_cal %}<span class="badge cal" title="Calibrated">Cal</span>{% elif is_raw %}<span class="badge raw" title="Raw model">Raw</span>{% endif %}
+                {# Basis badge for full-game total #}
+                {% set tb2 = r.pred_total_basis %}
+                {% if tb2 %}<span class="badge" title="Total basis: {{ tb2 }}">{% if tb2.startswith('model_calibrated') %}CAL{% elif tb2 in ['model_raw','model'] %}RAW{% elif tb2 == 'features_derived' %}DER{% elif tb2 == 'synthetic_baseline' %}SYN{% elif tb2 == 'market_copy' %}COPY{% elif tb2 == 'blended_low' %}BLEND{% else %}{{ tb2|upper|slice(0,4) }}{% endif %}</span>{% endif %}
+                {# Margin basis badge (if present) #}
+                {% if r.pred_margin_basis is defined and r.pred_margin_basis %}
+                  {% set mb = r.pred_margin_basis %}
+                  <span class="badge" title="Margin basis: {{ mb }}">{% if mb.startswith('model_calibrated') %}CAL{% elif mb in ['model_raw','model'] %}RAW{% elif mb == 'features_derived' %}DER{% elif mb == 'synthetic_baseline' %}SYN{% elif mb == 'market_copy' %}COPY{% elif mb == 'blended_low' %}BLEND{% else %}{{ mb|upper|slice(0,4) }}{% endif %}</span>
+                {% endif %}
+                {% if r.blend_weight is defined and r.blend_weight is not none %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
+                {% if r.seg_n_rows is defined and r.seg_n_rows is not none %}<span class="badge sample" title="Segment sample size (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
               </div>
             </div>
             {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
@@ -222,6 +268,13 @@
             <div class="line-row odds-row">
               <div class="seg label">Odds</div>
               <div class="seg">ATS: {% if spread_full is not none %}{% if spread_full < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % spread_full }}{% elif spread_full > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % spread_full }}{% else %}Pick{% endif %}{% else %}–{% endif %}</div>
+              <div class="seg">
+                {% if r.kelly_frac_spread is defined and r.kelly_frac_spread is not none and r.kelly_frac_spread == r.kelly_frac_spread %}
+                  <span class="badge" title="Kelly fraction suggestion for ATS using calibrated K and -110 price">Kelly: {{ '%.1f' % (r.kelly_frac_spread * 100) }}% {{ r.kelly_side_spread or '' }}</span>
+                {% else %}
+                  <span class="badge" title="Kelly fraction suggestion unavailable">Kelly: –</span>
+                {% endif %}
+              </div>
               {% if spread_full is not none %}
                 <div class="seg">Winner: {% if spread_full < 0 %}{{ r.home_team or '–' }}{% elif spread_full > 0 %}{{ r.away_team or '–' }}{% else %}Even{% endif %}</div>
               {% else %}
@@ -504,10 +557,21 @@
         el.title = d.toISOString();
       });
     } catch(e) { /* noop */ }
-    // If any live games are present, auto-refresh every 60s
+    // Optional auto-refresh every 60s (user-controlled); indicate live with title dot if not enabled
     var hasLive = document.querySelector('[data-live="1"]') !== null;
-    if(hasLive){
+    var chk = document.getElementById('autoRefreshChk');
+    var key = 'ncaab:autoRefresh';
+    var saved = (localStorage.getItem(key) === '1');
+    if (chk) {
+      chk.checked = saved;
+      chk.addEventListener('change', function(){
+        localStorage.setItem(key, chk.checked ? '1' : '0');
+      });
+    }
+    if(saved){
       setTimeout(function(){ location.reload(); }, 60000);
+    } else if (hasLive) {
+      document.title = '• ' + document.title;
     }
     // Finalize via AJAX
     var btn = document.getElementById('btnFinalize');

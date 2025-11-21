@@ -29,6 +29,7 @@ from .features.schedule import compute_rest_days
 from .train.baseline import train_baseline
 from .train.distributional import train_distributional_totals, predict_distributional_totals
 from .train.segmented import train_segmented
+from .predict.segmented import score_segmented, blend_predictions
 from .train.halves import train_half_models
 from .eval.backtest import backtest_totals, backtest_totals_with_closing
 from .data.odds_closing import make_closing_lines, make_last_odds
@@ -130,6 +131,55 @@ def seed_priors(
         print(f"[green]Wrote features with priors to[/green] {out} ({len(feats)} rows)")
     except Exception as e:
         print(f"[red]Failed seeding priors:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="predict-segmented")
+def predict_segmented_cmd(
+    features_csv: Path = typer.Argument(..., help="Features CSV for the scoring date (e.g., outputs/features_curr.csv)"),
+    models_path: Path = typer.Option(settings.outputs_dir / "models_segmented" / "segmented_team_models.jsonl", help="Path to segmented_*_models.jsonl"),
+    segment: str = typer.Option("team", help="Segmentation key used during training: team|conference"),
+    out: Path = typer.Option(settings.outputs_dir / "predictions_segmented.csv", help="Output CSV with segmented predictions"),
+):
+    """Score features with segmented models and write per-game segmented predictions."""
+    try:
+        if models_path.is_dir():
+            # Auto-detect jsonl file inside directory
+            cand = sorted(models_path.glob("segmented_*_models.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if not cand:
+                print(f"[red]No segmented models found in[/red] {models_path}")
+                raise typer.Exit(code=1)
+            models_path = cand[0]
+        df = score_segmented(features_csv, models_path, segment=segment)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out, index=False)
+        print(f"[green]Wrote segmented predictions[/green] {out} (rows={len(df)})")
+    except Exception as e:
+        print(f"[red]predict-segmented failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="blend-segmented")
+def blend_segmented_cmd(
+    base_predictions_csv: Path = typer.Argument(..., help="Baseline predictions CSV (contains pred_total, pred_margin, game_id)"),
+    segmented_predictions_csv: Path = typer.Argument(..., help="Segmented predictions CSV from predict-segmented"),
+    out: Path = typer.Option(settings.outputs_dir / "predictions_blend.csv", help="Output blended predictions CSV"),
+    min_rows: int = typer.Option(25, help="Segments must have at least this many rows to get weight > 0"),
+    max_weight: float = typer.Option(0.6, help="Maximum blend weight for segmented prediction"),
+):
+    """Blend baseline and segmented predictions with a data-driven weight capped by max_weight.
+
+    Produces pred_total_blend and pred_margin_blend columns; preserves originals.
+    """
+    try:
+        base_df = pd.read_csv(base_predictions_csv)
+        seg_df = pd.read_csv(segmented_predictions_csv)
+        m = blend_predictions(base_df, seg_df, min_rows=min_rows, max_weight=max_weight)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        m.to_csv(out, index=False)
+        print(f"[green]Wrote blended predictions[/green] {out} (rows={len(m)})")
+    except Exception as e:
+        print(f"[red]blend-segmented failed:[/red] {e}")
         raise typer.Exit(code=1)
 @app.command(name="coverage-report")
 def coverage_report(
@@ -4400,6 +4450,34 @@ def train_preseason(
     print(f"Models at {out_dir}")
 
 
+@app.command(name="train-segmented")
+def train_segmented_cmd(
+    features_csv: Path = typer.Argument(settings.outputs_dir / "features_hist.csv", help="Features CSV with targets (multi-season recommended)"),
+    out_dir: Path = typer.Option(settings.outputs_dir / "models_segmented", help="Output directory for per-segment JSONL models"),
+    segment: str = typer.Option("team", help="Segmentation key: team|conference"),
+    min_rows: int = typer.Option(25, help="Minimum rows per segment to fit a model"),
+    alpha: float = typer.Option(1.0, help="Ridge regularization strength"),
+):
+    """Train per-segment linear models over teams or conferences.
+
+    Produces a JSONL file with one small linear model per segment (totals and margins). Use features_hist.csv
+    for best coverage. Requires target_total/target_margin columns.
+    """
+    if not features_csv.exists():
+        print(f"[red]Missing features file:[/red] {features_csv}")
+        raise typer.Exit(code=1)
+    seg = (segment or "team").strip().lower()
+    if seg not in {"team", "conference"}:
+        print("[red]segment must be 'team' or 'conference'[/red]")
+        raise typer.Exit(code=1)
+    try:
+        res = train_segmented(features_csv, out_dir, segment=seg, min_rows=int(min_rows), alpha=float(alpha))
+        print(f"[green]Segmented training complete.[/green] {res}")
+    except Exception as e:
+        print(f"[red]Segmented training failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command(name="backtest")
 def backtest(
     games_path: Path = typer.Argument(..., help="Games file from fetch-games (CSV/Parquet)"),
@@ -5799,6 +5877,8 @@ def daily_run(
     enable_ort: bool = typer.Option(True, help="Attempt ONNX/QNN activation via scripts/enable_ort_qnn.ps1 when ORT not importable"),
     accumulate_schedule: bool = typer.Option(True, help="Append today's games into games_all.csv (dedupe by game_id, prefer rows with scores)"),
     accumulate_predictions: bool = typer.Option(True, help="Append today's predictions into predictions_all.csv (dedupe by game_id, keep latest)"),
+    blend_min_rows: int = typer.Option(25, help="Minimum segment training rows before blend weight > 0"),
+    blend_max_weight: float = typer.Option(0.6, help="Maximum blend weight applied to segmented prediction"),
 ):
     """End-to-end daily pipeline: fetch games and odds for a date, build features, predict, make picks, ingest to SQLite."""
     target_date = dt.date.fromisoformat(date) if date else _today_local()
@@ -6165,6 +6245,15 @@ def daily_run(
         feats = pd.read_csv(feats_curr_path)
         if "game_id" in feats.columns:
             feats["game_id"] = feats["game_id"].astype(str)
+        # Safety: ensure one row per game_id to avoid explosive merges downstream
+        try:
+            if "game_id" in feats.columns:
+                dup_count = int(feats.duplicated(subset=["game_id"], keep="last").sum())
+                if dup_count > 0:
+                    print(f"[yellow]Deduplicating features_curr: dropping {dup_count} duplicate game_id rows[/yellow]")
+                    feats = feats.drop_duplicates(subset=["game_id"], keep="last").reset_index(drop=True)
+        except Exception as _dedup_err:
+            print(f"[yellow]Feature dedup check failed (continuing):[/yellow] {_dedup_err}")
 
         seg_mode = (segment or "none").lower()
         use_segmented = seg_mode in {"team", "conference"}
@@ -6199,6 +6288,11 @@ def daily_run(
                     "pre_total": ypt,
                     "pre_margin": ypm,
                 })
+                # Ensure one row per game_id to prevent cartesian growth on merge
+                try:
+                    pre_df = pre_df.drop_duplicates(subset=["game_id"], keep="last")
+                except Exception:
+                    pass
                 # Determine sparsity on a set of rolling stats
                 roll_cols = [c for c in [
                     "home_pf5","away_pf5","home_tot5","away_tot5",
@@ -6311,6 +6405,77 @@ def daily_run(
                         out_df["pred_total_adjusted"] = flags
                     except Exception:
                         pass
+
+                # --- Automatic baseline + segmented blending ---
+                try:
+                    # Baseline (global) predictions for all rows
+                    base_cols_path = settings.outputs_dir / "models" / "feature_columns.txt"
+                    base_cols = [c.strip() for c in base_cols_path.read_text(encoding="utf-8").splitlines() if c.strip()]
+                    Xb = feats.reindex(columns=base_cols).fillna(0.0).to_numpy(dtype=np.float32)
+                    providers_b = OnnxPredictor.describe_available()
+                    base_total_path = settings.outputs_dir / "models" / "baseline_target_total.onnx"
+                    base_margin_path = settings.outputs_dir / "models" / "baseline_target_margin.onnx"
+                    base_total_model = OnnxPredictor(str(base_total_path)) if providers_b else NumpyLinearPredictor(str(base_total_path))
+                    base_margin_model = OnnxPredictor(str(base_margin_path)) if providers_b else NumpyLinearPredictor(str(base_margin_path))
+                    ybt = base_total_model.predict(Xb).reshape(-1)
+                    ybm = base_margin_model.predict(Xb).reshape(-1)
+                    out_df["pred_total_base"] = ybt
+                    out_df["pred_margin_base"] = ybm
+
+                    # Preserve segmented pre-blend
+                    out_df["pred_total_seg"] = out_df["pred_total"].astype(float)
+                    out_df["pred_margin_seg"] = out_df["pred_margin"].astype(float)
+
+                    # Determine segment sample sizes (n_rows) from features_segment.csv in each model dir
+                    seg_root = settings.outputs_dir / "models" / ("seg_team" if seg_mode == "team" else "seg_conference")
+                    cache_counts: dict[str, int] = {}
+                    def _seg_rows(name: str) -> int:
+                        if name in cache_counts:
+                            return cache_counts[name]
+                        p = seg_root / name / "features_segment.csv"
+                        if p.exists():
+                            try:
+                                cache_counts[name] = max(0, sum(1 for _ in p.open("r", encoding="utf-8")) - 1)
+                            except Exception:
+                                cache_counts[name] = 0
+                        else:
+                            cache_counts[name] = 0
+                        return cache_counts[name]
+                    seg_counts = []
+                    for mu in out_df.get("model_used", pd.Series(dtype=str)).astype(str):
+                        if mu.startswith("team:") or mu.startswith("conference:"):
+                            seg_name = mu.split(":",1)[1]
+                            seg_counts.append(_seg_rows(seg_name))
+                        else:
+                            seg_counts.append(0)
+                    out_df["seg_n_rows"] = seg_counts
+
+                    # Compute blend weights
+                    def _w(n: float) -> float:
+                        try:
+                            return float(max(0.0, min(blend_max_weight, (float(n) - float(blend_min_rows)) / (float(blend_min_rows) * 3.0))))
+                        except Exception:
+                            return 0.0
+                    out_df["blend_weight"] = out_df["seg_n_rows"].map(_w)
+                    # Force weight=0 when segmented model wasn't used (model_used=='global')
+                    mask_global = out_df.get("model_used", pd.Series(dtype=str)).astype(str) == "global"
+                    out_df.loc[mask_global, "blend_weight"] = 0.0
+
+                    # Apply blend
+                    bt = pd.to_numeric(out_df["pred_total_base"], errors="coerce")
+                    bm = pd.to_numeric(out_df["pred_margin_base"], errors="coerce")
+                    st = pd.to_numeric(out_df["pred_total_seg"], errors="coerce")
+                    sm = pd.to_numeric(out_df["pred_margin_seg"], errors="coerce")
+                    wts = out_df["blend_weight"].astype(float)
+                    out_df["pred_total_blend"] = bt.where(st.isna(), (1.0 - wts) * bt + wts * st)
+                    out_df["pred_margin_blend"] = bm.where(sm.isna(), (1.0 - wts) * bm + wts * sm)
+                    # Replace primary columns with blended versions for downstream edge / picks logic
+                    out_df["pred_total"] = out_df["pred_total_blend"]
+                    out_df["pred_margin"] = out_df["pred_margin_blend"]
+                    out_df["blend_applied"] = True
+                except Exception as _be:
+                    print(f"[yellow]Automatic blend skipped:[/yellow] {_be}")
+                    out_df["blend_applied"] = False
 
                 # Half projections via models if available; else ratio fallback
                 used_half = False
