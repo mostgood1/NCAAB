@@ -4551,6 +4551,69 @@ def index():
                         pipeline_stats['forced_game_insertion'] = pipeline_stats.get('forced_game_insertion', []) + [tgt]
             pipeline_stats['post_coverage_rows'] = int(len(df))
             pipeline_stats['post_coverage_unique_games'] = int(df['game_id'].nunique())
+            # Second-pass synthetic + margin fill after coverage filtering: some earlier synthetic fills
+            # may have been dropped if those games were excluded. Re-fill remaining NaNs so exports
+            # reflect predictions for all covered games.
+            try:
+                if 'pred_total' in df.columns:
+                    pt_missing2 = pd.to_numeric(df['pred_total'], errors='coerce').isna()
+                    if pt_missing2.any():
+                        mt_series2 = pd.to_numeric(df.get('market_total'), errors='coerce') if 'market_total' in df.columns else pd.Series([np.nan]*len(df))
+                        # Use simplified baseline formula (avoid heavy tempo logic duplication)
+                        baseline_league_avg2 = 141.5
+                        ht2 = pd.to_numeric(df.get('home_tempo_rating'), errors='coerce') if 'home_tempo_rating' in df.columns else pd.Series([np.nan]*len(df))
+                        at2 = pd.to_numeric(df.get('away_tempo_rating'), errors='coerce') if 'away_tempo_rating' in df.columns else pd.Series([np.nan]*len(df))
+                        tempo_avg2 = np.where(ht2.notna() & at2.notna(), (ht2+at2)/2.0, np.nan)
+                        import zlib
+                        def _noise2(h,a):
+                            try:
+                                return (((zlib.adler32(f"{h}::{a}".encode()) % 1000)/1000.0) - 0.5) * 3.4
+                            except Exception:
+                                return 0.0
+                        for idx in df.index[pt_missing2]:
+                            h = df.at[idx,'home_team'] if 'home_team' in df.columns else ''
+                            a = df.at[idx,'away_team'] if 'away_team' in df.columns else ''
+                            mt_val2 = mt_series2.loc[idx] if idx in mt_series2.index else np.nan
+                            tempo_avg_val2 = tempo_avg2[idx] if not (isinstance(tempo_avg2, float) or pd.isna(tempo_avg2[idx])) else np.nan
+                            tempo_component2 = ((tempo_avg_val2 - 70.0) * (0.55 if not pd.isna(tempo_avg_val2) else 0)) if not pd.isna(tempo_avg_val2) else 0.0
+                            base_val = baseline_league_avg2 + tempo_component2 + _noise2(h,a)
+                            if not pd.isna(mt_val2):
+                                val2 = 0.55 * baseline_league_avg2 + 0.30 * float(mt_val2) + 0.15 * base_val
+                            else:
+                                val2 = base_val
+                            val2 = float(np.clip(val2, 60, 192))
+                            df.at[idx,'pred_total'] = val2
+                            if 'pred_total_basis' in df.columns and pd.isna(df.at[idx,'pred_total_basis']):
+                                df.at[idx,'pred_total_basis'] = 'synthetic_baseline_final'
+                            elif 'pred_total_basis' not in df.columns:
+                                df.loc[idx,'pred_total_basis'] = 'synthetic_baseline_final'
+                        pipeline_stats['second_pass_pred_total_fills'] = int(pt_missing2.sum())
+                if 'pred_margin' in df.columns:
+                    pm_missing2 = pd.to_numeric(df['pred_margin'], errors='coerce').isna()
+                    if pm_missing2.any():
+                        # Try spread-based first if available
+                        if 'spread_home' in df.columns:
+                            spread_series2 = pd.to_numeric(df['spread_home'], errors='coerce')
+                            can_spread = pm_missing2 & spread_series2.notna()
+                            for idx in df.index[can_spread]:
+                                df.at[idx,'pred_margin'] = float(-spread_series2.loc[idx])
+                                if 'pred_margin_basis' in df.columns and pd.isna(df.at[idx,'pred_margin_basis']):
+                                    df.at[idx,'pred_margin_basis'] = 'synthetic_from_spread_final'
+                                elif 'pred_margin_basis' not in df.columns:
+                                    df.loc[idx,'pred_margin_basis'] = 'synthetic_from_spread_final'
+                        # Remaining -> even margin
+                        pm_missing3 = pd.to_numeric(df['pred_margin'], errors='coerce').isna()
+                        if pm_missing3.any():
+                            for idx in df.index[pm_missing3]:
+                                df.at[idx,'pred_margin'] = 0.0
+                                if 'pred_margin_basis' in df.columns and pd.isna(df.at[idx,'pred_margin_basis']):
+                                    df.at[idx,'pred_margin_basis'] = 'synthetic_even_final'
+                                elif 'pred_margin_basis' not in df.columns:
+                                    df.loc[idx,'pred_margin_basis'] = 'synthetic_even_final'
+                            pipeline_stats['second_pass_pred_margin_even_fills'] = int(pm_missing3.sum())
+                        pipeline_stats['second_pass_pred_margin_fills'] = int(pm_missing2.sum())
+            except Exception:
+                pipeline_stats['second_pass_error'] = True
     except Exception:
         pass
 
