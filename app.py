@@ -2731,9 +2731,20 @@ def index():
     # Removes previous logic that hid odds when predictions were missing; instead we synthesize a baseline prediction.
     try:
         if "pred_total" in df.columns:
+            # Coerce textual placeholders ('nan','None','') to actual NaN before missing mask
+            try:
+                df["pred_total"] = pd.to_numeric(df["pred_total"], errors="coerce")
+            except Exception:
+                pass
+            if "pred_margin" in df.columns:
+                try:
+                    df["pred_margin"] = pd.to_numeric(df["pred_margin"], errors="coerce")
+                except Exception:
+                    pass
             mt_series = pd.to_numeric(df.get("market_total"), errors="coerce") if "market_total" in df.columns else None
             pm_series = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else None
             missing_pred = df["pred_total"].isna()
+            pipeline_stats["missing_pred_total_rows_initial"] = int(missing_pred.sum())
             # If market_total column itself missing, create it from closing_total or leave None so downstream logic can still inspect.
             if mt_series is None:
                 if "closing_total" in df.columns:
