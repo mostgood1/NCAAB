@@ -1,0 +1,74 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401831195,2025,2025-11-21,2025-11-21 05:00:00+00:00,TBD,TBD,0,0,,,,,True,T-Mobile Center
+401831194,2025,2025-11-21,2025-11-21 05:00:00+00:00,TBD,TBD,0,0,,,,,True,T-Mobile Center
+401827505,2025,2025-11-21,2025-11-21 16:00:00+00:00,William & Mary Tribe,Regent Royals,0,0,,,,,False,Kaplan Arena
+401818301,2025,2025-11-21,2025-11-21 17:30:00+00:00,Yale Bulldogs,Green Bay Phoenix,0,0,,,,,True,UVI Sports & Fitness Center
+401809310,2025,2025-11-21,2025-11-21 18:00:00+00:00,Tulane Green Wave,Utah State Aggies,0,0,,,,,True,TD Arena
+401823377,2025,2025-11-21,2025-11-21 19:00:00+00:00,Alabama State Hornets,IU Indianapolis Jaguars,0,0,,,,,True,Clune Arena
+401820825,2025,2025-11-21,2025-11-21 19:00:00+00:00,Butler Bulldogs,South Carolina Gamecocks,0,0,,,,,True,Colonial Hall
+401827452,2025,2025-11-21,2025-11-21 20:00:00+00:00,Charleston Cougars,Massachusetts Minutemen,0,0,,,,,True,UVI Sports & Fitness Center
+401823868,2025,2025-11-21,2025-11-21 20:00:00+00:00,UT Arlington Mavericks,Campbell Fighting Camels,0,0,,,,,True,Dee Events Center
+401809311,2025,2025-11-21,2025-11-21 20:30:00+00:00,Boston College Eagles,Davidson Wildcats,0,0,,,,,True,TD Arena
+401819836,2025,2025-11-21,2025-11-21 21:00:00+00:00,BYU Cougars,Wisconsin Badgers,0,0,,,,,False,Delta Center
+401823558,2025,2025-11-21,2025-11-21 21:00:00+00:00,Idaho State Bengals,Justice College Lions,0,0,,,,,False,Reed Gym
+401817490,2025,2025-11-21,2025-11-21 22:00:00+00:00,Northwestern Wildcats,Virginia Cavaliers,0,0,,,,,True,Colonial Hall
+401820599,2025,2025-11-21,2025-11-21 22:30:00+00:00,Akron Zips,Iona Gaels,0,0,,,,,True,UVI Sports & Fitness Center
+401826709,2025,2025-11-21,2025-11-21 23:00:00+00:00,Florida State Seminoles,Georgia Southern Eagles,0,0,,,,,False,Tucker Center
+401822351,2025,2025-11-21,2025-11-21 23:00:00+00:00,Stonehill Skyhawks,Lafayette Leopards,0,0,,,,,False,Merkert Gymnasium
+401820553,2025,2025-11-21,2025-11-21 23:00:00+00:00,Air Force Falcons,SIU Edwardsville Cougars,0,0,,,,,False,Clune Arena
+401818370,2025,2025-11-21,2025-11-21 23:00:00+00:00,Lehigh Mountain Hawks,Columbia Lions,0,0,,,,,False,Stabler Arena
+401817243,2025,2025-11-21,2025-11-21 23:30:00+00:00,Cincinnati Bearcats,Louisville Cardinals,0,0,,,,,True,Heritage Bank Center
+401823371,2025,2025-11-21,2025-11-21 23:30:00+00:00,Michigan State Spartans,Detroit Mercy Titans,0,0,,,,,False,Breslin Center
+401826871,2025,2025-11-21,2025-11-21 23:30:00+00:00,Eastern Michigan Eagles,Oakland Golden Grizzlies,0,0,,,,,False,Gervin GameAbove Center
+401820799,2025,2025-11-21,2025-11-21 23:30:00+00:00,App State Mountaineers,Charlotte 49ers,0,0,,,,,False,Holmes Convocation Center
+401812646,2025,2025-11-21,2025-11-21 23:30:00+00:00,Rutgers Scarlet Knights,Central Connecticut Blue Devils,0,0,,,,,False,Jersey Mike’s Arena
+401809308,2025,2025-11-21,2025-11-21 23:30:00+00:00,Clemson Tigers,West Virginia Mountaineers,0,0,,,,,True,TD Arena
+401827489,2025,2025-11-21,2025-11-22 00:00:00+00:00,Florida Gators,Merrimack Warriors,0,0,,,,,False,Stephen C. O'Connell Center
+401813377,2025,2025-11-21,2025-11-22 00:00:00+00:00,Duke Blue Devils,Niagara Purple Eagles,0,0,,,,,False,Cameron Indoor Stadium
+401820187,2025,2025-11-21,2025-11-22 00:00:00+00:00,Kentucky Wildcats,Loyola Maryland Greyhounds,0,0,,,,,False,Rupp Arena
+401829487,2025,2025-11-21,2025-11-22 00:00:00+00:00,Western Illinois Leathernecks,Coastal Carolina Chanticleers,0,0,,,,,False,Western Hall
+401829440,2025,2025-11-21,2025-11-22 00:00:00+00:00,Wofford Terriers,Erskine Flying Fleet,0,0,,,,,False,Jerry Richardson Indoor Stadium
+401825385,2025,2025-11-21,2025-11-22 00:00:00+00:00,West Georgia Wolves,South Carolina Upstate Spartans,0,0,,,,,False,The Coliseum
+401824888,2025,2025-11-21,2025-11-22 00:00:00+00:00,East Tennessee State Buccaneers,Morehead State Eagles,0,0,,,,,False,Freedom Hall (TN)
+401823638,2025,2025-11-21,2025-11-22 00:00:00+00:00,TBD,TBD,0,0,,,,,True,Baha Mar Convention Center
+401823590,2025,2025-11-21,2025-11-22 00:00:00+00:00,Radford Highlanders,UNC Wilmington Seahawks,0,0,,,,,False,The Dedmon Center
+401822834,2025,2025-11-21,2025-11-22 00:00:00+00:00,Siena Saints,UAlbany Great Danes,0,0,,,,,False,MVP Arena
+401820809,2025,2025-11-21,2025-11-22 00:00:00+00:00,East Carolina Pirates,Charleston Southern Buccaneers,0,0,,,,,False,Minges Coliseum
+401813350,2025,2025-11-21,2025-11-22 00:00:00+00:00,Canisius Golden Griffins,Maryland Eastern Shore Hawks,0,0,,,,,False,Koessler Athletic Center
+401813322,2025,2025-11-21,2025-11-22 00:00:00+00:00,Marist Red Foxes,Army Black Knights,0,0,,,,,False,McCann Arena
+401813277,2025,2025-11-21,2025-11-22 00:00:00+00:00,Old Dominion Monarchs,Morgan State Bears,0,0,,,,,False,Chartway Arena
+401812664,2025,2025-11-21,2025-11-22 00:00:00+00:00,Sacred Heart Pioneers,Holy Cross Crusaders,0,0,,,,,False,William H. Pitt Center
+401812577,2025,2025-11-21,2025-11-22 00:00:00+00:00,Drexel Dragons,Pennsylvania Quakers,0,0,,,,,False,Daskalakis Athletic Center
+401828907,2025,2025-11-21,2025-11-22 00:30:00+00:00,Drake Bulldogs,Buena Vista Beavers,0,0,,,,,False,Knapp Center
+401826919,2025,2025-11-21,2025-11-22 00:30:00+00:00,Northern Colorado Bears,St. Thomas-Minnesota Tommies,0,0,,,,,True,Chiles Center
+401826854,2025,2025-11-21,2025-11-22 00:30:00+00:00,UAB Blazers,South Alabama Jaguars,0,0,,,,,False,Bartow Arena
+401811969,2025,2025-11-21,2025-11-22 00:30:00+00:00,Belmont Bruins,Fisk Bulldogs,0,0,,,,,False,Curb Event Center Arena
+401826788,2025,2025-11-21,2025-11-22 01:00:00+00:00,Arkansas Razorbacks,Jackson State Tigers,0,0,,,,,False,Bud Walton Arena
+401829474,2025,2025-11-21,2025-11-22 01:00:00+00:00,South Dakota State Jackrabbits,Georgia State Panthers,0,0,,,,,False,First Bank & Trust Arena
+401829422,2025,2025-11-21,2025-11-22 01:00:00+00:00,LSU Tigers,Omaha Mavericks,0,0,,,,,False,Pete Maravich Assembly Center
+401828283,2025,2025-11-21,2025-11-22 01:00:00+00:00,Tulsa Golden Hurricane,Austin Peay Governors,0,0,,,,,False,Reynolds Center
+401827522,2025,2025-11-21,2025-11-22 01:00:00+00:00,Norfolk State Spartans,Hampton Pirates,0,0,,,,,False,Joseph G. Echols Hall
+401825187,2025,2025-11-21,2025-11-22 01:00:00+00:00,Texas State Bobcats,Little Rock Trojans,0,0,,,,,False,Strahan Arena at the University Events Center
+401824058,2025,2025-11-21,2025-11-22 01:00:00+00:00,Oregon State Beavers,Evansville Purple Aces,0,0,,,,,True,UVI Sports & Fitness Center
+401823859,2025,2025-11-21,2025-11-22 01:00:00+00:00,Texas A&M Aggies,Manhattan Jaspers,0,0,,,,,False,Reed Arena
+401817186,2025,2025-11-21,2025-11-22 01:00:00+00:00,Saint Louis Billikens,Purdue Fort Wayne Mastodons,0,0,,,,,False,Chaifetz Arena
+401817157,2025,2025-11-21,2025-11-22 01:00:00+00:00,Loyola Chicago Ramblers,Northern Illinois Huskies,0,0,,,,,False,Gentile Arena
+401824112,2025,2025-11-21,2025-11-22 02:00:00+00:00,San Diego Toreros,UC Riverside Highlanders,0,0,,,,,False,Jenny Craig Pavilion
+401824071,2025,2025-11-21,2025-11-22 02:00:00+00:00,Pepperdine Waves,Stephen F. Austin Lumberjacks,0,0,,,,,False,Firestone Fieldhouse
+401824025,2025,2025-11-21,2025-11-22 02:00:00+00:00,Utah Tech Trailblazers,Nobel Knights,0,0,,,,,False,Burns Arena
+401823810,2025,2025-11-21,2025-11-22 02:00:00+00:00,Colorado State Rams,Denver Pioneers,0,0,,,,,False,Moby Arena
+401823788,2025,2025-11-21,2025-11-22 02:00:00+00:00,Grand Canyon Lopes,Northwestern State Demons,0,0,,,,,False,Global Credit Union Arena
+401820225,2025,2025-11-21,2025-11-22 02:00:00+00:00,New Mexico State Aggies,Samford Bulldogs,0,0,,,,,False,Pan American Center
+401819864,2025,2025-11-21,2025-11-22 02:00:00+00:00,Colorado Buffaloes,UC Davis Aggies,0,0,,,,,False,CU Events Center
+401817457,2025,2025-11-21,2025-11-22 02:00:00+00:00,SMU Mustangs,Arkansas State Red Wolves,0,0,,,,,False,Moody Coliseum (Dallas)
+401809309,2025,2025-11-21,2025-11-22 02:00:00+00:00,Xavier Musketeers,Georgia Bulldogs,0,0,,,,,True,TD Arena
+401808895,2025,2025-11-21,2025-11-22 02:00:00+00:00,Fresno State Bulldogs,New Orleans Privateers,0,0,,,,,False,Save Mart Center
+401823637,2025,2025-11-21,2025-11-22 02:30:00+00:00,TBD,TBD,0,0,,,,,True,Baha Mar Convention Center
+401827014,2025,2025-11-21,2025-11-22 03:00:00+00:00,San José State Spartans,Southern Jaguars,0,0,,,,,False,Provident Credit Union Event Center
+401824121,2025,2025-11-21,2025-11-22 03:00:00+00:00,Santa Clara Broncos,Louisiana Ragin' Cajuns,0,0,,,,,False,Leavey Center
+401823534,2025,2025-11-21,2025-11-22 03:00:00+00:00,California Baptist Lancers,Grambling Tigers,0,0,,,,,False,Dale E. and Sarah Ann Fowler Events Center
+401823308,2025,2025-11-21,2025-11-22 03:00:00+00:00,Long Beach State Beach,Montana State Bobcats,0,0,,,,,False,Walter Pyramid
+401822731,2025,2025-11-21,2025-11-22 03:00:00+00:00,Portland Pilots,Cal State Fullerton Titans,0,0,,,,,False,Chiles Center
+401817468,2025,2025-11-21,2025-11-22 03:00:00+00:00,Stanford Cardinal,Seattle U Redhawks,0,0,,,,,False,Maples Pavilion
+401817223,2025,2025-11-21,2025-11-22 03:00:00+00:00,California Golden Bears,Sacramento State Hornets,0,0,,,,,False,Haas Pavilion
+401813761,2025,2025-11-21,2025-11-22 03:30:00+00:00,UCLA Bruins,Presbyterian Blue Hose,0,0,,,,,False,Pauley Pavilion
