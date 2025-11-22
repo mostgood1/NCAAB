@@ -7105,6 +7105,103 @@ def api_results():
     return jsonify({"ok": True, "meta": meta, "rows": rows})
 
 
+@app.route("/api/predictions_ingest", methods=["POST"])
+def api_predictions_ingest():
+    """Secure ingestion of local predictions to override remote slate.
+
+    Auth: requires header X-Ingest-Token matching env NCAAB_PREDICTIONS_INGEST_TOKEN.
+    Payload options:
+      - multipart/form-data with file field 'file' (CSV)
+      - JSON with 'rows': list[dict] and optional 'date'
+    Required columns in CSV/rows: game_id plus at least one of pred_total/pred_margin.
+    If 'date' supplied (param or inferred from rows/date column) we write predictions_<date>_uploaded.csv
+    and also copy to predictions_<date>.csv (unless that file already exists and ?force=1 not passed).
+    """
+    token_req = os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN", "").strip()
+    provided = (request.headers.get("X-Ingest-Token") or request.args.get("token") or "").strip()
+    if not token_req:
+        return jsonify({"ok": False, "error": "ingest_disabled"}), 403
+    if provided != token_req:
+        return jsonify({"ok": False, "error": "auth_failed"}), 401
+    force = (request.args.get("force") or "").lower() in ("1","true","yes")
+    target_date = (request.args.get("date") or "").strip()
+    df = pd.DataFrame()
+    # Accept file upload
+    try:
+        if "file" in request.files:
+            f = request.files["file"]
+            df = pd.read_csv(f)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"file_read_failed: {e}"}), 400
+    # Accept JSON rows
+    if df.empty and request.is_json:
+        js = request.get_json(silent=True) or {}
+        rows = js.get("rows")
+        if isinstance(rows, list) and rows:
+            df = pd.DataFrame(rows)
+        if not target_date:
+            target_date = str(js.get("date") or "").strip()
+    if df.empty:
+        return jsonify({"ok": False, "error": "no_data"}), 400
+    # Normalize columns
+    for col in df.columns:
+        if col.lower() == "gameid" and "game_id" not in df.columns:
+            df.rename(columns={col: "game_id"}, inplace=True)
+    if "game_id" not in df.columns:
+        return jsonify({"ok": False, "error": "missing_game_id"}), 400
+    # Identify date
+    if not target_date:
+        if "date" in df.columns:
+            try:
+                ser = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                vals = ser.dropna().unique().tolist()
+                if len(vals) == 1:
+                    target_date = vals[0]
+            except Exception:
+                target_date = ""
+    if not target_date:
+        # fallback: use today
+        try:
+            target_date = _today_local().strftime("%Y-%m-%d")
+        except Exception:
+            return jsonify({"ok": False, "error": "no_date_resolved"}), 400
+    # Ensure game_id string
+    try:
+        df["game_id"] = df["game_id"].astype(str)
+    except Exception:
+        pass
+    # Minimum predictive columns
+    pred_cols = [c for c in ["pred_total","pred_margin","pred_total_model","pred_margin_model"] if c in df.columns]
+    if not pred_cols:
+        return jsonify({"ok": False, "error": "no_prediction_columns"}), 400
+    # Write uploaded artifact
+    out_uploaded = OUT / f"predictions_{target_date}_uploaded.csv"
+    try:
+        df.to_csv(out_uploaded, index=False)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"write_failed: {e}"}), 500
+    out_primary = OUT / f"predictions_{target_date}.csv"
+    wrote_primary = False
+    if force or not out_primary.exists():
+        try:
+            df.to_csv(out_primary, index=False)
+            wrote_primary = True
+        except Exception:
+            pass
+    # Invalidate cached source path so new load picks file
+    global _PREDICTIONS_SOURCE_PATH
+    _PREDICTIONS_SOURCE_PATH = str(out_primary if wrote_primary else out_uploaded)
+    return jsonify({
+        "ok": True,
+        "date": target_date,
+        "rows": len(df),
+        "prediction_columns": pred_cols,
+        "uploaded_path": str(out_uploaded),
+        "primary_path": str(out_primary),
+        "primary_written": wrote_primary,
+    })
+
+
 @app.route("/api/predictions_unified")
 def api_predictions_unified():
     """Return unified predictions frame for a given date (or latest).
