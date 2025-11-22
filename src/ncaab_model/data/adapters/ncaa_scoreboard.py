@@ -124,6 +124,11 @@ def iter_games_by_date(start: dt.date, end: dt.date, use_cache: bool = True) -> 
     while cur <= end:
         payload = _fetch_scoreboard(cur, use_cache=use_cache)
         if payload is None:
+            # Provide a lightweight diagnostic hint; NCAA endpoint often returns 404 on low-activity or maintenance days.
+            try:
+                print(f"[yellow]NCAA scoreboard unavailable or empty for {cur.isoformat()} (404 or network error).[/yellow]")
+            except Exception:
+                pass
             yield FetchResult(cur, [], source="none")
         else:
             games = _parse_games(cur, payload)

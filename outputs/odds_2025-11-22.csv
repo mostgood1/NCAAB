@@ -1,239 +1,239 @@
 game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
-3efa125fd0e2a05d382bb7fe827196db,FanDuel,2025-11-22 17:39:06.294771+00:00,,,-27.5,133.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
-3efa125fd0e2a05d382bb7fe827196db,Fanatics,2025-11-22 17:39:06.294771+00:00,,,-27.5,134.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
-3efa125fd0e2a05d382bb7fe827196db,DraftKings,2025-11-22 17:39:06.294771+00:00,,,-28.5,134.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
-3efa125fd0e2a05d382bb7fe827196db,BetRivers,2025-11-22 17:39:06.294771+00:00,,,-27.5,133.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
-3efa125fd0e2a05d382bb7fe827196db,BetMGM,2025-11-22 17:39:06.294771+00:00,,,-27.5,134.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
-3efa125fd0e2a05d382bb7fe827196db,Bovada,2025-11-22 17:39:06.294771+00:00,,,-27.5,133.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
-3efa125fd0e2a05d382bb7fe827196db,Caesars,2025-11-22 17:39:06.294771+00:00,,,-26.5,133.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
-4b05793c85f677b42970a35296185aab,FanDuel,2025-11-22 17:39:06.294771+00:00,,,-23.5,150.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
-4b05793c85f677b42970a35296185aab,Fanatics,2025-11-22 17:39:06.294771+00:00,,,-23.5,151.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
-4b05793c85f677b42970a35296185aab,DraftKings,2025-11-22 17:39:06.294771+00:00,-50000.0,3500.0,-22.5,151.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
-4b05793c85f677b42970a35296185aab,BetMGM,2025-11-22 17:39:06.294771+00:00,-10000.0,3300.0,-23.5,152.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
-4b05793c85f677b42970a35296185aab,Bovada,2025-11-22 17:39:06.294771+00:00,,,-23.5,150.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
-4b05793c85f677b42970a35296185aab,Caesars,2025-11-22 17:39:06.294771+00:00,,,-23.5,150.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
-d636d5f9763c3b6ab9289021f95244e9,FanDuel,2025-11-22 17:39:06.294771+00:00,104.0,-125.0,1.5,145.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-d636d5f9763c3b6ab9289021f95244e9,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,1.5,147.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-d636d5f9763c3b6ab9289021f95244e9,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,1.5,147.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-d636d5f9763c3b6ab9289021f95244e9,Fanatics,2025-11-22 17:39:06.294771+00:00,105.0,-125.0,1.5,147.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-d636d5f9763c3b6ab9289021f95244e9,DraftKings,2025-11-22 17:39:06.294771+00:00,-102.0,-118.0,1.5,146.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-d636d5f9763c3b6ab9289021f95244e9,BetMGM,2025-11-22 17:39:06.294771+00:00,-102.0,-118.0,1.5,146.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-d636d5f9763c3b6ab9289021f95244e9,Bovada,2025-11-22 17:39:06.294771+00:00,100.0,-120.0,1.5,147.0,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-d636d5f9763c3b6ab9289021f95244e9,Caesars,2025-11-22 17:39:06.294771+00:00,-105.0,-115.0,1.5,147.0,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
-009aae9ec02b815beeea856f1f2988db,FanDuel,2025-11-22 17:39:06.294771+00:00,-205.0,168.0,-3.5,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-4.0,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-4.0,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,Fanatics,2025-11-22 17:39:06.294771+00:00,-200.0,165.0,-4.5,137.0,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,BetRivers,2025-11-22 17:39:06.294771+00:00,-200.0,155.0,-4.0,137.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,DraftKings,2025-11-22 17:39:06.294771+00:00,-192.0,160.0,-4.5,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,BetMGM,2025-11-22 17:39:06.294771+00:00,-190.0,154.0,-4.5,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,Caesars,2025-11-22 17:39:06.294771+00:00,-190.0,158.0,-4.0,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-009aae9ec02b815beeea856f1f2988db,Bovada,2025-11-22 17:39:06.294771+00:00,-200.0,170.0,-4.5,138.0,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
-42de858124bbb1f919284da58a0f8b7f,FanDuel,2025-11-22 17:39:06.294771+00:00,-10000.0,2500.0,-24.5,151.5,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,Fanatics,2025-11-22 17:39:06.294771+00:00,-7000.0,3000.0,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-24.5,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-24.5,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,Bovada,2025-11-22 17:39:06.294771+00:00,,,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,DraftKings,2025-11-22 17:39:06.294771+00:00,-9000.0,2500.0,-24.5,152.5,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,BetMGM,2025-11-22 17:39:06.294771+00:00,,,-25.5,152.5,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,BetUS,2025-11-22 17:39:06.294771+00:00,,,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,BetRivers,2025-11-22 17:39:06.294771+00:00,,,-24.5,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-42de858124bbb1f919284da58a0f8b7f,Caesars,2025-11-22 17:39:06.294771+00:00,,,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
-cf52c9b47b46d617b01d728d1fc2b6f3,DraftKings,2025-11-22 17:39:06.294771+00:00,-1450.0,850.0,-14.5,173.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,-1450.0,856.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,Bovada,2025-11-22 17:39:06.294771+00:00,-1600.0,800.0,-15.0,172.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,Fanatics,2025-11-22 17:39:06.294771+00:00,-1500.0,850.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,LowVig.ag,2025-11-22 17:39:06.294771+00:00,-1450.0,856.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,BetMGM,2025-11-22 17:39:06.294771+00:00,-1400.0,775.0,-15.5,172.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,BetUS,2025-11-22 17:39:06.294771+00:00,-1450.0,875.0,-15.0,173.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,BetRivers,2025-11-22 17:39:06.294771+00:00,,,-14.5,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,Caesars,2025-11-22 17:39:06.294771+00:00,-1600.0,900.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-cf52c9b47b46d617b01d728d1fc2b6f3,FanDuel,2025-11-22 17:39:06.294771+00:00,-2000.0,920.0,-15.5,173.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
-7c8fc0961a143bb68e54855dfed1153a,FanDuel,2025-11-22 17:39:06.294771+00:00,,,-28.5,145.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-29.0,146.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-29.0,146.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,Fanatics,2025-11-22 17:39:06.294771+00:00,,,-29.5,147.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,BetRivers,2025-11-22 17:39:06.294771+00:00,,,-29.5,147.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,DraftKings,2025-11-22 17:39:06.294771+00:00,,,-29.5,146.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,BetMGM,2025-11-22 17:39:06.294771+00:00,,,-29.5,146.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,Bovada,2025-11-22 17:39:06.294771+00:00,,,-29.0,147.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-7c8fc0961a143bb68e54855dfed1153a,Caesars,2025-11-22 17:39:06.294771+00:00,,,-29.5,146.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
-2da4e467d78a041dcde10cf28891eae1,FanDuel,2025-11-22 17:39:06.294771+00:00,,,-34.5,161.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-35.0,161.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-35.0,161.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,Fanatics,2025-11-22 17:39:06.294771+00:00,,,-34.5,160.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,DraftKings,2025-11-22 17:39:06.294771+00:00,,,-34.5,161.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,BetRivers,2025-11-22 17:39:06.294771+00:00,,,-34.5,160.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,BetMGM,2025-11-22 17:39:06.294771+00:00,,,-34.5,160.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,Bovada,2025-11-22 17:39:06.294771+00:00,,,-33.5,160.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-2da4e467d78a041dcde10cf28891eae1,Caesars,2025-11-22 17:39:06.294771+00:00,,,-34.5,161.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,FanDuel,2025-11-22 17:39:06.294771+00:00,-10000.0,2500.0,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,Fanatics,2025-11-22 17:39:06.294771+00:00,-10000.0,2500.0,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,DraftKings,2025-11-22 17:39:06.294771+00:00,,,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,BetRivers,2025-11-22 17:39:06.294771+00:00,,,-24.5,155.0,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,BetMGM,2025-11-22 17:39:06.294771+00:00,,,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,Bovada,2025-11-22 17:39:06.294771+00:00,,,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-fa13d1cbe3ff77e9e3ff6dc322d15ea2,Caesars,2025-11-22 17:39:06.294771+00:00,,,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
-86b646e4454bb759c93c31c46d156c2a,DraftKings,2025-11-22 17:39:06.294771+00:00,-425.0,330.0,-8.5,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-8.0,148.0,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-8.0,148.0,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,Fanatics,2025-11-22 17:39:06.294771+00:00,-375.0,300.0,-8.0,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,BetMGM,2025-11-22 17:39:06.294771+00:00,-375.0,300.0,-8.5,146.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,FanDuel,2025-11-22 17:39:06.294771+00:00,-450.0,330.0,-8.5,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,BetRivers,2025-11-22 17:39:06.294771+00:00,-420.0,310.0,-8.5,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,Bovada,2025-11-22 17:39:06.294771+00:00,-410.0,305.0,-8.0,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-86b646e4454bb759c93c31c46d156c2a,Caesars,2025-11-22 17:39:06.294771+00:00,-440.0,335.0,-8.0,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
-64d419056f00e87bd817920771a37d18,DraftKings,2025-11-22 17:39:06.294771+00:00,-395.0,310.0,-8.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-7.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-7.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,FanDuel,2025-11-22 17:39:06.294771+00:00,-420.0,310.0,-8.5,125.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,BetRivers,2025-11-22 17:39:06.294771+00:00,-385.0,290.0,-8.0,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,BetMGM,2025-11-22 17:39:06.294771+00:00,-375.0,300.0,-8.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,Fanatics,2025-11-22 17:39:06.294771+00:00,-375.0,300.0,-8.0,126.0,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,Bovada,2025-11-22 17:39:06.294771+00:00,-400.0,300.0,-8.5,126.0,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-64d419056f00e87bd817920771a37d18,Caesars,2025-11-22 17:39:06.294771+00:00,-420.0,320.0,-8.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
-3fd57a842f99b5451c68ca7ae3d37d62,FanDuel,2025-11-22 17:39:06.294771+00:00,-200.0,164.0,-4.5,164.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,Fanatics,2025-11-22 17:39:06.294771+00:00,-190.0,160.0,-4.0,164.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,DraftKings,2025-11-22 17:39:06.294771+00:00,-180.0,150.0,-4.5,164.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,BetRivers,2025-11-22 17:39:06.294771+00:00,-190.0,145.0,-4.0,164.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,BetMGM,2025-11-22 17:39:06.294771+00:00,-185.0,150.0,-4.5,164.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,Bovada,2025-11-22 17:39:06.294771+00:00,-195.0,165.0,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-3fd57a842f99b5451c68ca7ae3d37d62,Caesars,2025-11-22 17:39:06.294771+00:00,-180.0,152.0,-4.5,164.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
-bd5fd64194d8722428f8faeec6de0423,FanDuel,2025-11-22 17:39:06.294771+00:00,-250.0,202.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,LowVig.ag,2025-11-22 17:39:06.294771+00:00,-250.0,207.0,-5.5,146.0,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,BetMGM,2025-11-22 17:39:06.294771+00:00,-250.0,200.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,BetUS,2025-11-22 17:39:06.294771+00:00,-240.0,203.0,-5.5,146.0,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,Bovada,2025-11-22 17:39:06.294771+00:00,-250.0,210.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,-250.0,207.0,-5.5,146.0,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,BetRivers,2025-11-22 17:39:06.294771+00:00,-250.0,188.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,Caesars,2025-11-22 17:39:06.294771+00:00,-250.0,205.0,-5.0,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,Fanatics,2025-11-22 17:39:06.294771+00:00,-250.0,200.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-bd5fd64194d8722428f8faeec6de0423,DraftKings,2025-11-22 17:39:06.294771+00:00,-250.0,205.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
-91e7063f815e8f1c5181049a43478ff5,DraftKings,2025-11-22 17:39:06.294771+00:00,,,-23.5,139.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-23.5,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-23.5,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,Fanatics,2025-11-22 17:39:06.294771+00:00,-10000.0,2500.0,-23.0,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,BetMGM,2025-11-22 17:39:06.294771+00:00,,,-23.5,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,FanDuel,2025-11-22 17:39:06.294771+00:00,-10000.0,2500.0,-23.5,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,BetRivers,2025-11-22 17:39:06.294771+00:00,,,-23.0,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,Bovada,2025-11-22 17:39:06.294771+00:00,,,-22.5,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-91e7063f815e8f1c5181049a43478ff5,Caesars,2025-11-22 17:39:06.294771+00:00,-10000.0,2000.0,-23.5,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
-85ea954d315642c472486a5a94975776,FanDuel,2025-11-22 17:39:06.294771+00:00,-385.0,300.0,-7.5,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,LowVig.ag,2025-11-22 17:39:06.294771+00:00,-375.0,299.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,-375.0,299.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,Fanatics,2025-11-22 17:39:06.294771+00:00,-375.0,300.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,Bovada,2025-11-22 17:39:06.294771+00:00,-370.0,285.0,-8.0,147.0,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,BetMGM,2025-11-22 17:39:06.294771+00:00,-375.0,300.0,-8.5,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,BetUS,2025-11-22 17:39:06.294771+00:00,-380.0,305.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,BetRivers,2025-11-22 17:39:06.294771+00:00,-400.0,300.0,-8.5,146.0,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,DraftKings,2025-11-22 17:39:06.294771+00:00,-395.0,310.0,-8.5,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-85ea954d315642c472486a5a94975776,Caesars,2025-11-22 17:39:06.294771+00:00,-385.0,300.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
-2f0f43c90b7828cbbd8b45746cd8b7d6,FanDuel,2025-11-22 17:39:06.294771+00:00,-230.0,184.0,-4.5,140.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-4.5,139.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,BetMGM,2025-11-22 17:39:06.294771+00:00,-210.0,170.0,-4.5,138.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-4.5,139.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,BetRivers,2025-11-22 17:39:06.294771+00:00,-205.0,155.0,-4.5,139.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,Fanatics,2025-11-22 17:39:06.294771+00:00,-210.0,175.0,-5.0,139.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,DraftKings,2025-11-22 17:39:06.294771+00:00,-205.0,170.0,-4.5,140.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,Bovada,2025-11-22 17:39:06.294771+00:00,-200.0,170.0,-4.5,139.0,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-2f0f43c90b7828cbbd8b45746cd8b7d6,Caesars,2025-11-22 17:39:06.294771+00:00,-195.0,162.0,-4.5,140.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
-d97a9e03cf58a3576404a506bb0c34f8,FanDuel,2025-11-22 17:39:06.294771+00:00,155.0,-188.0,3.5,164.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,167.0,-192.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,LowVig.ag,2025-11-22 17:39:06.294771+00:00,167.0,-192.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,Fanatics,2025-11-22 17:39:06.294771+00:00,160.0,-190.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,DraftKings,2025-11-22 17:39:06.294771+00:00,164.0,-198.0,4.5,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,Bovada,2025-11-22 17:39:06.294771+00:00,165.0,-195.0,4.5,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,BetMGM,2025-11-22 17:39:06.294771+00:00,155.0,-190.0,4.5,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,BetUS,2025-11-22 17:39:06.294771+00:00,167.0,-195.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,BetRivers,2025-11-22 17:39:06.294771+00:00,155.0,-195.0,4.0,165.0,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-d97a9e03cf58a3576404a506bb0c34f8,Caesars,2025-11-22 17:39:06.294771+00:00,170.0,-205.0,4.5,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
-2870680dbc2ff5acacea7666adea78ec,DraftKings,2025-11-22 17:39:06.294771+00:00,-675.0,490.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,BetMGM,2025-11-22 17:39:06.294771+00:00,-625.0,450.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,Fanatics,2025-11-22 17:39:06.294771+00:00,-700.0,475.0,-10.5,151.0,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,FanDuel,2025-11-22 17:39:06.294771+00:00,-700.0,470.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,BetRivers,2025-11-22 17:39:06.294771+00:00,-670.0,375.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,Bovada,2025-11-22 17:39:06.294771+00:00,-675.0,460.0,-10.5,151.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-2870680dbc2ff5acacea7666adea78ec,Caesars,2025-11-22 17:39:06.294771+00:00,-650.0,460.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
-8fd0d38c073e9a3beb9c91f78adffc3b,FanDuel,2025-11-22 17:39:06.294771+00:00,-245.0,198.0,-4.5,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-5.5,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-5.0,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,Fanatics,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-5.0,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,DraftKings,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-4.5,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,BetMGM,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-5.5,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,BetRivers,2025-11-22 17:39:06.294771+00:00,-230.0,170.0,-5.5,153.0,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,Bovada,2025-11-22 17:39:06.294771+00:00,-220.0,180.0,-5.0,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-8fd0d38c073e9a3beb9c91f78adffc3b,Caesars,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-5.0,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
-2b4437918709e1a3a8708dc0a871e651,DraftKings,2025-11-22 17:39:06.294771+00:00,-130.0,110.0,-1.5,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,BetMGM,2025-11-22 17:39:06.294771+00:00,-135.0,110.0,-1.5,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,Fanatics,2025-11-22 17:39:06.294771+00:00,-130.0,110.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,BetUS,2025-11-22 17:39:06.294771+00:00,-130.0,110.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,LowVig.ag,2025-11-22 17:39:06.294771+00:00,-130.0,110.0,-2.0,151.0,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,-130.0,110.0,-2.0,151.0,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,Bovada,2025-11-22 17:39:06.294771+00:00,-135.0,115.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,Caesars,2025-11-22 17:39:06.294771+00:00,-130.0,110.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,BetRivers,2025-11-22 17:39:06.294771+00:00,-129.0,104.0,-2.0,151.0,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-2b4437918709e1a3a8708dc0a871e651,FanDuel,2025-11-22 17:39:06.294771+00:00,-140.0,112.0,-1.5,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
-8b5a99d70215524f8e73004ff79b9b9d,FanDuel,2025-11-22 17:39:06.294771+00:00,-225.0,184.0,-4.5,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,LowVig.ag,2025-11-22 17:39:06.294771+00:00,-220.0,186.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,-220.0,186.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,Fanatics,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-5.0,146.0,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,Bovada,2025-11-22 17:39:06.294771+00:00,-220.0,180.0,-5.0,146.0,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,BetMGM,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-5.5,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,BetUS,2025-11-22 17:39:06.294771+00:00,-220.0,185.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,DraftKings,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-5.5,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,BetRivers,2025-11-22 17:39:06.294771+00:00,-215.0,170.0,-4.5,146.0,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-8b5a99d70215524f8e73004ff79b9b9d,Caesars,2025-11-22 17:39:06.294771+00:00,-225.0,185.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
-42d6f93de47fa90ab252e644ece6149e,FanDuel,2025-11-22 17:39:06.294771+00:00,-450.0,340.0,-8.5,155.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,-8.5,155.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,-8.5,155.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,Fanatics,2025-11-22 17:39:06.294771+00:00,-400.0,310.0,-8.5,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,DraftKings,2025-11-22 17:39:06.294771+00:00,-440.0,340.0,-8.5,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,BetRivers,2025-11-22 17:39:06.294771+00:00,-420.0,310.0,-8.5,155.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,BetMGM,2025-11-22 17:39:06.294771+00:00,-425.0,325.0,,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,Bovada,2025-11-22 17:39:06.294771+00:00,-410.0,305.0,-8.0,154.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-42d6f93de47fa90ab252e644ece6149e,Caesars,2025-11-22 17:39:06.294771+00:00,-455.0,345.0,-9.0,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
-69ec99511bd6a407fff8fe39e8067d2c,FanDuel,2025-11-22 17:39:06.294771+00:00,500.0,-720.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,,,11.0,154.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,LowVig.ag,2025-11-22 17:39:06.294771+00:00,,,11.0,154.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,Fanatics,2025-11-22 17:39:06.294771+00:00,500.0,-750.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,BetRivers,2025-11-22 17:39:06.294771+00:00,475.0,-715.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,Caesars,2025-11-22 17:39:06.294771+00:00,550.0,-800.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,BetMGM,2025-11-22 17:39:06.294771+00:00,500.0,-700.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,DraftKings,2025-11-22 17:39:06.294771+00:00,,,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-69ec99511bd6a407fff8fe39e8067d2c,Bovada,2025-11-22 17:39:06.294771+00:00,,,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
-2e02576f4286b1a2030ed0ffdac9dd0d,FanDuel,2025-11-22 17:39:06.294771+00:00,530.0,-780.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,476.0,-650.0,11.5,163.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,LowVig.ag,2025-11-22 17:39:06.294771+00:00,476.0,-650.0,11.5,163.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,BetMGM,2025-11-22 17:39:06.294771+00:00,475.0,-650.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,Fanatics,2025-11-22 17:39:06.294771+00:00,475.0,-700.0,11.0,162.0,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,Caesars,2025-11-22 17:39:06.294771+00:00,460.0,-650.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,DraftKings,2025-11-22 17:39:06.294771+00:00,455.0,-625.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,BetRivers,2025-11-22 17:39:06.294771+00:00,430.0,-715.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,BetUS,2025-11-22 17:39:06.294771+00:00,475.0,-650.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-2e02576f4286b1a2030ed0ffdac9dd0d,Bovada,2025-11-22 17:39:06.294771+00:00,450.0,-650.0,11.0,162.0,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
-e4c3a0e6724252afd55ec72e1e1212bc,FanDuel,2025-11-22 17:39:06.294771+00:00,-200.0,164.0,-3.5,157.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,LowVig.ag,2025-11-22 17:39:06.294771+00:00,-180.0,157.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,BetMGM,2025-11-22 17:39:06.294771+00:00,-185.0,150.0,-3.5,156.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,BetUS,2025-11-22 17:39:06.294771+00:00,-180.0,155.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,Bovada,2025-11-22 17:39:06.294771+00:00,-170.0,145.0,-3.5,157.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,Fanatics,2025-11-22 17:39:06.294771+00:00,-190.0,160.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,-180.0,157.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,BetRivers,2025-11-22 17:39:06.294771+00:00,-182.0,143.0,-3.5,157.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,Caesars,2025-11-22 17:39:06.294771+00:00,-190.0,158.0,-3.5,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-e4c3a0e6724252afd55ec72e1e1212bc,DraftKings,2025-11-22 17:39:06.294771+00:00,-185.0,154.0,-3.5,156.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
-1b4ec87bb928f533ff03259322157af3,FanDuel,2025-11-22 17:39:06.294771+00:00,-102.0,-120.0,1.5,139.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,BetOnline.ag,2025-11-22 17:39:06.294771+00:00,-102.0,-118.0,1.0,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,LowVig.ag,2025-11-22 17:39:06.294771+00:00,-102.0,-118.0,1.0,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,Fanatics,2025-11-22 17:39:06.294771+00:00,100.0,-120.0,1.5,140.0,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,Bovada,2025-11-22 17:39:06.294771+00:00,100.0,-120.0,1.5,140.0,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,BetMGM,2025-11-22 17:39:06.294771+00:00,-102.0,-118.0,1.5,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,BetUS,2025-11-22 17:39:06.294771+00:00,100.0,-120.0,1.0,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,DraftKings,2025-11-22 17:39:06.294771+00:00,102.0,-122.0,1.5,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,BetRivers,2025-11-22 17:39:06.294771+00:00,102.0,-129.0,1.5,139.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
-1b4ec87bb928f533ff03259322157af3,Caesars,2025-11-22 17:39:06.294771+00:00,-105.0,-115.0,1.0,140.0,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+3efa125fd0e2a05d382bb7fe827196db,FanDuel,2025-11-22 17:48:39.880522+00:00,,,-31.5,141.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
+3efa125fd0e2a05d382bb7fe827196db,Fanatics,2025-11-22 17:48:39.880522+00:00,,,-30.5,141.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
+3efa125fd0e2a05d382bb7fe827196db,DraftKings,2025-11-22 17:48:39.880522+00:00,,,-31.5,141.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
+3efa125fd0e2a05d382bb7fe827196db,BetRivers,2025-11-22 17:48:39.880522+00:00,,,-30.5,141.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
+3efa125fd0e2a05d382bb7fe827196db,BetMGM,2025-11-22 17:48:39.880522+00:00,,,-30.5,141.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
+3efa125fd0e2a05d382bb7fe827196db,Bovada,2025-11-22 17:48:39.880522+00:00,,,-31.5,140.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
+3efa125fd0e2a05d382bb7fe827196db,Caesars,2025-11-22 17:48:39.880522+00:00,,,-34.5,137.5,2025-11-22 17:04:00+00:00,Georgetown Hoyas,Wagner Seahawks
+4b05793c85f677b42970a35296185aab,FanDuel,2025-11-22 17:48:39.880522+00:00,,,-24.5,159.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
+4b05793c85f677b42970a35296185aab,Fanatics,2025-11-22 17:48:39.880522+00:00,,,-25.5,156.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
+4b05793c85f677b42970a35296185aab,DraftKings,2025-11-22 17:48:39.880522+00:00,,,-24.5,159.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
+4b05793c85f677b42970a35296185aab,BetMGM,2025-11-22 17:48:39.880522+00:00,-10000.0,3300.0,-23.5,160.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
+4b05793c85f677b42970a35296185aab,Bovada,2025-11-22 17:48:39.880522+00:00,,,-24.5,160.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
+4b05793c85f677b42970a35296185aab,Caesars,2025-11-22 17:48:39.880522+00:00,,,-25.5,154.5,2025-11-22 17:04:00+00:00,Navy Midshipmen,NJIT Highlanders
+d636d5f9763c3b6ab9289021f95244e9,FanDuel,2025-11-22 17:48:39.880522+00:00,105.0,-126.0,1.5,145.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+d636d5f9763c3b6ab9289021f95244e9,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,1.5,146.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+d636d5f9763c3b6ab9289021f95244e9,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,1.5,146.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+d636d5f9763c3b6ab9289021f95244e9,Fanatics,2025-11-22 17:48:39.880522+00:00,100.0,-120.0,1.5,146.0,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+d636d5f9763c3b6ab9289021f95244e9,DraftKings,2025-11-22 17:48:39.880522+00:00,-102.0,-118.0,1.5,145.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+d636d5f9763c3b6ab9289021f95244e9,BetMGM,2025-11-22 17:48:39.880522+00:00,-102.0,-118.0,1.5,145.5,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+d636d5f9763c3b6ab9289021f95244e9,Bovada,2025-11-22 17:48:39.880522+00:00,100.0,-120.0,1.5,146.0,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+d636d5f9763c3b6ab9289021f95244e9,Caesars,2025-11-22 17:48:39.880522+00:00,-105.0,-115.0,1.5,146.0,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags
+009aae9ec02b815beeea856f1f2988db,FanDuel,2025-11-22 17:48:39.880522+00:00,-205.0,168.0,-3.5,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-4.0,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-4.0,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,Fanatics,2025-11-22 17:48:39.880522+00:00,-200.0,165.0,-4.5,137.0,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,BetRivers,2025-11-22 17:48:39.880522+00:00,-200.0,155.0,-4.0,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,DraftKings,2025-11-22 17:48:39.880522+00:00,-192.0,160.0,-4.5,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,BetMGM,2025-11-22 17:48:39.880522+00:00,-190.0,154.0,-4.5,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,Caesars,2025-11-22 17:48:39.880522+00:00,-190.0,158.0,-4.0,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+009aae9ec02b815beeea856f1f2988db,Bovada,2025-11-22 17:48:39.880522+00:00,-200.0,170.0,-4.5,136.5,2025-11-22 18:30:00+00:00,Harvard Crimson,Boston Univ. Terriers
+42de858124bbb1f919284da58a0f8b7f,FanDuel,2025-11-22 17:48:39.880522+00:00,-10000.0,2500.0,-24.5,151.5,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,Fanatics,2025-11-22 17:48:39.880522+00:00,-7000.0,3000.0,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-24.5,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-24.5,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,Bovada,2025-11-22 17:48:39.880522+00:00,,,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,DraftKings,2025-11-22 17:48:39.880522+00:00,-9000.0,2500.0,-24.5,152.5,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,BetMGM,2025-11-22 17:48:39.880522+00:00,,,-25.5,152.5,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,BetUS,2025-11-22 17:48:39.880522+00:00,,,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,BetRivers,2025-11-22 17:48:39.880522+00:00,,,-24.5,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+42de858124bbb1f919284da58a0f8b7f,Caesars,2025-11-22 17:48:39.880522+00:00,,,-25.0,152.0,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas
+cf52c9b47b46d617b01d728d1fc2b6f3,DraftKings,2025-11-22 17:48:39.880522+00:00,-1450.0,850.0,-14.5,172.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,-1450.0,856.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,Bovada,2025-11-22 17:48:39.880522+00:00,-1600.0,800.0,-15.0,172.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,Fanatics,2025-11-22 17:48:39.880522+00:00,-1500.0,850.0,-15.0,172.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,LowVig.ag,2025-11-22 17:48:39.880522+00:00,-1450.0,856.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,BetMGM,2025-11-22 17:48:39.880522+00:00,-1400.0,775.0,-15.5,172.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,BetUS,2025-11-22 17:48:39.880522+00:00,-1450.0,875.0,-15.0,172.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,BetRivers,2025-11-22 17:48:39.880522+00:00,-1667.0,700.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,Caesars,2025-11-22 17:48:39.880522+00:00,-1600.0,900.0,-15.0,173.0,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+cf52c9b47b46d617b01d728d1fc2b6f3,FanDuel,2025-11-22 17:48:39.880522+00:00,-2000.0,920.0,-15.5,173.5,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland St Vikings
+7c8fc0961a143bb68e54855dfed1153a,FanDuel,2025-11-22 17:48:39.880522+00:00,,,-28.5,145.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-28.5,146.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-28.5,146.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,Fanatics,2025-11-22 17:48:39.880522+00:00,,,-29.0,147.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,BetRivers,2025-11-22 17:48:39.880522+00:00,,,-29.5,147.0,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,DraftKings,2025-11-22 17:48:39.880522+00:00,,,-29.5,146.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,BetMGM,2025-11-22 17:48:39.880522+00:00,,,-28.5,146.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,Bovada,2025-11-22 17:48:39.880522+00:00,,,-29.0,147.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+7c8fc0961a143bb68e54855dfed1153a,Caesars,2025-11-22 17:48:39.880522+00:00,,,-29.5,146.5,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles
+2da4e467d78a041dcde10cf28891eae1,FanDuel,2025-11-22 17:48:39.880522+00:00,,,-34.5,161.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-35.0,161.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-35.0,161.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,Fanatics,2025-11-22 17:48:39.880522+00:00,,,-34.5,160.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,DraftKings,2025-11-22 17:48:39.880522+00:00,,,-34.5,160.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,BetRivers,2025-11-22 17:48:39.880522+00:00,,,-34.5,160.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,BetMGM,2025-11-22 17:48:39.880522+00:00,,,-34.5,160.5,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,Bovada,2025-11-22 17:48:39.880522+00:00,,,-33.5,160.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+2da4e467d78a041dcde10cf28891eae1,Caesars,2025-11-22 17:48:39.880522+00:00,,,-34.5,161.0,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,LIU Sharks
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,FanDuel,2025-11-22 17:48:39.880522+00:00,-10000.0,2500.0,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,Fanatics,2025-11-22 17:48:39.880522+00:00,-10000.0,2500.0,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,DraftKings,2025-11-22 17:48:39.880522+00:00,,,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,BetRivers,2025-11-22 17:48:39.880522+00:00,,,-24.5,155.0,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,BetMGM,2025-11-22 17:48:39.880522+00:00,,,-24.5,155.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,Bovada,2025-11-22 17:48:39.880522+00:00,,,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+fa13d1cbe3ff77e9e3ff6dc322d15ea2,Caesars,2025-11-22 17:48:39.880522+00:00,,,-24.5,154.5,2025-11-22 19:00:00+00:00,Oklahoma St Cowboys,Nicholls St Colonels
+86b646e4454bb759c93c31c46d156c2a,DraftKings,2025-11-22 17:48:39.880522+00:00,-425.0,330.0,-8.5,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-8.0,148.0,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-8.0,148.0,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,Fanatics,2025-11-22 17:48:39.880522+00:00,-400.0,310.0,-8.0,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,BetMGM,2025-11-22 17:48:39.880522+00:00,-375.0,300.0,-8.5,146.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,FanDuel,2025-11-22 17:48:39.880522+00:00,-470.0,340.0,-8.5,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,BetRivers,2025-11-22 17:48:39.880522+00:00,-420.0,310.0,-8.5,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,Bovada,2025-11-22 17:48:39.880522+00:00,-410.0,305.0,-8.0,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+86b646e4454bb759c93c31c46d156c2a,Caesars,2025-11-22 17:48:39.880522+00:00,-440.0,335.0,-8.0,147.5,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks
+64d419056f00e87bd817920771a37d18,DraftKings,2025-11-22 17:48:39.880522+00:00,-380.0,300.0,-7.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-7.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-7.5,126.0,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,FanDuel,2025-11-22 17:48:39.880522+00:00,-430.0,320.0,-8.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,BetRivers,2025-11-22 17:48:39.880522+00:00,-400.0,295.0,-8.5,126.0,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,BetMGM,2025-11-22 17:48:39.880522+00:00,-375.0,290.0,-7.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,Fanatics,2025-11-22 17:48:39.880522+00:00,-375.0,300.0,-8.0,126.0,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,Bovada,2025-11-22 17:48:39.880522+00:00,-370.0,285.0,-7.5,126.0,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+64d419056f00e87bd817920771a37d18,Caesars,2025-11-22 17:48:39.880522+00:00,-420.0,320.0,-8.5,126.5,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland-Eastern Shore Hawks
+3fd57a842f99b5451c68ca7ae3d37d62,FanDuel,2025-11-22 17:48:39.880522+00:00,-200.0,164.0,-4.5,164.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,Fanatics,2025-11-22 17:48:39.880522+00:00,-190.0,160.0,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,DraftKings,2025-11-22 17:48:39.880522+00:00,-180.0,150.0,-4.5,163.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,BetRivers,2025-11-22 17:48:39.880522+00:00,-190.0,145.0,-4.0,163.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,BetMGM,2025-11-22 17:48:39.880522+00:00,-190.0,154.0,-4.5,163.5,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,Bovada,2025-11-22 17:48:39.880522+00:00,-195.0,165.0,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+3fd57a842f99b5451c68ca7ae3d37d62,Caesars,2025-11-22 17:48:39.880522+00:00,-180.0,152.0,-4.5,164.0,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears
+bd5fd64194d8722428f8faeec6de0423,FanDuel,2025-11-22 17:48:39.880522+00:00,-250.0,202.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,LowVig.ag,2025-11-22 17:48:39.880522+00:00,-250.0,207.0,-5.5,146.0,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,BetMGM,2025-11-22 17:48:39.880522+00:00,-250.0,200.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,BetUS,2025-11-22 17:48:39.880522+00:00,-240.0,203.0,-5.5,146.0,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,Bovada,2025-11-22 17:48:39.880522+00:00,-250.0,210.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,-250.0,207.0,-5.5,146.0,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,BetRivers,2025-11-22 17:48:39.880522+00:00,-250.0,188.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,Caesars,2025-11-22 17:48:39.880522+00:00,-250.0,205.0,-5.0,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,Fanatics,2025-11-22 17:48:39.880522+00:00,-250.0,200.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+bd5fd64194d8722428f8faeec6de0423,DraftKings,2025-11-22 17:48:39.880522+00:00,-250.0,205.0,-5.5,146.5,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix
+91e7063f815e8f1c5181049a43478ff5,DraftKings,2025-11-22 17:48:39.880522+00:00,,,-23.5,139.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-23.5,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-23.5,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,Fanatics,2025-11-22 17:48:39.880522+00:00,-10000.0,2500.0,-23.5,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,BetMGM,2025-11-22 17:48:39.880522+00:00,,,-23.5,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,FanDuel,2025-11-22 17:48:39.880522+00:00,-10000.0,2500.0,-23.5,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,BetRivers,2025-11-22 17:48:39.880522+00:00,,,-23.0,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,Bovada,2025-11-22 17:48:39.880522+00:00,,,-22.5,138.5,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+91e7063f815e8f1c5181049a43478ff5,Caesars,2025-11-22 17:48:39.880522+00:00,-10000.0,2000.0,-23.5,139.0,2025-11-22 21:00:00+00:00,CSU Bakersfield Roadrunners,Miss Valley St Delta Devils
+85ea954d315642c472486a5a94975776,FanDuel,2025-11-22 17:48:39.880522+00:00,-385.0,300.0,-7.5,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,LowVig.ag,2025-11-22 17:48:39.880522+00:00,-375.0,299.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,-375.0,299.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,Fanatics,2025-11-22 17:48:39.880522+00:00,-375.0,300.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,Bovada,2025-11-22 17:48:39.880522+00:00,-370.0,285.0,-8.0,147.0,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,BetMGM,2025-11-22 17:48:39.880522+00:00,-350.0,280.0,-7.5,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,BetUS,2025-11-22 17:48:39.880522+00:00,-380.0,305.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,BetRivers,2025-11-22 17:48:39.880522+00:00,-385.0,280.0,-8.0,146.0,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,DraftKings,2025-11-22 17:48:39.880522+00:00,-380.0,300.0,-7.5,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+85ea954d315642c472486a5a94975776,Caesars,2025-11-22 17:48:39.880522+00:00,-385.0,300.0,-8.0,146.5,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies
+2f0f43c90b7828cbbd8b45746cd8b7d6,FanDuel,2025-11-22 17:48:39.880522+00:00,-230.0,184.0,-4.5,140.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-4.0,139.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,BetMGM,2025-11-22 17:48:39.880522+00:00,-210.0,170.0,-4.5,137.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-4.0,139.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,BetRivers,2025-11-22 17:48:39.880522+00:00,-205.0,163.0,-4.5,140.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,Fanatics,2025-11-22 17:48:39.880522+00:00,-210.0,175.0,-5.0,139.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,DraftKings,2025-11-22 17:48:39.880522+00:00,-205.0,170.0,-4.5,140.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,Bovada,2025-11-22 17:48:39.880522+00:00,-200.0,170.0,-4.5,139.0,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+2f0f43c90b7828cbbd8b45746cd8b7d6,Caesars,2025-11-22 17:48:39.880522+00:00,-195.0,162.0,-4.5,140.5,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles
+d97a9e03cf58a3576404a506bb0c34f8,FanDuel,2025-11-22 17:48:39.880522+00:00,155.0,-188.0,3.5,164.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,167.0,-192.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,LowVig.ag,2025-11-22 17:48:39.880522+00:00,167.0,-192.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,Fanatics,2025-11-22 17:48:39.880522+00:00,160.0,-190.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,DraftKings,2025-11-22 17:48:39.880522+00:00,164.0,-198.0,4.5,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,Bovada,2025-11-22 17:48:39.880522+00:00,165.0,-195.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,BetMGM,2025-11-22 17:48:39.880522+00:00,155.0,-190.0,4.5,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,BetUS,2025-11-22 17:48:39.880522+00:00,163.0,-190.0,4.0,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,BetRivers,2025-11-22 17:48:39.880522+00:00,155.0,-195.0,4.0,165.0,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+d97a9e03cf58a3576404a506bb0c34f8,Caesars,2025-11-22 17:48:39.880522+00:00,170.0,-205.0,4.5,165.5,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars
+2870680dbc2ff5acacea7666adea78ec,DraftKings,2025-11-22 17:48:39.880522+00:00,-675.0,490.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,BetMGM,2025-11-22 17:48:39.880522+00:00,-625.0,450.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,Fanatics,2025-11-22 17:48:39.880522+00:00,-700.0,475.0,-10.5,151.0,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,FanDuel,2025-11-22 17:48:39.880522+00:00,-700.0,470.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,BetRivers,2025-11-22 17:48:39.880522+00:00,-670.0,375.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,Bovada,2025-11-22 17:48:39.880522+00:00,-675.0,460.0,-10.5,151.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+2870680dbc2ff5acacea7666adea78ec,Caesars,2025-11-22 17:48:39.880522+00:00,-650.0,460.0,-10.5,150.5,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions
+8fd0d38c073e9a3beb9c91f78adffc3b,FanDuel,2025-11-22 17:48:39.880522+00:00,-245.0,198.0,-4.5,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-5.0,151.0,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-5.0,151.0,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,Fanatics,2025-11-22 17:48:39.880522+00:00,-225.0,185.0,-5.0,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,DraftKings,2025-11-22 17:48:39.880522+00:00,-225.0,185.0,-4.5,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,BetMGM,2025-11-22 17:48:39.880522+00:00,-220.0,180.0,-5.5,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,BetRivers,2025-11-22 17:48:39.880522+00:00,-230.0,170.0,-5.5,153.0,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,Bovada,2025-11-22 17:48:39.880522+00:00,-220.0,180.0,-5.0,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+8fd0d38c073e9a3beb9c91f78adffc3b,Caesars,2025-11-22 17:48:39.880522+00:00,-225.0,185.0,-5.0,152.5,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts
+2b4437918709e1a3a8708dc0a871e651,DraftKings,2025-11-22 17:48:39.880522+00:00,-130.0,110.0,-1.5,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,BetMGM,2025-11-22 17:48:39.880522+00:00,-135.0,110.0,-1.5,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,Fanatics,2025-11-22 17:48:39.880522+00:00,-130.0,110.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,BetUS,2025-11-22 17:48:39.880522+00:00,-130.0,110.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,LowVig.ag,2025-11-22 17:48:39.880522+00:00,-130.0,110.0,-2.0,151.0,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,-130.0,110.0,-2.0,151.0,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,Bovada,2025-11-22 17:48:39.880522+00:00,-135.0,115.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,Caesars,2025-11-22 17:48:39.880522+00:00,-130.0,110.0,-2.0,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,BetRivers,2025-11-22 17:48:39.880522+00:00,-129.0,104.0,-2.0,151.0,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+2b4437918709e1a3a8708dc0a871e651,FanDuel,2025-11-22 17:48:39.880522+00:00,-140.0,114.0,-2.5,150.5,2025-11-22 22:00:00+00:00,Missouri St Bears,UT Rio Grande Valley Vaqueros
+8b5a99d70215524f8e73004ff79b9b9d,FanDuel,2025-11-22 17:48:39.880522+00:00,-225.0,184.0,-4.5,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,LowVig.ag,2025-11-22 17:48:39.880522+00:00,-220.0,186.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,-220.0,186.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,Fanatics,2025-11-22 17:48:39.880522+00:00,-225.0,185.0,-5.0,146.0,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,Bovada,2025-11-22 17:48:39.880522+00:00,-220.0,180.0,-5.0,147.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,BetMGM,2025-11-22 17:48:39.880522+00:00,-225.0,185.0,-5.5,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,BetUS,2025-11-22 17:48:39.880522+00:00,-220.0,185.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,DraftKings,2025-11-22 17:48:39.880522+00:00,-225.0,185.0,-5.5,147.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,BetRivers,2025-11-22 17:48:39.880522+00:00,-215.0,170.0,-4.5,146.0,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+8b5a99d70215524f8e73004ff79b9b9d,Caesars,2025-11-22 17:48:39.880522+00:00,-225.0,185.0,-5.0,146.5,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos
+42d6f93de47fa90ab252e644ece6149e,FanDuel,2025-11-22 17:48:39.880522+00:00,-450.0,340.0,-8.5,155.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,-8.5,155.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,-8.5,155.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,Fanatics,2025-11-22 17:48:39.880522+00:00,-400.0,310.0,-8.5,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,DraftKings,2025-11-22 17:48:39.880522+00:00,-440.0,340.0,-8.5,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,BetRivers,2025-11-22 17:48:39.880522+00:00,-420.0,300.0,-8.5,154.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,BetMGM,2025-11-22 17:48:39.880522+00:00,-425.0,325.0,,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,Bovada,2025-11-22 17:48:39.880522+00:00,-410.0,305.0,-8.0,154.0,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+42d6f93de47fa90ab252e644ece6149e,Caesars,2025-11-22 17:48:39.880522+00:00,-455.0,345.0,-9.0,154.5,2025-11-22 22:00:00+00:00,Tenn-Martin Skyhawks,Prairie View Panthers
+69ec99511bd6a407fff8fe39e8067d2c,FanDuel,2025-11-22 17:48:39.880522+00:00,500.0,-720.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,,,11.0,154.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,LowVig.ag,2025-11-22 17:48:39.880522+00:00,,,11.0,154.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,Fanatics,2025-11-22 17:48:39.880522+00:00,500.0,-750.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,BetRivers,2025-11-22 17:48:39.880522+00:00,475.0,-715.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,Caesars,2025-11-22 17:48:39.880522+00:00,500.0,-700.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,BetMGM,2025-11-22 17:48:39.880522+00:00,500.0,-700.0,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,DraftKings,2025-11-22 17:48:39.880522+00:00,,,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+69ec99511bd6a407fff8fe39e8067d2c,Bovada,2025-11-22 17:48:39.880522+00:00,,,11.5,153.5,2025-11-22 22:00:00+00:00,Southern Indiana Screaming Eagles,UIC Flames
+2e02576f4286b1a2030ed0ffdac9dd0d,FanDuel,2025-11-22 17:48:39.880522+00:00,530.0,-780.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,476.0,-650.0,11.5,163.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,LowVig.ag,2025-11-22 17:48:39.880522+00:00,476.0,-650.0,11.5,163.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,BetMGM,2025-11-22 17:48:39.880522+00:00,475.0,-650.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,Fanatics,2025-11-22 17:48:39.880522+00:00,475.0,-700.0,11.0,162.0,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,Caesars,2025-11-22 17:48:39.880522+00:00,460.0,-650.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,DraftKings,2025-11-22 17:48:39.880522+00:00,455.0,-625.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,BetRivers,2025-11-22 17:48:39.880522+00:00,430.0,-715.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,BetUS,2025-11-22 17:48:39.880522+00:00,475.0,-650.0,11.5,162.5,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+2e02576f4286b1a2030ed0ffdac9dd0d,Bovada,2025-11-22 17:48:39.880522+00:00,450.0,-650.0,11.0,162.0,2025-11-22 22:30:00+00:00,CSU Fullerton Titans,St. Thomas (MN) Tommies
+e4c3a0e6724252afd55ec72e1e1212bc,FanDuel,2025-11-22 17:48:39.880522+00:00,-182.0,150.0,-3.5,157.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,LowVig.ag,2025-11-22 17:48:39.880522+00:00,-180.0,157.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,BetMGM,2025-11-22 17:48:39.880522+00:00,-185.0,150.0,-3.5,156.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,BetUS,2025-11-22 17:48:39.880522+00:00,-175.0,150.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,Bovada,2025-11-22 17:48:39.880522+00:00,-170.0,145.0,-3.5,157.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,Fanatics,2025-11-22 17:48:39.880522+00:00,-190.0,160.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,-180.0,157.0,-4.0,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,BetRivers,2025-11-22 17:48:39.880522+00:00,-182.0,143.0,-3.5,157.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,Caesars,2025-11-22 17:48:39.880522+00:00,-190.0,158.0,-3.5,157.0,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+e4c3a0e6724252afd55ec72e1e1212bc,DraftKings,2025-11-22 17:48:39.880522+00:00,-185.0,154.0,-3.5,156.5,2025-11-22 22:30:00+00:00,Oregon St Beavers,Iona Gaels
+1b4ec87bb928f533ff03259322157af3,FanDuel,2025-11-22 17:48:39.880522+00:00,-102.0,-120.0,1.5,139.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,BetOnline.ag,2025-11-22 17:48:39.880522+00:00,-102.0,-118.0,1.0,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,LowVig.ag,2025-11-22 17:48:39.880522+00:00,-102.0,-118.0,1.0,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,Fanatics,2025-11-22 17:48:39.880522+00:00,100.0,-120.0,1.5,140.0,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,Bovada,2025-11-22 17:48:39.880522+00:00,100.0,-120.0,1.5,140.0,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,BetMGM,2025-11-22 17:48:39.880522+00:00,-102.0,-118.0,1.5,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,BetUS,2025-11-22 17:48:39.880522+00:00,100.0,-120.0,1.0,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,DraftKings,2025-11-22 17:48:39.880522+00:00,102.0,-122.0,1.5,140.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,BetRivers,2025-11-22 17:48:39.880522+00:00,102.0,-129.0,1.5,139.5,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
+1b4ec87bb928f533ff03259322157af3,Caesars,2025-11-22 17:48:39.880522+00:00,-105.0,-115.0,1.0,140.0,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons
