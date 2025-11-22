@@ -5911,7 +5911,6 @@ def daily_run(
     accumulate_predictions: bool = typer.Option(True, help="Append today's predictions into predictions_all.csv (dedupe by game_id, keep latest)"),
     blend_min_rows: int = typer.Option(25, help="Minimum segment training rows before blend weight > 0"),
     blend_max_weight: float = typer.Option(0.6, help="Maximum blend weight applied to segmented prediction"),
-    auto_fuse_min_games: int = typer.Option(60, help="If provider != fused and fetched games < this threshold, auto-attempt fused fetch and merge."),
 ):
     """End-to-end daily pipeline: fetch games and odds for a date, build features, predict, make picks, ingest to SQLite."""
     target_date = dt.date.fromisoformat(date) if date else _today_local()
@@ -5976,47 +5975,6 @@ def daily_run(
         else:
             print(f"[yellow]No games found for {target_date}[/yellow]")
             df_games = pd.DataFrame(columns=["game_id","date","home_team","away_team"])
-        # Auto-fuse supplement when coverage is suspiciously low
-        try:
-            if prov != "fused" and auto_fuse_min_games > 0 and len(df_games) < auto_fuse_min_games:
-                print(f"[yellow]Low game count {len(df_games)} (< {auto_fuse_min_games}) for provider '{prov}' -> attempting fused supplement[/yellow]")
-                espn_rows: list[dict] = []
-                ncaa_rows: list[dict] = []
-                for res in iter_games_espn(target_date, target_date, use_cache=use_cache):
-                    for g in res.games:
-                        d = g.model_dump(); d["source"] = "espn"; espn_rows.append(d)
-                for res in iter_games_ncaa(target_date, target_date, use_cache=use_cache):
-                    for g in res.games:
-                        d = g.model_dump(); d["source"] = "ncaa"; ncaa_rows.append(d)
-                fused_rows = espn_rows + ncaa_rows
-                if fused_rows:
-                    f_df = pd.DataFrame(fused_rows)
-                    if "date" in f_df.columns:
-                        try: f_df["date"] = pd.to_datetime(f_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                        except Exception: pass
-                    for col in ["game_id","home_team","away_team"]:
-                        if col in f_df.columns:
-                            f_df[col] = f_df[col].astype(str)
-                    # Build fuse key to dedupe
-                    if {"home_team","away_team","date"}.issubset(f_df.columns):
-                        f_df["_home_key"] = f_df["home_team"].astype(str).map(lambda x: _norm(x))
-                        f_df["_away_key"] = f_df["away_team"].astype(str).map(lambda x: _norm(x))
-                        f_df["_fuse_key"] = f_df["date"].astype(str) + "|" + f_df["_home_key"] + "|" + f_df["_away_key"]
-                    if "_fuse_key" in f_df.columns:
-                        f_df = f_df.sort_values(["_fuse_key"], ascending=True).drop_duplicates(subset=["_fuse_key"], keep="first")
-                        f_df = f_df.drop(columns=[c for c in f_df.columns if c.startswith("_")], errors="ignore")
-                    # Union original and fused, prefer original rows by game_id
-                    if "game_id" in f_df.columns:
-                        union = pd.concat([df_games, f_df], ignore_index=True)
-                        if "game_id" in union.columns:
-                            # Keep first occurrence (original provider prioritized)
-                            union = union.drop_duplicates(subset=["game_id"], keep="first")
-                        df_games = union
-                    print(f"[green]Auto-fuse supplement increased game count to {len(df_games)}[/green] (provider={prov}, espn_rows={len(espn_rows)}, ncaa_rows={len(ncaa_rows)})")
-                else:
-                    print("[yellow]Auto-fuse attempt returned no additional games[/yellow]")
-        except Exception as _af_err:
-            print(f"[yellow]Auto-fuse supplement failed:[/yellow] {_af_err}")
     games_curr_path = settings.outputs_dir / "games_curr.csv"
     df_games.to_csv(games_curr_path, index=False)
     print(f"[green]Wrote {len(df_games)} games to[/green] {games_curr_path}")

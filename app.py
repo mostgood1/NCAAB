@@ -111,124 +111,6 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ncaab_app")
 
-# Local timezone configuration (frontend expects local start times)
-_LOCAL_TZ_NAME = os.environ.get("NCAAB_LOCAL_TZ", "America/New_York")
-try:
-    LOCAL_TZ = ZoneInfo(_LOCAL_TZ_NAME)
-except Exception:
-    try:
-        LOCAL_TZ = ZoneInfo("America/New_York")
-    except Exception:
-        LOCAL_TZ = None  # fallback: no localization
-
-def _to_local_iso(ts: Any) -> str | None:
-    """Convert timestamp/string to local 'YYYY-MM-DD HH:MM' based on LOCAL_TZ.
-
-    Rules:
-      - Trailing 'Z' treated as UTC.
-      - Naive datetimes assumed UTC.
-      - Strings parsed via pandas to_datetime (utc=True) for normalization.
-      - date objects get midnight time component.
-    Returns None if parsing fails or timezone unavailable.
-    """
-    if ts is None or LOCAL_TZ is None:
-        return None
-    try:
-        if isinstance(ts, dt.datetime):
-            dt_obj = ts
-        elif isinstance(ts, dt.date):
-            dt_obj = dt.datetime.combine(ts, dt.time(0,0))
-        else:
-            s = str(ts).strip()
-            if not s:
-                return None
-            if s.endswith("Z"):
-                s = s[:-1] + "+00:00"
-            dt_obj = pd.to_datetime(s, errors="coerce", utc=True).to_pydatetime()
-            if dt_obj is None:
-                return None
-        if dt_obj.tzinfo is None:
-            dt_obj = dt_obj.replace(tzinfo=dt.timezone.utc)
-        local_dt = dt_obj.astimezone(LOCAL_TZ)
-        return local_dt.strftime("%Y-%m-%d %H:%M")
-    except Exception:
-        return None
-
-# ---------------------------------------------------------------------------
-# Git commit discovery & version stamping (exposed via /api/health, /api/results)
-# ---------------------------------------------------------------------------
-def _get_git_commit() -> str | None:
-    """Best-effort retrieval of current git commit hash.
-
-    Tries environment variables first (RENDER, generic CI), then reads .git/HEAD.
-    Returns short 7-char hash or None on failure.
-    """
-    env_vars = ["GIT_COMMIT", "RENDER_GIT_COMMIT", "SOURCE_VERSION"]
-    for v in env_vars:
-        h = os.environ.get(v)
-        if h and len(h) >= 7:
-            return h[:7]
-    try:
-        git_dir = Path(__file__).resolve().parent / ".git"
-        head = git_dir / "HEAD"
-        if head.exists():
-            ref = head.read_text().strip()
-            if ref.startswith("ref:"):
-                ref_path = git_dir / ref.split("ref:",1)[1].strip()
-                if ref_path.exists():
-                    full = ref_path.read_text().strip()
-                    return full[:7]
-            else:
-                return ref[:7]
-    except Exception:
-        return None
-    return None
-
-def _get_app_version() -> str:
-    # Attempt to read pyproject version, else fallback constant
-    try:
-        pyproj = Path(__file__).resolve().parent / "pyproject.toml"
-        if pyproj.exists():
-            txt = pyproj.read_text(encoding="utf-8", errors="ignore")
-            for line in txt.splitlines():
-                if line.strip().startswith("version") and "=" in line:
-                    ver = line.split("=",1)[1].strip().strip('"').strip("'")
-                    if ver:
-                        return ver
-    except Exception:
-        pass
-    return "0.1.0+local"
-
-# ---------------------------------------------------------------------------
-# Ingest token resolution: env vars OR secret file fallback
-# ---------------------------------------------------------------------------
-def _resolve_ingest_token() -> str | None:
-    """Return ingest token from any supported source.
-
-    Sources (in order):
-      1. Env var NCAAB_PREDICTIONS_INGEST_TOKEN
-      2. Env aliases (YOUR_SECRET_TOKEN, PREDICTIONS_INGEST_TOKEN)
-      3. Secret file /etc/secrets/NCAAB_PREDICTIONS_INGEST_TOKEN (Render secret file)
-    """
-    for key in [
-        "NCAAB_PREDICTIONS_INGEST_TOKEN",
-        "YOUR_SECRET_TOKEN",
-        "PREDICTIONS_INGEST_TOKEN",
-    ]:
-        val = os.environ.get(key)
-        if val and val.strip():
-            return val.strip()
-    # Secret file fallback
-    try:
-        secret_path = Path("/etc/secrets/NCAAB_PREDICTIONS_INGEST_TOKEN")
-        if secret_path.exists():
-            txt = secret_path.read_text(encoding="utf-8", errors="ignore").strip()
-            if txt:
-                return txt.splitlines()[0].strip()
-    except Exception:
-        pass
-    return None
-
 # ONNX Runtime provider diagnostics (one-time at startup)
 try:
     import onnxruntime as ort  # type: ignore
@@ -559,24 +441,48 @@ def _load_predictions_current() -> pd.DataFrame:
     try:
         if today_str:
             today_pred = OUT / f"predictions_{today_str}.csv"
-            if not today_pred.exists():
-                model_cal = OUT / f"predictions_model_calibrated_{today_str}.csv"
-                model_raw = OUT / f"predictions_model_{today_str}.csv"
-                src_path = None
-                if model_cal.exists():
-                    src_path = model_cal
-                elif model_raw.exists():
-                    src_path = model_raw
-                if src_path is not None:
+            model_cal = OUT / f"predictions_model_calibrated_{today_str}.csv"
+            model_raw = OUT / f"predictions_model_{today_str}.csv"
+            src_path = model_cal if model_cal.exists() else (model_raw if model_raw.exists() else None)
+            need_rebuild = False
+            if src_path is not None:
+                try:
+                    # Determine if current predictions file is absent, shell, or stale vs model file mtime
+                    if not today_pred.exists():
+                        need_rebuild = True
+                    else:
+                        try:
+                            pred_df = pd.read_csv(today_pred)
+                        except Exception:
+                            pred_df = pd.DataFrame()
+                        if pred_df.empty or 'game_id' not in pred_df.columns:
+                            need_rebuild = True
+                        else:
+                            # Shell detection: all NaN in pred_total & pred_margin or columns missing
+                            pt = pd.to_numeric(pred_df.get('pred_total'), errors='coerce') if 'pred_total' in pred_df.columns else pd.Series([], dtype='float64')
+                            pm = pd.to_numeric(pred_df.get('pred_margin'), errors='coerce') if 'pred_margin' in pred_df.columns else pd.Series([], dtype='float64')
+                            if ('pred_total' not in pred_df.columns and 'pred_margin' not in pred_df.columns) or ((pt.notna().sum() == 0) and (pm.notna().sum() == 0)):
+                                need_rebuild = True
+                            else:
+                                # Staleness: model file newer by >60s AND row count differs or any NaN that model can fill
+                                try:
+                                    mtime_model = src_path.stat().st_mtime
+                                    mtime_pred = today_pred.stat().st_mtime
+                                    if mtime_model - mtime_pred > 60:
+                                        model_df_tmp = pd.read_csv(src_path)
+                                        if not model_df_tmp.empty and 'game_id' in model_df_tmp.columns:
+                                            if len(model_df_tmp) != len(pred_df) or (pt.notna().sum() < len(model_df_tmp)):
+                                                need_rebuild = True
+                                except Exception:
+                                    pass
+                except Exception as e:
+                    logger.error("Model promotion pre-check failed: %s", e)
+                if need_rebuild:
                     try:
                         mdf = pd.read_csv(src_path)
                         if not mdf.empty and 'game_id' in mdf.columns:
-                            # Detect prediction columns
                             pt_col = next((c for c in mdf.columns if c.startswith('pred_total')), None)
                             pm_col = next((c for c in mdf.columns if c.startswith('pred_margin')), None)
-                            out_cols = ['game_id']
-                            if 'date' in mdf.columns:
-                                out_cols.append('date')
                             build = pd.DataFrame({'game_id': mdf['game_id'].astype(str)})
                             if 'date' in mdf.columns:
                                 build['date'] = mdf['date']
@@ -586,34 +492,34 @@ def _load_predictions_current() -> pd.DataFrame:
                                 build['pred_margin'] = pd.to_numeric(mdf[pm_col], errors='coerce')
                             build['pred_total_basis'] = np.where(build.get('pred_total').notna(), 'model_v1', None)
                             build['pred_margin_basis'] = np.where(build.get('pred_margin').notna(), 'model_v1', None)
-                            try:
-                                build.to_csv(today_pred, index=False)
-                                logger.warning("Generated missing predictions file from model source: %s -> %s (rows=%s)", src_path, today_pred, len(build))
-                            except Exception as e:
-                                logger.error("Failed writing promoted predictions file %s: %s", today_pred, e)
+                            build.to_csv(today_pred, index=False)
+                            logger.warning("Rebuilt today's predictions from model source (reason=%s): %s -> %s (rows=%s)",
+                                           'absent/shell/stale', src_path, today_pred, len(build))
+                        else:
+                            logger.warning("Model source for today exists but empty or missing game_id: %s", src_path)
                     except Exception as e:
-                        logger.error("Failed promoting model predictions to predictions_<date>.csv: %s", e)
-                # If still missing create synthetic shell from games_curr.csv for later fallback enrichment
-                if not today_pred.exists():
-                    games_curr = OUT / 'games_curr.csv'
-                    try:
-                        if games_curr.exists():
-                            gdf = pd.read_csv(games_curr)
-                            if 'date' in gdf.columns:
-                                gdf['date'] = pd.to_datetime(gdf['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-                                gdf = gdf[gdf['date'] == today_str]
-                            cols = [c for c in ['game_id','date','home_team','away_team'] if c in gdf.columns]
-                            shell = gdf[cols].copy()
-                            if 'game_id' in shell.columns:
-                                shell['game_id'] = shell['game_id'].astype(str)
-                            shell['pred_total'] = np.nan
-                            shell['pred_margin'] = np.nan
-                            shell['pred_total_basis'] = None
-                            shell['pred_margin_basis'] = None
-                            shell.to_csv(today_pred, index=False)
-                            logger.warning("Created synthetic shell predictions file (no model) at %s (rows=%s)", today_pred, len(shell))
-                    except Exception as e:
-                        logger.error("Failed generating synthetic shell predictions file: %s", e)
+                        logger.error("Failed rebuilding predictions from model source %s: %s", src_path, e)
+            # If still missing and no model source, synthesize shell from games
+            if not today_pred.exists():
+                games_curr = OUT / 'games_curr.csv'
+                try:
+                    if games_curr.exists():
+                        gdf = pd.read_csv(games_curr)
+                        if 'date' in gdf.columns:
+                            gdf['date'] = pd.to_datetime(gdf['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            gdf = gdf[gdf['date'] == today_str]
+                        cols = [c for c in ['game_id','date','home_team','away_team'] if c in gdf.columns]
+                        shell = gdf[cols].copy()
+                        if 'game_id' in shell.columns:
+                            shell['game_id'] = shell['game_id'].astype(str)
+                        shell['pred_total'] = np.nan
+                        shell['pred_margin'] = np.nan
+                        shell['pred_total_basis'] = None
+                        shell['pred_margin_basis'] = None
+                        shell.to_csv(today_pred, index=False)
+                        logger.warning("Created synthetic shell predictions file (no model) at %s (rows=%s)", today_pred, len(shell))
+                except Exception as e:
+                    logger.error("Failed generating synthetic shell predictions file: %s", e)
     except Exception:
         pass
     candidates: list[Path] = []
@@ -666,39 +572,6 @@ def _load_predictions_current() -> pd.DataFrame:
         return df
     logger.warning("No predictions file found or all empty in %s; proceeding without predictions", OUT)
     return pd.DataFrame()
-
-def _compute_predictions_hash(df: pd.DataFrame) -> str | None:
-    """Compute a stable SHA256 hash for predictions frame.
-
-    Hash covers game_id, pred_total, pred_margin (if present) sorted by game_id.
-    NaNs are represented as 'NA'; floats normalized to 4 decimal places to avoid
-    insignificant serialization differences. Returns None if required columns missing.
-    """
-    try:
-        if df.empty:
-            return None
-        cols = [c for c in ["game_id","pred_total","pred_margin"] if c in df.columns]
-        if "game_id" not in cols:
-            return None
-        work = df[cols].copy()
-        work["game_id"] = work["game_id"].astype(str)
-        if "pred_total" in work.columns:
-            work["pred_total"] = pd.to_numeric(work["pred_total"], errors="coerce")
-        if "pred_margin" in work.columns:
-            work["pred_margin"] = pd.to_numeric(work["pred_margin"], errors="coerce")
-        work = work.sort_values("game_id")
-        parts: list[str] = []
-        for _, r in work.iterrows():
-            gid = r.get("game_id")
-            pt = r.get("pred_total") if "pred_total" in work.columns else None
-            pm = r.get("pred_margin") if "pred_margin" in work.columns else None
-            pt_str = "NA" if (pt is None or pd.isna(pt)) else f"{float(pt):.4f}"
-            pm_str = "NA" if (pm is None or pd.isna(pm)) else f"{float(pm):.4f}"
-            parts.append(f"{gid}|{pt_str}|{pm_str}")
-        import hashlib
-        return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
-    except Exception:
-        return None
 
     
     
@@ -1300,11 +1173,6 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
                 except Exception:
                     pass
                 try:
-                    if "start_time" in df.columns:
-                        df["start_time_local"] = df["start_time"].apply(_to_local_iso)
-                except Exception:
-                    pass
-                try:
                     games["game_id"] = games["game_id"].astype(str)
                 except Exception:
                     pass
@@ -1437,71 +1305,7 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
         meta["n_finals"] = 0
         meta["n_pending"] = len(df)
         meta["all_final"] = False
-    # Final safeguard: ensure localized start_time column exists if raw start_time present
-    if "start_time" in df.columns and "start_time_local" not in df.columns:
-        try:
-            df["start_time_local"] = df["start_time"].apply(_to_local_iso)
-        except Exception:
-            pass
-    # Harden date filtering: even if upstream sources leaked multi-date rows ensure only requested date returned.
-    try:
-        if date_str and "date" in df.columns:
-            before_rows = len(df)
-            df = df[df["date"].astype(str) == str(date_str)].copy()
-            meta["post_date_filter_rows"] = len(df)
-            meta["post_date_filter_removed"] = int(before_rows - len(df))
-    except Exception:
-        meta["post_date_filter_error"] = True
-    # Secondary safeguard: restrict to game_ids appearing in games set for date (prevents historical leakage if predictions_all mis-normalized dates)
-    try:
-        if date_str and "game_id" in df.columns:
-            # Load primary games file for date
-            games_for_date = _safe_read_csv(OUT / f"games_{date_str}.csv")
-            if games_for_date.empty:
-                g_curr = _safe_read_csv(OUT / "games_curr.csv")
-                if not g_curr.empty and "date" in g_curr.columns:
-                    try:
-                        g_curr["date"] = pd.to_datetime(g_curr["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                    except Exception:
-                        pass
-                    games_for_date = g_curr[g_curr["date"].astype(str) == str(date_str)].copy()
-            if not games_for_date.empty and "game_id" in games_for_date.columns:
-                allowed = set(games_for_date["game_id"].astype(str).dropna())
-                # If predictions have duplicates per game_id, aggregate to single row selecting first occurrence
-                if allowed:
-                    # De-duplicate predictions by game_id keeping first
-                    if df["game_id"].duplicated().any():
-                        df = df.sort_values("game_id").drop_duplicates("game_id").copy()
-                    pre_extra = len(df)
-                    df = df[df["game_id"].astype(str).isin(allowed)].copy()
-                    meta["restrict_game_ids_rows"] = len(df)
-                    meta["restrict_game_ids_removed"] = int(pre_extra - len(df))
-                    meta["restrict_game_ids_unique_games"] = len(allowed)
-    except Exception:
-        meta["restrict_game_ids_error"] = True
     meta["columns"] = list(df.columns)
-    # Canonical prediction fields: prioritize adjusted/full prediction then raw fallback
-    try:
-        if "pred_total" in df.columns:
-            df["pred_total_canonical"] = df["pred_total"]
-        elif "pred_total_raw" in df.columns:
-            df["pred_total_canonical"] = df["pred_total_raw"]
-        elif "derived_total" in df.columns:
-            df["pred_total_canonical"] = df["derived_total"]
-        if "pred_margin" in df.columns:
-            df["pred_margin_canonical"] = df["pred_margin"]
-        meta["columns"] = list(df.columns)
-    except Exception:
-        pass
-    # Optionally drop derived_total for cleanliness unless explicitly enabled
-    include_derived = os.environ.get("NCAAB_INCLUDE_DERIVED_TOTAL", "0").lower() in ("1","true","yes")
-    if not include_derived and "derived_total" in df.columns:
-        try:
-            df = df.drop(columns=["derived_total"])
-            meta["columns"] = list(df.columns)
-            meta["derived_total_dropped"] = True
-        except Exception:
-            pass
     return df, meta
 
 
@@ -2248,10 +2052,6 @@ def index():
                             return v
                     return vals[0]
                 df["start_time"] = df.apply(_pick_start, axis=1)
-                try:
-                    df["start_time_local"] = df["start_time"].apply(_to_local_iso)
-                except Exception:
-                    pass
         except Exception:
             pass
         if "game_id" in df.columns:
@@ -2262,11 +2062,6 @@ def index():
         if "date" in df.columns:
             try:
                 df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-            except Exception:
-                pass
-        if "start_time" in df.columns and "start_time_local" not in df.columns:
-            try:
-                df["start_time_local"] = df["start_time"].apply(_to_local_iso)
             except Exception:
                 pass
         # Market total: prefer closing_total when present; coalesce NaNs as well
@@ -2288,11 +2083,6 @@ def index():
             for c in ["pred_total","pred_margin"]:
                 if c not in df.columns:
                     df[c] = None
-            if "start_time" in df.columns and "start_time_local" not in df.columns:
-                try:
-                    df["start_time_local"] = df["start_time"].apply(_to_local_iso)
-                except Exception:
-                    pass
         else:
             df = preds.copy()
             if not games.empty:
@@ -3985,65 +3775,6 @@ def index():
                 # Use calibrated when it has any non-NaN values; else fallback to raw
                 use_calibrated = calibrated_available and calibrated_total.notna().any()
                 chosen_total = calibrated_total if use_calibrated else raw_model_total
-                # ------------------------------------------------------------------
-                # Uniform total safeguard: if raw outputs are essentially constant
-                # (low variance + few unique values) across a slate with many rows,
-                # rebuild totals using derived feature estimates + jitter so we
-                # avoid displaying a single flat number (e.g. 112) for every game.
-                # ------------------------------------------------------------------
-                try:
-                    raw_std = float(raw_model_total.std()) if raw_model_total.notna().any() else np.nan
-                    raw_unique = int(raw_model_total.nunique()) if raw_model_total.notna().any() else 0
-                    n_rows_pred = int(len(raw_model_total))
-                    uniform_trigger = (
-                        n_rows_pred >= 15 and raw_unique <= 2 and (pd.isna(raw_std) or raw_std < 2.0)
-                    )
-                    if uniform_trigger:
-                        league_avg_total = 141.5
-                        rng = random.Random(777)
-                        # Attempt to use derived_total_est if present or build quick estimate from ratings
-                        derived_ser = pd.to_numeric(df.get('derived_total_est'), errors='coerce') if 'derived_total_est' in df.columns else pd.Series([np.nan]*len(df))
-                        ht = pd.to_numeric(df.get('home_tempo_rating'), errors='coerce') if 'home_tempo_rating' in df.columns else pd.Series([np.nan]*len(df))
-                        at = pd.to_numeric(df.get('away_tempo_rating'), errors='coerce') if 'away_tempo_rating' in df.columns else pd.Series([np.nan]*len(df))
-                        poss_scale = (ht + at) / 140.0 if (not ht.empty and not at.empty) else pd.Series([np.nan]*len(df))
-                        # Build adjusted totals
-                        rebuilt = []
-                        for i in range(n_rows_pred):
-                            base = raw_model_total.iloc[i]
-                            dval = derived_ser.iloc[i] if i < len(derived_ser) else np.nan
-                            # Weighted recomposition: pull 55% from (league avg + tempo adj), 45% from derived/raw blend
-                            tempo_adj = 0.0
-                            if i < len(poss_scale) and not pd.isna(poss_scale.iloc[i]):
-                                tempo_adj = (poss_scale.iloc[i] - 1.0) * 18.0  # scale tempo deviation to points
-                            avg_component = league_avg_total + tempo_adj
-                            blend_source = base if not pd.isna(base) else league_avg_total
-                            if not pd.isna(dval):
-                                blend_source = 0.50 * blend_source + 0.50 * dval
-                            rng.seed((hash(str(df.get('game_id', pd.Series()).iloc[i])) ^ 0xABCDEF) & 0xffffffff)
-                            jitter = rng.uniform(-3.3, 3.3)
-                            valf = 0.55 * avg_component + 0.45 * blend_source + jitter
-                            valf = float(np.clip(valf, 95.0, 195.0))
-                            rebuilt.append(valf)
-                        df['pred_total_model'] = rebuilt
-                        df['pred_total_model_basis'] = df.get('pred_total_model_basis')
-                        df['pred_total_model_basis'] = df['pred_total_model_basis'].where(df['pred_total_model_basis'].notna(), 'uniform_adjusted')
-                        raw_model_total = pd.to_numeric(df['pred_total_model'], errors='coerce')
-                        if use_calibrated:
-                            # Rebuild calibrated similarly (light touch: shift by original calibration delta if available)
-                            cal_delta = calibrated_total - (raw_model_total if raw_model_total.notna().any() else calibrated_total)
-                            # If calibration had no variance or was empty, just reuse rebuilt raw
-                            if cal_delta.notna().any() and cal_delta.abs().mean() > 0.01:
-                                calibrated_total = raw_model_total + cal_delta.median()
-                            else:
-                                calibrated_total = raw_model_total
-                            chosen_total = calibrated_total
-                        else:
-                            chosen_total = raw_model_total
-                        pipeline_stats['uniform_total_safeguard_applied'] = True
-                        pipeline_stats['uniform_total_original_unique'] = raw_unique
-                        pipeline_stats['uniform_total_original_std'] = raw_std
-                except Exception:
-                    pipeline_stats['uniform_total_safeguard_error'] = True
                 # Bootstrap totals uncertainty (global) if historical residuals available
                 try:
                     if 'pred_total_sigma_bootstrap' not in df.columns:
@@ -5319,8 +5050,7 @@ def index():
                     st_str,
                     st_str.str.replace(" ", "T", regex=False)
                 )
-                # Remove explicit +00:00 (UTC) suffix -> Z (avoid deprecated escape usage)
-                iso_guess = iso_guess.str.replace("+00:00", "Z", regex=False)
+                iso_guess = iso_guess.str.replace("\+00:00", "Z", regex=False)
                 # Fill missing start_time_iso/local with guesses
                 if "start_time_iso" in df.columns:
                     mask_iso_missing = df["start_time_iso"].isna() | (df["start_time_iso"].astype(str).str.strip()=="")
@@ -5338,7 +5068,7 @@ def index():
             if "start_time" in df.columns:
                 st_str = df["start_time"].astype(str)
                 # If contains 'T' already, keep as iso; if only date, leave as date (no time available)
-                df["start_time_iso"] = np.where(st_str.str.contains("T"), st_str, st_str.str.replace(" ", "T", regex=False).str.replace("+00:00", "Z", regex=False))
+                df["start_time_iso"] = np.where(st_str.str.contains("T"), st_str, st_str.str.replace(" ", "T", regex=False).str.replace("\+00:00", "Z", regex=False))
                 # For local display, drop seconds and tz if present
                 disp = st_str.str.replace("T", " ", regex=False).str.replace(r":\d\d(\+\d\d:\d\d|Z)$", "", regex=True)
                 df["start_time_local"] = disp
@@ -6233,51 +5963,6 @@ def index():
                 uni = uni.drop(columns=['__pred_score'])
             except Exception:
                 pass
-            # Attempt to backfill missing identity (home_team/away_team/date/start_time) from games frame before dropping
-            try:
-                missing_identity = []
-                if {'home_team','away_team'}.issubset(uni.columns):
-                    id_mask = (uni['home_team'].isna() | (uni['home_team'].astype(str).str.strip() == '')) | (uni['away_team'].isna() | (uni['away_team'].astype(str).str.strip() == ''))
-                    missing_identity = uni[id_mask]['game_id'].astype(str).tolist()
-                # games frame may exist in outer scope of index route; use if available
-                if missing_identity and 'games' in locals():
-                    try:
-                        games_ref = games[['game_id','home_team','away_team','date','start_time']].copy()
-                        games_ref['game_id'] = games_ref['game_id'].astype(str)
-                        uni['game_id'] = uni['game_id'].astype(str)
-                        uni = uni.merge(games_ref, on='game_id', how='left', suffixes=('','__g'))
-                        # Prefer existing non-null, else take __g values
-                        for col in ['home_team','away_team','date','start_time']:
-                            gcol = f"{col}__g"
-                            if gcol in uni.columns:
-                                need_fill = uni[col].isna() | (uni[col].astype(str).str.strip() == '')
-                                uni.loc[need_fill, col] = uni.loc[need_fill, gcol]
-                        # Drop helper columns
-                        drop_helpers = [c for c in uni.columns if c.endswith('__g')]
-                        if drop_helpers:
-                            uni = uni.drop(columns=drop_helpers)
-                        pipeline_stats['unified_export_identity_backfilled_rows'] = int(len(missing_identity))
-                    except Exception:
-                        pipeline_stats['unified_export_identity_backfill_error'] = True
-                # Now drop any rows still lacking identity to avoid blank cards
-                before_blank = len(uni)
-                id_cols = [c for c in ['home_team','away_team','date'] if c in uni.columns]
-                if id_cols:
-                    mask_valid = pd.Series([True]*len(uni))
-                    for c in id_cols:
-                        ser = uni[c].astype(str)
-                        mask_valid = mask_valid & ser.notna() & (ser.str.strip() != '')
-                    if 'start_time' in uni.columns:
-                        st_ser = uni['start_time'].astype(str)
-                        mask_valid = mask_valid & st_ser.notna() & (st_ser.str.strip() != '')
-                    # Align mask index explicitly to avoid reindex UserWarning
-                    mask_valid = mask_valid.reindex(uni.index).fillna(False)
-                    uni = uni.loc[mask_valid].copy()
-                    removed = before_blank - len(uni)
-                    if removed > 0:
-                        pipeline_stats['unified_export_blank_identity_dropped'] = int(removed)
-            except Exception:
-                pass
             uni_path = OUT / f"predictions_unified_{export_date}.csv"
             try:
                 uni.to_csv(uni_path, index=False)
@@ -6617,14 +6302,9 @@ def api_health():
                 }
         except Exception as _ge:
             guardrail_summary = {"error": str(_ge)}
-        # Ingest token visibility (boolean only)
-        ingest_token_present = bool(_resolve_ingest_token())
         payload = {
             "status": "ok",
-            "git_commit": _get_git_commit(),
-            "app_version": _get_app_version(),
             "outputs_dir": str(OUT),
-            "local_timezone": _LOCAL_TZ_NAME,
             "games_files": games_files,
             "odds_files": odds_files,
             "predictions_files": preds_files,
@@ -6641,56 +6321,8 @@ def api_health():
             "providers": providers,
             "last_pipeline_stats": _LAST_PIPELINE_STATS,
             "guardrails": guardrail_summary,
-            "ingest_enabled": ingest_token_present,
             "timestamp": dt.datetime.utcnow().isoformat() + "Z",
         }
-        # Predictions integrity summary (today only)
-        try:
-            if today_str:
-                prim = OUT / f"predictions_{today_str}.csv"
-                upl = OUT / f"predictions_{today_str}_uploaded.csv"
-                prim_df = _safe_read_csv(prim)
-                upl_df = _safe_read_csv(upl)
-                h = _compute_predictions_hash(prim_df) if not prim_df.empty else None
-                pt_ser = pd.to_numeric(prim_df.get("pred_total"), errors="coerce") if not prim_df.empty and "pred_total" in prim_df.columns else None
-                pm_ser = pd.to_numeric(prim_df.get("pred_margin"), errors="coerce") if not prim_df.empty and "pred_margin" in prim_df.columns else None
-                payload["predictions_integrity"] = {
-                    "exists_primary": prim.exists(),
-                    "exists_uploaded": upl.exists(),
-                    "rows_primary": len(prim_df) if not prim_df.empty else 0,
-                    "rows_uploaded": len(upl_df) if not upl_df.empty else 0,
-                    "nan_pred_total_primary": int(pt_ser.isna().sum()) if pt_ser is not None else None,
-                    "nan_pred_margin_primary": int(pm_ser.isna().sum()) if pm_ser is not None else None,
-                    "predictions_hash_primary": h,
-                    "all_nan_primary": bool(pt_ser is not None and pt_ser.notna().sum() == 0 and pm_ser is not None and pm_ser.notna().sum() == 0),
-                }
-        except Exception as _ie:
-            payload["predictions_integrity"] = {"error": str(_ie)}
-        # Schedule anomaly & NCAA endpoint probe (lightweight)
-        try:
-            anomaly_threshold = int(os.environ.get("NCAAB_SCHEDULE_ANOMALY_THRESHOLD", "50"))
-            month = _today_local().month if today_str else None
-            in_season = month and month in {11,12,1,2,3}
-            anomaly = bool(in_season and games_today_rows is not None and games_today_rows < anomaly_threshold)
-            ncaa_code = None
-            if anomaly:
-                import requests
-                d_obj = _today_local()
-                ncaa_url = f"https://data.ncaa.com/casablanca/scoreboard/basketball-men/d1/{d_obj.year}/{str(d_obj.month).zfill(2)}/{str(d_obj.day).zfill(2)}/scoreboard.json"
-                try:
-                    r = requests.get(ncaa_url, timeout=3)
-                    ncaa_code = r.status_code
-                except Exception:
-                    ncaa_code = -1
-            payload["schedule_anomaly"] = {
-                "anomaly": anomaly,
-                "threshold": anomaly_threshold,
-                "games_today_rows": games_today_rows,
-                "in_season_window": in_season,
-                "ncaa_endpoint_code": ncaa_code,
-            }
-        except Exception:
-            payload["schedule_anomaly"] = {"error": "probe_failed"}
         return jsonify(payload), 200
     except Exception as e:
         logger.exception("/api/health failure")
@@ -7227,121 +6859,7 @@ def api_results():
             clean[k] = v
         rows.append(clean)
     meta["returned_columns"] = list(df.columns)
-    # Version stamping in meta
-    meta["git_commit"] = _get_git_commit()
-    meta["app_version"] = _get_app_version()
     return jsonify({"ok": True, "meta": meta, "rows": rows})
-
-
-@app.route("/api/predictions_ingest", methods=["POST"])
-def api_predictions_ingest():
-    """Secure ingestion of local predictions to override remote slate.
-
-    Auth: requires header X-Ingest-Token matching env NCAAB_PREDICTIONS_INGEST_TOKEN.
-    Payload options:
-      - multipart/form-data with file field 'file' (CSV)
-      - JSON with 'rows': list[dict] and optional 'date'
-    Required columns in CSV/rows: game_id plus at least one of pred_total/pred_margin.
-    If 'date' supplied (param or inferred from rows/date column) we write predictions_<date>_uploaded.csv
-    and also copy to predictions_<date>.csv (unless that file already exists and ?force=1 not passed).
-    """
-    token_req = _resolve_ingest_token() or ""
-    provided = (request.headers.get("X-Ingest-Token") or request.args.get("token") or "").strip()
-    if not token_req:
-        return jsonify({"ok": False, "error": "ingest_disabled"}), 403
-    if provided != token_req:
-        return jsonify({"ok": False, "error": "auth_failed"}), 401
-    force = (request.args.get("force") or "").lower() in ("1","true","yes")
-    target_date = (request.args.get("date") or "").strip()
-    df = pd.DataFrame()
-    # Accept file upload
-    try:
-        if "file" in request.files:
-            f = request.files["file"]
-            df = pd.read_csv(f)
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"file_read_failed: {e}"}), 400
-    # Accept JSON rows
-    if df.empty and request.is_json:
-        js = request.get_json(silent=True) or {}
-        rows = js.get("rows")
-        if isinstance(rows, list) and rows:
-            df = pd.DataFrame(rows)
-        if not target_date:
-            target_date = str(js.get("date") or "").strip()
-    if df.empty:
-        return jsonify({"ok": False, "error": "no_data"}), 400
-    # Normalize columns
-    for col in df.columns:
-        if col.lower() == "gameid" and "game_id" not in df.columns:
-            df.rename(columns={col: "game_id"}, inplace=True)
-    if "game_id" not in df.columns:
-        return jsonify({"ok": False, "error": "missing_game_id"}), 400
-    # Identify date
-    if not target_date:
-        if "date" in df.columns:
-            try:
-                ser = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                vals = ser.dropna().unique().tolist()
-                if len(vals) == 1:
-                    target_date = vals[0]
-            except Exception:
-                target_date = ""
-    if not target_date:
-        # fallback: use today
-        try:
-            target_date = _today_local().strftime("%Y-%m-%d")
-        except Exception:
-            return jsonify({"ok": False, "error": "no_date_resolved"}), 400
-    # Ensure game_id string
-    try:
-        df["game_id"] = df["game_id"].astype(str)
-    except Exception:
-        pass
-    # Minimum predictive columns
-    pred_cols = [c for c in ["pred_total","pred_margin","pred_total_model","pred_margin_model"] if c in df.columns]
-    if not pred_cols:
-        return jsonify({"ok": False, "error": "no_prediction_columns"}), 400
-    # Write uploaded artifact
-    out_uploaded = OUT / f"predictions_{target_date}_uploaded.csv"
-    try:
-        df.to_csv(out_uploaded, index=False)
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"write_failed: {e}"}), 500
-    out_primary = OUT / f"predictions_{target_date}.csv"
-    wrote_primary = False
-    if force or not out_primary.exists():
-        try:
-            df.to_csv(out_primary, index=False)
-            wrote_primary = True
-        except Exception:
-            pass
-    # Invalidate cached source path so new load picks file
-    global _PREDICTIONS_SOURCE_PATH
-    _PREDICTIONS_SOURCE_PATH = str(out_primary if wrote_primary else out_uploaded)
-    return jsonify({
-        "ok": True,
-        "date": target_date,
-        "rows": len(df),
-        "prediction_columns": pred_cols,
-        "uploaded_path": str(out_uploaded),
-        "primary_path": str(out_primary),
-        "primary_written": wrote_primary,
-    })
-
-@app.route("/api/routes")
-def api_routes():
-    """List all registered Flask routes (for remote introspection)."""
-    try:
-        rules = sorted([str(r.rule) for r in app.url_map.iter_rules()])
-        return jsonify({"ok": True, "routes": rules, "count": len(rules)})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-@app.route("/api/ingest-enabled")
-def api_ingest_enabled():
-    present = bool(_resolve_ingest_token())
-    return jsonify({"ok": True, "ingest_enabled": present})
 
 
 @app.route("/api/predictions_unified")
@@ -7367,120 +6885,6 @@ def api_predictions_unified():
     except Exception:
         today_str = None
     target_date = date_q or today_str
-
-@app.route("/api/predictions_integrity")
-def api_predictions_integrity():
-    """Return integrity diagnostics for predictions_<date>.csv with optional self-healing.
-
-    Query params:
-      - date=YYYY-MM-DD (optional; defaults to today local timezone)
-      - auto_promote=1 to copy uploaded variant to primary if primary missing
-
-    Response: { ok, date, meta: { exists_primary, exists_uploaded, rows_primary, rows_uploaded,
-               nan_pred_total_primary, nan_pred_margin_primary, predictions_hash_primary,
-               promotion_performed, all_nan_primary } }
-    """
-    date_q = (request.args.get("date") or "").strip()
-    auto_promote = (request.args.get("auto_promote") or "").lower() in ("1","true","yes")
-    try:
-        today_str = _today_local().strftime("%Y-%m-%d")
-    except Exception:
-        today_str = None
-    target_date = date_q or today_str
-    if not target_date:
-        return jsonify({"ok": False, "error": "no_date"}), 400
-    prim = OUT / f"predictions_{target_date}.csv"
-    upl = OUT / f"predictions_{target_date}_uploaded.csv"
-    promotion_performed = False
-    # Self-heal: if primary missing but uploaded exists
-    try:
-        if (not prim.exists()) and upl.exists() and auto_promote:
-            upl_df = _safe_read_csv(upl)
-            if not upl_df.empty:
-                upl_df.to_csv(prim, index=False)
-                promotion_performed = True
-    except Exception:
-        pass
-    prim_df = _safe_read_csv(prim)
-    upl_df = _safe_read_csv(upl)
-    h = _compute_predictions_hash(prim_df) if not prim_df.empty else None
-    pt_ser = pd.to_numeric(prim_df.get("pred_total"), errors="coerce") if not prim_df.empty and "pred_total" in prim_df.columns else None
-    pm_ser = pd.to_numeric(prim_df.get("pred_margin"), errors="coerce") if not prim_df.empty and "pred_margin" in prim_df.columns else None
-    meta = {
-        "exists_primary": prim.exists(),
-        "exists_uploaded": upl.exists(),
-        "rows_primary": len(prim_df) if not prim_df.empty else 0,
-        "rows_uploaded": len(upl_df) if not upl_df.empty else 0,
-        "nan_pred_total_primary": int(pt_ser.isna().sum()) if pt_ser is not None else None,
-        "nan_pred_margin_primary": int(pm_ser.isna().sum()) if pm_ser is not None else None,
-        "predictions_hash_primary": h,
-        "promotion_performed": promotion_performed,
-        "all_nan_primary": bool(pt_ser is not None and pt_ser.notna().sum() == 0 and pm_ser is not None and pm_ser.notna().sum() == 0),
-    }
-    meta["git_commit"] = _get_git_commit()
-    return jsonify({"ok": True, "date": target_date, "meta": meta})
-
-@app.route("/api/predictions_snapshot")
-def api_predictions_snapshot():
-    """Return raw ingested predictions slice for a date (default today) without games merge.
-
-    Fields returned: game_id,date,home_team,away_team,pred_total,pred_margin,pred_total_raw,
-    pred_total_adjusted,derived_total,pred_total_1h,pred_total_2h,pred_margin_1h,pred_margin_2h,
-    tuning_totals_bias,preseason_weight,preseason_applied plus canonical shortcuts.
-    """
-    date_q = (request.args.get("date") or "").strip()
-    try:
-        today_str = _today_local().strftime("%Y-%m-%d")
-    except Exception:
-        today_str = None
-    target_date = date_q or today_str
-    if not target_date:
-        return jsonify({"ok": False, "error": "no_date"}), 400
-    prim = OUT / f"predictions_{target_date}.csv"
-    upl = OUT / f"predictions_{target_date}_uploaded.csv"
-    src = prim if prim.exists() else (upl if upl.exists() else None)
-    if src is None:
-        return jsonify({"ok": True, "date": target_date, "rows": [], "meta": {"source": None, "rows": 0}})
-    df = _safe_read_csv(src)
-    if df.empty:
-        return jsonify({"ok": True, "date": target_date, "rows": [], "meta": {"source": str(src), "rows": 0}})
-    try:
-        if "date" in df.columns:
-            df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-            df = df[df["date"].astype(str) == str(target_date)].copy()
-    except Exception:
-        pass
-    # Canonical shortcuts
-    try:
-        df["pred_total_canonical"] = df.get("pred_total") if "pred_total" in df.columns else df.get("pred_total_raw")
-        df["pred_margin_canonical"] = df.get("pred_margin")
-    except Exception:
-        pass
-    keep_cols = [c for c in [
-        "game_id","date","home_team","away_team","pred_total","pred_margin","pred_total_raw",
-        "pred_total_adjusted","derived_total","pred_total_1h","pred_total_2h","pred_margin_1h","pred_margin_2h",
-        "tuning_totals_bias","preseason_weight","preseason_applied","pred_total_canonical","pred_margin_canonical"
-    ] if c in df.columns]
-    out = df[keep_cols].copy()
-    rows = []
-    for r in out.to_dict(orient="records"):
-        clean = {}
-        for k,v in r.items():
-            if isinstance(v, (np.generic,)):
-                try:
-                    v = v.item()
-                except Exception:
-                    pass
-            clean[k] = v
-        rows.append(clean)
-    meta = {
-        "date": target_date,
-        "source": str(src),
-        "rows": len(rows),
-        "columns": keep_cols,
-        "git_commit": _get_git_commit(),
-    }
-    return jsonify({"ok": True, "date": target_date, "rows": rows, "meta": meta})
 
 @app.route("/api/backtest")
 def api_backtest():
