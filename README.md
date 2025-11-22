@@ -170,6 +170,111 @@ Invoke-RestMethod http://localhost:5050/api/ort-benchmark | ConvertTo-Json
 
 Expect lower `avg_ms` after enabling DirectML (and potentially even lower with QNN on supported hardware/models).
 
+## Remote Predictions Parity & Ingestion
+
+Ensure the hosted Flask app displays identical prediction values to your local artifacts and never falls back to synthetic shells.
+
+### Promotion vs Shell Logic
+
+`_load_predictions_current()` executes deterministic steps:
+
+1. Use `predictions_<date>.csv` if present.
+2. If missing / shell (both `pred_total` & `pred_margin` absent or all NaN) / stale vs model artifact → promote from:
+   - `predictions_model_calibrated_<date>.csv` (preferred)
+   - else `predictions_model_<date>.csv`
+3. If no model artifact exists: synthesize a shell from `games_curr.csv` (metadata only) so the UI can render a slate.
+
+Shell creation only occurs when no real model outputs exist; pushing a real file prevents shells entirely.
+
+### Ingestion Endpoints
+
+| Endpoint | Method | Body | Writes |
+|----------|--------|------|--------|
+| `/api/ingest/predictions` | POST | CSV (multipart `file` or raw `text/csv`) | `predictions_<date>.csv` |
+| `/api/ingest/model-predictions` | POST | CSV (multipart `file`) | `predictions_model[_calibrated]_<date>.csv` |
+
+Auth (optional): set `NCAAB_INGEST_TOKEN` and send header `X-Ingest-Token: <token>`. If unset, endpoints are open.
+
+Response JSON includes `md5` hash for parity verification.
+
+### Slim Push Script
+
+`scripts/push_slim_predictions.py` picks the best local source (calibrated → raw → existing promoted) and uploads only:
+
+```
+game_id,date,pred_total,pred_margin
+```
+
+Example:
+
+```powershell
+python scripts/push_slim_predictions.py --date 2025-11-22 --url https://your-render-app.onrender.com/api/ingest/predictions --token $Env:NCAAB_INGEST_TOKEN
+```
+
+Script output prints local & remote md5 hashes; equality confirms parity.
+
+### Manual PowerShell Uploads
+
+```powershell
+$file = "outputs/predictions_2025-11-22.csv"
+Invoke-RestMethod -Uri "https://your-render-app.onrender.com/api/ingest/predictions" -Method Post -InFile $file -ContentType 'text/csv' -Headers @{ 'X-Ingest-Token' = $Env:NCAAB_INGEST_TOKEN }
+
+$model = "outputs/predictions_model_calibrated_2025-11-22.csv"
+Invoke-RestMethod -Uri "https://your-render-app.onrender.com/api/ingest/model-predictions" -Method Post -InFile $model -ContentType 'text/csv' -Headers @{ 'X-Ingest-Token' = $Env:NCAAB_INGEST_TOKEN }
+```
+
+### Environment Variables
+
+| Var | Purpose |
+|-----|---------|
+| `NCAAB_INGEST_TOKEN` | Shared secret required in `X-Ingest-Token` header |
+| `NCAAB_PREDICTIONS_FILE` | Override predictions load path |
+| `NCAAB_MODEL_PREDICTIONS_FILE` | Override model artifact path |
+| `NCAAB_OUTPUTS_DIR` | Force outputs directory resolution |
+
+### Daily Parity Flow
+
+1. Run `daily-run` + any calibration.
+2. Push slim predictions.
+3. Optionally push model predictions artifact.
+4. Visit `/?diag=1` and check `preds_load_rows` & source path.
+5. Confirm md5 matches local file.
+
+### Optional GitHub Action
+
+```yaml
+name: Push Slim Predictions
+on:
+  schedule:
+    - cron: '15 15 * * *'
+  workflow_dispatch:
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Daily run (light)
+        run: python -m ncaab_model.cli daily-run --threshold 2.0 --target-picks 10
+      - name: Push slim predictions
+        env:
+          NCAAB_INGEST_TOKEN: ${{ secrets.NCAAB_INGEST_TOKEN }}
+        run: python scripts/push_slim_predictions.py --date $(date +%F) --url https://your-render-app.onrender.com/api/ingest/predictions --token $NCAAB_INGEST_TOKEN
+```
+
+### Security Notes
+
+- Use a long random `NCAAB_INGEST_TOKEN`; rotate regularly.
+- Endpoints validate structure + hash only; add stricter checks if public.
+- Legacy verbose diagnostics endpoint removed—use `/?diag=1` and `/api/health` (`last_pipeline_stats`).
+
+---
+
+Remote prediction parity is now deterministic and independent of startup timing.
+
 ## CLI commands (highlights)
 
 - Data
@@ -681,6 +786,61 @@ If you need a one-click badge:
 ```
 
 Replace link with a direct template once you create a blueprint.
+
+## Prediction Provenance Badges & Coverage Depth
+
+The cards UI surfaces compact badges to clarify the origin and reliability of each per-game prediction:
+
+| Badge | Meaning | Notes |
+|-------|---------|-------|
+| `Cal` | Calibrated model total | Distribution-aligned via historical residuals/CRPS objectives |
+| `Raw` | Raw model total | Uncalibrated baseline export |
+| `Adj` | Low-total adjustment | Applied for extreme pace / defensive blends |
+| `W=0.73` | Blend weight | Fraction of segmented prediction incorporated (0 suppresses blend) |
+| `N=48` | Segment sample size | Number of rows contributing to segmented component; hidden if 0 |
+| `Q=5` | Quotes count (market depth) | Number of distinct bookmaker totals aggregated for median market_total |
+| `Q=1` / `Q=0` (red) | Low market depth warning | Fewer than 2 quotes – treat edges cautiously |
+
+Suppressed blend rows (where `blend_weight <= 0` or `seg_n_rows <= 0`) automatically revert to the baseline prediction and the `W` / `N` badges are omitted to reduce visual noise.
+
+### Coverage Depth Endpoint
+
+`GET /api/coverage-depth` returns aggregate distribution metrics for the most recently loaded predictions file. Example payload:
+
+```json
+{
+  "meta": {"ts": "2025-11-22T15:52:01", "total_rows": 87},
+  "quotes": {
+    "counts_present": 82,
+    "distribution": {"0": 4, "1": 7, "2": 15, "3": 20, "4": 22, "5": 14},
+    "min": 0,
+    "median": 3,
+    "max": 5,
+    "pct_low": 0.134
+  },
+  "segmentation": {
+    "rows_used": 63,
+    "pct_seg_used": 0.724,
+    "mean_seg_n_rows_used": 52.7,
+    "mean_blend_weight_used": 0.68
+  },
+  "blend": {"suppressed": 19, "effective": 63, "pct_suppressed": 0.231}
+}
+```
+
+Use this endpoint for monitoring daily odds depth, segmentation health, and blend suppression behavior without scraping the HTML. Low `pct_low` indicates healthy bookmaker coverage. Rising `pct_suppressed` suggests segmentation becoming ineffective (e.g., sparse feature slices) and can trigger retraining or parameter tuning.
+
+### Styling Refactor
+
+Inline diagnostic styles were moved to `static/css/app.css` to satisfy linting and keep template markup clean. Utility classes like `.flex-row-wrap`, `.m4v8`, `.mt4`, `.ml8`, and warning badge `.badge-warn` now centralize layout & emphasis rules.
+
+### Recommended Monitoring
+
+- Alert if `pct_low` > 0.40 (markets thin – edges riskier)
+- Alert if `pct_suppressed` > 0.50 (segmentation failing – revisit bucket logic)
+- Track `median` quotes_count trend over season for provider completeness drift.
+
+---
 
 #   N C A A B 
  

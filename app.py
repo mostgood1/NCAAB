@@ -111,6 +111,9 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ncaab_app")
 
+# Lightweight auth token for ingestion endpoints (set NCAAB_INGEST_TOKEN env var).
+_INGEST_TOKEN = os.getenv("NCAAB_INGEST_TOKEN", "").strip()
+
 # ONNX Runtime provider diagnostics (one-time at startup)
 try:
     import onnxruntime as ort  # type: ignore
@@ -579,6 +582,170 @@ def _load_predictions_current() -> pd.DataFrame:
 
 # Perform bootstrap now that _load_predictions_current is defined.
 ensure_runtime_artifacts()
+
+# --------------------------------------------------------------------------------------
+# Ingestion endpoints for deploying local artifacts to Render for parity
+# --------------------------------------------------------------------------------------
+@app.route("/api/ingest/predictions", methods=["POST"])
+def api_ingest_predictions():
+    """Ingest a predictions_<date>.csv file to the outputs directory for parity.
+
+    Accepts:
+      - multipart/form-data with file field 'file'
+      - raw CSV text in body (Content-Type text/csv)
+    Optional query/body fields:
+      date: ISO date (YYYY-MM-DD). If omitted, attempt to parse from filename or rows; else assume today.
+
+    Requires header 'X-Ingest-Token' matching env NCAAB_INGEST_TOKEN (if set). If token not set, open.
+    Returns JSON with write status and md5 hash for verification.
+    """
+    try:
+        if _INGEST_TOKEN:
+            tok = request.headers.get("X-Ingest-Token", "").strip()
+            if tok != _INGEST_TOKEN:
+                return jsonify({"error": "unauthorized"}), 401
+    except Exception:
+        return jsonify({"error": "auth_check_failed"}), 500
+    date_param = (request.args.get("date") or request.form.get("date") or "").strip()
+    raw_bytes: bytes | None = None
+    filename: str | None = None
+    if "file" in request.files:
+        f = request.files["file"]
+        raw_bytes = f.read()
+        filename = f.filename
+    else:
+        try:
+            raw_bytes = request.get_data() or None
+        except Exception:
+            raw_bytes = None
+    if not raw_bytes:
+        return jsonify({"error": "no_file"}), 400
+    # Decode to text
+    try:
+        text = raw_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        return jsonify({"error": "decode_failed"}), 400
+    # Attempt to detect date from filename if pattern present
+    date_detected = None
+    try:
+        if filename and "predictions_" in filename and filename.endswith(".csv"):
+            stem = Path(filename).stem
+            parts = stem.split("_")
+            maybe = parts[-1]
+            if len(maybe) == 10 and maybe.count("-") == 2:
+                date_detected = maybe
+    except Exception:
+        date_detected = None
+    # Fallback: scan first 20 lines for a date column
+    if not date_param and not date_detected:
+        try:
+            head_lines = text.splitlines()[:20]
+            if head_lines:
+                # naive parse: if header has 'date' and a row contains YYYY-MM-DD use that
+                if head_lines[0].lower().split(",").count("date"):
+                    for ln in head_lines[1:]:
+                        if len(ln) >= 10 and ln[:10].count("-") == 2:
+                            date_detected = ln[:10]
+                            break
+        except Exception:
+            pass
+    today_iso = None
+    try:
+        today_iso = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_iso = None
+    date_use = date_param or date_detected or today_iso
+    if not date_use:
+        return jsonify({"error": "no_date_resolved"}), 400
+    target = OUT / f"predictions_{date_use}.csv"
+    try:
+        target.write_text(text, encoding="utf-8")
+    except Exception as e:
+        return jsonify({"error": f"write_failed: {e}"}), 500
+    # Basic integrity: read back & compute md5
+    try:
+        back = target.read_bytes()
+        import hashlib
+        md5 = hashlib.md5(back).hexdigest()
+        rows = 0
+        try:
+            import pandas as _pd
+            df_tmp = _pd.read_csv(target)
+            rows = len(df_tmp)
+        except Exception:
+            pass
+        global _PREDICTIONS_SOURCE_PATH
+        _PREDICTIONS_SOURCE_PATH = str(target)
+        return jsonify({"ok": True, "path": str(target), "date": date_use, "rows": rows, "md5": md5})
+    except Exception as e:
+        return jsonify({"error": f"post_read_failed: {e}"}), 500
+
+@app.route("/api/ingest/model-predictions", methods=["POST"])
+def api_ingest_model_predictions():
+    """Ingest calibrated/raw model predictions artifact to enable server-side promotion.
+
+    Accepts file field 'file'. Determines whether calibrated vs raw by column presence or filename.
+    Writes to predictions_model_calibrated_<date>.csv if columns pred_total_calibrated exist else predictions_model_<date>.csv.
+    Same auth/token semantics as predictions ingest.
+    """
+    try:
+        if _INGEST_TOKEN:
+            tok = request.headers.get("X-Ingest-Token", "").strip()
+            if tok != _INGEST_TOKEN:
+                return jsonify({"error": "unauthorized"}), 401
+    except Exception:
+        return jsonify({"error": "auth_check_failed"}), 500
+    if "file" not in request.files:
+        return jsonify({"error": "no_file"}), 400
+    f = request.files["file"]
+    raw_bytes = f.read()
+    try:
+        text = raw_bytes.decode("utf-8", errors="replace")
+    except Exception:
+        return jsonify({"error": "decode_failed"}), 400
+    date_param = (request.args.get("date") or request.form.get("date") or "").strip()
+    today_iso = None
+    try:
+        today_iso = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_iso = None
+    date_use = date_param or today_iso
+    if not date_use:
+        return jsonify({"error": "no_date"}), 400
+    # Decide filename by inspecting header
+    header = text.splitlines()[0] if text else ""
+    calibrated = "pred_total_calibrated" in header or "pred_margin_calibrated" in header
+    fname = f"predictions_model_calibrated_{date_use}.csv" if calibrated else f"predictions_model_{date_use}.csv"
+    target = OUT / fname
+    try:
+        target.write_text(text, encoding="utf-8")
+    except Exception as e:
+        return jsonify({"error": f"write_failed: {e}"}), 500
+    # Promote immediately by forcing rebuild logic: delete existing today promotions so next load regenerates
+    try:
+        promoted = OUT / f"predictions_{date_use}.csv"
+        if promoted.exists():
+            # Only remove if file looks shell (all NaNs) or user explicitly wants parity refresh
+            try:
+                import pandas as _pd
+                dft = _pd.read_csv(promoted)
+                core_cols = [c for c in ["pred_total", "pred_margin"] if c in dft.columns]
+                if core_cols and all(_pd.to_numeric(dft[c], errors="coerce").isna().all() for c in core_cols):
+                    promoted.unlink(missing_ok=True)  # force regeneration
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # Read back for md5
+    try:
+        back = target.read_bytes()
+        import hashlib
+        md5 = hashlib.md5(back).hexdigest()
+        global _MODEL_PREDICTIONS_SOURCE_PATH
+        _MODEL_PREDICTIONS_SOURCE_PATH = str(target)
+        return jsonify({"ok": True, "path": str(target), "date": date_use, "calibrated": calibrated, "md5": md5})
+    except Exception as e:
+        return jsonify({"error": f"post_read_failed: {e}"}), 500
 
 def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
     """Load model-only prediction outputs produced by inference harness.
@@ -1289,6 +1456,30 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
             df["edge_total"] = pd.to_numeric(df["pred_total"], errors="coerce") - pd.to_numeric(df["market_total"], errors="coerce")
         except Exception:
             df["edge_total"] = None
+    # Quotes count badge support: derive quotes_count if quotes column present
+    try:
+        if "quotes" in df.columns and "quotes_count" not in df.columns:
+            def _qc(val):
+                if isinstance(val, list):
+                    return len(val)
+                if isinstance(val, str):
+                    v = val.strip()
+                    if v.startswith("[") and v.endswith("]"):
+                        try:
+                            parsed = json.loads(v)
+                            return len(parsed) if isinstance(parsed, list) else np.nan
+                        except Exception:
+                            return np.nan
+                return np.nan
+            df["quotes_count"] = df["quotes"].map(_qc)
+            # Summary stats for monitoring (attach to meta)
+            qc_valid = pd.to_numeric(df["quotes_count"], errors="coerce").dropna()
+            if not qc_valid.empty:
+                meta["quotes_count_median"] = float(qc_valid.median())
+                meta["quotes_count_min"] = float(qc_valid.min())
+                meta["quotes_count_max"] = float(qc_valid.max())
+    except Exception:
+        pass
     # Basic meta stats
     meta["n_rows"] = len(df)
     if "actual_total" in df.columns:
@@ -3446,11 +3637,13 @@ def index():
         if not df.empty:
             used_blend = False
             if "pred_total_blend" in df.columns:
-                # Preserve original once for diagnostics
+                # Preserve original prediction & basis once for diagnostics / potential revert
                 if "pred_total_orig" not in df.columns:
                     df["pred_total_orig"] = df.get("pred_total")
+                if "pred_total_basis" in df.columns and "pred_total_basis_orig" not in df.columns:
+                    df["pred_total_basis_orig"] = df["pred_total_basis"].astype(str)
                 df["pred_total"] = pd.to_numeric(df["pred_total_blend"], errors="coerce")
-                # Stamp basis
+                # Stamp basis as blend (may be reverted if ineffective later)
                 if "pred_total_basis" in df.columns:
                     df["pred_total_basis"] = "blend"
                 else:
@@ -3459,6 +3652,8 @@ def index():
             if "pred_margin_blend" in df.columns:
                 if "pred_margin_orig" not in df.columns:
                     df["pred_margin_orig"] = df.get("pred_margin")
+                if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
+                    df["pred_margin_basis_orig"] = df["pred_margin_basis"].astype(str)
                 df["pred_margin"] = pd.to_numeric(df["pred_margin_blend"], errors="coerce")
                 if "pred_margin_basis" in df.columns:
                     df["pred_margin_basis"] = "blend"
@@ -3466,23 +3661,90 @@ def index():
                     df["pred_margin_basis"] = "blend"
                 used_blend = True
             if used_blend:
-                pipeline_stats["using_blended_predictions"] = True
-                # Blend diagnostics when available
+                # Determine if blend is meaningful (non-zero weight AND segmentation rows > 0)
                 try:
-                    if "blend_weight" in df.columns:
-                        bw = pd.to_numeric(df["blend_weight"], errors="coerce")
-                        bw_valid = bw.dropna()
-                        if not bw_valid.empty:
-                            pipeline_stats["blend_weight_min"] = float(bw_valid.min())
-                            pipeline_stats["blend_weight_median"] = float(bw_valid.median())
-                            pipeline_stats["blend_weight_max"] = float(bw_valid.max())
-                            pipeline_stats["blend_weight_mean"] = float(bw_valid.mean())
-                    if "seg_n_rows" in df.columns:
-                        sn = pd.to_numeric(df["seg_n_rows"], errors="coerce").dropna()
-                        if not sn.empty:
-                            pipeline_stats["seg_n_rows_median"] = float(sn.median())
-                            pipeline_stats["seg_n_rows_min"] = float(sn.min())
-                            pipeline_stats["seg_n_rows_max"] = float(sn.max())
+                    bw_series = pd.to_numeric(df.get("blend_weight"), errors="coerce") if "blend_weight" in df.columns else None
+                    seg_series = pd.to_numeric(df.get("seg_n_rows"), errors="coerce") if "seg_n_rows" in df.columns else None
+                    # Mark zero / missing segmentation counts as NaN for UI suppression
+                    if seg_series is not None:
+                        seg_bad_mask = seg_series.fillna(0) <= 0
+                        if seg_bad_mask.any():
+                            df.loc[seg_bad_mask, "seg_n_rows"] = np.nan
+                    # Identify rows where blend should be suppressed (weight <=0 OR seg_n_rows <=0)
+                    if bw_series is not None or seg_series is not None:
+                        suppress_mask = None
+                        if bw_series is not None:
+                            suppress_mask = (bw_series.fillna(0) <= 0)
+                        if seg_series is not None:
+                            seg_mask = (seg_series.fillna(0) <= 0)
+                            suppress_mask = seg_mask if suppress_mask is None else (suppress_mask | seg_mask)
+                        if suppress_mask is not None and suppress_mask.any():
+                            suppressed_count = int(suppress_mask.sum())
+                            try:
+                                pipeline_stats["blend_rows_suppressed"] = suppressed_count
+                            except Exception:
+                                pass
+                            # Revert predictions & basis for suppressed rows to original (pre-blend)
+                            if "pred_total_orig" in df.columns:
+                                df.loc[suppress_mask, "pred_total"] = df.loc[suppress_mask, "pred_total_orig"]
+                            if "pred_margin_orig" in df.columns:
+                                df.loc[suppress_mask, "pred_margin"] = df.loc[suppress_mask, "pred_margin_orig"]
+                            if "pred_total_basis_orig" in df.columns:
+                                df.loc[suppress_mask, "pred_total_basis"] = df.loc[suppress_mask, "pred_total_basis_orig"]
+                            if "pred_margin_basis_orig" in df.columns:
+                                df.loc[suppress_mask, "pred_margin_basis"] = df.loc[suppress_mask, "pred_margin_basis_orig"]
+                            # If original basis missing, set a fallback model/raw tag instead of 'blend'
+                            if "pred_total_basis" in df.columns:
+                                df.loc[suppress_mask & ~df["pred_total_basis"].notna(), "pred_total_basis"] = "model_raw"
+                            if "pred_margin_basis" in df.columns:
+                                df.loc[suppress_mask & ~df["pred_margin_basis"].notna(), "pred_margin_basis"] = "model_raw"
+                            # For rows where blend suppressed, clear blend_weight to hide badge downstream
+                            if "blend_weight" in df.columns:
+                                df.loc[suppress_mask, "blend_weight"] = np.nan
+                    # After potential suppression, decide if any rows still genuinely blended
+                    remaining_blend_mask = None
+                    if "blend_weight" in df.columns and "seg_n_rows" in df.columns:
+                        bw_series2 = pd.to_numeric(df["blend_weight"], errors="coerce")
+                        seg_series2 = pd.to_numeric(df["seg_n_rows"], errors="coerce")
+                        remaining_blend_mask = (bw_series2.fillna(0) > 0) & (seg_series2.fillna(0) > 0)
+                    if remaining_blend_mask is not None and remaining_blend_mask.any():
+                        pipeline_stats["using_blended_predictions"] = True
+                        try:
+                            pipeline_stats["blend_rows_effective"] = int(remaining_blend_mask.sum())
+                        except Exception:
+                            pass
+                    else:
+                        # No effective blend rows left – treat as unblended (do not set using_blended_predictions)
+                        used_blend = False
+                except Exception:
+                    # On any error, fall back to original at least hiding zero badges
+                    try:
+                        if "seg_n_rows" in df.columns:
+                            df.loc[pd.to_numeric(df["seg_n_rows"], errors="coerce").fillna(0) <= 0, "seg_n_rows"] = np.nan
+                        if "blend_weight" in df.columns:
+                            df.loc[pd.to_numeric(df["blend_weight"], errors="coerce").fillna(0) <= 0, "blend_weight"] = np.nan
+                    except Exception:
+                        pass
+                # Blend diagnostics when available (only if still considered blended)
+                if used_blend:
+                    # Primary diagnostics (weights & sample sizes)
+                    try:
+                        if "blend_weight" in df.columns:
+                            bw = pd.to_numeric(df["blend_weight"], errors="coerce")
+                            bw_valid = bw.dropna()
+                            if not bw_valid.empty:
+                                pipeline_stats["blend_weight_min"] = float(bw_valid.min())
+                                pipeline_stats["blend_weight_median"] = float(bw_valid.median())
+                                pipeline_stats["blend_weight_max"] = float(bw_valid.max())
+                                pipeline_stats["blend_weight_mean"] = float(bw_valid.mean())
+                        if "seg_n_rows" in df.columns:
+                            sn = pd.to_numeric(df["seg_n_rows"], errors="coerce").dropna()
+                            if not sn.empty:
+                                pipeline_stats["seg_n_rows_median"] = float(sn.median())
+                                pipeline_stats["seg_n_rows_min"] = float(sn.min())
+                                pipeline_stats["seg_n_rows_max"] = float(sn.max())
+                    except Exception:
+                        pass
                     # Residual performance comparison baseline vs segmented vs blended (totals & margins)
                     try:
                         # Totals residual metrics vs closing_total
@@ -3594,8 +3856,6 @@ def index():
                                 pipeline_stats["pred_margin_conf_mean"] = float(m_valid.mean())
                     except Exception:
                         pipeline_stats["prediction_confidence_error"] = True
-                except Exception:
-                    pass
     except Exception:
         pass
 
@@ -6014,6 +6274,44 @@ def index():
             )
     except Exception:
         pass
+
+    # ----------------------------------------------------------------------------------
+    # Synthetic shell suppression: hide predictions when file is auto-generated without
+    # real model outputs. Criteria: no row has a model-based or calibrated basis and all
+    # pred_total/pred_margin values are NaN/None OR basis in {synthetic_baseline, market_copy}.
+    # ----------------------------------------------------------------------------------
+    try:
+        if rows:
+            # Determine if any row appears to be real (model/blended/calibrated)
+            real_bases = {"model_raw","model","model_calibrated","model_calibrated_bias","blended_low"}
+            has_real = False
+            for r in rows:
+                b = r.get("pred_total_basis") or r.get("pred_margin_basis")
+                if b and any(b.startswith(rb) for rb in real_bases):
+                    # Also require numeric value present
+                    pt = r.get("pred_total")
+                    pm = r.get("pred_margin")
+                    if (pt is not None and pt == pt) or (pm is not None and pm == pm):
+                        has_real = True
+                        break
+            if not has_real:
+                # Mark synthetic and null out for display cleanliness
+                suppressed_rows = 0
+                for r in rows:
+                    b = r.get("pred_total_basis")
+                    pt = r.get("pred_total")
+                    pm = r.get("pred_margin")
+                    if (pt is None or pt != pt) and (pm is None or pm != pm) or (b in {"synthetic_baseline","market_copy"}):
+                        r["pred_total"] = None
+                        r["pred_margin"] = None
+                        r["pred_total_basis"] = None
+                        r["pred_margin_basis"] = None
+                        r["pred_synthetic_hidden"] = True
+                        suppressed_rows += 1
+                pipeline_stats["synthetic_shell_hidden"] = True
+                pipeline_stats["synthetic_shell_suppressed_rows"] = suppressed_rows
+    except Exception:
+        pipeline_stats["synthetic_shell_hide_error"] = True
     return render_template(
         "index.html",
         rows=rows,
@@ -6090,6 +6388,93 @@ def api_render_diagnostics():
     except Exception:
         pass
     return jsonify(out)
+
+@app.route("/api/coverage-depth")
+def api_coverage_depth():
+    """Return quotes_count distribution, segmentation & blend suppression stats.
+
+    Provides:
+      quotes: total rows with quotes_count, distribution map, min/median/max, pct_low (quotes_count <2)
+      segmentation: rows with seg_n_rows>0, pct_seg_used, mean_seg_n_rows_used, mean_blend_weight_used
+      blend: suppressed vs effective counts from last pipeline stats
+      meta: total prediction rows evaluated & timestamp
+    """
+    try:
+        import statistics as _stats  # type: ignore
+    except Exception:  # pragma: no cover
+        _stats = None  # type: ignore
+    preds = _load_predictions_current()
+    total = len(preds)
+    quotes_counts: list[int] = []
+    seg_counts: list[float] = []
+    blend_weights_used: list[float] = []
+    if not preds.empty:
+        if "quotes_count" in preds.columns:
+            try:
+                qc = pd.to_numeric(preds["quotes_count"], errors="coerce")
+                quotes_counts = [int(x) for x in qc.dropna().tolist()]
+            except Exception:
+                quotes_counts = []
+        if "seg_n_rows" in preds.columns:
+            try:
+                sc = pd.to_numeric(preds["seg_n_rows"], errors="coerce")
+                seg_counts = [float(x) for x in sc.dropna().tolist() if x > 0]
+            except Exception:
+                seg_counts = []
+        if "blend_weight" in preds.columns:
+            try:
+                bw = pd.to_numeric(preds["blend_weight"], errors="coerce")
+                blend_weights_used = [float(x) for x in bw.dropna().tolist() if x > 0]
+            except Exception:
+                blend_weights_used = []
+    # quotes distribution
+    quotes_dist: dict[str, int] = {}
+    for q in quotes_counts:
+        key = str(q)
+        quotes_dist[key] = quotes_dist.get(key, 0) + 1
+    quotes_min = min(quotes_counts) if quotes_counts else None
+    quotes_max = max(quotes_counts) if quotes_counts else None
+    quotes_median = (_stats.median(quotes_counts) if (_stats and quotes_counts) else None)
+    pct_low_quotes = round(len([x for x in quotes_counts if x < 2]) / len(quotes_counts), 3) if quotes_counts else None
+    # segmentation stats
+    seg_used = len(seg_counts)
+    pct_seg_used = round(seg_used / total, 3) if total and seg_used else None
+    mean_seg_n_rows = (round(sum(seg_counts) / seg_used, 2) if seg_used else None)
+    mean_blend_weight_used = (round(sum(blend_weights_used) / len(blend_weights_used), 3) if blend_weights_used else None)
+    # blend suppression from last pipeline stats
+    blend_info: dict[str, Any] = {}
+    if isinstance(_LAST_PIPELINE_STATS, dict):
+        s = _LAST_PIPELINE_STATS
+        suppressed = s.get("blend_rows_suppressed")
+        effective = s.get("blend_rows_effective")
+        if suppressed is not None or effective is not None:
+            blend_info = {
+                "suppressed": suppressed,
+                "effective": effective,
+                "pct_suppressed": (round(suppressed / (suppressed + effective), 3) if isinstance(suppressed, (int,float)) and isinstance(effective, (int,float)) and (suppressed + effective) > 0 else None)
+            }
+    payload = {
+        "meta": {
+            "ts": dt.datetime.utcnow().isoformat(timespec="seconds"),
+            "total_rows": total,
+        },
+        "quotes": {
+            "counts_present": len(quotes_counts),
+            "distribution": quotes_dist,
+            "min": quotes_min,
+            "median": quotes_median,
+            "max": quotes_max,
+            "pct_low": pct_low_quotes,
+        },
+        "segmentation": {
+            "rows_used": seg_used,
+            "pct_seg_used": pct_seg_used,
+            "mean_seg_n_rows_used": mean_seg_n_rows,
+            "mean_blend_weight_used": mean_blend_weight_used,
+        },
+        "blend": blend_info,
+    }
+    return jsonify(payload)
 
 
 @app.route("/api/diag")

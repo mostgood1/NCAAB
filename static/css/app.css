@@ -1,0 +1,30 @@
+/* Extracted inline styles & utility classes */
+.flex-row-wrap { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.archive-stepper { margin:4px 0 8px 0; display:flex; gap:6px; }
+.m4v8 { margin:4px 0 8px 0; }
+.ml8 { margin-left:8px; }
+.mt4 { margin-top:4px; }
+.diag-grid { display:flex; flex-wrap:wrap; gap:6px; }
+
+/* Badge warning variant for low quotes depth */
+.badge-warn { background:#c92a2a; color:#fff; }
+
+/* Optional pill variants if not already defined in style.css */
+.pill.bad { background:#c92a2a; color:#fff; }
+.pill.neutral { background:#868e96; color:#fff; }
+.pill.warn { background:#d9480f; color:#fff; }
+
+/* Edge intensity coloring if missing */
+.pill.edge-zero { background:#5c6f7b; }
+.pill.edge-weak { background:#4c6ef5; }
+.pill.edge-mod { background:#1c7ed6; }
+.pill.edge-strong { background:#1971c2; }
+.pill.edge-extreme { background:#0b7285; }
+
+/* Small badge adjustments */
+.badge.weight, .badge.sample { font-weight:600; }
+
+/* Responsive adjustments for archive nav */
+@media (max-width: 900px) {
+  .archive-stepper { justify-content:flex-start; }
+}

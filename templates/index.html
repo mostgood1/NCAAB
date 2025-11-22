@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NCAAB Betting – Cards</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   <style>
     .basis-badge{display:inline-block;padding:0 4px;margin-left:4px;border-radius:3px;font-size:10px;line-height:14px;vertical-align:middle;}
     .basis-derived{background:#663399;color:#fff;}
@@ -33,7 +34,7 @@
       </nav>
     </div>
     {% if pipeline_stats and pipeline_stats.using_blended_predictions %}
-      <div class="mb8" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+      <div class="mb8 flex-row-wrap">
         <span class="pill" title="Blended predictions active (segmented + baseline)">Blended Active</span>
         {% if pipeline_stats.blend_weight_median is defined %}
           <span class="pill" title="Blend weight median (min–max)">Wmed {{ '%.2f' % pipeline_stats.blend_weight_median }} ({{ '%.2f' % pipeline_stats.blend_weight_min }}–{{ '%.2f' % pipeline_stats.blend_weight_max }})</span>
@@ -51,7 +52,7 @@
       <button type="submit" class="pill">Apply</button>
       {% if date_val %}<a class="pill" href="/">Clear</a>{% endif %}
   {% if date_val %}<button type="button" class="pill" id="btnFinalize" data-date="{{ date_val }}">Finalize Results</button>{% endif %}
-  <label class="muted" style="margin-left:8px;"><input type="checkbox" id="autoRefreshChk" /> Auto-refresh</label>
+  <label class="muted ml8"><input type="checkbox" id="autoRefreshChk" /> Auto-refresh</label>
       {% if show_bootstrap %}
         <a class="pill accent" href="{{ bootstrap_url }}" title="Run minimal pipeline to generate today's games and predictions">Generate Today's Predictions</a>
       {% endif %}
@@ -78,7 +79,7 @@
           {% if loop.index0 + 1 < archive_dates|length %}{% set next_date = archive_dates[loop.index0 + 1] %}{% endif %}
         {% endif %}
       {% endfor %}
-      <div class="archive-stepper" style="margin:4px 0 8px 0; display:flex; gap:6px;">
+      <div class="archive-stepper">
         {% if prev_date %}<a class="pill" href="/?date={{ prev_date }}&use_daily=1">◀ Prev</a>{% endif %}
         {% if next_date %}<a class="pill" href="/?date={{ next_date }}&use_daily=1">Next ▶</a>{% endif %}
       </div>
@@ -105,10 +106,10 @@
       <div class="card mb8">
         <details open>
           <summary class="pill">Diagnostics</summary>
-          <div class="muted" style="margin:4px 0 8px 0;">
+          <div class="muted m4v8">
             Date: {{ pipeline_stats.date_param or date_val or 'n/a' }} · Rows: {{ pipeline_stats.final_rows or total_rows }} · Predictions Loaded: {{ pipeline_stats.preds_load_rows }} · Model Rows: {{ pipeline_stats.model_preds_load_rows }}
           </div>
-          <div class="diag-grid" style="display:flex;flex-wrap:wrap;gap:6px;">
+          <div class="diag-grid flex-row-wrap">
             {% if pipeline_stats.corr_pred_total_model_market is defined %}<span class="pill" title="Correlation between model totals and market totals">Corr(model,market): {{ '%.3f' % pipeline_stats.corr_pred_total_model_market }}</span>{% endif %}
             {% if pipeline_stats.mae_pred_total_model_vs_pred_total is defined %}<span class="pill" title="MAE between model total and heuristic/synthetic pred_total">MAE(model vs pred): {{ '%.2f' % pipeline_stats.mae_pred_total_model_vs_pred_total }}</span>{% endif %}
             {% if pipeline_stats.pred_equal_market_count is defined %}<span class="pill" title="Count of games where pred_total ~= market_total (rounded .1)">Pred==Market: {{ pipeline_stats.pred_equal_market_count }}</span>{% endif %}
@@ -119,18 +120,18 @@
             {% if pipeline_stats.missing_pred_total_rows is defined %}<span class="pill" title="Games lacking pred_total">Missing Preds: {{ pipeline_stats.missing_pred_total_rows }}</span>{% endif %}
           </div>
           {% if pipeline_stats.pred_total_basis_counts %}
-            <div class="muted" style="margin-top:4px;">Basis Distribution:
+            <div class="muted mt4">Basis Distribution:
               {% for k,v in pipeline_stats.pred_total_basis_counts.items() %}<span class="pill small" title="{{ k }} basis count">{{ k }}={{ v }}</span>{% endfor %}
             </div>
           {% endif %}
           {% if pipeline_stats.pred_equal_market_sample %}
-            <div class="muted" style="margin-top:4px;">Sample Pred==Market IDs: {{ pipeline_stats.pred_equal_market_sample|join(', ') }}</div>
+            <div class="muted mt4">Sample Pred==Market IDs: {{ pipeline_stats.pred_equal_market_sample|join(', ') }}</div>
           {% endif %}
           {% if pipeline_stats.low_pred_game_ids %}
-            <div class="muted" style="margin-top:4px;">Low Pred IDs (&lt;115): {{ pipeline_stats.low_pred_game_ids|join(', ') }}</div>
+            <div class="muted mt4">Low Pred IDs (&lt;115): {{ pipeline_stats.low_pred_game_ids|join(', ') }}</div>
           {% endif %}
           {% if pipeline_stats.missing_odds_game_ids %}
-            <div class="muted" style="margin-top:4px;">Missing Odds IDs: {{ pipeline_stats.missing_odds_game_ids|join(', ') }}</div>
+            <div class="muted mt4">Missing Odds IDs: {{ pipeline_stats.missing_odds_game_ids|join(', ') }}</div>
           {% endif %}
         </details>
       </div>
@@ -171,6 +172,9 @@
             </div>
           </div>
           <div class="kpi">
+            {% if r.pred_synthetic_hidden %}
+              <div class="pill accent" title="Awaiting real model predictions ingestion for this date">Predictions Pending</div>
+            {% endif %}
             {# Odds coverage badge: show when odds are missing or partial #}
             {# Treat market_total/spread_home/ml as coverage signals #}
             {% set has_total = (
@@ -212,8 +216,8 @@
                   {% if tb.startswith('model_calibrated') %}CAL{% elif tb in ['model_raw','model'] %}RAW{% elif tb == 'features_derived' %}DER{% elif tb == 'synthetic_baseline' %}SYN{% elif tb == 'market_copy' %}COPY{% elif tb == 'blended_low' %}BLEND{% else %}{{ (tb or '')[:4].upper() }}{% endif %}
                 </span>
               {% endif %}
-              {% if r.blend_weight is defined and r.blend_weight is not none %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
-              {% if r.seg_n_rows is defined and r.seg_n_rows is not none %}<span class="badge sample" title="Segment sample size (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
+              {% if r.blend_weight is defined and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
+              {% if r.seg_n_rows is defined and r.seg_n_rows is not none and r.seg_n_rows > 0 %}<span class="badge sample" title="Segment sample size used in blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
             </div>
             <div class="pill">
               {% if r.pred_margin is not none %}
@@ -227,7 +231,17 @@
               {% if r.market_basis == 'last' %}
                 <div class="pill">Last (pre-tip): {{ '%.1f' % r.market_total }}</div>
               {% else %}
-                <div class="pill">Market Total: {{ '%.1f' % r.market_total }}</div>
+                <div class="pill">Market Total: {{ '%.1f' % r.market_total }}
+                  {% if r.quotes_count is defined and r.quotes_count is not none %}
+                    {% if r.quotes_count >= 2 %}
+                      <span class="badge" title="Number of bookmaker totals aggregated for market total median">Q={{ r.quotes_count }}</span>
+                    {% elif r.quotes_count == 1 %}
+                      <span class="badge badge-warn" title="Low market depth (only 1 bookmaker quote aggregated)">Q=1</span>
+                    {% elif r.quotes_count == 0 %}
+                      <span class="badge badge-warn" title="Low market depth (no bookmaker totals aggregated)">Q=0</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
               {% endif %}
               {% if r.edge_total is defined and r.edge_total is not none and r.edge_total == r.edge_total %}
                 {% set abs_et = r.edge_total|abs %}
@@ -264,8 +278,8 @@
                   {% set mb = r.pred_margin_basis %}
                   <span class="badge" title="Margin basis: {{ mb }}">{% if mb.startswith('model_calibrated') %}CAL{% elif mb in ['model_raw','model'] %}RAW{% elif mb == 'features_derived' %}DER{% elif mb == 'synthetic_baseline' %}SYN{% elif mb == 'market_copy' %}COPY{% elif mb == 'blended_low' %}BLEND{% else %}{{ (mb or '')[:4].upper() }}{% endif %}</span>
                 {% endif %}
-                {% if r.blend_weight is defined and r.blend_weight is not none %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
-                {% if r.seg_n_rows is defined and r.seg_n_rows is not none %}<span class="badge sample" title="Segment sample size (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
+                {% if r.blend_weight is defined and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
+                {% if r.seg_n_rows is defined and r.seg_n_rows is not none and r.seg_n_rows > 0 %}<span class="badge sample" title="Segment sample size used in blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
               </div>
             </div>
             {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
