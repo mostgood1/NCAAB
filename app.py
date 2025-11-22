@@ -1480,6 +1480,19 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
     except Exception:
         meta["restrict_game_ids_error"] = True
     meta["columns"] = list(df.columns)
+    # Canonical prediction fields: prioritize adjusted/full prediction then raw fallback
+    try:
+        if "pred_total" in df.columns:
+            df["pred_total_canonical"] = df["pred_total"]
+        elif "pred_total_raw" in df.columns:
+            df["pred_total_canonical"] = df["pred_total_raw"]
+        elif "derived_total" in df.columns:
+            df["pred_total_canonical"] = df["derived_total"]
+        if "pred_margin" in df.columns:
+            df["pred_margin_canonical"] = df["pred_margin"]
+        meta["columns"] = list(df.columns)
+    except Exception:
+        pass
     # Optionally drop derived_total for cleanliness unless explicitly enabled
     include_derived = os.environ.get("NCAAB_INCLUDE_DERIVED_TOTAL", "0").lower() in ("1","true","yes")
     if not include_derived and "derived_total" in df.columns:
@@ -7406,6 +7419,68 @@ def api_predictions_integrity():
     }
     meta["git_commit"] = _get_git_commit()
     return jsonify({"ok": True, "date": target_date, "meta": meta})
+
+@app.route("/api/predictions_snapshot")
+def api_predictions_snapshot():
+    """Return raw ingested predictions slice for a date (default today) without games merge.
+
+    Fields returned: game_id,date,home_team,away_team,pred_total,pred_margin,pred_total_raw,
+    pred_total_adjusted,derived_total,pred_total_1h,pred_total_2h,pred_margin_1h,pred_margin_2h,
+    tuning_totals_bias,preseason_weight,preseason_applied plus canonical shortcuts.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    target_date = date_q or today_str
+    if not target_date:
+        return jsonify({"ok": False, "error": "no_date"}), 400
+    prim = OUT / f"predictions_{target_date}.csv"
+    upl = OUT / f"predictions_{target_date}_uploaded.csv"
+    src = prim if prim.exists() else (upl if upl.exists() else None)
+    if src is None:
+        return jsonify({"ok": True, "date": target_date, "rows": [], "meta": {"source": None, "rows": 0}})
+    df = _safe_read_csv(src)
+    if df.empty:
+        return jsonify({"ok": True, "date": target_date, "rows": [], "meta": {"source": str(src), "rows": 0}})
+    try:
+        if "date" in df.columns:
+            df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+            df = df[df["date"].astype(str) == str(target_date)].copy()
+    except Exception:
+        pass
+    # Canonical shortcuts
+    try:
+        df["pred_total_canonical"] = df.get("pred_total") if "pred_total" in df.columns else df.get("pred_total_raw")
+        df["pred_margin_canonical"] = df.get("pred_margin")
+    except Exception:
+        pass
+    keep_cols = [c for c in [
+        "game_id","date","home_team","away_team","pred_total","pred_margin","pred_total_raw",
+        "pred_total_adjusted","derived_total","pred_total_1h","pred_total_2h","pred_margin_1h","pred_margin_2h",
+        "tuning_totals_bias","preseason_weight","preseason_applied","pred_total_canonical","pred_margin_canonical"
+    ] if c in df.columns]
+    out = df[keep_cols].copy()
+    rows = []
+    for r in out.to_dict(orient="records"):
+        clean = {}
+        for k,v in r.items():
+            if isinstance(v, (np.generic,)):
+                try:
+                    v = v.item()
+                except Exception:
+                    pass
+            clean[k] = v
+        rows.append(clean)
+    meta = {
+        "date": target_date,
+        "source": str(src),
+        "rows": len(rows),
+        "columns": keep_cols,
+        "git_commit": _get_git_commit(),
+    }
+    return jsonify({"ok": True, "date": target_date, "rows": rows, "meta": meta})
 
 @app.route("/api/backtest")
 def api_backtest():
