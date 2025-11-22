@@ -199,6 +199,36 @@ def _get_app_version() -> str:
         pass
     return "0.1.0+local"
 
+# ---------------------------------------------------------------------------
+# Ingest token resolution: env vars OR secret file fallback
+# ---------------------------------------------------------------------------
+def _resolve_ingest_token() -> str | None:
+    """Return ingest token from any supported source.
+
+    Sources (in order):
+      1. Env var NCAAB_PREDICTIONS_INGEST_TOKEN
+      2. Env aliases (YOUR_SECRET_TOKEN, PREDICTIONS_INGEST_TOKEN)
+      3. Secret file /etc/secrets/NCAAB_PREDICTIONS_INGEST_TOKEN (Render secret file)
+    """
+    for key in [
+        "NCAAB_PREDICTIONS_INGEST_TOKEN",
+        "YOUR_SECRET_TOKEN",
+        "PREDICTIONS_INGEST_TOKEN",
+    ]:
+        val = os.environ.get(key)
+        if val and val.strip():
+            return val.strip()
+    # Secret file fallback
+    try:
+        secret_path = Path("/etc/secrets/NCAAB_PREDICTIONS_INGEST_TOKEN")
+        if secret_path.exists():
+            txt = secret_path.read_text(encoding="utf-8", errors="ignore").strip()
+            if txt:
+                return txt.splitlines()[0].strip()
+    except Exception:
+        pass
+    return None
+
 # ONNX Runtime provider diagnostics (one-time at startup)
 try:
     import onnxruntime as ort  # type: ignore
@@ -6538,7 +6568,7 @@ def api_health():
         except Exception as _ge:
             guardrail_summary = {"error": str(_ge)}
         # Ingest token visibility (boolean only)
-        ingest_token_present = bool((os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN") or os.environ.get("YOUR_SECRET_TOKEN") or os.environ.get("PREDICTIONS_INGEST_TOKEN")))
+        ingest_token_present = bool(_resolve_ingest_token())
         payload = {
             "status": "ok",
             "git_commit": _get_git_commit(),
@@ -7143,13 +7173,7 @@ def api_predictions_ingest():
     If 'date' supplied (param or inferred from rows/date column) we write predictions_<date>_uploaded.csv
     and also copy to predictions_<date>.csv (unless that file already exists and ?force=1 not passed).
     """
-    # Accept multiple env var names for easier secret wiring on Render
-    token_req = (
-        os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN")
-        or os.environ.get("YOUR_SECRET_TOKEN")
-        or os.environ.get("PREDICTIONS_INGEST_TOKEN")
-        or ""
-    ).strip()
+    token_req = _resolve_ingest_token() or ""
     provided = (request.headers.get("X-Ingest-Token") or request.args.get("token") or "").strip()
     if not token_req:
         return jsonify({"ok": False, "error": "ingest_disabled"}), 403
@@ -7244,7 +7268,7 @@ def api_routes():
 
 @app.route("/api/ingest-enabled")
 def api_ingest_enabled():
-    present = bool((os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN") or os.environ.get("YOUR_SECRET_TOKEN") or os.environ.get("PREDICTIONS_INGEST_TOKEN")))
+    present = bool(_resolve_ingest_token())
     return jsonify({"ok": True, "ingest_enabled": present})
 
 
