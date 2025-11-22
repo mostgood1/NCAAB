@@ -230,47 +230,7 @@ def api_ort_benchmark():
     _BENCH_CACHE['result'] = {"payload": payload, "ts": time.time()}
     return jsonify(payload)
 
-@app.route("/api/health")
-def api_health():
-    """Lightweight health/status report including providers and last pipeline stats."""
-    try:
-        import onnxruntime as ort  # type: ignore
-        providers = list(ort.get_available_providers())
-    except Exception:
-        providers = []
-    # Guardrail / prediction diagnostics (best-effort)
-    guardrail_summary: dict[str, Any] | None = None
-    try:
-        # Attempt to load today's predictions to compute adjustment/availability stats
-        today = dt.datetime.now(ZoneInfo(os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York"))).date()
-        pred_path = Path(settings.outputs_dir) / f"predictions_{today.isoformat()}.csv"
-        if pred_path.exists():
-            pdf = pd.read_csv(pred_path)
-            # Derived availability
-            dv = pd.to_numeric(pdf.get("derived_total"), errors="coerce")
-            raw = pd.to_numeric(pdf.get("pred_total_raw"), errors="coerce")
-            adj_flags = pdf.get("pred_total_adjusted") if "pred_total_adjusted" in pdf.columns else None
-            n_rows = len(pdf)
-            n_derived = int(dv.notna().sum()) if dv is not None else 0
-            n_adjusted = int(adj_flags.sum()) if adj_flags is not None else 0
-            guardrail_summary = {
-                "date": today.isoformat(),
-                "rows": n_rows,
-                "derived_available_rows": n_derived,
-                "derived_missing_rows": n_rows - n_derived,
-                "adjusted_rows": n_adjusted,
-                "adjusted_pct": round((n_adjusted / n_rows) * 100.0, 2) if n_rows else 0.0,
-                "uniform_flag_rows": int(pdf.get("pred_total_uniform_flag", pd.Series([False]*n_rows)).sum()) if "pred_total_uniform_flag" in pdf.columns else 0,
-            }
-    except Exception as _ge:
-        guardrail_summary = {"error": str(_ge)}
-    return jsonify({
-        "status": "ok",
-        "providers": providers,
-        "last_pipeline_stats": _LAST_PIPELINE_STATS,
-        "guardrails": guardrail_summary,
-        "timestamp": dt.datetime.utcnow().isoformat() + "Z",
-    })
+# NOTE: Removed earlier duplicate /api/health definition; unified health endpoint defined later.
 
 # Global diagnostic state variables
 _PREDICTIONS_SOURCE_PATH: str | None = None
@@ -6289,6 +6249,35 @@ def api_health():
         except Exception:
             predictions_source = None
         need_bootstrap = bool(today_str and (preds_today_rows is None or preds_today_rows == 0))
+        # Providers (runtime inference backends) best-effort
+        try:
+            import onnxruntime as ort  # type: ignore
+            providers = list(ort.get_available_providers())
+        except Exception:
+            providers = []
+        # Guardrail / prediction diagnostics (best-effort) unified from earlier removed endpoint
+        guardrail_summary: dict[str, Any] | None = None
+        try:
+            today_local = _today_local()
+            pred_path = OUT / f"predictions_{today_local.isoformat()}.csv"
+            if pred_path.exists():
+                pdf = pd.read_csv(pred_path)
+                n_rows = len(pdf)
+                dv = pd.to_numeric(pdf.get("derived_total"), errors="coerce")
+                adj_flags = pdf.get("pred_total_adjusted") if "pred_total_adjusted" in pdf.columns else None
+                n_derived = int(dv.notna().sum()) if dv is not None else 0
+                n_adjusted = int(adj_flags.sum()) if adj_flags is not None else 0
+                guardrail_summary = {
+                    "date": today_local.isoformat(),
+                    "rows": n_rows,
+                    "derived_available_rows": n_derived,
+                    "derived_missing_rows": n_rows - n_derived,
+                    "adjusted_rows": n_adjusted,
+                    "adjusted_pct": round((n_adjusted / n_rows) * 100.0, 2) if n_rows else 0.0,
+                    "uniform_flag_rows": int(pdf.get("pred_total_uniform_flag", pd.Series([False]*n_rows)).sum()) if "pred_total_uniform_flag" in pdf.columns else 0,
+                }
+        except Exception as _ge:
+            guardrail_summary = {"error": str(_ge)}
         payload = {
             "status": "ok",
             "outputs_dir": str(OUT),
@@ -6305,6 +6294,10 @@ def api_health():
                 "games_today_rows": games_today_rows,
                 "preds_today_rows": preds_today_rows,
             },
+            "providers": providers,
+            "last_pipeline_stats": _LAST_PIPELINE_STATS,
+            "guardrails": guardrail_summary,
+            "timestamp": dt.datetime.utcnow().isoformat() + "Z",
         }
         return jsonify(payload), 200
     except Exception as e:
