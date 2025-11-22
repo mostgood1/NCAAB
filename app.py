@@ -6537,6 +6537,8 @@ def api_health():
                 }
         except Exception as _ge:
             guardrail_summary = {"error": str(_ge)}
+        # Ingest token visibility (boolean only)
+        ingest_token_present = bool((os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN") or os.environ.get("YOUR_SECRET_TOKEN") or os.environ.get("PREDICTIONS_INGEST_TOKEN")))
         payload = {
             "status": "ok",
             "git_commit": _get_git_commit(),
@@ -6559,6 +6561,7 @@ def api_health():
             "providers": providers,
             "last_pipeline_stats": _LAST_PIPELINE_STATS,
             "guardrails": guardrail_summary,
+            "ingest_enabled": ingest_token_present,
             "timestamp": dt.datetime.utcnow().isoformat() + "Z",
         }
         # Schedule anomaly & NCAA endpoint probe (lightweight)
@@ -7238,6 +7241,11 @@ def api_routes():
         return jsonify({"ok": True, "routes": rules, "count": len(rules)})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/api/ingest-enabled")
+def api_ingest_enabled():
+    present = bool((os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN") or os.environ.get("YOUR_SECRET_TOKEN") or os.environ.get("PREDICTIONS_INGEST_TOKEN")))
+    return jsonify({"ok": True, "ingest_enabled": present})
 
 
 @app.route("/api/predictions_unified")
