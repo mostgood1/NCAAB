@@ -1,0 +1,12 @@
+pandas
+numpy
+typer
+requests
+rich
+Flask
+jinja2
+onnx
+Unidecode
+rapidfuzz
+pydantic
+pydantic-settings

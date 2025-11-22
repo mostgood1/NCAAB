@@ -108,6 +108,68 @@ Environment variables and settings:
 
 Note: An onnxruntime wheel with QNN EP may not be published for all Python/arch combos. If unavailable, use DirectML (`onnxruntime-directml`) or CPU (`onnxruntime`) until a compatible QNN EP build is installed. The code automatically falls back.
 
+### Runtime provider inspection & benchmarking
+
+The Flask app exposes two lightweight diagnostics endpoints once it is running (`python app.py`):
+
+- `GET /api/ort-providers` — returns JSON with:
+  - `available_providers`: providers reported by `onnxruntime.get_available_providers()` (e.g. `["DmlExecutionProvider","CPUExecutionProvider"]`)
+  - `session_providers`: the actual ordered providers used in a sample test model session (QNN → DML → CPU preference)
+  - `dll_dir`: value of `NCAAB_ORT_DLL_DIR` if set
+  - `qnn_sdk_root`: QNN SDK root if detected
+- `GET /api/ort-benchmark` — runs a quick synthetic inference benchmark (32 warmups + 64 timed runs) against the first available small test model (`mlp_megatron_basic_test.onnx`, `bart_mlp_megatron_basic_test.onnx`, or `self_attention_megatron_basic_test.onnx`). Returns:
+  - `avg_ms`: average per-inference latency in milliseconds
+  - `session_providers`: provider order actually used
+  - `available_providers`: same as above
+  - `model`: test model file name
+
+If no test model is present, `/api/ort-benchmark` responds with `404` and an explanatory message. Add one of the included ONNX test artifacts (already in repo root) to enable benchmarking.
+
+Benchmark endpoint caching: Results are cached for 120 seconds to avoid repeated warmups. The JSON payload includes `"cached": true` when served from cache.
+
+Health endpoint:
+
+`GET /api/health` returns a small JSON document:
+
+```json
+{
+  "status": "ok",
+  "providers": ["DmlExecutionProvider","CPUExecutionProvider"],
+  "last_pipeline_stats": {"pred_total_uniform_flag": false, ...},
+  "timestamp": "2025-11-22T15:34:12.123456Z"
+}
+```
+
+`last_pipeline_stats` mirrors the most recent in-request diagnostic frame generated during prediction assembly (e.g., uniform total flags, coverage counts). If no request has populated stats yet it will be `null`.
+
+Provider priority logic is encapsulated in `src/ncaab_model/onnx/infer.py`:
+
+1. If QNN EP is available and valid options can be constructed, append `QNNExecutionProvider`.
+2. If DirectML EP is available append `DmlExecutionProvider`.
+3. Always append `CPUExecutionProvider` as a safety fallback.
+
+This ensures prediction paths prefer accelerated execution without manual flagging. If you build ONNX Runtime locally with only DirectML, QNN will simply be omitted.
+
+To confirm acceleration via CLI instead of HTTP:
+
+```powershell
+python -m ncaab_model.cli ort-info
+```
+
+Or run the verification helper:
+
+```powershell
+python scripts/ort_verify.py
+```
+
+For a quick manual benchmark using the HTTP endpoint:
+
+```powershell
+Invoke-RestMethod http://localhost:5050/api/ort-benchmark | ConvertTo-Json
+```
+
+Expect lower `avg_ms` after enabling DirectML (and potentially even lower with QNN on supported hardware/models).
+
 ## CLI commands (highlights)
 
 - Data
@@ -444,10 +506,12 @@ This project produces daily NCAA Basketball game predictions (totals, margins, h
 - games_curr.csv: Fetched games for current date.
 - features_curr.csv: Engineered feature set per game (ratings, tempo, etc.).
 - predictions_week.csv: Latest predictions including:
-  - pred_total / pred_margin
+  - pred_total / pred_margin (full-game)
   - pred_total_raw: Model raw before guardrail blend
   - pred_total_adjusted: Boolean flag if adjusted using derived tempo/off/def blend
   - pred_total_1h / pred_total_2h, pred_margin_1h / pred_margin_2h (half projections)
+  - proj_home / proj_away (full-game team projections)
+  - proj_home_1h / proj_away_1h, proj_home_2h / proj_away_2h (team half projections)
 - games_with_last.csv: Games joined with strict last odds snapshot (pre-tip) when available.
 - games_with_closing.csv: Consolidated closing lines (totals & spreads).
 - picks_clean.csv: Curated picks used for in-app display (picks strip + top picks panel).
@@ -458,6 +522,8 @@ Each card shows:
 - Teams, scores (live/final), start time (user browser local tz).
 - Pred Total / Margin (with favored_side and favored_by labels) and projected team scores.
 - Market, Last (pre-tip), Closing totals + edges (edge_total, edge_closing) and OU Lean.
+ - Market, Last (pre-tip), Closing totals + edges (edge_total, edge_closing) and OU Lean.
+ - Halves: predicted 1H/2H totals & margins, team half projections, market 1H/2H lines, edges (edge_total_1h/2h, edge_ats_1h/2h).
 - Spreads, Moneyline, ATS Edge, ML probability & edge (ml_prob_model, ml_prob_implied, ml_prob_edge).
 - Halves: predicted totals/margins, market 1H/2H lines, edges (edge_total_1h/2h, edge_ats_1h/2h) and postgame outcomes (ou_result_1h/2h, ats_result_1h/2h).
 - Final reconciliation: total, model error, vs Market/Last, vs Close, ATS result (spread_home), ATS vs Close (closing_spread_home), ML result.
@@ -481,8 +547,8 @@ Each card shows:
 # 1. Fetch games
 .\.venv\Scripts\python.exe -m ncaab_model.cli fetch-games --season 2025 --start 2025-11-08 --end 2025-11-08 --provider espn --out outputs/games_curr.csv
 
-# 2. Build features
-.\.venv\Scripts\python.exe -m ncaab_model.cli build-features outputs/games_curr.csv outputs/boxscores.csv --out outputs/features_curr.csv
+# 2. Build features (note: boxscores path is an option flag, not positional)
+.\.venv\Scripts\python.exe -m ncaab_model.cli build-features outputs/games_curr.csv --boxscores-path outputs/boxscores.csv --out outputs/features_curr.csv
 
 # 3. Predictions (with guardrails + halves)
 .\.venv\Scripts\python.exe -m ncaab_model.cli predict-baseline outputs/features_curr.csv --out outputs/predictions_week.csv --apply-guardrails --halves-models-dir outputs/models_halves

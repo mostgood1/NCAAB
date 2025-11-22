@@ -2212,44 +2212,60 @@ def predict_baseline_cmd(
     out_df = feats[["game_id", "date", "home_team", "away_team"]].copy()
     out_df["pred_total"] = y_total
     out_df["pred_margin"] = y_margin
+    # Early filter: remove placeholder TBD games before downstream adjustments
+    try:
+        mask_tbd = (out_df["home_team"].astype(str).str.upper() == "TBD") | (out_df["away_team"].astype(str).str.upper() == "TBD")
+        if mask_tbd.any():
+            removed = int(mask_tbd.sum())
+            out_df = out_df.loc[~mask_tbd].reset_index(drop=True)
+            print(f"[yellow]Filtered {removed} TBD placeholder games from baseline predictions[/yellow]")
+    except Exception as _e_tbd:
+        print(f"[yellow]TBD filtering skipped (baseline path):[/yellow] {_e_tbd}")
 
     # Guardrail blending based on rating + tempo derived total
     if apply_guardrails:
         try:
-            # Compute derived expected total using same feats row-by-row
+            # Compute derived expected total only when sufficient rating + tempo data present.
             derived_vals = []
             adjusted_flags = []
+            avail_count = 0
+            missing_count = 0
             for _, r in feats.iterrows():
                 try:
-                    tempo_avg = None
-                    if pd.notna(r.get("home_tempo_rating")) and pd.notna(r.get("away_tempo_rating")):
-                        tempo_avg = (float(r.get("home_tempo_rating")) + float(r.get("away_tempo_rating"))) / 2.0
-                    elif pd.notna(r.get("tempo_rating_sum")):
-                        tempo_avg = float(r.get("tempo_rating_sum")) / 2.0
+                    have_tempo = pd.notna(r.get("home_tempo_rating")) and pd.notna(r.get("away_tempo_rating"))
+                    have_ratings = all(pd.notna(r.get(k)) for k in ["home_off_rating","away_off_rating","home_def_rating","away_def_rating"])  # noqa: E501
+                    if not (have_tempo and have_ratings):
+                        # Insufficient data; skip deriving to avoid uniform fallback constant (e.g., 112)
+                        derived_total = np.nan
+                        missing_count += 1
                     else:
-                        tempo_avg = 70.0
-                    off_home = float(r.get("home_off_rating")) if pd.notna(r.get("home_off_rating")) else 100.0
-                    off_away = float(r.get("away_off_rating")) if pd.notna(r.get("away_off_rating")) else 100.0
-                    def_home = float(r.get("home_def_rating")) if pd.notna(r.get("home_def_rating")) else 100.0
-                    def_away = float(r.get("away_def_rating")) if pd.notna(r.get("away_def_rating")) else 100.0
-                    exp_home_pp100 = np.clip(off_home - def_away, 80, 130)
-                    exp_away_pp100 = np.clip(off_away - def_home, 80, 130)
-                    derived_total = (exp_home_pp100 + exp_away_pp100) / 100.0 * tempo_avg
-                    derived_total = float(np.clip(derived_total, 110, 185))
+                        tempo_avg = (float(r.get("home_tempo_rating")) + float(r.get("away_tempo_rating"))) / 2.0
+                        off_home = float(r.get("home_off_rating"))
+                        off_away = float(r.get("away_off_rating"))
+                        def_home = float(r.get("home_def_rating"))
+                        def_away = float(r.get("away_def_rating"))
+                        exp_home_pp100 = np.clip(off_home - def_away, 65, 140)  # widen range for early season variance
+                        exp_away_pp100 = np.clip(off_away - def_home, 65, 140)
+                        derived_total = (exp_home_pp100 + exp_away_pp100) / 100.0 * tempo_avg
+                        # Softer clamp: allow lower totals (<110) to pass; just bound extreme tails
+                        derived_total = float(np.clip(derived_total, 95, 195))
+                        avail_count += 1
                 except Exception:
                     derived_total = np.nan
+                    missing_count += 1
                 derived_vals.append(derived_total)
             out_df["pred_total_raw"] = out_df["pred_total"].astype(float)
             out_df["derived_total"] = derived_vals
             blended = []
             for pt, dv in zip(out_df["pred_total_raw"].tolist(), derived_vals):
+                # Skip blending when derived_total missing (avoid uniform constant)
                 if np.isnan(pt) or np.isnan(dv):
                     blended.append(pt)
                     adjusted_flags.append(False)
                     continue
-                if pt < 105 or (dv > 0 and pt < 0.75 * dv):
-                    b = 0.5 * pt + 0.5 * dv
-                    b = float(np.clip(b, 110, 185))
+                if pt < 103 or (dv > 0 and pt < 0.70 * dv):
+                    b = 0.45 * pt + 0.55 * dv  # bias slightly toward derived when implausibly low
+                    b = float(np.clip(b, 95, 195))
                     blended.append(b)
                     adjusted_flags.append(True)
                 else:
@@ -2257,8 +2273,24 @@ def predict_baseline_cmd(
                     adjusted_flags.append(False)
             out_df["pred_total"] = blended
             out_df["pred_total_adjusted"] = adjusted_flags
+            try:
+                out_df["derived_total_available_rows"] = avail_count
+                out_df["derived_total_missing_rows"] = missing_count
+            except Exception:
+                pass
         except Exception:
             pass
+    # Uniform prediction diagnostic
+    try:
+        pt_series_diag = pd.to_numeric(out_df.get("pred_total"), errors="coerce")
+        if pt_series_diag.notna().sum() > 10:
+            vc = pt_series_diag.value_counts()
+            if (vc.iloc[0] / pt_series_diag.notna().sum()) > 0.9:
+                out_df["pred_total_uniform_flag"] = True
+                out_df["pred_total_uniform_value"] = vc.index[0]
+                out_df["pred_total_unique_count"] = pt_series_diag.nunique()
+    except Exception:
+        pass
 
     # Half projections: prefer trained half models if provided, else ratio-based fallback
     def _ratio_fill():
@@ -6374,35 +6406,52 @@ def daily_run(
                 # Guardrails (optional)
                 if apply_guardrails and "pred_total" in out_df.columns:
                     try:
-                        derived_vals = []
-                        adjusted_flags = []
+                        # Improved guardrail logic: only derive when tempo AND all off/def ratings present.
+                        derived_vals: list[float] = []
+                        adjusted_flags: list[bool] = []
+                        avail_count = 0
+                        missing_count = 0
                         for _, r in feats.iterrows():
                             try:
-                                tempo_avg = (float(r.get("home_tempo_rating")) + float(r.get("away_tempo_rating"))) / 2.0 if pd.notna(r.get("home_tempo_rating")) and pd.notna(r.get("away_tempo_rating")) else (float(r.get("tempo_rating_sum"))/2.0 if pd.notna(r.get("tempo_rating_sum")) else 70.0)
-                                off_home = float(r.get("home_off_rating")) if pd.notna(r.get("home_off_rating")) else 100.0
-                                off_away = float(r.get("away_off_rating")) if pd.notna(r.get("away_off_rating")) else 100.0
-                                def_home = float(r.get("home_def_rating")) if pd.notna(r.get("home_def_rating")) else 100.0
-                                def_away = float(r.get("away_def_rating")) if pd.notna(r.get("away_def_rating")) else 100.0
-                                exp_home_pp100 = np.clip(off_home - def_away, 80, 130)
-                                exp_away_pp100 = np.clip(off_away - def_home, 80, 130)
-                                dv = float(np.clip(((exp_home_pp100 + exp_away_pp100) / 100.0) * tempo_avg, 110, 185))
+                                have_tempo = pd.notna(r.get("home_tempo_rating")) and pd.notna(r.get("away_tempo_rating"))
+                                have_ratings = all(pd.notna(r.get(k)) for k in ["home_off_rating","away_off_rating","home_def_rating","away_def_rating"])
+                                if not (have_tempo and have_ratings):
+                                    dv = np.nan
+                                    missing_count += 1
+                                else:
+                                    tempo_avg = (float(r.get("home_tempo_rating")) + float(r.get("away_tempo_rating"))) / 2.0
+                                    off_home = float(r.get("home_off_rating"))
+                                    off_away = float(r.get("away_off_rating"))
+                                    def_home = float(r.get("home_def_rating"))
+                                    def_away = float(r.get("away_def_rating"))
+                                    exp_home_pp100 = np.clip(off_home - def_away, 65, 140)
+                                    exp_away_pp100 = np.clip(off_away - def_home, 65, 140)
+                                    dv = (exp_home_pp100 + exp_away_pp100) / 100.0 * tempo_avg
+                                    dv = float(np.clip(dv, 95, 195))
+                                    avail_count += 1
                             except Exception:
                                 dv = np.nan
+                                missing_count += 1
                             derived_vals.append(dv)
                         out_df["pred_total_raw"] = out_df["pred_total"].astype(float)
                         out_df["derived_total"] = derived_vals
-                        flags = []
-                        blended = []
+                        blended: list[float] = []
                         for pt, dv in zip(out_df["pred_total_raw"].tolist(), derived_vals):
                             if np.isnan(pt) or np.isnan(dv):
-                                blended.append(pt); flags.append(False); continue
-                            if pt < 105 or (dv > 0 and pt < 0.75 * dv):
-                                b = float(np.clip(0.5 * pt + 0.5 * dv, 110, 185))
-                                blended.append(b); flags.append(True)
+                                blended.append(pt); adjusted_flags.append(False); continue
+                            if pt < 103 or (dv > 0 and pt < 0.70 * dv):
+                                b = 0.45 * pt + 0.55 * dv
+                                b = float(np.clip(b, 95, 195))
+                                blended.append(b); adjusted_flags.append(True)
                             else:
-                                blended.append(pt); flags.append(False)
+                                blended.append(pt); adjusted_flags.append(False)
                         out_df["pred_total"] = blended
-                        out_df["pred_total_adjusted"] = flags
+                        out_df["pred_total_adjusted"] = adjusted_flags
+                        try:
+                            out_df["derived_total_available_rows"] = avail_count
+                            out_df["derived_total_missing_rows"] = missing_count
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
@@ -6537,6 +6586,15 @@ def daily_run(
             out_df = feats[["game_id", "date", "home_team", "away_team"]].copy()
             out_df["pred_total"] = y_total
             out_df["pred_margin"] = y_margin
+            # Early filter: remove placeholder TBD games before guardrails/tuning
+            try:
+                mask_tbd = (out_df["home_team"].astype(str).str.upper() == "TBD") | (out_df["away_team"].astype(str).str.upper() == "TBD")
+                if mask_tbd.any():
+                    removed = int(mask_tbd.sum())
+                    out_df = out_df.loc[~mask_tbd].reset_index(drop=True)
+                    print(f"[yellow]Filtered {removed} TBD placeholder games from global baseline predictions[/yellow]")
+            except Exception as _e_tbd2:
+                print(f"[yellow]TBD filtering skipped (global baseline path):[/yellow] {_e_tbd2}")
             # Apply simple tuning bias to totals if available
             try:
                 tpath = settings.outputs_dir / "model_tuning.json"
@@ -6559,35 +6617,57 @@ def daily_run(
             # Guardrails (optional)
             if apply_guardrails and "pred_total" in out_df.columns:
                 try:
-                    derived_vals = []
-                    adjusted_flags = []
+                    # Unified improved guardrails: derive only when tempo + all ratings present to avoid uniform constant.
+                    derived_vals: list[float] = []
+                    adjusted_flags: list[bool] = []
+                    avail_count = 0
+                    missing_count = 0
                     for _, r in feats.iterrows():
                         try:
-                            tempo_avg = (float(r.get("home_tempo_rating")) + float(r.get("away_tempo_rating"))) / 2.0 if pd.notna(r.get("home_tempo_rating")) and pd.notna(r.get("away_tempo_rating")) else (float(r.get("tempo_rating_sum"))/2.0 if pd.notna(r.get("tempo_rating_sum")) else 70.0)
-                            off_home = float(r.get("home_off_rating")) if pd.notna(r.get("home_off_rating")) else 100.0
-                            off_away = float(r.get("away_off_rating")) if pd.notna(r.get("away_off_rating")) else 100.0
-                            def_home = float(r.get("home_def_rating")) if pd.notna(r.get("home_def_rating")) else 100.0
-                            def_away = float(r.get("away_def_rating")) if pd.notna(r.get("away_def_rating")) else 100.0
-                            exp_home_pp100 = np.clip(off_home - def_away, 80, 130)
-                            exp_away_pp100 = np.clip(off_away - def_home, 80, 130)
-                            dv = float(np.clip(((exp_home_pp100 + exp_away_pp100) / 100.0) * tempo_avg, 110, 185))
+                            have_tempo = pd.notna(r.get("home_tempo_rating")) and pd.notna(r.get("away_tempo_rating"))
+                            have_ratings = all(pd.notna(r.get(k)) for k in ["home_off_rating","away_off_rating","home_def_rating","away_def_rating"])
+                            # Treat any placeholder 100.0 sets (all equal 100) as missing to avoid synthetic uniform dv
+                            if have_ratings:
+                                vals = [float(r.get(k)) for k in ["home_off_rating","away_off_rating","home_def_rating","away_def_rating"]]
+                                if len(set(vals)) == 1 and abs(vals[0] - 100.0) < 1e-6:
+                                    have_ratings = False
+                            if not (have_tempo and have_ratings):
+                                dv = np.nan
+                                missing_count += 1
+                            else:
+                                tempo_avg = (float(r.get("home_tempo_rating")) + float(r.get("away_tempo_rating"))) / 2.0
+                                off_home = float(r.get("home_off_rating"))
+                                off_away = float(r.get("away_off_rating"))
+                                def_home = float(r.get("home_def_rating"))
+                                def_away = float(r.get("away_def_rating"))
+                                exp_home_pp100 = np.clip(off_home - def_away, 65, 140)
+                                exp_away_pp100 = np.clip(off_away - def_home, 65, 140)
+                                dv = (exp_home_pp100 + exp_away_pp100) / 100.0 * tempo_avg
+                                dv = float(np.clip(dv, 95, 195))
+                                avail_count += 1
                         except Exception:
                             dv = np.nan
+                            missing_count += 1
                         derived_vals.append(dv)
                     out_df["pred_total_raw"] = out_df["pred_total"].astype(float)
                     out_df["derived_total"] = derived_vals
-                    flags = []
-                    blended = []
+                    blended: list[float] = []
                     for pt, dv in zip(out_df["pred_total_raw"].tolist(), derived_vals):
                         if np.isnan(pt) or np.isnan(dv):
-                            blended.append(pt); flags.append(False); continue
-                        if pt < 105 or (dv > 0 and pt < 0.75 * dv):
-                            b = float(np.clip(0.5 * pt + 0.5 * dv, 110, 185))
-                            blended.append(b); flags.append(True)
+                            blended.append(pt); adjusted_flags.append(False); continue
+                        if pt < 103 or (dv > 0 and pt < 0.70 * dv):
+                            b = 0.45 * pt + 0.55 * dv
+                            b = float(np.clip(b, 95, 195))
+                            blended.append(b); adjusted_flags.append(True)
                         else:
-                            blended.append(pt); flags.append(False)
+                            blended.append(pt); adjusted_flags.append(False)
                     out_df["pred_total"] = blended
-                    out_df["pred_total_adjusted"] = flags
+                    out_df["pred_total_adjusted"] = adjusted_flags
+                    try:
+                        out_df["derived_total_available_rows"] = avail_count
+                        out_df["derived_total_missing_rows"] = missing_count
+                    except Exception:
+                        pass
                 except Exception:
                     pass
 

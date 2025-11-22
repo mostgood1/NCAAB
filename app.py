@@ -111,6 +111,167 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ncaab_app")
 
+# ONNX Runtime provider diagnostics (one-time at startup)
+try:
+    import onnxruntime as ort  # type: ignore
+    _ORT_PROVIDERS = ort.get_available_providers()
+    logger.info("ONNX Runtime providers available at startup: %s", _ORT_PROVIDERS)
+    _dll_dir = os.environ.get("NCAAB_ORT_DLL_DIR")
+    if _dll_dir:
+        logger.info("NCAAB_ORT_DLL_DIR=%s", _dll_dir)
+    _qnn_root = os.environ.get("QNN_SDK_ROOT") or os.environ.get("NCAAB_QNN_SDK_DIR")
+    if _qnn_root:
+        logger.info("QNN SDK root detected: %s", _qnn_root)
+except Exception as _e:
+    logger.info("ONNX Runtime not available; predictions will use numpy fallback (%s)", _e)
+
+# --------------------------------------------------------------------------------------
+# New provider diagnostics + micro-benchmark endpoints
+# --------------------------------------------------------------------------------------
+@app.route("/api/ort-providers")
+def api_ort_providers():
+    """Return available and preferred provider ordering along with any loaded model session info.
+
+    If ONNX Runtime isn't importable returns an empty providers list.
+    """
+    try:
+        import onnxruntime as ort  # type: ignore
+        available = list(ort.get_available_providers())
+    except Exception:
+        available = []
+    # Attempt to instantiate a lightweight session on a test model if present to see final provider order
+    session_providers: list[str] = []
+    test_models = [
+        ROOT / "mlp_megatron_basic_test.onnx",
+        ROOT / "mlp_megatron_basic_test.onnx",
+        ROOT / "bart_mlp_megatron_basic_test.onnx",
+    ]
+    for m in test_models:
+        if m.exists():
+            try:
+                # Prefer GPU providers first if available
+                preferred = [p for p in ["QNNExecutionProvider","DmlExecutionProvider","CPUExecutionProvider"] if p in available]
+                import onnxruntime as ort  # type: ignore
+                sess = ort.InferenceSession(str(m), providers=preferred)
+                session_providers = list(sess.get_providers())
+                break
+            except Exception:
+                continue
+    return jsonify({
+        "available_providers": available,
+        "session_providers": session_providers,
+        "dll_dir": os.environ.get("NCAAB_ORT_DLL_DIR"),
+        "qnn_sdk_root": os.environ.get("QNN_SDK_ROOT") or os.environ.get("NCAAB_QNN_SDK_DIR"),
+    })
+
+
+@app.route("/api/ort-benchmark")
+def api_ort_benchmark():
+    """Run a small synthetic benchmark on a test ONNX model (if present) and return avg latency.
+
+    Uses 32 warmup runs + 64 timed runs. If multiple providers are available we request them in
+    priority order (QNN > DML > CPU) and report final session provider list.
+    """
+    try:
+        import onnxruntime as ort  # type: ignore
+        import numpy as np  # ensure local import inside handler
+    except Exception as e:
+        return jsonify({"error": f"onnxruntime not available: {e}"}), 503
+    test_candidates = [
+        ROOT / "mlp_megatron_basic_test.onnx",
+        ROOT / "bart_mlp_megatron_basic_test.onnx",
+        ROOT / "self_attention_megatron_basic_test.onnx",
+    ]
+    model_path = None
+    for c in test_candidates:
+        if c.exists():
+            model_path = c
+            break
+    if not model_path:
+        return jsonify({"error": "No test ONNX model found"}), 404
+    available = list(ort.get_available_providers())
+    preferred = [p for p in ["QNNExecutionProvider","DmlExecutionProvider","CPUExecutionProvider"] if p in available]
+    # Simple cache to avoid repeated warmups
+    global _BENCH_CACHE
+    if '_BENCH_CACHE' not in globals():
+        _BENCH_CACHE = {}
+    import time
+    cache_entry = _BENCH_CACHE.get('result')
+    if cache_entry and (time.time() - cache_entry['ts'] < 120):  # 2 min TTL
+        return jsonify(cache_entry['payload'])
+    try:
+        sess = ort.InferenceSession(str(model_path), providers=preferred)
+    except Exception as e:
+        return jsonify({"error": f"Failed to create session: {e}"}), 500
+    inputs = sess.get_inputs()
+    # Build random feeds matching first input shapes (simple assumption for test models)
+    feed = {}
+    for inp in inputs:
+        shape = [d if isinstance(d, int) and d > 0 else 1 for d in inp.shape]
+        # Keep size modest to avoid huge allocations
+        arr = np.random.randn(*shape).astype(np.float32)
+        feed[inp.name] = arr
+    # Warmup
+    for _ in range(32):
+        sess.run(None, feed)
+    t0 = time.time()
+    runs = 64
+    for _ in range(runs):
+        sess.run(None, feed)
+    avg_ms = (time.time() - t0) / runs * 1000.0
+    payload = {
+        "model": str(model_path.name),
+        "available_providers": available,
+        "session_providers": sess.get_providers(),
+        "avg_ms": round(avg_ms, 3),
+        "runs": runs,
+        "cached": False,
+    }
+    _BENCH_CACHE['result'] = {"payload": payload, "ts": time.time()}
+    return jsonify(payload)
+
+@app.route("/api/health")
+def api_health():
+    """Lightweight health/status report including providers and last pipeline stats."""
+    try:
+        import onnxruntime as ort  # type: ignore
+        providers = list(ort.get_available_providers())
+    except Exception:
+        providers = []
+    # Guardrail / prediction diagnostics (best-effort)
+    guardrail_summary: dict[str, Any] | None = None
+    try:
+        # Attempt to load today's predictions to compute adjustment/availability stats
+        today = dt.datetime.now(ZoneInfo(os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York"))).date()
+        pred_path = Path(settings.outputs_dir) / f"predictions_{today.isoformat()}.csv"
+        if pred_path.exists():
+            pdf = pd.read_csv(pred_path)
+            # Derived availability
+            dv = pd.to_numeric(pdf.get("derived_total"), errors="coerce")
+            raw = pd.to_numeric(pdf.get("pred_total_raw"), errors="coerce")
+            adj_flags = pdf.get("pred_total_adjusted") if "pred_total_adjusted" in pdf.columns else None
+            n_rows = len(pdf)
+            n_derived = int(dv.notna().sum()) if dv is not None else 0
+            n_adjusted = int(adj_flags.sum()) if adj_flags is not None else 0
+            guardrail_summary = {
+                "date": today.isoformat(),
+                "rows": n_rows,
+                "derived_available_rows": n_derived,
+                "derived_missing_rows": n_rows - n_derived,
+                "adjusted_rows": n_adjusted,
+                "adjusted_pct": round((n_adjusted / n_rows) * 100.0, 2) if n_rows else 0.0,
+                "uniform_flag_rows": int(pdf.get("pred_total_uniform_flag", pd.Series([False]*n_rows)).sum()) if "pred_total_uniform_flag" in pdf.columns else 0,
+            }
+    except Exception as _ge:
+        guardrail_summary = {"error": str(_ge)}
+    return jsonify({
+        "status": "ok",
+        "providers": providers,
+        "last_pipeline_stats": _LAST_PIPELINE_STATS,
+        "guardrails": guardrail_summary,
+        "timestamp": dt.datetime.utcnow().isoformat() + "Z",
+    })
+
 # Global diagnostic state variables
 _PREDICTIONS_SOURCE_PATH: str | None = None
 _MODEL_PREDICTIONS_SOURCE_PATH: str | None = None
@@ -2684,11 +2845,11 @@ def index():
     except Exception:
         pass
 
-    # Final cleanup: drop placeholder TBD games, re-filter by date using localized start_time, and deduplicate
+    # Final cleanup: drop placeholder TBD/TBA games, re-filter by date using localized start_time, and deduplicate
     try:
         if not df.empty:
-            # Drop rows where teams are placeholders (TBD/Unknown)
-            bads = {"tbd", "unknown", "na", "n/a", ""}
+            # Drop rows where teams are placeholders (TBD/TBA/Unknown and common variants)
+            bads = {"tbd", "t.b.d", "tba", "t.b.a", "to be determined", "to-be-determined", "to be announced", "to-be-announced", "unknown", "na", "n/a", ""}
             def _is_bad(x):
                 try:
                     return str(x).strip().lower() in bads
@@ -3085,6 +3246,22 @@ def index():
             try:
                 pipeline_stats["missing_pred_total_rows"] = int(df["pred_total"].isna().sum())
                 pipeline_stats["missing_pred_margin_rows"] = int(df["pred_margin"].isna().sum())
+                # Uniform prediction diagnostic (detect collapse like constant 112)
+                pt_diag = pd.to_numeric(df.get("pred_total"), errors="coerce")
+                if pt_diag.notna().sum() > 8:
+                    vc = pt_diag.value_counts()
+                    top_frac = vc.iloc[0] / pt_diag.notna().sum() if len(vc) else 0
+                    pipeline_stats["pred_total_unique_count"] = int(pt_diag.nunique())
+                    pipeline_stats["pred_total_top_value"] = float(vc.index[0]) if len(vc) else None
+                    pipeline_stats["pred_total_top_fraction"] = float(top_frac)
+                    if top_frac > 0.90:
+                        pipeline_stats["pred_total_uniform_flag"] = True
+                        pipeline_stats.setdefault("warnings", []).append(
+                            f"pred_total uniform flag: {vc.index[0]} appears in {top_frac:.2%} of rows"
+                        )
+                        # Capture small sample for debugging
+                        sample_u_cols = [c for c in ["game_id","home_team","away_team","pred_total","pred_total_basis","market_total","derived_total"] if c in df.columns]
+                        pipeline_stats["pred_total_uniform_sample"] = df[sample_u_cols].head(10).to_dict(orient="records")
             except Exception:
                 pass
             # Synthetic line fallback: if market_total still missing, populate from pred_total or derived_total
@@ -5330,6 +5507,23 @@ def index():
     except Exception:
         df_tpl = df
 
+    # Safety: drop placeholder team rows right before templating unless explicitly allowed via ?show_placeholders=1
+    try:
+        allow_placeholders = (request.args.get("show_placeholders") or "").strip().lower() in ("1","true","yes")
+        if not allow_placeholders and not df_tpl.empty and {"home_team","away_team"}.issubset(df_tpl.columns):
+            bads = {"tbd", "t.b.d", "tba", "t.b.a", "to be determined", "to-be-determined", "to be announced", "to-be-announced", "unknown", "na", "n/a", ""}
+            def _is_bad2(x):
+                try:
+                    return str(x).strip().lower() in bads
+                except Exception:
+                    return True
+            mask_bad2 = df_tpl["home_team"].map(_is_bad2) | df_tpl["away_team"].map(_is_bad2)
+            if mask_bad2.any():
+                pipeline_stats["dropped_tbd_rows_late"] = int(mask_bad2.sum())
+                df_tpl = df_tpl[~mask_bad2].reset_index(drop=True)
+    except Exception:
+        pass
+
     # Diagnostics enrichment (after full enrichment & NaN replacement): summarize missing odds & low predictions.
     try:
         # Odds coverage metrics
@@ -5755,12 +5949,22 @@ def index():
             except Exception:
                 pipeline_stats['finalize_export_error'] = True
             cols_pref = [
-                "game_id","date","home_team","away_team","pred_total","pred_margin",
-                "pred_total_model","pred_margin_model","pred_total_calibrated","pred_margin_calibrated",
+                # Identity
+                "game_id","date","home_team","away_team","start_time",
+                # Full-game predictions
+                "pred_total","pred_margin","pred_total_model","pred_margin_model","pred_total_calibrated","pred_margin_calibrated",
                 "pred_total_basis","pred_margin_basis","pred_total_model_basis","pred_margin_model_basis",
+                # Halves predictions (1H/2H)
+                "pred_total_1h","pred_margin_1h","pred_total_1h_basis","pred_margin_1h_basis",
+                "proj_home_1h","proj_away_1h","edge_total_1h","spread_home_1h","market_total_1h",
+                "pred_total_2h","pred_margin_2h","proj_home_2h","proj_away_2h","spread_home_2h","market_total_2h",
+                # Markets/closing
                 "market_total","closing_total","spread_home","closing_spread_home",
+                # Edges (full-game)
                 "edge_total","edge_total_model","edge_closing","edge_closing_model","edge_margin_model",
-                "proj_home","proj_away","start_time",
+                # Team projections (full-game)
+                "proj_home","proj_away",
+                # Risk/calibration meta
                 "pred_total_sigma","pred_margin_sigma","kelly_fraction_total","kelly_fraction_total_adj","kelly_fraction_margin_adj"
             ]
             keep = [c for c in cols_pref if c in df.columns]

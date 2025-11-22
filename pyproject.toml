@@ -18,12 +18,11 @@ dependencies = [
 	"Flask",
 	"jinja2",
 	"onnx",
-	"onnxruntime",
-	"scikit-learn",
-	"matplotlib",
-	"seaborn",
+	# Removed heavy build-time deps for ARM64 environment (scikit-learn, matplotlib, seaborn)
 	"Unidecode",
 	"rapidfuzz",
+	"pydantic",
+	"pydantic-settings",
 ]
 
 [tool.setuptools]
