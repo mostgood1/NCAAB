@@ -16,7 +16,7 @@ Exit codes:
   2 upload attempted but failed
 """
 from __future__ import annotations
-import argparse, sys, json
+import argparse, sys
 from pathlib import Path
 import pandas as pd
 import requests
@@ -82,25 +82,50 @@ def main():
         print('WARN: unable to compute local hash (empty or missing columns). Uploading anyway.')
         need_upload = True
     else:
+        need_upload = True  # default; flip off if healthy
         try:
             r = requests.get(f"{args.url}/api/predictions_integrity?date={args.date}", timeout=30)
-            if r.status_code != 200:
-                print(f'INFO: integrity endpoint status {r.status_code}; will upload.')
-                need_upload = True
-            else:
-                meta = r.json().get('meta', {})
+            if r.status_code == 200 and 'application/json' in (r.headers.get('Content-Type') or '').lower():
+                try:
+                    data = r.json()
+                except Exception as je:
+                    print(f'INFO: JSON parse failed ({je}); will upload.')
+                    data = {}
+                meta = data.get('meta', {}) if isinstance(data, dict) else {}
                 remote_hash = meta.get('predictions_hash_primary')
                 exists_primary = meta.get('exists_primary')
                 all_nan_primary = meta.get('all_nan_primary')
                 rows_primary = meta.get('rows_primary')
-                if (not exists_primary) or all_nan_primary or remote_hash != local_hash or rows_primary == 0:
+                unhealthy = (not exists_primary) or all_nan_primary or rows_primary == 0 or remote_hash != local_hash
+                if unhealthy:
                     print('INFO: mismatch or unhealthy remote predictions detected; will upload.')
-                    need_upload = True
                 else:
                     need_upload = False
+            else:
+                # Fallback: try /api/health for integrity summary if present
+                hr = requests.get(f"{args.url}/api/health", timeout=30)
+                if hr.status_code == 200 and 'application/json' in (hr.headers.get('Content-Type') or '').lower():
+                    try:
+                        hdata = hr.json()
+                    except Exception:
+                        hdata = {}
+                    integ = hdata.get('predictions_integrity') if isinstance(hdata, dict) else None
+                    if isinstance(integ, dict):
+                        remote_hash = integ.get('predictions_hash_primary')
+                        exists_primary = integ.get('exists_primary')
+                        all_nan_primary = integ.get('all_nan_primary')
+                        rows_primary = integ.get('rows_primary')
+                        unhealthy = (not exists_primary) or all_nan_primary or rows_primary == 0 or remote_hash != local_hash
+                        if unhealthy:
+                            print('INFO: health fallback indicates unhealthy predictions; will upload.')
+                        else:
+                            need_upload = False
+                    else:
+                        print(f'INFO: integrity endpoint unavailable (status {r.status_code}); will upload.')
+                else:
+                    print(f'INFO: integrity endpoint status {r.status_code}; will upload.')
         except Exception as e:
             print(f'INFO: integrity check failed ({e}); will upload.')
-            need_upload = True
     if need_upload:
         ok, resp_text = upload(args.url, args.token, args.date, local_path, args.force)
         if ok:
