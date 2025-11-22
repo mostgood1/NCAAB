@@ -667,6 +667,39 @@ def _load_predictions_current() -> pd.DataFrame:
     logger.warning("No predictions file found or all empty in %s; proceeding without predictions", OUT)
     return pd.DataFrame()
 
+def _compute_predictions_hash(df: pd.DataFrame) -> str | None:
+    """Compute a stable SHA256 hash for predictions frame.
+
+    Hash covers game_id, pred_total, pred_margin (if present) sorted by game_id.
+    NaNs are represented as 'NA'; floats normalized to 4 decimal places to avoid
+    insignificant serialization differences. Returns None if required columns missing.
+    """
+    try:
+        if df.empty:
+            return None
+        cols = [c for c in ["game_id","pred_total","pred_margin"] if c in df.columns]
+        if "game_id" not in cols:
+            return None
+        work = df[cols].copy()
+        work["game_id"] = work["game_id"].astype(str)
+        if "pred_total" in work.columns:
+            work["pred_total"] = pd.to_numeric(work["pred_total"], errors="coerce")
+        if "pred_margin" in work.columns:
+            work["pred_margin"] = pd.to_numeric(work["pred_margin"], errors="coerce")
+        work = work.sort_values("game_id")
+        parts: list[str] = []
+        for _, r in work.iterrows():
+            gid = r.get("game_id")
+            pt = r.get("pred_total") if "pred_total" in work.columns else None
+            pm = r.get("pred_margin") if "pred_margin" in work.columns else None
+            pt_str = "NA" if (pt is None or pd.isna(pt)) else f"{float(pt):.4f}"
+            pm_str = "NA" if (pm is None or pd.isna(pm)) else f"{float(pm):.4f}"
+            parts.append(f"{gid}|{pt_str}|{pm_str}")
+        import hashlib
+        return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+    except Exception:
+        return None
+
     
     
 ## End _load_predictions_current
@@ -6598,6 +6631,28 @@ def api_health():
             "ingest_enabled": ingest_token_present,
             "timestamp": dt.datetime.utcnow().isoformat() + "Z",
         }
+        # Predictions integrity summary (today only)
+        try:
+            if today_str:
+                prim = OUT / f"predictions_{today_str}.csv"
+                upl = OUT / f"predictions_{today_str}_uploaded.csv"
+                prim_df = _safe_read_csv(prim)
+                upl_df = _safe_read_csv(upl)
+                h = _compute_predictions_hash(prim_df) if not prim_df.empty else None
+                pt_ser = pd.to_numeric(prim_df.get("pred_total"), errors="coerce") if not prim_df.empty and "pred_total" in prim_df.columns else None
+                pm_ser = pd.to_numeric(prim_df.get("pred_margin"), errors="coerce") if not prim_df.empty and "pred_margin" in prim_df.columns else None
+                payload["predictions_integrity"] = {
+                    "exists_primary": prim.exists(),
+                    "exists_uploaded": upl.exists(),
+                    "rows_primary": len(prim_df) if not prim_df.empty else 0,
+                    "rows_uploaded": len(upl_df) if not upl_df.empty else 0,
+                    "nan_pred_total_primary": int(pt_ser.isna().sum()) if pt_ser is not None else None,
+                    "nan_pred_margin_primary": int(pm_ser.isna().sum()) if pm_ser is not None else None,
+                    "predictions_hash_primary": h,
+                    "all_nan_primary": bool(pt_ser is not None and pt_ser.notna().sum() == 0 and pm_ser is not None and pm_ser.notna().sum() == 0),
+                }
+        except Exception as _ie:
+            payload["predictions_integrity"] = {"error": str(_ie)}
         # Schedule anomaly & NCAA endpoint probe (lightweight)
         try:
             anomaly_threshold = int(os.environ.get("NCAAB_SCHEDULE_ANOMALY_THRESHOLD", "50"))
@@ -7299,6 +7354,58 @@ def api_predictions_unified():
     except Exception:
         today_str = None
     target_date = date_q or today_str
+
+@app.route("/api/predictions_integrity")
+def api_predictions_integrity():
+    """Return integrity diagnostics for predictions_<date>.csv with optional self-healing.
+
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults to today local timezone)
+      - auto_promote=1 to copy uploaded variant to primary if primary missing
+
+    Response: { ok, date, meta: { exists_primary, exists_uploaded, rows_primary, rows_uploaded,
+               nan_pred_total_primary, nan_pred_margin_primary, predictions_hash_primary,
+               promotion_performed, all_nan_primary } }
+    """
+    date_q = (request.args.get("date") or "").strip()
+    auto_promote = (request.args.get("auto_promote") or "").lower() in ("1","true","yes")
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    target_date = date_q or today_str
+    if not target_date:
+        return jsonify({"ok": False, "error": "no_date"}), 400
+    prim = OUT / f"predictions_{target_date}.csv"
+    upl = OUT / f"predictions_{target_date}_uploaded.csv"
+    promotion_performed = False
+    # Self-heal: if primary missing but uploaded exists
+    try:
+        if (not prim.exists()) and upl.exists() and auto_promote:
+            upl_df = _safe_read_csv(upl)
+            if not upl_df.empty:
+                upl_df.to_csv(prim, index=False)
+                promotion_performed = True
+    except Exception:
+        pass
+    prim_df = _safe_read_csv(prim)
+    upl_df = _safe_read_csv(upl)
+    h = _compute_predictions_hash(prim_df) if not prim_df.empty else None
+    pt_ser = pd.to_numeric(prim_df.get("pred_total"), errors="coerce") if not prim_df.empty and "pred_total" in prim_df.columns else None
+    pm_ser = pd.to_numeric(prim_df.get("pred_margin"), errors="coerce") if not prim_df.empty and "pred_margin" in prim_df.columns else None
+    meta = {
+        "exists_primary": prim.exists(),
+        "exists_uploaded": upl.exists(),
+        "rows_primary": len(prim_df) if not prim_df.empty else 0,
+        "rows_uploaded": len(upl_df) if not upl_df.empty else 0,
+        "nan_pred_total_primary": int(pt_ser.isna().sum()) if pt_ser is not None else None,
+        "nan_pred_margin_primary": int(pm_ser.isna().sum()) if pm_ser is not None else None,
+        "predictions_hash_primary": h,
+        "promotion_performed": promotion_performed,
+        "all_nan_primary": bool(pt_ser is not None and pt_ser.notna().sum() == 0 and pm_ser is not None and pm_ser.notna().sum() == 0),
+    }
+    meta["git_commit"] = _get_git_commit()
+    return jsonify({"ok": True, "date": target_date, "meta": meta})
 
 @app.route("/api/backtest")
 def api_backtest():
