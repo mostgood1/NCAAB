@@ -1422,10 +1422,9 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
     # Secondary safeguard: restrict to game_ids appearing in games set for date (prevents historical leakage if predictions_all mis-normalized dates)
     try:
         if date_str and "game_id" in df.columns:
-            # Reconstruct games filtered for date from earlier loads
+            # Load primary games file for date
             games_for_date = _safe_read_csv(OUT / f"games_{date_str}.csv")
             if games_for_date.empty:
-                # fallback to games_curr subset
                 g_curr = _safe_read_csv(OUT / "games_curr.csv")
                 if not g_curr.empty and "date" in g_curr.columns:
                     try:
@@ -1435,11 +1434,16 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
                     games_for_date = g_curr[g_curr["date"].astype(str) == str(date_str)].copy()
             if not games_for_date.empty and "game_id" in games_for_date.columns:
                 allowed = set(games_for_date["game_id"].astype(str).dropna())
-                if allowed and len(df) > len(allowed):
+                # If predictions have duplicates per game_id, aggregate to single row selecting first occurrence
+                if allowed:
+                    # De-duplicate predictions by game_id keeping first
+                    if df["game_id"].duplicated().any():
+                        df = df.sort_values("game_id").drop_duplicates("game_id").copy()
                     pre_extra = len(df)
                     df = df[df["game_id"].astype(str).isin(allowed)].copy()
                     meta["restrict_game_ids_rows"] = len(df)
                     meta["restrict_game_ids_removed"] = int(pre_extra - len(df))
+                    meta["restrict_game_ids_unique_games"] = len(allowed)
     except Exception:
         meta["restrict_game_ids_error"] = True
     meta["columns"] = list(df.columns)
