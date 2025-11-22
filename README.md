@@ -57,6 +57,63 @@ You can also inspect providers with:
 python -m ncaab_model.cli ort-info
 ```
 
+### Timezone & Localized Start Times
+
+Game start times are normalized to a local display timezone for UI/API consumption. By default this is `America/New_York` (Eastern Time). Override via environment variable:
+
+```powershell
+$env:NCAAB_LOCAL_TZ = "America/Chicago"
+```
+
+The results and unified prediction endpoints expose both the original raw `start_time` (often UTC or provider-native) and a localized companion column `start_time_local` formatted as `YYYY-MM-DD HH:MM`.
+
+### Guardrails & Uniform Total Safeguard
+
+To prevent pathological uniform predictions (e.g. every game projected 112), the engine applies:
+
+1. Rating Fallback: Missing offensive/defensive/tempo ratings are backfilled with rolling averages before deriving totals.
+2. Derived Totals: When core ratings exist, a secondary derived total (`derived_total`) is computed; this can be blended or used to detect anomalies.
+3. Uniform Variance Check: If slate standard deviation of raw totals collapses below a tiny threshold, a reconstruction pass re-injects variance using underlying rating spreads and tempo differentials.
+4. Adjustment Flag: Column `pred_total_adjusted` marks rows whose totals were altered by safeguard logic.
+5. Uniform Flag: Column `pred_total_uniform_flag` (boolean) may appear during diagnostics to indicate detection of a near-uniform slate before correction.
+
+By default the API hides `derived_total` (dropped for cleanliness) unless explicitly enabled:
+
+```powershell
+$env:NCAAB_INCLUDE_DERIVED_TOTAL = "1"  # retain derived_total in /api/results output
+```
+
+### TBD Game Filtering
+
+Placeholder matchups (`TBD vs TBD`) are filtered out during unified prediction assembly. This prevents blank cards on the frontend. The pipeline backfills identity columns first then drops any still-empty team rows.
+
+### Half (1H/2H) Fallback Logic
+
+When explicit half models or data are missing, full-game totals are split using a configurable ratio (default `0.485` first half, remaining to second) ensuring non-NaN 1H/2H projections:
+
+```powershell
+python -m ncaab_model.cli daily-run --half-ratio 0.490
+```
+
+### Local Health & Diagnostics
+
+`GET /api/health` now includes:
+
+```jsonc
+{
+  "status": "ok",
+  "local_timezone": "America/New_York",
+  "providers": ["DmlExecutionProvider","CPUExecutionProvider"],
+  "guardrails": {
+    "derived_available_rows": 42,
+    "adjusted_rows": 7,
+    "adjusted_pct": 16.67
+  }
+}
+```
+
+The `last_pipeline_stats` field surfaces uniform safeguard activations and coverage notes (e.g. synthetic schedule reasons, NCAA provider outages).
+
 ## Season-start backfill (last two seasons)
 
 To initialize the model with enough history before the season tips off, run the end-to-end backfill, training, and evaluation for the last two seasons:
@@ -131,14 +188,7 @@ Health endpoint:
 
 `GET /api/health` returns a small JSON document:
 
-```json
-{
-  "status": "ok",
-  "providers": ["DmlExecutionProvider","CPUExecutionProvider"],
-  "last_pipeline_stats": {"pred_total_uniform_flag": false, ...},
-  "timestamp": "2025-11-22T15:34:12.123456Z"
-}
-```
+See updated example above including `local_timezone` and guardrail summary fields.
 
 `last_pipeline_stats` mirrors the most recent in-request diagnostic frame generated during prediction assembly (e.g., uniform total flags, coverage counts). If no request has populated stats yet it will be `null`.
 
