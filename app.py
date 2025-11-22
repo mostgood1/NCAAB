@@ -7140,7 +7140,13 @@ def api_predictions_ingest():
     If 'date' supplied (param or inferred from rows/date column) we write predictions_<date>_uploaded.csv
     and also copy to predictions_<date>.csv (unless that file already exists and ?force=1 not passed).
     """
-    token_req = os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN", "").strip()
+    # Accept multiple env var names for easier secret wiring on Render
+    token_req = (
+        os.environ.get("NCAAB_PREDICTIONS_INGEST_TOKEN")
+        or os.environ.get("YOUR_SECRET_TOKEN")
+        or os.environ.get("PREDICTIONS_INGEST_TOKEN")
+        or ""
+    ).strip()
     provided = (request.headers.get("X-Ingest-Token") or request.args.get("token") or "").strip()
     if not token_req:
         return jsonify({"ok": False, "error": "ingest_disabled"}), 403
