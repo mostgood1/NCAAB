@@ -1389,6 +1389,29 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
             meta["post_date_filter_removed"] = int(before_rows - len(df))
     except Exception:
         meta["post_date_filter_error"] = True
+    # Secondary safeguard: restrict to game_ids appearing in games set for date (prevents historical leakage if predictions_all mis-normalized dates)
+    try:
+        if date_str and "game_id" in df.columns:
+            # Reconstruct games filtered for date from earlier loads
+            games_for_date = _safe_read_csv(OUT / f"games_{date_str}.csv")
+            if games_for_date.empty:
+                # fallback to games_curr subset
+                g_curr = _safe_read_csv(OUT / "games_curr.csv")
+                if not g_curr.empty and "date" in g_curr.columns:
+                    try:
+                        g_curr["date"] = pd.to_datetime(g_curr["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
+                    games_for_date = g_curr[g_curr["date"].astype(str) == str(date_str)].copy()
+            if not games_for_date.empty and "game_id" in games_for_date.columns:
+                allowed = set(games_for_date["game_id"].astype(str).dropna())
+                if allowed and len(df) > len(allowed):
+                    pre_extra = len(df)
+                    df = df[df["game_id"].astype(str).isin(allowed)].copy()
+                    meta["restrict_game_ids_rows"] = len(df)
+                    meta["restrict_game_ids_removed"] = int(pre_extra - len(df))
+    except Exception:
+        meta["restrict_game_ids_error"] = True
     meta["columns"] = list(df.columns)
     # Optionally drop derived_total for cleanliness unless explicitly enabled
     include_derived = os.environ.get("NCAAB_INCLUDE_DERIVED_TOTAL", "0").lower() in ("1","true","yes")
