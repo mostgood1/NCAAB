@@ -7201,6 +7201,15 @@ def api_predictions_ingest():
         "primary_written": wrote_primary,
     })
 
+@app.route("/api/routes")
+def api_routes():
+    """List all registered Flask routes (for remote introspection)."""
+    try:
+        rules = sorted([str(r.rule) for r in app.url_map.iter_rules()])
+        return jsonify({"ok": True, "routes": rules, "count": len(rules)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 
 @app.route("/api/predictions_unified")
 def api_predictions_unified():
