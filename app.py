@@ -154,6 +154,51 @@ def _to_local_iso(ts: Any) -> str | None:
     except Exception:
         return None
 
+# ---------------------------------------------------------------------------
+# Git commit discovery & version stamping (exposed via /api/health, /api/results)
+# ---------------------------------------------------------------------------
+def _get_git_commit() -> str | None:
+    """Best-effort retrieval of current git commit hash.
+
+    Tries environment variables first (RENDER, generic CI), then reads .git/HEAD.
+    Returns short 7-char hash or None on failure.
+    """
+    env_vars = ["GIT_COMMIT", "RENDER_GIT_COMMIT", "SOURCE_VERSION"]
+    for v in env_vars:
+        h = os.environ.get(v)
+        if h and len(h) >= 7:
+            return h[:7]
+    try:
+        git_dir = Path(__file__).resolve().parent / ".git"
+        head = git_dir / "HEAD"
+        if head.exists():
+            ref = head.read_text().strip()
+            if ref.startswith("ref:"):
+                ref_path = git_dir / ref.split("ref:",1)[1].strip()
+                if ref_path.exists():
+                    full = ref_path.read_text().strip()
+                    return full[:7]
+            else:
+                return ref[:7]
+    except Exception:
+        return None
+    return None
+
+def _get_app_version() -> str:
+    # Attempt to read pyproject version, else fallback constant
+    try:
+        pyproj = Path(__file__).resolve().parent / "pyproject.toml"
+        if pyproj.exists():
+            txt = pyproj.read_text(encoding="utf-8", errors="ignore")
+            for line in txt.splitlines():
+                if line.strip().startswith("version") and "=" in line:
+                    ver = line.split("=",1)[1].strip().strip('"').strip("'")
+                    if ver:
+                        return ver
+    except Exception:
+        pass
+    return "0.1.0+local"
+
 # ONNX Runtime provider diagnostics (one-time at startup)
 try:
     import onnxruntime as ort  # type: ignore
@@ -1335,6 +1380,15 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
             df["start_time_local"] = df["start_time"].apply(_to_local_iso)
         except Exception:
             pass
+    # Harden date filtering: even if upstream sources leaked multi-date rows ensure only requested date returned.
+    try:
+        if date_str and "date" in df.columns:
+            before_rows = len(df)
+            df = df[df["date"].astype(str) == str(date_str)].copy()
+            meta["post_date_filter_rows"] = len(df)
+            meta["post_date_filter_removed"] = int(before_rows - len(df))
+    except Exception:
+        meta["post_date_filter_error"] = True
     meta["columns"] = list(df.columns)
     # Optionally drop derived_total for cleanliness unless explicitly enabled
     include_derived = os.environ.get("NCAAB_INCLUDE_DERIVED_TOTAL", "0").lower() in ("1","true","yes")
@@ -6462,6 +6516,8 @@ def api_health():
             guardrail_summary = {"error": str(_ge)}
         payload = {
             "status": "ok",
+            "git_commit": _get_git_commit(),
+            "app_version": _get_app_version(),
             "outputs_dir": str(OUT),
             "local_timezone": _LOCAL_TZ_NAME,
             "games_files": games_files,
@@ -7043,6 +7099,9 @@ def api_results():
             clean[k] = v
         rows.append(clean)
     meta["returned_columns"] = list(df.columns)
+    # Version stamping in meta
+    meta["git_commit"] = _get_git_commit()
+    meta["app_version"] = _get_app_version()
     return jsonify({"ok": True, "meta": meta, "rows": rows})
 
 
