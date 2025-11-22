@@ -5183,8 +5183,61 @@ def index():
     except Exception:
         pass
 
-    # Ensure half spreads and ATS results are populated (second pass) before template conversion.
+    # Ensure half predictions/spreads and ATS results are populated (final pass) before template conversion.
     try:
+        # Final safety net: if any half prediction values are still missing, derive from full-game preds
+        if {"pred_total","pred_margin"}.issubset(df.columns):
+            half_ratio = 0.485
+            pt = pd.to_numeric(df.get("pred_total"), errors="coerce")
+            pm = pd.to_numeric(df.get("pred_margin"), errors="coerce")
+            # Create columns if missing
+            for col in ["pred_total_1h","pred_total_2h","pred_margin_1h","pred_margin_2h"]:
+                if col not in df.columns:
+                    df[col] = np.nan
+            # 1H total from ratio for any NaN rows
+            need_pt1 = pd.to_numeric(df.get("pred_total_1h"), errors="coerce").isna()
+            if need_pt1.any():
+                df.loc[need_pt1, "pred_total_1h"] = (pt * half_ratio)[need_pt1]
+            # 2H total as remainder for any NaN rows
+            need_pt2 = pd.to_numeric(df.get("pred_total_2h"), errors="coerce").isna()
+            if need_pt2.any():
+                # use freshly filled 1H where available
+                pt1_now = pd.to_numeric(df.get("pred_total_1h"), errors="coerce")
+                df.loc[need_pt2, "pred_total_2h"] = (pt - pt1_now)[need_pt2]
+            # Half margins default to even split when missing
+            need_pm1 = pd.to_numeric(df.get("pred_margin_1h"), errors="coerce").isna()
+            if need_pm1.any():
+                df.loc[need_pm1, "pred_margin_1h"] = (pm * 0.5)[need_pm1]
+            need_pm2 = pd.to_numeric(df.get("pred_margin_2h"), errors="coerce").isna()
+            if need_pm2.any():
+                # use freshly filled 1H where available
+                pm1_now = pd.to_numeric(df.get("pred_margin_1h"), errors="coerce")
+                df.loc[need_pm2, "pred_margin_2h"] = (pm - pm1_now)[need_pm2]
+
+        # Team 1H/2H projections safety net: derive proportionally if still missing
+        if {"proj_home","proj_away","pred_total_1h","pred_total_2h"}.issubset(df.columns):
+            ph = pd.to_numeric(df.get("proj_home"), errors="coerce")
+            pa = pd.to_numeric(df.get("proj_away"), errors="coerce")
+            t1 = pd.to_numeric(df.get("pred_total_1h"), errors="coerce")
+            t2 = pd.to_numeric(df.get("pred_total_2h"), errors="coerce")
+            for col in ["proj_home_1h","proj_away_1h","proj_home_2h","proj_away_2h"]:
+                if col not in df.columns:
+                    df[col] = np.nan
+            need_ph1 = pd.to_numeric(df.get("proj_home_1h"), errors="coerce").isna()
+            need_pa1 = pd.to_numeric(df.get("proj_away_1h"), errors="coerce").isna()
+            need_ph2 = pd.to_numeric(df.get("proj_home_2h"), errors="coerce").isna()
+            need_pa2 = pd.to_numeric(df.get("proj_away_2h"), errors="coerce").isna()
+            full = ph + pa
+            share_home = np.where((ph.notna()) & (full.notna()) & (full > 0), ph / full, 0.5)
+            if need_ph1.any():
+                df.loc[need_ph1, "proj_home_1h"] = (share_home * t1)[need_ph1]
+            if need_pa1.any():
+                df.loc[need_pa1, "proj_away_1h"] = ((1.0 - share_home) * t1)[need_pa1]
+            if need_ph2.any():
+                df.loc[need_ph2, "proj_home_2h"] = (share_home * t2)[need_ph2]
+            if need_pa2.any():
+                df.loc[need_pa2, "proj_away_2h"] = ((1.0 - share_home) * t2)[need_pa2]
+
         # Derive half totals if provider halves are missing but full-game total exists
         half_ratio = 0.485
         if "market_total" in df.columns:
