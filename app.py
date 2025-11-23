@@ -3301,6 +3301,12 @@ def index():
                         except Exception:
                             pass
                         df.at[idx, "pred_total"] = val
+                        # Ensure basis dtype is object to avoid FutureWarning when assigning strings
+                        if "pred_total_basis" in df.columns and df["pred_total_basis"].dtype != object:
+                            try:
+                                df["pred_total_basis"] = df["pred_total_basis"].astype("object")
+                            except Exception:
+                                pass
                         if "pred_total_basis" in df.columns and pd.isna(df.at[idx, "pred_total_basis"]):
                             df.at[idx, "pred_total_basis"] = "synthetic_baseline"
                         elif "pred_total_basis" not in df.columns:
@@ -3332,6 +3338,11 @@ def index():
                         val = baseline_league_avg + tempo_component + noise
                         val = float(np.clip(val, 60, 192))
                         df.at[idx, "pred_total"] = val
+                        if "pred_total_basis" in df.columns and df["pred_total_basis"].dtype != object:
+                            try:
+                                df["pred_total_basis"] = df["pred_total_basis"].astype("object")
+                            except Exception:
+                                pass
                         try:
                             pipeline_stats.setdefault("synthetic_baseline_fills_no_market", 0)
                             pipeline_stats["synthetic_baseline_fills_no_market"] += 1

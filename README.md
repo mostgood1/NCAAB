@@ -840,6 +840,32 @@ Inline diagnostic styles were moved to `static/css/app.css` to satisfy linting a
 - Alert if `pct_suppressed` > 0.50 (segmentation failing – revisit bucket logic)
 - Track `median` quotes_count trend over season for provider completeness drift.
 
+## Git Commit Mode vs Auto-Promotion
+
+By default the app will attempt to build `predictions_<today>.csv` by promoting any matching model artifact or synthesizing a shell from `games_curr.csv` if no model output exists.
+
+To force Render (or any deployment) to display only a file that you explicitly committed, enable commit mode:
+
+Environment variables:
+
+| Var | Effect |
+|-----|--------|
+| `NCAAB_COMMIT_PREDICTIONS_MODE=1` | Disables auto-promotion and shell synthesis; if `predictions_<today>.csv` is missing the UI shows "Predictions Pending". |
+| `NCAAB_DISABLE_SHELL=1` | Prevents shell creation but still allows promotion from a model file matching today's date. |
+
+Stale date guard recommendation: commit the actual dated predictions file (`predictions_YYYY-MM-DD.csv`). If the only available model file is from a prior date, promotion will (or should) be skipped—your committed predictions file remains authoritative.
+
+Workflow (Git-only):
+
+1. Generate predictions locally: `outputs/predictions_<date>.csv`.
+2. `git add outputs/predictions_<date>.csv && git commit -m "predictions: <date>" && git push`.
+3. Set `NCAAB_COMMIT_PREDICTIONS_MODE=1` in deployment environment.
+4. Redeploy; the UI reflects the committed file exactly.
+
+If you later ingest a model file via HTTP while in commit mode, it is ignored until you disable the mode (ensuring deterministic parity).
+
+FutureWarning fix: synthetic baseline logic now casts `pred_total_basis` to object before assigning string labels, removing the prior pandas warning about incompatible dtype.
+
 ---
 
 #   N C A A B 
