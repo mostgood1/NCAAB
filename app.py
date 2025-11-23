@@ -447,8 +447,11 @@ def _load_predictions_current() -> pd.DataFrame:
             model_cal = OUT / f"predictions_model_calibrated_{today_str}.csv"
             model_raw = OUT / f"predictions_model_{today_str}.csv"
             src_path = model_cal if model_cal.exists() else (model_raw if model_raw.exists() else None)
+            # Commit-mode: if set, never auto-promote or synthesize shells; rely solely on committed file.
+            commit_mode = (os.getenv("NCAAB_COMMIT_PREDICTIONS_MODE", "").strip().lower() in ("1","true","yes"))
+            disable_shell = commit_mode or (os.getenv("NCAAB_DISABLE_SHELL", "").strip().lower() in ("1","true","yes"))
             need_rebuild = False
-            if src_path is not None:
+            if src_path is not None and not commit_mode:
                 try:
                     # Determine if current predictions file is absent, shell, or stale vs model file mtime
                     if not today_pred.exists():
@@ -502,8 +505,8 @@ def _load_predictions_current() -> pd.DataFrame:
                             logger.warning("Model source for today exists but empty or missing game_id: %s", src_path)
                     except Exception as e:
                         logger.error("Failed rebuilding predictions from model source %s: %s", src_path, e)
-            # If still missing and no model source, synthesize shell from games
-            if not today_pred.exists():
+            # If still missing and no model source, synthesize shell from games unless disabled
+            if not today_pred.exists() and not disable_shell:
                 games_curr = OUT / 'games_curr.csv'
                 try:
                     if games_curr.exists():
@@ -523,6 +526,8 @@ def _load_predictions_current() -> pd.DataFrame:
                         logger.warning("Created synthetic shell predictions file (no model) at %s (rows=%s)", today_pred, len(shell))
                 except Exception as e:
                     logger.error("Failed generating synthetic shell predictions file: %s", e)
+            elif not today_pred.exists() and disable_shell:
+                logger.warning("Commit mode / shell disabled: no predictions file found for %s; UI will show pending state.", today_str)
     except Exception:
         pass
     candidates: list[Path] = []
