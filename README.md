@@ -186,6 +186,73 @@ Ensure the hosted Flask app displays identical prediction values to your local a
 
 Shell creation only occurs when no real model outputs exist; pushing a real file prevents shells entirely.
 
+### Commit Mode (Git-Only Source of Truth)
+
+Set the environment variable `NCAAB_COMMIT_PREDICTIONS_MODE=1` (or `true/yes`) on the hosted instance to disable:
+
+- Automatic promotion from `predictions_model*_*.csv` to `predictions_<date>.csv`
+- Synthetic shell generation when no predictions file exists
+
+In commit mode the UI relies solely on the presence of a committed `outputs/predictions_<date>.csv` artifact. If it's missing, affected rows render a "Predictions Pending" pill (no fake values).
+
+You can also set `NCAAB_DISABLE_SHELL=1` independently to suppress shell creation while still allowing model promotion. Commit mode implies shell disable.
+
+Diagnostics endpoint: `GET /api/commit-mode-status` returns:
+
+```json
+{
+  "date": "2025-11-22",
+  "commit_mode": true,
+  "disable_shell": true,
+  "predictions_file_present": true,
+  "model_artifacts_present": {"raw": true, "calibrated": true, "interval": true},
+  "stale_model_guard_active": false,
+  "env": {"NCAAB_COMMIT_PREDICTIONS_MODE": "1", "NCAAB_DISABLE_SHELL": "1"}
+}
+```
+
+If `stale_model_guard_active` is `true`, older dated model artifacts were detected and skipped (prevents accidental reuse from a previous day when commit mode is off).
+
+### Parity Verification Script
+
+`scripts/compare_parity.py` enforces deterministic parity between local and remote prediction artifacts.
+
+Usage examples:
+
+```powershell
+python scripts/compare_parity.py --date 2025-11-22
+python scripts/compare_parity.py --date 2025-11-22 --tolerance 1e-6 --write-artifacts
+```
+
+Remote resolution order:
+1. Explicit `--remote-file`
+2. GitHub raw (commit-mode authoritative): `raw.githubusercontent.com/mostgood1/NCAAB/main/outputs/predictions_<date>.csv`
+3. Optional `--base-url` variants (`/<file>` or `/outputs/<file>`)
+
+Exit codes:
+| Code | Meaning |
+|------|---------|
+| 0 | Full parity (no diffs) |
+| 2 | Missing rows (local or remote) |
+| 3 | Numeric diffs exceed tolerance |
+| 4 | Remote fetch failure |
+
+Artifacts (with `--write-artifacts`):
+- `outputs/parity/parity_<date>.json` summary metrics
+- `outputs/parity/diff_rows_<date>.csv` detailed differences when issues occur
+
+Numeric columns compared (if present): `pred_total`, `pred_margin`, `pred_total_blend`, `pred_margin_blend`, `pred_total_seg`, `pred_margin_seg`, `blend_weight`, `seg_n_rows`.
+
+Recommended CI step (pseudo GitHub Action):
+
+```yaml
+- name: Parity check (today)
+  run: |
+    python scripts/compare_parity.py --date $(date +%Y-%m-%d) --tolerance 1e-6
+```
+
+Fail the build if exit code != 0 to block deployment when remote parity breaks.
+
 ### Ingestion Endpoints
 
 | Endpoint | Method | Body | Writes |

@@ -602,6 +602,55 @@ def _load_predictions_current() -> pd.DataFrame:
 ensure_runtime_artifacts()
 
 # --------------------------------------------------------------------------------------
+# Commit-mode status diagnostics endpoint
+# --------------------------------------------------------------------------------------
+@app.route("/api/commit-mode-status")
+def api_commit_mode_status():
+    """Return commit-mode / shell suppression flags and artifact presence for today's date.
+
+    Fields:
+      date: ISO date
+      commit_mode: bool (env NCAAB_COMMIT_PREDICTIONS_MODE)
+      disable_shell: bool (commit_mode OR env NCAAB_DISABLE_SHELL)
+      predictions_file_present: bool (predictions_<date>.csv exists)
+      model_artifacts_present: {raw, calibrated, interval}
+      stale_model_guard_active: bool (any model artifact date != today)
+      env: echo of relevant env vars (non-secret)
+    """
+    today_str = _today_local().strftime("%Y-%m-%d")
+    commit_mode = (os.getenv("NCAAB_COMMIT_PREDICTIONS_MODE", "").strip().lower() in ("1","true","yes"))
+    disable_shell = commit_mode or (os.getenv("NCAAB_DISABLE_SHELL", "").strip().lower() in ("1","true","yes"))
+    pred_path = OUT / f"predictions_{today_str}.csv"
+    model_raw = OUT / f"predictions_model_{today_str}.csv"
+    model_cal = OUT / f"predictions_model_calibrated_{today_str}.csv"
+    model_interval = OUT / f"predictions_model_interval_{today_str}.csv"
+    stale_guard_triggered = False
+    for p in [model_cal, model_raw]:
+        if p.exists():
+            stem_parts = p.stem.split('_')
+            maybe_date = stem_parts[-1] if len(stem_parts) > 2 else None
+            if maybe_date and maybe_date != today_str:
+                stale_guard_triggered = True
+                break
+    payload = {
+        "date": today_str,
+        "commit_mode": commit_mode,
+        "disable_shell": disable_shell,
+        "predictions_file_present": pred_path.exists(),
+        "model_artifacts_present": {
+            "raw": model_raw.exists(),
+            "calibrated": model_cal.exists(),
+            "interval": model_interval.exists(),
+        },
+        "stale_model_guard_active": stale_guard_triggered,
+        "env": {
+            "NCAAB_COMMIT_PREDICTIONS_MODE": os.getenv("NCAAB_COMMIT_PREDICTIONS_MODE"),
+            "NCAAB_DISABLE_SHELL": os.getenv("NCAAB_DISABLE_SHELL"),
+        }
+    }
+    return jsonify(payload)
+
+# --------------------------------------------------------------------------------------
 # Ingestion endpoints for deploying local artifacts to Render for parity
 # --------------------------------------------------------------------------------------
 @app.route("/api/ingest/predictions", methods=["POST"])
