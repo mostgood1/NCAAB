@@ -216,8 +216,8 @@
                   {% if tb.startswith('model_calibrated') %}CAL{% elif tb in ['model_raw','model'] %}RAW{% elif tb == 'features_derived' %}DER{% elif tb == 'synthetic_baseline' %}SYN{% elif tb == 'market_copy' %}COPY{% elif tb == 'blended_low' %}BLEND{% else %}{{ (tb or '')[:4].upper() }}{% endif %}
                 </span>
               {% endif %}
-              {% if r.blend_weight is defined and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
-              {% if r.seg_n_rows is defined and r.seg_n_rows is not none and r.seg_n_rows > 0 %}<span class="badge sample" title="Segment sample size used in blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
+              {% if r.blend_effective is defined and r.blend_effective and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
+              {% if r.blend_effective is defined and r.blend_effective and r.seg_n_rows_orig is defined and r.seg_n_rows_orig is not none and r.seg_n_rows_orig > 0 %}<span class="badge sample" title="Segment sample size contributing to blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows_orig }}</span>{% endif %}
             </div>
             <div class="pill">
               {% if r.pred_margin is not none %}
@@ -278,8 +278,8 @@
                   {% set mb = r.pred_margin_basis %}
                   <span class="badge" title="Margin basis: {{ mb }}">{% if mb.startswith('model_calibrated') %}CAL{% elif mb in ['model_raw','model'] %}RAW{% elif mb == 'features_derived' %}DER{% elif mb == 'synthetic_baseline' %}SYN{% elif mb == 'market_copy' %}COPY{% elif mb == 'blended_low' %}BLEND{% else %}{{ (mb or '')[:4].upper() }}{% endif %}</span>
                 {% endif %}
-                {% if r.blend_weight is defined and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
-                {% if r.seg_n_rows is defined and r.seg_n_rows is not none and r.seg_n_rows > 0 %}<span class="badge sample" title="Segment sample size used in blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows }}</span>{% endif %}
+                {% if r.blend_effective is defined and r.blend_effective and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
+                {% if r.blend_effective is defined and r.blend_effective and r.seg_n_rows_orig is defined and r.seg_n_rows_orig is not none and r.seg_n_rows_orig > 0 %}<span class="badge sample" title="Segment sample size contributing to blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows_orig }}</span>{% endif %}
               </div>
             </div>
             {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
@@ -336,9 +336,13 @@
             <div class="line-row actuals-row">
               <div class="seg label">Actuals</div>
               {% set cls_ats_full = 'neutral' if (r.ats_result == 'Push') else ('ok' if r.eval_ats_ok else ('bad' if r.ats_result else 'neutral')) %}
-              {% set ats_team_full = (r.home_team if (r.ats_result and 'Home' in r.ats_result) else (r.away_team if (r.ats_result and 'Away' in r.ats_result) else ('Push' if r.ats_result == 'Push' else None))) %}
+              {# Coerce ats_result to string to avoid TypeError when NaN/float #}
+              {% set ats_text = (r.ats_result ~ '') %}
+              {% set ats_team_full = (r.home_team if ('Home' in ats_text) else (r.away_team if ('Away' in ats_text) else ('Push' if ats_text == 'Push' else None))) %}
               <div class="seg {{ cls_ats_full }}">ATS: {% if ats_team_full == 'Push' %}Push{% elif ats_team_full %}{{ ats_team_full }} Cover{% else %}–{% endif %}</div>
-              {% set winner_team = r.home_team if r.ml_result and 'Home' in r.ml_result else (r.away_team if r.ml_result and 'Away' in r.ml_result else ( 'Push' if r.ml_result and 'Push' in r.ml_result else None)) %}
+              {# Safe ML winner extraction: coerce ml_result to string to avoid TypeError on NaN/None #}
+              {% set ml_text = (r.ml_result ~ '') %}
+              {% set winner_team = r.home_team if 'Home' in ml_text else (r.away_team if 'Away' in ml_text else ('Push' if ml_text == 'Push' else None)) %}
               {% set cls_ml_full = 'neutral' if (winner_team == 'Push') else ('ok' if r.eval_ml_ok else ('bad' if winner_team else 'neutral')) %}
               <div class="seg {{ cls_ml_full }}">Winner: {{ winner_team or '–' }}</div>
               <div class="seg">Team Totals: {% if r.home_score is not none and r.away_score is not none %}{{ r.away_team or '–' }} {{ r.away_score }} / {{ r.home_team or '–' }} {{ r.home_score }}{% else %}–{% endif %}</div>
@@ -426,7 +430,9 @@
                 <div class="line-row">
                   <div class="seg label">Actuals</div>
                   {% set cls_ats_1h = 'neutral' if (r.ats_result_1h == 'Push') else ('ok' if r.eval_ats_1h_ok else ('bad' if r.ats_result_1h else 'neutral')) %}
-                  {% set ats_team_1h = (r.home_team if (r.ats_result_1h and 'Home' in r.ats_result_1h) else (r.away_team if (r.ats_result_1h and 'Away' in r.ats_result_1h) else ('Push' if r.ats_result_1h == 'Push' else None))) %}
+                  {# Safe 1H ATS team extraction #}
+                  {% set ats_text_1h = (r.ats_result_1h ~ '') %}
+                  {% set ats_team_1h = (r.home_team if 'Home' in ats_text_1h else (r.away_team if 'Away' in ats_text_1h else ('Push' if ats_text_1h == 'Push' else None))) %}
                   <div class="seg {{ cls_ats_1h }}">ATS: {% if ats_team_1h == 'Push' %}Push{% elif ats_team_1h %}{{ ats_team_1h }} Cover{% else %}–{% endif %}</div>
                   {# Compute 1H margin from scores (keys actual_margin_1h may be absent) #}
                     {% set h1_ok = (r.home_score_1h is not none and r.home_score_1h == r.home_score_1h) %}
@@ -492,7 +498,9 @@
                 <div class="line-row">
                   <div class="seg label">Actuals</div>
                   {% set cls_ats_2h = 'neutral' if (r.ats_result_2h == 'Push') else ('ok' if r.eval_ats_2h_ok else ('bad' if r.ats_result_2h else 'neutral')) %}
-                  {% set ats_team_2h = (r.home_team if (r.ats_result_2h and 'Home' in r.ats_result_2h) else (r.away_team if (r.ats_result_2h and 'Away' in r.ats_result_2h) else ('Push' if r.ats_result_2h == 'Push' else None))) %}
+                  {# Safe 2H ATS team extraction #}
+                  {% set ats_text_2h = (r.ats_result_2h ~ '') %}
+                  {% set ats_team_2h = (r.home_team if 'Home' in ats_text_2h else (r.away_team if 'Away' in ats_text_2h else ('Push' if ats_text_2h == 'Push' else None))) %}
                   <div class="seg {{ cls_ats_2h }}">ATS: {% if ats_team_2h == 'Push' %}Push{% elif ats_team_2h %}{{ ats_team_2h }} Cover{% else %}–{% endif %}</div>
                   {# Compute 2H margin from second-half scores (avoid missing actual_margin_2h key) #}
                   {% set hs_ok = (r.home_score is not none and r.home_score == r.home_score) %}
