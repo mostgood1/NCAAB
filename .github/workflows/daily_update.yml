@@ -1,0 +1,61 @@
+name: Daily Update
+
+on:
+  schedule:
+    # Run at 11:10 UTC daily (adjust for desired local time)
+    - cron: '10 11 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-daily-update:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: |
+          .venv\Scripts\python.exe -m pip install -r requirements.txt || echo 'Primary requirements install failed, trying onnxruntime/requirements.txt'
+          if (Test-Path 'onnxruntime/requirements.txt') { .venv\Scripts\python.exe -m pip install -r onnxruntime/requirements.txt } else { echo 'No secondary requirements file present.' }
+
+      - name: Daily update pipeline
+        env:
+          THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
+        shell: pwsh
+        run: |
+          .\scripts\daily_update.ps1 -SkipVarianceDiag -SkipModelTests -GitCommitMessage "chore(ci): daily update $(Get-Date -Format 'yyyy-MM-dd')" || exit 1
+
+      - name: Post-run git push (safety)
+        if: success()
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions'
+          git config user.email 'github-actions@github.com'
+          git push || echo 'Nothing new to push'
+
+      - name: Upload logs artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-update-logs
+          path: outputs/logs/*.log
+          if-no-files-found: warn
