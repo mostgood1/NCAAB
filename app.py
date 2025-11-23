@@ -703,11 +703,54 @@ def api_commit_mode_status():
             "interval": model_interval.exists(),
         },
         "stale_model_guard_active": stale_guard_triggered,
+        "paths": {
+            "predictions_source_path": _PREDICTIONS_SOURCE_PATH,
+            "model_predictions_source_path": _MODEL_PREDICTIONS_SOURCE_PATH,
+        },
         "env": {
             "NCAAB_COMMIT_PREDICTIONS_MODE": os.getenv("NCAAB_COMMIT_PREDICTIONS_MODE"),
             "NCAAB_DISABLE_SHELL": os.getenv("NCAAB_DISABLE_SHELL"),
+            "NCAAB_UNIFORM_NULL": os.getenv("NCAAB_UNIFORM_NULL"),
+            "NCAAB_UNIFORM_STRICT": os.getenv("NCAAB_UNIFORM_STRICT"),
+            "NCAAB_STARTUP_REFRESH": os.getenv("NCAAB_STARTUP_REFRESH"),
+            "NCAAB_STARTUP_REFRESH_MODE": os.getenv("NCAAB_STARTUP_REFRESH_MODE"),
         }
     }
+    # Lightweight inline diagnostics: basis counts, synthetic baseline flags, uniform summary.
+    try:
+        if pred_path.exists():
+            df_diag = pd.read_csv(pred_path)
+            if not df_diag.empty and "pred_total" in df_diag.columns:
+                ptv = pd.to_numeric(df_diag["pred_total"], errors="coerce")
+                non_null = ptv.notna().sum()
+                if non_null:
+                    vc = ptv.value_counts()
+                    payload["pred_total_unique_count"] = int(ptv.nunique())
+                    payload["pred_total_top_value"] = float(vc.index[0]) if len(vc) else None
+                    payload["pred_total_top_fraction"] = float(vc.iloc[0] / non_null) if len(vc) else None
+                    payload["pred_total_uniform_flag"] = bool(len(vc) and (vc.iloc[0] / non_null) > 0.90)
+            # Basis counts
+            synthetic_labels = {"synthetic_baseline","synthetic_baseline_nomkt","market_copy","blended_low"}
+            if "pred_total_basis" in df_diag.columns:
+                basis_ser = df_diag["pred_total_basis"].astype(str).fillna("")
+                counts = basis_ser.value_counts().to_dict()
+                payload["pred_total_basis_counts"] = counts
+                payload["synthetic_baseline_rows"] = int(basis_ser.str.lower().isin({s.lower() for s in synthetic_labels}).sum())
+            if "pred_margin_basis" in df_diag.columns:
+                payload["pred_margin_basis_counts"] = df_diag["pred_margin_basis"].astype(str).value_counts().to_dict()
+    except Exception as e:
+        payload["diagnostics_error"] = str(e)
+    # Action recommendations computed dynamically.
+    recs: list[str] = []
+    if not (model_raw.exists() or model_cal.exists()):
+        recs.append("generate model artifacts (daily-run or infer) to replace synthetic baselines")
+    if not commit_mode:
+        recs.append("enable commit mode (NCAAB_COMMIT_PREDICTIONS_MODE=1) for strict parity and to avoid late synthetic shells")
+    if pred_path.exists() and payload.get("pred_total_uniform_flag"):
+        recs.append("uniform collapse detected; set NCAAB_UNIFORM_STRICT=1 or regenerate predictions")
+    if os.getenv("NCAAB_STARTUP_REFRESH", "").strip().lower() not in ("1","true","yes"):
+        recs.append("enable startup refresh (NCAAB_STARTUP_REFRESH=1) to auto-heal missing/uniform predictions on cold start")
+    payload["action_recommendations"] = recs
     return jsonify(payload)
 
 # --------------------------------------------------------------------------------------
