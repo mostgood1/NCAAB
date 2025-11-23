@@ -4011,10 +4011,11 @@ def index():
                         df["pred_total_orig"] = df.get("pred_total")
                     if "pred_total_basis" in df.columns and "pred_total_basis_orig" not in df.columns:
                         df["pred_total_basis_orig"] = df["pred_total_basis"].astype(str)
-                    # Override only rows where calibrated present AND current basis is lower precedence (blend/base/synthetic) or missing
-                    lower_precedence = {"blend","blended","blended_model_baseline","synthetic_baseline_final","synthetic","model_raw","baseline"}
+                    lower_precedence = {"blend","blended","blended_model_baseline","synthetic_baseline_final","synthetic","model_raw","baseline","none"}
                     current_basis = df.get("pred_total_basis").astype(str) if "pred_total_basis" in df.columns else pd.Series(["none"]*len(df))
-                    override_mask_cal = cal_series.notna() & (current_basis.isna() | current_basis.isin(lower_precedence) | current_basis.eq("blend"))
+                    # Treat absence ('none') or empty string as override candidate
+                    override_candidates = current_basis.isin(lower_precedence) | current_basis.isna() | (current_basis.str.strip() == "")
+                    override_mask_cal = cal_series.notna() & override_candidates
                     if override_mask_cal.any():
                         df.loc[override_mask_cal, "pred_total"] = cal_series[override_mask_cal]
                         if "pred_total_basis" in df.columns:
@@ -4022,6 +4023,7 @@ def index():
                         else:
                             df["pred_total_basis"] = ["cal" if m else None for m in override_mask_cal]
                         pipeline_stats["calibration_precedence_overrides_total"] = int(override_mask_cal.sum())
+                        pipeline_stats["calibration_precedence_total_candidates"] = int(cal_series.notna().sum())
                         used_cal = True
             # Calibrated preference via unified model (when pred_total_calibrated absent but unified source is calibrated)
             if not used_cal and "pred_total_model_unified" in df.columns and "pred_total_basis" in df.columns:
@@ -4053,8 +4055,9 @@ def index():
                     if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
                         df["pred_margin_basis_orig"] = df["pred_margin_basis"].astype(str)
                     current_mb = df.get("pred_margin_basis").astype(str) if "pred_margin_basis" in df.columns else pd.Series(["none"]*len(df))
-                    lower_precedence_m = {"blend","blended","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline"}
-                    override_mask_margin_cal = margin_cal_series.notna() & (current_mb.isna() | current_mb.isin(lower_precedence_m) | current_mb.eq("blend"))
+                    lower_precedence_m = {"blend","blended","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline","none"}
+                    override_candidates_m = current_mb.isin(lower_precedence_m) | current_mb.isna() | (current_mb.str.strip() == "")
+                    override_mask_margin_cal = margin_cal_series.notna() & override_candidates_m
                     if override_mask_margin_cal.any():
                         df.loc[override_mask_margin_cal, "pred_margin"] = margin_cal_series[override_mask_margin_cal]
                         if "pred_margin_basis" in df.columns:
@@ -4062,6 +4065,7 @@ def index():
                         else:
                             df["pred_margin_basis"] = ["cal" if m else None for m in override_mask_margin_cal]
                         pipeline_stats["calibration_precedence_overrides_margin"] = int(override_mask_margin_cal.sum())
+                        pipeline_stats["calibration_precedence_margin_candidates"] = int(margin_cal_series.notna().sum())
                         used_cal = True
             # Only apply blend if calibration not applied (or if calibration columns missing)
             if not used_cal and "pred_total_blend" in df.columns:
