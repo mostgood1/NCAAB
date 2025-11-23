@@ -450,6 +450,19 @@ def _load_predictions_current() -> pd.DataFrame:
             # Commit-mode: if set, never auto-promote or synthesize shells; rely solely on committed file.
             commit_mode = (os.getenv("NCAAB_COMMIT_PREDICTIONS_MODE", "").strip().lower() in ("1","true","yes"))
             disable_shell = commit_mode or (os.getenv("NCAAB_DISABLE_SHELL", "").strip().lower() in ("1","true","yes"))
+            # Stale model guard: if the newest calibrated/raw model file present is NOT dated today
+            # (e.g. predictions_model_calibrated_YYYY-MM-DD.csv with different date) then skip promotion.
+            # This prevents reusing older artifacts silently when commit mode is off but fresh model is absent.
+            try:
+                if src_path is not None and not commit_mode:
+                    stem = src_path.stem  # e.g., predictions_model_calibrated_2025-11-20
+                    parts = stem.split('_')
+                    maybe_date = parts[-1] if len(parts) > 2 else None
+                    if maybe_date and maybe_date != today_str:
+                        logger.warning("Stale model artifact detected (date=%s != today=%s); skipping promotion.", maybe_date, today_str)
+                        src_path = None  # force no promotion path; may synthesize shell unless disabled
+            except Exception:
+                pass
             need_rebuild = False
             if src_path is not None and not commit_mode:
                 try:
