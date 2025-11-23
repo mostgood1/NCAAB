@@ -4011,7 +4011,8 @@ def index():
                         df["pred_total_orig"] = df.get("pred_total")
                     if "pred_total_basis" in df.columns and "pred_total_basis_orig" not in df.columns:
                         df["pred_total_basis_orig"] = df["pred_total_basis"].astype(str)
-                    lower_precedence = {"blend","blended","blended_model_baseline","synthetic_baseline_final","synthetic","model_raw","baseline","none"}
+                    # Include additional blend variants so calibrated values supersede any blended/model mixes
+                    lower_precedence = {"blend","blended","blended_model_baseline","blend_model_market","synthetic_baseline_final","synthetic","model_raw","baseline","none"}
                     current_basis = df.get("pred_total_basis").astype(str) if "pred_total_basis" in df.columns else pd.Series(["none"]*len(df))
                     # Treat absence ('none') or empty string as override candidate
                     override_candidates = current_basis.isin(lower_precedence) | current_basis.isna() | (current_basis.str.strip() == "")
@@ -4055,7 +4056,7 @@ def index():
                     if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
                         df["pred_margin_basis_orig"] = df["pred_margin_basis"].astype(str)
                     current_mb = df.get("pred_margin_basis").astype(str) if "pred_margin_basis" in df.columns else pd.Series(["none"]*len(df))
-                    lower_precedence_m = {"blend","blended","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline","none"}
+                    lower_precedence_m = {"blend","blended","blend_model_market","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline","none"}
                     override_candidates_m = current_mb.isin(lower_precedence_m) | current_mb.isna() | (current_mb.str.strip() == "")
                     override_mask_margin_cal = margin_cal_series.notna() & override_candidates_m
                     if override_mask_margin_cal.any():
