@@ -5714,11 +5714,19 @@ def index():
             # reflect predictions for all covered games.
             try:
                 if 'pred_total' in df.columns:
-                    pt_missing2 = pd.to_numeric(df['pred_total'], errors='coerce').isna()
-                    if pt_missing2.any():
+                    # Only fill rows that are truly missing and not already backed by calibrated/model/blended bases.
+                    pt_series2 = pd.to_numeric(df['pred_total'], errors='coerce')
+                    basis_series2 = df.get('pred_total_basis') if 'pred_total_basis' in df.columns else pd.Series([None]*len(df))
+                    protected_bases = {'model_calibrated','model_raw','cal','blend_model_market','blended_model_baseline'}
+                    # Eligible if value missing AND basis missing or basis is synthetic/derived/fallback/even
+                    basis_str = basis_series2.astype(str).str.lower()
+                    eligible_mask = pt_series2.isna() & (~basis_str.isin(protected_bases)) & (
+                        basis_series2.isna() | basis_str.str.startswith(('synthetic','fallback','derived','even'))
+                    )
+                    if eligible_mask.any():
+                        pipeline_stats['second_pass_pred_total_fill_candidates'] = int(eligible_mask.sum())
                         mt_series2 = pd.to_numeric(df.get('market_total'), errors='coerce') if 'market_total' in df.columns else pd.Series([np.nan]*len(df))
-                        # Use simplified baseline formula (avoid heavy tempo logic duplication)
-                        baseline_league_avg2 = 141.5
+                        baseline_league_avg2 = 141.5  # simplified baseline (avoid heavy tempo logic duplication)
                         ht2 = pd.to_numeric(df.get('home_tempo_rating'), errors='coerce') if 'home_tempo_rating' in df.columns else pd.Series([np.nan]*len(df))
                         at2 = pd.to_numeric(df.get('away_tempo_rating'), errors='coerce') if 'away_tempo_rating' in df.columns else pd.Series([np.nan]*len(df))
                         tempo_avg2 = np.where(ht2.notna() & at2.notna(), (ht2+at2)/2.0, np.nan)
@@ -5728,7 +5736,8 @@ def index():
                                 return (((zlib.adler32(f"{h}::{a}".encode()) % 1000)/1000.0) - 0.5) * 3.4
                             except Exception:
                                 return 0.0
-                        for idx in df.index[pt_missing2]:
+                        applied = 0
+                        for idx in df.index[eligible_mask]:
                             h = df.at[idx,'home_team'] if 'home_team' in df.columns else ''
                             a = df.at[idx,'away_team'] if 'away_team' in df.columns else ''
                             mt_val2 = mt_series2.loc[idx] if idx in mt_series2.index else np.nan
@@ -5745,30 +5754,42 @@ def index():
                                 df.at[idx,'pred_total_basis'] = 'synthetic_baseline_final'
                             elif 'pred_total_basis' not in df.columns:
                                 df.loc[idx,'pred_total_basis'] = 'synthetic_baseline_final'
-                        pipeline_stats['second_pass_pred_total_fills'] = int(pt_missing2.sum())
+                            applied += 1
+                        pipeline_stats['second_pass_pred_total_fills'] = applied
+                        pipeline_stats['second_pass_pred_total_fills_protected_skipped'] = int(pt_series2.isna().sum() - applied)
                 if 'pred_margin' in df.columns:
-                    pm_missing2 = pd.to_numeric(df['pred_margin'], errors='coerce').isna()
+                    pm_series2 = pd.to_numeric(df['pred_margin'], errors='coerce')
+                    basis_margin2 = df.get('pred_margin_basis') if 'pred_margin_basis' in df.columns else pd.Series([None]*len(df))
+                    protected_margin_bases = {'model_calibrated','model_raw','cal','model_margin_calibrated'}
+                    basis_margin_str = basis_margin2.astype(str).str.lower()
+                    pm_missing2 = pm_series2.isna() & (~basis_margin_str.isin(protected_margin_bases))
                     if pm_missing2.any():
+                        pipeline_stats['second_pass_pred_margin_fill_candidates'] = int(pm_missing2.sum())
                         # Try spread-based first if available
                         if 'spread_home' in df.columns:
                             spread_series2 = pd.to_numeric(df['spread_home'], errors='coerce')
                             can_spread = pm_missing2 & spread_series2.notna()
+                            applied_m_spread = 0
                             for idx in df.index[can_spread]:
                                 df.at[idx,'pred_margin'] = float(-spread_series2.loc[idx])
                                 if 'pred_margin_basis' in df.columns and pd.isna(df.at[idx,'pred_margin_basis']):
                                     df.at[idx,'pred_margin_basis'] = 'synthetic_from_spread_final'
                                 elif 'pred_margin_basis' not in df.columns:
                                     df.loc[idx,'pred_margin_basis'] = 'synthetic_from_spread_final'
+                                applied_m_spread += 1
+                            pipeline_stats['second_pass_pred_margin_spread_fills'] = applied_m_spread
                         # Remaining -> even margin
-                        pm_missing3 = pd.to_numeric(df['pred_margin'], errors='coerce').isna()
+                        pm_missing3 = pd.to_numeric(df['pred_margin'], errors='coerce').isna() & pm_missing2  # still candidates after spread attempt
                         if pm_missing3.any():
+                            applied_m_even = 0
                             for idx in df.index[pm_missing3]:
                                 df.at[idx,'pred_margin'] = 0.0
                                 if 'pred_margin_basis' in df.columns and pd.isna(df.at[idx,'pred_margin_basis']):
                                     df.at[idx,'pred_margin_basis'] = 'synthetic_even_final'
                                 elif 'pred_margin_basis' not in df.columns:
                                     df.loc[idx,'pred_margin_basis'] = 'synthetic_even_final'
-                            pipeline_stats['second_pass_pred_margin_even_fills'] = int(pm_missing3.sum())
+                                applied_m_even += 1
+                            pipeline_stats['second_pass_pred_margin_even_fills'] = applied_m_even
                         pipeline_stats['second_pass_pred_margin_fills'] = int(pm_missing2.sum())
             except Exception:
                 pipeline_stats['second_pass_error'] = True
