@@ -4016,7 +4016,10 @@ def index():
                     current_basis = df.get("pred_total_basis").astype(str) if "pred_total_basis" in df.columns else pd.Series(["none"]*len(df))
                     # Treat absence ('none') or empty string as override candidate
                     override_candidates = current_basis.isin(lower_precedence) | current_basis.isna() | (current_basis.str.strip() == "")
-                    override_mask_cal = cal_series.notna() & override_candidates
+                    # Current total predictions for diff gating
+                    pt_curr = pd.to_numeric(df.get("pred_total"), errors="coerce") if "pred_total" in df.columns else pd.Series([np.nan]*len(df))
+                    diff_mask_total = pt_curr.isna() | (cal_series.notna() & pt_curr.notna() & (cal_series.sub(pt_curr).abs() > 0.01))
+                    override_mask_cal = cal_series.notna() & override_candidates & diff_mask_total
                     if override_mask_cal.any():
                         df.loc[override_mask_cal, "pred_total"] = cal_series[override_mask_cal]
                         if "pred_total_basis" in df.columns:
@@ -4026,6 +4029,15 @@ def index():
                         pipeline_stats["calibration_precedence_overrides_total"] = int(override_mask_cal.sum())
                         pipeline_stats["calibration_precedence_total_candidates"] = int(cal_series.notna().sum())
                         used_cal = True
+                        # Recompute closing edge if applicable
+                        try:
+                            if "closing_total" in df.columns:
+                                ct_series = pd.to_numeric(df["closing_total"], errors="coerce")
+                                pt_series2 = pd.to_numeric(df["pred_total"], errors="coerce")
+                                df.loc[override_mask_cal, "edge_closing"] = pt_series2[override_mask_cal] - ct_series[override_mask_cal]
+                                pipeline_stats["calibration_recomputed_edge_closing_total"] = int(override_mask_cal.sum())
+                        except Exception:
+                            pipeline_stats["calibration_recompute_edge_closing_total_error"] = True
             # Calibrated preference via unified model (when pred_total_calibrated absent but unified source is calibrated)
             if not used_cal and "pred_total_model_unified" in df.columns and "pred_total_basis" in df.columns:
                 try:
@@ -4058,7 +4070,9 @@ def index():
                     current_mb = df.get("pred_margin_basis").astype(str) if "pred_margin_basis" in df.columns else pd.Series(["none"]*len(df))
                     lower_precedence_m = {"blend","blended","blend_model_market","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline","none"}
                     override_candidates_m = current_mb.isin(lower_precedence_m) | current_mb.isna() | (current_mb.str.strip() == "")
-                    override_mask_margin_cal = margin_cal_series.notna() & override_candidates_m
+                    pm_curr = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else pd.Series([np.nan]*len(df))
+                    diff_mask_margin = pm_curr.isna() | (margin_cal_series.notna() & pm_curr.notna() & (margin_cal_series.sub(pm_curr).abs() > 0.01))
+                    override_mask_margin_cal = margin_cal_series.notna() & override_candidates_m & diff_mask_margin
                     if override_mask_margin_cal.any():
                         df.loc[override_mask_margin_cal, "pred_margin"] = margin_cal_series[override_mask_margin_cal]
                         if "pred_margin_basis" in df.columns:
@@ -4068,6 +4082,15 @@ def index():
                         pipeline_stats["calibration_precedence_overrides_margin"] = int(override_mask_margin_cal.sum())
                         pipeline_stats["calibration_precedence_margin_candidates"] = int(margin_cal_series.notna().sum())
                         used_cal = True
+                        # Recompute closing ATS edge if closing spread present
+                        try:
+                            if "closing_spread_home" in df.columns:
+                                cs_series = pd.to_numeric(df["closing_spread_home"], errors="coerce")
+                                pm_series2 = pd.to_numeric(df["pred_margin"], errors="coerce")
+                                df.loc[override_mask_margin_cal, "edge_closing_ats"] = pm_series2[override_mask_margin_cal] - cs_series[override_mask_margin_cal]
+                                pipeline_stats["calibration_recomputed_edge_closing_margin"] = int(override_mask_margin_cal.sum())
+                        except Exception:
+                            pipeline_stats["calibration_recompute_edge_closing_margin_error"] = True
             # Only apply blend if calibration not applied (or if calibration columns missing)
             if not used_cal and "pred_total_blend" in df.columns:
                 # Preserve original prediction & basis once for diagnostics / potential revert

@@ -281,23 +281,43 @@ try {
     $mergedAll = Join-Path $OutDir 'games_with_last.csv'
     $mergedToday = Join-Path $OutDir 'games_with_last_today.csv'
     if (Test-Path $mergedAll) {
-      $pyFilter = @"
+    $gamesCurrPath = Join-Path $OutDir "games_${todayIso}.csv"
+    $pyFilter = @"
 import pandas as pd, sys
 inp = r'$mergedAll'
 outp = r'$mergedToday'
 target = '$todayIso'
+games_curr = r'$gamesCurrPath'
 try:
-    df = pd.read_csv(inp)
+  df = pd.read_csv(inp)
 except Exception as e:
-    print(f'[read-fail] {e}')
-    sys.exit(1)
+  print(f'[read-fail] merged: {e}')
+  sys.exit(1)
+gid_today = set()
+try:
+  gc = pd.read_csv(games_curr)
+  if 'game_id' in gc.columns:
+    gc['game_id'] = gc['game_id'].astype(str)
+    if 'date' in gc.columns:
+      gc['date'] = gc['date'].astype(str)
+      gc = gc[gc['date'] == target]
+    gid_today = set(gc['game_id'].astype(str))
+except Exception as e:
+  print(f'[warn] games_curr read failed: {e}')
+if 'game_id' in df.columns:
+  df['game_id'] = df['game_id'].astype(str)
 if 'date' in df.columns:
-    df['date'] = df['date'].astype(str)
-    df_today = df[df['date'] == target].copy()
+  df['date'] = df['date'].astype(str)
+  mask_date = df['date'] == target
 else:
-    df_today = df.copy()
+  mask_date = pd.Series([True]*len(df))
+mask_gid = df['game_id'].isin(gid_today) if gid_today else mask_date
+df_today = df[mask_gid & mask_date].copy() if 'date' in df.columns else df[mask_gid].copy()
+if df_today.empty:
+  # Fallback: if no date column, attempt to infer using presence in games_curr IDs only
+  df_today = df[df['game_id'].isin(list(gid_today))].copy() if gid_today else df.head(0)
 df_today.to_csv(outp, index=False)
-print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
+print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows for {target}')
 "@
       & $VenvPython -c $pyFilter
     } else {
