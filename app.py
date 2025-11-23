@@ -296,6 +296,66 @@ def ensure_runtime_artifacts() -> None:
             _ = _load_predictions_current()
         except Exception:
             pass
+        # Optional startup refresh to ensure real (non-synthetic, non-uniform) predictions file in commit mode.
+        try:
+            commit_mode = (os.getenv("NCAAB_COMMIT_PREDICTIONS_MODE", "").strip().lower() in ("1","true","yes"))
+            refresh_flag = (os.getenv("NCAAB_STARTUP_REFRESH", "").strip().lower() in ("1","true","yes"))
+            if commit_mode and refresh_flag and today_str:
+                pred_path = OUT / f"predictions_{today_str}.csv"
+                need_refresh = (not pred_path.exists())
+                # Light uniform heuristic: if file exists but > 80% of non-null totals share same value
+                if not need_refresh:
+                    try:
+                        pdf = pd.read_csv(pred_path)
+                        if not pdf.empty and 'pred_total' in pdf.columns:
+                            ptv = pd.to_numeric(pdf['pred_total'], errors='coerce')
+                            if ptv.notna().sum() > 10:
+                                vc = ptv.value_counts()
+                                if len(vc) and (vc.iloc[0] / ptv.notna().sum()) > 0.80:
+                                    need_refresh = True
+                                    logger.warning("Startup refresh triggered: uniform predictions detected (%s appears in %.1f%% of rows)", vc.index[0], 100.0 * vc.iloc[0]/ptv.notna().sum())
+                    except Exception as e:
+                        logger.warning("Uniform heuristic failed: %s", e)
+                if need_refresh:
+                    mode = os.getenv("NCAAB_STARTUP_REFRESH_MODE", "light").strip().lower()
+                    logger.warning("Startup refresh beginning (mode=%s) to populate predictions for %s", mode, today_str)
+                    py_exe = sys.executable or "python"
+                    if mode == "full":
+                        # Run daily-run limited scope (skip picks threshold by inflating threshold)
+                        cmd = [py_exe, '-m', 'ncaab_model.cli', 'daily-run', '--date', today_str, '--provider', 'espn', '--region', 'us', '--segment', 'team', '--preseason-weight', '0.4', '--threshold', '9999', '--default-price', '-110']
+                    else:
+                        # Light mode: run infer + calibrate + interval, then promote if not in commit-mode (so manually copy for commit-mode)
+                        cmd = [py_exe, '-m', 'src.modeling.infer', '--date', today_str]
+                    import subprocess, time as _t
+                    try:
+                        t0 = _t.time()
+                        proc = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=300)
+                        logger.warning("Startup refresh command: %s", ' '.join(cmd))
+                        if proc.returncode != 0:
+                            logger.error("Startup refresh failed (rc=%s): %s", proc.returncode, proc.stderr[:500])
+                        else:
+                            logger.warning("Startup refresh completed in %.1fs", _t.time() - t0)
+                            # If light mode and still no predictions_<date>.csv, attempt manual promotion from calibrated.
+                            if mode != 'full' and not pred_path.exists():
+                                calib = OUT / f"predictions_model_calibrated_{today_str}.csv"
+                                rawm = OUT / f"predictions_model_{today_str}.csv"
+                                srcp = calib if calib.exists() else (rawm if rawm.exists() else None)
+                                if srcp:
+                                    try:
+                                        mdf = pd.read_csv(srcp)
+                                        if not mdf.empty and 'game_id' in mdf.columns:
+                                            pt_col = next((c for c in mdf.columns if c.startswith('pred_total')), None)
+                                            pm_col = next((c for c in mdf.columns if c.startswith('pred_margin')), None)
+                                            if pt_col and pm_col:
+                                                out_df = pd.DataFrame({'game_id': mdf['game_id'].astype(str), 'date': mdf.get('date'), 'pred_total': mdf[pt_col], 'pred_margin': mdf[pm_col]})
+                                                out_df.to_csv(pred_path, index=False)
+                                                logger.warning("Startup refresh promoted predictions file from %s -> %s (rows=%s)", srcp, pred_path, len(out_df))
+                                    except Exception as e:
+                                        logger.error("Startup light promotion failed: %s", e)
+                    except Exception as e:
+                        logger.error("Startup refresh invocation error: %s", e)
+        except Exception as e:
+            logger.error("Startup refresh wrapper failure: %s", e)
         try:
             sentinel.write_text(f"bootstrapped {today_str}\n", encoding="utf-8")
         except Exception:
