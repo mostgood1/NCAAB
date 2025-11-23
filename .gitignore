@@ -46,6 +46,11 @@ __pycache__/
 !outputs/stake_sheet_today_cal.csv
 !outputs/stake_sheet_today_compare.csv
 
+# Commit-mode display: allowlist dated public prediction snapshots (point + calibrated + interval)
+!outputs/predictions_2025-*.csv
+!outputs/predictions_model_2025-*.csv
+!outputs/predictions_model_calibrated_2025-*.csv
+
 # Large per-date artifacts: do not commit (size and churn)
 outputs/predictions_*.csv
 outputs/align_period_*.csv
