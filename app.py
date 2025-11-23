@@ -6837,6 +6837,29 @@ def index():
                 pipeline_stats["synthetic_shell_suppressed_rows"] = suppressed_rows
     except Exception:
         pipeline_stats["synthetic_shell_hide_error"] = True
+    # Lightweight instrumentation: persist rows debug snapshot for Render visibility when page appears empty.
+    try:
+        debug_path = OUT / f"index_rows_debug_{today_str}.json"
+        sample_rows = []
+        for r in rows[:8]:
+            sample_rows.append({
+                "game_id": r.get("game_id"),
+                "pred_total": r.get("pred_total"),
+                "pred_margin": r.get("pred_margin"),
+                "pred_total_basis": r.get("pred_total_basis"),
+                "market_total": r.get("market_total"),
+                "spread_home": r.get("spread_home")
+            })
+        dbg = {
+            "row_count": len(rows),
+            "date": str(date_q),
+            "basis_counts": pipeline_stats.get("pred_total_basis_counts"),
+            "suppressed_shell_rows": pipeline_stats.get("synthetic_shell_suppressed_rows"),
+            "sample": sample_rows
+        }
+        debug_path.write_text(json.dumps(dbg, indent=2), encoding="utf-8")
+    except Exception:
+        pipeline_stats["index_rows_debug_error"] = True
     return render_template(
         "index.html",
         rows=rows,
