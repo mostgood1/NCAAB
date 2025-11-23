@@ -4003,24 +4003,66 @@ def index():
         if not df.empty:
             used_blend = False
             used_cal = False
-            # Calibrated preference (total)
+            # Calibrated preference (total) – override only non-NaN calibrated rows; preserve originals for diagnostics.
             if "pred_total_calibrated" in df.columns:
-                if "pred_total_orig" not in df.columns:
-                    df["pred_total_orig"] = df.get("pred_total")
-                if "pred_total_basis" in df.columns and "pred_total_basis_orig" not in df.columns:
-                    df["pred_total_basis_orig"] = df["pred_total_basis"].astype(str)
-                df["pred_total"] = pd.to_numeric(df["pred_total_calibrated"], errors="coerce")
-                df["pred_total_basis"] = "cal"
-                used_cal = True
-            # Calibrated preference (margin)
+                cal_series = pd.to_numeric(df["pred_total_calibrated"], errors="coerce")
+                if cal_series.notna().any():
+                    if "pred_total_orig" not in df.columns:
+                        df["pred_total_orig"] = df.get("pred_total")
+                    if "pred_total_basis" in df.columns and "pred_total_basis_orig" not in df.columns:
+                        df["pred_total_basis_orig"] = df["pred_total_basis"].astype(str)
+                    # Override only rows where calibrated present AND current basis is lower precedence (blend/base/synthetic) or missing
+                    lower_precedence = {"blend","blended","blended_model_baseline","synthetic_baseline_final","synthetic","model_raw","baseline"}
+                    current_basis = df.get("pred_total_basis").astype(str) if "pred_total_basis" in df.columns else pd.Series(["none"]*len(df))
+                    override_mask_cal = cal_series.notna() & (current_basis.isna() | current_basis.isin(lower_precedence) | current_basis.eq("blend"))
+                    if override_mask_cal.any():
+                        df.loc[override_mask_cal, "pred_total"] = cal_series[override_mask_cal]
+                        if "pred_total_basis" in df.columns:
+                            df.loc[override_mask_cal, "pred_total_basis"] = "cal"
+                        else:
+                            df["pred_total_basis"] = ["cal" if m else None for m in override_mask_cal]
+                        pipeline_stats["calibration_precedence_overrides_total"] = int(override_mask_cal.sum())
+                        used_cal = True
+            # Calibrated preference via unified model (when pred_total_calibrated absent but unified source is calibrated)
+            if not used_cal and "pred_total_model_unified" in df.columns and "pred_total_basis" in df.columns:
+                try:
+                    src = pipeline_stats.get("pred_total_model_unified_stats", {}).get("source") if 'pipeline_stats' in locals() else None
+                except Exception:
+                    src = None
+                if src == "calibrated":
+                    unified_series = pd.to_numeric(df["pred_total_model_unified"], errors="coerce")
+                    if unified_series.notna().any():
+                        current_basis = df["pred_total_basis"].astype(str)
+                        lower_precedence = {"blend","blended","blended_model_baseline","synthetic_baseline_final","synthetic","model_raw","baseline"}
+                        override_mask_unified = unified_series.notna() & current_basis.isin(lower_precedence)
+                        if override_mask_unified.any():
+                            if "pred_total_orig" not in df.columns:
+                                df["pred_total_orig"] = df.get("pred_total")
+                            if "pred_total_basis_orig" not in df.columns:
+                                df["pred_total_basis_orig"] = current_basis
+                            df.loc[override_mask_unified, "pred_total"] = unified_series[override_mask_unified]
+                            df.loc[override_mask_unified, "pred_total_basis"] = "cal"
+                            pipeline_stats["calibration_precedence_overrides_total_unified"] = int(override_mask_unified.sum())
+                            used_cal = True
+            # Calibrated preference (margin) – similar selective override
             if "pred_margin_calibrated" in df.columns:
-                if "pred_margin_orig" not in df.columns:
-                    df["pred_margin_orig"] = df.get("pred_margin")
-                if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
-                    df["pred_margin_basis_orig"] = df["pred_margin_basis"].astype(str)
-                df["pred_margin"] = pd.to_numeric(df["pred_margin_calibrated"], errors="coerce")
-                df["pred_margin_basis"] = "cal"
-                used_cal = True
+                margin_cal_series = pd.to_numeric(df["pred_margin_calibrated"], errors="coerce")
+                if margin_cal_series.notna().any():
+                    if "pred_margin_orig" not in df.columns:
+                        df["pred_margin_orig"] = df.get("pred_margin")
+                    if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
+                        df["pred_margin_basis_orig"] = df["pred_margin_basis"].astype(str)
+                    current_mb = df.get("pred_margin_basis").astype(str) if "pred_margin_basis" in df.columns else pd.Series(["none"]*len(df))
+                    lower_precedence_m = {"blend","blended","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline"}
+                    override_mask_margin_cal = margin_cal_series.notna() & (current_mb.isna() | current_mb.isin(lower_precedence_m) | current_mb.eq("blend"))
+                    if override_mask_margin_cal.any():
+                        df.loc[override_mask_margin_cal, "pred_margin"] = margin_cal_series[override_mask_margin_cal]
+                        if "pred_margin_basis" in df.columns:
+                            df.loc[override_mask_margin_cal, "pred_margin_basis"] = "cal"
+                        else:
+                            df["pred_margin_basis"] = ["cal" if m else None for m in override_mask_margin_cal]
+                        pipeline_stats["calibration_precedence_overrides_margin"] = int(override_mask_margin_cal.sum())
+                        used_cal = True
             # Only apply blend if calibration not applied (or if calibration columns missing)
             if not used_cal and "pred_total_blend" in df.columns:
                 # Preserve original prediction & basis once for diagnostics / potential revert
