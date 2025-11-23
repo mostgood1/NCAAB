@@ -3594,6 +3594,38 @@ def index():
                                             df.loc[mask_uniform, "pred_margin_basis"] = df.loc[mask_uniform, "pred_margin_basis"].where(df.loc[mask_uniform, "pred_margin_basis"].notna(), "uniform_null")
                         except Exception:
                             pass
+                        # Strict remediation path: if NCAAB_UNIFORM_STRICT=1 and the uniform value looks like a synthetic fallback
+                        # (e.g., classic 112 collapse or variance < 1.0 across all non-null totals), aggressively null synthetic rows
+                        # but retain any legitimately differing future inserts. This prevents the UI from displaying a misleading
+                        # constant total while still allowing later promotion of real model outputs.
+                        try:
+                            if os.getenv("NCAAB_UNIFORM_STRICT", "").strip().lower() in ("1","true","yes"):
+                                ptv_all = pd.to_numeric(df.get("pred_total"), errors="coerce")
+                                if ptv_all.notna().any():
+                                    variance = float(ptv_all.max() - ptv_all.min()) if ptv_all.notna().sum() else 0.0
+                                    uniform_val = float(vc.index[0])
+                                    looks_synthetic = (uniform_val == 112.0) or (variance < 1.0)
+                                    if looks_synthetic:
+                                        # Only null rows whose basis is synthetic to avoid removing any legit early distinct predictions.
+                                        if "pred_total_basis" in df.columns:
+                                            basis_ser = df.get("pred_total_basis").astype(str).str.lower()
+                                            mask_synth = basis_ser.isin(["synthetic_baseline","synthetic_baseline_nomkt","market_copy","blended_low"])
+                                        else:
+                                            mask_synth = pd.Series([True] * len(df))
+                                        if mask_synth.any():
+                                            df.loc[mask_synth, "pred_total"] = np.nan
+                                            if "pred_total_basis" in df.columns:
+                                                df.loc[mask_synth, "pred_total_basis"] = df.loc[mask_synth, "pred_total_basis"].where(df.loc[mask_synth, "pred_total_basis"].notna(), "uniform_strict_null")
+                                            if "pred_margin" in df.columns:
+                                                pmv_all = pd.to_numeric(df.get("pred_margin"), errors="coerce")
+                                                if pmv_all.notna().sum() and (pmv_all.nunique() <= 2):
+                                                    df.loc[mask_synth, "pred_margin"] = np.nan
+                                                    if "pred_margin_basis" in df.columns:
+                                                        df.loc[mask_synth, "pred_margin_basis"] = df.loc[mask_synth, "pred_margin_basis"].where(df.loc[mask_synth, "pred_margin_basis"].notna(), "uniform_strict_null")
+                                            pipeline_stats["uniform_strict_null_applied"] = True
+                                            pipeline_stats.setdefault("warnings", []).append("uniform strict null applied")
+                        except Exception:
+                            pass
             except Exception:
                 pass
             # Synthetic line fallback: if market_total still missing, populate from pred_total or derived_total
