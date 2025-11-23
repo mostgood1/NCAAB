@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import pandas as pd
 from typing import Any, Iterable
 
 # Feature fallback utility (rolling averages) ----------------------------------------------------
@@ -1782,6 +1783,7 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
     except Exception:
         pass
     # Basic meta stats
+    meta["n_rows"] = len(df)
     meta["n_rows"] = len(df)
     if "actual_total" in df.columns:
         try:
@@ -4615,14 +4617,30 @@ def index():
                     pipeline_stats['pred_total_model_head_unified'] = chosen_total.head(10).tolist()
                 except Exception:
                     pass
-                # Preserve raw model under separate column for diagnostics if calibrated used
+                # Preserve raw model under separate column; don't degrade existing calibrated pred_total
                 df['pred_total_model_raw'] = raw_model_total
-                df['pred_total'] = chosen_total
-                df['pred_total_basis'] = df.get('pred_total_basis')
-                df['pred_total_basis'] = df['pred_total_basis'].where(df['pred_total_basis'].notna(), 'model_calibrated' if use_calibrated else 'model_raw')
-                # Recompute edge_total using unified pred_total
-                if 'market_total' in df.columns:
-                    df['edge_total'] = pd.to_numeric(df['pred_total'], errors='coerce') - pd.to_numeric(df['market_total'], errors='coerce')
+                # Decide whether to override displayed pred_total: only when existing pred_total is missing
+                existing_pred = pd.to_numeric(df.get('pred_total'), errors='coerce') if 'pred_total' in df.columns else pd.Series(np.nan, index=df.index)
+                # chosen_total may be all NaN if model preds file is stale; guard against overwriting real calibrated values
+                override_mask = existing_pred.isna() & chosen_total.notna()
+                if override_mask.any():
+                    df.loc[override_mask, 'pred_total'] = chosen_total[override_mask]
+                    # Basis only for overridden rows
+                    if 'pred_total_basis' not in df.columns:
+                        df['pred_total_basis'] = None
+                    new_basis = 'model_calibrated' if use_calibrated else 'model_raw'
+                    df.loc[override_mask, 'pred_total_basis'] = df.loc[override_mask, 'pred_total_basis'].where(df.loc[override_mask, 'pred_total_basis'].notna(), new_basis)
+                    try:
+                        pipeline_stats['model_unify_overrode_missing_pred_total_rows'] = int(override_mask.sum())
+                    except Exception:
+                        pass
+                else:
+                    # Keep existing pred_total (likely already calibrated). Expose unified value separately.
+                    df['pred_total_model_unified'] = chosen_total
+                    pipeline_stats['model_unify_no_override'] = True
+                # Edge recompute only for rows we changed; keep previous edge_total otherwise
+                if 'market_total' in df.columns and override_mask.any():
+                    df.loc[override_mask, 'edge_total'] = pd.to_numeric(df.loc[override_mask, 'pred_total'], errors='coerce') - pd.to_numeric(df.loc[override_mask, 'market_total'], errors='coerce')
                 # Meta ensemble totals (optional): combine raw/calibrated/market/derived components with learned weights
                 try:
                     if 'pred_total_meta' not in df.columns:
@@ -6936,6 +6954,52 @@ def api_render_diagnostics():
     except Exception:
         pass
     return jsonify(out)
+
+@app.route("/api/rows-today")
+def api_rows_today():
+    """Lightweight snapshot of today's enriched prediction rows.
+
+    Returns JSON with:
+      date: resolved today string
+      row_count: number of rows in predictions_enriched_<today>.csv (or fallback)
+      basis_counts: counts for pred_total_basis (if present)
+      sample: up to 8 sample rows (selected columns)
+      source: file path used
+    """
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+        path = OUT / f"predictions_enriched_{today_str}.csv"
+        fallback = OUT / "predictions_enriched.csv"
+        src = path if path.exists() else (fallback if fallback.exists() else None)
+        if src is None:
+            return jsonify({"date": today_str, "row_count": 0, "error": "no enriched predictions file"})
+        df = _safe_read_csv(src)
+        basis_counts = None
+        if not df.empty and "pred_total_basis" in df.columns:
+            try:
+                basis_counts = df["pred_total_basis"].astype(str).value_counts().to_dict()
+            except Exception:
+                basis_counts = None
+        sample = []
+        if not df.empty:
+            for _, r in df.head(8).iterrows():
+                sample.append({
+                    "game_id": r.get("game_id"),
+                    "pred_total": r.get("pred_total"),
+                    "pred_margin": r.get("pred_margin"),
+                    "pred_total_basis": r.get("pred_total_basis"),
+                    "market_total": r.get("market_total"),
+                    "spread_home": r.get("spread_home")
+                })
+        return jsonify({
+            "date": today_str,
+            "row_count": int(len(df)),
+            "basis_counts": basis_counts,
+            "sample": sample,
+            "source": str(src)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 @app.route("/api/coverage-depth")
 def api_coverage_depth():
