@@ -3995,11 +3995,32 @@ def index():
     except Exception:
         pass
 
-    # Prefer blended predictions when available (overwrite base preds and mark basis)
+    # Prefer calibrated predictions over blended/base when available; then blended as secondary.
+    # Ensures UI basis shows 'CAL' instead of 'BLEN' when both artifacts exist.
     try:
         if not df.empty:
             used_blend = False
-            if "pred_total_blend" in df.columns:
+            used_cal = False
+            # Calibrated preference (total)
+            if "pred_total_calibrated" in df.columns:
+                if "pred_total_orig" not in df.columns:
+                    df["pred_total_orig"] = df.get("pred_total")
+                if "pred_total_basis" in df.columns and "pred_total_basis_orig" not in df.columns:
+                    df["pred_total_basis_orig"] = df["pred_total_basis"].astype(str)
+                df["pred_total"] = pd.to_numeric(df["pred_total_calibrated"], errors="coerce")
+                df["pred_total_basis"] = "cal"
+                used_cal = True
+            # Calibrated preference (margin)
+            if "pred_margin_calibrated" in df.columns:
+                if "pred_margin_orig" not in df.columns:
+                    df["pred_margin_orig"] = df.get("pred_margin")
+                if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
+                    df["pred_margin_basis_orig"] = df["pred_margin_basis"].astype(str)
+                df["pred_margin"] = pd.to_numeric(df["pred_margin_calibrated"], errors="coerce")
+                df["pred_margin_basis"] = "cal"
+                used_cal = True
+            # Only apply blend if calibration not applied (or if calibration columns missing)
+            if not used_cal and "pred_total_blend" in df.columns:
                 # Preserve original prediction & basis once for diagnostics / potential revert
                 if "pred_total_orig" not in df.columns:
                     df["pred_total_orig"] = df.get("pred_total")
@@ -4012,7 +4033,7 @@ def index():
                 else:
                     df["pred_total_basis"] = "blend"
                 used_blend = True
-            if "pred_margin_blend" in df.columns:
+            if not used_cal and "pred_margin_blend" in df.columns:
                 if "pred_margin_orig" not in df.columns:
                     df["pred_margin_orig"] = df.get("pred_margin")
                 if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
