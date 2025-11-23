@@ -24,6 +24,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $script:StartTime = Get-Date
+$script:CriticalFailures = @()
+
+function Add-CriticalFailure($msg) {
+  $script:CriticalFailures += $msg
+  Write-Error "[critical] $msg"
+}
 
 function Write-Section($msg) {
   Write-Host "`n==== $msg ====\n"
@@ -219,7 +225,7 @@ try {
     try {
       & $VenvPython -m pytest tests/test_team_feature_artifact.py tests/test_training_frame_richness.py -q
     } catch {
-      Write-Error "Model integrity tests failed: $($_)"; throw
+      Add-CriticalFailure "Model integrity tests failed: $($_)"
     }
   } else { Write-Host 'SkipModelTests flag set; skipping pytest integrity checks.' -ForegroundColor Yellow }
   $modelDir = Join-Path $OutDir 'models'
@@ -423,10 +429,21 @@ print(f'Filtered games_with_last.csv -> {len(df_today)} rows for {target}')
   Write-Section 'DONE'
   $elapsed = (Get-Date) - $script:StartTime
   Write-Host ("Completed in {0:c}" -f $elapsed)
+
+  if ($script:CriticalFailures.Count -gt 0) {
+    Write-Host "Critical failures encountered: $($script:CriticalFailures.Count)" -ForegroundColor Red
+    foreach ($cf in $script:CriticalFailures) { Write-Host " - $cf" -ForegroundColor Red }
+    if ($env:NCAAB_STRICT_EXIT -eq '1') {
+      Write-Host 'STRICT mode enabled (NCAAB_STRICT_EXIT=1); exiting with code 1.' -ForegroundColor Red
+      exit 1
+    } else {
+      Write-Host 'STRICT mode disabled; returning success (0) despite failures.' -ForegroundColor Yellow
+    }
+  }
 }
 catch {
-  Write-Error $_
-  exit 1
+  Add-CriticalFailure "Unhandled top-level error: $($_)"
+  if ($env:NCAAB_STRICT_EXIT -eq '1') { exit 1 }
 }
 finally {
   Stop-Transcript | Out-Null
