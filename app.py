@@ -738,6 +738,21 @@ def api_commit_mode_status():
                 payload["synthetic_baseline_rows"] = int(basis_ser.str.lower().isin({s.lower() for s in synthetic_labels}).sum())
             if "pred_margin_basis" in df_diag.columns:
                 payload["pred_margin_basis_counts"] = df_diag["pred_margin_basis"].astype(str).value_counts().to_dict()
+        # Auto-heal diagnostics (count odds-only persisted rows for today)
+        try:
+            auto_heal_enabled = os.getenv("NCAAB_AUTO_HEAL_GAMES", "").strip().lower() in ("1","true","yes")
+            payload["auto_heal_games_enabled"] = auto_heal_enabled
+            if auto_heal_enabled and today_str:
+                g_curr = pd.read_csv(OUT / "games_curr.csv") if (OUT / "games_curr.csv").exists() else pd.DataFrame()
+                if not g_curr.empty and {"game_id","date"}.issubset(g_curr.columns):
+                    try:
+                        g_curr["date"] = pd.to_datetime(g_curr["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                    except Exception:
+                        pass
+                    healed_rows = g_curr[(g_curr["date"].astype(str) == today_str) & g_curr["game_id"].astype(str).str.startswith("odds:")]
+                    payload["auto_heal_odds_rows_today"] = int(len(healed_rows))
+        except Exception as _ah_e:
+            payload["auto_heal_diagnostics_error"] = str(_ah_e)
     except Exception as e:
         payload["diagnostics_error"] = str(e)
     # Action recommendations computed dynamically.
@@ -1062,12 +1077,34 @@ def _summarize_stake_sheet(df: pd.DataFrame) -> dict[str, Any]:
 
 
 def _load_calibration_artifact() -> dict[str, Any] | None:
-    # Artifact name (totals) introduced earlier; keep flexible for future variants
+    """Load calibration artifact JSON and annotate provisional status.
+
+    Provisional heuristics:
+      - rows_used/n_rows/window_rows/calibration_rows < 40 => provisional
+      - If no explicit row count and no bucket/bin keys present => provisional
+    Attaches: provisional (bool), rows_used_detected (int|None)
+    """
     candidates = [OUT / "calibration" / "artifact_totals.json", OUT / "calibration_totals.json"]
     for p in candidates:
         if p.exists():
             try:
-                return json.loads(p.read_text(encoding="utf-8"))
+                data = json.loads(p.read_text(encoding="utf-8"))
+                if not isinstance(data, dict):
+                    continue
+                rows_used = None
+                for key in ("rows_used","n_rows","window_rows","calibration_rows"):
+                    v = data.get(key)
+                    if isinstance(v, (int, float)):
+                        rows_used = int(v)
+                        break
+                if rows_used is not None:
+                    data["rows_used_detected"] = rows_used
+                    data["provisional"] = bool(rows_used < 40)
+                else:
+                    # Detect presence of bucket/bin keys as crude signal of empirical depth
+                    has_bins = any(k.lower().startswith("bucket") or k.lower().startswith("bin") for k in data.keys())
+                    data["provisional"] = not has_bins
+                return data
             except Exception:
                 continue
     return None
@@ -1125,6 +1162,13 @@ def _compute_coverage_snapshot() -> dict[str, Any]:
     snap["coverage_pred_vs_games"] = ratio(len(g_ids & p_ids), len(g_ids))
     snap["coverage_odds_vs_games"] = ratio(len(g_ids & o_ids), len(g_ids))
     snap["coverage_picks_vs_preds"] = ratio(len(k_ids & p_ids), len(p_ids))
+    # Healed odds-only rows: game_ids starting with odds: present in games
+    try:
+        healed_odds = {gid for gid in g_ids if gid.startswith("odds:")}
+        snap["healed_odds_rows"] = len(healed_odds)
+        snap["healed_odds_without_preds"] = sorted(list(healed_odds - p_ids))[:40]
+    except Exception:
+        snap["healed_odds_rows"] = 0
     return snap
 
 
@@ -1200,6 +1244,8 @@ def _load_odds_joined(date_str: str | None = None) -> pd.DataFrame:
             "games_with_odds_today.csv",
         ):
             candidate_files.append(OUT / base)
+        # Include raw odds snapshot as last-resort source for surfacing unmatched games (no join yet)
+        candidate_files.append(OUT / "odds_today.csv")
         for base in ("games_with_last.csv", "games_with_closing.csv"):
             candidate_files.append(OUT / base)
     for path in candidate_files:
@@ -1471,6 +1517,89 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
             games = games[games["date"].astype(str) == date_str]
         if "date" in preds.columns:
             preds = preds[preds["date"].astype(str) == date_str]
+        # Augment games with any odds-only events not present (today only or specified date) so they surface in UI.
+        try:
+            if not odds.empty and {"home_team_name","away_team_name","commence_time"}.issubset(odds.columns):
+                # Build existing canonical pairs set from games
+                existing_pairs: set[str] = set()
+                if not games.empty and {"home_team","away_team"}.issubset(games.columns):
+                    for _, gr in games.iterrows():
+                        ht = str(gr.get("home_team") or "").strip()
+                        at = str(gr.get("away_team") or "").strip()
+                        if ht and at:
+                            existing_pairs.add(f"{_canon_slug(ht)}::{_canon_slug(at)}")
+                add_rows: list[dict[str, Any]] = []
+                # Filter odds rows to target date via commence_time
+                try:
+                    odds["_commence_dt"] = pd.to_datetime(odds["commence_time"], errors="coerce")
+                    odds["_commence_date"] = odds["_commence_dt"].dt.strftime("%Y-%m-%d")
+                    o_target = odds[odds["_commence_date"].astype(str) == str(date_str)]
+                except Exception:
+                    o_target = odds
+                for _, r in o_target.iterrows():
+                    ht = str(r.get("home_team_name") or "").strip()
+                    at = str(r.get("away_team_name") or "").strip()
+                    if not ht or not at:
+                        continue
+                    pair_key = f"{_canon_slug(ht)}::{_canon_slug(at)}"
+                    if pair_key in existing_pairs:
+                        continue  # already present
+                    # Construct synthetic game_id (prefix odds:) to avoid collision with ESPN IDs
+                    raw_gid = str(r.get("game_id") or "").strip()
+                    synth_gid = f"odds:{raw_gid}" if raw_gid else f"odds:{pair_key}:{date_str}"
+                    start_time = None
+                    try:
+                        dt_val = pd.to_datetime(r.get("commence_time"), errors="coerce")
+                        if pd.notna(dt_val):
+                            start_time = dt_val.strftime("%Y-%m-%d %H:%M")
+                    except Exception:
+                        pass
+                    add_rows.append({
+                        "game_id": synth_gid,
+                        "home_team": ht,
+                        "away_team": at,
+                        "date": date_str,
+                        "start_time": start_time,
+                        "status": "scheduled",
+                    })
+                if add_rows:
+                    aug = pd.DataFrame(add_rows)
+                    # Concatenate and ensure uniqueness by game_id
+                    games = pd.concat([games, aug], ignore_index=True)
+                    try:
+                        games = games.drop_duplicates(subset=["game_id"], keep="first")
+                    except Exception:
+                        pass
+                    logger.info("Augmented games with %s odds-only events (date=%s)", len(add_rows), date_str)
+                    # Optional persistence (auto-heal) to games_curr.csv so downstream predictions can reference
+                    try:
+                        auto_heal = os.getenv("NCAAB_AUTO_HEAL_GAMES", "").strip().lower() in ("1","true","yes")
+                        if auto_heal:
+                            curr_path = OUT / "games_curr.csv"
+                            if curr_path.exists():
+                                try:
+                                    g_curr = pd.read_csv(curr_path)
+                                except Exception:
+                                    g_curr = pd.DataFrame()
+                            else:
+                                g_curr = pd.DataFrame()
+                            # Normalize date if present
+                            if not g_curr.empty and "date" in g_curr.columns:
+                                try:
+                                    g_curr["date"] = pd.to_datetime(g_curr["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                                except Exception:
+                                    pass
+                            healed = pd.concat([g_curr, aug], ignore_index=True)
+                            try:
+                                healed = healed.drop_duplicates(subset=["game_id"], keep="first")
+                            except Exception:
+                                pass
+                            healed.to_csv(curr_path, index=False)
+                            logger.info("Persisted auto-heal of %s odds-only events to %s (env NCAAB_AUTO_HEAL_GAMES)", len(add_rows), curr_path)
+                    except Exception as _heal_e:
+                        logger.warning("Auto-heal persistence failed: %s", _heal_e)
+        except Exception as _e:
+            logger.warning("Odds-based game augmentation failed: %s", _e)
     daily_df = _load_daily_results_for(date_str)
     if not daily_df.empty:
         has_scores = False
@@ -1594,6 +1723,8 @@ def _build_results_df(date_str: str, force_use_daily: bool = False) -> tuple[pd.
                     df = pd.DataFrame(rows)
                     results_note = f"Odds-only slate for {date_str} (no games/predictions available)"
                     meta["results_pending"] = True
+                    # Surface the constructed odds-only slate rationale in meta for API consumers
+                    meta["results_note"] = results_note
     except Exception:
         pass
     # Compute actual_total if scores present
@@ -3895,6 +4026,15 @@ def index():
             if used_blend:
                 # Determine if blend is meaningful (non-zero weight AND segmentation rows > 0)
                 try:
+                    # Preserve original segmentation sample size before any badge-hiding clears
+                    if "seg_n_rows" in df.columns and "seg_n_rows_orig" not in df.columns:
+                        try:
+                            df["seg_n_rows_orig"] = df["seg_n_rows"]
+                        except Exception:
+                            pass
+                    # Initialize blend effectiveness flag (row-level) – will mark True only for retained blended rows
+                    if "blend_effective" not in df.columns:
+                        df["blend_effective"] = False
                     bw_series = pd.to_numeric(df.get("blend_weight"), errors="coerce") if "blend_weight" in df.columns else None
                     seg_series = pd.to_numeric(df.get("seg_n_rows"), errors="coerce") if "seg_n_rows" in df.columns else None
                     # Mark zero / missing segmentation counts as NaN for UI suppression
@@ -3910,6 +4050,15 @@ def index():
                         if seg_series is not None:
                             seg_mask = (seg_series.fillna(0) <= 0)
                             suppress_mask = seg_mask if suppress_mask is None else (suppress_mask | seg_mask)
+                        # New rule: if original basis was calibrated, prefer calibrated over blend regardless of weights
+                        try:
+                            if "pred_total_basis_orig" in df.columns:
+                                cal_mask = df["pred_total_basis_orig"].astype(str).str.startswith("model_calibrated")
+                                suppress_mask = cal_mask if suppress_mask is None else (suppress_mask | cal_mask)
+                                if cal_mask.any():
+                                    pipeline_stats["blend_rows_calibrated_preferred"] = int(cal_mask.sum())
+                        except Exception:
+                            pass
                         if suppress_mask is not None and suppress_mask.any():
                             suppressed_count = int(suppress_mask.sum())
                             try:
@@ -3933,16 +4082,102 @@ def index():
                             # For rows where blend suppressed, clear blend_weight to hide badge downstream
                             if "blend_weight" in df.columns:
                                 df.loc[suppress_mask, "blend_weight"] = np.nan
+                            # Ensure effectiveness flag remains False for suppressed rows
+                            if "blend_effective" in df.columns:
+                                df.loc[suppress_mask, "blend_effective"] = False
                     # After potential suppression, decide if any rows still genuinely blended
                     remaining_blend_mask = None
                     if "blend_weight" in df.columns and "seg_n_rows" in df.columns:
                         bw_series2 = pd.to_numeric(df["blend_weight"], errors="coerce")
                         seg_series2 = pd.to_numeric(df["seg_n_rows"], errors="coerce")
                         remaining_blend_mask = (bw_series2.fillna(0) > 0) & (seg_series2.fillna(0) > 0)
+                    # Row-level effectiveness check: blended value must differ meaningfully from original to keep.
+                    if remaining_blend_mask is not None and remaining_blend_mask.any():
+                        try:
+                            pt_blend = pd.to_numeric(df.get("pred_total"), errors="coerce")
+                            pt_orig = pd.to_numeric(df.get("pred_total_orig"), errors="coerce") if "pred_total_orig" in df.columns else None
+                            pm_blend = pd.to_numeric(df.get("pred_margin"), errors="coerce")
+                            pm_orig = pd.to_numeric(df.get("pred_margin_orig"), errors="coerce") if "pred_margin_orig" in df.columns else None
+                            ineffective_mask = pd.Series([False]*len(df))
+                            # Thresholds chosen to avoid retaining cosmetically identical blends (tiny or zero delta)
+                            if pt_orig is not None:
+                                ineffective_mask = ineffective_mask | (remaining_blend_mask & (pt_blend.notna() & pt_orig.notna() & (pt_blend.sub(pt_orig).abs() <= 0.05)))
+                            if pm_orig is not None:
+                                ineffective_mask = ineffective_mask | (remaining_blend_mask & (pm_blend.notna() & pm_orig.notna() & (pm_blend.sub(pm_orig).abs() <= 0.05)))
+                            if ineffective_mask.any():
+                                # Revert ineffective rows to originals; clear badges/weights so UI shows authentic source.
+                                if "pred_total_orig" in df.columns:
+                                    df.loc[ineffective_mask, "pred_total"] = df.loc[ineffective_mask, "pred_total_orig"]
+                                if "pred_margin_orig" in df.columns:
+                                    df.loc[ineffective_mask, "pred_margin"] = df.loc[ineffective_mask, "pred_margin_orig"]
+                                if "pred_total_basis_orig" in df.columns:
+                                    df.loc[ineffective_mask, "pred_total_basis"] = df.loc[ineffective_mask, "pred_total_basis_orig"]
+                                if "pred_margin_basis_orig" in df.columns:
+                                    df.loc[ineffective_mask, "pred_margin_basis"] = df.loc[ineffective_mask, "pred_margin_basis_orig"]
+                                # Clear blend weight / segmentation counts so template hides W/N badges for reverted rows.
+                                if "blend_weight" in df.columns:
+                                    df.loc[ineffective_mask, "blend_weight"] = np.nan
+                                if "seg_n_rows" in df.columns:
+                                    df.loc[ineffective_mask, "seg_n_rows"] = np.nan
+                                if "blend_effective" in df.columns:
+                                    df.loc[ineffective_mask, "blend_effective"] = False
+                                try:
+                                    pipeline_stats["blend_rows_ineffective"] = int(ineffective_mask.sum())
+                                except Exception:
+                                    pass
+                                # Update remaining_blend_mask to exclude reverted ineffective rows.
+                                remaining_blend_mask = remaining_blend_mask & (~ineffective_mask)
+                        except Exception:
+                            # On any error in effectiveness logic, fall back to leaving remaining_blend_mask as-is.
+                            pipeline_stats["blend_effectiveness_error"] = True
+                    # Detect uniform/near-uniform collapse among remaining blended rows (e.g., constant 112) and revert.
+                    try:
+                        if remaining_blend_mask is not None and remaining_blend_mask.any():
+                            pt_remain = pd.to_numeric(df.loc[remaining_blend_mask, "pred_total"], errors="coerce")
+                            # Consider only finite values
+                            pt_valid = pt_remain.replace([np.inf, -np.inf], np.nan).dropna()
+                            if not pt_valid.empty:
+                                uniq = pt_valid.nunique()
+                                rng = float(pt_valid.max() - pt_valid.min()) if pt_valid.notna().any() else 0.0
+                                collapse_val = float(pt_valid.iloc[0]) if uniq == 1 else None
+                                looks_uniform = False
+                                # Heuristics: single unique OR tiny range with <=2 uniques OR classic collapse value ~112
+                                if uniq == 1:
+                                    looks_uniform = True
+                                elif uniq <= 2 and rng < 0.5:
+                                    looks_uniform = True
+                                elif collapse_val is not None and abs(collapse_val - 112.0) < 0.01:
+                                    looks_uniform = True
+                                if looks_uniform:
+                                    # Revert all remaining blend rows to originals; clear blend indicators.
+                                    if "pred_total_orig" in df.columns:
+                                        df.loc[remaining_blend_mask, "pred_total"] = df.loc[remaining_blend_mask, "pred_total_orig"]
+                                    if "pred_margin_orig" in df.columns:
+                                        df.loc[remaining_blend_mask, "pred_margin"] = df.loc[remaining_blend_mask, "pred_margin_orig"]
+                                    if "pred_total_basis_orig" in df.columns:
+                                        df.loc[remaining_blend_mask, "pred_total_basis"] = df.loc[remaining_blend_mask, "pred_total_basis_orig"]
+                                    if "pred_margin_basis_orig" in df.columns:
+                                        df.loc[remaining_blend_mask, "pred_margin_basis"] = df.loc[remaining_blend_mask, "pred_margin_basis_orig"]
+                                    if "blend_weight" in df.columns:
+                                        df.loc[remaining_blend_mask, "blend_weight"] = np.nan
+                                    if "seg_n_rows" in df.columns:
+                                        df.loc[remaining_blend_mask, "seg_n_rows"] = np.nan
+                                    if "blend_effective" in df.columns:
+                                        df.loc[remaining_blend_mask, "blend_effective"] = False
+                                    pipeline_stats["blend_uniform_reverted"] = int(remaining_blend_mask.sum())
+                                    if collapse_val is not None:
+                                        pipeline_stats["blend_uniform_value"] = collapse_val
+                                    # No remaining effective blended rows after full revert
+                                    remaining_blend_mask = remaining_blend_mask & pd.Series([False]*len(df))
+                    except Exception:
+                        pipeline_stats["blend_uniform_check_error"] = True
+                    # After ineffectiveness/uniform pruning, re-evaluate global blended usage.
                     if remaining_blend_mask is not None and remaining_blend_mask.any():
                         pipeline_stats["using_blended_predictions"] = True
                         try:
                             pipeline_stats["blend_rows_effective"] = int(remaining_blend_mask.sum())
+                            if "blend_effective" in df.columns:
+                                df.loc[remaining_blend_mask, "blend_effective"] = True
                         except Exception:
                             pass
                     else:
@@ -3955,6 +4190,9 @@ def index():
                             df.loc[pd.to_numeric(df["seg_n_rows"], errors="coerce").fillna(0) <= 0, "seg_n_rows"] = np.nan
                         if "blend_weight" in df.columns:
                             df.loc[pd.to_numeric(df["blend_weight"], errors="coerce").fillna(0) <= 0, "blend_weight"] = np.nan
+                        if "blend_effective" in df.columns:
+                            # Effectiveness unknown -> keep False
+                            pass
                     except Exception:
                         pass
                 # Blend diagnostics when available (only if still considered blended)
@@ -3969,12 +4207,15 @@ def index():
                                 pipeline_stats["blend_weight_median"] = float(bw_valid.median())
                                 pipeline_stats["blend_weight_max"] = float(bw_valid.max())
                                 pipeline_stats["blend_weight_mean"] = float(bw_valid.mean())
-                        if "seg_n_rows" in df.columns:
-                            sn = pd.to_numeric(df["seg_n_rows"], errors="coerce").dropna()
-                            if not sn.empty:
-                                pipeline_stats["seg_n_rows_median"] = float(sn.median())
-                                pipeline_stats["seg_n_rows_min"] = float(sn.min())
-                                pipeline_stats["seg_n_rows_max"] = float(sn.max())
+                        # Use original segmentation counts for diagnostics (retain visibility even if badges suppressed)
+                        if "seg_n_rows_orig" in df.columns:
+                            sn_orig = pd.to_numeric(df["seg_n_rows_orig"], errors="coerce").dropna()
+                            # Consider only positive counts
+                            sn_orig = sn_orig[sn_orig > 0]
+                            if not sn_orig.empty:
+                                pipeline_stats["seg_n_rows_median"] = float(sn_orig.median())
+                                pipeline_stats["seg_n_rows_min"] = float(sn_orig.min())
+                                pipeline_stats["seg_n_rows_max"] = float(sn_orig.max())
                     except Exception:
                         pass
                     # Residual performance comparison baseline vs segmented vs blended (totals & margins)
@@ -4867,6 +5108,37 @@ def index():
                         pipeline_stats['pred_total_missing_final'] = int(final_pt.isna().sum())
                     except Exception:
                         pass
+                    # Safety net: if final pred_total collapsed to a single constant (classic 112 trap) but we retained richer originals, revert.
+                    try:
+                        uniq_ct = int(final_pt.nunique()) if final_pt.notna().any() else 0
+                        if uniq_ct == 1:
+                            const_val = float(final_pt.dropna().iloc[0]) if final_pt.notna().any() else None
+                            has_orig = 'pred_total_orig' in df.columns
+                            if const_val is not None and has_orig:
+                                orig_series = pd.to_numeric(df['pred_total_orig'], errors='coerce')
+                                orig_unique = int(orig_series.nunique()) if orig_series.notna().any() else 0
+                                # Revert only if originals had reasonable diversity (>5 uniques) and constant is near the known collapse value or std ~0.
+                                if orig_unique > 5 and (abs(const_val - 112.0) < 0.75 or float(final_pt.std()) < 0.05):
+                                    # Revert rows whose basis currently indicates blend / adjusted low-total operations.
+                                    basis_ser = df.get('pred_total_basis').astype(str).str.lower() if 'pred_total_basis' in df.columns else pd.Series(['']*len(df))
+                                    revert_mask = basis_ser.isin(['blend','blended_low','blend_low','model_v1'])
+                                    if revert_mask.any():
+                                        df.loc[revert_mask, 'pred_total'] = df.loc[revert_mask, 'pred_total_orig']
+                                        # Restore original basis where available
+                                        if 'pred_total_basis_orig' in df.columns:
+                                            df.loc[revert_mask, 'pred_total_basis'] = df.loc[revert_mask, 'pred_total_basis_orig']
+                                        pipeline_stats['final_uniform_reverted'] = int(revert_mask.sum())
+                                        pipeline_stats['final_uniform_value'] = const_val
+                                        # Recompute stats after revert
+                                        final_pt2 = pd.to_numeric(df['pred_total'], errors='coerce')
+                                        pipeline_stats['pred_total_final_stats']['min'] = float(final_pt2.min()) if final_pt2.notna().any() else None
+                                        pipeline_stats['pred_total_final_stats']['max'] = float(final_pt2.max()) if final_pt2.notna().any() else None
+                                        pipeline_stats['pred_total_final_stats']['mean'] = float(final_pt2.mean()) if final_pt2.notna().any() else None
+                                        pipeline_stats['pred_total_final_stats']['std'] = float(final_pt2.std()) if final_pt2.notna().any() else None
+                                        pipeline_stats['pred_total_final_stats']['unique'] = int(final_pt2.nunique()) if final_pt2.notna().any() else 0
+                                        pipeline_stats['pred_total_head_final'] = final_pt2.head(10).tolist()
+                    except Exception:
+                        pipeline_stats['final_uniform_revert_error'] = True
                 except Exception:
                     pass
             # Compute projected team scores using adjusted pred_total
