@@ -3515,6 +3515,25 @@ def index():
                         # Capture small sample for debugging
                         sample_u_cols = [c for c in ["game_id","home_team","away_team","pred_total","pred_total_basis","market_total","derived_total"] if c in df.columns]
                         pipeline_stats["pred_total_uniform_sample"] = df[sample_u_cols].head(10).to_dict(orient="records")
+                        # Optional mitigation: if NCAAB_UNIFORM_NULL=1, treat these as pending (null out pred_total/pred_margin) to avoid misleading constant display.
+                        try:
+                            if os.getenv("NCAAB_UNIFORM_NULL", "").strip().lower() in ("1","true","yes"):
+                                pipeline_stats["uniform_null_applied"] = True
+                                uniform_val = vc.index[0]
+                                mask_uniform = pd.to_numeric(df.get("pred_total"), errors="coerce") == float(uniform_val)
+                                # Null only rows entirely uniform to keep any legitimately distinct future inserts.
+                                df.loc[mask_uniform, "pred_total"] = np.nan
+                                if "pred_total_basis" in df.columns:
+                                    df.loc[mask_uniform, "pred_total_basis"] = df.loc[mask_uniform, "pred_total_basis"].where(df.loc[mask_uniform, "pred_total_basis"].notna(), "uniform_null")
+                                if "pred_margin" in df.columns:
+                                    # If margin shows little variance as well, null it; else keep.
+                                    pmv = pd.to_numeric(df.get("pred_margin"), errors="coerce")
+                                    if pmv.notna().sum() and (pmv.nunique() <= 2):
+                                        df.loc[mask_uniform, "pred_margin"] = np.nan
+                                        if "pred_margin_basis" in df.columns:
+                                            df.loc[mask_uniform, "pred_margin_basis"] = df.loc[mask_uniform, "pred_margin_basis"].where(df.loc[mask_uniform, "pred_margin_basis"].notna(), "uniform_null")
+                        except Exception:
+                            pass
             except Exception:
                 pass
             # Synthetic line fallback: if market_total still missing, populate from pred_total or derived_total
