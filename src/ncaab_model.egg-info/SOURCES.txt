@@ -49,6 +49,7 @@ tests/test_ev_moneyline.py
 tests/test_membership.py
 tests/test_merge_odds_join.py
 tests/test_prediction_coverage.py
+tests/test_predictions_uploaded_precedence_single_column.py
 tests/test_segmented_cli.py
 tests/test_stake_simulation.py
 tests/test_synthetic_pipeline.py

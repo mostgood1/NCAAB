@@ -195,7 +195,7 @@
               <div class="pill">Neutral Site</div>
             {% endif %}
             {# Calibrated/raw/adjustment badges with interactive toggle #}
-            {% set is_cal = r.pred_total_basis in ['model_calibrated','model_calibrated_bias'] %}
+            {% set is_cal = r.pred_total_basis in ['model_calibrated','model_calibrated_bias','cal'] %}
             {% set is_raw = r.pred_total_basis in ['model_raw','model'] %}
             {% set _pt = r.pred_total %}
             {% set _pt_valid = (_pt is not none and _pt == _pt) %} {# treat NaN as invalid (NaN != NaN) #}
@@ -213,7 +213,7 @@
               {% set tb = r.pred_total_basis %}
               {% if tb %}
                 <span class="badge" title="Total basis: {{ tb }}">
-                  {% if tb.startswith('model_calibrated') %}CAL{% elif tb in ['model_raw','model'] %}RAW{% elif tb == 'features_derived' %}DER{% elif tb == 'synthetic_baseline' %}SYN{% elif tb == 'market_copy' %}COPY{% elif tb == 'blended_low' %}BLEND{% else %}{{ (tb or '')[:4].upper() }}{% endif %}
+                  {% if tb.startswith('model_calibrated') or tb == 'cal' %}CAL{% elif tb in ['model_raw','model'] %}RAW{% elif tb == 'features_derived' %}DER{% elif tb == 'synthetic_baseline' %}SYN{% elif tb == 'market_copy' %}COPY{% elif tb == 'blended_low' %}BLEND{% else %}{{ (tb or '')[:4].upper() }}{% endif %}
                 </span>
               {% endif %}
               {% if r.blend_effective is defined and r.blend_effective and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
