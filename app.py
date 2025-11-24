@@ -6035,6 +6035,24 @@ def index():
                 df.loc[recon_proj_mask,'proj_home'] = (pt2[recon_proj_mask] + pm2[recon_proj_mask]) / 2.0
                 df.loc[recon_proj_mask,'proj_away'] = pt2[recon_proj_mask] - df.loc[recon_proj_mask,'proj_home']
                 pipeline_stats['reconstructed_proj_rows'] = int(recon_proj_mask.sum())
+            # If total exists but margin is missing, derive even projections as last resort
+            recon_proj_even_mask = pt2.notna() & pm2.isna() & (ph_existing.isna() | pa_existing.isna())
+            if recon_proj_even_mask.any():
+                # Use an even margin (0.0) to split total
+                df.loc[recon_proj_even_mask,'proj_home'] = pt2[recon_proj_even_mask] / 2.0
+                df.loc[recon_proj_even_mask,'proj_away'] = pt2[recon_proj_even_mask] - df.loc[recon_proj_even_mask,'proj_home']
+                # Optionally stamp pred_margin to 0.0 if still missing so downstream leans compute
+                try:
+                    df.loc[recon_proj_even_mask & pm2.isna(),'pred_margin'] = 0.0
+                    if 'pred_margin_basis' in df.columns:
+                        basis_series_m2 = df['pred_margin_basis'].astype(str)
+                        basis_missing_m2 = basis_series_m2.isna() | basis_series_m2.eq('None') | basis_series_m2.eq('') | basis_series_m2.eq('nan')
+                        df.loc[recon_proj_even_mask & basis_missing_m2,'pred_margin_basis'] = 'reconstructed_even'
+                    else:
+                        df['pred_margin_basis'] = ['reconstructed_even' if m else None for m in recon_proj_even_mask]
+                except Exception:
+                    pipeline_stats['reconstructed_even_margin_error'] = True
+                pipeline_stats['reconstructed_proj_from_total_only_rows'] = int(recon_proj_even_mask.sum())
         # ------------------------------------------------------------------
         # Final idempotent calibrated precedence enforcement
         # Ensures remote environments that later overwrite basis with synthetic
