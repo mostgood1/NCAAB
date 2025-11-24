@@ -4744,28 +4744,56 @@ def index():
                     pass
                 # Preserve raw model under separate column; don't degrade existing calibrated pred_total
                 df['pred_total_model_raw'] = raw_model_total
-                # Decide whether to override displayed pred_total: only when existing pred_total is missing
+                # Decide whether to override displayed pred_total: prefer calibrated over blended/base when available.
                 existing_pred = pd.to_numeric(df.get('pred_total'), errors='coerce') if 'pred_total' in df.columns else pd.Series(np.nan, index=df.index)
+                basis_ser = df.get('pred_total_basis') if 'pred_total_basis' in df.columns else pd.Series([None] * len(df))
+                basis_str = basis_ser.astype(str).str.lower()
+                # Lower-precedence bases we can override when calibrated model is available
+                lower_bases = {'blen','blend','blended','blended_model_baseline','market_copy'}
+                lower_mask = basis_ser.isna() | basis_str.isin(lower_bases) | basis_str.str.startswith(('synthetic','fallback','derived'))
                 # chosen_total may be all NaN if model preds file is stale; guard against overwriting real calibrated values
-                override_mask = existing_pred.isna() & chosen_total.notna()
+                if use_calibrated:
+                    override_mask = (existing_pred.isna() | lower_mask) & chosen_total.notna()
+                else:
+                    # When only raw model is present, override strictly missing values to avoid masking true calibrated/blended decisions
+                    override_mask = existing_pred.isna() & chosen_total.notna()
+                if use_calibrated:
+                    try:
+                        pipeline_stats['prefer_cal_effective'] = True
+                    except Exception:
+                        pass
                 if override_mask.any():
                     df.loc[override_mask, 'pred_total'] = chosen_total[override_mask]
                     # Basis only for overridden rows
                     if 'pred_total_basis' not in df.columns:
                         df['pred_total_basis'] = None
                     new_basis = 'model_calibrated' if use_calibrated else 'model_raw'
-                    df.loc[override_mask, 'pred_total_basis'] = df.loc[override_mask, 'pred_total_basis'].where(df.loc[override_mask, 'pred_total_basis'].notna(), new_basis)
+                    df.loc[override_mask, 'pred_total_basis'] = new_basis
                     try:
-                        pipeline_stats['model_unify_overrode_missing_pred_total_rows'] = int(override_mask.sum())
+                        pipeline_stats['model_unify_overrode_pred_total_rows'] = int(override_mask.sum())
+                        pipeline_stats['model_unify_overrode_due_to_lower_basis'] = int(((existing_pred.notna()) & lower_mask & override_mask).sum())
                     except Exception:
                         pass
-                else:
-                    # Keep existing pred_total (likely already calibrated). Expose unified value separately.
-                    df['pred_total_model_unified'] = chosen_total
+                # Always expose unified value for diagnostics
+                df['pred_total_model_unified'] = chosen_total
+                if not override_mask.any():
                     pipeline_stats['model_unify_no_override'] = True
-                # Edge recompute only for rows we changed; keep previous edge_total otherwise
-                if 'market_total' in df.columns and override_mask.any():
-                    df.loc[override_mask, 'edge_total'] = pd.to_numeric(df.loc[override_mask, 'pred_total'], errors='coerce') - pd.to_numeric(df.loc[override_mask, 'market_total'], errors='coerce')
+                # Edge recompute only for rows we changed; keep previous edge_total/edge_closing otherwise
+                if override_mask.any():
+                    if 'market_total' in df.columns:
+                        df.loc[override_mask, 'edge_total'] = pd.to_numeric(df.loc[override_mask, 'pred_total'], errors='coerce') - pd.to_numeric(df.loc[override_mask, 'market_total'], errors='coerce')
+                        # Recompute z for affected rows if sigma present
+                        if 'pred_total_sigma_bootstrap' in df.columns:
+                            try:
+                                sig_ser = pd.to_numeric(df['pred_total_sigma_bootstrap'], errors='coerce').replace(0, np.nan)
+                                df.loc[override_mask, 'edge_total_z'] = pd.to_numeric(df.loc[override_mask, 'edge_total'], errors='coerce') / sig_ser[override_mask]
+                            except Exception:
+                                pass
+                    if 'closing_total' in df.columns:
+                        try:
+                            df.loc[override_mask, 'edge_closing'] = pd.to_numeric(df.loc[override_mask, 'pred_total'], errors='coerce') - pd.to_numeric(df.loc[override_mask, 'closing_total'], errors='coerce')
+                        except Exception:
+                            pass
                 # Meta ensemble totals (optional): combine raw/calibrated/market/derived components with learned weights
                 try:
                     if 'pred_total_meta' not in df.columns:
