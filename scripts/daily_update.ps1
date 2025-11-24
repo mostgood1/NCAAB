@@ -19,6 +19,8 @@ param(
   [switch]$SkipGitPush,
   [switch]$SkipModelTests,
   [switch]$SkipVarianceDiag,
+  [switch]$BootstrapEnv,
+  [switch]$NoTranscript,
   [string]$GitCommitMessage
 )
 
@@ -37,9 +39,31 @@ function Write-Section($msg) {
 
 # Resolve paths
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+
+if (-not (Test-Path (Join-Path $RepoRoot '.venv')) -or $BootstrapEnv.IsPresent) {
+  Write-Section 'BOOTSTRAP: Creating / refreshing .venv and installing dependencies'
+  try {
+    $pyCmd = (Get-Command python -ErrorAction SilentlyContinue)
+    if (-not $pyCmd) { $pyCmd = (Get-Command py -ErrorAction SilentlyContinue) }
+    if (-not $pyCmd) { throw 'No base Python interpreter found on PATH (python or py). Install Python 3.11+.' }
+    & $pyCmd.Source -m venv (Join-Path $RepoRoot '.venv')
+    $venvPip = Join-Path $RepoRoot '.venv\Scripts\python.exe'
+    & $venvPip -m pip install --upgrade pip
+    $reqFile = Join-Path $RepoRoot 'requirements.txt'
+    if (Test-Path $reqFile) { & $venvPip -m pip install -r $reqFile }
+    $pyproj = Join-Path $RepoRoot 'pyproject.toml'
+    if (Test-Path $pyproj) { & $venvPip -m pip install -e $RepoRoot }
+    Write-Host 'BOOTSTRAP complete.' -ForegroundColor Green
+  } catch {
+    Add-CriticalFailure "Environment bootstrap failed: $($_)"
+    if ($env:NCAAB_STRICT_EXIT -eq '1') { exit 1 }
+  }
+}
+
 $VenvPython = Join-Path $RepoRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path $VenvPython)) {
-  throw "Python venv not found at $VenvPython. Create and install deps first."
+  Add-CriticalFailure "Python venv not found at $VenvPython after bootstrap attempt."
+  if ($env:NCAAB_STRICT_EXIT -eq '1') { exit 1 } else { return }
 }
 $OutDir = Join-Path $RepoRoot 'outputs'
 $LogsDir = Join-Path $OutDir 'logs'
@@ -47,7 +71,9 @@ New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
 
 $LogStamp = Get-Date -Format 'yyyyMMdd_HHmmss'
 $LogPath = Join-Path $LogsDir "daily_update_$LogStamp.log"
-Start-Transcript -Path $LogPath -Append | Out-Null
+if (-not $NoTranscript.IsPresent) {
+  try { Start-Transcript -Path $LogPath -Append | Out-Null } catch { Write-Warning "Transcript start failed: $($_)" }
+} else { Write-Host 'Transcript disabled via -NoTranscript.' -ForegroundColor DarkGray }
 
 try {
   Set-Location $RepoRoot

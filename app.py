@@ -7237,6 +7237,28 @@ def api_diag():
         "pred_rows_filled": filled_pred_rows,
         "pred_rows_missing": missing_pred_rows,
     }
+    # Curated instrumentation subset for quick remote visibility without scanning full stats dict
+    try:
+        instr_keys = [
+            "calibration_precedence_overrides_total",
+            "calibration_precedence_total_candidates",
+            "calibration_precedence_overrides_total_unified",
+            "calibration_precedence_overrides_margin",
+            "calibration_precedence_margin_candidates",
+            "calibration_recomputed_edge_closing_total",
+            "calibration_recomputed_edge_closing_margin",
+            "second_pass_pred_total_fill_candidates",
+            "second_pass_pred_total_fills",
+            "second_pass_pred_total_fills_protected_skipped",
+            "synthetic_shell_hidden",
+            "synthetic_shell_suppressed_rows",
+        ]
+        last_stats = _LAST_PIPELINE_STATS or {}
+        instrumentation = {k: last_stats.get(k) for k in instr_keys if k in last_stats}
+        if instrumentation:
+            out["instrumentation"] = instrumentation
+    except Exception:
+        out["instrumentation_error"] = True
     return jsonify(out)
 
 

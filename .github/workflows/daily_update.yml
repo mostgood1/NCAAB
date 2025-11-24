@@ -18,8 +18,16 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
+      - name: Pre-flight info
+        shell: pwsh
+        run: |
+          Write-Host "UTC now: $(Get-Date -Format 'u')"
+          Write-Host "Repository: $env:GITHUB_REPOSITORY Commit: $env:GITHUB_SHA Ref: $env:GITHUB_REF"
+          Write-Host "Runner OS: $env:RUNNER_OS Architecture: $env:PROCESSOR_ARCHITECTURE"
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # ensure full history so commits/pushes succeed reliably
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,13 +44,19 @@ jobs:
         run: |
           .venv\Scripts\python.exe -m pip install -r requirements.txt || echo 'Primary requirements install failed, trying onnxruntime/requirements.txt'
           if (Test-Path 'onnxruntime/requirements.txt') { .venv\Scripts\python.exe -m pip install -r onnxruntime/requirements.txt } else { echo 'No secondary requirements file present.' }
+          # Install project package (editable) so ncaab_model modules resolve
+          if (Test-Path 'pyproject.toml') { .venv\Scripts\python.exe -m pip install -e . } else { echo 'pyproject.toml not found; skipping editable install.' }
 
       - name: Daily update pipeline
         env:
           THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
         shell: pwsh
         run: |
-          .\scripts\daily_update.ps1 -SkipVarianceDiag -SkipModelTests -GitCommitMessage "chore(ci): daily update $(Get-Date -Format 'yyyy-MM-dd')" || exit 1
+          Write-Host 'Running daily_update.ps1'
+          Write-Host "Script start timestamp: $(Get-Date -Format 'u')"
+          .\scripts\daily_update.ps1 -SkipVarianceDiag -SkipModelTests -GitCommitMessage "chore(ci): daily update $(Get-Date -Format 'yyyy-MM-dd')"
+          if ($LASTEXITCODE -ne 0) { Write-Error "daily_update.ps1 failed with exit code $LASTEXITCODE"; exit $LASTEXITCODE }
+          Write-Host "Script completed timestamp: $(Get-Date -Format 'u')"
 
       - name: Post-run git push (safety)
         if: success()
@@ -57,5 +71,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: daily-update-logs
-          path: outputs/logs/*.log
+          path: |
+            outputs/logs/*.log
+            outputs/variance/*.json
           if-no-files-found: warn
