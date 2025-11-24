@@ -5976,6 +5976,68 @@ def index():
     except Exception:
         pass
 
+    # ------------------------------------------------------------------
+    # Final reconstruction fallback (remote render safeguard):
+    # In some remote deployments we've observed cards showing edge_total
+    # and OU Lean (meaning pred_total existed earlier for edge calc) but
+    # pred_total / pred_margin / projections render as blank. This block
+    # reconstructs missing displayed predictions from edges + market
+    # values right before downstream date/time normalization, without
+    # disturbing rows already populated locally. Instrument counts so we
+    # can detect if remote consistently strips these fields.
+    # ------------------------------------------------------------------
+    try:
+        # Rebuild pred_total when missing but market_total and edge_total present
+        if {'edge_total','market_total','pred_total'}.issubset(df.columns):
+            pt = pd.to_numeric(df['pred_total'], errors='coerce')
+            mt = pd.to_numeric(df['market_total'], errors='coerce')
+            et = pd.to_numeric(df['edge_total'], errors='coerce')
+            recon_mask_total = pt.isna() & mt.notna() & et.notna()
+            if recon_mask_total.any():
+                df.loc[recon_mask_total,'pred_total'] = (mt[recon_mask_total] + et[recon_mask_total]).round(1)
+                if 'pred_total_basis' in df.columns:
+                    basis_series = df['pred_total_basis'].astype(str)
+                    basis_missing_mask = basis_series.isna() | basis_series.eq('None') | basis_series.eq('') | basis_series.eq('nan')
+                    df.loc[recon_mask_total & basis_missing_mask,'pred_total_basis'] = 'reconstructed_from_edge'
+                else:
+                    # Create basis column only where reconstructed
+                    df['pred_total_basis'] = ['reconstructed_from_edge' if m else None for m in recon_mask_total]
+                pipeline_stats['reconstructed_pred_total_rows'] = int(recon_mask_total.sum())
+        # Rebuild pred_margin when missing but spread + edge_ats present
+        if {'edge_ats','spread_home','pred_margin'}.issubset(df.columns):
+            pm = pd.to_numeric(df['pred_margin'], errors='coerce')
+            sh = pd.to_numeric(df['spread_home'], errors='coerce')
+            ea = pd.to_numeric(df['edge_ats'], errors='coerce')
+            recon_mask_margin = pm.isna() & sh.notna() & ea.notna()
+            if recon_mask_margin.any():
+                # edge_ats = pred_margin - spread_home -> pred_margin = edge_ats + spread_home
+                df.loc[recon_mask_margin,'pred_margin'] = (ea[recon_mask_margin] + sh[recon_mask_margin]).round(2)
+                if 'pred_margin_basis' in df.columns:
+                    basis_series_m = df['pred_margin_basis'].astype(str)
+                    basis_missing_m = basis_series_m.isna() | basis_series_m.eq('None') | basis_series_m.eq('') | basis_series_m.eq('nan')
+                    df.loc[recon_mask_margin & basis_missing_m,'pred_margin_basis'] = 'reconstructed_from_edge'
+                else:
+                    df['pred_margin_basis'] = ['reconstructed_from_edge' if m else None for m in recon_mask_margin]
+                pipeline_stats['reconstructed_pred_margin_rows'] = int(recon_mask_margin.sum())
+        # Recompute projections for any reconstructed rows if proj_home/proj_away missing
+        if {'pred_total','pred_margin'}.issubset(df.columns):
+            pt2 = pd.to_numeric(df['pred_total'], errors='coerce')
+            pm2 = pd.to_numeric(df['pred_margin'], errors='coerce')
+            # Ensure projection columns exist
+            if 'proj_home' not in df.columns:
+                df['proj_home'] = np.nan
+            if 'proj_away' not in df.columns:
+                df['proj_away'] = np.nan
+            ph_existing = pd.to_numeric(df.get('proj_home'), errors='coerce')
+            pa_existing = pd.to_numeric(df.get('proj_away'), errors='coerce')
+            recon_proj_mask = pt2.notna() & pm2.notna() & (ph_existing.isna() | pa_existing.isna())
+            if recon_proj_mask.any():
+                df.loc[recon_proj_mask,'proj_home'] = (pt2[recon_proj_mask] + pm2[recon_proj_mask]) / 2.0
+                df.loc[recon_proj_mask,'proj_away'] = pt2[recon_proj_mask] - df.loc[recon_proj_mask,'proj_home']
+                pipeline_stats['reconstructed_proj_rows'] = int(recon_proj_mask.sum())
+    except Exception as _recon_e:
+        pipeline_stats['reconstruction_error'] = str(_recon_e)[:160]
+
     if "date" in df.columns:
         try:
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
@@ -7026,26 +7088,24 @@ def index():
     # ----------------------------------------------------------------------------------
     try:
         if rows:
-            # Determine if any row appears to be real (model/blended/calibrated)
-            real_bases = {"model_raw","model","model_calibrated","model_calibrated_bias","blended_low"}
+            # Relaxed criteria: treat ANY numeric prediction as real regardless of basis.
+            # This prevents hiding synthetic fallback predictions that still produce edges.
             has_real = False
             for r in rows:
-                b = r.get("pred_total_basis") or r.get("pred_margin_basis")
-                if b and any(b.startswith(rb) for rb in real_bases):
-                    # Also require numeric value present
-                    pt = r.get("pred_total")
-                    pm = r.get("pred_margin")
-                    if (pt is not None and pt == pt) or (pm is not None and pm == pm):
-                        has_real = True
-                        break
+                pt = r.get("pred_total")
+                pm = r.get("pred_margin")
+                if ((pt is not None and pt == pt) or (pm is not None and pm == pm)):
+                    has_real = True
+                    break
             if not has_real:
-                # Mark synthetic and null out for display cleanliness
+                # All predictions are missing; only then suppress purely synthetic shells.
                 suppressed_rows = 0
                 for r in rows:
-                    b = r.get("pred_total_basis")
+                    b = (r.get("pred_total_basis") or "")
                     pt = r.get("pred_total")
                     pm = r.get("pred_margin")
-                    if (pt is None or pt != pt) and (pm is None or pm != pm) or (b in {"synthetic_baseline","market_copy"}):
+                    # Suppress rows lacking BOTH predictions OR explicitly marked market_copy placeholder.
+                    if (((pt is None or pt != pt) and (pm is None or pm != pm)) or b in {"market_copy"}):
                         r["pred_total"] = None
                         r["pred_margin"] = None
                         r["pred_total_basis"] = None
@@ -7054,6 +7114,8 @@ def index():
                         suppressed_rows += 1
                 pipeline_stats["synthetic_shell_hidden"] = True
                 pipeline_stats["synthetic_shell_suppressed_rows"] = suppressed_rows
+            else:
+                pipeline_stats["synthetic_shell_relaxed"] = True
     except Exception:
         pipeline_stats["synthetic_shell_hide_error"] = True
     # Lightweight instrumentation: persist rows debug snapshot for Render visibility when page appears empty.
