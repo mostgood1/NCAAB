@@ -4794,6 +4794,20 @@ def index():
                             df.loc[override_mask, 'edge_closing'] = pd.to_numeric(df.loc[override_mask, 'pred_total'], errors='coerce') - pd.to_numeric(df.loc[override_mask, 'closing_total'], errors='coerce')
                         except Exception:
                             pass
+                # Final guard: if EVERY displayed total is NaN but unified chosen_total has values, force promotion
+                try:
+                    if 'pred_total' in df.columns and df['pred_total'].isna().all() and chosen_total.notna().any():
+                        df['pred_total'] = chosen_total
+                        if 'pred_total_basis' not in df.columns:
+                            df['pred_total_basis'] = 'model_force_fill'
+                        else:
+                            df['pred_total_basis'] = df['pred_total_basis'].where(~df['pred_total'].notna(), df['pred_total_basis'])
+                            fill_mask_ff = df['pred_total'].notna() & (df['pred_total_basis'].isna() | (df['pred_total_basis'].astype(str) == ''))
+                            if fill_mask_ff.any():
+                                df.loc[fill_mask_ff, 'pred_total_basis'] = 'model_force_fill'
+                        pipeline_stats['pred_total_force_fill_from_unified'] = int(chosen_total.notna().sum())
+                except Exception:
+                    pipeline_stats['pred_total_force_fill_error'] = True
                 # Meta ensemble totals (optional): combine raw/calibrated/market/derived components with learned weights
                 try:
                     if 'pred_total_meta' not in df.columns:
@@ -4930,6 +4944,19 @@ def index():
                 df['pred_margin'] = chosen_margin
                 df['pred_margin_basis'] = df.get('pred_margin_basis')
                 df['pred_margin_basis'] = df['pred_margin_basis'].where(df['pred_margin_basis'].notna(), margin_basis_code)
+                # Final guard: if pred_margin ended up all NaN but chosen_margin has values, force fill
+                try:
+                    if 'pred_margin' in df.columns and df['pred_margin'].isna().all() and pd.to_numeric(chosen_margin, errors='coerce').notna().any():
+                        df['pred_margin'] = pd.to_numeric(chosen_margin, errors='coerce')
+                        if 'pred_margin_basis' not in df.columns:
+                            df['pred_margin_basis'] = 'model_force_fill'
+                        else:
+                            fill_mask_m = df['pred_margin'].notna() & (df['pred_margin_basis'].isna() | (df['pred_margin_basis'].astype(str) == ''))
+                            if fill_mask_m.any():
+                                df.loc[fill_mask_m, 'pred_margin_basis'] = 'model_force_fill'
+                        pipeline_stats['pred_margin_force_fill_from_chosen'] = int(pd.to_numeric(chosen_margin, errors='coerce').notna().sum())
+                except Exception:
+                    pipeline_stats['pred_margin_force_fill_error'] = True
                 if 'spread_home' in df.columns:
                     sh2 = pd.to_numeric(df['spread_home'], errors='coerce')
                     df['edge_ats'] = pd.to_numeric(df['pred_margin'], errors='coerce') - sh2
