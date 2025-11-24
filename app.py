@@ -6066,13 +6066,14 @@ def index():
                 cal_t = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
                 pt_curr_final = pd.to_numeric(df['pred_total'], errors='coerce')
                 basis_curr = df['pred_total_basis'].astype(str) if 'pred_total_basis' in df.columns else pd.Series(['none']*len(df))
+                # Treat all synthetic/blend/model_v1/raw/reconstructed bases as lower precedence than calibrated
                 lower_prec_final_t = {
                     'blend','blended','blended_model_baseline','blend_model_market',
-                    'synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
-                    'synthetic_from_total_final','reconstructed_from_edge','model_raw','baseline','none','nan'
+                    'blended_low','synthetic_baseline','synthetic_baseline_nomkt','synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
+                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan'
                 }
-                # Candidate rows: calibrated value present, current basis lower precedence OR missing, and value differs OR current pred_total NaN
-                override_mask_t = cal_t.notna() & (pt_curr_final.isna() | (cal_t.sub(pt_curr_final).abs() > 0.0001)) & (basis_curr.isin(lower_prec_final_t) | basis_curr.isna() | (basis_curr.str.strip()==''))
+                # Candidate rows: calibrated value present AND basis lower precedence (or missing). Always override to ensure CAL badge even if numeric equal.
+                override_mask_t = cal_t.notna() & (basis_curr.isin(lower_prec_final_t) | basis_curr.isna() | (basis_curr.str.strip()==''))
                 if override_mask_t.any():
                     df.loc[override_mask_t,'pred_total'] = cal_t[override_mask_t]
                     if 'pred_total_basis' in df.columns:
@@ -6109,10 +6110,10 @@ def index():
                 basis_curr_m = df['pred_margin_basis'].astype(str) if 'pred_margin_basis' in df.columns else pd.Series(['none']*len(df))
                 lower_prec_final_m = {
                     'blend','blended','blended_model_baseline','blend_model_market',
-                    'synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
-                    'synthetic_from_total_final','reconstructed_from_edge','model_raw','baseline','none','nan'
+                    'blended_low','synthetic_baseline','synthetic_baseline_nomkt','synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
+                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan'
                 }
-                override_mask_m = cal_m.notna() & (pm_curr_final.isna() | (cal_m.sub(pm_curr_final).abs() > 0.0001)) & (basis_curr_m.isin(lower_prec_final_m) | basis_curr_m.isna() | (basis_curr_m.str.strip()==''))
+                override_mask_m = cal_m.notna() & (basis_curr_m.isin(lower_prec_final_m) | basis_curr_m.isna() | (basis_curr_m.str.strip()==''))
                 if override_mask_m.any():
                     df.loc[override_mask_m,'pred_margin'] = cal_m[override_mask_m]
                     if 'pred_margin_basis' in df.columns:
@@ -7643,9 +7644,9 @@ def api_preds_summary():
                     ser2 = ser.fillna("").astype(str)
                     cats = {
                         "CAL": int(ser2.str.startswith("model_calibrated").sum() + (ser2 == "cal").sum()),
-                        "RAW": int(ser2.isin(["model_raw","model"]).sum()),
+                        "RAW": int(ser2.isin(["model_raw","model","model_v1"]).sum()),
                         "BLEND": int(ser2.isin(["blend","blended","blended_model_baseline","blend_model_market","blended_low"]).sum()),
-                        "SYN": int(ser2.isin(["synthetic_baseline","synthetic_baseline_final","synthetic","features_derived","market_copy"]).sum()),
+                        "SYN": int(ser2.isin(["synthetic_baseline","synthetic_baseline_nomkt","synthetic_baseline_final","synthetic","features_derived","market_copy"]).sum()),
                     }
                     cats["OTHER"] = int(len(ser2)) - sum(int(v) for v in cats.values())
                     return cats
@@ -7655,6 +7656,11 @@ def api_preds_summary():
                 summary["total_basis_groups"] = _grp(preds["pred_total_basis"])  # type: ignore
             if "pred_margin_basis" in preds.columns:
                 summary["margin_basis_groups"] = _grp(preds["pred_margin_basis"])  # type: ignore
+            # Non-null calibration counts for visibility
+            if 'pred_total_calibrated' in preds.columns:
+                summary['pred_total_calibrated_nonnull'] = int(pd.to_numeric(preds['pred_total_calibrated'], errors='coerce').notna().sum())
+            if 'pred_margin_calibrated' in preds.columns:
+                summary['pred_margin_calibrated_nonnull'] = int(pd.to_numeric(preds['pred_margin_calibrated'], errors='coerce').notna().sum())
         # Highlights from last pipeline stats (JSON-safe coercion)
         try:
             hi_keys = [
