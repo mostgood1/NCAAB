@@ -6035,6 +6035,96 @@ def index():
                 df.loc[recon_proj_mask,'proj_home'] = (pt2[recon_proj_mask] + pm2[recon_proj_mask]) / 2.0
                 df.loc[recon_proj_mask,'proj_away'] = pt2[recon_proj_mask] - df.loc[recon_proj_mask,'proj_home']
                 pipeline_stats['reconstructed_proj_rows'] = int(recon_proj_mask.sum())
+        # ------------------------------------------------------------------
+        # Final idempotent calibrated precedence enforcement
+        # Ensures remote environments that later overwrite basis with synthetic
+        # or reconstructed values still surface calibrated artifacts if present.
+        # Safe: skips rows already tagged 'cal'. Recomputes edges & projections
+        # only for changed rows. Instrument override counts.
+        # ------------------------------------------------------------------
+        try:
+            # Totals
+            if 'pred_total_calibrated' in df.columns and 'pred_total' in df.columns:
+                cal_t = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+                pt_curr_final = pd.to_numeric(df['pred_total'], errors='coerce')
+                basis_curr = df['pred_total_basis'].astype(str) if 'pred_total_basis' in df.columns else pd.Series(['none']*len(df))
+                lower_prec_final_t = {
+                    'blend','blended','blended_model_baseline','blend_model_market',
+                    'synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
+                    'synthetic_from_total_final','reconstructed_from_edge','model_raw','baseline','none','nan'
+                }
+                # Candidate rows: calibrated value present, current basis lower precedence OR missing, and value differs OR current pred_total NaN
+                override_mask_t = cal_t.notna() & (pt_curr_final.isna() | (cal_t.sub(pt_curr_final).abs() > 0.0001)) & (basis_curr.isin(lower_prec_final_t) | basis_curr.isna() | (basis_curr.str.strip()==''))
+                if override_mask_t.any():
+                    df.loc[override_mask_t,'pred_total'] = cal_t[override_mask_t]
+                    if 'pred_total_basis' in df.columns:
+                        df.loc[override_mask_t,'pred_total_basis'] = 'cal'
+                    else:
+                        df['pred_total_basis'] = ['cal' if m else b for m,b in zip(override_mask_t, basis_curr)]
+                    # Recompute edges for affected rows
+                    try:
+                        if 'market_total' in df.columns:
+                            mt_final = pd.to_numeric(df['market_total'], errors='coerce')
+                            df.loc[override_mask_t,'edge_total'] = df.loc[override_mask_t,'pred_total'] - mt_final[override_mask_t]
+                        if 'closing_total' in df.columns:
+                            ct_final = pd.to_numeric(df['closing_total'], errors='coerce')
+                            df.loc[override_mask_t,'edge_closing'] = df.loc[override_mask_t,'pred_total'] - ct_final[override_mask_t]
+                    except Exception:
+                        pipeline_stats['final_cal_total_edge_recompute_error'] = True
+                    # Recompute projections if margin available
+                    try:
+                        if 'pred_margin' in df.columns:
+                            pm_final = pd.to_numeric(df['pred_margin'], errors='coerce')
+                            # Only recompute where both total overridden and margin present
+                            proj_mask = override_mask_t & pm_final.notna()
+                            if proj_mask.any():
+                                df.loc[proj_mask,'proj_home'] = (df.loc[proj_mask,'pred_total'] + pm_final[proj_mask]) / 2.0
+                                df.loc[proj_mask,'proj_away'] = df.loc[proj_mask,'pred_total'] - df.loc[proj_mask,'proj_home']
+                    except Exception:
+                        pipeline_stats['final_cal_total_proj_recompute_error'] = True
+                    pipeline_stats['final_cal_override_total_rows'] = int(override_mask_t.sum())
+                pipeline_stats['final_cal_rows_total_present'] = int(cal_t.notna().sum())
+            # Margins
+            if 'pred_margin_calibrated' in df.columns and 'pred_margin' in df.columns:
+                cal_m = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
+                pm_curr_final = pd.to_numeric(df['pred_margin'], errors='coerce')
+                basis_curr_m = df['pred_margin_basis'].astype(str) if 'pred_margin_basis' in df.columns else pd.Series(['none']*len(df))
+                lower_prec_final_m = {
+                    'blend','blended','blended_model_baseline','blend_model_market',
+                    'synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
+                    'synthetic_from_total_final','reconstructed_from_edge','model_raw','baseline','none','nan'
+                }
+                override_mask_m = cal_m.notna() & (pm_curr_final.isna() | (cal_m.sub(pm_curr_final).abs() > 0.0001)) & (basis_curr_m.isin(lower_prec_final_m) | basis_curr_m.isna() | (basis_curr_m.str.strip()==''))
+                if override_mask_m.any():
+                    df.loc[override_mask_m,'pred_margin'] = cal_m[override_mask_m]
+                    if 'pred_margin_basis' in df.columns:
+                        df.loc[override_mask_m,'pred_margin_basis'] = 'cal'
+                    else:
+                        df['pred_margin_basis'] = ['cal' if m else b for m,b in zip(override_mask_m, basis_curr_m)]
+                    # Recompute ATS edges for affected rows
+                    try:
+                        if 'spread_home' in df.columns:
+                            sh_final = pd.to_numeric(df['spread_home'], errors='coerce')
+                            df.loc[override_mask_m,'edge_ats'] = df.loc[override_mask_m,'pred_margin'] - sh_final[override_mask_m]
+                        if 'closing_spread_home' in df.columns:
+                            cs_final = pd.to_numeric(df['closing_spread_home'], errors='coerce')
+                            df.loc[override_mask_m,'edge_closing_ats'] = df.loc[override_mask_m,'pred_margin'] - cs_final[override_mask_m]
+                    except Exception:
+                        pipeline_stats['final_cal_margin_edge_recompute_error'] = True
+                    # Recompute projections if total present
+                    try:
+                        if 'pred_total' in df.columns:
+                            pt_final2 = pd.to_numeric(df['pred_total'], errors='coerce')
+                            proj_mask_m = override_mask_m & pt_final2.notna()
+                            if proj_mask_m.any():
+                                df.loc[proj_mask_m,'proj_home'] = (pt_final2[proj_mask_m] + df.loc[proj_mask_m,'pred_margin']) / 2.0
+                                df.loc[proj_mask_m,'proj_away'] = pt_final2[proj_mask_m] - df.loc[proj_mask_m,'proj_home']
+                    except Exception:
+                        pipeline_stats['final_cal_margin_proj_recompute_error'] = True
+                    pipeline_stats['final_cal_override_margin_rows'] = int(override_mask_m.sum())
+                pipeline_stats['final_cal_rows_margin_present'] = int(cal_m.notna().sum())
+        except Exception as _final_cal_e:
+            pipeline_stats['final_cal_enforcement_error'] = str(_final_cal_e)[:160]
     except Exception as _recon_e:
         pipeline_stats['reconstruction_error'] = str(_recon_e)[:160]
 
