@@ -235,8 +235,13 @@
                 {% if r.favored_side == 'Home' %}Margin: {{ r.home_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% elif r.favored_side == 'Away' %}Margin: {{ r.away_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% else %}Margin: Even{% endif %}
               {% else %}Margin: –{% endif %}
             </div>
-            {% if r.proj_home is not none and r.proj_away is not none %}
-              <div class="pill">Projected: {{ '%.1f' % r.proj_away }} - {{ '%.1f' % r.proj_home }}</div>
+            {% if (r.proj_home is not none and r.proj_home == r.proj_home) and (r.proj_away is not none and r.proj_away == r.proj_away) %}
+              {# Suppress projection pill when values are NaN (NaN != NaN) or missing #}
+              {% set _ph_valid = (r.proj_home is not none and r.proj_home == r.proj_home) %}
+              {% set _pa_valid = (r.proj_away is not none and r.proj_away == r.proj_away) %}
+              {% if _ph_valid and _pa_valid %}
+                <div class="pill">Projected: {{ '%.1f' % r.proj_away }} - {{ '%.1f' % r.proj_home }}</div>
+              {% endif %}
             {% endif %}
             {% if r.market_total is defined and r.market_total is not none and r.market_total == r.market_total %}
               {% if r.market_basis == 'last' %}
@@ -288,7 +293,10 @@
                 {% endif %}
               </div>
               <div class="seg">Winner: {% if r.pred_margin is not none %}{% if r.pred_margin > 0 %}{{ r.home_team }}{% elif r.pred_margin < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
-              <div class="seg">Team Totals: {% if r.proj_home is not none and r.proj_away is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
+              <div class="seg">Team Totals: {% if (r.proj_home is not none and r.proj_home == r.proj_home) and (r.proj_away is not none and r.proj_away == r.proj_away) %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
+                {% set _ph_valid = (r.proj_home is not none and r.proj_home == r.proj_home) %}
+                {% set _pa_valid = (r.proj_away is not none and r.proj_away == r.proj_away) %}
+                <div class="seg">Team Totals: {% if _ph_valid and _pa_valid %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
               <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}
                 {% if is_cal %}<span class="badge cal" title="Calibrated">Cal</span>{% elif is_raw %}<span class="badge raw" title="Raw model">Raw</span>{% endif %}
                 {# Basis badge for full-game total #}

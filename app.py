@@ -7540,6 +7540,15 @@ def api_diag():
             "second_pass_pred_total_fills_protected_skipped",
             "synthetic_shell_hidden",
             "synthetic_shell_suppressed_rows",
+            # Reconstruction + final cal enforcement visibility
+            "reconstructed_pred_total_rows",
+            "reconstructed_pred_margin_rows",
+            "reconstructed_proj_rows",
+            "reconstructed_proj_from_total_only_rows",
+            "final_cal_rows_total_present",
+            "final_cal_rows_margin_present",
+            "final_cal_override_total_rows",
+            "final_cal_override_margin_rows",
         ]
         last_stats = _LAST_PIPELINE_STATS or {}
         instrumentation = {k: last_stats.get(k) for k in instr_keys if k in last_stats}
@@ -7590,7 +7599,9 @@ def api_preds_summary():
         if not preds.empty:
             for col in ("pred_total_basis","pred_margin_basis"):
                 if col in preds.columns:
-                    vc = preds[col].value_counts(dropna=True).to_dict()
+                    # Ensure JSON-serializable counts (avoid numpy types)
+                    vc_raw = preds[col].value_counts(dropna=True).to_dict()
+                    vc = {str(k): int(v) for k, v in vc_raw.items()}
                     summary[f"{col}_counts"] = vc
             # Totals: how many rows have calibrated columns present
             summary["has_pred_total_calibrated"] = bool("pred_total_calibrated" in preds.columns)
