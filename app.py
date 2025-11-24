@@ -1808,6 +1808,8 @@ def index():
     # Optional date filter (?date=YYYY-MM-DD)
     date_q = (request.args.get("date") or "").strip()
     force_use_daily = (request.args.get("use_daily") or "").strip() in ("1","true","yes")
+    # Optional view preference: force-calibrated display precedence even for tiny diffs
+    prefer_cal = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
 
     # Declare globals early for prediction source path tracking
     global _PREDICTIONS_SOURCE_PATH, _MODEL_PREDICTIONS_SOURCE_PATH
@@ -1831,6 +1833,7 @@ def index():
         "odds_load_rows": len(odds),
         "model_preds_load_rows": len(model_preds),
         "outputs_dir": str(OUT),
+        "prefer_cal": prefer_cal,
     }
     team_variance_total: dict[str, float] | None = None
     team_variance_margin: dict[str, float] | None = None
@@ -4018,7 +4021,9 @@ def index():
                     override_candidates = current_basis.isin(lower_precedence) | current_basis.isna() | (current_basis.str.strip() == "")
                     # Current total predictions for diff gating
                     pt_curr = pd.to_numeric(df.get("pred_total"), errors="coerce") if "pred_total" in df.columns else pd.Series([np.nan]*len(df))
-                    diff_mask_total = pt_curr.isna() | (cal_series.notna() & pt_curr.notna() & (cal_series.sub(pt_curr).abs() > 0.01))
+                    # When prefer_cal query flag set, allow override even for tiny diffs (use 0 threshold)
+                    _thr_t = 0.0 if prefer_cal else 0.01
+                    diff_mask_total = pt_curr.isna() | (cal_series.notna() & pt_curr.notna() & (cal_series.sub(pt_curr).abs() > _thr_t))
                     override_mask_cal = cal_series.notna() & override_candidates & diff_mask_total
                     if override_mask_cal.any():
                         df.loc[override_mask_cal, "pred_total"] = cal_series[override_mask_cal]
@@ -4071,7 +4076,8 @@ def index():
                     lower_precedence_m = {"blend","blended","blend_model_market","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline","none"}
                     override_candidates_m = current_mb.isin(lower_precedence_m) | current_mb.isna() | (current_mb.str.strip() == "")
                     pm_curr = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else pd.Series([np.nan]*len(df))
-                    diff_mask_margin = pm_curr.isna() | (margin_cal_series.notna() & pm_curr.notna() & (margin_cal_series.sub(pm_curr).abs() > 0.01))
+                    _thr_m = 0.0 if prefer_cal else 0.01
+                    diff_mask_margin = pm_curr.isna() | (margin_cal_series.notna() & pm_curr.notna() & (margin_cal_series.sub(pm_curr).abs() > _thr_m))
                     override_mask_margin_cal = margin_cal_series.notna() & override_candidates_m & diff_mask_margin
                     if override_mask_margin_cal.any():
                         df.loc[override_mask_margin_cal, "pred_margin"] = margin_cal_series[override_mask_margin_cal]
@@ -7237,6 +7243,14 @@ def api_diag():
         "pred_rows_filled": filled_pred_rows,
         "pred_rows_missing": missing_pred_rows,
     }
+    try:
+        # Surface current prefer_cal default if active today via last stats
+        if _LAST_PIPELINE_STATS and isinstance(_LAST_PIPELINE_STATS, dict):
+            pc = _LAST_PIPELINE_STATS.get("prefer_cal")
+            if pc is not None:
+                out["prefer_cal"] = bool(pc)
+    except Exception:
+        pass
     # Curated instrumentation subset for quick remote visibility without scanning full stats dict
     try:
         instr_keys = [
@@ -7260,6 +7274,88 @@ def api_diag():
     except Exception:
         out["instrumentation_error"] = True
     return jsonify(out)
+
+
+@app.route("/api/preds-summary")
+def api_preds_summary():
+    """Summarize prediction basis distribution and calibration/blend diagnostics for a date.
+
+    Query params:
+      - date: YYYY-MM-DD (optional; defaults to today or most recent)
+    """
+    date_q = (request.args.get("date") or "").strip()
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+    except Exception:
+        today_str = None
+    # Load enriched/unified or current
+    preds = pd.DataFrame()
+    try:
+        if date_q:
+            enrich_path = OUT / f"predictions_enriched_{date_q}.csv"
+            if enrich_path.exists():
+                preds = pd.read_csv(enrich_path)
+        if preds.empty and date_q:
+            uni_path = OUT / f"predictions_unified_{date_q}.csv"
+            if uni_path.exists():
+                preds = pd.read_csv(uni_path)
+        if preds.empty and today_str:
+            enrich_path = OUT / f"predictions_enriched_{today_str}.csv"
+            if enrich_path.exists():
+                preds = pd.read_csv(enrich_path)
+        if preds.empty and today_str:
+            uni_path = OUT / f"predictions_unified_{today_str}.csv"
+            if uni_path.exists():
+                preds = pd.read_csv(uni_path)
+        if preds.empty:
+            preds = _load_predictions_current()
+    except Exception:
+        preds = _load_predictions_current()
+    summary: dict[str, Any] = {"rows": int(len(preds) if not preds.empty else 0), "date": date_q or today_str}
+    try:
+        if not preds.empty:
+            for col in ("pred_total_basis","pred_margin_basis"):
+                if col in preds.columns:
+                    vc = preds[col].value_counts(dropna=True).to_dict()
+                    summary[f"{col}_counts"] = vc
+            # Totals: how many rows have calibrated columns present
+            summary["has_pred_total_calibrated"] = bool("pred_total_calibrated" in preds.columns)
+            summary["has_pred_margin_calibrated"] = bool("pred_margin_calibrated" in preds.columns)
+            # Quick derived counts of basis groups
+            def _grp(ser):
+                if ser is None: return {}
+                cats = {
+                    "CAL": ser.fillna("").astype(str).str.startswith("model_calibrated").sum() + (ser.fillna("") == "cal").sum(),
+                    "RAW": ser.isin(["model_raw","model"]).sum(),
+                    "BLEND": ser.isin(["blend","blended","blended_model_baseline","blend_model_market","blended_low"]).sum(),
+                    "SYN": ser.isin(["synthetic_baseline","synthetic_baseline_final","synthetic","features_derived","market_copy"]).sum(),
+                }
+                cats["OTHER"] = int(len(ser)) - sum(int(v) for v in cats.values())
+                return cats
+            if "pred_total_basis" in preds.columns:
+                summary["total_basis_groups"] = _grp(preds["pred_total_basis"])  # type: ignore
+            if "pred_margin_basis" in preds.columns:
+                summary["margin_basis_groups"] = _grp(preds["pred_margin_basis"])  # type: ignore
+    except Exception as e:
+        summary["error"] = str(e)
+    # Attach last pipeline stats highlights if available
+    try:
+        hi_keys = [
+            "calibration_precedence_overrides_total",
+            "calibration_precedence_overrides_margin",
+            "blend_rows_effective",
+            "blend_rows_suppressed",
+            "blend_rows_ineffective",
+            "blend_uniform_reverted",
+            "pred_total_basis_counts",
+            "pred_margin_basis_counts",
+            "prefer_cal",
+        ]
+        if _LAST_PIPELINE_STATS:
+            summary["highlights"] = {k: _LAST_PIPELINE_STATS.get(k) for k in hi_keys if k in _LAST_PIPELINE_STATS}
+    except Exception:
+        pass
+    return jsonify(summary)
 
 
 @app.route("/dashboard")
