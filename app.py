@@ -6103,6 +6103,8 @@ def index():
                         pipeline_stats['final_cal_total_proj_recompute_error'] = True
                     pipeline_stats['final_cal_override_total_rows'] = int(override_mask_t.sum())
                 pipeline_stats['final_cal_rows_total_present'] = int(cal_t.notna().sum())
+                if cal_t.notna().sum() == 0:
+                    pipeline_stats['final_cal_total_all_nan'] = True
             # Margins
             if 'pred_margin_calibrated' in df.columns and 'pred_margin' in df.columns:
                 cal_m = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
@@ -6142,6 +6144,8 @@ def index():
                         pipeline_stats['final_cal_margin_proj_recompute_error'] = True
                     pipeline_stats['final_cal_override_margin_rows'] = int(override_mask_m.sum())
                 pipeline_stats['final_cal_rows_margin_present'] = int(cal_m.notna().sum())
+                if cal_m.notna().sum() == 0:
+                    pipeline_stats['final_cal_margin_all_nan'] = True
         except Exception as _final_cal_e:
             pipeline_stats['final_cal_enforcement_error'] = str(_final_cal_e)[:160]
     except Exception as _recon_e:
