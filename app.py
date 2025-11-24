@@ -7566,81 +7566,122 @@ def api_preds_summary():
     Query params:
       - date: YYYY-MM-DD (optional; defaults to today or most recent)
     """
+    # Robust wrapper: never raise; always surface error details JSON-safe.
+    def _json_safe(x):
+        try:
+            import numpy as _np
+            import pandas as _pd
+        except Exception:
+            _np = None  # type: ignore
+            _pd = None  # type: ignore
+        if x is None:
+            return None
+        if isinstance(x, (int, float, str, bool)):
+            return x
+        if _np and isinstance(x, _np.generic):  # numpy scalar
+            return x.item()
+        if isinstance(x, dict):
+            return {str(k): _json_safe(v) for k, v in x.items()}
+        if isinstance(x, (list, tuple, set)):
+            return [_json_safe(i) for i in list(x)]
+        if 'Series' in str(type(x)):
+            # pandas Series -> dict of python scalars
+            try:
+                return {str(k): _json_safe(v) for k, v in dict(x).items()}
+            except Exception:
+                try:
+                    return [ _json_safe(v) for v in list(x) ]
+                except Exception:
+                    return str(x)
+        return str(x)
     date_q = (request.args.get("date") or "").strip()
     try:
         today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
-    # Load enriched/unified or current
-    preds = pd.DataFrame()
+    summary: dict[str, Any] = {"date": date_q or today_str, "rows": 0}
     try:
-        if date_q:
-            enrich_path = OUT / f"predictions_enriched_{date_q}.csv"
-            if enrich_path.exists():
-                preds = pd.read_csv(enrich_path)
-        if preds.empty and date_q:
-            uni_path = OUT / f"predictions_unified_{date_q}.csv"
-            if uni_path.exists():
-                preds = pd.read_csv(uni_path)
-        if preds.empty and today_str:
-            enrich_path = OUT / f"predictions_enriched_{today_str}.csv"
-            if enrich_path.exists():
-                preds = pd.read_csv(enrich_path)
-        if preds.empty and today_str:
-            uni_path = OUT / f"predictions_unified_{today_str}.csv"
-            if uni_path.exists():
-                preds = pd.read_csv(uni_path)
-        if preds.empty:
+        # Load enriched/unified or current
+        preds = pd.DataFrame()
+        try:
+            if date_q:
+                enrich_path = OUT / f"predictions_enriched_{date_q}.csv"
+                if enrich_path.exists():
+                    preds = pd.read_csv(enrich_path)
+            if preds.empty and date_q:
+                uni_path = OUT / f"predictions_unified_{date_q}.csv"
+                if uni_path.exists():
+                    preds = pd.read_csv(uni_path)
+            if preds.empty and today_str:
+                enrich_path = OUT / f"predictions_enriched_{today_str}.csv"
+                if enrich_path.exists():
+                    preds = pd.read_csv(enrich_path)
+            if preds.empty and today_str:
+                uni_path = OUT / f"predictions_unified_{today_str}.csv"
+                if uni_path.exists():
+                    preds = pd.read_csv(uni_path)
+            if preds.empty:
+                preds = _load_predictions_current()
+        except Exception:
             preds = _load_predictions_current()
-    except Exception:
-        preds = _load_predictions_current()
-    summary: dict[str, Any] = {"rows": int(len(preds) if not preds.empty else 0), "date": date_q or today_str}
-    try:
+        summary["rows"] = int(len(preds)) if not preds.empty else 0
         if not preds.empty:
+            # Basis value_counts (JSON-safe)
             for col in ("pred_total_basis","pred_margin_basis"):
                 if col in preds.columns:
-                    # Ensure JSON-serializable counts (avoid numpy types)
-                    vc_raw = preds[col].value_counts(dropna=True).to_dict()
-                    vc = {str(k): int(v) for k, v in vc_raw.items()}
-                    summary[f"{col}_counts"] = vc
-            # Totals: how many rows have calibrated columns present
+                    try:
+                        vc_raw = preds[col].value_counts(dropna=True).to_dict()
+                        summary[f"{col}_counts"] = {str(k): int(v) for k, v in vc_raw.items()}
+                    except Exception as _vc_e:
+                        summary[f"{col}_counts_error"] = str(_vc_e)
+            # Calibrated columns presence
             summary["has_pred_total_calibrated"] = bool("pred_total_calibrated" in preds.columns)
             summary["has_pred_margin_calibrated"] = bool("pred_margin_calibrated" in preds.columns)
-            # Quick derived counts of basis groups
+            # Group distributions
             def _grp(ser):
-                if ser is None: return {}
-                cats = {
-                    "CAL": ser.fillna("").astype(str).str.startswith("model_calibrated").sum() + (ser.fillna("") == "cal").sum(),
-                    "RAW": ser.isin(["model_raw","model"]).sum(),
-                    "BLEND": ser.isin(["blend","blended","blended_model_baseline","blend_model_market","blended_low"]).sum(),
-                    "SYN": ser.isin(["synthetic_baseline","synthetic_baseline_final","synthetic","features_derived","market_copy"]).sum(),
-                }
-                cats["OTHER"] = int(len(ser)) - sum(int(v) for v in cats.values())
-                return cats
+                try:
+                    ser2 = ser.fillna("").astype(str)
+                    cats = {
+                        "CAL": int(ser2.str.startswith("model_calibrated").sum() + (ser2 == "cal").sum()),
+                        "RAW": int(ser2.isin(["model_raw","model"]).sum()),
+                        "BLEND": int(ser2.isin(["blend","blended","blended_model_baseline","blend_model_market","blended_low"]).sum()),
+                        "SYN": int(ser2.isin(["synthetic_baseline","synthetic_baseline_final","synthetic","features_derived","market_copy"]).sum()),
+                    }
+                    cats["OTHER"] = int(len(ser2)) - sum(int(v) for v in cats.values())
+                    return cats
+                except Exception as _g_e:
+                    return {"error": str(_g_e)}
             if "pred_total_basis" in preds.columns:
                 summary["total_basis_groups"] = _grp(preds["pred_total_basis"])  # type: ignore
             if "pred_margin_basis" in preds.columns:
                 summary["margin_basis_groups"] = _grp(preds["pred_margin_basis"])  # type: ignore
+        # Highlights from last pipeline stats (JSON-safe coercion)
+        try:
+            hi_keys = [
+                "calibration_precedence_overrides_total",
+                "calibration_precedence_overrides_margin",
+                "blend_rows_effective",
+                "blend_rows_suppressed",
+                "blend_rows_ineffective",
+                "blend_uniform_reverted",
+                "pred_total_basis_counts",
+                "pred_margin_basis_counts",
+                "prefer_cal",
+            ]
+            if _LAST_PIPELINE_STATS:
+                raw_highlights = {k: _LAST_PIPELINE_STATS.get(k) for k in hi_keys if k in _LAST_PIPELINE_STATS}
+                summary["highlights"] = _json_safe(raw_highlights)
+        except Exception as _hl_e:
+            summary["highlights_error"] = str(_hl_e)
     except Exception as e:
-        summary["error"] = str(e)
-    # Attach last pipeline stats highlights if available
-    try:
-        hi_keys = [
-            "calibration_precedence_overrides_total",
-            "calibration_precedence_overrides_margin",
-            "blend_rows_effective",
-            "blend_rows_suppressed",
-            "blend_rows_ineffective",
-            "blend_uniform_reverted",
-            "pred_total_basis_counts",
-            "pred_margin_basis_counts",
-            "prefer_cal",
-        ]
-        if _LAST_PIPELINE_STATS:
-            summary["highlights"] = {k: _LAST_PIPELINE_STATS.get(k) for k in hi_keys if k in _LAST_PIPELINE_STATS}
-    except Exception:
-        pass
-    return jsonify(summary)
+        # Catastrophic failure path
+        summary["fatal_error"] = str(e)
+        try:
+            import traceback as _tb
+            summary["fatal_trace"] = _tb.format_exc()[-900:]
+        except Exception:
+            pass
+    return jsonify(_json_safe(summary))
 
 
 @app.route("/dashboard")
