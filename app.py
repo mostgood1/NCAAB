@@ -1809,7 +1809,8 @@ def index():
     date_q = (request.args.get("date") or "").strip()
     force_use_daily = (request.args.get("use_daily") or "").strip() in ("1","true","yes")
     # Optional view preference: force-calibrated display precedence even for tiny diffs
-    prefer_cal = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
+    prefer_cal_param = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
+    prefer_cal_eff = prefer_cal_param
 
     # Declare globals early for prediction source path tracking
     global _PREDICTIONS_SOURCE_PATH, _MODEL_PREDICTIONS_SOURCE_PATH
@@ -1833,7 +1834,8 @@ def index():
         "odds_load_rows": len(odds),
         "model_preds_load_rows": len(model_preds),
         "outputs_dir": str(OUT),
-        "prefer_cal": prefer_cal,
+        "prefer_cal": prefer_cal_param,
+        "prefer_cal_effective": prefer_cal_eff,
     }
     team_variance_total: dict[str, float] | None = None
     team_variance_margin: dict[str, float] | None = None
@@ -4010,6 +4012,14 @@ def index():
             if "pred_total_calibrated" in df.columns:
                 cal_series = pd.to_numeric(df["pred_total_calibrated"], errors="coerce")
                 if cal_series.notna().any():
+                    # Auto-prefer calibrated when available unless user explicitly forced otherwise
+                    if not prefer_cal_eff:
+                        prefer_cal_eff = True
+                        try:
+                            pipeline_stats["prefer_cal_auto"] = True
+                            pipeline_stats["prefer_cal_effective"] = True
+                        except Exception:
+                            pass
                     if "pred_total_orig" not in df.columns:
                         df["pred_total_orig"] = df.get("pred_total")
                     if "pred_total_basis" in df.columns and "pred_total_basis_orig" not in df.columns:
@@ -4022,7 +4032,7 @@ def index():
                     # Current total predictions for diff gating
                     pt_curr = pd.to_numeric(df.get("pred_total"), errors="coerce") if "pred_total" in df.columns else pd.Series([np.nan]*len(df))
                     # When prefer_cal query flag set, allow override even for tiny diffs (use 0 threshold)
-                    _thr_t = 0.0 if prefer_cal else 0.01
+                    _thr_t = 0.0 if prefer_cal_eff else 0.01
                     diff_mask_total = pt_curr.isna() | (cal_series.notna() & pt_curr.notna() & (cal_series.sub(pt_curr).abs() > _thr_t))
                     override_mask_cal = cal_series.notna() & override_candidates & diff_mask_total
                     if override_mask_cal.any():
@@ -4068,6 +4078,13 @@ def index():
             if "pred_margin_calibrated" in df.columns:
                 margin_cal_series = pd.to_numeric(df["pred_margin_calibrated"], errors="coerce")
                 if margin_cal_series.notna().any():
+                    if not prefer_cal_eff:
+                        prefer_cal_eff = True
+                        try:
+                            pipeline_stats["prefer_cal_auto"] = True
+                            pipeline_stats["prefer_cal_effective"] = True
+                        except Exception:
+                            pass
                     if "pred_margin_orig" not in df.columns:
                         df["pred_margin_orig"] = df.get("pred_margin")
                     if "pred_margin_basis" in df.columns and "pred_margin_basis_orig" not in df.columns:
@@ -4076,7 +4093,7 @@ def index():
                     lower_precedence_m = {"blend","blended","blend_model_market","synthetic_from_spread_final","synthetic_even_final","model_raw","baseline","none"}
                     override_candidates_m = current_mb.isin(lower_precedence_m) | current_mb.isna() | (current_mb.str.strip() == "")
                     pm_curr = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else pd.Series([np.nan]*len(df))
-                    _thr_m = 0.0 if prefer_cal else 0.01
+                    _thr_m = 0.0 if prefer_cal_eff else 0.01
                     diff_mask_margin = pm_curr.isna() | (margin_cal_series.notna() & pm_curr.notna() & (margin_cal_series.sub(pm_curr).abs() > _thr_m))
                     override_mask_margin_cal = margin_cal_series.notna() & override_candidates_m & diff_mask_margin
                     if override_mask_margin_cal.any():
@@ -4438,6 +4455,20 @@ def index():
             df["market_basis"] = "last"  # strict last pre-tip odds
         else:
             df["market_basis"] = df.get("market_basis", "market")
+        # Z-edge for totals when sigma available
+        try:
+            if "pred_total_sigma_bootstrap" in df.columns:
+                sig = pd.to_numeric(df["pred_total_sigma_bootstrap"], errors="coerce")
+                et = pd.to_numeric(df["edge_total"], errors="coerce")
+                z = et / sig.replace(0, np.nan)
+                df["edge_total_z"] = z
+                zv = z.replace([np.inf,-np.inf], np.nan).dropna()
+                if not zv.empty:
+                    pipeline_stats["edge_total_z_q25"] = float(zv.quantile(0.25))
+                    pipeline_stats["edge_total_z_median"] = float(zv.median())
+                    pipeline_stats["edge_total_z_q75"] = float(zv.quantile(0.75))
+        except Exception:
+            pipeline_stats["edge_total_z_error"] = True
     # Compute closing edge separately when explicit closing_total present
     if {"closing_total","pred_total"}.issubset(df.columns):
         try:
@@ -4589,6 +4620,24 @@ def index():
                 df['edge_margin_model'] = pm + sh  # since sh is negative when home favored
             except Exception:
                 df['edge_margin_model'] = None
+        # Display ATS edge based on displayed pred_margin when spread present
+        try:
+            if {'pred_margin','spread_home'}.issubset(df.columns):
+                pm_d = pd.to_numeric(df['pred_margin'], errors='coerce')
+                sh_d = pd.to_numeric(df['spread_home'], errors='coerce')
+                df['edge_ats'] = pm_d + sh_d
+                # Z for ATS if sigma available
+                if 'pred_margin_sigma_bootstrap' in df.columns:
+                    sigm = pd.to_numeric(df['pred_margin_sigma_bootstrap'], errors='coerce').replace(0, np.nan)
+                    z_m = (pm_d + sh_d) / sigm
+                    df['edge_ats_z'] = z_m
+                    zv_m = z_m.replace([np.inf,-np.inf], np.nan).dropna()
+                    if not zv_m.empty:
+                        pipeline_stats['edge_ats_z_q25'] = float(zv_m.quantile(0.25))
+                        pipeline_stats['edge_ats_z_median'] = float(zv_m.median())
+                        pipeline_stats['edge_ats_z_q75'] = float(zv_m.quantile(0.75))
+        except Exception:
+            pipeline_stats['edge_ats_z_error'] = True
         # Unify: prefer model predictions as primary displayed values; override legacy pred_total/pred_margin if present
         try:
             if 'pred_total_model' in df.columns:

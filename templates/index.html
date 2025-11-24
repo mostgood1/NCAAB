@@ -33,14 +33,25 @@
         <a href="/calibration">Calibration</a>
       </nav>
     </div>
-    {% if pipeline_stats and pipeline_stats.using_blended_predictions %}
+    {% if pipeline_stats and (pipeline_stats.using_blended_predictions or pipeline_stats.prefer_cal_effective) %}
       <div class="mb8 flex-row-wrap">
-        <span class="pill" title="Blended predictions active (segmented + baseline)">Blended Active</span>
+        {% if pipeline_stats.using_blended_predictions %}
+          <span class="pill" title="Blended predictions active (segmented + baseline)">Blended Active</span>
+        {% endif %}
+        {% if pipeline_stats.prefer_cal_effective %}
+          <span class="pill" title="Calibrated predictions prioritized for display">Cal Prioritized</span>
+        {% endif %}
         {% if pipeline_stats.blend_weight_median is defined %}
           <span class="pill" title="Blend weight median (min–max)">Wmed {{ '%.2f' % pipeline_stats.blend_weight_median }} ({{ '%.2f' % pipeline_stats.blend_weight_min }}–{{ '%.2f' % pipeline_stats.blend_weight_max }})</span>
         {% endif %}
         {% if pipeline_stats.seg_n_rows_median is defined %}
           <span class="pill" title="Segment sample size median (min–max)">Nmed {{ '%.0f' % pipeline_stats.seg_n_rows_median }} ({{ '%.0f' % pipeline_stats.seg_n_rows_min }}–{{ '%.0f' % pipeline_stats.seg_n_rows_max }})</span>
+        {% endif %}
+        {% if pipeline_stats.edge_total_z_median is defined %}
+          <span class="pill" title="Z-score of total edges (median)">Ztot~ {{ '%.2f' % pipeline_stats.edge_total_z_median }}</span>
+        {% endif %}
+        {% if pipeline_stats.edge_ats_z_median is defined %}
+          <span class="pill" title="Z-score of ATS edges (median)">ZATS~ {{ '%.2f' % pipeline_stats.edge_ats_z_median }}</span>
         {% endif %}
       </div>
     {% endif %}
@@ -253,6 +264,9 @@
                   'edge-extreme'
                 ) %}
                 <div class="pill {{ cls_et }}">Total Edge: {{ '%.1f' % r.edge_total }}</div>
+                {% if r.edge_total_z is defined and r.edge_total_z is not none and r.edge_total_z == r.edge_total_z %}
+                  <span class="badge" title="Total edge z-score">Z={{ '%.2f' % r.edge_total_z }}</span>
+                {% endif %}
               {% endif %}
               {% if r.lean_ou_side is defined and r.lean_ou_side %}
                 <div class="pill">OU Lean: {{ r.lean_ou_side }} {% if r.lean_ou_edge_abs is not none %}(+{{ '%.1f' % r.lean_ou_edge_abs }}){% endif %}</div>
@@ -265,7 +279,14 @@
             <div class="title">Full Game</div>
             <div class="line-row preds-row">
               <div class="seg label">Predictions</div>
-              <div class="seg">ATS: {% if r.pred_margin is not none %}{% set imp = (r.pred_margin * -1) %}{% if imp < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp }}{% elif imp > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp }}{% else %}Pick{% endif %}{% else %}–{% endif %}</div>
+              <div class="seg">ATS: {% if r.pred_margin is not none %}{% set imp = (r.pred_margin * -1) %}{% if imp < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp }}{% elif imp > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp }}{% else %}Pick{% endif %}{% else %}–{% endif %}
+                {% if r.edge_ats is defined and r.edge_ats is not none and r.edge_ats == r.edge_ats %}
+                  <span class="badge" title="ATS edge vs spread (pred_margin + spread)">Edge={{ '%.1f' % r.edge_ats }}</span>
+                  {% if r.edge_ats_z is defined and r.edge_ats_z is not none and r.edge_ats_z == r.edge_ats_z %}
+                    <span class="badge" title="ATS edge z-score">Z={{ '%.2f' % r.edge_ats_z }}</span>
+                  {% endif %}
+                {% endif %}
+              </div>
               <div class="seg">Winner: {% if r.pred_margin is not none %}{% if r.pred_margin > 0 %}{{ r.home_team }}{% elif r.pred_margin < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
               <div class="seg">Team Totals: {% if r.proj_home is not none and r.proj_away is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
               <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}
