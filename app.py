@@ -769,6 +769,48 @@ def api_commit_mode_status():
     payload["action_recommendations"] = recs
     return jsonify(payload)
 
+# ---------------------------------------------------------------
+# Calibration & prediction source debug endpoint (remote aid)
+# Provides: chosen predictions source file, basis distributions,
+# count of CAL-tagged rows, presence of calibrated columns, sample.
+# ---------------------------------------------------------------
+@app.route("/api/cal-debug")
+def cal_debug():
+    from flask import jsonify
+    import pandas as pd
+    result: dict[str, any] = {}
+    try:
+        result['model_predictions_source'] = str(_MODEL_PREDICTIONS_SOURCE_PATH) if '_MODEL_PREDICTIONS_SOURCE_PATH' in globals() else None
+    except Exception:
+        result['model_predictions_source'] = None
+    df = globals().get('last_index_df')
+    if isinstance(df, pd.DataFrame) and not df.empty:
+        for col in ('pred_total_basis','pred_margin_basis'):
+            if col in df.columns:
+                try:
+                    result[f'{col}_counts'] = df[col].value_counts(dropna=False).to_dict()
+                except Exception:
+                    result[f'{col}_counts_error'] = True
+        if 'pred_total_basis' in df.columns:
+            result['cal_rows_total'] = int(df['pred_total_basis'].eq('cal').sum())
+        if 'pred_margin_basis' in df.columns:
+            result['cal_rows_margin'] = int(df['pred_margin_basis'].eq('cal').sum())
+        pred_cols = [c for c in df.columns if c.startswith('pred_total') or c.startswith('pred_margin')]
+        result['prediction_columns'] = pred_cols
+        sample_cols = [c for c in ['game_id','home_team','away_team','pred_total','pred_total_basis','pred_total_calibrated','pred_margin','pred_margin_basis','pred_margin_calibrated'] if c in df.columns]
+        try:
+            result['sample'] = df[sample_cols].head(5).to_dict(orient='records') if sample_cols else []
+        except Exception:
+            result['sample_error'] = True
+    else:
+        result['no_snapshot'] = True
+    ps = globals().get('last_index_pipeline_stats', {})
+    if isinstance(ps, dict):
+        result['pipeline_stats'] = ps
+    result['has_calibrated_total_col'] = 'pred_total_calibrated' in (df.columns if isinstance(df, pd.DataFrame) else [])
+    result['has_calibrated_margin_col'] = 'pred_margin_calibrated' in (df.columns if isinstance(df, pd.DataFrame) else [])
+    return jsonify(result)
+
 # --------------------------------------------------------------------------------------
 # Ingestion endpoints for deploying local artifacts to Render for parity
 # --------------------------------------------------------------------------------------
@@ -960,12 +1002,16 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
         if not p.is_absolute():
             p = OUT / env_path
         candidates.append(p)
-    # 2) Explicit date (prefer calibrated then raw)
+    # 2) Explicit date (prefer unified -> enriched -> calibrated model -> raw model)
     if date_str:
+        candidates.append(OUT / f"predictions_unified_{date_str}.csv")
+        candidates.append(OUT / f"predictions_enriched_{date_str}.csv")
         candidates.append(OUT / f"predictions_model_calibrated_{date_str}.csv")
         candidates.append(OUT / f"predictions_model_{date_str}.csv")
-    # 3) Today (prefer calibrated)
+    # 3) Today (prefer unified -> enriched -> calibrated model -> raw model)
     if today_str and (not date_str or date_str != today_str):
+        candidates.append(OUT / f"predictions_unified_{today_str}.csv")
+        candidates.append(OUT / f"predictions_enriched_{today_str}.csv")
         candidates.append(OUT / f"predictions_model_calibrated_{today_str}.csv")
         candidates.append(OUT / f"predictions_model_{today_str}.csv")
     # 4) Any historical model predictions – choose newest non-empty
@@ -982,24 +1028,30 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
             if p.exists():
                 df = pd.read_csv(p)
                 if not df.empty:
-                    # Normalize calibrated column names to generic model columns for downstream merging
-                    if 'pred_total_model' not in df.columns and 'pred_total_calibrated' in df.columns:
-                        try:
-                            df['pred_total_model'] = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
-                        except Exception:
-                            df['pred_total_model'] = df['pred_total_calibrated']
-                    if 'pred_margin_model' not in df.columns and 'pred_margin_calibrated' in df.columns:
-                        try:
-                            df['pred_margin_model'] = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
-                        except Exception:
-                            df['pred_margin_model'] = df['pred_margin_calibrated']
-                    # Fallback: some raw inference artifacts may store columns as pred_total / pred_margin only
-                    if 'pred_total_model' not in df.columns and 'pred_total' in df.columns:
-                        df['pred_total_model'] = pd.to_numeric(df['pred_total'], errors='coerce')
-                    if 'pred_margin_model' not in df.columns and 'pred_margin' in df.columns:
-                        df['pred_margin_model'] = pd.to_numeric(df['pred_margin'], errors='coerce')
+                    # Unified/enriched files already contain display-ready pred_total / pred_margin and basis columns.
+                    # We still populate pred_total_model / pred_margin_model for downstream logic expecting those names.
+                    # Preference order for model totals:
+                    #   1. Explicit pred_total_model
+                    #   2. Calibrated pred_total_calibrated
+                    #   3. Display pred_total
+                    if 'pred_total_model' not in df.columns:
+                        if 'pred_total_calibrated' in df.columns:
+                            try:
+                                df['pred_total_model'] = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+                            except Exception:
+                                df['pred_total_model'] = df['pred_total_calibrated']
+                        elif 'pred_total' in df.columns:
+                            df['pred_total_model'] = pd.to_numeric(df['pred_total'], errors='coerce')
+                    if 'pred_margin_model' not in df.columns:
+                        if 'pred_margin_calibrated' in df.columns:
+                            try:
+                                df['pred_margin_model'] = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
+                            except Exception:
+                                df['pred_margin_model'] = df['pred_margin_calibrated']
+                        elif 'pred_margin' in df.columns:
+                            df['pred_margin_model'] = pd.to_numeric(df['pred_margin'], errors='coerce')
                     _MODEL_PREDICTIONS_SOURCE_PATH = str(p)
-                    logger.info("Loaded model predictions from: %s (rows=%s, cols=%s)", p, len(df), list(df.columns))
+                    logger.info("Loaded model/unified predictions from: %s (rows=%s, cols=%s)", p, len(df), list(df.columns))
                     return df
         except Exception:
             continue
@@ -6070,7 +6122,8 @@ def index():
                 lower_prec_final_t = {
                     'blend','blended','blended_model_baseline','blend_model_market',
                     'blended_low','synthetic_baseline','synthetic_baseline_nomkt','synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
-                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan'
+                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan',
+                    'model_calibrated','model_calibrated_bias'
                 }
                 # Candidate rows: calibrated value present AND basis lower precedence (or missing). Always override to ensure CAL badge even if numeric equal.
                 override_mask_t = cal_t.notna() & (basis_curr.isin(lower_prec_final_t) | basis_curr.isna() | (basis_curr.str.strip()==''))
@@ -6113,7 +6166,8 @@ def index():
                 lower_prec_final_m = {
                     'blend','blended','blended_model_baseline','blend_model_market',
                     'blended_low','synthetic_baseline','synthetic_baseline_nomkt','synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
-                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan'
+                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan',
+                    'model_calibrated','model_calibrated_bias'
                 }
                 override_mask_m = cal_m.notna() & (basis_curr_m.isin(lower_prec_final_m) | basis_curr_m.isna() | (basis_curr_m.str.strip()==''))
                 if override_mask_m.any():
@@ -6466,6 +6520,15 @@ def index():
                 )
         except Exception:
             pass
+
+    # Snapshot for remote CAL debugging: persist last enriched DataFrame & pipeline stats
+    try:
+        global last_index_df, last_index_pipeline_stats
+        # Shallow copy sufficient; avoid deep to reduce memory
+        last_index_df = df.copy()
+        last_index_pipeline_stats = dict(pipeline_stats) if 'pipeline_stats' in locals() else {}
+    except Exception:
+        pass
 
     # Branding enrichment
     branding = _load_branding_map()
