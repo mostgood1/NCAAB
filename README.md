@@ -157,6 +157,58 @@ python -m ncaab_model.cli ort-info
 ```
 
 Or run the verification helper:
+## Calibrated-Only Prediction Enforcement & Diagnostics
+
+The display layer now enforces calibrated predictions as the sole top-preference basis:
+
+- `cal` — True calibrated artifact applied (from `pred_total_calibrated` / `pred_margin_calibrated`).
+- `model_raw_missing_cal` — Raw model prediction promoted because the calibrated artifact for that game is missing.
+- `cal_est` — Estimated calibration applied for synthetic baseline rows when no true artifact exists (ratio for totals; slope/intercept for margins). Used only as a last resort.
+
+Legacy blend bases (`blend`, `blended_model_baseline`, etc.) are purged before rendering and never overwrite a true calibrated value. Historical unified prediction CSVs may still show blend bases; the Flask layer supersedes them during request assembly.
+
+Instrumentation keys (in `pipeline_stats` snapshot) include:
+
+```jsonc
+{
+  "basis_counts_total": {"cal": 82, "model_raw_missing_cal": 15, "cal_est": 7},
+  "basis_share_total_cal": 0.736,
+  "calibration_reason_counts": {"ok_calibrated": 82, "missing_calibration_artifact": 22},
+  "final_cal_override_total_rows": 56
+}
+```
+
+### Coverage Diagnostics
+
+Two ways to inspect calibration coverage:
+
+1. HTTP: `GET /api/calibration_diagnostic?date=YYYY-MM-DD` returns JSON with reason counts, basis shares, and a sample of up to 50 games.
+2. CLI: `python src/diagnose_calibration.py --date YYYY-MM-DD` writes:
+   - `outputs/calibration_diagnostic_detail_<date>.csv`
+   - `outputs/calibration_diagnostic_summary_<date>.csv`
+
+Reasons:
+
+- `ok_calibrated` — Both total and margin calibrated artifacts applied.
+- `missing_model_prediction` — Upstream model inference skipped the game; investigate data ingestion / features.
+- `missing_calibration_artifact` — Model predictions exist but calibration file omitted the row; retrain/apply calibration.
+- `basis_not_cal` — Artifact present but basis not promoted (should trend toward zero after enforcement).
+
+### Validation Tests
+
+Tests in `tests/test_calibration.py` assert: (a) blend rows do not possess calibrated artifacts, (b) every game has at least one of `cal`, `model_raw_missing_cal`, or `cal_est` bases for totals/margins.
+
+### Operational Guidance
+
+Run the daily update script first (training + prediction + apply calibration). If coverage gaps persist:
+
+1. Check `/api/calibration_diagnostic` locally and on Render; counts should match.
+2. If `missing_model_prediction` > 0, re-run model inference for that date (`python -m ncaab_model.cli predict --date YYYY-MM-DD`).
+3. If `missing_calibration_artifact` high, re-run calibration training/apply pipeline.
+4. Persist corrected unified predictions (ensure `pred_total_calibrated` columns exist) before accessing UI.
+
+Accurate predictability tracking now relies solely on calibrated outputs; blended series are deprecated.
+
 
 ```powershell
 python scripts/ort_verify.py
