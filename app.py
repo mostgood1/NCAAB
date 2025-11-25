@@ -3613,9 +3613,15 @@ def index():
                         val = 0.60 * baseline_league_avg + 0.25 * float(mt_val) + 0.15 * (baseline_league_avg + tempo_component) + noise
                         if abs(val - mt_val) < 0.4:
                             val = val + (1.15 if val <= mt_val else -1.15)
-                        # Remove hard lower floor (112) which was causing uniform fallback totals when model preds absent.
-                        # Apply only an upper plausibility cap; allow natural lower values for early-season slow tempos.
-                        val = float(np.clip(val, 60, 188))
+                        # Guardrail: prevent implausibly low totals. Clamp to at least 110.
+                        pre_clip = val
+                        val = float(np.clip(val, 110, 188))
+                        if val > pre_clip and pre_clip < 110:
+                            try:
+                                pipeline_stats.setdefault('low_total_guard_applied', 0)
+                                pipeline_stats['low_total_guard_applied'] += 1
+                            except Exception:
+                                pass
                         try:
                             pipeline_stats.setdefault('synthetic_baseline_fills', 0)
                             pipeline_stats['synthetic_baseline_fills'] += 1
@@ -3658,7 +3664,15 @@ def index():
                         tempo_avg = tempo_avg_series[idx] if not (isinstance(tempo_avg_series, float) or pd.isna(tempo_avg_series[idx])) else np.nan
                         tempo_component = ((tempo_avg - 70.0) * 0.65) if (not pd.isna(tempo_avg)) else 0.0
                         val = baseline_league_avg + tempo_component + noise
-                        val = float(np.clip(val, 60, 192))
+                        # Guardrail for no-market synthetic baseline
+                        pre_clip2 = val
+                        val = float(np.clip(val, 110, 192))
+                        if val > pre_clip2 and pre_clip2 < 110:
+                            try:
+                                pipeline_stats.setdefault('low_total_guard_applied', 0)
+                                pipeline_stats['low_total_guard_applied'] += 1
+                            except Exception:
+                                pass
                         df.at[idx, "pred_total"] = val
                         if "pred_total_basis" in df.columns and df["pred_total_basis"].dtype != object:
                             try:
@@ -5323,7 +5337,8 @@ def index():
                         w_derived = 1.0 - w_model
                         blended = w_model * pred_val + w_derived * derived_val
                         # Allow lower values (remove hard 112 floor); retain upper plausibility cap
-                        blended = float(np.clip(blended, 100, 188))
+                        # Ensure blended totals respect guardrails
+                        blended = float(np.clip(blended, 110, 188))
                         adj_vals.append(blended)
                         pred_total_was_adj.append(True)
                         blend_weights_model.append(w_model)
@@ -5983,7 +5998,15 @@ def index():
                                 val2 = 0.55 * baseline_league_avg2 + 0.30 * float(mt_val2) + 0.15 * base_val
                             else:
                                 val2 = base_val
-                            val2 = float(np.clip(val2, 60, 192))
+                            # Second-pass synthetic baseline guardrail
+                            pre_clip3 = val2
+                            val2 = float(np.clip(val2, 110, 192))
+                            if val2 > pre_clip3 and pre_clip3 < 110:
+                                try:
+                                    pipeline_stats.setdefault('low_total_guard_applied', 0)
+                                    pipeline_stats['low_total_guard_applied'] += 1
+                                except Exception:
+                                    pass
                             df.at[idx,'pred_total'] = val2
                             if 'pred_total_basis' in df.columns and pd.isna(df.at[idx,'pred_total_basis']):
                                 df.at[idx,'pred_total_basis'] = 'synthetic_baseline_final'
