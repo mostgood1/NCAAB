@@ -6122,7 +6122,7 @@ def index():
                 lower_prec_final_t = {
                     'blend','blended','blended_model_baseline','blend_model_market',
                     'blended_low','synthetic_baseline','synthetic_baseline_nomkt','synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
-                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan',
+                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','model','baseline','none','nan',
                     'model_calibrated','model_calibrated_bias'
                 }
                 # Candidate rows: calibrated value present AND basis lower precedence (or missing). Always override to ensure CAL badge even if numeric equal.
@@ -6166,7 +6166,7 @@ def index():
                 lower_prec_final_m = {
                     'blend','blended','blended_model_baseline','blend_model_market',
                     'blended_low','synthetic_baseline','synthetic_baseline_nomkt','synthetic_baseline_final','synthetic','synthetic_even_final','synthetic_from_spread_final',
-                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','baseline','none','nan',
+                    'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','model','baseline','none','nan',
                     'model_calibrated','model_calibrated_bias'
                 }
                 override_mask_m = cal_m.notna() & (basis_curr_m.isin(lower_prec_final_m) | basis_curr_m.isna() | (basis_curr_m.str.strip()==''))
