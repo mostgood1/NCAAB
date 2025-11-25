@@ -5425,6 +5425,28 @@ def index():
                         pipeline_stats['final_uniform_revert_error'] = True
                 except Exception:
                     pass
+                # Global market-aware low-total guardrail: even if a total exists (model/calibrated),
+                # floor extreme outliers using the current market. This prevents cases like total ~80
+                # when market is ~150.5. We do not change basis labels here; instrumentation records hits.
+                try:
+                    if {'pred_total','market_total'}.issubset(df.columns):
+                        pt_series = pd.to_numeric(df['pred_total'], errors='coerce')
+                        mt_series = pd.to_numeric(df['market_total'], errors='coerce')
+                        # Floor = max(110, 0.80 * market_total)
+                        floor_series = np.maximum(110.0, mt_series * 0.80)
+                        mask_floor = pt_series.notna() & mt_series.notna() & (pt_series < floor_series)
+                        if mask_floor.any():
+                            df.loc[mask_floor, 'pred_total'] = floor_series[mask_floor]
+                            try:
+                                pipeline_stats.setdefault('low_total_guard_global_applied', 0)
+                                pipeline_stats['low_total_guard_global_applied'] += int(mask_floor.sum())
+                            except Exception:
+                                pass
+                except Exception:
+                    try:
+                        pipeline_stats['low_total_guard_global_error'] = True
+                    except Exception:
+                        pass
             # Compute projected team scores using adjusted pred_total
         if {"pred_total", "pred_margin"}.issubset(df.columns):
             df["proj_home"] = (pd.to_numeric(df["pred_total"], errors="coerce") + pd.to_numeric(df["pred_margin"], errors="coerce")) / 2.0
