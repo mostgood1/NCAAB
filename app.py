@@ -6236,6 +6236,101 @@ def index():
                             pipeline_stats['final_cal_margin_missing_artifact_sample'] = list(df.loc[missing_artifact_m,'game_id'].head(15))
                 except Exception:
                     pipeline_stats['final_cal_margin_instrument_error'] = True
+
+            # --------------------------------------------------------------
+            # Approximate calibration fallback (total & margin):
+            # For rows lacking actual calibrated artifacts, derive estimated
+            # calibrated values using observed ratio (total) and slope/intercept
+            # (margin). Tag basis as 'cal_est' without overwriting true 'cal'.
+            # --------------------------------------------------------------
+            try:
+                # Approx totals
+                if 'pred_total' in df.columns and 'pred_total_basis' in df.columns:
+                    basis_t = df['pred_total_basis'].astype(str)
+                    has_true_cal_t = basis_t.eq('cal')
+                    # Use existing calibrated vs raw total ratio (median of present pairs)
+                    ratio = None
+                    if {'pred_total_calibrated','pred_total'}.issubset(df.columns):
+                        cal_series = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+                        raw_series = pd.to_numeric(df['pred_total'], errors='coerce')
+                        valid_pairs = cal_series.notna() & raw_series.notna() & (raw_series > 0)
+                        if valid_pairs.any():
+                            ratio_vals = cal_series[valid_pairs] / raw_series[valid_pairs]
+                            ratio = float(ratio_vals.median()) if ratio_vals.notna().any() else None
+                    if ratio is None or not (0.9 < ratio < 3.5):
+                        # Fallback heuristic ratio if computed ratio missing or implausible
+                        ratio = 2.15
+                    # Candidate rows: no true cal, no calibrated artifact, synthetic baseline flavors
+                    synthetic_total_bases = {'synthetic_baseline','synthetic_baseline_final','synthetic_baseline_nomkt'}
+                    cand_mask_total = (~has_true_cal_t) & basis_t.isin(synthetic_total_bases)
+                    # Avoid double estimation if previously estimated
+                    if 'pred_total_basis' in df.columns:
+                        cand_mask_total &= ~basis_t.eq('cal_est')
+                    if cand_mask_total.any():
+                        raw_vals_est = pd.to_numeric(df.loc[cand_mask_total,'pred_total'], errors='coerce')
+                        est_vals = raw_vals_est * ratio
+                        df.loc[cand_mask_total,'pred_total'] = est_vals
+                        df.loc[cand_mask_total,'pred_total_basis'] = 'cal_est'
+                        pipeline_stats['approx_cal_total_rows'] = int(cand_mask_total.sum())
+                        pipeline_stats['approx_cal_total_ratio_used'] = ratio
+                        # Recompute edges for estimated rows
+                        try:
+                            if 'market_total' in df.columns:
+                                mt_est = pd.to_numeric(df['market_total'], errors='coerce')
+                                df.loc[cand_mask_total,'edge_total'] = df.loc[cand_mask_total,'pred_total'] - mt_est[cand_mask_total]
+                            if 'closing_total' in df.columns:
+                                ct_est = pd.to_numeric(df['closing_total'], errors='coerce')
+                                df.loc[cand_mask_total,'edge_closing'] = df.loc[cand_mask_total,'pred_total'] - ct_est[cand_mask_total]
+                        except Exception:
+                            pipeline_stats['approx_cal_total_edge_error'] = True
+                        # Recompute projections if margin available
+                        try:
+                            if 'pred_margin' in df.columns:
+                                pm_est = pd.to_numeric(df['pred_margin'], errors='coerce')
+                                proj_mask_est = cand_mask_total & pm_est.notna()
+                                if proj_mask_est.any():
+                                    df.loc[proj_mask_est,'proj_home'] = (df.loc[proj_mask_est,'pred_total'] + pm_est[proj_mask_est]) / 2.0
+                                    df.loc[proj_mask_est,'proj_away'] = df.loc[proj_mask_est,'pred_total'] - df.loc[proj_mask_est,'proj_home']
+                        except Exception:
+                            pipeline_stats['approx_cal_total_proj_error'] = True
+                # Approx margins
+                if 'pred_margin' in df.columns and 'pred_margin_basis' in df.columns:
+                    basis_m2 = df['pred_margin_basis'].astype(str)
+                    has_true_cal_m = basis_m2.eq('cal')
+                    slope = pipeline_stats.get('margin_calibration_slope', 0.55)
+                    intercept = pipeline_stats.get('margin_calibration_intercept', 0.0)
+                    synthetic_margin_bases = {'synthetic_from_spread','synthetic_even_final'}
+                    cand_mask_margin = (~has_true_cal_m) & basis_m2.isin(synthetic_margin_bases) & ~basis_m2.eq('cal_est')
+                    if cand_mask_margin.any():
+                        raw_margin_vals = pd.to_numeric(df.loc[cand_mask_margin,'pred_margin'], errors='coerce')
+                        est_margin = intercept + slope * raw_margin_vals
+                        df.loc[cand_mask_margin,'pred_margin'] = est_margin
+                        df.loc[cand_mask_margin,'pred_margin_basis'] = 'cal_est'
+                        pipeline_stats['approx_cal_margin_rows'] = int(cand_mask_margin.sum())
+                        pipeline_stats['approx_cal_margin_slope_used'] = slope
+                        pipeline_stats['approx_cal_margin_intercept_used'] = intercept
+                        # Recompute ATS edges
+                        try:
+                            if 'spread_home' in df.columns:
+                                sh_est = pd.to_numeric(df['spread_home'], errors='coerce')
+                                df.loc[cand_mask_margin,'edge_ats'] = df.loc[cand_mask_margin,'pred_margin'] - sh_est[cand_mask_margin]
+                            if 'closing_spread_home' in df.columns:
+                                cs_est = pd.to_numeric(df['closing_spread_home'], errors='coerce')
+                                df.loc[cand_mask_margin,'edge_closing_ats'] = df.loc[cand_mask_margin,'pred_margin'] - cs_est[cand_mask_margin]
+                        except Exception:
+                            pipeline_stats['approx_cal_margin_edge_error'] = True
+                        # Recompute projections if total present
+                        try:
+                            if 'pred_total' in df.columns:
+                                pt_est2 = pd.to_numeric(df['pred_total'], errors='coerce')
+                                proj_mask_margin_est = cand_mask_margin & pt_est2.notna()
+                                if proj_mask_margin_est.any():
+                                    df.loc[proj_mask_margin_est,'proj_home'] = (pt_est2[proj_mask_margin_est] + df.loc[proj_mask_margin_est,'pred_margin']) / 2.0
+                                    df.loc[proj_mask_margin_est,'proj_away'] = pt_est2[proj_mask_margin_est] - df.loc[proj_mask_margin_est,'proj_home']
+                        except Exception:
+                            pipeline_stats['approx_cal_margin_proj_error'] = True
+            except Exception:
+                pipeline_stats['approx_cal_error'] = True
         except Exception as _final_cal_e:
             pipeline_stats['final_cal_enforcement_error'] = str(_final_cal_e)[:160]
     except Exception as _recon_e:
