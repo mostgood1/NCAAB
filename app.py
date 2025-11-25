@@ -5818,10 +5818,11 @@ def index():
                 pt_full = pd.to_numeric(df['pred_total'], errors='coerce') if have_full_total else pd.Series(np.nan, index=df.index)
                 pm_full = pd.to_numeric(df['pred_margin'], errors='coerce') if have_full_margin else pd.Series(np.nan, index=df.index)
 
-                # Factors: first half scoring tends to be slightly lower; use 0.465 of total as baseline.
-                HALF_TOTAL_FACTOR = 0.465
-                # Margin often scales roughly linearly; use 0.48 for first half margin expectation.
-                HALF_MARGIN_FACTOR = 0.48
+                # Stable half derivatives: use consistent factors across environments.
+                # First half scoring tends to be slightly lower; use 0.485 of total as baseline.
+                HALF_TOTAL_FACTOR = 0.485
+                # Margin scales roughly linearly; use 0.50 for first half margin expectation.
+                HALF_MARGIN_FACTOR = 0.50
 
                 # 1H totals: fill only where missing
                 mask_pt1h = pd.to_numeric(df['pred_total_1h'], errors='coerce').isna()
@@ -5979,6 +5980,11 @@ def index():
                     pipeline_stats['proj_home_1h_rows'] = int(df['proj_home_1h'].notna().sum())
                 if 'proj_away_1h' in df.columns:
                     pipeline_stats['proj_away_1h_rows'] = int(df['proj_away_1h'].notna().sum())
+                # Instrument stable half factors for diagnostics/alignment
+                try:
+                    pipeline_stats['half_factors'] = {'total': float(HALF_TOTAL_FACTOR), 'margin': float(HALF_MARGIN_FACTOR)}
+                except Exception:
+                    pass
             except Exception:
                 pipeline_stats['half_pred_error'] = True
             # Second-pass synthetic + margin fill after coverage filtering: some earlier synthetic fills
