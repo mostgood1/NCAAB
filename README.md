@@ -986,7 +986,55 @@ If you later ingest a model file via HTTP while in commit mode, it is ignored un
 FutureWarning fix: synthetic baseline logic now casts `pred_total_basis` to object before assigning string labels, removing the prior pandas warning about incompatible dtype.
 
 ---
+## Display Predictions Alignment Endpoints
 
-#   N C A A B 
- 
- 
+Two JSON endpoints provide environment-independent prediction display data:
+
+1. `GET /api/display_predictions?date=YYYY-MM-DD` (date optional)
+  - Returns normalized per-game rows with columns: `game_id, home_team, away_team, pred_total, pred_margin, pred_total_basis, pred_margin_basis, market_total, spread_home, edge_total, edge_ats, start_time`.
+  - Includes a content `hash` (SHA-256) computed over ordered `(game_id,pred_total,pred_margin)` tuples for alignment checks.
+  - If the persisted CSV `outputs/predictions_display_<date>.csv` is missing, it will be created from the in-memory snapshot.
+  - Basis classification is granular (calibration vs model vs synthetic vs derived) to eliminate local vs remote ambiguity.
+
+2. `GET /api/display_prediction_dates`
+  - Lists all available display dates (files matching `predictions_display_*.csv`) and the latest date.
+
+Persisted CSV Schema (minimal subset guaranteed):
+```
+game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home
+```
+Additional columns may appear depending on enrichment stages (market/spread, projections, calibration artifacts).
+
+### Basis Classification Logic
+
+Totals precedence:
+1. Exact match to calibrated total → `cal`
+2. Match raw model total → `model_raw`
+3. Match blended model-market artifact → `blend_model_market`
+4. Match `derived_total` feature estimate → `derived_full`
+5. Synthetic baseline range heuristic (clipped 60–192) → `synthetic_baseline_final`
+6. Low blended adjustment flag → `blended_low`
+7. Else → `unknown`
+
+Margins precedence:
+1. Exact match to calibrated margin → `cal`
+2. Match raw model margin → `model_raw`
+3. Spread-derived synthetic (matches `-spread_home`) → `synthetic_from_spread_final`
+4. Even synthetic (0.0) → `synthetic_even_final`
+5. Else existing basis or `unknown`
+
+### Alignment Test
+
+Test `tests/test_display_predictions_alignment.py` validates that API output matches persisted CSV numeric values and bases for the active date (within 1e-6 tolerance). Any divergence fails CI, enforcing parity between local HTML render and remote JSON consumption.
+
+### Usage Example (PowerShell)
+```powershell
+Invoke-RestMethod http://localhost:5050/api/display_predictions | ConvertTo-Json -Depth 4
+Invoke-RestMethod http://localhost:5050/api/display_prediction_dates
+```
+
+### Monitoring Hash Drift
+
+Compare `hash` across environments (local vs deployment); a mismatch indicates differing persistence inputs. Re-fetch or trigger the index route to rehydrate. Instrumentation key: `pipeline_stats['display_persist_path']` plus the API hash value.
+
+---

@@ -154,67 +154,46 @@ def api_ort_providers():
 
 @app.route("/api/ort-benchmark")
 def api_ort_benchmark():
-    """Run a small synthetic benchmark on a test ONNX model (if present) and return avg latency.
-
-    Uses 32 warmup runs + 64 timed runs. If multiple providers are available we request them in
-    priority order (QNN > DML > CPU) and report final session provider list.
-    """
+    """Lightweight latency benchmark on a small ONNX test model (warmups + timed)."""
     try:
         import onnxruntime as ort  # type: ignore
-        import numpy as np  # ensure local import inside handler
-    except Exception as e:
-        return jsonify({"error": f"onnxruntime not available: {e}"}), 503
-    test_candidates = [
+    except Exception:
+        return jsonify({"error": "onnxruntime not installed"}), 400
+    test_models = [
         ROOT / "mlp_megatron_basic_test.onnx",
         ROOT / "bart_mlp_megatron_basic_test.onnx",
         ROOT / "self_attention_megatron_basic_test.onnx",
     ]
-    model_path = None
-    for c in test_candidates:
-        if c.exists():
-            model_path = c
-            break
+    model_path = next((p for p in test_models if p.exists()), None)
     if not model_path:
-        return jsonify({"error": "No test ONNX model found"}), 404
-    available = list(ort.get_available_providers())
-    preferred = [p for p in ["QNNExecutionProvider","DmlExecutionProvider","CPUExecutionProvider"] if p in available]
-    # Simple cache to avoid repeated warmups
-    global _BENCH_CACHE
-    if '_BENCH_CACHE' not in globals():
-        _BENCH_CACHE = {}
-    import time
-    cache_entry = _BENCH_CACHE.get('result')
-    if cache_entry and (time.time() - cache_entry['ts'] < 120):  # 2 min TTL
-        return jsonify(cache_entry['payload'])
+        return jsonify({"error": "no test model found"}), 404
+    providers = list(ort.get_available_providers())
+    preferred = [p for p in ["QNNExecutionProvider","DmlExecutionProvider","CPUExecutionProvider"] if p in providers]
     try:
         sess = ort.InferenceSession(str(model_path), providers=preferred)
     except Exception as e:
-        return jsonify({"error": f"Failed to create session: {e}"}), 500
-    inputs = sess.get_inputs()
-    # Build random feeds matching first input shapes (simple assumption for test models)
-    feed = {}
-    for inp in inputs:
-        shape = [d if isinstance(d, int) and d > 0 else 1 for d in inp.shape]
-        # Keep size modest to avoid huge allocations
-        arr = np.random.randn(*shape).astype(np.float32)
-        feed[inp.name] = arr
+        return jsonify({"error": str(e), "providers": providers}), 500
+    import numpy as _np
+    x = _np.random.randn(1, 32).astype(_np.float32)
     # Warmup
-    for _ in range(32):
-        sess.run(None, feed)
-    t0 = time.time()
-    runs = 64
-    for _ in range(runs):
-        sess.run(None, feed)
-    avg_ms = (time.time() - t0) / runs * 1000.0
+    for _ in range(8):
+        try:
+            sess.run(None, {sess.get_inputs()[0].name: x})
+        except Exception:
+            pass
+    import time
+    times: list[float] = []
+    for _ in range(24):
+        t0 = time.time()
+        sess.run(None, {sess.get_inputs()[0].name: x})
+        times.append((time.time() - t0) * 1000.0)
     payload = {
-        "model": str(model_path.name),
-        "available_providers": available,
+        "model": model_path.name,
+        "avg_ms": round(sum(times) / len(times), 4) if times else None,
+        "providers": providers,
         "session_providers": sess.get_providers(),
-        "avg_ms": round(avg_ms, 3),
-        "runs": runs,
-        "cached": False,
+        "n_runs": len(times),
     }
-    _BENCH_CACHE['result'] = {"payload": payload, "ts": time.time()}
     return jsonify(payload)
 
 # NOTE: Removed earlier duplicate /api/health definition; unified health endpoint defined later.
@@ -6739,14 +6718,59 @@ def index():
         else:
             persist_date = datetime.utcnow().strftime('%Y-%m-%d')  # type: ignore
         cols_keep = []
-        for c in ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','edge_total','edge_ats','closing_total','closing_spread_home']:
+        base_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','edge_total','edge_ats','closing_total','closing_spread_home']
+        for c in base_cols:
             if c in df.columns:
                 cols_keep.append(c)
+        # Normalize basis columns before persistence to minimize remote vs local display mismatches
+        try:
+            if 'pred_total_basis' in df.columns:
+                # If calibrated column equals displayed total but basis missing, tag as cal
+                if 'pred_total_calibrated' in df.columns:
+                    mask_cal = df['pred_total_basis'].isna() & (pd.to_numeric(df['pred_total'], errors='coerce') == pd.to_numeric(df['pred_total_calibrated'], errors='coerce'))
+                    if mask_cal.any():
+                        df.loc[mask_cal,'pred_total_basis'] = 'cal'
+                # Model raw: if pred_total equals pred_total_model and basis missing
+                if 'pred_total_model' in df.columns:
+                    mask_model = df['pred_total_basis'].isna() & (pd.to_numeric(df['pred_total'], errors='coerce') == pd.to_numeric(df['pred_total_model'], errors='coerce'))
+                    if mask_model.any():
+                        df.loc[mask_model,'pred_total_basis'] = df.get('pred_total_model_basis','model_raw') if 'pred_total_model_basis' in df.columns else 'model_raw'
+                # Fill any remaining missing with 'unknown'
+                mask_unknown = df['pred_total_basis'].isna()
+                if mask_unknown.any():
+                    df.loc[mask_unknown,'pred_total_basis'] = 'unknown'
+            if 'pred_margin_basis' in df.columns:
+                if 'pred_margin_calibrated' in df.columns:
+                    mask_cal_m = df['pred_margin_basis'].isna() & (pd.to_numeric(df['pred_margin'], errors='coerce') == pd.to_numeric(df['pred_margin_calibrated'], errors='coerce'))
+                    if mask_cal_m.any():
+                        df.loc[mask_cal_m,'pred_margin_basis'] = 'cal'
+                if 'pred_margin_model' in df.columns:
+                    mask_model_m = df['pred_margin_basis'].isna() & (pd.to_numeric(df['pred_margin'], errors='coerce') == pd.to_numeric(df['pred_margin_model'], errors='coerce'))
+                    if mask_model_m.any():
+                        df.loc[mask_model_m,'pred_margin_basis'] = df.get('pred_margin_model_basis','model') if 'pred_margin_model_basis' in df.columns else 'model'
+                mask_unknown_m = df['pred_margin_basis'].isna()
+                if mask_unknown_m.any():
+                    df.loc[mask_unknown_m,'pred_margin_basis'] = 'unknown'
+        except Exception as _norm_e:
+            pipeline_stats['basis_normalize_error'] = str(_norm_e)[:120]
         disp_path = OUT / f'predictions_display_{persist_date}.csv'
         if cols_keep:
             df[cols_keep].to_csv(disp_path, index=False)
             pipeline_stats['display_persist_rows'] = int(len(df))
             pipeline_stats['display_persist_path'] = str(disp_path)
+            # Compute and record content hash for alignment diagnostics
+            try:
+                hdf = df[cols_keep].copy()
+                if 'game_id' in hdf.columns:
+                    hdf = hdf.sort_values('game_id')
+                blob = '\n'.join([
+                    ','.join(map(str, [row.get(col, '') for col in ['game_id','pred_total','pred_margin'] if col in hdf.columns]))
+                    for _, row in hdf.iterrows()
+                ])
+                # Use previously imported _hashlib_mod to avoid duplicate import names
+                pipeline_stats['display_hash'] = _hashlib_mod.sha256(blob.encode()).hexdigest()
+            except Exception:
+                pipeline_stats['display_hash_error'] = True
             # Archive to dated folder for historical navigation
             try:
                 archive_dir = OUT / 'archive' / str(persist_date)
@@ -7086,15 +7110,16 @@ def index():
             if {"pred_margin_model","spread_home"}.issubset(df_tpl.columns):
                 pmv = pd.to_numeric(df_tpl["pred_margin_model"], errors="coerce")
                 spv = pd.to_numeric(df_tpl["spread_home"], errors="coerce")
-                if pmv.notna().any() and spv.notna().any():
+                # Guard against zero variance (avoids numpy divide warnings)
+                if pmv.notna().sum() > 3 and spv.notna().sum() > 3 and pmv.std() > 0 and spv.std() > 0:
                     pipeline_stats["corr_pred_margin_model_spread_home"] = float(pmv.corr(spv))
             if {"edge_total_model","edge_margin_model"}.issubset(df_tpl.columns):
                 etm = pd.to_numeric(df_tpl["edge_total_model"], errors="coerce")
                 emm = pd.to_numeric(df_tpl["edge_margin_model"], errors="coerce")
-                if etm.notna().any() and emm.notna().any():
+                if etm.notna().sum() > 3 and emm.notna().sum() > 3 and etm.std() > 0 and emm.std() > 0:
                     pipeline_stats["corr_edge_total_vs_margin_model"] = float(etm.corr(emm))
-        except Exception:
-            pass
+        except Exception as _corr_e:
+            pipeline_stats['corr_calc_error'] = str(_corr_e)[:80]
         # Explicit list of games missing market_total (first 12)
         if {"game_id","market_total"}.issubset(df_tpl.columns):
             miss_mask = df_tpl["market_total"].isna()
@@ -8392,6 +8417,12 @@ def api_health():
             "last_pipeline_stats": _LAST_PIPELINE_STATS,
             "guardrails": guardrail_summary,
             "timestamp": dt.datetime.utcnow().isoformat() + "Z",
+            # Display predictions hash for alignment (prefer pipeline_stats then fallback to latest file)
+            "display_hash": (lambda: (
+                _LAST_PIPELINE_STATS.get('display_hash') if isinstance(_LAST_PIPELINE_STATS, dict) and _LAST_PIPELINE_STATS.get('display_hash') else (
+                    (lambda _p: (_p.read_text() if _p.exists() else None))(OUT / 'display_hash_latest.txt')
+                )
+            ))(),
         }
         return jsonify(payload), 200
     except Exception as e:
@@ -9179,6 +9210,251 @@ def calibration_page():
         compare_summary=compare_summary,
         deltas=deltas,
     )
+
+# ---------------- Display Predictions & Dates API (enhancement) -----------------
+import re as _re_mod, hashlib as _hashlib_mod
+
+_CLASSIFY_TOL = 1e-6
+
+def _classify_pred_total(row: dict[str, Any]) -> str:
+    v = row.get('pred_total')
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return 'unknown'
+    try:
+        v_float = float(v)
+    except Exception:
+        return 'unknown'
+    cal = row.get('pred_total_calibrated')
+    if cal is not None and not pd.isna(cal) and abs(float(cal) - v_float) < _CLASSIFY_TOL:
+        return 'cal'
+    mr = row.get('pred_total_model')
+    if mr is not None and not pd.isna(mr) and abs(float(mr) - v_float) < _CLASSIFY_TOL:
+        return 'model_raw'
+    mb = row.get('pred_total_model_blended')
+    if mb is not None and not pd.isna(mb) and abs(float(mb) - v_float) < _CLASSIFY_TOL:
+        return 'blend_model_market'
+    dtot = row.get('derived_total')
+    if dtot is not None and not pd.isna(dtot) and abs(float(dtot) - v_float) < _CLASSIFY_TOL:
+        return 'derived_full'
+    # Synthetic baseline heuristics: broad clipped range used in synthetic fills
+    if 60 <= v_float <= 192 and row.get('pred_total_basis') in (None, '', 'unknown', np.nan):
+        return 'synthetic_baseline_final'
+    existing = row.get('pred_total_basis')
+    if isinstance(existing, str) and existing:
+        return existing
+    return 'unknown'
+
+def _classify_pred_margin(row: dict[str, Any]) -> str:
+    v = row.get('pred_margin')
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return 'unknown'
+    try:
+        v_float = float(v)
+    except Exception:
+        return 'unknown'
+    cal = row.get('pred_margin_calibrated')
+    if cal is not None and not pd.isna(cal) and abs(float(cal) - v_float) < _CLASSIFY_TOL:
+        return 'cal'
+    mr = row.get('pred_margin_model')
+    if mr is not None and not pd.isna(mr) and abs(float(mr) - v_float) < _CLASSIFY_TOL:
+        return 'model_raw'
+    sh = row.get('spread_home')
+    if sh is not None and not pd.isna(sh) and abs(float(-sh) - v_float) < 1e-3:
+        return 'synthetic_from_spread_final'
+    if abs(v_float) < 1e-9:
+        return 'synthetic_even_final'
+    existing = row.get('pred_margin_basis')
+    if isinstance(existing, str) and existing:
+        return existing
+    return 'unknown'
+
+def _normalize_display(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    out = df.copy()
+    if 'pred_total_basis' not in out.columns:
+        out['pred_total_basis'] = None
+    if 'pred_margin_basis' not in out.columns:
+        out['pred_margin_basis'] = None
+    t_bases = []
+    m_bases = []
+    for _, r in out.iterrows():
+        rr = r.to_dict()
+        t_bases.append(_classify_pred_total(rr))
+        m_bases.append(_classify_pred_margin(rr))
+    out['pred_total_basis'] = t_bases
+    out['pred_margin_basis'] = m_bases
+    return out
+
+def _persist_display(df: pd.DataFrame, date_str: str) -> tuple[Path, str]:
+    norm = _normalize_display(df)
+    path = OUT / f'predictions_display_{date_str}.csv'
+    try:
+        norm.to_csv(path, index=False)
+    except Exception:
+        pass
+    # Hash for alignment checks
+    try:
+        core = norm[['game_id','pred_total','pred_margin']] if {'game_id','pred_total','pred_margin'}.issubset(norm.columns) else norm
+        if 'game_id' in core.columns:
+            core = core.sort_values('game_id')
+        blob = '\n'.join([
+            ','.join(map(str, [row.get(col, '') for col in core.columns])) for _, row in core.iterrows()
+        ])
+        digest = _hashlib_mod.sha256(blob.encode()).hexdigest()
+    except Exception:
+        digest = 'hash_error'
+    return path, digest
+
+@app.route('/api/display_predictions')
+def api_display_predictions():
+    date_q = (request.args.get('date') or '').strip()
+    # Infer date from last_index_df if not provided
+    if not date_q:
+        base_df = getattr(app, 'last_index_df', pd.DataFrame())
+        if isinstance(base_df, pd.DataFrame) and 'date' in base_df.columns and base_df['date'].notna().any():
+            try:
+                date_q = str(base_df['date'].dropna().astype(str).unique()[0])
+            except Exception:
+                date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+        else:
+            date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+    path = OUT / f'predictions_display_{date_q}.csv'
+    if path.exists():
+        try:
+            df = pd.read_csv(path)
+        except Exception:
+            df = pd.DataFrame()
+    else:
+        df = getattr(app, 'last_index_df', pd.DataFrame())
+        if not df.empty:
+            _persist_display(df, date_q)
+    df = _normalize_display(df)
+    # Persist again with refined bases (idempotent safe)
+    _, digest = _persist_display(df, date_q)
+    keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time']
+    rows: list[dict[str, Any]] = []
+    for _, r in df.iterrows():
+        item = {}
+        for c in keep_cols:
+            if c in df.columns:
+                item[c] = r.get(c)
+        rows.append(item)
+    return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows})
+
+@app.route('/api/display_prediction_dates')
+def api_display_prediction_dates():
+    dates: list[str] = []
+    pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+    try:
+        for p in OUT.glob('predictions_display_*.csv'):
+            m = pat.match(p.name)
+            if m:
+                dates.append(m.group(1))
+    except Exception:
+        pass
+    dates = sorted(set(dates))
+    return jsonify({'dates': dates, 'latest': dates[-1] if dates else None})
+
+@app.route('/download/display-predictions')
+def download_display_predictions_csv():
+    """Download the normalized display predictions CSV for a given date (or inferred)."""
+    date_q = (request.args.get('date') or '').strip()
+    if not date_q:
+        base_df = getattr(app, 'last_index_df', pd.DataFrame())
+        if isinstance(base_df, pd.DataFrame) and 'date' in base_df.columns and base_df['date'].notna().any():
+            date_q = str(base_df['date'].dropna().astype(str).unique()[0])
+        else:
+            date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+    path = OUT / f'predictions_display_{date_q}.csv'
+    if not path.exists():
+        df = getattr(app, 'last_index_df', pd.DataFrame())
+        if not df.empty:
+            _persist_display(df, date_q)
+    if not path.exists():
+        return jsonify({'error': 'display file not found', 'date': date_q}), 404
+    try:
+        return send_file(str(path), as_attachment=True, download_name=path.name)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/display_hash_diff')
+def api_display_hash_diff():
+    """Compare provided hash with current display predictions hash for date."""
+    provided = (request.args.get('hash') or '').strip().lower()
+    date_q = (request.args.get('date') or '').strip()
+    if not date_q:
+        date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+    path = OUT / f'predictions_display_{date_q}.csv'
+    try:
+        if path.exists():
+            df = pd.read_csv(path)
+        else:
+            df = getattr(app, 'last_index_df', pd.DataFrame())
+        _, current_hash = _persist_display(df, date_q) if not path.exists() else ('unused', None)
+        if current_hash is None:
+            # Derive from existing file if persistence didn't run
+            try:
+                df2 = pd.read_csv(path)
+                if 'game_id' in df2.columns:
+                    df2 = df2.sort_values('game_id')
+                blob = '\n'.join([
+                    ','.join(map(str, [row.get(col, '') for col in ['game_id','pred_total','pred_margin'] if col in df2.columns]))
+                    for _, row in df2.iterrows()
+                ])
+                current_hash = _hashlib_mod.sha256(blob.encode()).hexdigest()
+            except Exception:
+                current_hash = 'hash_error'
+    except Exception as e:
+        return jsonify({'error': str(e), 'date': date_q}), 500
+    return jsonify({'date': date_q, 'match': bool(provided and current_hash and provided == current_hash), 'current_hash': current_hash, 'provided': provided or None})
+
+@app.route('/display-archive')
+def display_archive():
+    """HTML archive explorer for normalized display prediction snapshots.
+
+    Lists available `predictions_display_<date>.csv` artifacts with utility links:
+      - View JSON (/api/display_predictions?date=)
+      - Download CSV (/download/display-predictions?date=)
+      - Hash (computed) and hash diff probe (/api/display_hash_diff?date=&hash=)
+
+    Optional query params:
+      remote_base: base URL of remote deployment to show remote health hash for quick compare.
+    """
+    pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+    dates: list[str] = []
+    try:
+        for p in OUT.glob('predictions_display_*.csv'):
+            m = pat.match(p.name)
+            if m:
+                dates.append(m.group(1))
+    except Exception:
+        pass
+    dates = sorted(set(dates))
+    remote_base = (request.args.get('remote_base') or '').strip()
+    remote_hash = None
+    if remote_base:
+        try:
+            import json as _json_mod, urllib.request as _url_req
+            url = f"{remote_base.rstrip('/')}/api/health"
+            with _url_req.urlopen(url, timeout=10) as resp:  # type: ignore
+                data = resp.read()
+            health = _json_mod.loads(data.decode()) if data else {}
+            remote_hash = health.get('display_hash')
+        except Exception:
+            remote_hash = None
+    # Compute current local latest hash for convenience
+    latest_hash = None
+    if dates:
+        latest_date = dates[-1]
+        latest_path = OUT / f'predictions_display_{latest_date}.csv'
+        try:
+            if latest_path.exists():
+                df_latest = pd.read_csv(latest_path)
+                _, latest_hash = _persist_display(df_latest, latest_date)
+        except Exception:
+            latest_hash = None
+    return render_template('archive.html', dates=dates, latest=(dates[-1] if dates else None), remote_base=remote_base or None, remote_hash=remote_hash, latest_hash=latest_hash)
 
 
 if __name__ == "__main__":
