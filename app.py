@@ -1851,6 +1851,96 @@ def index():
         "prefer_cal": prefer_cal_param,
         "prefer_cal_effective": prefer_cal_eff,
     }
+    # Stable display mode: render directly from persisted display artifact to ensure parity with remote.
+    # Enabled via query param ?stable=1 or env STABLE_DISPLAY=1 (default on if env set).
+    try:
+        stable_q = (request.args.get("stable") or "").strip().lower() in ("1","true","yes")
+    except Exception:
+        stable_q = False
+    try:
+        import os as _os_mod
+        stable_env = str(_os_mod.environ.get("STABLE_DISPLAY","0")).strip().lower() in ("1","true","yes")
+    except Exception:
+        stable_env = False
+    stable_mode = stable_q or stable_env
+    if stable_mode:
+        try:
+            # Resolve date
+            date_stable = date_q if date_q else (today_str or dt.datetime.utcnow().strftime('%Y-%m-%d'))
+            path = OUT / f'predictions_display_{date_stable}.csv'
+            if path.exists():
+                try:
+                    df_stable = pd.read_csv(path)
+                except Exception:
+                    df_stable = pd.DataFrame()
+            else:
+                df_stable = getattr(app, 'last_index_df', pd.DataFrame())
+                if not df_stable.empty:
+                    _persist_display(df_stable, date_stable)
+            df_stable = _normalize_display(df_stable)
+            # Build rows for template
+            try:
+                df_tpl = df_stable.where(pd.notna(df_stable), None)
+            except Exception:
+                df_tpl = df_stable
+            rows = [_brand_row(r) for r in df_tpl.to_dict(orient="records")]
+            total_rows = len(rows)
+            # Minimal coverage summary (totals/spreads/ML presence)
+            coverage_summary = {"full": 0, "partial": 0, "none": 0}
+            try:
+                if "game_id" in df_tpl.columns:
+                    for _, r in df_tpl.iterrows():
+                        has_total = (r.get("market_total") is not None) or (r.get("closing_total") is not None)
+                        has_spread = (r.get("spread_home") is not None) or (r.get("closing_spread_home") is not None)
+                        has_ml = (r.get("ml_home") is not None)
+                        sig = int(has_total) + int(has_spread) + int(has_ml)
+                        if sig >= 2:
+                            coverage_summary["full"] += 1
+                        elif sig == 1:
+                            coverage_summary["partial"] += 1
+                        else:
+                            coverage_summary["none"] += 1
+            except Exception:
+                pass
+            # Diagnostics
+            pipeline_stats['stable_display_mode'] = True
+            pipeline_stats['stable_display_path'] = str(path)
+            pipeline_stats['stable_display_rows'] = total_rows
+            accuracy = _load_accuracy_summary()
+            archive_dates = []
+            try:
+                pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+                for p in OUT.glob('predictions_display_*.csv'):
+                    m = pat.match(p.name)
+                    if m:
+                        archive_dates.append(m.group(1))
+                archive_dates = sorted(set(archive_dates))
+            except Exception:
+                archive_dates = []
+            # Early return rendering from stable artifact
+            return render_template(
+                "index.html",
+                rows=rows,
+                total_rows=total_rows,
+                date_val=date_stable,
+                top_picks=[],
+                accuracy=accuracy,
+                uniform_note=None,
+                dynamic_css=None,
+                coverage_note=None,
+                results_note=None,
+                show_edges=True,
+                coverage=coverage_summary,
+                archive_dates=archive_dates,
+                show_bootstrap=False,
+                bootstrap_url=None,
+                show_diag=False,
+                diag_url=None,
+                fused_bootstrap_url=None,
+                refresh_odds_url=None,
+            )
+        except Exception as _stable_e:
+            pipeline_stats['stable_display_error'] = str(_stable_e)[:160]
     team_variance_total: dict[str, float] | None = None
     team_variance_margin: dict[str, float] | None = None
     # Backtest metrics ingestion (totals/spread/moneyline) if precomputed JSON exists
