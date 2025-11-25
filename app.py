@@ -6113,6 +6113,12 @@ def index():
         # only for changed rows. Instrument override counts.
         # ------------------------------------------------------------------
         try:
+            # Standardize game_id dtype early in final enforcement to avoid mismatch-driven calibration misses
+            try:
+                if 'game_id' in df.columns:
+                    df['game_id'] = df['game_id'].astype(str)
+            except Exception:
+                pipeline_stats['final_cal_game_id_cast_error'] = True
             # Totals
             if 'pred_total_calibrated' in df.columns and 'pred_total' in df.columns:
                 cal_t = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
@@ -6158,6 +6164,21 @@ def index():
                 pipeline_stats['final_cal_rows_total_present'] = int(cal_t.notna().sum())
                 if cal_t.notna().sum() == 0:
                     pipeline_stats['final_cal_total_all_nan'] = True
+                # Instrument rows where calibrated artifact exists but basis not 'cal'
+                try:
+                    if 'pred_total_basis' in df.columns and 'game_id' in df.columns:
+                        cal_artifact_mask_t = cal_t.notna()
+                        basis_not_cal_t = df['pred_total_basis'].astype(str).ne('cal')
+                        not_applied_t = cal_artifact_mask_t & basis_not_cal_t
+                        if not_applied_t.any():
+                            pipeline_stats['final_cal_total_not_applied_rows'] = int(not_applied_t.sum())
+                            pipeline_stats['final_cal_total_not_applied_sample'] = list(df.loc[not_applied_t,'game_id'].head(15))
+                        missing_artifact_t = cal_t.isna()
+                        if missing_artifact_t.any():
+                            pipeline_stats['final_cal_total_missing_artifact_rows'] = int(missing_artifact_t.sum())
+                            pipeline_stats['final_cal_total_missing_artifact_sample'] = list(df.loc[missing_artifact_t,'game_id'].head(15))
+                except Exception:
+                    pipeline_stats['final_cal_total_instrument_error'] = True
             # Margins
             if 'pred_margin_calibrated' in df.columns and 'pred_margin' in df.columns:
                 cal_m = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
@@ -6200,6 +6221,21 @@ def index():
                 pipeline_stats['final_cal_rows_margin_present'] = int(cal_m.notna().sum())
                 if cal_m.notna().sum() == 0:
                     pipeline_stats['final_cal_margin_all_nan'] = True
+                # Instrument rows where calibrated margin artifact exists but basis not 'cal'
+                try:
+                    if 'pred_margin_basis' in df.columns and 'game_id' in df.columns:
+                        cal_artifact_mask_m = cal_m.notna()
+                        basis_not_cal_m = df['pred_margin_basis'].astype(str).ne('cal')
+                        not_applied_m = cal_artifact_mask_m & basis_not_cal_m
+                        if not_applied_m.any():
+                            pipeline_stats['final_cal_margin_not_applied_rows'] = int(not_applied_m.sum())
+                            pipeline_stats['final_cal_margin_not_applied_sample'] = list(df.loc[not_applied_m,'game_id'].head(15))
+                        missing_artifact_m = cal_m.isna()
+                        if missing_artifact_m.any():
+                            pipeline_stats['final_cal_margin_missing_artifact_rows'] = int(missing_artifact_m.sum())
+                            pipeline_stats['final_cal_margin_missing_artifact_sample'] = list(df.loc[missing_artifact_m,'game_id'].head(15))
+                except Exception:
+                    pipeline_stats['final_cal_margin_instrument_error'] = True
         except Exception as _final_cal_e:
             pipeline_stats['final_cal_enforcement_error'] = str(_final_cal_e)[:160]
     except Exception as _recon_e:
