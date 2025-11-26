@@ -6962,14 +6962,27 @@ def index():
         except Exception:
             pass
     # Accept start_time as either datetime or string; parse robustly.
-    # Revised: Treat naive timestamps as LOCAL timezone (previously assumed UTC causing double offset subtraction).
+    # Revised: Prefer a fixed schedule timezone for naive timestamps to avoid host-dependent differences.
+    # If env SCHEDULE_TZ is set (default 'America/New_York'), interpret naive times in that zone.
     if "start_time" in df.columns:
         try:
             st_series_orig = df["start_time"].astype(str).str.strip()
             st_series = st_series_orig.str.replace("Z", "+00:00", regex=False)
             has_time = st_series.str.contains(r"\d{1,2}:\d{2}", regex=True)
             has_offset = st_series.str.contains(r"[+-]\d{2}:\d{2}$", regex=True) | st_series.str.endswith("Z")
-            local_tz = dt.datetime.now().astimezone().tzinfo
+            # Resolve schedule timezone preference
+            sched_tz = None
+            try:
+                import os
+                from zoneinfo import ZoneInfo  # Python 3.9+
+                tz_name = os.getenv("SCHEDULE_TZ", "America/New_York")
+                try:
+                    sched_tz = ZoneInfo(tz_name)
+                except Exception:
+                    sched_tz = None
+            except Exception:
+                sched_tz = None
+            local_tz = sched_tz or dt.datetime.now().astimezone().tzinfo
             # Parse offset-aware values as UTC then convert to UTC tzinfo; naive values localized to system tz directly.
             parsed = pd.to_datetime(st_series.where(has_offset, None), errors="coerce", utc=True)
             naive_part = pd.to_datetime(st_series.where(~has_offset, None), errors="coerce", utc=False)
@@ -7003,6 +7016,10 @@ def index():
             pipeline_stats["start_time_naive_local_count"] = int((parse_mode == "naive_local").sum())
             pipeline_stats["start_time_offset_count"] = int((parse_mode == "offset").sum())
             pipeline_stats["start_time_fail_count"] = int((parse_mode == "fail").sum())
+            try:
+                pipeline_stats["schedule_tz_used"] = str(local_tz)
+            except Exception:
+                pass
         except Exception:
             df["_start_dt"] = pd.NaT
     if "_start_dt" in df.columns and df["_start_dt"].notna().any():
