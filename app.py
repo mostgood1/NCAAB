@@ -7807,6 +7807,17 @@ def index():
                 df['_pair_key'] = df.apply(lambda r: '::'.join(sorted([str(r.get('_home_norm')), str(r.get('_away_norm'))])), axis=1)
             sch_map_dt = df['_pair_key'].map(mp_dt2) if '_pair_key' in df.columns else None
             sch_map_src = df['_pair_key'].map(mp_src2) if ('_pair_key' in df.columns and mp_src2 is not None) else None
+            # Last-mile unconditional assignment where schedule has a value
+            if isinstance(sch_map_dt, pd.Series) and sch_map_dt.notna().any():
+                try:
+                    mask_any = sch_map_dt.notna()
+                    df.loc[mask_any, '_start_dt'] = sch_map_dt[mask_any]
+                    try:
+                        pipeline_stats['start_dt_last_mile_pair'] = int(mask_any.sum())
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
             # game_id fallback
             if (sch_map_dt is None or sch_map_dt.isna().all()) and ('game_id' in df.columns and 'game_id' in sch_df2.columns):
                 try:
@@ -7845,6 +7856,10 @@ def index():
                             pass
                         if take_tol2.any():
                             df.loc[take_tol2, "_start_dt"] = sch_map_dt[take_tol2]
+                        try:
+                            pipeline_stats['start_dt_last_mile_gid'] = int(take_force2.sum()) + int(take_tol2.sum())
+                        except Exception:
+                            pass
                     except Exception:
                         pass
             # Fuzzy pair fallback: try approximate name matching for unresolved rows
@@ -7880,7 +7895,7 @@ def index():
                                 da = df.at[idx, 'away_team']
                                 q = _norm_pair(dh, da)
                                 best = process.extractOne(q, choices, scorer=fuzz.token_set_ratio)
-                                if best and best[1] >= 92:
+                                if best and best[1] >= 85:
                                     key = best[0]
                                     dt_val = sch_map_by_str_dt.get(key, None)
                                     if pd.notna(dt_val):
