@@ -2051,8 +2051,8 @@ def index():
     prefer_cal_param = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
     prefer_cal_eff = prefer_cal_param
 
-    # Declare globals early for prediction source path tracking
-    global _PREDICTIONS_SOURCE_PATH, _MODEL_PREDICTIONS_SOURCE_PATH
+    # Declare globals early for prediction source path tracking and stats caching
+    global _PREDICTIONS_SOURCE_PATH, _MODEL_PREDICTIONS_SOURCE_PATH, _LAST_PIPELINE_STATS
 
     # Define today string once for consistent downstream comparisons
     try:
@@ -9305,7 +9305,6 @@ def index():
 
     # Persist pipeline stats globally for /api/diag access
     try:
-        global _LAST_PIPELINE_STATS
         _LAST_PIPELINE_STATS = dict(pipeline_stats)
     except Exception:
         pass
@@ -9390,7 +9389,6 @@ def index():
         pipeline_stats["index_rows_debug_error"] = True
     # Cache and log pipeline stats for external inspection
     try:
-        global _LAST_PIPELINE_STATS
         _LAST_PIPELINE_STATS = dict(pipeline_stats)
         keys_of_interest = [
             'start_dt_aligned_rows_pair',
