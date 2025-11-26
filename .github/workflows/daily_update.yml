@@ -65,6 +65,15 @@ jobs:
           Remove-Item Env:THEODDS_API_KEY -ErrorAction SilentlyContinue
           Write-Host "Script completed timestamp: $(Get-Date -Format 'u')"
 
+      - name: Coverage check (ESPN vs frontend)
+        shell: pwsh
+        run: |
+          $dateStr = (Get-Date).ToString('yyyy-MM-dd')
+          if ('${{ github.event.inputs.date }}') { $dateStr = '${{ github.event.inputs.date }}' }
+          Write-Host "Checking coverage for date=$dateStr"
+          .venv\Scripts\python.exe -m src.coverage_check --date $dateStr --strict
+        continue-on-error: false
+
       - name: Post-run git push (safety)
         if: success()
         shell: pwsh
