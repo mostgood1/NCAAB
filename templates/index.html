@@ -179,9 +179,12 @@
               {% endif %}
               {# Prefer server-provided ISO-UTC for stable JS conversion; fallback to raw start_time #}
               {% set iso = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined) else None)) %}
-              {# Display preference: localized string -> raw start_time (non-empty) -> ISO fallback; tighten empties #}
-              {% set disp = (r.start_time_local if (r.start_time_local is defined and r.start_time_local) else (r.start_time if (r.start_time is defined and r.start_time) else (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else None))) %}
-              {% if iso or disp %}<span class="pill time-local" data-iso="{{ iso or '' }}">{{ disp or '' }}</span>{% endif %}
+              {# Display preference: dedicated display string -> legacy local -> raw start_time -> ISO #}
+              {% set disp = (r.start_time_display if (r.start_time_display is defined and r.start_time_display) else (r.start_time_local if (r.start_time_local is defined and r.start_time_local) else (r.start_time if (r.start_time is defined and r.start_time) else (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else None)))) %}
+              {% set tzabbr = (r.start_tz_abbr if (r.start_tz_abbr is defined and r.start_tz_abbr) else None) %}
+              {% if iso or disp %}
+                <span class="pill time-local" data-iso="{{ iso or '' }}">{{ disp or '' }}{% if tzabbr %} {{ tzabbr }}{% endif %}</span>
+              {% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
               {% if venue %}<span class="pill venue">{{ venue }}{% if r.city and r.state %} – {{ r.city }}, {{ r.state }}{% elif r.city %} – {{ r.city }}{% endif %}</span>{% endif %}
               {% if r.neutral_site %}<span class="pill neutral">Neutral Site</span>{% endif %}

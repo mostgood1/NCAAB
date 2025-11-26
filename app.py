@@ -7035,13 +7035,30 @@ def index():
     elif "edge_total" in df.columns:
         df["abs_edge"] = df["edge_total"].abs()
         df = df.sort_values(["abs_edge"], ascending=[False])
-    # Convert _start_dt to local time for display and ordering
+    # Convert _start_dt to configured display timezone for rendering and ordering
     try:
         if "_start_dt" in df.columns and df["_start_dt"].notna().any():
-            # Convert to system local tz
-            local_tz = dt.datetime.now().astimezone().tzinfo
-            df["_start_local"] = df["_start_dt"].dt.tz_convert(local_tz)
-            df["start_time_local"] = df["_start_local"].dt.strftime("%Y-%m-%d %H:%M")
+            # Resolve display timezone (separate from schedule tz used for filtering)
+            try:
+                import os
+                from zoneinfo import ZoneInfo  # Python 3.9+
+                disp_tz = ZoneInfo(os.getenv("DISPLAY_TZ", "America/Chicago"))
+            except Exception:
+                disp_tz = dt.datetime.now().astimezone().tzinfo
+            df["_start_display"] = df["_start_dt"].dt.tz_convert(disp_tz)
+            df["start_time_display"] = df["_start_display"].dt.strftime("%Y-%m-%d %H:%M")
+            # Back-compat: also populate start_time_local to the same string if absent
+            if "start_time_local" not in df.columns:
+                df["start_time_local"] = df["start_time_display"]
+            # Expose timezone abbreviation per row for accurate labeling (e.g., CST/CDT)
+            try:
+                df["start_tz_abbr"] = df["_start_display"].dt.tzname()
+            except Exception:
+                df["start_tz_abbr"] = None
+            try:
+                pipeline_stats["display_tz_used"] = str(disp_tz)
+            except Exception:
+                pass
             # Also provide ISO UTC for client-side rendering in the browser's timezone
             try:
                 df["start_time_iso"] = df["_start_dt"].dt.tz_convert(dt.timezone.utc).dt.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -7069,6 +7086,7 @@ def index():
                     disp = st_str.str.replace("T", " ", regex=False).str.replace(r":\d\d(\+\d\d:\d\d|Z)$", "", regex=True)
                     df.loc[mask_loc_missing, "start_time_local"] = disp[mask_loc_missing]
                 else:
+                    # Maintain backward-compat local string even if display conversion failed
                     df["start_time_local"] = st_str.str.replace("T", " ", regex=False).str.replace(r":\d\d(\+\d\d:\d\d|Z)$", "", regex=True)
         else:
             # As last resort, if start_time looks like 'YYYY-MM-DD HH:MM:SS+00:00', format local display without tz conversion
