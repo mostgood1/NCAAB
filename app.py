@@ -5955,20 +5955,65 @@ def index():
         # Ensure df exists and has a game_id column
         if isinstance(df, pd.DataFrame) and 'game_id' in df.columns:
             existing_ids = set(df['game_id'].astype(str))
+            # Build a robust schedule DataFrame for the target date using multiple fallbacks
             games_curr_path = OUT / 'games_curr.csv'
-            games_curr_df = _safe_read_csv(games_curr_path) if games_curr_path.exists() else pd.DataFrame()
-            if not games_curr_df.empty and 'game_id' in games_curr_df.columns:
-                games_curr_df['game_id'] = games_curr_df['game_id'].astype(str)
-                if date_q and 'date' in games_curr_df.columns:
+            sched_df = _safe_read_csv(games_curr_path) if games_curr_path.exists() else pd.DataFrame()
+            try:
+                # Append additional candidates if available (date-specific and season-wide)
+                cand_list = []
+                if date_q:
+                    dstr = str(date_q)
                     try:
-                        games_curr_df['date'] = pd.to_datetime(games_curr_df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-                        games_curr_df = games_curr_df[games_curr_df['date'] == str(date_q)]
+                        year = str(pd.to_datetime(dstr, errors='coerce').year)
+                    except Exception:
+                        year = None
+                    cand_list.extend([
+                        OUT / f"games_{dstr}.csv",
+                        OUT / f"games_{dstr}_fused.csv",
+                    ])
+                    if year:
+                        cand_list.extend([
+                            OUT / f"games_{year}.csv",
+                            OUT / f"games_{year}_fused.csv",
+                        ])
+                # Load and concat unique schedule rows
+                extra = []
+                for pth in cand_list:
+                    try:
+                        if pth.exists():
+                            tmp = _safe_read_csv(pth)
+                            if not tmp.empty:
+                                extra.append(tmp)
+                    except Exception:
+                        continue
+                if extra:
+                    try:
+                        sched_df = pd.concat([sched_df] + extra, ignore_index=True)
                     except Exception:
                         pass
-                # Identify missing schedule rows
-                missing_game_ids = [gid for gid in games_curr_df['game_id'] if gid not in existing_ids]
+            except Exception:
+                pass
+            # Normalize and filter schedule by date when possible
+            if not sched_df.empty and 'game_id' in sched_df.columns:
+                try:
+                    sched_df['game_id'] = sched_df['game_id'].astype(str)
+                except Exception:
+                    pass
+                if date_q and 'date' in sched_df.columns:
+                    try:
+                        sched_df['date'] = pd.to_datetime(sched_df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                        sched_df = sched_df[sched_df['date'] == str(date_q)]
+                    except Exception:
+                        pass
+                # Drop duplicates to avoid inflating later concatenations
+                try:
+                    sched_df = sched_df.drop_duplicates(subset=['game_id'], keep='last')
+                except Exception:
+                    pass
+                # Identify missing schedule rows vs existing df
+                missing_game_ids = [gid for gid in sched_df['game_id'] if gid not in existing_ids]
                 if missing_game_ids:
-                    add_games = games_curr_df[games_curr_df['game_id'].isin(missing_game_ids)].copy()
+                    add_games = sched_df[sched_df['game_id'].isin(missing_game_ids)].copy()
                     # Guarantee prediction placeholder columns
                     for col in ('pred_total','pred_margin'):
                         if col not in add_games.columns:
@@ -5984,10 +6029,10 @@ def index():
                 if missing_model_ids:
                     add_mp = mp[mp['game_id'].isin(missing_model_ids)].copy()
                     # Enrich with schedule metadata if available
-                    if not games_curr_df.empty and 'game_id' in games_curr_df.columns:
-                        enrich_cols = [c for c in ['game_id','date','home_team','away_team','start_time','venue'] if c in games_curr_df.columns]
+                    if not sched_df.empty and 'game_id' in sched_df.columns:
+                        enrich_cols = [c for c in ['game_id','date','home_team','away_team','start_time','venue'] if c in sched_df.columns]
                         if enrich_cols:
-                            add_mp = add_mp.merge(games_curr_df[enrich_cols], on='game_id', how='left')
+                            add_mp = add_mp.merge(sched_df[enrich_cols], on='game_id', how='left')
                     # Promote model predictions
                     if 'pred_total_model' in add_mp.columns and 'pred_total' not in add_mp.columns:
                         add_mp['pred_total'] = add_mp['pred_total_model']
@@ -6010,8 +6055,8 @@ def index():
                 if tgt not in set(df['game_id'].astype(str)):
                     # Attempt to build a single-row DataFrame from games_curr + model_preds
                     row_parts = []
-                    if not games_curr_df.empty and tgt in set(games_curr_df['game_id']):
-                        row_parts.append(games_curr_df[games_curr_df['game_id'] == tgt])
+                    if not sched_df.empty and tgt in set(sched_df['game_id']):
+                        row_parts.append(sched_df[sched_df['game_id'] == tgt])
                     if 'model_preds' in locals() and not model_preds.empty:
                         mp_row = model_preds[model_preds['game_id'].astype(str) == tgt]
                         if not mp_row.empty:
