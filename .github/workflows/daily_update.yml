@@ -55,8 +55,7 @@ jobs:
         # actionlint: enable=expr
         run: |
           if ([string]::IsNullOrWhiteSpace($env:THEODDS_API_KEY)) {
-            Write-Error 'Missing THEODDS_API_KEY secret. Ensure repository secret THEODDS_API_KEY is configured.'
-            exit 1
+            Write-Warning 'THEODDS_API_KEY is not set; odds-dependent steps will be skipped if applicable.'
           }
           Write-Host 'Running daily_update.ps1'
           Write-Host "Script start timestamp: $(Get-Date -Format 'u')"
