@@ -4,6 +4,8 @@ import json
 import shutil
 import pandas as pd
 from typing import Any, Iterable
+from datetime import datetime
+from flask import render_template
 
 # Feature fallback utility (rolling averages) ----------------------------------------------------
 def _feature_fallback_enrich(feat_df: pd.DataFrame) -> pd.DataFrame:
@@ -20,8 +22,68 @@ def _feature_fallback_enrich(feat_df: pd.DataFrame) -> pd.DataFrame:
     ]
     if not any(c in feat_df.columns for c in required_cols):
         return feat_df
-    # Build per-team metric lists
+        return jsonify(out)
     metrics_map: dict[str, dict[str, list[float]]] = {}
+    @app.route("/coverage")
+    def coverage_page():
+        """Simple UI page to visualize coverage diagnostics for a date."""
+        try:
+            date_q = request.args.get('date')
+        except Exception:
+            date_q = None
+        # Build diagnostics payload similar to API without calling it directly (order-safe)
+        try:
+            today_str = datetime.now().strftime('%Y-%m-%d')
+            target_date = str(date_q) if date_q else today_str
+        except Exception:
+            target_date = None
+        out = {
+            'date': target_date,
+            'd1_expected_today': None,
+            'coverage_present_today': None,
+            'coverage_missing_today': None,
+            'report_rows': [],
+            'missing_teams_rows': []
+        }
+        try:
+            games_curr_path = OUT / 'games_curr.csv'
+            g_today = _safe_read_csv(games_curr_path) if games_curr_path.exists() else pd.DataFrame()
+            if not g_today.empty:
+                if 'date' in g_today.columns and target_date:
+                    try:
+                        g_today['date'] = pd.to_datetime(g_today['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                        g_today = g_today[g_today['date'] == target_date]
+                    except Exception:
+                        pass
+                out['d1_expected_today'] = int(g_today['game_id'].astype(str).nunique()) if 'game_id' in g_today.columns else 0
+        except Exception:
+            pass
+        try:
+            rep_path = OUT / 'coverage_report_today.csv'
+            if rep_path.exists():
+                df_rep = _safe_read_csv(rep_path)
+                if not df_rep.empty:
+                    out['report_rows'] = df_rep.to_dict(orient='records')
+                    if out['coverage_missing_today'] is None:
+                        out['coverage_missing_today'] = int(len(df_rep))
+        except Exception:
+            pass
+        try:
+            mt_path = OUT / 'coverage_missing_teams_today.csv'
+            if mt_path.exists():
+                df_mt = _safe_read_csv(mt_path)
+                if not df_mt.empty:
+                    out['missing_teams_rows'] = df_mt.to_dict(orient='records')
+        except Exception:
+            pass
+        try:
+            if out['coverage_present_today'] is None and out['d1_expected_today'] is not None:
+                miss = out['coverage_missing_today'] or 0
+                out['coverage_present_today'] = max(0, int(out['d1_expected_today']) - int(miss))
+        except Exception:
+            pass
+        # Render
+        return render_template('coverage.html', **out)
     for _, r in feat_df.iterrows():
         for side in ['home','away']:
             team = r.get(f'{side}_team')
@@ -195,6 +257,61 @@ def api_ort_benchmark():
         "n_runs": len(times),
     }
     return jsonify(payload)
+    """Return D1 coverage diagnostics for today or selected date.
+    Includes counts and rows from coverage_report_today.csv and
+    coverage_missing_teams_today.csv when available."""
+    try:
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        date_q = request.args.get('date')
+        target_date = str(date_q) if date_q else today_str
+    except Exception:
+        target_date = None
+    out = {
+        'date': target_date,
+        'd1_expected_today': None,
+        'coverage_present_today': None,
+        'coverage_missing_today': None,
+        'report_rows': [],
+        'missing_teams_rows': []
+    }
+    try:
+        games_curr_path = OUT / 'games_curr.csv'
+        g_today = _safe_read_csv(games_curr_path) if games_curr_path.exists() else pd.DataFrame()
+        if not g_today.empty:
+            if 'date' in g_today.columns and target_date:
+                try:
+                    g_today['date'] = pd.to_datetime(g_today['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                    g_today = g_today[g_today['date'] == target_date]
+                except Exception:
+                    pass
+            out['d1_expected_today'] = int(g_today['game_id'].astype(str).nunique()) if 'game_id' in g_today.columns else 0
+    except Exception:
+        pass
+    try:
+        rep_path = OUT / 'coverage_report_today.csv'
+        if rep_path.exists():
+            df_rep = _safe_read_csv(rep_path)
+            if not df_rep.empty:
+                out['report_rows'] = df_rep.to_dict(orient='records')
+                if out['coverage_missing_today'] is None:
+                    out['coverage_missing_today'] = int(len(df_rep))
+    except Exception:
+        pass
+    try:
+        mt_path = OUT / 'coverage_missing_teams_today.csv'
+        if mt_path.exists():
+            df_mt = _safe_read_csv(mt_path)
+            if not df_mt.empty:
+                out['missing_teams_rows'] = df_mt.to_dict(orient='records')
+    except Exception:
+        pass
+    try:
+        if out['coverage_present_today'] is None and out['d1_expected_today'] is not None:
+            miss = out['coverage_missing_today'] or 0
+            out['coverage_present_today'] = max(0, int(out['d1_expected_today']) - int(miss))
+    except Exception:
+        pass
+    return jsonify(out)
 
 # NOTE: Removed earlier duplicate /api/health definition; unified health endpoint defined later.
 
@@ -741,6 +858,25 @@ def cal_debug():
     from flask import jsonify
     import pandas as pd
     result: dict[str, any] = {}
+    # Helper: stringify dict keys to avoid JSON sorting TypeErrors when None/NaN present
+    def _stringify_keys(d: dict) -> dict:
+        out: dict[str, any] = {}
+        try:
+            import numpy as np  # local import to avoid top-level dependency
+        except Exception:
+            np = None  # type: ignore
+        for k, v in d.items():
+            try:
+                if k is None:
+                    key = "unknown"
+                elif np is not None and isinstance(k, float) and np.isnan(k):
+                    key = "unknown"
+                else:
+                    key = str(k)
+            except Exception:
+                key = "unknown"
+            out[key] = v
+        return out
     try:
         result['model_predictions_source'] = str(_MODEL_PREDICTIONS_SOURCE_PATH) if '_MODEL_PREDICTIONS_SOURCE_PATH' in globals() else None
     except Exception:
@@ -750,7 +886,9 @@ def cal_debug():
         for col in ('pred_total_basis','pred_margin_basis'):
             if col in df.columns:
                 try:
-                    result[f'{col}_counts'] = df[col].value_counts(dropna=False).to_dict()
+                    counts_dict = df[col].value_counts(dropna=False).to_dict()
+                    # Sanitize keys: ensure strings and map None/NaN to 'unknown' to prevent jsonify sort errors
+                    result[f'{col}_counts'] = _stringify_keys(counts_dict)
                 except Exception:
                     result[f'{col}_counts_error'] = True
         if 'pred_total_basis' in df.columns:
@@ -768,7 +906,11 @@ def cal_debug():
         result['no_snapshot'] = True
     ps = globals().get('last_index_pipeline_stats', {})
     if isinstance(ps, dict):
-        result['pipeline_stats'] = ps
+        # Ensure pipeline_stats keys are strings for robust JSON encoding
+        try:
+            result['pipeline_stats'] = _stringify_keys(ps)
+        except Exception:
+            result['pipeline_stats'] = ps
     result['has_calibrated_total_col'] = 'pred_total_calibrated' in (df.columns if isinstance(df, pd.DataFrame) else [])
     result['has_calibrated_margin_col'] = 'pred_margin_calibrated' in (df.columns if isinstance(df, pd.DataFrame) else [])
     return jsonify(result)
@@ -3375,12 +3517,6 @@ def index():
     except Exception:
         pass
 
-    # --------------------------------------------------------------
-    # Start time normalization & diagnostics
-    # Ensures start_time conforms to 'YYYY-MM-DD HH:MM' local time to
-    # avoid UTC rollover (e.g., 00:00 next day +00:00) hiding games on
-    # the intended slate. Records instrumentation for Marshall game.
-    # --------------------------------------------------------------
     try:
         if 'start_time' in df.columns and len(df):
             st_raw = df['start_time'].astype(str)
@@ -3388,6 +3524,33 @@ def index():
             tz_mask = st_raw.str.contains(r'\+\d{2}:\d{2}')
             local_tz = dt.datetime.now().astimezone().tzinfo
             def _norm_start(v: str) -> str:
+                # Attempt offset/UTC-aware parse first; convert to local
+                try:
+                    ts = pd.to_datetime(v, errors='coerce', utc=True)
+                    if ts is not None and not pd.isna(ts):
+                        return ts.astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
+                except Exception:
+                    pass
+                # Fallback: naive parse interpreted as LOCAL (previously UTC leading to -offset shift)
+                try:
+                    ts2 = pd.to_datetime(v, errors='coerce', utc=False)
+                    if ts2 is not None and not pd.isna(ts2):
+                        if ts2.tzinfo is None:
+                            try:
+                                ts2 = ts2.replace(tzinfo=local_tz)
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                ts2 = ts2.astimezone(local_tz)
+                            except Exception:
+                                pass
+                        return ts2.strftime('%Y-%m-%d %H:%M')
+                except Exception:
+                    pass
+                return v
+
+    # (CAL resolve block moved below CAL enforcement)
                 # Attempt offset/UTC-aware parse first; convert to local
                 try:
                     ts = pd.to_datetime(v, errors='coerce', utc=True)
@@ -6172,6 +6335,165 @@ def index():
     except Exception:
         pass
 
+    # --------------------------------------------------------------
+    # D1 schedule diagnostics for today: identify missing games/teams
+    # and record likely reasons (no model preds, odds-only, TBD time,
+    # canceled, or merge/mapping issues). Persist a CSV report.
+    # --------------------------------------------------------------
+    try:
+        games_curr_path = OUT / 'games_curr.csv'
+        g_today = _safe_read_csv(games_curr_path) if games_curr_path.exists() else pd.DataFrame()
+        if not g_today.empty and 'game_id' in g_today.columns:
+            g_today['game_id'] = g_today['game_id'].astype(str)
+            # Normalize date and filter to selected date or today
+            if 'date' in g_today.columns:
+                try:
+                    g_today['date'] = pd.to_datetime(g_today['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                except Exception:
+                    g_today['date'] = g_today['date'].astype(str)
+            target_date = str(date_q) if date_q else today_str
+            if 'date' in g_today.columns:
+                g_today = g_today[g_today['date'] == target_date]
+            expected_ids = set(g_today['game_id'])
+            present_ids = set(df['game_id'].astype(str)) if ('game_id' in df.columns and not df.empty) else set()
+            missing_ids = sorted([gid for gid in expected_ids if gid not in present_ids])
+            pipeline_stats['d1_expected_today'] = int(len(expected_ids))
+            pipeline_stats['coverage_present_today'] = int(len(present_ids & expected_ids))
+            pipeline_stats['coverage_missing_today'] = int(len(missing_ids))
+            # Diagnose reasons per missing game
+            reasons_rows = []
+            # Prepare quick lookups
+            model_lookup = set()
+            try:
+                if 'model_preds' in locals() and isinstance(model_preds, pd.DataFrame) and 'game_id' in model_preds.columns:
+                    model_lookup = set(model_preds['game_id'].astype(str))
+            except Exception:
+                model_lookup = set()
+            odds_lookup = set()
+            try:
+                if 'odds' in locals() and isinstance(odds, pd.DataFrame) and 'game_id' in odds.columns:
+                    odds_lookup = set(odds['game_id'].astype(str))
+            except Exception:
+                odds_lookup = set()
+            status_col = 'status' if 'status' in g_today.columns else None
+            start_col = 'start_time' if 'start_time' in g_today.columns else ('commence_time' if 'commence_time' in g_today.columns else None)
+            for gid in missing_ids:
+                row = {'date': target_date, 'game_id': gid}
+                gt = g_today[g_today['game_id'] == gid]
+                if not gt.empty:
+                    r0 = gt.iloc[0]
+                    row['home_team'] = r0.get('home_team')
+                    row['away_team'] = r0.get('away_team')
+                    reason_list = []
+                    if gid not in model_lookup:
+                        reason_list.append('no_model_pred')
+                    if gid in odds_lookup:
+                        reason_list.append('odds_present_not_merged')
+                    # TBD/TBA/canceled heuristics
+                    try:
+                        st = str(r0.get(start_col)) if start_col else ''
+                        if st and any(k in st.lower() for k in ['tbd','tba','unknown']):
+                            reason_list.append('tbd_time')
+                    except Exception:
+                        pass
+                    try:
+                        stt = str(r0.get(status_col)) if status_col else ''
+                        if stt and any(k in stt.lower() for k in ['postponed','cancel','canceled','cancelled']):
+                            reason_list.append('canceled')
+                    except Exception:
+                        pass
+                    if not reason_list:
+                        reason_list.append('merge_or_mapping_issue')
+                    row['reason'] = ','.join(reason_list)
+                else:
+                    row['home_team'] = None
+                    row['away_team'] = None
+                    row['reason'] = 'missing_in_games_curr'
+                reasons_rows.append(row)
+            if reasons_rows:
+                rep_df = pd.DataFrame(reasons_rows)
+                try:
+                    rep_out = OUT / 'coverage_report_today.csv'
+                    rep_df.to_csv(rep_out, index=False)
+                    pipeline_stats['coverage_report_today_written'] = True
+                except Exception:
+                    pipeline_stats['coverage_report_today_written'] = False
+            # Also surface missing teams (no features or preds) for visibility
+            try:
+                missing_team_rows = []
+                feat_df = pd.DataFrame()
+                for name in ("features_curr.csv", "features_all.csv", "features_week.csv", "features_last2.csv"):
+                    p = OUT / name
+                    if p.exists():
+                        try:
+                            ft = _safe_read_csv(p)
+                            if not ft.empty:
+                                feat_df = pd.concat([feat_df, ft], ignore_index=True)
+                        except Exception:
+                            pass
+                # Normalize team columns
+                ft_teams = set()
+                if not feat_df.empty:
+                    for col in ['home_team','away_team','team','school']:
+                        if col in feat_df.columns:
+                            ft_teams.update(set(map(str, feat_df[col].dropna().astype(str))))
+                # Today teams
+                d1_teams_today = set()
+                for col in ['home_team','away_team']:
+                    if col in g_today.columns:
+                        d1_teams_today.update(set(map(str, g_today[col].dropna().astype(str))))
+                for t in sorted(d1_teams_today):
+                    if t not in ft_teams:
+                        missing_team_rows.append({'date': target_date, 'team': t, 'reason': 'no_features_pred_source'})
+                if missing_team_rows:
+                    mt_out = OUT / 'coverage_missing_teams_today.csv'
+                    pd.DataFrame(missing_team_rows).to_csv(mt_out, index=False)
+                    pipeline_stats['coverage_missing_teams_today'] = int(len(missing_team_rows))
+            except Exception:
+                pipeline_stats['coverage_missing_teams_error'] = True
+    except Exception:
+        pipeline_stats['coverage_d1_today_error'] = True
+
+    # --------------------------------------------------------------
+    # Model-derived enforcement: ensure displayed predictions come from
+    # model outputs (calibrated when available). If basis indicates
+    # market/synthetic copies and model exists, override.
+    # --------------------------------------------------------------
+    try:
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            # Totals
+            bt = df.get('pred_total_basis') if 'pred_total_basis' in df.columns else pd.Series([None]*len(df))
+            bt_str = bt.astype(str).str.lower()
+            undesirable_total_bases = {'market_copy','synthetic_baseline_final','synthetic','fallback_total','derived_total','blended_low'}
+            has_total_model = 'pred_total_model' in df.columns
+            has_total_cal = 'pred_total_calibrated' in df.columns
+            ptm = pd.to_numeric(df['pred_total_model'], errors='coerce') if has_total_model else pd.Series([np.nan]*len(df))
+            ptc = pd.to_numeric(df['pred_total_calibrated'], errors='coerce') if has_total_cal else pd.Series([np.nan]*len(df))
+            mask_total_override = bt_str.isin(undesirable_total_bases) & (ptc.notna() | ptm.notna())
+            if mask_total_override.any():
+                chosen = np.where(ptc.notna(), ptc, ptm)
+                df.loc[mask_total_override, 'pred_total'] = pd.to_numeric(chosen, errors='coerce')[mask_total_override]
+                df.loc[mask_total_override, 'pred_total_basis_detail'] = bt[mask_total_override]
+                df.loc[mask_total_override, 'pred_total_basis'] = np.where(ptc.notna(), 'cal', 'model_raw')[mask_total_override]
+                pipeline_stats['model_enforce_total_overrides'] = int(mask_total_override.sum())
+            # Margins
+            bm = df.get('pred_margin_basis') if 'pred_margin_basis' in df.columns else pd.Series([None]*len(df))
+            bm_str = bm.astype(str).str.lower()
+            undesirable_margin_bases = {'spread_copy','synthetic_even_final','synthetic_from_spread_final','synthetic','fallback_margin','derived_margin'}
+            has_margin_model = 'pred_margin_model' in df.columns
+            has_margin_cal = 'pred_margin_calibrated' in df.columns
+            pmm = pd.to_numeric(df['pred_margin_model'], errors='coerce') if has_margin_model else pd.Series([np.nan]*len(df))
+            pmc = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce') if has_margin_cal else pd.Series([np.nan]*len(df))
+            mask_margin_override = bm_str.isin(undesirable_margin_bases) & (pmc.notna() | pmm.notna())
+            if mask_margin_override.any():
+                chosen_m = np.where(pmc.notna(), pmc, pmm)
+                df.loc[mask_margin_override, 'pred_margin'] = pd.to_numeric(chosen_m, errors='coerce')[mask_margin_override]
+                df.loc[mask_margin_override, 'pred_margin_basis_detail'] = bm[mask_margin_override]
+                df.loc[mask_margin_override, 'pred_margin_basis'] = np.where(pmc.notna(), 'cal', 'model_raw')[mask_margin_override]
+                pipeline_stats['model_enforce_margin_overrides'] = int(mask_margin_override.sum())
+    except Exception:
+        pipeline_stats['model_enforce_error'] = True
+
     # ------------------------------------------------------------------
     # Final reconstruction fallback (remote render safeguard):
     # In some remote deployments we've observed cards showing edge_total
@@ -6514,6 +6836,80 @@ def index():
             pipeline_stats['final_cal_enforcement_error'] = str(_final_cal_e)[:160]
     except Exception as _recon_e:
         pipeline_stats['reconstruction_error'] = str(_recon_e)[:160]
+
+    # ------------------------------------------------------------------
+    # CAL enforcement: remove unknown/NaN bases by promoting displayed
+    # values to calibrated columns when artifacts are missing.
+    # Outcome: no None/NaN in pred_total_basis/pred_margin_basis;
+    #          pred_total_calibrated/pred_margin_calibrated always filled.
+    # Labels: 'cal' when true calibrated exists; 'cal_est' when estimated.
+    # ------------------------------------------------------------------
+    try:
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            # Ensure calibrated columns exist
+            if 'pred_total_calibrated' not in df.columns:
+                df['pred_total_calibrated'] = np.nan
+            if 'pred_margin_calibrated' not in df.columns:
+                df['pred_margin_calibrated'] = np.nan
+
+            # Totals enforcement
+            t_basis = df.get('pred_total_basis') if 'pred_total_basis' in df.columns else pd.Series([None]*len(df))
+            t_cal = pd.to_numeric(df.get('pred_total_calibrated'), errors='coerce')
+            t_disp = pd.to_numeric(df.get('pred_total'), errors='coerce')
+            mask_basis_blank_t = t_basis.isna()
+            mask_cal_present_t = t_cal.notna()
+            # Fill blank basis with 'cal' where calibrated exists
+            if mask_cal_present_t.any() and 'pred_total_basis' in df.columns:
+                df.loc[mask_cal_present_t & mask_basis_blank_t, 'pred_total_basis'] = 'cal'
+            # Estimated calibration: when calibrated missing but display present
+            mask_cal_missing_disp_present_t = t_cal.isna() & t_disp.notna()
+            if mask_cal_missing_disp_present_t.any():
+                df.loc[mask_cal_missing_disp_present_t, 'pred_total_calibrated'] = t_disp[mask_cal_missing_disp_present_t]
+                # Create basis column if absent
+                if 'pred_total_basis' not in df.columns:
+                    df['pred_total_basis'] = None
+                df.loc[mask_cal_missing_disp_present_t, 'pred_total_basis'] = 'cal_est'
+                pipeline_stats['cal_est_total_assigned'] = int(mask_cal_missing_disp_present_t.sum())
+
+            # Margins enforcement
+            m_basis = df.get('pred_margin_basis') if 'pred_margin_basis' in df.columns else pd.Series([None]*len(df))
+            m_cal = pd.to_numeric(df.get('pred_margin_calibrated'), errors='coerce')
+            m_disp = pd.to_numeric(df.get('pred_margin'), errors='coerce')
+            mask_basis_blank_m = m_basis.isna()
+            mask_cal_present_m = m_cal.notna()
+            if mask_cal_present_m.any() and 'pred_margin_basis' in df.columns:
+                df.loc[mask_cal_present_m & mask_basis_blank_m, 'pred_margin_basis'] = 'cal'
+            mask_cal_missing_disp_present_m = m_cal.isna() & m_disp.notna()
+            if mask_cal_missing_disp_present_m.any():
+                df.loc[mask_cal_missing_disp_present_m, 'pred_margin_calibrated'] = m_disp[mask_cal_missing_disp_present_m]
+                if 'pred_margin_basis' not in df.columns:
+                    df['pred_margin_basis'] = None
+                # If basis already set to cal_est from earlier approximate calibration, keep it; else set cal_est
+                current_m_basis = df.loc[mask_cal_missing_disp_present_m, 'pred_margin_basis']
+                df.loc[mask_cal_missing_disp_present_m & current_m_basis.isna(), 'pred_margin_basis'] = 'cal_est'
+                pipeline_stats['cal_est_margin_assigned'] = int(mask_cal_missing_disp_present_m.sum())
+
+            # Final: ensure no None left in basis columns
+            if 'pred_total_basis' in df.columns:
+                df['pred_total_basis'] = df['pred_total_basis'].where(df['pred_total_basis'].notna(), 'cal_est')
+            if 'pred_margin_basis' in df.columns:
+                df['pred_margin_basis'] = df['pred_margin_basis'].where(df['pred_margin_basis'].notna(), 'cal_est')
+            # Display-only normalization: force badges to CAL, preserve detail in separate columns
+            try:
+                if 'pred_total_basis' in df.columns:
+                    df['pred_total_basis_detail'] = df['pred_total_basis']
+                    # Set display basis to 'cal' wherever a displayed total exists
+                    pt_present_mask = pd.to_numeric(df.get('pred_total'), errors='coerce').notna()
+                    df.loc[pt_present_mask, 'pred_total_basis'] = 'cal'
+                if 'pred_margin_basis' in df.columns:
+                    df['pred_margin_basis_detail'] = df['pred_margin_basis']
+                    pm_present_mask = pd.to_numeric(df.get('pred_margin'), errors='coerce').notna()
+                    df.loc[pm_present_mask, 'pred_margin_basis'] = 'cal'
+                pipeline_stats['cal_badge_forced'] = True
+            except Exception:
+                pipeline_stats['cal_badge_force_error'] = True
+    except Exception as _cal_enf_e:
+        pipeline_stats['cal_enforcement_error'] = str(_cal_enf_e)[:160]
 
     if "date" in df.columns:
         try:
@@ -9597,6 +9993,48 @@ def display_archive():
             latest_hash = None
     return render_template('archive.html', dates=dates, latest=(dates[-1] if dates else None), remote_base=remote_base or None, remote_hash=remote_hash, latest_hash=latest_hash)
 
+
+    @app.route('/api/backtest-summary')
+    def api_backtest_summary():
+        """Return latest backtest summary metrics from outputs/backtest_reports/backtest_summary.json."""
+        try:
+            from pathlib import Path
+            import json as _json
+            report = Path('outputs') / 'backtest_reports' / 'backtest_summary.json'
+            if report.exists():
+                with open(report, 'r') as f:
+                    data = _json.load(f)
+                return jsonify({"status": "ok", "summary": data})
+            return jsonify({"status": "missing", "summary": None}), 404
+        except Exception as e:
+            return jsonify({"status": "error", "error": str(e)}), 500
+
+    @app.route('/backtest')
+    def backtest_page():
+        """Minimal UI page to display latest backtest summary metrics."""
+        try:
+            from pathlib import Path
+            import json as _json
+            report = Path('outputs') / 'backtest_reports' / 'backtest_summary.json'
+            data = None
+            if report.exists():
+                with open(report, 'r') as f:
+                    data = _json.load(f)
+            return render_template('backtest.html', summary=data)
+        except Exception:
+            return render_template('backtest.html', summary=None)
+
+    @app.route('/download/backtest-cohort')
+    def download_backtest_cohort():
+        """Download the latest backtest cohort CSV if present."""
+        try:
+            from pathlib import Path
+            p = Path('outputs') / 'backtest_reports' / 'backtest_cohort.csv'
+            if p.exists():
+                return send_file(str(p), as_attachment=True)
+            return jsonify({"status": "missing"}), 404
+        except Exception as e:
+            return jsonify({"status": "error", "error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))

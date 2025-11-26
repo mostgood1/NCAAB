@@ -172,6 +172,11 @@
               </div>
             </div>
             <div class="meta-row">
+              {# Single card-level CAL badge (header). Show once per card, not per metric. #}
+              {% set is_cal_card = (r.pred_total_basis in ['model_calibrated','model_calibrated_bias','cal']) or (r.pred_margin_basis in ['model_calibrated','model_calibrated_bias','cal']) %}
+              {% if is_cal_card %}
+                <span class="badge cal" title="Calibrated predictions">CAL</span>
+              {% endif %}
               {# Prefer server-provided ISO-UTC for stable JS conversion; fallback to raw start_time #}
               {% set iso = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined) else None)) %}
               {# Display preference: localized string -> raw start_time (non-empty) -> ISO fallback; tighten empties #}
@@ -213,19 +218,9 @@
             {% set _mt = r.market_total if (r.market_total is defined) else None %}
             {% set _mt_valid = (_mt is not none and _mt == _mt) %}
             <div class="pill">Total: {{ '%.1f' % _pt if _pt_valid else ( '%.1f' % _mt if _mt_valid else '–') }}
-              {# Existing calibrated/raw indicator remains #}
-              {% if is_cal %}<span class="badge cal" title="Calibrated (scaled & distribution-aligned)">Cal</span>{% endif %}
-              {% if is_raw and not is_cal %}<span class="badge raw" title="Raw model prediction">Raw</span>{% endif %}
               {% if r.pred_total_adjusted %}<span class="badge adj" title="Low-total blend adjustment applied">Adj</span>{% endif %}
               {% if r.pred_total_model_raw is defined and r.pred_total_model_raw is not none and r.pred_total_model_raw == r.pred_total_model_raw and is_cal and _pt_valid %}
                 <span class="badge toggle-raw" data-raw="{{ '%.1f' % r.pred_total_model_raw }}" data-cal="{{ '%.1f' % _pt }}" onclick="toggleRaw(this)" title="Click to toggle raw vs calibrated">↔</span>
-              {% endif %}
-              {# New basis micro-badge summarizing the origin of the total prediction #}
-              {% set tb = r.pred_total_basis %}
-              {% if tb %}
-                <span class="badge" title="Total basis: {{ tb }}">
-                  {% if tb.startswith('model_calibrated') or tb == 'cal' %}CAL{% elif tb in ['model_raw','model','model_v1'] %}RAW{% elif tb == 'features_derived' %}DER{% elif tb in ['synthetic_baseline','synthetic_baseline_nomkt'] %}SYN{% elif tb == 'market_copy' %}COPY{% elif tb == 'blended_low' %}BLEND{% else %}{{ (tb or '')[:4].upper() }}{% endif %}
-                </span>
               {% endif %}
               {% if r.blend_effective is defined and r.blend_effective and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
               {% if r.blend_effective is defined and r.blend_effective and r.seg_n_rows_orig is defined and r.seg_n_rows_orig is not none and r.seg_n_rows_orig > 0 %}<span class="badge sample" title="Segment sample size contributing to blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows_orig }}</span>{% endif %}
@@ -297,19 +292,7 @@
                 {% set _ph_valid = (r.proj_home is not none and r.proj_home == r.proj_home) %}
                 {% set _pa_valid = (r.proj_away is not none and r.proj_away == r.proj_away) %}
                 <div class="seg">Team Totals: {% if _ph_valid and _pa_valid %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
-              <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}
-                {% if is_cal %}<span class="badge cal" title="Calibrated">Cal</span>{% elif is_raw %}<span class="badge raw" title="Raw model">Raw</span>{% endif %}
-                {# Basis badge for full-game total #}
-                {% set tb2 = r.pred_total_basis %}
-                {% if tb2 %}<span class="badge" title="Total basis: {{ tb2 }}">{% if tb2.startswith('model_calibrated') %}CAL{% elif tb2 in ['model_raw','model'] %}RAW{% elif tb2 == 'features_derived' %}DER{% elif tb2 == 'synthetic_baseline' %}SYN{% elif tb2 == 'market_copy' %}COPY{% elif tb2 == 'blended_low' %}BLEND{% else %}{{ (tb2 or '')[:4].upper() }}{% endif %}</span>{% endif %}
-                {# Margin basis badge (if present) #}
-                {% if r.pred_margin_basis is defined and r.pred_margin_basis %}
-                  {% set mb = r.pred_margin_basis %}
-                  <span class="badge" title="Margin basis: {{ mb }}">{% if mb.startswith('model_calibrated') %}CAL{% elif mb in ['model_raw','model'] %}RAW{% elif mb == 'features_derived' %}DER{% elif mb == 'synthetic_baseline' %}SYN{% elif mb == 'market_copy' %}COPY{% elif mb == 'blended_low' %}BLEND{% else %}{{ (mb or '')[:4].upper() }}{% endif %}</span>
-                {% endif %}
-                {% if r.blend_effective is defined and r.blend_effective and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
-                {% if r.blend_effective is defined and r.blend_effective and r.seg_n_rows_orig is defined and r.seg_n_rows_orig is not none and r.seg_n_rows_orig > 0 %}<span class="badge sample" title="Segment sample size contributing to blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows_orig }}</span>{% endif %}
-              </div>
+              <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}</div>
             </div>
             {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
             {% set total_full = r.market_total if (r.market_total is not none and r.market_total == r.market_total) else None %}

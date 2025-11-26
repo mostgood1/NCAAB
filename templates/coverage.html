@@ -1,6 +1,102 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coverage Diagnostics</title>
+  <link rel="stylesheet" href="/static/bootstrap.min.css">
+  <style>
+    body { padding: 16px; }
+    .counts { margin-bottom: 16px; }
+    table { font-size: 0.95rem; }
+    .badge { margin-left: 6px; }
+    .miss { background: #fff3f3; }
+    .ok { background: #f5fff3; }
+  </style>
+</head>
+<body>
+  <h2>Coverage Diagnostics</h2>
+  <form method="get" action="/coverage" class="counts">
+    <div class="row g-2 align-items-center">
+      <div class="col-auto">
+        <label for="date" class="col-form-label">Date</label>
+      </div>
+      <div class="col-auto">
+        <input type="date" id="date" name="date" value="{{ date }}" class="form-control">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Refresh</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="counts">
+    <span class="badge bg-secondary">Expected: {{ d1_expected_today }}</span>
+    <span class="badge bg-success">Present: {{ coverage_present_today }}</span>
+    <span class="badge bg-danger">Missing: {{ coverage_missing_today }}</span>
+  </div>
+
+  <h4>Missing Games</h4>
+  {% if report_rows and report_rows|length > 0 %}
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead>
+        <tr>
+          <th>game_id</th>
+          <th>home_team</th>
+          <th>away_team</th>
+          <th>reason</th>
+          <th>status</th>
+          <th>start_time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in report_rows %}
+        <tr class="miss">
+          <td>{{ r.game_id }}</td>
+          <td>{{ r.home_team }}</td>
+          <td>{{ r.away_team }}</td>
+          <td>{{ r.reason }}</td>
+          <td>{{ r.status }}</td>
+          <td>{{ r.start_time }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p>No missing games for this date.</p>
+  {% endif %}
+
+  <h4>Missing Teams</h4>
+  {% if missing_teams_rows and missing_teams_rows|length > 0 %}
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead>
+        <tr>
+          <th>team</th>
+          <th>reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in missing_teams_rows %}
+        <tr class="miss">
+          <td>{{ r.team }}</td>
+          <td>{{ r.reason }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p>No missing teams for this date.</p>
+  {% endif %}
+
+  <p class="mt-3"><a href="/">Back to index</a></p>
+</body>
+</html><!doctype html>
+<html lang="en">
+<head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coverage</title>

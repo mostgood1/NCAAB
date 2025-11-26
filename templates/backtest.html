@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Backtest Summary</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Backtest Summary</h1>
+    <p><a href="/">Home</a> · <a href="/coverage">Coverage</a></p>
+    {% if summary %}
+      <div class="cards">
+        <div class="card">
+          <h3>Games</h3>
+          <p>{{ summary.n_games }}</p>
+        </div>
+        <div class="card">
+          <h3>OU Hit Rate</h3>
+          <p>{{ (summary.ou_hit_rate * 100) | round(2) if summary.ou_hit_rate is not none else 'n/a' }}%</p>
+        </div>
+        <div class="card">
+          <h3>ATS Hit Rate</h3>
+          <p>{{ (summary.ats_hit_rate * 100) | round(2) if summary.ats_hit_rate is not none else 'n/a' }}%</p>
+        </div>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <h3>Totals Bias (mean)</h3>
+          <p>{{ summary.totals_bias_mean if summary.totals_bias_mean is not none else 'n/a' }}</p>
+        </div>
+        <div class="card">
+          <h3>Totals RMSE</h3>
+          <p>{{ summary.totals_rmse if summary.totals_rmse is not none else 'n/a' }}</p>
+        </div>
+        <div class="card">
+          <h3>Margin Bias (mean)</h3>
+          <p>{{ summary.margin_bias_mean if summary.margin_bias_mean is not none else 'n/a' }}</p>
+        </div>
+        <div class="card">
+          <h3>Margin RMSE</h3>
+          <p>{{ summary.margin_rmse if summary.margin_rmse is not none else 'n/a' }}</p>
+        </div>
+      </div>
+      <p class="muted">Timestamp: {{ summary.timestamp if summary.timestamp else '—' }}</p>
+      <p><a href="/api/backtest-summary" target="_blank">View raw JSON</a></p>
+    {% else %}
+      <div class="card">
+        <p>No backtest summary found yet. Run the backtest to populate metrics.</p>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import sys, pathlib
 
 def test_display_predictions_api_alignment():
     """Ensure /api/display_predictions matches persisted CSV values for a date.
@@ -18,6 +19,10 @@ def test_display_predictions_api_alignment():
     # Infer date from filename
     date_str = csv_path.stem.replace('predictions_display_','')
     # Hit API
+    # Ensure repo root on sys.path for importing app.py
+    ROOT = pathlib.Path(__file__).resolve().parents[1]
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
     from app import app as flask_app
     with flask_app.test_client() as c:
         resp = c.get(f'/api/display_predictions?date={date_str}')
