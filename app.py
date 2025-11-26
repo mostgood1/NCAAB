@@ -322,6 +322,20 @@ def api_coverage_today():
     except Exception:
         pass
     return jsonify(out)
+
+
+@app.route("/api/pipeline-stats")
+def api_pipeline_stats():
+    """Return the last cached pipeline_stats snapshot.
+
+    This reflects the most recent index() execution. Include diag=1 on / to ensure
+    full stats population in template if needed. Here we return whatever was cached.
+    """
+    try:
+        snap = _LAST_PIPELINE_STATS or {}
+    except Exception:
+        snap = {}
+    return jsonify({"ok": True, "stats": snap})
     """Return D1 coverage diagnostics for today or selected date.
     Includes counts and rows from coverage_report_today.csv and
     coverage_missing_teams_today.csv when available."""
@@ -9374,6 +9388,25 @@ def index():
         debug_path.write_text(json.dumps(dbg, indent=2), encoding="utf-8")
     except Exception:
         pipeline_stats["index_rows_debug_error"] = True
+    # Cache and log pipeline stats for external inspection
+    try:
+        global _LAST_PIPELINE_STATS
+        _LAST_PIPELINE_STATS = dict(pipeline_stats)
+        keys_of_interest = [
+            'start_dt_aligned_rows_pair',
+            'start_dt_aligned_rows_forced_start_src',
+            'start_dt_last_mile_pair',
+            'start_dt_last_mile_gid',
+            'start_dt_fuzzy_updates',
+            'time_compare_rows',
+            'time_mismatch_count',
+            'display_tz_used',
+            'schedule_tz_used',
+        ]
+        snap = {k: _LAST_PIPELINE_STATS.get(k) for k in keys_of_interest}
+        logger.info("time-align snap date=%s stats=%s", date_q, snap)
+    except Exception:
+        pass
     return render_template(
         "index.html",
         rows=rows,
