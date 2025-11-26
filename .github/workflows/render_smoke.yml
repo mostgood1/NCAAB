@@ -1,0 +1,34 @@
+name: Render Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL of the deployed Render service (e.g., https://ncaab-frontend.onrender.com)"
+        required: false
+        default: "https://ncaab-frontend.onrender.com"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Show target
+        run: |
+          echo "Target URL: ${{ inputs.url }}"
+
+      - name: Check root (/)
+        run: |
+          set -e
+          curl -fsSL "${{ inputs.url }}/" -o /dev/null
+          echo "Root OK"
+
+      - name: Check /api/health
+        run: |
+          set -e
+          curl -fsS "${{ inputs.url }}/api/health" -w '\n' | sed -e 's/.*/HEALTH: &/'
+
+      - name: Check /api/render-diagnostics (best-effort)
+        run: |
+          set +e
+          curl -fsS "${{ inputs.url }}/api/render-diagnostics" -w '\n' | sed -e 's/.*/RENDER_DIAG: &/' || echo "RENDER_DIAG: unavailable"
