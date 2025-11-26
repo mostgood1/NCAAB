@@ -7953,7 +7953,13 @@ def index():
             try:
                 import os
                 from zoneinfo import ZoneInfo  # Python 3.9+
-                disp_tz = ZoneInfo(os.getenv("DISPLAY_TZ", "America/Chicago"))
+                # Prefer explicit DISPLAY_TZ; else fall back to SCHEDULE_TZ; else Eastern default.
+                disp_tz_name = os.getenv("DISPLAY_TZ") or os.getenv("SCHEDULE_TZ") or "America/New_York"
+                try:
+                    disp_tz = ZoneInfo(disp_tz_name)
+                except Exception:
+                    # Fallback to system tz if provided name invalid
+                    disp_tz = dt.datetime.now().astimezone().tzinfo
             except Exception:
                 disp_tz = dt.datetime.now().astimezone().tzinfo
             df["_start_display"] = df["_start_dt"].dt.tz_convert(disp_tz)
