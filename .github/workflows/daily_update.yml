@@ -48,14 +48,22 @@ jobs:
           if (Test-Path 'pyproject.toml') { .venv\Scripts\python.exe -m pip install -e . } else { echo 'pyproject.toml not found; skipping editable install.' }
 
       - name: Daily update pipeline
+        shell: pwsh
+        # actionlint: disable=expr
         env:
           THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
-        shell: pwsh
+        # actionlint: enable=expr
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:THEODDS_API_KEY)) {
+            Write-Error 'Missing THEODDS_API_KEY secret. Ensure repository secret THEODDS_API_KEY is configured.'
+            exit 1
+          }
           Write-Host 'Running daily_update.ps1'
           Write-Host "Script start timestamp: $(Get-Date -Format 'u')"
           .\scripts\daily_update.ps1 -SkipVarianceDiag -SkipModelTests -GitCommitMessage "chore(ci): daily update $(Get-Date -Format 'yyyy-MM-dd')"
           if ($LASTEXITCODE -ne 0) { Write-Error "daily_update.ps1 failed with exit code $LASTEXITCODE"; exit $LASTEXITCODE }
+          # Best-effort cleanup of environment variable from process env
+          Remove-Item Env:THEODDS_API_KEY -ErrorAction SilentlyContinue
           Write-Host "Script completed timestamp: $(Get-Date -Format 'u')"
 
       - name: Post-run git push (safety)

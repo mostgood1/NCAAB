@@ -28,12 +28,17 @@ jobs:
           pip install -r requirements.txt || pip install -r onnxruntime/requirements.txt
 
       - name: Ingest odds & predictions
+        shell: bash
         env:
           THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
         run: |
-          # Replace these CLI calls with actual project commands
-          python -m src.cli fetch-odds --date today || true
-          python -m src.cli daily-run --date today --preseason-weight 0.15 || true
+          if [ -z "${THEODDS_API_KEY}" ]; then
+            echo 'THEODDS_API_KEY not configured; skipping fetch-odds and daily-run'
+          else
+            # Replace these CLI calls with actual project commands
+            python -m src.cli fetch-odds --date today || true
+            python -m src.cli daily-run --date today --preseason-weight 0.15 || true
+          fi
 
       - name: Finalize previous day (optional)
         if: github.event_name == 'schedule'
