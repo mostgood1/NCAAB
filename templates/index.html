@@ -59,6 +59,12 @@
       <label class="muted">Date:
         <input type="date" name="date" value="{{ date_val or '' }}" />
       </label>
+      <label class="muted ml8">Time:
+        <select id="tzMode">
+          <option value="server">Site Time{% if pipeline_stats and pipeline_stats.display_tz_used %} ({{ pipeline_stats.display_tz_used }}){% endif %}</option>
+          <option value="local">My Time (Browser)</option>
+        </select>
+      </label>
       <label class="muted"><input type="checkbox" name="use_daily" value="1" {% if request.args.get('use_daily') in ['1','true','yes'] %}checked{% endif %}/> Use daily results</label>
       <button type="submit" class="pill">Apply</button>
       {% if date_val %}<a class="pill" href="/">Clear</a>{% endif %}
@@ -586,18 +592,41 @@
         if(tx){ name.style.color = tx; }
       }
     });
-    // Render start times in the user's local timezone with short TZ label (avoid UTC)
+    // Render start times in server or user's local timezone with short TZ label.
+    // Preference persisted in localStorage ('local' default).
     try {
-      var fmt = new Intl.DateTimeFormat(undefined, {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', timeZoneName:'short'});
-      document.querySelectorAll('.time-local').forEach(function(el){
-        var iso = el.getAttribute('data-iso');
-        if(!iso) return;
-        // Normalize Z suffix (server provides UTC ISO); if no timezone, Date() treats as local in many browsers but inconsistently
-        var d = new Date(iso);
-        if(isNaN(d)) return;
-        el.textContent = fmt.format(d);
-        el.title = d.toISOString();
-      });
+      var fmtLocal = new Intl.DateTimeFormat(undefined, {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', timeZoneName:'short'});
+      function formatLocalISO(iso){
+        try{
+          if(!iso) return null;
+          var d = new Date(iso);
+          if(isNaN(d)) return null;
+          return {text: fmtLocal.format(d), title: d.toISOString()};
+        }catch(e){ return null; }
+      }
+      function applyTzMode(mode){
+        document.querySelectorAll('.time-local').forEach(function(el){
+          if(!el.dataset.server){ el.dataset.server = (el.textContent || '').trim(); }
+          if(mode === 'local'){
+            var iso = el.getAttribute('data-iso');
+            var out = formatLocalISO(iso);
+            if(out){ el.textContent = out.text; el.title = out.title; }
+          } else {
+            if(el.dataset.server){ el.textContent = el.dataset.server; }
+          }
+        });
+      }
+      var selTz = document.getElementById('tzMode');
+      var prefKey = 'ncaab:tzMode';
+      var pref = localStorage.getItem(prefKey) || 'local';
+      if(selTz){ selTz.value = (pref === 'server' || pref === 'local') ? pref : 'local'; }
+      applyTzMode(selTz ? selTz.value : pref);
+      if(selTz){
+        selTz.addEventListener('change', function(){
+          localStorage.setItem(prefKey, selTz.value);
+          applyTzMode(selTz.value);
+        });
+      }
     } catch(e) { /* noop */ }
     // Optional auto-refresh every 60s (user-controlled); indicate live with title dot if not enabled
     var hasLive = document.querySelector('[data-live="1"]') !== null;
