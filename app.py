@@ -3616,9 +3616,38 @@ def index():
                     ok = pd.Series([True]*len(df))
                     if "date" in df.columns:
                         ok = ok & (df["date"].astype(str) == str(date_q))
+                    # Use schedule timezone when deriving date from start_time to avoid UTC day drift
                     if "start_time" in df.columns:
-                        st_date = pd.to_datetime(df["start_time"], errors="coerce").dt.strftime("%Y-%m-%d")
-                        ok = ok | (st_date == str(date_q))
+                        try:
+                            import os
+                            from zoneinfo import ZoneInfo  # py>=3.9
+                            tz_name = os.getenv("SCHEDULE_TZ", "America/New_York")
+                            try:
+                                sched_tz = ZoneInfo(tz_name)
+                            except Exception:
+                                sched_tz = None
+                        except Exception:
+                            sched_tz = None
+                        # Normalize strings and detect offsets
+                        st_series = df["start_time"].astype(str).str.strip().str.replace("Z", "+00:00", regex=False)
+                        has_offset = st_series.str.contains(r"[+-]\d{2}:\d{2}$", regex=True) | st_series.str.endswith("Z")
+                        # Parse offset-aware to UTC then convert to schedule tz; naive interpret directly in schedule tz
+                        parsed_off = pd.to_datetime(st_series.where(has_offset, None), errors="coerce", utc=True)
+                        if sched_tz is not None:
+                            try:
+                                parsed_off = parsed_off.dt.tz_convert(sched_tz)
+                            except Exception:
+                                pass
+                        parsed_naive = pd.to_datetime(st_series.where(~has_offset, None), errors="coerce", utc=False)
+                        if sched_tz is not None and parsed_naive.notna().any():
+                            parsed_naive = parsed_naive.map(lambda x: x.replace(tzinfo=sched_tz) if pd.notna(x) else x)
+                        # Combine and derive y-m-d in schedule tz context
+                        combined = parsed_off.where(parsed_off.notna(), parsed_naive)
+                        try:
+                            st_date_sched = combined.dt.strftime("%Y-%m-%d") if sched_tz is not None else pd.to_datetime(df["start_time"], errors="coerce").dt.strftime("%Y-%m-%d")
+                        except Exception:
+                            st_date_sched = pd.Series([None]*len(df))
+                        ok = ok | (st_date_sched == str(date_q))
                     before = len(df)
                     # Ensure boolean mask aligns to df.index to avoid reindexing warnings
                     try:
