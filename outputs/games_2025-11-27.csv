@@ -1,0 +1,19 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401809397,2025,2025-11-27,2025-11-27 16:00:00+00:00,Furman Paladins,Richmond Spiders,0,0,,,,,True,State Farm Field House
+401830752,2025,2025-11-27,2025-11-27 17:00:00+00:00,TBD,TBD,0,0,,,,,True,Imperial Arena
+401817199,2025,2025-11-27,2025-11-27 17:00:00+00:00,East Carolina Pirates,St. Bonaventure Bonnies,0,0,,,,,True,Suncoast Credit Union Arena
+401809398,2025,2025-11-27,2025-11-27 18:30:00+00:00,Illinois State Redbirds,Charlotte 49ers,0,0,,,,,True,State Farm Field House
+401819865,2025,2025-11-27,2025-11-27 19:00:00+00:00,Colorado Buffaloes,San Francisco Dons,0,0,,,,,True,Acrisure Arena
+401830753,2025,2025-11-27,2025-11-27 19:30:00+00:00,TBD,TBD,0,0,,,,,True,Imperial Arena
+401809047,2025,2025-11-27,2025-11-27 20:00:00+00:00,Florida Gators,TCU Horned Frogs,0,0,,,,,True,Jenny Craig Pavilion
+401817267,2025,2025-11-27,2025-11-27 21:30:00+00:00,Michigan State Spartans,North Carolina Tar Heels,0,0,,,,,True,Suncoast Credit Union Arena
+401827268,2025,2025-11-27,2025-11-27 21:30:00+00:00,Nevada Wolf Pack,Washington Huskies,0,0,,,,,True,Acrisure Arena
+401809419,2025,2025-11-27,2025-11-27 22:00:00+00:00,Miami Hurricanes,BYU Cougars,0,0,,,,,True,State Farm Field House
+401826890,2025,2025-11-27,2025-11-27 22:30:00+00:00,Providence Friars,Wisconsin Badgers,0,0,,,,,True,Jenny Craig Pavilion
+401830875,2025,2025-11-27,2025-11-27 22:30:00+00:00,TBD,TBD,0,0,,,,,True,Imperial Arena
+401817187,2025,2025-11-27,2025-11-28 00:00:00+00:00,Saint Louis Billikens,Santa Clara Broncos,0,0,,,,,True,Acrisure Arena
+401809396,2025,2025-11-27,2025-11-28 00:30:00+00:00,Dayton Flyers,Georgetown Hoyas,0,0,,,,,True,State Farm Field House
+401817234,2025,2025-11-27,2025-11-28 01:00:00+00:00,Arkansas Razorbacks,Duke Blue Devils,0,0,,,,,True,United Center
+401830754,2025,2025-11-27,2025-11-28 01:00:00+00:00,TBD,TBD,0,0,,,,,True,Imperial Arena
+401817469,2025,2025-11-27,2025-11-28 02:30:00+00:00,Minnesota Golden Gophers,Stanford Cardinal,0,0,,,,,True,Acrisure Arena
+401812276,2025,2025-11-27,2025-11-28 03:30:00+00:00,Northwestern Wildcats,Oklahoma State Cowboys,0,0,,,,,False,United Center
