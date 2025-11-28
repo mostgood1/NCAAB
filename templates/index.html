@@ -80,6 +80,8 @@
         {% if pipeline_stats and pipeline_stats.sharpness_margin_roll7 is defined %}
           <span class="pill" title="7-day sharpness margin">Sharp7M {{ '%.2f' % pipeline_stats.sharpness_margin_roll7 }}</span>
         {% endif %}
+        <button type="button" id="btnCopyProviders" class="pill">Copy Providers</button>
+        <button type="button" id="btnExportStatus" class="pill">Export Status</button>
       </div>
     {% endif %}
     <div id="providersModal" class="modal providers-modal hidden">
@@ -140,6 +142,7 @@
             const r = await fetch('/api/status');
             const j = await r.json();
             renderStatus(j);
+            window.__lastStatusPayload = j;
             // Adjust polling cadence based on server timestamp proximity
             try {
               const ts = j && j.server_timestamp ? Date.parse(j.server_timestamp) : null;
@@ -155,6 +158,33 @@
             } catch(e){}
           }catch(e){/*silent*/}
         }
+                // Diagnostics controls: copy providers, export status JSON
+                (function(){
+                  const copyBtn = document.getElementById('btnCopyProviders');
+                  const exportBtn = document.getElementById('btnExportStatus');
+                  if(copyBtn){
+                    copyBtn.addEventListener('click', async ()=>{
+                      try{
+                        const r = await fetch('/api/ort-providers');
+                        const j = await r.json();
+                        const txt = JSON.stringify(j, null, 2);
+                        await navigator.clipboard.writeText(txt);
+                        showToast('Providers copied', 'ok');
+                      }catch(e){ showToast('Copy failed', 'bad'); }
+                    });
+                  }
+                  if(exportBtn){
+                    exportBtn.addEventListener('click', ()=>{
+                      const data = (window.__lastStatusPayload || {});
+                      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      const dt = (data && data.server_timestamp) ? String(data.server_timestamp).replace(/[:]/g,'-') : 'status';
+                      a.href = url; a.download = `status_${dt}.json`; a.click();
+                      setTimeout(()=>URL.revokeObjectURL(url), 500);
+                    });
+                  }
+                })();
         function start(){ if(timer) clearInterval(timer); timer = setInterval(poll, 30000); poll(); }
         function stop(){ if(timer) { clearInterval(timer); timer=null; } }
         if(chk){
