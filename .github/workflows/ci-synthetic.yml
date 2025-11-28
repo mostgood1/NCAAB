@@ -1,0 +1,38 @@
+name: CI Synthetic Harness
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 13 * * *'  # 13:00 UTC daily (~8am ET)
+
+jobs:
+  synthetic-e2e:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path 'requirements.txt') { pip install -r requirements.txt }
+          if (Test-Path 'pyproject.toml') { pip install -e . }
+
+      - name: Run synthetic harness
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/ci_synthetic.ps1
+
+      - name: Upload summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-summary
+          path: outputs/synthetic_summary.json
+          if-no-files-found: ignore

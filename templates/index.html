@@ -86,7 +86,7 @@
       <div class="modal-content providers-modal-content">
         <h3 class="providers-modal-title">ONNX Runtime Providers</h3>
         <div id="providersList" class="muted providers-modal-list">Loading...</div>
-        <div class="mt12"><button id="closeProvidersModal" class="pill">Close</button></div>
+        <div class="mt12"><button id="closeProvidersModal" class="pill">Close</button><div class="close-hint">Press Esc to close</div></div>
       </div>
     </div>
     <script>
@@ -140,6 +140,19 @@
             const r = await fetch('/api/status');
             const j = await r.json();
             renderStatus(j);
+            // Adjust polling cadence based on server timestamp proximity
+            try {
+              const ts = j && j.server_timestamp ? Date.parse(j.server_timestamp) : null;
+              if(ts){
+                const now = Date.now();
+                const skewMs = Math.abs(now - ts);
+                // If skew is high or finalize suggested, poll faster
+                const base = (j.finalize_suggested || (j.finalize && j.finalize.ready)) ? 15000 : 30000;
+                const fast = (skewMs > 120000) ? 15000 : base;
+                if(timer){ clearInterval(timer); }
+                timer = setInterval(poll, fast);
+              }
+            } catch(e){}
           }catch(e){/*silent*/}
         }
         function start(){ if(timer) clearInterval(timer); timer = setInterval(poll, 30000); poll(); }
@@ -155,7 +168,10 @@
           apply();
         }
         if(closeBtn){ closeBtn.addEventListener('click', ()=>{ if(modal) modal.style.display='none'; }); }
-        if(modal){ modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; } }); }
+        if(modal){
+          modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; } });
+          document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ modal.style.display='none'; } });
+        }
       })();
     </script>
     {% if pipeline_stats and (pipeline_stats.using_blended_predictions or pipeline_stats.prefer_cal_effective) %}
@@ -232,12 +248,34 @@
         <details>
           <summary class="pill">Archive Dates ({{ archive_dates|length }})</summary>
           <div class="dates-list">
-            {% for d in archive_dates[-28:] %}
-              <a class="pill small{% if d == date_val %} active{% endif %}" href="/?date={{ d }}&use_daily=1">{{ d }}</a>
-            {% endfor %}
+            {# Quick picker: search by typing, jump to latest #}
+            <div class="muted m4v8">
+              <input type="text" id="archiveSearch" placeholder="Filter dates (YYYY-MM-DD)" class="pill archive-search" />
+              {% set latest = archive_dates[-1] if archive_dates|length > 0 else None %}
+              {% if latest %}<a class="pill accent" href="/?date={{ latest }}&use_daily=1" title="Jump to latest archive">Latest: {{ latest }}</a>{% endif %}
+            </div>
+            <div id="archiveList" class="dates-list">
+              {% for d in archive_dates[-60:] %}
+                <a class="pill small{% if d == date_val %} active{% endif %}" data-date="{{ d }}" href="/?date={{ d }}&use_daily=1">{{ d }}</a>
+              {% endfor %}
+            </div>
           </div>
         </details>
       </div>
+      <script>
+        (function(){
+          var input = document.getElementById('archiveSearch');
+          var list = document.getElementById('archiveList');
+          if(!input||!list) return;
+          input.addEventListener('input', function(){
+            var q = (input.value||'').trim().toLowerCase();
+            list.querySelectorAll('a[data-date]').forEach(function(a){
+              var d = (a.getAttribute('data-date')||'').toLowerCase();
+              a.style.display = (!q || d.indexOf(q) !== -1) ? 'inline-block' : 'none';
+            });
+          });
+        })();
+      </script>
     {% endif %}
     {% if uniform_note %}
       <div class="card mb8"><div class="muted">{{ uniform_note }}</div></div>

@@ -5,6 +5,8 @@
 .ml8 { margin-left:8px; }
 .mt4 { margin-top:4px; }
 .diag-grid { display:flex; flex-wrap:wrap; gap:6px; }
+/* Archive quick picker input */
+.archive-search{min-width:200px}
 
 /* Badge warning variant for low quotes depth */
 .badge-warn { background:#c92a2a; color:#fff; }
@@ -28,3 +30,11 @@
 @media (max-width: 900px) {
   .archive-stepper { justify-content:flex-start; }
 }
+.modal.show{display:block;}
+.providers-modal .providers-modal-content{outline:none;}
+.providers-modal:focus-within .providers-modal-content{box-shadow:0 0 0 3px #3b82f6;}
+.providers-modal-list{white-space:pre-wrap;font-family:monospace;max-height:50vh;overflow:auto;background:#0b0b0b;border:1px solid #333;padding:8px;border-radius:6px;}
+.providers-modal-title{margin:0 0 8px 0;}
+.pill-btn{margin-left:8px;padding:2px 6px;border:1px solid #555;background:#1f2937;color:#eee;border-radius:6px;cursor:pointer}
+.pill-btn:disabled{opacity:0.6;cursor:not-allowed}
+.modal .close-hint{font-size:12px;color:#aaa;margin-top:8px}
