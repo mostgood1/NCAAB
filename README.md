@@ -49,6 +49,23 @@ pwsh -File scripts/enable_ort_qnn.ps1 -OrtBinDir "C:\\path\\to\\onnxruntime-qnn-
 python -m scripts.synthetic_demo --make-model --predict
 ```
 
+5. Run the Flask app:
+
+```powershell
+$env:FLASK_APP = "C:\Users\mostg\OneDrive\Coding\NCAAB\app.py"
+$env:FLASK_ENV = "development"
+$env:WERKZEUG_RUN_MAIN = $null
+& C:\Users\mostg\OneDrive\Coding\NCAAB\.venv\Scripts\python.exe -m flask run --host 127.0.0.1 --port 5050
+```
+
+6. Emit meta feature sidecars (align LightGBM meta inference feature order):
+
+```powershell
+& C:\Users\mostg\OneDrive\Coding\NCAAB\.venv\Scripts\python.exe C:\Users\mostg\OneDrive\Coding\NCAAB\src\emit_meta_sidecars.py
+```
+
+This writes `outputs\meta_features_cover.json` and `outputs\meta_features_total.json` based on the latest `predictions_unified_<date>.csv`. The app will prefer these sidecars for meta feature ordering.
+
 Expected: it reports available ONNX providers, tries QNNExecutionProvider (if configured), else DmlExecutionProvider, and prints a small prediction batch.
 
 You can also inspect providers with:
@@ -398,6 +415,87 @@ Remote prediction parity is now deterministic and independent of startup timing.
 
 - Data
   - `fetch-games` — fetch real games (ESPN/NCAA) to Parquet/CSV
+
+## Modeling: Win / ATS / OU (Baseline Scaffold)
+
+We added a lightweight training/evaluation scaffold to bootstrap outcome models using historical `daily_results` artifacts.
+
+- Dataset aggregation: scans `outputs/daily_results/results_*.csv`, derives targets:
+  - `home_win` (home score > away score)
+  - `ats_home_cover` (home + spread > away)
+  - `ou_over` (total > closing_total)
+- Models: `GradientBoostingClassifier` with time-aware CV (chronological folds)
+- Metrics: accuracy, log loss, Brier, ROC AUC, ECE
+- Artifacts: models saved to `outputs/models/`, reports to `outputs/reports/`
+
+Run (Windows PowerShell):
+
+```powershell
+# Train all three targets using historical daily_results
+python .\scripts\train_eval_models.py --outputs-dir outputs --targets win,ats,ou --folds 6
+
+# Restrict to a date window and allow closing_* features (optional, leakage risk)
+python .\scripts\train_eval_models.py --outputs-dir outputs --date-start 2024-11-01 --date-end 2025-03-31 --targets win,ats --allow-market
+```
+
+Scoring probabilities for a slate and writing `model_probs_<date>.csv`:
+
+```powershell
+# Score win/ATS/OU probabilities for a date (uses latest models and features from the latest report)
+python .\scripts\score_probs.py --date 2025-11-27 --outputs-dir outputs
+
+# Also write an enriched copy with probabilities merged into the unified artifact
+python .\scripts\score_probs.py --date 2025-11-27 --outputs-dir outputs --write-merged
+```
+
+Next steps we can wire in:
+- Quantile/regression models for totals (pred_total) and margin distribution for ATS probability
+- Feature expansions (rest/travel, neutral, conference strength, preseason blending) and hierarchical effects
+- Calibration (isotonic/beta) and ensembling
+- Walk-forward backtesting with per-week holdouts and stability checks
+
+### Advanced Modeling & Calibration
+
+Scripts added for best-in-class iteration:
+
+- `scripts/train_advanced_models.py` trains:
+  - Totals regression (`totals_regressor.joblib`) + heuristic or LightGBM quantiles (q25/q50/q75)
+  - Margin regression (`margin_regressor.joblib`) with residual std (used for ATS probability modeling later)
+  - Win / ATS / OU classifiers (optionally isotonic calibrated) → `*_adv_classifier.joblib` + `*_adv_calibrator.joblib`
+- `scripts/score_probs.py` scores per-game probabilities (`p_home_win`,`p_home_cover`,`p_over`).
+- `scripts/calibrate_probs.py` performs isotonic calibration across historical probability files; saves `calibrator_<pcol>.joblib` and summary JSON.
+- `scripts/backtest_walkforward.py` runs date-ordered walk-forward folds for regression + classification metrics.
+
+Feature engineering (history-based) lives in `src/modeling/features.py` providing rest days, schedule density, recent scoring/margin averages. These are merged automatically in advanced training.
+
+Run examples (PowerShell):
+
+```powershell
+# Advanced training with calibration for win & ATS
+python .\scripts\train_advanced_models.py --outputs-dir outputs --calibrate-win --calibrate-ats --save
+
+# Score probabilities (after baseline or advanced models exist)
+python .\scripts\score_probs.py --date 2025-11-27 --outputs-dir outputs --write-merged
+
+# Calibrate existing probability columns over full history
+python .\scripts\calibrate_probs.py --outputs-dir outputs --save
+
+# Walk-forward backtest (8 folds)
+python .\scripts\backtest_walkforward.py --outputs-dir outputs --folds 8
+```
+
+Artifacts:
+- Models: `outputs/models/` (regressors, classifiers, calibrators)
+- Reports: `outputs/reports/advanced_report_*.json`, `walkforward_backtest_*.json`, `calibration_summary_*.json`
+- Probabilities: `outputs/model_probs_<date>.csv` (merged into Flask via `p_home_win`, etc.)
+
+Next enhancement targets:
+- ATS probability: transform margin distribution (mean + residual sigma) into cover probability vs line.
+- OU probability: combine total mean + distribution vs closing_total/market_total for tail probabilities.
+- Ensemble layer: blend calibrated classifier outputs + margin-derived probabilities with stacking and score-based weights.
+- Reliability monitoring: daily ECE/sharpness tracked in `pipeline_stats` + alerts on drift.
+- Travel/rest features: integrate venue geocoding & distance (optional external dataset).
+
   - `fetch-boxscores` — ESPN box scores + possessions/four-factors
   - `fetch-odds` / `fetch-odds-history` — current or historical odds snapshots
   - `make-closing-lines` — aggregate snapshots into per-book closing lines

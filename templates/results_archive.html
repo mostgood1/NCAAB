@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Results Archive</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    header { display: flex; align-items: baseline; gap: 12px; }
+    select, button { padding: 6px 10px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f5f5f5; text-align: left; }
+    .meta { margin-top: 8px; color: #666; }
+    .grid { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Results Archive</h1>
+    <a href="/">Home</a>
+  </header>
+
+  <div class="grid">
+    <div>
+      <label for="dateSel">Date:</label>
+      <select id="dateSel"></select>
+      <button id="refreshBtn">Load</button>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <table id="table">
+    <thead>
+      <tr>
+        <th>Game ID</th>
+        <th>Date</th>
+        <th>Home</th>
+        <th>Away</th>
+        <th>Home Score</th>
+        <th>Away Score</th>
+        <th>ATS</th>
+        <th>OU Full</th>
+        <th>Home Cover</th>
+        <th>Over</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function fetchJSON(url) {
+      const r = await fetch(url);
+      return r.json();
+    }
+    async function loadDates() {
+      const data = await fetchJSON('/api/results_dates');
+      const sel = document.getElementById('dateSel');
+      sel.innerHTML = '';
+      (data.dates || []).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; opt.textContent = d;
+        sel.appendChild(opt);
+      });
+      if (data.latest) sel.value = data.latest;
+    }
+    function renderRows(rows) {
+      const tbody = document.querySelector('#table tbody');
+      tbody.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        const cols = ['game_id','date','home_team','away_team','home_score','away_score','ats_result','ou_result_full','ats_home_cover','ou_over'];
+        cols.forEach(c => {
+          const td = document.createElement('td');
+          td.textContent = r[c] ?? '';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+    async function loadResults() {
+      const sel = document.getElementById('dateSel');
+      const date = sel.value;
+      const data = await fetchJSON('/api/results_by_date?date=' + encodeURIComponent(date));
+      document.getElementById('meta').textContent = `Count: ${data.count}`;
+      renderRows(data.rows || []);
+    }
+    document.getElementById('refreshBtn').addEventListener('click', loadResults);
+    (async function init(){ await loadDates(); await loadResults(); })();
+  </script>
+</body>
+</html>

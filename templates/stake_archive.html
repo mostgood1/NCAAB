@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stake Sheets Archive</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    header { display: flex; align-items: baseline; gap: 12px; }
+    select, button { padding: 6px 10px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f5f5f5; text-align: left; }
+    .meta { margin-top: 8px; color: #666; }
+    .grid { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Stake Sheets Archive</h1>
+    <a href="/">Home</a>
+  </header>
+
+  <div class="grid">
+    <div>
+      <label for="dateSel">Date:</label>
+      <select id="dateSel"></select>
+      <button id="refreshBtn">Load</button>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+
+  <table id="table">
+    <thead>
+      <tr>
+        <th>Game ID</th>
+        <th>Home</th>
+        <th>Away</th>
+        <th>Pick</th>
+        <th>Market</th>
+        <th>Edge</th>
+        <th>Stake</th>
+        <th>Kelly</th>
+        <th>Conf</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function fetchJSON(url) {
+      const r = await fetch(url);
+      return r.json();
+    }
+    async function loadDates() {
+      const data = await fetchJSON('/api/stake_sheet_dates');
+      const sel = document.getElementById('dateSel');
+      sel.innerHTML = '';
+      (data.dates || []).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; opt.textContent = d;
+        sel.appendChild(opt);
+      });
+      if (data.latest) sel.value = data.latest;
+    }
+    function renderRows(rows) {
+      const tbody = document.querySelector('#table tbody');
+      tbody.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        const cols = ['game_id','home_team','away_team','pick','market','edge','stake','kelly','confidence','date'];
+        cols.forEach(c => {
+          const td = document.createElement('td');
+          td.textContent = r[c] ?? '';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+    async function loadStake() {
+      const sel = document.getElementById('dateSel');
+      const date = sel.value;
+      const data = await fetchJSON('/api/stake_sheets?date=' + encodeURIComponent(date));
+      document.getElementById('meta').textContent = `File: ${data.file ?? 'n/a'} | Count: ${data.count}`;
+      renderRows(data.rows || []);
+    }
+    document.getElementById('refreshBtn').addEventListener('click', loadStake);
+    (async function init(){ await loadDates(); await loadStake(); })();
+  </script>
+</body>
+</html>

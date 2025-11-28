@@ -8138,6 +8138,122 @@ def probe_oddsapi_depth(
             opresent2 = sched_pairs & o_pairs2
             print(f"  odds(no-date filtered, {regions}): {len(opresent2)}/{len(sched_pairs)} (rows: {len(filt)})")
 
+# (moved app() invocation to end of file to ensure all commands are registered before run)
+
+@app.command(name="synthetic-e2e")
+def synthetic_e2e(
+    date: str | None = typer.Option(None, help="Target date YYYY-MM-DD (default: today UTC)"),
+    n_games: int = typer.Option(8, help="Number of synthetic games to generate"),
+    seed: int = typer.Option(42, help="Random seed for reproducibility"),
+    conference_seg: bool = typer.Option(True, help="Simulate conference segmentation by assigning conferences"),
+    calibrate: bool = typer.Option(True, help="Apply simple synthetic calibration to raw predictions"),
+    stake_sheet: bool = typer.Option(True, help="Generate synthetic stake sheet with edges"),
+    min_cal_share_total: float = typer.Option(0.6, help="Minimum calibrated share (totals) for pass when calibrate=true"),
+    min_cal_share_margin: float = typer.Option(0.6, help="Minimum calibrated share (margin) for pass when calibrate=true"),
+    min_rows: int = typer.Option(4, help="Minimum number of games required"),
+    max_mean_edge_total: float = typer.Option(20.0, help="Upper bound on mean total edge to catch runaway calibration"),
+):
+    """Synthetic end-to-end harness (segmentation + calibration + stake sizing).
+
+    Writes artifacts into outputs/ without external API calls:
+      games_synth_<date>.csv, odds_synth_<date>.csv, predictions_synthetic_<date>.csv,
+      predictions_unified_enriched_synthetic_<date>.csv, stake_sheet_synthetic_<date>.csv (optional),
+      synthetic_e2e_<date>.json summary.
+    """
+    import datetime as _dt, json as _json, pandas as _pd, numpy as _np
+    from .config import settings as _settings
+    rng = _np.random.default_rng(seed)
+    d_iso = ( _dt.date.fromisoformat(date) if date else _dt.datetime.utcnow().date() ).isoformat()
+    out_dir = _settings.outputs_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    teams = [
+        "Duke","Kansas","Gonzaga","UConn","Arizona","Purdue","Houston","Tennessee","Baylor","North Carolina",
+        "Illinois","Alabama","Creighton","Auburn","San Diego St","Iowa State","Texas","Marquette","Arkansas","Wisconsin"
+    ]
+    confs = ["ACC","B12","BE","SEC","P12","B10"] if conference_seg else [None]
+    conf_map = {t: (confs[i % len(confs)] if conference_seg else None) for i, t in enumerate(teams)}
+    games = []
+    used: set[str] = set()
+    for i in range(n_games * 2):
+        if len(games) >= n_games: break
+        h, a = rng.choice(teams, size=2, replace=False)
+        key = "|".join(sorted([h,a]))
+        if key in used: continue
+        used.add(key)
+        games.append({"game_id": f"SYN{i:03d}", "date": d_iso, "home_team": h, "away_team": a, "home_conference": conf_map[h], "away_conference": conf_map[a]})
+    df_games = _pd.DataFrame(games)
+    (out_dir / f"games_synth_{d_iso}.csv").write_text(df_games.to_csv(index=False))
+
+    market_total = rng.normal(146.0, 8.0, size=len(df_games)).round(1)
+    spread_home = rng.normal(-2.0, 7.0, size=len(df_games)).round(1)
+    df_odds = _pd.DataFrame({"game_id": df_games.game_id, "date": d_iso, "market_total": market_total, "spread_home": spread_home})
+    (out_dir / f"odds_synth_{d_iso}.csv").write_text(df_odds.to_csv(index=False))
+
+    pred_total_raw = market_total + rng.normal(0,5.0,size=len(df_games))
+    pred_margin_raw = (-spread_home) + rng.normal(0,3.5,size=len(df_games))
+    df_pred = _pd.DataFrame({
+        "game_id": df_games.game_id,
+        "date": d_iso,
+        "home_team": df_games.home_team,
+        "away_team": df_games.away_team,
+        "pred_total_raw": pred_total_raw,
+        "pred_margin_raw": pred_margin_raw,
+        "market_total": market_total,
+        "spread_home": spread_home,
+    })
+    if conference_seg:
+        adj = df_games.home_conference.map(lambda c: (hash(str(c)) % 7 - 3) * 0.25 if c else 0.0)
+        df_pred["pred_total_seg"] = df_pred["pred_total_raw"] + adj
+    else:
+        df_pred["pred_total_seg"] = df_pred["pred_total_raw"]
+    if calibrate:
+        mt_mean = float(_np.mean(market_total))
+        mm_mean = float(_np.mean(pred_margin_raw))
+        df_pred["pred_total_cal"] = (df_pred["pred_total_seg"] - mt_mean) * 0.92 + mt_mean
+        df_pred["pred_margin_cal"] = (df_pred["pred_margin_raw"] - mm_mean) * 0.90 + mm_mean
+        df_pred["pred_total_basis"] = "cal"
+        df_pred["pred_margin_basis"] = "cal"
+    else:
+        df_pred["pred_total_cal"] = _pd.NA
+        df_pred["pred_margin_cal"] = _pd.NA
+        df_pred["pred_total_basis"] = "raw"
+        df_pred["pred_margin_basis"] = "raw"
+    preds_path = out_dir / f"predictions_synthetic_{d_iso}.csv"
+    preds_path.write_text(df_pred.to_csv(index=False))
+    enriched_path = out_dir / f"predictions_unified_enriched_synthetic_{d_iso}.csv"
+    enriched_path.write_text(df_pred.to_csv(index=False))
+    stake_path = None
+    if stake_sheet:
+        df_pred["edge_total"] = (df_pred["pred_total_cal"].fillna(df_pred["pred_total_raw"]) - df_pred["market_total"]).abs()
+        stake_df = df_pred.sort_values("edge_total", ascending=False).head(max(5, len(df_pred)//2))[ ["game_id","home_team","away_team","pred_total_cal","market_total","edge_total"] ]
+        stake_path = out_dir / f"stake_sheet_synthetic_{d_iso}.csv"
+        stake_path.write_text(stake_df.to_csv(index=False))
+    summary = {
+        "date": d_iso,
+        "n_games": len(df_games),
+        "preds_path": str(preds_path),
+        "enriched_path": str(enriched_path),
+        "stake_path": str(stake_path) if stake_path else None,
+        "cal_share_total": float((df_pred["pred_total_basis"].astype(str)=="cal").mean()),
+        "cal_share_margin": float((df_pred["pred_margin_basis"].astype(str)=="cal").mean()),
+        "mean_pred_total": float(df_pred["pred_total_raw"].mean()),
+        "mean_pred_margin": float(df_pred["pred_margin_raw"].mean()),
+        "mean_edge_total": float(df_pred.get("edge_total").mean()) if "edge_total" in df_pred.columns else None,
+    }
+    (out_dir / f"synthetic_e2e_{d_iso}.json").write_text(_json.dumps(summary, indent=2))
+    print(_json.dumps(summary, indent=2))
+    # CI thresholds
+    if len(df_games) < min_rows:
+        raise typer.Exit(code=2)
+    if calibrate:
+        if summary["cal_share_total"] is not None and summary["cal_share_total"] < min_cal_share_total:
+            raise typer.Exit(code=3)
+        if summary["cal_share_margin"] is not None and summary["cal_share_margin"] < min_cal_share_margin:
+            raise typer.Exit(code=4)
+    if summary.get("mean_edge_total") is not None and abs(summary["mean_edge_total"]) > max_mean_edge_total:
+        raise typer.Exit(code=5)
+
 if __name__ == "__main__":
     app()
 

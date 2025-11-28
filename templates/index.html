@@ -26,6 +26,7 @@
       <h1>NCAAB – Cards</h1>
       <div class="spacer"></div>
       <nav class="nav-links">
+        <a href="/home">Dashboard</a>
         <a href="/finals">Final Scores</a>
         <a href="/recommendations">Recommendations</a>
         <a href="/stake-sheet">Stake Sheet</a>
@@ -33,6 +34,130 @@
         <a href="/calibration">Calibration</a>
       </nav>
     </div>
+    {% if status %}
+      <div class="mb8 flex-row-wrap" id="statusStrip">
+        {% if status.finalize %}
+          {% if status.finalize.ready %}
+            <span class="pill ok" title="All games finalized for {{ status.finalize.date }}">Finalize Ready</span>
+            <a class="pill accent" href="/finalize?date={{ status.finalize.date }}" title="Trigger finalize for this date">Trigger Finalize</a>
+          {% else %}
+            <span class="pill warn" title="Finalized {{ status.finalize.final }} of {{ status.finalize.rows }}; {{ status.finalize.pending }} pending">Finalize: {{ status.finalize.final }}/{{ status.finalize.rows }}</span>
+          {% endif %}
+        {% endif %}
+        {% if status.results_latest %}
+          <a class="pill" title="Open results for date" href="/finals?date={{ status.results_latest }}">Results: {{ status.results_latest }}</a>
+        {% endif %}
+        {% if status.stake_latest %}
+          <a class="pill" title="Open stake sheet for date" href="/stake-sheet?date={{ status.stake_latest }}">Stake: {{ status.stake_latest }}</a>
+        {% endif %}
+        {% if status.display_hash %}
+          <span class="pill" title="Display hash present; alignment verified">Display Hash ✓</span>
+        {% endif %}
+        {% if status.providers %}
+          <span class="pill provider-pill" title="ONNX providers available (click for details)">Providers: {{ status.ep_hint or 'n/a' }}</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.basis_share_total_cal is defined %}
+          <span class="pill" title="Calibrated basis share (totals)">Cal%T {{ '%.0f' % (pipeline_stats.basis_share_total_cal * 100) }}</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.drift_total_delta_vs_median is defined %}
+          <span class="pill" title="Delta vs 7-day median calibrated share (totals)">ΔCal7T {{ '%.1f' % (pipeline_stats.drift_total_delta_vs_median * 100) }}%</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.basis_share_margin_cal is defined %}
+          <span class="pill" title="Calibrated basis share (margin)">Cal%M {{ '%.0f' % (pipeline_stats.basis_share_margin_cal * 100) }}</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.drift_margin_delta_vs_median is defined %}
+          <span class="pill" title="Delta vs 7-day median calibrated share (margin)">ΔCal7M {{ '%.1f' % (pipeline_stats.drift_margin_delta_vs_median * 100) }}%</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.ece_total_roll7 is defined %}
+          <span class="pill" title="7-day mean ECE total">ECE7T {{ '%.3f' % pipeline_stats.ece_total_roll7 }}</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.ece_margin_roll7 is defined %}
+          <span class="pill" title="7-day mean ECE margin">ECE7M {{ '%.3f' % pipeline_stats.ece_margin_roll7 }}</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.sharpness_total_roll7 is defined %}
+          <span class="pill" title="7-day sharpness total">Sharp7T {{ '%.2f' % pipeline_stats.sharpness_total_roll7 }}</span>
+        {% endif %}
+        {% if pipeline_stats and pipeline_stats.sharpness_margin_roll7 is defined %}
+          <span class="pill" title="7-day sharpness margin">Sharp7M {{ '%.2f' % pipeline_stats.sharpness_margin_roll7 }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+    <div id="providersModal" class="modal providers-modal hidden">
+      <div class="modal-content providers-modal-content">
+        <h3 class="providers-modal-title">ONNX Runtime Providers</h3>
+        <div id="providersList" class="muted providers-modal-list">Loading...</div>
+        <div class="mt12"><button id="closeProvidersModal" class="pill">Close</button></div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const chk = document.getElementById('autoRefreshChk');
+        let timer = null;
+        const modal = document.getElementById('providersModal');
+        const modalList = document.getElementById('providersList');
+        const closeBtn = document.getElementById('closeProvidersModal');
+        function renderStatus(data){
+          const el = document.getElementById('statusStrip');
+          if(!el||!data) return;
+          const parts = [];
+          if(data.finalize){
+            if(data.finalize.ready){ parts.push('<span class="pill ok" title="All games finalized for '+data.finalize.date+'">Finalize Ready</span>'); parts.push('<a class="pill accent" href="/finalize?date='+data.finalize.date+'" title="Trigger finalize for this date">Trigger Finalize</a>'); }
+            else { parts.push('<span class="pill warn" title="Finalized '+data.finalize.final+' of '+data.finalize.rows+'; '+data.finalize.pending+' pending">Finalize: '+data.finalize.final+'/'+data.finalize.rows+'</span>'); }
+          }
+          if(data.results_latest){ parts.push('<a class="pill" title="Open results for date" href="/finals?date='+data.results_latest+'">Results: '+data.results_latest+'</a>'); }
+          if(data.stake_latest){ parts.push('<a class="pill" title="Open stake sheet for date" href="/stake-sheet?date='+data.stake_latest+'">Stake: '+data.stake_latest+'</a>'); }
+          if(data.display_hash){ parts.push('<span class="pill" title="Display hash present; alignment verified">Display Hash ✓</span>'); }
+          if(Array.isArray(data.providers) && data.providers.length){
+            const hint = (data.ep_hint||'n/a');
+            parts.push('<span class="pill provider-pill" title="ONNX providers available (click for details)">Providers: '+hint+'</span>');
+          }
+          if(typeof data.basis_share_total_cal === 'number'){ parts.push('<span class="pill" title="Calibrated basis share (totals)">Cal%T '+Math.round(data.basis_share_total_cal*100)+'</span>'); }
+          if(typeof data.drift_total_delta_vs_median === 'number'){ parts.push('<span class="pill" title="Delta vs 7-day median calibrated share (totals)">ΔCal7T '+(data.drift_total_delta_vs_median*100).toFixed(1)+'%</span>'); }
+          if(typeof data.basis_share_margin_cal === 'number'){ parts.push('<span class="pill" title="Calibrated basis share (margin)">Cal%M '+Math.round(data.basis_share_margin_cal*100)+'</span>'); }
+          if(typeof data.drift_margin_delta_vs_median === 'number'){ parts.push('<span class="pill" title="Delta vs 7-day median calibrated share (margin)">ΔCal7M '+(data.drift_margin_delta_vs_median*100).toFixed(1)+'%</span>'); }
+          if(typeof data.ece_total_roll7 === 'number'){ parts.push('<span class="pill" title="7-day mean ECE total">ECE7T '+data.ece_total_roll7.toFixed(3)+'</span>'); }
+          if(typeof data.ece_margin_roll7 === 'number'){ parts.push('<span class="pill" title="7-day mean ECE margin">ECE7M '+data.ece_margin_roll7.toFixed(3)+'</span>'); }
+          if(typeof data.sharpness_total_roll7 === 'number'){ parts.push('<span class="pill" title="7-day sharpness total">Sharp7T '+data.sharpness_total_roll7.toFixed(2)+'</span>'); }
+          if(typeof data.sharpness_margin_roll7 === 'number'){ parts.push('<span class="pill" title="7-day sharpness margin">Sharp7M '+data.sharpness_margin_roll7.toFixed(2)+'</span>'); }
+          el.innerHTML = parts.join(' ');
+          const provPill = el.querySelector('.provider-pill');
+          if(provPill){
+            provPill.addEventListener('click', async ()=>{
+              if(modal){
+                modal.style.display='block';
+                if(modalList) modalList.textContent='Loading...';
+                try {
+                  const r = await fetch('/api/ort-providers');
+                  const j = await r.json();
+                  if(modalList) modalList.textContent = JSON.stringify(j, null, 2);
+                } catch(e){ if(modalList) modalList.textContent='Error loading providers'; }
+              }
+            });
+          }
+        }
+        async function poll(){
+          try{
+            const r = await fetch('/api/status');
+            const j = await r.json();
+            renderStatus(j);
+          }catch(e){/*silent*/}
+        }
+        function start(){ if(timer) clearInterval(timer); timer = setInterval(poll, 30000); poll(); }
+        function stop(){ if(timer) { clearInterval(timer); timer=null; } }
+        if(chk){
+          try{
+            const saved = localStorage.getItem('autoRefreshCards');
+            if(saved === '1'){ chk.checked = true; }
+          }catch(e){}
+          const apply = ()=>{ try{ localStorage.setItem('autoRefreshCards', chk.checked ? '1' : '0'); }catch(e){}; if(chk.checked) start(); else stop(); };
+          chk.addEventListener('change', apply);
+          // apply on load
+          apply();
+        }
+        if(closeBtn){ closeBtn.addEventListener('click', ()=>{ if(modal) modal.style.display='none'; }); }
+        if(modal){ modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; } }); }
+      })();
+    </script>
     {% if pipeline_stats and (pipeline_stats.using_blended_predictions or pipeline_stats.prefer_cal_effective) %}
       <div class="mb8 flex-row-wrap">
         {% if pipeline_stats.using_blended_predictions %}
@@ -64,6 +189,7 @@
           <option value="server">Site Time{% if pipeline_stats and pipeline_stats.display_tz_used %} ({{ pipeline_stats.display_tz_used }}){% endif %}</option>
           <option value="local">My Time (Browser)</option>
         </select>
+        <button type="button" class="pill" id="btnSetSiteTz" title="Set site/server timezone to your browser timezone">Set Site=My TZ</button>
       </label>
       <label class="muted"><input type="checkbox" name="use_daily" value="1" {% if request.args.get('use_daily') in ['1','true','yes'] %}checked{% endif %}/> Use daily results</label>
       <button type="submit" class="pill">Apply</button>
@@ -152,6 +278,37 @@
           {% endif %}
         </details>
       </div>
+      {% if pipeline_stats.recalibration_ingested %}
+        <div class="card mb8">
+          <details open>
+            <summary class="pill">Model Health</summary>
+            <div class="muted m4v8">
+              Recalibration Needed: {% if pipeline_stats.recalibration_needed %}<span class="pill bad" title="Thresholds exceeded – retraining advised">Yes</span>{% else %}<span class="pill ok" title="Within thresholds">No</span>{% endif %}
+            </div>
+            {% if pipeline_stats.recalibration_reasons %}
+              <div class="muted mt4">Reasons:
+                {% for rsn in pipeline_stats.recalibration_reasons %}<span class="pill small" title="Trigger reason">{{ rsn }}</span>{% endfor %}
+              </div>
+            {% endif %}
+            {# Surface key drift metrics dynamically (any pipeline_stats starting with recalib_) #}
+            <div class="diag-grid flex-row-wrap mt4">
+              {% for k,v in pipeline_stats.items() %}
+                {% if k.startswith('recalib_') and v is not none %}
+                  <span class="pill" title="{{ k }}">{{ k[8:] }}: {% if v is number %}{{ '%.3f' % v }}{% else %}{{ v }}{% endif %}</span>
+                {% endif %}
+              {% endfor %}
+            </div>
+            {% if pipeline_stats.reliability_trend_rows %}
+              <div class="muted mt8">Rolling 7-Day Reliability:
+                {% if pipeline_stats.ece_total_roll7 is defined %}<span class="pill small" title="7-day mean ECE total">ECE Total7={{ '%.3f' % pipeline_stats.ece_total_roll7 }}</span>{% endif %}
+                {% if pipeline_stats.ece_margin_roll7 is defined %}<span class="pill small" title="7-day mean ECE margin">ECE Margin7={{ '%.3f' % pipeline_stats.ece_margin_roll7 }}</span>{% endif %}
+                {% if pipeline_stats.sharpness_total_roll7 is defined %}<span class="pill small" title="7-day sharpness total">Sharp Total7={{ '%.2f' % pipeline_stats.sharpness_total_roll7 }}</span>{% endif %}
+                {% if pipeline_stats.sharpness_margin_roll7 is defined %}<span class="pill small" title="7-day sharpness margin">Sharp Margin7={{ '%.2f' % pipeline_stats.sharpness_margin_roll7 }}</span>{% endif %}
+              </div>
+            {% endif %}
+          </details>
+        </div>
+      {% endif %}
     {% endif %}
     {% if removed_empty_rows is defined and removed_empty_rows and removed_empty_rows > 0 %}
       <div class="card mb8"><div class="muted">Filtered {{ removed_empty_rows }} empty game{% if removed_empty_rows>1 %}s{% endif %} (no odds or predictions).</div></div>
@@ -182,6 +339,13 @@
               {% set is_cal_card = (r.pred_total_basis in ['model_calibrated','model_calibrated_bias','cal']) or (r.pred_margin_basis in ['model_calibrated','model_calibrated_bias','cal']) %}
               {% if is_cal_card %}
                 <span class="badge cal" title="Calibrated predictions">CAL</span>
+              {% endif %}
+              {# Meta diagnostics badges: volatility and edge confidence if available #}
+              {% if r.volatility_tag is defined and r.volatility_tag %}
+                <span class="badge" title="Volatility class from meta diagnostics">Vol {{ r.volatility_tag }}</span>
+              {% endif %}
+              {% if r.edge_conf_tag is defined and r.edge_conf_tag %}
+                <span class="badge" title="Edge confidence tag from meta">Conf {{ r.edge_conf_tag }}</span>
               {% endif %}
               {# Prefer server-provided ISO-UTC for stable JS conversion; fallback to raw start_time #}
               {% set iso = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined) else None)) %}
@@ -249,6 +413,48 @@
             {% endif %}
             {% if r.market_total is defined and r.market_total is not none and r.market_total == r.market_total %}
               {% if r.market_basis == 'last' %}
+              {# Meta & Stability panels: show when artifacts ingested #}
+              {% if pipeline_stats.meta_probs_ingested or pipeline_stats.prob_stability_ingested or pipeline_stats.auto_refresh_calibration_ingested %}
+                {% if pipeline_stats.meta_probs_ingested %}
+                  <div class="card mb8">
+                    <details open>
+                      <summary class="pill">Meta Probabilities</summary>
+                      <div class="diag-grid flex-row-wrap mt4">
+                        {% if pipeline_stats.meta_auc_total is defined %}<span class="pill" title="Meta AUC for total">AUC Total: {{ '%.3f' % pipeline_stats.meta_auc_total }}</span>{% endif %}
+                        {% if pipeline_stats.meta_brier_total is defined %}<span class="pill" title="Meta Brier score for total">Brier Total: {{ '%.3f' % pipeline_stats.meta_brier_total }}</span>{% endif %}
+                        {% if pipeline_stats.meta_auc_ats is defined %}<span class="pill" title="Meta AUC for ATS">AUC ATS: {{ '%.3f' % pipeline_stats.meta_auc_ats }}</span>{% endif %}
+                        {% if pipeline_stats.meta_brier_ats is defined %}<span class="pill" title="Meta Brier score for ATS">Brier ATS: {{ '%.3f' % pipeline_stats.meta_brier_ats }}</span>{% endif %}
+                        {% if pipeline_stats.meta_n_rows is defined %}<span class="pill" title="Rows contributing to meta metrics">Rows: {{ pipeline_stats.meta_n_rows }}</span>{% endif %}
+                      </div>
+                    </details>
+                  </div>
+                {% endif %}
+                {% if pipeline_stats.prob_stability_ingested %}
+                  <div class="card mb8">
+                    <details open>
+                      <summary class="pill">Probability Stability</summary>
+                      <div class="diag-grid flex-row-wrap mt4">
+                        {% if pipeline_stats.prob_stability_mean is defined %}<span class="pill" title="Mean stability across methods">Mean: {{ '%.3f' % pipeline_stats.prob_stability_mean }}</span>{% endif %}
+                        {% if pipeline_stats.prob_stability_q10 is defined %}<span class="pill" title="Lower tail stability (q10)">q10: {{ '%.3f' % pipeline_stats.prob_stability_q10 }}</span>{% endif %}
+                        {% if pipeline_stats.prob_stability_q90 is defined %}<span class="pill" title="Upper tail stability (q90)">q90: {{ '%.3f' % pipeline_stats.prob_stability_q90 }}</span>{% endif %}
+                        {% if pipeline_stats.prob_stability_n_rows is defined %}<span class="pill" title="Rows contributing to stability metrics">Rows: {{ pipeline_stats.prob_stability_n_rows }}</span>{% endif %}
+                      </div>
+                    </details>
+                  </div>
+                {% endif %}
+                {% if pipeline_stats.auto_refresh_calibration_ingested %}
+                  <div class="card mb8">
+                    <details open>
+                      <summary class="pill">Auto Calibration</summary>
+                      <div class="diag-grid flex-row-wrap mt4">
+                        {% if pipeline_stats.auto_cal_refresh_hint is defined %}<span class="pill" title="Auto-refresh hint status">Hint: {{ pipeline_stats.auto_cal_refresh_hint }}</span>{% endif %}
+                        {% if pipeline_stats.auto_cal_last_refresh_dt is defined %}<span class="pill" title="Last calibration refresh datetime">Last: {{ pipeline_stats.auto_cal_last_refresh_dt }}</span>{% endif %}
+                        {% if pipeline_stats.auto_cal_due is defined %}<span class="pill" title="Calibration due flag">Due: {{ 'Yes' if pipeline_stats.auto_cal_due else 'No' }}</span>{% endif %}
+                      </div>
+                    </details>
+                  </div>
+                {% endif %}
+              {% endif %}
                 <div class="pill">Last (pre-tip): {{ '%.1f' % r.market_total }}</div>
               {% else %}
                 <div class="pill">Market Total: {{ '%.1f' % r.market_total }}
@@ -625,6 +831,32 @@
         selTz.addEventListener('change', function(){
           localStorage.setItem(prefKey, selTz.value);
           applyTzMode(selTz.value);
+        });
+      }
+    } catch(e) { /* noop */ }
+    // Auto-set site/server timezone cookie to browser TZ on first visit
+    try {
+      var tzCookie = document.cookie.split('; ').find(function(x){ return x.startsWith('display_tz='); });
+      var tzSetKey = 'ncaab:tzCookieSet';
+      if(!tzCookie && !localStorage.getItem(tzSetKey)){
+        var tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').trim();
+        if(tz){
+          fetch('/api/set_tz?json=1&tz=' + encodeURIComponent(tz))
+            .then(function(){ localStorage.setItem(tzSetKey, '1'); })
+            .catch(function(){});
+        }
+      }
+      var btnSetSite = document.getElementById('btnSetSiteTz');
+      if(btnSetSite){
+        btnSetSite.addEventListener('click', function(){
+          var tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').trim();
+          if(!tz){ return; }
+          btnSetSite.disabled = true;
+          var txt = btnSetSite.textContent;
+          btnSetSite.textContent = 'Setting…';
+          fetch('/api/set_tz?json=1&tz=' + encodeURIComponent(tz))
+            .then(function(){ btnSetSite.textContent = 'Set Site=My TZ'; btnSetSite.disabled = false; location.reload(); })
+            .catch(function(){ btnSetSite.textContent = txt; btnSetSite.disabled = false; });
         });
       }
     } catch(e) { /* noop */ }

@@ -83,6 +83,19 @@ try {
   $prevDate = $todayDate.AddDays(-1).ToString('yyyy-MM-dd')
   $todayIso = $todayDate.ToString('yyyy-MM-dd')
 
+  # 0) Ensure ESPN cache + TBD patch + subset parity before the rest of the flow
+  Write-Section "0) ESPN schedule refresh + TBD patch + parity"
+  try {
+    $ScheduleRefresh = Join-Path $RepoRoot 'scripts\schedule_refresh.ps1'
+    if (Test-Path $ScheduleRefresh) {
+      & $ScheduleRefresh -Date $todayIso
+    } else {
+      Write-Warning "schedule_refresh.ps1 not found at $ScheduleRefresh; skipping preflight refresh."
+    }
+  } catch {
+    Write-Warning "schedule_refresh preflight failed: $($_)"
+  }
+
   Write-Section "1) Fetch previous day's games ($prevDate)"
   $noCacheFlag = @()
   if ($NoCache.IsPresent) { $noCacheFlag += '--no-use-cache' }
@@ -162,13 +175,30 @@ try {
 
   # Ensure deterministic per-day feature rows exist for inference (lightweight placeholder ratings)
   $featuresCurr = Join-Path $OutDir 'features_curr.csv'
-  if (-not (Test-Path $featuresCurr)) {
+  $needsFeaturesRefresh = $true
+  if (Test-Path $featuresCurr) {
+    try {
+      $rows = Import-Csv -Path $featuresCurr
+      if ($null -ne $rows -and $rows.Count -gt 0) {
+        # If a date column exists and matches today for any row, we can skip
+        $hasDateColumn = $rows[0].PSObject.Properties.Name -contains 'date'
+        if ($hasDateColumn) {
+          $todayRows = $rows | Where-Object { $_.date -eq $todayIso }
+          if ($todayRows -and $todayRows.Count -gt 0) { $needsFeaturesRefresh = $false }
+        } else {
+          # No date column means ambiguous content; force refresh
+          $needsFeaturesRefresh = $true
+        }
+      }
+    } catch { Write-Warning "Failed probing features_curr.csv; forcing refresh: $($_)"; $needsFeaturesRefresh = $true }
+  }
+  if ($needsFeaturesRefresh) {
     Write-Section "5c) Generate today's placeholder features (features_curr.csv)"
     try {
-      & $VenvPython -m src.modeling.gen_features_today --date $todayIso
+      & $VenvPython -m src.modeling.gen_features_today --date $todayIso --write-dated
     } catch { Write-Warning "gen_features_today failed: $($_)" }
   } else {
-    Write-Host 'features_curr.csv already exists; skipping generation.'
+    Write-Host "features_curr.csv contains rows for $todayIso; skipping generation."
   }
 
   # Force fresh prediction artifacts: always remove and regenerate today's model predictions, calibration & intervals
@@ -240,6 +270,14 @@ try {
   if ($NoCache.IsPresent) { $dailyArgs += '--no-use-cache' }
   & $VenvPython -m ncaab_model.cli @dailyArgs
 
+  Write-Section '6a.pre) Ensure full game & prediction coverage (force-fill)'
+  try {
+    & $VenvPython scripts/ensure_full_game_prediction_coverage.py $todayIso
+  } catch { Write-Warning "force-fill coverage script failed: $($_)" }
+  try {
+    & $VenvPython scripts/promote_force_fill_today.py $todayIso
+  } catch { Write-Warning "promotion of force-filled enriched artifact failed: $($_)" }
+
   # Now regenerate team-level historical features with any newly completed games merged by daily-run
   Write-Section '6b) Refresh team-level historical features post-ingestion'
   try {
@@ -288,6 +326,54 @@ try {
       Write-Host "Wrote variance diagnostics -> $varTotalPath, $varMarginPath"
     } catch { Write-Warning "Variance diagnostics failed: $($_)" }
   } else { Write-Host 'SkipVarianceDiag flag set; skipping prediction variance diagnostics.' -ForegroundColor Yellow }
+
+  # Contingency: if earlier model inference/calibration/intervals (5d-5f) failed due to missing features,
+  # re-run them now that today's schedule/odds/features are present.
+  try {
+    $predModelToday = Join-Path $OutDir ("predictions_model_" + $todayIso + ".csv")
+    $predModelCalToday = Join-Path $OutDir ("predictions_model_calibrated_" + $todayIso + ".csv")
+    $predModelIntToday = Join-Path $OutDir ("predictions_model_interval_" + $todayIso + ".csv")
+    if (-not (Test-Path $predModelToday)) {
+      Write-Section '6d.i) Re-run model inference harness (contingency)'
+      try { & $VenvPython -m src.modeling.infer --date $todayIso } catch { Write-Warning "contingency infer failed: $($_)" }
+    }
+    if ((Test-Path $predModelToday) -and (-not (Test-Path $predModelCalToday))) {
+      Write-Section '6d.ii) Re-run calibration (contingency)'
+      try { & $VenvPython -m src.modeling.calibrate_predictions --date $todayIso --predictions-file $predModelToday --results-dir (Join-Path $OutDir 'daily_results') --window-days 14 } catch { Write-Warning "contingency calibration failed: $($_)" }
+    }
+    if ((Test-Path $predModelToday) -and (-not (Test-Path $predModelIntToday))) {
+      Write-Section '6d.iii) Re-run interval generation (contingency)'
+      try {
+        if (Test-Path $predModelCalToday) {
+          & $VenvPython -m src.modeling.interval_predictions --date $todayIso --predictions-file $predModelToday --calibrated-file $predModelCalToday --results-dir (Join-Path $OutDir 'daily_results') --window-days 30
+        } else {
+          & $VenvPython -m src.modeling.interval_predictions --date $todayIso --predictions-file $predModelToday --results-dir (Join-Path $OutDir 'daily_results') --window-days 30
+        }
+      } catch { Write-Warning "contingency interval generation failed: $($_)" }
+    }
+  } catch { Write-Warning "contingency block error: $($_)" }
+
+  # Meta stacking, stability, and auto calibration steps
+  Write-Section '6e) Train meta probability models (cover/over)'
+  try {
+    & $VenvPython scripts/train_meta_probs.py --limit-days 45
+    & $VenvPython scripts/train_meta_probs_lgbm.py --limit-days 45
+  } catch { Write-Warning "train_meta_probs failed: $($_)" }
+
+  Write-Section '6f) Probability distribution stability (JS divergence)'
+  try {
+    & $VenvPython scripts/probability_stability.py
+  } catch { Write-Warning "probability_stability failed: $($_)" }
+
+  Write-Section '6g) Auto-refresh probability calibration (ECE/drift/age)'
+  try {
+    & $VenvPython scripts/auto_refresh_calibration.py --date $todayIso
+  } catch { Write-Warning "auto_refresh_calibration failed: $($_)" }
+
+  Write-Section '6h) Explain meta models (feature contributions)'
+  try {
+    & $VenvPython scripts/explain_meta.py --date $todayIso
+  } catch { Write-Warning "explain_meta failed: $($_)" }
 
   # Guard: daily-run may overwrite the historical games_with_last.csv with a subset (today's slate).
   # Reconstruct full historical last odds merge to ensure persistence before filtering for stake sheets.
@@ -430,6 +516,23 @@ print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows fo
   # Interval meta JSON (RMSE + z values) for reproducibility if present
   $predsModelIntervalMetaToday = Join-Path $OutDir ("predictions_model_interval_" + $todayIso + ".json")
   if (Test-Path $predsModelIntervalMetaToday) { $toStage += $predsModelIntervalMetaToday }
+  # Coverage enriched + status sidecar for frontend consumption
+  $enrichedToday = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
+  if (Test-Path $enrichedToday) { $toStage += $enrichedToday }
+  $coverageSummary = Join-Path $OutDir ("coverage_status_summary_" + $todayIso + ".json")
+  if (Test-Path $coverageSummary) { $toStage += $coverageSummary }
+
+  # Newly produced meta/stability/calibration artifacts
+  $metaMetrics = Join-Path $OutDir 'meta_probs_metrics.json'
+  if (Test-Path $metaMetrics) { $toStage += $metaMetrics }
+  $metaMetricsLgbm = Join-Path $OutDir 'meta_probs_metrics_lgbm.json'
+  if (Test-Path $metaMetricsLgbm) { $toStage += $metaMetricsLgbm }
+  $probStability = Get-ChildItem -Path $OutDir -Filter ('prob_stability_' + $todayIso + '.json') -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($probStability) { $toStage += $probStability.FullName }
+  $autoCal = Get-ChildItem -Path $OutDir -Filter 'auto_refresh_calibration_*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if ($autoCal) { $toStage += $autoCal.FullName }
+  $metaExplain = Get-ChildItem -Path $OutDir -Filter ('meta_explain_' + $todayIso + '.json') -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($metaExplain) { $toStage += $metaExplain.FullName }
 
   # Newly produced aligned and stake artifacts
   $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")

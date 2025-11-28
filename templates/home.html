@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NCAAB Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; }
+    nav a { margin-right: 12px; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; }
+    .badge.ok { background: #e6ffed; color: #06661a; border: 1px solid #a7f3d0; }
+    .badge.warn { background: #fffbe6; color: #8a6d00; border: 1px solid #ffe58f; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    code { background: #f5f5f5; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>NCAAB Dashboard</h1>
+    <div id="finalizeBadge" class="badge">Loading…</div>
+  </header>
+  <nav>
+    <a href="/">Cards</a>
+    <a href="/stake-archive">Stake Archive</a>
+    <a href="/results-archive">Results Archive</a>
+    <a href="/display-archive">Display Archive</a>
+    <a href="/backtest">Backtest</a>
+    <a href="/coverage">Coverage</a>
+    <a href="/calibration">Calibration</a>
+  </nav>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Finalize Status</h3>
+      <div id="finalizeDetail"></div>
+    </div>
+    <div class="card">
+      <h3>Quick Links</h3>
+      <ul>
+        <li><a href="/api/stake_sheet_dates">Stake Sheet Dates (JSON)</a></li>
+        <li><a href="/api/results_dates">Results Dates (JSON)</a></li>
+        <li><a href="/api/ort-providers">ORT Providers (JSON)</a></li>
+      </ul>
+      <h3 class="mt8">Health</h3>
+      <div id="healthDetail" class="muted"></div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchJSON(url) {
+      const r = await fetch(url);
+      return r.json();
+    }
+    async function loadFinalize() {
+      try {
+        const data = await fetchJSON('/api/finalize_hint');
+        const badge = document.getElementById('finalizeBadge');
+        const detail = document.getElementById('finalizeDetail');
+        const pending = data.pending ?? null;
+        const rows = data.rows ?? null;
+        const started = data.started ?? null;
+        const ready = Boolean(data.ready);
+        if (ready) {
+          badge.className = 'badge ok';
+          badge.textContent = 'Finalize: Ready';
+        } else {
+          badge.className = 'badge warn';
+          badge.textContent = 'Finalize: Pending';
+        }
+        detail.innerHTML = `
+          <div>Date: <code>${data.date ?? ''}</code></div>
+          <div>Rows: <code>${rows ?? ''}</code></div>
+          <div>Started: <code>${started ?? ''}</code></div>
+          <div>Pending: <code>${pending ?? ''}</code></div>
+          <div>Ready: <code>${ready}</code></div>
+        `;
+      } catch (e) {
+        const badge = document.getElementById('finalizeBadge');
+        badge.className = 'badge warn';
+        badge.textContent = 'Finalize: Error';
+      }
+    }
+    async function loadHealth() {
+      try {
+        const h = await fetchJSON('/api/health');
+        const el = document.getElementById('healthDetail');
+        const providers = (h.providers || []).join(', ');
+        el.innerHTML = `
+          <div>Providers: <code>${providers}</code></div>
+          <div>Display Hash: <code>${h.display_hash ?? ''}</code></div>
+          <div>Latest Results: <code>${h.results_latest ?? ''}</code></div>
+          <div>Latest Stake: <code>${h.stake_latest ?? ''}</code></div>
+        `;
+      } catch (e) {}
+    }
+    loadFinalize();
+    loadHealth();
+  </script>
+</body>
+</html>
