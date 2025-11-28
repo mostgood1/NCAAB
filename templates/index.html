@@ -876,27 +876,30 @@
     } else if (hasLive) {
       document.title = '• ' + document.title;
     }
-    // Finalize via AJAX
+    // Guarded Finalize via AJAX (POST + confirm)
     var btn = document.getElementById('btnFinalize');
     if(btn){
       btn.addEventListener('click', function(){
         var dateVal = btn.getAttribute('data-date');
         if(!dateVal){ return; }
+        var proceed = confirm('Finalize ' + dateVal + '? This closes out results.');
+        if(!proceed){ return; }
         btn.disabled = true;
         var prevText = btn.textContent;
         btn.textContent = 'Finalizing…';
-        fetch('/api/finalize-day?date=' + encodeURIComponent(dateVal))
+        fetch('/api/finalize-day', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateVal, confirm: true })
+        })
           .then(function(r){ return r.json(); })
           .then(function(j){
             btn.textContent = prevText;
             btn.disabled = false;
-            var ok = j && j.ok;
+            var ok = j && (j.ok || j.status === 'ok');
             showToast(ok ? ('Finalized ' + dateVal) : ('Finalize failed: ' + (j && j.error ? j.error : 'Unknown')),
               ok ? 'ok' : 'bad');
-            if(ok){
-              // After a short delay, reload to reflect ingested results
-              setTimeout(function(){ location.reload(); }, 800);
-            }
+            if(ok){ setTimeout(function(){ location.reload(); }, 800); }
           })
           .catch(function(e){
             btn.textContent = prevText;

@@ -14238,13 +14238,23 @@ def api_accuracy():
     return jsonify({"error": "no accuracy report found"}), 404
 
 
-@app.route("/api/finalize-day")
+@app.route("/api/finalize-day", methods=["GET","POST"])
 def api_finalize_day():
     """Run finalize-day for a given date. Example: /api/finalize-day?date=YYYY-MM-DD
 
     Returns JSON with status and message. This invokes the same logic as the CLI command.
     """
+    # Accept date via GET query or POST JSON
     date_q = (request.args.get("date") or "").strip()
+    if not date_q and request.method == "POST":
+        try:
+            payload = request.get_json(silent=True) or {}
+            date_q = str(payload.get("date") or "").strip()
+            # Optional confirmation flag; currently advisory, can be used for guardrails
+            _confirm = bool(payload.get("confirm"))
+        except Exception:
+            payload = {}
+            _confirm = False
     if not date_q:
         return jsonify({"ok": False, "error": "missing date"}), 400
     if cli_finalize_day is None:
