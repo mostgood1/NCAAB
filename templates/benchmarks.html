@@ -40,6 +40,14 @@
               <div class="muted">PnL Trend</div>
               <svg id="pnlSpark" width="520" height="80"></svg>
             </div>
+            <div class="mt4">
+              <div class="muted">Hit Rate Trend</div>
+              <svg id="hitSpark" width="520" height="80"></svg>
+            </div>
+            <div class="mt4">
+              <div class="muted">MAE Total Trend</div>
+              <svg id="maeSpark" width="520" height="80"></svg>
+            </div>
             <script>
               (function(){
                 var rows = {{ daily_rows|tojson }};
@@ -60,6 +68,34 @@
                 z.setAttribute('x1', p); z.setAttribute('x2', w-p); z.setAttribute('y1', zeroY); z.setAttribute('y2', zeroY);
                 z.setAttribute('stroke','#555'); z.setAttribute('stroke-width','1'); z.setAttribute('stroke-dasharray','4,4');
                 svg.appendChild(z);
+
+                // Hit rate sparkline (ou+ats hits over bets)
+                var svgH = document.getElementById('hitSpark'); if(svgH){
+                  var hs = rows.map(function(r){ var b=(r.ou_bets||0)+(r.ats_bets||0); var h=(r.ou_hits||0)+(r.ats_hits||0); return b>0? (h/b) : null; }).filter(function(v){ return v!==null; });
+                  if(hs.length>=2){
+                    var minH = Math.min.apply(null, hs), maxH = Math.max.apply(null, hs);
+                    var scaleYH = function(v){ if(maxH===minH){ return h/2; } var t=(v-minH)/(maxH-minH); return h - (p + t*(h - 2*p)); };
+                    var pathH=''; var j=0;
+                    rows.forEach(function(r,i){ var b=(r.ou_bets||0)+(r.ats_bets||0); var hts=(r.ou_hits||0)+(r.ats_hits||0); if(b>0){ var x=scaleX(j), y=scaleYH(hts/b); pathH += (j===0? 'M':'L') + x + ',' + y + ' '; j++; } });
+                    var lh = document.createElementNS('http://www.w3.org/2000/svg','path'); lh.setAttribute('d', pathH.trim()); lh.setAttribute('fill','none'); lh.setAttribute('stroke','#2f9e44'); lh.setAttribute('stroke-width','2'); svgH.appendChild(lh);
+                    // reference 0.5 line
+                    var y50 = scaleYH(0.5); var l50 = document.createElementNS('http://www.w3.org/2000/svg','line'); l50.setAttribute('x1', p); l50.setAttribute('x2', w-p); l50.setAttribute('y1', y50); l50.setAttribute('y2', y50); l50.setAttribute('stroke','#555'); l50.setAttribute('stroke-width','1'); l50.setAttribute('stroke-dasharray','4,4'); svgH.appendChild(l50);
+                  }
+                }
+
+                // MAE sparkline
+                var svgM = document.getElementById('maeSpark'); if(svgM){
+                  var ms = rows.map(function(r){ return (r.mae_total_mean!=null)? r.mae_total_mean : null; }).filter(function(v){ return v!==null; });
+                  if(ms.length>=2){
+                    var minM = Math.min.apply(null, ms), maxM = Math.max.apply(null, ms);
+                    var scaleYM = function(v){ if(maxM===minM){ return h/2; } var t=(v-minM)/(maxM-minM); return h - (p + t*(h - 2*p)); };
+                    var pathM=''; var k=0;
+                    rows.forEach(function(r,i){ var v=(r.mae_total_mean!=null)? r.mae_total_mean : null; if(v!=null){ var x=scaleX(k), y=scaleYM(v); pathM += (k===0? 'M':'L') + x + ',' + y + ' '; k++; } });
+                    var lm = document.createElementNS('http://www.w3.org/2000/svg','path'); lm.setAttribute('d', pathM.trim()); lm.setAttribute('fill','none'); lm.setAttribute('stroke','#e8590c'); lm.setAttribute('stroke-width','2'); svgM.appendChild(lm);
+                    // threshold line at 10
+                    var y10 = scaleYM(10.0); var l10 = document.createElementNS('http://www.w3.org/2000/svg','line'); l10.setAttribute('x1', p); l10.setAttribute('x2', w-p); l10.setAttribute('y1', y10); l10.setAttribute('y2', y10); l10.setAttribute('stroke','#555'); l10.setAttribute('stroke-width','1'); l10.setAttribute('stroke-dasharray','4,4'); svgM.appendChild(l10);
+                  }
+                }
               })();
             </script>
           {% endif %}
