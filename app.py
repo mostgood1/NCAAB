@@ -13445,28 +13445,49 @@ def index():
             (lambda _r: (
                 # Ensure tz-aware `start_time_iso` by deriving from `_start_dt`/`commence_time`/`start_time` when missing
                 (lambda r: (
-                    r.update({
-                        'start_time_iso': (
-                            # If already tz-aware, keep; else derive
-                            r.get('start_time_iso') if (r.get('start_time_iso') and (('Z' in str(r.get('start_time_iso'))) or ('+' in str(r.get('start_time_iso')) or ('-' in str(r.get('start_time_iso'))))))
-                            else (
-                                # Prefer `_start_dt` if present
-                                (pd.to_datetime(r.get('_start_dt'), errors='coerce')
-                                     .tz_convert('UTC')
-                                     .strftime('%Y-%m-%dT%H:%M:%SZ') if pd.to_datetime(r.get('_start_dt'), errors='coerce') is not pd.NaT else None)
-                                or (
-                                    # Next, try `commence_time`
-                                    (pd.to_datetime(r.get('commence_time'), errors='coerce', utc=True)
-                                         .strftime('%Y-%m-%dT%H:%M:%SZ') if pd.to_datetime(r.get('commence_time'), errors='coerce', utc=True) is not pd.NaT else None)
-                                )
-                                or (
-                                    # Fallback to `start_time` assuming UTC if naive
-                                    (pd.to_datetime(str(r.get('start_time')).replace('Z','+00:00'), errors='coerce', utc=True)
-                                         .strftime('%Y-%m-%dT%H:%M:%SZ') if r.get('start_time') else None)
-                                )
-                            )
-                        )
-                    })
+                    # Robust ISO derivation with safe None/NaT handling
+                    try:
+                        existing_iso = r.get('start_time_iso')
+                        iso_ok = False
+                        if existing_iso:
+                            s = str(existing_iso)
+                            # treat trailing Z or explicit offset as tz-aware
+                            if re.search(r'(Z|[+-]\d{2}:?\d{2})$', s):
+                                iso_ok = True
+                        if not iso_ok:
+                            derived = None
+                            # ordered candidates
+                            for cand_key, parse_kwargs in [
+                                ('_start_dt', {'errors':'coerce'}),
+                                ('commence_time', {'errors':'coerce', 'utc': True}),
+                                ('start_time', {'errors':'coerce', 'utc': True}),
+                            ]:
+                                val = r.get(cand_key)
+                                if not val:
+                                    continue
+                                # normalize Z to offset for start_time if naive string
+                                if cand_key == 'start_time':
+                                    val = str(val).replace('Z','+00:00')
+                                ts = pd.to_datetime(val, **parse_kwargs)
+                                if pd.isna(ts):
+                                    continue
+                                # localize/convert to UTC
+                                try:
+                                    if getattr(ts, 'tzinfo', None) is None:
+                                        ts = ts.tz_localize('UTC')
+                                    else:
+                                        ts = ts.tz_convert('UTC')
+                                except Exception:
+                                    # best effort: if conversion fails, treat as UTC
+                                    pass
+                                derived = ts.strftime('%Y-%m-%dT%H:%M:%SZ')
+                                break
+                            if derived:
+                                r['start_time_iso'] = derived
+                        # If existing iso already ok, retain it unchanged
+                    except Exception:
+                        pass
+                    r
                 ) or r)(dict(_r))
             ))(_r)
             for _r in rows
