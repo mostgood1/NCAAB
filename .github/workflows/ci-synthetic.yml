@@ -112,6 +112,8 @@ jobs:
           $sum = Get-Content (Join-Path $PWD 'outputs/backtest_summary.json') -Raw | ConvertFrom-Json
           $hit = [double]$sum.hit_rate
           $bets = [int]$sum.total_bets
+          $mae = $sum.mae_total
           Write-Host "Backtest hit_rate=$hit; total_bets=$bets"
           if ($bets -lt 20) { Write-Warning 'Too few bets in window'; exit 1 }
           if ($hit -lt 0.50) { Write-Warning 'Hit rate below 50%'; exit 1 }
+          if ($mae -and ([double]$mae -gt 10.0)) { Write-Warning "MAE Total too high: $mae"; exit 1 }
