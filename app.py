@@ -13986,6 +13986,30 @@ def api_bootstrap():
         today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
+
+@app.route('/api/risk-config', methods=['POST'])
+def api_risk_config():
+    """Update risk_config.json via POST body.
+
+    Accepts JSON with optional keys: daily_loss_cap (units), kelly_cap (fraction), exposure_cap_units (units).
+    Writes to outputs/risk_config.json and returns the updated config.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        cfg = {}
+        for key in ('daily_loss_cap','kelly_cap','exposure_cap_units'):
+            if key in data and data[key] is not None:
+                try:
+                    cfg[key] = float(data[key])
+                except Exception:
+                    pass
+        outp = OUT / 'risk_config.json'
+        outp.parent.mkdir(parents=True, exist_ok=True)
+        with open(outp, 'w', encoding='utf-8') as f:
+            json.dump(cfg, f, indent=2)
+        return jsonify({'status':'ok','config':cfg,'path':str(outp)}), 200
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)}), 500
     # use_cache override (refresh) param
     use_cache_param = (request.args.get("use_cache") or (request.json.get("use_cache") if request.is_json else None) or "").strip().lower()
     refresh_param = (request.args.get("refresh") or (request.json.get("refresh") if request.is_json else None) or "").strip().lower()
