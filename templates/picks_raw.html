@@ -48,9 +48,11 @@
     <div class="grid">
       {% for r in rows %}
         {% set edge = r.edge if r.edge is not none else 0 %}
+        {% set confidence = r.confidence if r.confidence is not none else (r.conf if r.conf is not none else None) %}
+        {% set market_avail = 1 if r.book else 0 %}
         {% set cls = 'edge-low' %}
         {% if edge >= 5 %}{% set cls='edge-high' %}{% elif edge >= 2 %}{% set cls='edge-med' %}{% endif %}
-        <div class="card">
+        <div class="card game-card" data-edge="{{ '%.2f' % edge }}" data-confidence="{{ ('%.0f' % confidence) if confidence is not none else '' }}" data-market-available="{{ market_avail }}" data-fair-price="{{ r.fair_price if r.fair_price is not none else '' }}">
           <div class="row">
             <div class="team">
               <div class="badge-team k-{{ r.home_key }}"><div class="name">{{ r.home_team or 'Home' }}</div></div>
@@ -61,6 +63,7 @@
           </div>
           <div class="kpi">
             <div class="pill {{ cls }}">Edge: {{ '%.2f' % edge }}</div>
+            {% if confidence is not none %}<div class="pill">Confidence: {{ '%.0f' % confidence }}%</div>{% endif %}
             {% if r.pick %}<div class="pill">Pick: {{ r.pick }}</div>{% endif %}
             {% if r.line_value is not none %}<div class="pill">Line: {{ r.line_value }}</div>{% endif %}
             {% if r.predicted_value is not none %}<div class="pill">Model: {{ '%.1f' % r.predicted_value }}</div>{% endif %}
