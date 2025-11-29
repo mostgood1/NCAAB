@@ -997,7 +997,7 @@
               {% set disp = (r.start_time_display if (r.start_time_display is defined and r.start_time_display) else (r.start_time_local if (r.start_time_local is defined and r.start_time_local) else (r.start_time if (r.start_time is defined and r.start_time) else (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else None)))) %}
               {% set tzabbr = (r.start_tz_abbr if (r.start_tz_abbr is defined and r.start_tz_abbr) else None) %}
               {% if iso or disp %}
-                <span class="pill time-local" data-iso="{{ iso or '' }}">{{ disp or '' }}{% if tzabbr %} {{ tzabbr }}{% endif %}</span>
+                <span class="pill time-local" data-iso="{{ iso or '' }}" data-slate="{{ date_val or '' }}">{{ disp or '' }}{% if tzabbr %} {{ tzabbr }}{% endif %}</span>
                 <button type="button" class="pill small copy-time" title="Copy time details" aria-label="Copy time details">Copy</button>
               {% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
@@ -1505,7 +1505,7 @@
           if(!hasTz) return null;
           var d = new Date(iso);
           if(isNaN(d)) return null;
-          return {text: fmtLocal.format(d), title: d.toISOString()};
+          return {dateObj:d, text: fmtLocal.format(d), title: d.toISOString()};
         }catch(e){ return null; }
       }
       // Fallback: parse server-rendered "YYYY-MM-DD HH:MM TZ" to local
@@ -1536,6 +1536,35 @@
             var out2 = parseServerTimeToLocal(sv);
             if(out2){ el.textContent = out2.text; used = {text: out2.text, iso: (out2.title||'')}; }
           }
+          // Midnight drift correction: if local date is slate+1 and hour < 6, shift back one day
+          try {
+            var slate = el.getAttribute('data-slate');
+            if(used && slate){
+              var datePart = used.text.split(',')[0].trim(); // formatted MM/DD/YYYY or similar
+              // Extract YYYY-MM-DD from title ISO
+              var isoTitle = used.iso;
+              if(out && out.dateObj instanceof Date){
+                var localYear = out.dateObj.getFullYear();
+                var localMonth = (out.dateObj.getMonth()+1).toString().padStart(2,'0');
+                var localDay = out.dateObj.getDate().toString().padStart(2,'0');
+                var localHour = out.dateObj.getHours();
+                var localDateStr = localYear+'-'+localMonth+'-'+localDay';
+                // Compare to slate
+                if(slate && localDateStr === _addDays(slate,1) && localHour < 6){
+                  // Rebuild display using previous day
+                  var adjDate = slate;
+                  // Extract time portion from formatted text (HH:MM)
+                  var tmMatch = used.text.match(/\b(\d{2}:\d{2})/);
+                  var timePart = tmMatch ? tmMatch[1] : (localHour.toString().padStart(2,'0')+':'+out.dateObj.getMinutes().toString().padStart(2,'0'));
+                  // Extract TZ abbreviation
+                  var tzMatch = used.text.match(/\b([A-Z]{2,4})$/);
+                  var tzPart = tzMatch ? tzMatch[1] : '';
+                  el.textContent = adjDate+' '+timePart+(tzPart?(' '+tzPart):'');
+                  el.title = 'Adjusted (midnight drift) from '+localDateStr+' to '+adjDate+' | '+isoTitle;
+                }
+              }
+            }
+          } catch(e) { /* silent */ }
           // Append debug tooltip with resolved ISO and browser timezone
           if(used){
             var base = el.dataset.server ? ('Server: ' + el.dataset.server) : '';
@@ -1543,6 +1572,17 @@
             el.title = dbg;
           }
         });
+              // Helper to add days in YYYY-MM-DD
+              function _addDays(ymd, delta){
+                try{
+                  var parts = ymd.split('-');
+                  var d = new Date(Date.UTC(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10)));
+                  d.setUTCDate(d.getUTCDate()+delta);
+                  var mm = (d.getUTCMonth()+1).toString().padStart(2,'0');
+                  var dd = d.getUTCDate().toString().padStart(2,'0');
+                  return d.getUTCFullYear()+'-'+mm+'-'+dd;
+                }catch(e){ return ymd; }
+              }
         // Convert quote timestamps to local short format (always)
         document.querySelectorAll('.quote-local').forEach(function(el){
           var iso = el.getAttribute('data-iso');
