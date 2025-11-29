@@ -38,3 +38,8 @@
 .pill-btn{margin-left:8px;padding:2px 6px;border:1px solid #555;background:#1f2937;color:#eee;border-radius:6px;cursor:pointer}
 .pill-btn:disabled{opacity:0.6;cursor:not-allowed}
 .modal .close-hint{font-size:12px;color:#aaa;margin-top:8px}
+.filter-num{width:64px;margin-left:4px;border:1px solid #666;border-radius:6px;background:#222;color:#eee;padding:2px 4px;}
+.high-contrast body,.high-contrast .container{filter: contrast(1.2);} 
+.high-contrast .pill{background:#000;color:#ff0;border:1px solid #ff0;}
+.high-contrast .nav-links a{color:#ff0;}
+.providers-modal[aria-modal="true"]{outline: none;}

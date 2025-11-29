@@ -32,6 +32,7 @@
         <a href="/stake-sheet">Stake Sheet</a>
         <a href="/coverage">Coverage</a>
         <a href="/calibration">Calibration</a>
+        <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
       </nav>
     </div>
     {% if status %}
@@ -84,9 +85,24 @@
         <button type="button" id="btnExportStatus" class="pill">Export Status</button>
       </div>
     {% endif %}
+    <div class="card mb8" id="filtersBar" aria-label="Quick Filters" role="region">
+      <div class="flex-row-wrap m4v8">
+        <label class="pill"><span>Edges ≥</span>
+          <input type="number" id="edgeMinInput" min="0" max="100" step="1" value="5" class="filter-num" aria-label="Minimum edge percent">
+          <span>%</span>
+        </label>
+        <label class="pill"><span>Confidence ≥</span>
+          <input type="number" id="confMinInput" min="0" max="100" step="1" value="50" class="filter-num" aria-label="Minimum confidence percent">
+          <span>%</span>
+        </label>
+        <label class="pill"><input type="checkbox" id="onlyMarketAvail" aria-label="Only market available"> Market Available</label>
+        <button id="applyFiltersBtn" class="pill accent">Apply Filters</button>
+        <button id="clearFiltersBtn" class="pill">Clear</button>
+      </div>
+    </div>
     <div id="providersModal" class="modal providers-modal hidden">
-      <div class="modal-content providers-modal-content">
-        <h3 class="providers-modal-title">ONNX Runtime Providers</h3>
+      <div class="modal-content providers-modal-content" role="dialog" aria-modal="true" aria-labelledby="providersTitle">
+        <h3 id="providersTitle" class="providers-modal-title">ONNX Runtime Providers</h3>
         <div id="providersList" class="muted providers-modal-list">Loading...</div>
         <div class="mt12"><button id="closeProvidersModal" class="pill">Close</button><div class="close-hint">Press Esc to close</div></div>
       </div>
@@ -98,6 +114,14 @@
         const modal = document.getElementById('providersModal');
         const modalList = document.getElementById('providersList');
         const closeBtn = document.getElementById('closeProvidersModal');
+        const toggleContrastBtn = document.getElementById('toggleContrast');
+        if(toggleContrastBtn){
+          toggleContrastBtn.addEventListener('click', ()=>{
+            document.documentElement.classList.toggle('high-contrast');
+            try{ localStorage.setItem('highContrast', document.documentElement.classList.contains('high-contrast') ? '1':'0'); }catch(e){}
+          });
+          try{ if(localStorage.getItem('highContrast')==='1'){ document.documentElement.classList.add('high-contrast'); } }catch(e){}
+        }
         function renderStatus(data){
           const el = document.getElementById('statusStrip');
           if(!el||!data) return;
@@ -143,6 +167,8 @@
             provPill.addEventListener('click', async ()=>{
               if(modal){
                 modal.style.display='block';
+                // focus trap basic: move focus to close button
+                if(closeBtn){ closeBtn.focus(); }
                 if(modalList) modalList.textContent='Loading...';
                 try {
                   const r = await fetch('/api/ort-providers');
@@ -201,6 +227,38 @@
                     });
                   }
                 })();
+        // Filters logic: filter cards by data attributes if present
+        (function(){
+          const applyBtn = document.getElementById('applyFiltersBtn');
+          const clearBtn = document.getElementById('clearFiltersBtn');
+          const edgeMin = document.getElementById('edgeMinInput');
+          const confMin = document.getElementById('confMinInput');
+          const onlyMarket = document.getElementById('onlyMarketAvail');
+          function apply(){
+            const eMin = parseFloat(edgeMin && edgeMin.value || '0');
+            const cMin = parseFloat(confMin && confMin.value || '0');
+            const mOnly = !!(onlyMarket && onlyMarket.checked);
+            const cards = document.querySelectorAll('.card-item, .game-card');
+            if(!cards || !cards.length) return;
+            cards.forEach(function(card){
+              const e = parseFloat(card.getAttribute('data-edge') || 'NaN');
+              const c = parseFloat(card.getAttribute('data-confidence') || 'NaN');
+              const m = card.getAttribute('data-market-available');
+              const mAvail = (m === '1' || m === 'true');
+              let show = true;
+              if(!isNaN(e) && eMin>0) show = show && (e >= eMin);
+              if(!isNaN(c) && cMin>0) show = show && (c >= cMin);
+              if(mOnly) show = show && mAvail;
+              card.style.display = show ? '' : 'none';
+            });
+          }
+          function clear(){
+            const cards = document.querySelectorAll('.card-item, .game-card');
+            cards.forEach(function(card){ card.style.display=''; });
+          }
+          if(applyBtn) applyBtn.addEventListener('click', apply);
+          if(clearBtn) clearBtn.addEventListener('click', clear);
+        })();
         function start(){ if(timer) clearInterval(timer); timer = setInterval(poll, 30000); poll(); }
         function stop(){ if(timer) { clearInterval(timer); timer=null; } }
         if(chk){
