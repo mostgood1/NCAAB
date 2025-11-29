@@ -1770,31 +1770,36 @@
     })();
   </script>
   <script>
-    // Performance: lazy-render large card lists using chunking + IntersectionObserver
+    // Lazy-render disabled: load all cards immediately (user request)
     (function(){
       var container = document.querySelector('.cards');
       if(!container) return;
       var all = Array.from(container.children);
-      var MAX_INITIAL = 30; // render first 30 immediately
-      if(all.length <= MAX_INITIAL) return; // small lists: do nothing
-      // Hide and stage remaining cards
-      for(var i=MAX_INITIAL;i<all.length;i++){ all[i].style.display='none'; }
-      var idx = MAX_INITIAL;
-      function revealNextChunk(){
-        var count = 20; // chunk size
-        var end = Math.min(all.length, idx+count);
-        for(var j=idx;j<end;j++){ all[j].style.display=''; }
-        idx = end;
-        if(idx >= all.length && sentinel){ observer.disconnect(); sentinel.remove(); }
-      }
-      var sentinel = document.createElement('div');
-      sentinel.className = 'sentinel';
-      sentinel.setAttribute('aria-hidden','true');
-      container.appendChild(sentinel);
-      var observer = new IntersectionObserver(function(entries){
-        entries.forEach(function(ent){ if(ent.isIntersecting){ revealNextChunk(); } });
-      });
-      observer.observe(sentinel);
+      // Ensure previously hidden cards (if any) are shown
+      all.forEach(function(el){ el.style.display=''; });
+      // Provide toggle hook (set localStorage 'cardsLazy' === '1' to re-enable old behavior)
+      try {
+        if(localStorage.getItem('cardsLazy') === '1') {
+          // Optional: if user explicitly re-enables, fall back to simple chunk reveal
+          var idx = 0;
+          function revealNext(){
+            var end = Math.min(all.length, idx + 50);
+            for(var i=idx;i<end;i++){ all[i].style.display=''; }
+            idx = end;
+            if(idx >= all.length && sentinel){ observer.disconnect(); sentinel.remove(); }
+          }
+          all.forEach(function(el){ el.style.display='none'; });
+            revealNext();
+          var sentinel = document.createElement('div');
+          sentinel.className = 'sentinel';
+          sentinel.setAttribute('aria-hidden','true');
+          container.appendChild(sentinel);
+          var observer = new IntersectionObserver(function(entries){
+            entries.forEach(function(ent){ if(ent.isIntersecting){ revealNext(); } });
+          });
+          observer.observe(sentinel);
+        }
+      } catch(e) { /* ignore */ }
     })();
   </script>
 </body>
