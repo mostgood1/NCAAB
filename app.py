@@ -13940,6 +13940,18 @@ def api_status():
                                 risk['daily_loss_used'] = abs(min(0.0, used))
                         except Exception:
                             pass
+            # Live PnL hook (overrides inferred value if present)
+            try:
+                plive = OUT / 'pnl_live.json'
+                if plive.exists():
+                    with open(plive, 'r', encoding='utf-8') as f:
+                        j = json.load(f)
+                        v = j.get('daily_loss_used')
+                        if isinstance(v, (int,float)):
+                            risk = (risk or {})
+                            risk['daily_loss_used'] = float(v)
+            except Exception:
+                pass
         except Exception:
             risk = None
         return jsonify({
