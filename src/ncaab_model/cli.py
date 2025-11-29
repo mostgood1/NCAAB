@@ -240,6 +240,29 @@ def backtest_walkforward(
         json.dump(summary, f, indent=2)
     print(f"[green]Backtest complete[/green] -> {out_json} | {out_csv}")
 
+@app.command(name="write-risk-config")
+def write_risk_config(
+    daily_loss_cap: float = typer.Option(None, help="Daily loss cap in units (optional)"),
+    kelly_cap: float = typer.Option(None, help="Kelly fraction cap, e.g., 0.2 for 20% (optional)"),
+    exposure_cap_units: float = typer.Option(None, help="Per-market exposure cap in units (optional)"),
+    out: Path = typer.Option(settings.outputs_dir / "risk_config.json", help="Output JSON"),
+):
+    """Write a simple risk config JSON consumed by /api/status for UI pills.
+
+    Provide any combination of caps; unspecified fields will be omitted.
+    """
+    cfg = {}
+    if daily_loss_cap is not None:
+        cfg["daily_loss_cap"] = float(daily_loss_cap)
+    if kelly_cap is not None:
+        cfg["kelly_cap"] = float(kelly_cap)
+    if exposure_cap_units is not None:
+        cfg["exposure_cap_units"] = float(exposure_cap_units)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2)
+    print(f"[green]Wrote risk config[/green] {out} -> {cfg}")
+
 @app.command(name="seed-priors")
 def seed_priors(
     features_csv: Path = typer.Argument(..., help="Features CSV to enrich (from build-features)"),
