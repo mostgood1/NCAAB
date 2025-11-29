@@ -35,6 +35,34 @@
               <div class="pill small">{{ r.date }} · Bets {{ r.ou_bets or 0 }}+{{ r.ats_bets or 0 }} · Hits {{ r.ou_hits or 0 }}+{{ r.ats_hits or 0 }} · PnL {{ '%.2f' % (r.total_pnl or 0) }}</div>
             {% endfor %}
           </div>
+          {% if daily_rows|length > 1 %}
+            <div class="mt4">
+              <div class="muted">PnL Trend</div>
+              <svg id="pnlSpark" width="520" height="80"></svg>
+            </div>
+            <script>
+              (function(){
+                var rows = {{ daily_rows|tojson }};
+                var svg = document.getElementById('pnlSpark'); if(!svg||!rows||rows.length<2) return;
+                var w=520,h=80,p=8;
+                var xs = rows.map(function(r){ return r.total_pnl||0; });
+                var min = Math.min.apply(null, xs), max = Math.max.apply(null, xs);
+                var scaleX = function(i){ return p + i * ((w - 2*p) / (rows.length - 1)); };
+                var scaleY = function(v){ if(max===min){ return h/2; } var t=(v-min)/(max-min); return h - (p + t*(h - 2*p)); };
+                var path = '';
+                rows.forEach(function(r,i){ var x=scaleX(i), y=scaleY(r.total_pnl||0); path += (i===0? 'M':'L') + x + ',' + y + ' '; });
+                var line = document.createElementNS('http://www.w3.org/2000/svg','path');
+                line.setAttribute('d', path.trim()); line.setAttribute('fill','none'); line.setAttribute('stroke','#1c7ed6'); line.setAttribute('stroke-width','2');
+                svg.appendChild(line);
+                // zero line
+                var zeroY = scaleY(0);
+                var z = document.createElementNS('http://www.w3.org/2000/svg','line');
+                z.setAttribute('x1', p); z.setAttribute('x2', w-p); z.setAttribute('y1', zeroY); z.setAttribute('y2', zeroY);
+                z.setAttribute('stroke','#555'); z.setAttribute('stroke-width','1'); z.setAttribute('stroke-dasharray','4,4');
+                svg.appendChild(z);
+              })();
+            </script>
+          {% endif %}
           {% if summary %}
             <div class="mt4">
               <a class="pill" href="/static/../outputs/backtest_daily.csv" download>Download CSV</a>
