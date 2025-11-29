@@ -57,6 +57,120 @@ def _today_local() -> dt.date:
     except Exception:
         return dt.date.today()
 
+@app.command(name="backtest-walkforward")
+def backtest_walkforward(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (defaults to 28 days ago)"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (defaults to today)"),
+    stake: float = typer.Option(1.0, help="Flat stake per bet in units"),
+    price: float = typer.Option(1.91, help="Decimal price (approx -110)"),
+    out_json: Path = typer.Option(settings.outputs_dir / "backtest_summary.json", help="Summary JSON output"),
+    out_csv: Path = typer.Option(settings.outputs_dir / "backtest_daily.csv", help="Per-date CSV output"),
+):
+    """Run a simple walk-forward backtest with flat staking over a date range.
+
+    Computes daily OU and ATS hit rates and a naive PnL using constant price.
+    Requires predictions and results artifacts in outputs/.
+    """
+    tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
+    tz = ZoneInfo(tz_name)
+    today = dt.datetime.now(tz).date()
+    if end is None:
+        end = today.isoformat()
+    if start is None:
+        start = (today - dt.timedelta(days=28)).isoformat()
+    # Load predictions and games
+    pred_path = settings.outputs_dir / "predictions_all.csv"
+    games_path = settings.outputs_dir / "games_all.csv"
+    if not pred_path.exists() or not games_path.exists():
+        print(f"[red]Missing outputs/predictions_all.csv or outputs/games_all.csv[/red]")
+        raise typer.Exit(code=1)
+    preds = pd.read_csv(pred_path)
+    games = pd.read_csv(games_path)
+    for c in ("game_id",):
+        if c in preds.columns:
+            preds[c] = preds[c].astype(str)
+        if c in games.columns:
+            games[c] = games[c].astype(str)
+    df = preds.merge(games[["game_id","date"]], on="game_id", how="left")
+    # Load actuals (aggregate daily_results/results_*.csv if present)
+    actuals = []
+    for p in os.listdir(settings.outputs_dir):
+        if p.startswith("results_") and p.endswith(".csv"):
+            try:
+                f = pd.read_csv(settings.outputs_dir / p)
+                if "game_id" in f.columns:
+                    f["game_id"] = f["game_id"].astype(str)
+                actuals.append(f)
+            except Exception:
+                pass
+    if not actuals:
+        print("[yellow]No results_*.csv found; finalize may be needed[/yellow]")
+        raise typer.Exit(code=0)
+    act = pd.concat(actuals, ignore_index=True)
+    df = df.merge(act[["game_id","ats_result","actual_total","market_total","closing_total"]], on="game_id", how="left")
+    # Filter date range
+    try:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        d0 = pd.to_datetime(start)
+        d1 = pd.to_datetime(end)
+        df = df[(df["date"]>=d0) & (df["date"]<=d1)]
+    except Exception:
+        pass
+    if df.empty:
+        print("[yellow]No rows in date range[/yellow]")
+        raise typer.Exit(code=0)
+    # Compute OU outcome vs market or closing
+    def ou_outcome(row):
+        mt = row["market_total"] if pd.notna(row.get("market_total")) else row.get("closing_total")
+        if pd.isna(mt) or pd.isna(row.get("actual_total")):
+            return None
+        at = float(row["actual_total"]) ; mt = float(mt)
+        if at>mt: return "Over"
+        if at<mt: return "Under"
+        return "Push"
+    df["ou_actual"] = df.apply(ou_outcome, axis=1)
+    # Daily aggregation
+    rows = []
+    dec_price = float(price)
+    win_return = stake * (dec_price - 1.0)
+    lose_return = -stake
+    for iso, grp in df.groupby(df["date"].dt.strftime("%Y-%m-%d")):
+        n = len(grp)
+        # OU hits where we have a lean
+        ou_mask = grp["lean_ou_side"].notna() & grp["ou_actual"].notna()
+        ou_hits = (grp.loc[ou_mask, "lean_ou_side"] == grp.loc[ou_mask, "ou_actual"]).sum()
+        ou_push = (grp.loc[ou_mask, "ou_actual"] == "Push").sum()
+        ou_bets = int(ou_mask.sum())
+        ou_pnl = (ou_hits * win_return) + ((ou_bets - ou_hits - ou_push) * lose_return)
+        # ATS hits from ats_result text
+        ats_text = grp["ats_result"].fillna("")
+        ats_push = (ats_text == "Push").sum()
+        ats_bets = int((ats_text != "").sum())
+        ats_hits = int(ats_text.str.contains("Cover", case=False).sum())
+        ats_pnl = (ats_hits * win_return) + ((ats_bets - ats_hits - ats_push) * lose_return)
+        rows.append({
+            "date": iso,
+            "rows": int(n),
+            "ou_bets": ou_bets, "ou_hits": int(ou_hits), "ou_push": int(ou_push), "ou_pnl": float(ou_pnl),
+            "ats_bets": ats_bets, "ats_hits": int(ats_hits), "ats_push": int(ats_push), "ats_pnl": float(ats_pnl),
+            "total_pnl": float(ou_pnl + ats_pnl)
+        })
+    daily = pd.DataFrame(rows).sort_values("date")
+    total_pnl = float(daily["total_pnl"].sum())
+    total_bets = int(daily["ou_bets"].sum() + daily["ats_bets"].sum())
+    hit_rate = float((daily["ou_hits"].sum() + daily["ats_hits"].sum()) / max(1, total_bets))
+    summary = {
+        "start": start, "end": end, "stake": stake, "price": dec_price,
+        "days": int(len(daily)), "total_bets": total_bets, "hit_rate": hit_rate,
+        "total_pnl": total_pnl
+    }
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    daily.to_csv(out_csv, index=False)
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+    print(f"[green]Backtest complete[/green] -> {out_json} | {out_csv}")
+
 @app.command(name="seed-priors")
 def seed_priors(
     features_csv: Path = typer.Argument(..., help="Features CSV to enrich (from build-features)"),
