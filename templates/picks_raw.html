@@ -75,5 +75,42 @@
       {% endfor %}
     </div>
   </div>
+  <script>
+    (function(){
+      async function loadStatus(){
+        try{ const r = await fetch('/api/status'); return await r.json(); }catch(e){ return {}; }
+      }
+      function computeStake(edgePct, risk){
+        // edgePct in percent; risk caps from /api/status.risk
+        if(!(risk && typeof edgePct === 'number' && isFinite(edgePct))) return null;
+        var kcap = (risk.kelly_cap && isFinite(risk.kelly_cap)) ? Number(risk.kelly_cap) : 0.2; // default 20%
+        var expCap = (risk.exposure_cap_units && isFinite(risk.exposure_cap_units)) ? Number(risk.exposure_cap_units) : 2.0;
+        // Simple mapping: stake units = kcap * (edgePct/100) scaled, capped by exposure
+        var units = kcap * (edgePct/100) * 10; // scale factor 10 to produce reasonable unit bands
+        if(!isFinite(units)) return null;
+        units = Math.max(0, Math.min(expCap, units));
+        // Band: +/- 25%
+        var lo = Math.max(0, units*0.75), hi = units*1.25;
+        return {units: units, band: [lo, hi]};
+      }
+      function renderStakePills(risk){
+        var cards = document.querySelectorAll('.game-card');
+        cards.forEach(function(card){
+          var e = parseFloat(card.getAttribute('data-edge')||'NaN');
+          var stake = computeStake(e, risk);
+          if(stake){
+            var kpi = card.querySelector('.kpi');
+            if(kpi){
+              var pill = document.createElement('div');
+              pill.className = 'pill';
+              pill.textContent = 'Suggested Stake: ' + stake.units.toFixed(2) + 'u (' + stake.band[0].toFixed(2) + '–' + stake.band[1].toFixed(2) + 'u)';
+              kpi.appendChild(pill);
+            }
+          }
+        });
+      }
+      loadStatus().then(function(s){ renderStakePills(s && s.risk ? s.risk : null); });
+    })();
+  </script>
 </body>
 </html>
