@@ -13915,6 +13915,33 @@ def api_status():
         except Exception:
             providers = []
             ep_hint = None
+        # Risk controls (best-effort from artifacts)
+        risk = None
+        try:
+            # Read a simple risk_config.json if present, else infer from stake sheet
+            rc = OUT / 'risk_config.json'
+            if rc.exists():
+                with open(rc, 'r', encoding='utf-8') as f:
+                    risk = json.load(f)
+            else:
+                # Infer daily loss used from latest stake sheet PnL if available
+                # Expect columns: units, pnl_units, etc.
+                if stake_latest:
+                    # Try match stake sheet filename
+                    import re as _re
+                    pat = _re.compile(rf'^stake_sheet_{stake_latest}.*\.csv$')
+                    sheets = [p for p in OUT.glob('stake_sheet*.csv') if pat.match(p.name)]
+                    if sheets:
+                        try:
+                            ss = pd.read_csv(sheets[-1])
+                            if 'pnl_units' in ss.columns:
+                                used = float(pd.to_numeric(ss['pnl_units'], errors='coerce').sum())
+                                risk = (risk or {})
+                                risk['daily_loss_used'] = abs(min(0.0, used))
+                        except Exception:
+                            pass
+        except Exception:
+            risk = None
         return jsonify({
             'results_latest': results_latest,
             'stake_latest': stake_latest,
@@ -13932,6 +13959,7 @@ def api_status():
             'ep_hint': ep_hint,
             'server_timestamp': server_timestamp,
             'finalize_suggested': finalize_suggested,
+            'risk': risk,
         }), 200
     except Exception as e:
         logger.exception('/api/status failure')
