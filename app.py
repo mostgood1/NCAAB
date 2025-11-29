@@ -3,123 +3,6 @@ from __future__ import annotations
 import json
 import shutil
 import pandas as pd
-from typing import Any, Iterable
-from datetime import datetime
-from flask import render_template
-
-# Feature fallback utility (rolling averages) ----------------------------------------------------
-def _feature_fallback_enrich(feat_df: pd.DataFrame) -> pd.DataFrame:
-    """Fill missing offensive/defensive/tempo ratings using simple historical means.
-
-    This is a simplified reconstruction after earlier patch corruption. It computes
-    per-team averages of available metrics and fills missing values; if insufficient
-    history exists the original frame is returned unchanged.
-    """
-    if feat_df.empty:
-        return feat_df
-    required_cols = [
-        'home_team','away_team','home_off_rating','away_off_rating','home_def_rating','away_def_rating','home_tempo_rating','away_tempo_rating'
-    ]
-    if not any(c in feat_df.columns for c in required_cols):
-        return feat_df
-        return jsonify(out)  # Removed stray text that caused a syntax error
-    metrics_map: dict[str, dict[str, list[float]]] = {}
-    @app.route("/coverage")
-    def coverage_page():
-        """Simple UI page to visualize coverage diagnostics for a date."""
-        try:
-            date_q = request.args.get('date')
-        except Exception:
-            date_q = None
-        # Build diagnostics payload similar to API without calling it directly (order-safe)
-        try:
-            today_str = datetime.now().strftime('%Y-%m-%d')
-            target_date = str(date_q) if date_q else today_str
-        except Exception:
-            target_date = None
-        out = {
-            'date': target_date,
-            'd1_expected_today': None,
-            'coverage_present_today': None,
-            'coverage_missing_today': None,
-            'report_rows': [],
-            'missing_teams_rows': []
-        }
-        try:
-            games_curr_path = OUT / 'games_curr.csv'
-            g_today = _safe_read_csv(games_curr_path) if games_curr_path.exists() else pd.DataFrame()
-            if not g_today.empty:
-                if 'date' in g_today.columns and target_date:
-                    try:
-                        g_today['date'] = pd.to_datetime(g_today['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-                        g_today = g_today[g_today['date'] == target_date]
-                    except Exception:
-                        pass
-                out['d1_expected_today'] = int(g_today['game_id'].astype(str).nunique()) if 'game_id' in g_today.columns else 0
-        except Exception:
-            pass
-        try:
-            rep_path = OUT / 'coverage_report_today.csv'
-            if rep_path.exists():
-                df_rep = _safe_read_csv(rep_path)
-                if not df_rep.empty:
-                    out['report_rows'] = df_rep.to_dict(orient='records')
-                    if out['coverage_missing_today'] is None:
-                        out['coverage_missing_today'] = int(len(df_rep))
-        except Exception:
-            pass
-        try:
-            mt_path = OUT / 'coverage_missing_teams_today.csv'
-            if mt_path.exists():
-                df_mt = _safe_read_csv(mt_path)
-                if not df_mt.empty:
-                    out['missing_teams_rows'] = df_mt.to_dict(orient='records')
-        except Exception:
-            pass
-        try:
-            if out['coverage_present_today'] is None and out['d1_expected_today'] is not None:
-                miss = out['coverage_missing_today'] or 0
-                out['coverage_present_today'] = max(0, int(out['d1_expected_today']) - int(miss))
-        except Exception:
-            pass
-        # Render
-        return render_template('coverage.html', **out)
-    for _, r in feat_df.iterrows():
-        for side in ['home','away']:
-            team = r.get(f'{side}_team')
-            if not team:
-                continue
-            bucket = metrics_map.setdefault(team, {'off': [], 'def': [], 'tempo': []})
-            off_v = r.get(f'{side}_off_rating')
-            def_v = r.get(f'{side}_def_rating')
-            tmp_v = r.get(f'{side}_tempo_rating')
-            try:
-                if off_v is not None and off_v == off_v:  # not NaN
-                    bucket['off'].append(float(off_v))
-                if def_v is not None and def_v == def_v:
-                    bucket['def'].append(float(def_v))
-                if tmp_v is not None and tmp_v == tmp_v:
-                    bucket['tempo'].append(float(tmp_v))
-            except Exception:
-                pass
-    # Compute means
-    means: dict[str, dict[str, float]] = {}
-    for team, vals in metrics_map.items():
-        means[team] = {m: (sum(v)/len(v) if v else float('nan')) for m, v in vals.items()}
-    # Fill missing
-    for side in ['home','away']:
-        team_col = f'{side}_team'
-        for metric in ['off','def','tempo']:
-            col = f'{side}_{metric}_rating'
-            if col in feat_df.columns:
-                ser = pd.to_numeric(feat_df[col], errors='coerce')
-                miss_mask = ser.isna()
-                if miss_mask.any() and team_col in feat_df.columns:
-                    teams = feat_df[team_col].astype(str)
-                    feat_df.loc[miss_mask, col] = [means.get(t, {}).get(metric, ser.loc[idx]) for idx, t in zip(miss_mask[miss_mask].index, teams[miss_mask])]
-    if {'home_tempo_rating','away_tempo_rating'}.issubset(feat_df.columns):
-        feat_df['tempo_rating_sum'] = pd.to_numeric(feat_df['home_tempo_rating'], errors='coerce') + pd.to_numeric(feat_df['away_tempo_rating'], errors='coerce')
-    return feat_df
 import os
 from pathlib import Path
 from typing import Any, Dict, List
@@ -13439,59 +13322,40 @@ def index():
                 continue
     except Exception:
         pass
+    # Helper to ensure tz-aware ISO start time per row (index route only)
+    def _ensure_index_row(r: dict) -> dict:
+        try:
+            existing_iso = r.get('start_time_iso')
+            if existing_iso and re.search(r'(Z|[+-]\d{2}:?\d{2})$', str(existing_iso)):
+                return r
+            for cand_key, kwargs in [
+                ('_start_dt', {'errors': 'coerce'}),
+                ('commence_time', {'errors': 'coerce', 'utc': True}),
+                ('start_time', {'errors': 'coerce', 'utc': True}),
+            ]:
+                val = r.get(cand_key)
+                if not val:
+                    continue
+                if cand_key == 'start_time':
+                    val = str(val).replace('Z', '+00:00')
+                ts = pd.to_datetime(val, **kwargs)
+                if pd.isna(ts):
+                    continue
+                try:
+                    if getattr(ts, 'tzinfo', None) is None:
+                        ts = ts.tz_localize('UTC')
+                    else:
+                        ts = ts.tz_convert('UTC')
+                except Exception:
+                    pass
+                r['start_time_iso'] = ts.strftime('%Y-%m-%dT%H:%M:%SZ')
+                break
+        except Exception:
+            pass
+        return r
     return render_template(
         "index.html",
-        rows=[
-            (lambda _r: (
-                # Ensure tz-aware `start_time_iso` by deriving from `_start_dt`/`commence_time`/`start_time` when missing
-                (lambda r: (
-                    # Robust ISO derivation with safe None/NaT handling
-                    try:
-                        existing_iso = r.get('start_time_iso')
-                        iso_ok = False
-                        if existing_iso:
-                            s = str(existing_iso)
-                            # treat trailing Z or explicit offset as tz-aware
-                            if re.search(r'(Z|[+-]\d{2}:?\d{2})$', s):
-                                iso_ok = True
-                        if not iso_ok:
-                            derived = None
-                            # ordered candidates
-                            for cand_key, parse_kwargs in [
-                                ('_start_dt', {'errors':'coerce'}),
-                                ('commence_time', {'errors':'coerce', 'utc': True}),
-                                ('start_time', {'errors':'coerce', 'utc': True}),
-                            ]:
-                                val = r.get(cand_key)
-                                if not val:
-                                    continue
-                                # normalize Z to offset for start_time if naive string
-                                if cand_key == 'start_time':
-                                    val = str(val).replace('Z','+00:00')
-                                ts = pd.to_datetime(val, **parse_kwargs)
-                                if pd.isna(ts):
-                                    continue
-                                # localize/convert to UTC
-                                try:
-                                    if getattr(ts, 'tzinfo', None) is None:
-                                        ts = ts.tz_localize('UTC')
-                                    else:
-                                        ts = ts.tz_convert('UTC')
-                                except Exception:
-                                    # best effort: if conversion fails, treat as UTC
-                                    pass
-                                derived = ts.strftime('%Y-%m-%dT%H:%M:%SZ')
-                                break
-                            if derived:
-                                r['start_time_iso'] = derived
-                        # If existing iso already ok, retain it unchanged
-                    except Exception:
-                        pass
-                    r
-                ) or r)(dict(_r))
-            ))(_r)
-            for _r in rows
-        ],
+        rows=[_ensure_index_row(dict(_r)) for _r in rows],
         total_rows=total_rows,
         date_val=date_q,
         top_picks=top_picks,
