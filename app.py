@@ -101,6 +101,83 @@ def enforce_calibrated_first(df: pd.DataFrame) -> pd.DataFrame:
         pass
     return df
 
+# --------------------------------------------------------------
+# Midnight UTC drift correction
+# --------------------------------------------------------------
+_TZ_ABBR_MAP = {
+    'UTC': 0, 'Z': 0,
+    'HST': -10, 'AKST': -9,
+    'PST': -8, 'PDT': -7,
+    'MST': -7, 'MDT': -6,
+    'CST': -6, 'CDT': -5,
+    'EST': -5, 'EDT': -4,
+}
+
+def _correct_midnight_drift(row: dict, slate_date: str | None = None) -> dict:
+    """Correct games whose UTC ISO crosses midnight but should belong to previous local day.
+
+    Logic:
+    1. If we have start_time_local + start_tz_abbr, parse them to a local datetime.
+    2. Convert that local datetime to UTC and build canonical ISO.
+    3. Compare date portion of existing ISO (if any) vs derived local->UTC ISO.
+       If existing ISO's UTC date is +1 relative to local-derived UTC date (common midnight drift), override.
+    4. Optionally validate against `slate_date` (requested date) – only adjust if local date matches slate_date.
+    5. Update start_time_iso and start_time_display (preserve existing display if already matches local).
+    """
+    try:
+        loc = str(row.get('start_time_local') or '').strip()
+        abbr = str(row.get('start_tz_abbr') or '').upper().strip()
+        if not loc or not abbr or abbr not in _TZ_ABBR_MAP:
+            return row
+        parts = loc.split()
+        if len(parts) < 2:
+            return row
+        local_date_str, local_time_str = parts[0], parts[1]
+        # Validate slate date match if provided
+        if slate_date and local_date_str != slate_date:
+            return row
+        off_hours = _TZ_ABBR_MAP[abbr]
+        # Build naive datetime then assign offset
+        try:
+            local_dt = dt.datetime.strptime(f"{local_date_str} {local_time_str}", "%Y-%m-%d %H:%M")
+        except Exception:
+            return row
+        # Create timezone info from offset hours
+        try:
+            tzinfo = dt.timezone(dt.timedelta(hours=off_hours))
+            local_aware = local_dt.replace(tzinfo=tzinfo)
+            utc_dt = local_aware.astimezone(dt.timezone.utc)
+        except Exception:
+            return row
+        derived_iso = utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+        existing_iso = str(row.get('start_time_iso') or '').strip()
+        if existing_iso:
+            # Parse existing for comparison
+            try:
+                ex_dt = pd.to_datetime(existing_iso, errors='coerce', utc=True)
+            except Exception:
+                ex_dt = pd.NaT
+            if pd.notna(ex_dt):
+                # If difference in day and existing is +1 day vs derived, correct
+                if ex_dt.date() != utc_dt.date() and ex_dt.date() == (utc_dt.date() + dt.timedelta(days=1)):
+                    row['start_time_iso'] = derived_iso
+                    # Adjust display if present and mismatched
+                    disp = str(row.get('start_time_display') or '')
+                    if disp:
+                        # Replace date portion with intended local date
+                        try:
+                            row['start_time_display'] = f"{local_date_str} {local_time_str} {abbr}".strip()
+                        except Exception:
+                            pass
+                return row
+        # No existing ISO or unparsable – set derived
+        row['start_time_iso'] = derived_iso
+        if not row.get('start_time_display'):
+            row['start_time_display'] = f"{local_date_str} {local_time_str} {abbr}".strip()
+    except Exception:
+        return row
+    return row
+
 # -----------------------------------------------------------------------------
 # Time derivation helper: robust tz-aware ISO for post-UTC-midnight games
 # -----------------------------------------------------------------------------
@@ -13353,9 +13430,15 @@ def index():
         except Exception:
             pass
         return r
+    # Apply midnight drift correction across rows (index page)
+    safe_rows = []
+    for _r in rows:
+        r = _ensure_index_row(dict(_r))
+        r = _correct_midnight_drift(r, slate_date=str(date_q) if date_q else None)
+        safe_rows.append(r)
     return render_template(
         "index.html",
-        rows=[_ensure_index_row(dict(_r)) for _r in rows],
+        rows=safe_rows,
         total_rows=total_rows,
         date_val=date_q,
         top_picks=top_picks,
@@ -14594,7 +14677,14 @@ def recommendations():
             picks["proj_away"] = None
     rows = picks.to_dict(orient="records") if not picks.empty else []
     # Harden display datetime using robust helper
-    rows = [ (lambda r: (r.update({'start_time_iso': r.get('start_time_iso') or _derive_start_iso(r)}), r)[1])(dict(_r)) for _r in rows ]
+    safe_rows: list[dict] = []
+    for _r in rows:
+        r = dict(_r)
+        if not r.get('start_time_iso'):
+            r['start_time_iso'] = _derive_start_iso(r)
+        r = _correct_midnight_drift(r, slate_date=str(r.get('date')) if r.get('date') else None)
+        safe_rows.append(r)
+    rows = safe_rows
     return render_template("recommendations.html", rows=rows, total_rows=len(rows))
 
 
@@ -14638,9 +14728,15 @@ def picks_raw_page():
             r[f"{side}_key"] = key
             r[f"{side}_logo"] = b.get("logo")
         return r
-    rows = [_enrich_row(r) for r in df.to_dict(orient="records")]
-    # Derive tz-aware ISO using helper
-    rows = [ (lambda r: (r.update({'start_time_iso': r.get('start_time_iso') or _derive_start_iso(r)}), r)[1])(dict(_r)) for _r in rows ]
+    rows = []
+    for _r in df.to_dict(orient="records"):
+        r = _enrich_row(dict(_r))
+        if not r.get('start_time_iso'):
+            r['start_time_iso'] = _derive_start_iso(r)
+        # Use row date for slate validation if present
+        slate = str(r.get('date')) if r.get('date') else None
+        r = _correct_midnight_drift(r, slate_date=slate)
+        rows.append(r)
     return render_template("picks_raw.html", rows=rows, total_rows=len(rows), date_val=date_q, market_val=market_q, period_val=period_q)
 
 
@@ -14648,8 +14744,15 @@ def picks_raw_page():
 def finals():
     """Season-to-date final scores table, aggregated from daily_results.*"""
     df = _load_all_finals(limit=2000)
-    rows = df.to_dict(orient="records") if not df.empty else []
-    rows = [ (lambda r: (r.update({'start_time_iso': r.get('start_time_iso') or _derive_start_iso(r)}), r)[1])(dict(_r)) for _r in rows ]
+    rows_raw = df.to_dict(orient="records") if not df.empty else []
+    rows = []
+    for _r in rows_raw:
+        r = dict(_r)
+        if not r.get('start_time_iso'):
+            r['start_time_iso'] = _derive_start_iso(r)
+        slate = str(r.get('date')) if r.get('date') else None
+        r = _correct_midnight_drift(r, slate_date=slate)
+        rows.append(r)
     # Basic stats: count, last date range
     date_min = df["date"].min() if "date" in df.columns and not df.empty else None
     date_max = df["date"].max() if "date" in df.columns and not df.empty else None
