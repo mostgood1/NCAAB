@@ -3,12 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import json
+import math
 import os
 import datetime as dt
 from zoneinfo import ZoneInfo
 import platform
 import struct
 import numpy as np
+try:
+    from sklearn.metrics import roc_auc_score
+except Exception:
+    roc_auc_score = None
 import pandas as pd
 import typer
 from rich import print
@@ -166,13 +171,67 @@ def backtest_walkforward(
     total_pnl = float(daily["total_pnl"].sum())
     total_bets = int(daily["ou_bets"].sum() + daily["ats_bets"].sum())
     hit_rate = float((daily["ou_hits"].sum() + daily["ats_hits"].sum()) / max(1, total_bets))
+
+    # Optional probability-based metrics if available in predictions
+    brier_ats = None
+    brier_ou = None
+    auc_ats = None
+    auc_ou = None
+    crps_total = None
+    try:
+        # Build arrays for ATS/OU probs and outcomes if present
+        ats_prob = pd.to_numeric(df.get("ats_prob"), errors="coerce") if "ats_prob" in df.columns else None
+        ou_prob = pd.to_numeric(df.get("ou_prob"), errors="coerce") if "ou_prob" in df.columns else None
+        ats_hit = df.get("ats_result").fillna("").str.contains("Cover", case=False) if "ats_result" in df.columns else None
+        ou_actual = df.get("ou_actual") if "ou_actual" in df.columns else None
+        if ats_prob is not None and ats_hit is not None:
+            pa = ats_prob.dropna()
+            ya = ats_hit.loc[pa.index].astype(int)
+            if len(pa) > 0:
+                brier_ats = float(np.mean((pa.values - ya.values) ** 2))
+                if roc_auc_score is not None and len(np.unique(ya.values)) > 1:
+                    try:
+                        auc_ats = float(roc_auc_score(ya.values, pa.values))
+                    except Exception:
+                        auc_ats = None
+        if ou_prob is not None and ou_actual is not None:
+            mask = ou_actual.isin(["Over","Under"]) & ou_prob.notna()
+            po = ou_prob[mask]
+            yo = (ou_actual[mask] == "Over").astype(int)
+            if len(po) > 0:
+                brier_ou = float(np.mean((po.values - yo.values) ** 2))
+                if roc_auc_score is not None and len(np.unique(yo.values)) > 1:
+                    try:
+                        auc_ou = float(roc_auc_score(yo.values, po.values))
+                    except Exception:
+                        auc_ou = None
+        # CRPS using normal approx if columns present
+        if {"pred_total","actual_total","pred_total_sigma"}.issubset(df.columns):
+            mu = pd.to_numeric(df["pred_total"], errors="coerce").values
+            x = pd.to_numeric(df["actual_total"], errors="coerce").values
+            sigma = pd.to_numeric(df["pred_total_sigma"], errors="coerce").values
+            sigma = np.clip(sigma, 1e-6, None)
+            try:
+                from scipy.stats import norm
+                z = (x - mu) / sigma
+                crps_vals = sigma * (z * (2 * norm.cdf(z) - 1) + 2 * norm.pdf(z) - 1 / math.sqrt(math.pi))
+                crps_total = float(np.nanmean(crps_vals))
+            except Exception:
+                crps_total = None
+    except Exception:
+        pass
     # Aggregate metrics
     mae_total_overall = float(df["mae_total"].mean()) if "mae_total" in df.columns else None
     summary = {
         "start": start, "end": end, "stake": stake, "price": dec_price,
         "days": int(len(daily)), "total_bets": total_bets, "hit_rate": hit_rate,
         "total_pnl": total_pnl,
-        "mae_total": mae_total_overall
+        "mae_total": mae_total_overall,
+        "brier_ats": brier_ats,
+        "brier_ou": brier_ou,
+        "auc_ats": auc_ats,
+        "auc_ou": auc_ou,
+        "crps_total": crps_total,
     }
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_csv.parent.mkdir(parents=True, exist_ok=True)

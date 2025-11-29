@@ -22,7 +22,7 @@
       <div class="card mb8">
         <details open>
           <summary class="pill">Summary</summary>
-          <div class="muted m4v8">Range: {{ summary.start }} → {{ summary.end }} · Bets: {{ summary.total_bets }} · Hit: {{ '%.1f' % (summary.hit_rate * 100) }}% · PnL: {{ '%.2f' % summary.total_pnl }}{% if summary.mae_total is defined and summary.mae_total is not none %} · MAE Total: {{ '%.2f' % summary.mae_total }}{% endif %}</div>
+          <div class="muted m4v8">Range: {{ summary.start }} → {{ summary.end }} · Bets: {{ summary.total_bets }} · Hit: {{ '%.1f' % (summary.hit_rate * 100) }}% · PnL: {{ '%.2f' % summary.total_pnl }}{% if summary.mae_total is defined and summary.mae_total is not none %} · MAE Total: {{ '%.2f' % summary.mae_total }}{% endif %}{% if summary.brier_ats is defined and summary.brier_ats is not none %} · Brier ATS: {{ '%.3f' % summary.brier_ats }}{% endif %}{% if summary.brier_ou is defined and summary.brier_ou is not none %} · Brier OU: {{ '%.3f' % summary.brier_ou }}{% endif %}{% if summary.auc_ats is defined and summary.auc_ats is not none %} · AUC ATS: {{ '%.3f' % summary.auc_ats }}{% endif %}{% if summary.auc_ou is defined and summary.auc_ou is not none %} · AUC OU: {{ '%.3f' % summary.auc_ou }}{% endif %}{% if summary.crps_total is defined and summary.crps_total is not none %} · CRPS Total: {{ '%.3f' % summary.crps_total }}{% endif %}</div>
         </details>
       </div>
     {% endif %}

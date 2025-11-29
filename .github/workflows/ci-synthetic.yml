@@ -113,7 +113,17 @@ jobs:
           $hit = [double]$sum.hit_rate
           $bets = [int]$sum.total_bets
           $mae = $sum.mae_total
+          $brierATS = $sum.brier_ats
+          $brierOU = $sum.brier_ou
+          $aucATS = $sum.auc_ats
+          $aucOU = $sum.auc_ou
+          $crpsTotal = $sum.crps_total
           Write-Host "Backtest hit_rate=$hit; total_bets=$bets"
           if ($bets -lt 20) { Write-Warning 'Too few bets in window'; exit 1 }
           if ($hit -lt 0.50) { Write-Warning 'Hit rate below 50%'; exit 1 }
           if ($mae -and ([double]$mae -gt 10.0)) { Write-Warning "MAE Total too high: $mae"; exit 1 }
+          if ($brierATS -and ([double]$brierATS -gt 0.25)) { Write-Warning "Brier ATS too high: $brierATS"; exit 1 }
+          if ($brierOU -and ([double]$brierOU -gt 0.25)) { Write-Warning "Brier OU too high: $brierOU"; exit 1 }
+          if ($aucATS -and ([double]$aucATS -lt 0.55)) { Write-Warning "AUC ATS too low: $aucATS"; exit 1 }
+          if ($aucOU -and ([double]$aucOU -lt 0.55)) { Write-Warning "AUC OU too low: $aucOU"; exit 1 }
+          if ($crpsTotal -and ([double]$crpsTotal -gt 9.0)) { Write-Warning "CRPS Total too high: $crpsTotal"; exit 1 }
