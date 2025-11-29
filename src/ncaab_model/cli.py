@@ -129,6 +129,12 @@ def backtest_walkforward(
         if at<mt: return "Under"
         return "Push"
     df["ou_actual"] = df.apply(ou_outcome, axis=1)
+    # Simple MAE for totals when pred_total present
+    if "pred_total" in df.columns and "actual_total" in df.columns:
+        try:
+            df["mae_total"] = (pd.to_numeric(df["pred_total"], errors="coerce") - pd.to_numeric(df["actual_total"], errors="coerce")).abs()
+        except Exception:
+            df["mae_total"] = pd.NA
     # Daily aggregation
     rows = []
     dec_price = float(price)
@@ -153,16 +159,20 @@ def backtest_walkforward(
             "rows": int(n),
             "ou_bets": ou_bets, "ou_hits": int(ou_hits), "ou_push": int(ou_push), "ou_pnl": float(ou_pnl),
             "ats_bets": ats_bets, "ats_hits": int(ats_hits), "ats_push": int(ats_push), "ats_pnl": float(ats_pnl),
-            "total_pnl": float(ou_pnl + ats_pnl)
+            "total_pnl": float(ou_pnl + ats_pnl),
+            "mae_total_mean": float(grp["mae_total"].mean()) if "mae_total" in grp.columns else None
         })
     daily = pd.DataFrame(rows).sort_values("date")
     total_pnl = float(daily["total_pnl"].sum())
     total_bets = int(daily["ou_bets"].sum() + daily["ats_bets"].sum())
     hit_rate = float((daily["ou_hits"].sum() + daily["ats_hits"].sum()) / max(1, total_bets))
+    # Aggregate metrics
+    mae_total_overall = float(df["mae_total"].mean()) if "mae_total" in df.columns else None
     summary = {
         "start": start, "end": end, "stake": stake, "price": dec_price,
         "days": int(len(daily)), "total_bets": total_bets, "hit_rate": hit_rate,
-        "total_pnl": total_pnl
+        "total_pnl": total_pnl,
+        "mae_total": mae_total_overall
     }
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_csv.parent.mkdir(parents=True, exist_ok=True)

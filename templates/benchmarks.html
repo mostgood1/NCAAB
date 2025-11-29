@@ -22,7 +22,7 @@
       <div class="card mb8">
         <details open>
           <summary class="pill">Summary</summary>
-          <div class="muted m4v8">Range: {{ summary.start }} → {{ summary.end }} · Bets: {{ summary.total_bets }} · Hit: {{ '%.1f' % (summary.hit_rate * 100) }}% · PnL: {{ '%.2f' % summary.total_pnl }}</div>
+          <div class="muted m4v8">Range: {{ summary.start }} → {{ summary.end }} · Bets: {{ summary.total_bets }} · Hit: {{ '%.1f' % (summary.hit_rate * 100) }}% · PnL: {{ '%.2f' % summary.total_pnl }}{% if summary.mae_total is defined and summary.mae_total is not none %} · MAE Total: {{ '%.2f' % summary.mae_total }}{% endif %}</div>
         </details>
       </div>
     {% endif %}
@@ -32,7 +32,7 @@
           <summary class="pill">Daily</summary>
           <div class="diag-grid flex-row-wrap">
             {% for r in daily_rows %}
-              <div class="pill small">{{ r.date }} · Bets {{ r.ou_bets or 0 }}+{{ r.ats_bets or 0 }} · Hits {{ r.ou_hits or 0 }}+{{ r.ats_hits or 0 }} · PnL {{ '%.2f' % (r.total_pnl or 0) }}</div>
+              <div class="pill small">{{ r.date }} · Bets {{ r.ou_bets or 0 }}+{{ r.ats_bets or 0 }} · Hits {{ r.ou_hits or 0 }}+{{ r.ats_hits or 0 }} · PnL {{ '%.2f' % (r.total_pnl or 0) }}{% if r.mae_total_mean is defined and r.mae_total_mean is not none %} · MAE {{ '%.2f' % r.mae_total_mean }}{% endif %}</div>
             {% endfor %}
           </div>
           {% if daily_rows|length > 1 %}
