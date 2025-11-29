@@ -1,0 +1,69 @@
+game_id,season,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401827111,2025,2025-11-29,2025-11-29 17:00:00+00:00,Indiana Hoosiers,Bethune-Cookman Wildcats,0,0,,,,,False,Simon Skjodt Assembly Hall
+401820155,2025,2025-11-29,2025-11-29 17:00:00+00:00,Navy Midshipmen,SE Louisiana Lions,0,0,,,,,True,Trask Coliseum
+401831275,2025,2025-11-29,2025-11-29 18:00:00+00:00,UMass Lowell River Hawks,Emerson Lions,0,0,,,,,False,Kennedy Family Athletic Complex
+401826900,2025,2025-11-29,2025-11-29 18:00:00+00:00,Louisiana Tech Bulldogs,Alcorn State Braves,0,0,,,,,False,Thomas Assembly Center
+401823861,2025,2025-11-29,2025-11-29 18:00:00+00:00,Army Black Knights,Manhattan Jaspers,0,0,,,,,False,Christl Arena
+401823518,2025,2025-11-29,2025-11-29 18:00:00+00:00,UCF Knights,VMI Keydets,0,0,,,,,False,Addition Financial Arena
+401823388,2025,2025-11-29,2025-11-29 18:00:00+00:00,Northern Kentucky Norse,Boston University Terriers,0,0,,,,,False,Truist Arena
+401820626,2025,2025-11-29,2025-11-29 18:00:00+00:00,Longwood Lancers,Maine Black Bears,0,0,,,,,True,Bender Arena
+401813379,2025,2025-11-29,2025-11-29 18:00:00+00:00,Niagara Purple Eagles,Detroit Mercy Titans,0,0,,,,,False,Gallagher Center
+401831276,2025,2025-11-29,2025-11-29 19:00:00+00:00,Saint Peter's Peacocks,Dartmouth Big Green,0,0,,,,,False,Yanitelli Center
+401831225,2025,2025-11-29,2025-11-29 19:00:00+00:00,Texas State Bobcats,Lehigh Mountain Hawks,0,0,,,,,True,Resorts World Event Center
+401829389,2025,2025-11-29,2025-11-29 19:00:00+00:00,Tennessee State Tigers,Tennessee Wesleyan Bulldogs,0,0,,,,,True,McKenzie Arena
+401828736,2025,2025-11-29,2025-11-29 19:00:00+00:00,North Carolina Central Eagles,Carolina University Bruins,0,0,,,,,False,McDougald-McLendon Arena
+401828478,2025,2025-11-29,2025-11-29 19:00:00+00:00,Green Bay Phoenix,Haskell Jayhawks,0,0,,,,,False,Resch Center
+401828334,2025,2025-11-29,2025-11-29 19:00:00+00:00,Georgia Southern Eagles,Houston Christian Huskies,0,0,,,,,False,Jack and Ruth Ann Hill Convocation Center
+401827062,2025,2025-11-29,2025-11-29 19:00:00+00:00,Nebraska Cornhuskers,South Carolina Upstate Spartans,0,0,,,,,False,Pinnacle Bank Arena
+401827015,2025,2025-11-29,2025-11-29 19:00:00+00:00,Northwestern State Demons,Southern Jaguars,0,0,,,,,False,Prather Coliseum
+401826905,2025,2025-11-29,2025-11-29 19:00:00+00:00,Hofstra Pride,Merrimack Warriors,0,0,,,,,True,The Palestra
+401826833,2025,2025-11-29,2025-11-29 19:00:00+00:00,Georgia Bulldogs,Tennessee Tech Golden Eagles,0,0,,,,,False,Stegeman Coliseum
+401826752,2025,2025-11-29,2025-11-29 19:00:00+00:00,High Point Panthers,Western Carolina Catamounts,0,0,,,,,False,Qubein Center
+401826702,2025,2025-11-29,2025-11-29 19:00:00+00:00,George Mason Patriots,James Madison Dukes,0,0,,,,,False,EagleBank Arena
+401826055,2025,2025-11-29,2025-11-29 19:00:00+00:00,UMBC Retrievers,Delaware State Hornets,0,0,,,,,False,Chesapeake Employers Insurance Arena
+401824862,2025,2025-11-29,2025-11-29 19:00:00+00:00,Le Moyne Dolphins,Monmouth Hawks,0,0,,,,,True,Kirby Sports Center
+401823545,2025,2025-11-29,2025-11-29 19:00:00+00:00,Stetson Hatters,Southern Utah Thunderbirds,0,0,,,,,True,UPMC Events Center
+401823378,2025,2025-11-29,2025-11-29 19:00:00+00:00,IU Indianapolis Jaguars,Morehead State Eagles,0,0,,,,,False,The Jungle
+401818533,2025,2025-11-29,2025-11-29 19:00:00+00:00,Columbia Lions,Sarah Lawrence Gryphons,0,0,,,,,False,Levien Gymnasium
+401812607,2025,2025-11-29,2025-11-29 19:00:00+00:00,Harvard Crimson,Bryant Bulldogs,0,0,,,,,False,Lavietes Pavilion
+401812383,2025,2025-11-29,2025-11-29 19:00:00+00:00,Saint Francis Red Flash,Franciscan University Barons,0,0,,,,,False,DeGol Arena
+401826072,2025,2025-11-29,2025-11-29 19:30:00+00:00,Radford Highlanders,Notre Dame (MD) Gators,0,0,,,,,False,The Dedmon Center
+401824951,2025,2025-11-29,2025-11-29 20:00:00+00:00,Southeast Missouri State Redhawks,Lipscomb Bisons,0,0,,,,,False,Show Me Center
+401823870,2025,2025-11-29,2025-11-29 20:00:00+00:00,UT Arlington Mavericks,Stephen F. Austin Lumberjacks,0,0,,,,,False,College Park Center
+401823593,2025,2025-11-29,2025-11-29 20:00:00+00:00,UNC Wilmington Seahawks,Gardner-Webb Runnin' Bulldogs,0,0,,,,,False,Trask Coliseum
+401822334,2025,2025-11-29,2025-11-29 20:00:00+00:00,Valparaiso Beacons,Western Michigan Broncos,0,0,,,,,False,Athletics-Recreation Center
+401826886,2025,2025-11-29,2025-11-29 21:00:00+00:00,Arizona Wildcats,Norfolk State Spartans,0,0,,,,,False,McKale Memorial Center
+401830884,2025,2025-11-29,2025-11-29 21:00:00+00:00,Georgia Tech Yellow Jackets,Drake Bulldogs,0,0,,,,,True,Raider Arena
+401829353,2025,2025-11-29,2025-11-29 21:00:00+00:00,Southern Indiana Screaming Eagles,Kentucky State Thorobreds,0,0,,,,,False,Liberty Arena (IN)
+401827069,2025,2025-11-29,2025-11-29 21:00:00+00:00,Winthrop Eagles,South Carolina State Bulldogs,0,0,,,,,False,Winthrop Coliseum
+401826934,2025,2025-11-29,2025-11-29 21:00:00+00:00,Weber State Wildcats,Kansas City Roos,0,0,,,,,False,Dee Events Center
+401825579,2025,2025-11-29,2025-11-29 21:00:00+00:00,Utah State Aggies,Montana State Bobcats,0,0,,,,,False,Dee Glen Smith Spectrum
+401824890,2025,2025-11-29,2025-11-29 21:00:00+00:00,East Tennessee State Buccaneers,Central Arkansas Bears,0,0,,,,,False,Freedom Hall (TN)
+401824853,2025,2025-11-29,2025-11-29 21:00:00+00:00,Maryland Eastern Shore Hawks,Gwynedd-Mercy Griffins,0,0,,,,,False,Hytche Center
+401823488,2025,2025-11-29,2025-11-29 21:00:00+00:00,Elon Phoenix,Mercer Bears,0,0,,,,,False,Schar Center
+401822836,2025,2025-11-29,2025-11-29 21:00:00+00:00,American University Eagles,Siena Saints,0,0,,,,,False,Bender Arena
+401813402,2025,2025-11-29,2025-11-29 21:00:00+00:00,Mount St. Mary's Mountaineers,Howard Bison,0,0,,,,,False,Knott Arena
+401811108,2025,2025-11-29,2025-11-29 21:00:00+00:00,Air Force Falcons,South Dakota Coyotes,0,0,,,,,True,Summit Arena
+401831226,2025,2025-11-29,2025-11-29 21:30:00+00:00,Seattle U Redhawks,UC Santa Barbara Gauchos,0,0,,,,,True,Resorts World Event Center
+401822323,2025,2025-11-29,2025-11-29 21:30:00+00:00,Lafayette Leopards,Ball State Cardinals,0,0,,,,,False,Kirby Sports Center
+401812579,2025,2025-11-29,2025-11-29 21:30:00+00:00,Pennsylvania Quakers,La Salle Explorers,0,0,,,,,False,The Palestra
+401829403,2025,2025-11-29,2025-11-29 22:00:00+00:00,Colgate Raiders,SUNY-Oneonta Red Dragons,0,0,,,,,True,Place Bell
+401828545,2025,2025-11-29,2025-11-29 22:00:00+00:00,Eastern Kentucky Colonels,Wofford Terriers,0,0,,,,,False,Baptist Health Arena
+401824027,2025,2025-11-29,2025-11-29 22:00:00+00:00,Utah Tech Trailblazers,UC Riverside Highlanders,0,0,,,,,False,Burns Arena
+401823446,2025,2025-11-29,2025-11-29 22:00:00+00:00,North Florida Ospreys,Trinity College of Jacksonville Eagles,0,0,,,,,False,UNF Arena
+401823174,2025,2025-11-29,2025-11-29 22:00:00+00:00,Cal State Fullerton Titans,Pepperdine Waves,0,0,,,,,False,Titan Gym
+401823725,2025,2025-11-29,2025-11-29 23:00:00+00:00,Penn State Nittany Lions,Sacred Heart Pioneers,0,0,,,,,False,Bryce Jordan Center
+401813352,2025,2025-11-29,2025-11-29 23:00:00+00:00,Canisius Golden Griffins,Buffalo Bulls,0,0,,,,,False,Koessler Athletic Center
+401830885,2025,2025-11-29,2025-11-30 00:00:00+00:00,DePaul Blue Demons,LSU Tigers,0,0,,,,,True,Raider Arena
+401830412,2025,2025-11-29,2025-11-30 00:00:00+00:00,Cal Poly Mustangs,Redlands Bulldogs,0,0,,,,,False,Mott Athletics Center
+401828513,2025,2025-11-29,2025-11-30 00:00:00+00:00,Lamar Cardinals,Our Lady Of The Lake Saints,0,0,,,,,False,Montagne Center
+401825188,2025,2025-11-29,2025-11-30 00:00:00+00:00,Southern Illinois Salukis,Little Rock Trojans,0,0,,,,,False,Banterra Center
+401823015,2025,2025-11-29,2025-11-30 00:00:00+00:00,Kent State Golden Flashes,Penn State-Shenango Nittany Lions,0,0,,,,,False,M.A.C. Center
+401820600,2025,2025-11-29,2025-11-30 00:00:00+00:00,Akron Zips,Milwaukee Panthers,0,0,,,,,False,James A. Rhodes Arena
+401828270,2025,2025-11-29,2025-11-30 00:30:00+00:00,UAlbany Great Danes,Fordham Rams,0,0,,,,,True,Place Bell
+401829478,2025,2025-11-29,2025-11-30 01:00:00+00:00,St. Thomas-Minnesota Tommies,Lawrence University Vikings,0,0,,,,,False,Lee & Penny Anderson Arena
+401829468,2025,2025-11-29,2025-11-30 01:00:00+00:00,Omaha Mavericks,Mid-America Christian Evangels,0,0,,,,,False,Baxter Arena
+401826920,2025,2025-11-29,2025-11-30 01:00:00+00:00,Northern Colorado Bears,Regis (CO) REGIS UNIVERSITY,0,0,,,,,False,Bank of Colorado Arena
+401824065,2025,2025-11-29,2025-11-30 03:00:00+00:00,Pacific Tigers,Sacramento State Hornets,0,0,,,,,False,Alex G. Spanos Center
+401823536,2025,2025-11-29,2025-11-30 03:00:00+00:00,Oregon State Beavers,California Baptist Lancers,0,0,,,,,False,Gill Coliseum
+401823218,2025,2025-11-29,2025-11-29 20:00:00+00:00,Northern Illinois Huskies,Bellarmine Knights,0,0,,,,,False,NIU Convocation Center
