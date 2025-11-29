@@ -121,6 +121,22 @@
           if(typeof data.ece_margin_roll7 === 'number'){ parts.push('<span class="pill" title="7-day mean ECE margin">ECE7M '+data.ece_margin_roll7.toFixed(3)+'</span>'); }
           if(typeof data.sharpness_total_roll7 === 'number'){ parts.push('<span class="pill" title="7-day sharpness total">Sharp7T '+data.sharpness_total_roll7.toFixed(2)+'</span>'); }
           if(typeof data.sharpness_margin_roll7 === 'number'){ parts.push('<span class="pill" title="7-day sharpness margin">Sharp7M '+data.sharpness_margin_roll7.toFixed(2)+'</span>'); }
+          // Risk control pills (optional fields from /api/status)
+          if(data.risk){
+            var r = data.risk;
+            if(typeof r.daily_loss_cap === 'number'){
+              var used = (typeof r.daily_loss_used === 'number') ? r.daily_loss_used : null;
+              var txt = 'LossCap '+r.daily_loss_cap.toFixed(1)+'u';
+              if(used!==null) txt += ' ('+used.toFixed(1)+' used)';
+              parts.push('<span class="pill" title="Daily loss cap">'+txt+'</span>');
+            }
+            if(typeof r.kelly_cap === 'number'){
+              parts.push('<span class="pill" title="Kelly fraction cap">KellyCap '+(r.kelly_cap*100).toFixed(0)+'%</span>');
+            }
+            if(typeof r.exposure_cap_units === 'number'){
+              parts.push('<span class="pill" title="Per-market exposure cap">Exposure '+r.exposure_cap_units.toFixed(1)+'u</span>');
+            }
+          }
           el.innerHTML = parts.join(' ');
           const provPill = el.querySelector('.provider-pill');
           if(provPill){
