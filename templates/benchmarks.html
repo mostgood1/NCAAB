@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB – Benchmarks</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>Benchmarks</h1>
+      <div class="spacer"></div>
+      <nav class="nav-links">
+        <a href="/">Cards</a>
+        <a href="/home">Dashboard</a>
+      </nav>
+    </div>
+    {% if note %}<div class="card mb8"><div class="muted">{{ note }}</div></div>{% endif %}
+    {% if summary %}
+      <div class="card mb8">
+        <details open>
+          <summary class="pill">Summary</summary>
+          <div class="muted m4v8">Range: {{ summary.start }} → {{ summary.end }} · Bets: {{ summary.total_bets }} · Hit: {{ '%.1f' % (summary.hit_rate * 100) }}% · PnL: {{ '%.2f' % summary.total_pnl }}</div>
+        </details>
+      </div>
+    {% endif %}
+    {% if daily_rows %}
+      <div class="card">
+        <details open>
+          <summary class="pill">Daily</summary>
+          <div class="diag-grid flex-row-wrap">
+            {% for r in daily_rows %}
+              <div class="pill small">{{ r.date }} · Bets {{ r.ou_bets or 0 }}+{{ r.ats_bets or 0 }} · Hits {{ r.ou_hits or 0 }}+{{ r.ats_hits or 0 }} · PnL {{ '%.2f' % (r.total_pnl or 0) }}</div>
+            {% endfor %}
+          </div>
+          {% if summary %}
+            <div class="mt4">
+              <a class="pill" href="/static/../outputs/backtest_daily.csv" download>Download CSV</a>
+            </div>
+          {% endif %}
+        </details>
+      </div>
+    {% else %}
+      <div class="card"><div class="muted">No backtest artifacts found.</div></div>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -218,6 +218,55 @@ def enforce_calibrated_first(df: pd.DataFrame) -> pd.DataFrame:
         pass
     return df
 
+@app.route("/benchmarks")
+def benchmarks_page():
+    """Simple benchmarks dashboard using backtest artifacts with a fallback.
+
+    Displays backtest daily rows and summary if present; otherwise aggregates
+    minimal ATS daily metrics from results_*.csv.
+    """
+    out: Dict[str, Any] = {"summary": None, "daily_rows": [], "note": None}
+    try:
+        bt_sum = ROOT / "outputs" / "backtest_summary.json"
+        bt_csv = ROOT / "outputs" / "backtest_daily.csv"
+        if bt_sum.exists():
+            with open(bt_sum, "r", encoding="utf-8") as f:
+                out["summary"] = json.load(f)
+        if bt_csv.exists():
+            df = pd.read_csv(bt_csv)
+            out["daily_rows"] = df.to_dict(orient="records")
+        if not out["daily_rows"]:
+            actuals = []
+            outputs = ROOT / "outputs"
+            for p in outputs.iterdir():
+                if p.name.startswith("results_") and p.name.endswith(".csv"):
+                    try:
+                        actuals.append(pd.read_csv(p))
+                    except Exception:
+                        pass
+            if actuals:
+                df = pd.concat(actuals, ignore_index=True)
+                if "date" in df.columns:
+                    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                rows = []
+                if "ats_result" in df.columns:
+                    for iso, grp in df.groupby("date"):
+                        ats_text = grp["ats_result"].fillna("")
+                        ats_push = int((ats_text == "Push").sum())
+                        ats_bets = int((ats_text != "").sum())
+                        ats_hits = int(ats_text.str.contains("Cover", case=False).sum())
+                        rows.append({
+                            "date": iso,
+                            "ats_bets": ats_bets,
+                            "ats_hits": ats_hits,
+                            "ats_push": ats_push,
+                        })
+                out["daily_rows"] = rows
+                out["note"] = "Fallback metrics; run backtest-walkforward for full benchmarks."
+    except Exception as e:
+        out["note"] = f"Error loading benchmarks: {e}"
+    return render_template("benchmarks.html", **out)
+
 def apply_odds_backfill(df: pd.DataFrame) -> pd.DataFrame:
     """Backfill missing odds using available columns and simple mappings.
     - Fill `market_total` from `closing_total` when missing.
