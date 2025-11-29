@@ -4,6 +4,8 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
 import requests
+import os
+from zoneinfo import ZoneInfo
 
 from ..schemas import Game
 from ..cache import cache_path, read_json, write_json
@@ -98,11 +100,31 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
                     except Exception:
                         pass
 
+            # NCAA feed often lacks explicit tipoff time; derive approximate local schedule time if available from item
+            start_time_local = None
+            start_tz_abbr = None
+            try:
+                # Some feeds include 'startTime' or 'game'->'startTime'
+                raw_start = item.get('startTime') or (item.get('game') or {}).get('startTime')
+                if raw_start:
+                    # Attempt ISO parse; treat as UTC if 'Z' present else naive assume Eastern
+                    try:
+                        st_dt = dt.datetime.fromisoformat(str(raw_start).replace('Z','+00:00'))
+                        sched_tz = os.getenv('SCHEDULE_TZ') or 'America/New_York'
+                        local_dt = st_dt.astimezone(ZoneInfo(sched_tz))
+                        start_time_local = local_dt.strftime('%Y-%m-%d %H:%M')
+                        start_tz_abbr = local_dt.tzname()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             games.append(
                 Game(
                     game_id=game_id,
                     season=date.year,
                     date=dt.datetime.combine(date, dt.time(0, 0)),
+                    start_time_local=start_time_local,
+                    start_tz_abbr=start_tz_abbr,
                     home_team=home_team or "HOME",
                     away_team=away_team or "AWAY",
                     home_score=home_score,

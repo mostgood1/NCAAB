@@ -4,6 +4,8 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import Iterable, List
 import requests
+import os
+from zoneinfo import ZoneInfo
 
 from ..schemas import Game
 from ..cache import cache_path, read_json, write_json
@@ -129,13 +131,26 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
 
             # Start/commence time where available
             start_time = None
+            start_time_local = None
+            start_tz_abbr = None
             try:
-                # ESPN sometimes exposes date string under competitions[0]["date"]
+                # ESPN sometimes exposes date string under competitions[0]["date"] (UTC ISO)
                 comp_date = comps.get("date")
                 if comp_date:
                     start_time = dt.datetime.fromisoformat(comp_date.replace("Z", "+00:00"))
+                    # Localize to schedule timezone for midnight drift handling
+                    sched_tz = os.getenv("SCHEDULE_TZ") or "America/New_York"
+                    try:
+                        local_dt = start_time.astimezone(ZoneInfo(sched_tz))
+                        start_time_local = local_dt.strftime("%Y-%m-%d %H:%M")
+                        start_tz_abbr = local_dt.tzname()
+                    except Exception:
+                        start_time_local = None
+                        start_tz_abbr = None
             except Exception:
                 start_time = None
+                start_time_local = None
+                start_tz_abbr = None
 
             games.append(
                 Game(
@@ -143,6 +158,8 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
                     season=date.year,
                     date=dt.datetime.combine(date, dt.time(0, 0)),
                     start_time=start_time,
+                    start_time_local=start_time_local,
+                    start_tz_abbr=start_tz_abbr,
                     home_team=home_team,
                     away_team=away_team,
                     home_score=home_score,

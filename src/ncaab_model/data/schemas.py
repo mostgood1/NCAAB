@@ -10,6 +10,9 @@ class Game(BaseModel):
     season: int
     date: datetime
     start_time: Optional[datetime] = None  # tipoff/commence time when available
+    # Localized schedule context (used for midnight UTC drift correction / display)
+    start_time_local: Optional[str] = None  # 'YYYY-MM-DD HH:MM' in schedule timezone
+    start_tz_abbr: Optional[str] = None     # e.g. CST, EST, HST
     home_team: str
     away_team: str
     home_score: Optional[int] = None

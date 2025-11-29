@@ -101,6 +101,30 @@ def enforce_calibrated_first(df: pd.DataFrame) -> pd.DataFrame:
         pass
     return df
 
+# ------------------------------------------------------------------
+# Feature fallback enrichment stub (prevents undefined symbol errors)
+# ------------------------------------------------------------------
+def _feature_fallback_enrich(df: pd.DataFrame) -> pd.DataFrame:
+    """Lightweight enrichment placeholder.
+
+    Intentionally minimal: returns DataFrame unchanged. Can be expanded to
+    impute missing feature columns (off/def/tempo) if needed for fallback
+    prediction derivations. Exists to satisfy references where a richer
+    feature engineering stage may later populate derived fields.
+    """
+    try:
+        if df is None or df.empty:
+            return df
+        # Example: ensure unique game_id rows if duplicates present
+        if 'game_id' in df.columns:
+            try:
+                df = df.drop_duplicates(subset=['game_id'])
+            except Exception:
+                pass
+    except Exception:
+        return df
+    return df
+
 # --------------------------------------------------------------
 # Midnight UTC drift correction
 # --------------------------------------------------------------
@@ -14764,6 +14788,138 @@ def api_recommendations():
     picks = _load_picks()
     rows = picks.to_dict(orient="records") if not picks.empty else []
     return jsonify({"rows": len(rows), "data": rows})
+
+@app.route("/api/midnight_drift_diagnostic")
+def api_midnight_drift_diagnostic():
+    """Identify games whose UTC ISO spills into next day but belong to slate date.
+
+    Params:
+      date=YYYY-MM-DD (required)
+      provider=espn|ncaa (default espn)
+      refresh=1 (bypass adapter cache)
+    """
+    date_param = (request.args.get("date") or "").strip()
+    if not date_param:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        target_date = dt.date.fromisoformat(date_param)
+    except Exception:
+        return jsonify({"status": "error", "message": f"bad date: {date_param}"}), 400
+    provider = (request.args.get("provider") or "espn").strip().lower()
+    refresh = (request.args.get("refresh") or "").strip().lower() in ("1","true","yes")
+    espn_games = []
+    ncaa_games = []
+    try:
+        from ncaab_model.data.adapters.espn_scoreboard import _fetch_day as _espn_fetch, _parse_games as _espn_parse  # type: ignore
+        payload = _espn_fetch(target_date, use_cache=not refresh)
+        if payload:
+            espn_games = _espn_parse(target_date, payload)
+    except Exception:
+        espn_games = []
+    try:
+        from ncaab_model.data.adapters.ncaa_scoreboard import _fetch_scoreboard as _ncaa_fetch, _parse_games as _ncaa_parse  # type: ignore
+        payload2 = _ncaa_fetch(target_date, use_cache=not refresh)
+        if payload2:
+            ncaa_games = _ncaa_parse(target_date, payload2)
+    except Exception:
+        ncaa_games = []
+    def _norm_team(t: str | None) -> str:
+        if not t:
+            return ""
+        return "".join(ch for ch in t.lower() if ch.isalnum())
+    def _mk_key(home: str, away: str) -> str:
+        return _norm_team(home)+"__"+_norm_team(away)
+    espn_map = {_mk_key(g.home_team, g.away_team): g for g in espn_games}
+    ncaa_map = {_mk_key(g.home_team, g.away_team): g for g in ncaa_games}
+    # Load predictions rows for that date (prefer enriched file)
+    rendered_rows: list[dict[str, Any]] = []
+    try:
+        enriched = OUT / f"predictions_unified_enriched_{date_param}.csv"
+        base = OUT / f"predictions_unified_{date_param}.csv"
+        chosen = enriched if enriched.exists() else (base if base.exists() else None)
+        if chosen:
+            df_r = _safe_read_csv(chosen)
+            rendered_rows = df_r.to_dict(orient="records")
+    except Exception:
+        rendered_rows = []
+    suspects: list[dict[str, Any]] = []
+    for row in rendered_rows:
+        try:
+            home = str(row.get("home_team") or "")
+            away = str(row.get("away_team") or "")
+            key = _mk_key(home, away)
+            iso = str(row.get("start_time_iso") or "")
+            disp = str(row.get("start_time_display") or row.get("start_time_local") or "")
+            utc_date = None
+            if iso:
+                try:
+                    iso_dt = pd.to_datetime(iso, errors="coerce", utc=True)
+                    if pd.notna(iso_dt):
+                        utc_date = iso_dt.date().isoformat()
+                except Exception:
+                    pass
+            local_date = None
+            if disp:
+                m = re.search(r"(\d{4}-\d{2}-\d{2})", disp)
+                if m:
+                    local_date = m.group(1)
+            midnight_hour_local = False
+            try:
+                if iso:
+                    iso_dt2 = pd.to_datetime(iso, errors="coerce", utc=True)
+                    if pd.notna(iso_dt2):
+                        try:
+                            chi = ZoneInfo("America/Chicago")
+                            if iso_dt2.astimezone(chi).hour < 6:
+                                midnight_hour_local = True
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            provider_game = espn_map.get(key) if provider == "espn" else ncaa_map.get(key)
+            prov_start = None
+            if provider_game and getattr(provider_game, "start_time", None):
+                try:
+                    stp = provider_game.start_time
+                    prov_start = stp.isoformat() if isinstance(stp, dt.datetime) else str(stp)
+                except Exception:
+                    prov_start = None
+            if (utc_date and utc_date != date_param) or (local_date and local_date != date_param) or midnight_hour_local:
+                # Compute recommended ISO using current local fields if available
+                try:
+                    row_copy = {
+                        'start_time_local': row.get('start_time_local'),
+                        'start_tz_abbr': row.get('start_tz_abbr'),
+                        'start_time': row.get('start_time'),
+                        'commence_time': row.get('commence_time'),
+                    }
+                    recommended_iso = _derive_start_iso(row_copy)
+                except Exception:
+                    recommended_iso = None
+                suspects.append({
+                    "home_team": home,
+                    "away_team": away,
+                    "row_iso": iso,
+                    "utc_date": utc_date,
+                    "local_date": local_date,
+                    "midnight_hour_local": midnight_hour_local,
+                    "provider_start_time": prov_start,
+                    "provider": provider,
+                    "key": key,
+                    "recommended_iso": recommended_iso,
+                })
+        except Exception:
+            continue
+    return jsonify({
+        "status": "ok",
+        "date": date_param,
+        "provider": provider,
+        "refresh": refresh,
+        "suspect_count": len(suspects),
+        "suspects": suspects,
+        "espn_count": len(espn_games),
+        "ncaa_count": len(ncaa_games),
+    })
 
 
 @app.route("/api/picks_raw")
