@@ -218,6 +218,70 @@ def enforce_calibrated_first(df: pd.DataFrame) -> pd.DataFrame:
         pass
     return df
 
+# -----------------------------------------------------------------------------
+# Time derivation helper: robust tz-aware ISO for post-UTC-midnight games
+# -----------------------------------------------------------------------------
+def _derive_start_iso(row: dict[str, Any]) -> str | None:
+    """Derive a tz-aware ISO-UTC string for a game's start time.
+
+    Preference order (most reliable first):
+    1) (`start_time_local`, `start_tz_abbr`) → local with abbr→offset map, then to UTC Z
+    2) `_start_dt` (tz-aware) → UTC Z
+    3) `commence_time` (parse with utc=True) → UTC Z
+    4) `start_time` (naive assumed UTC; accept Z or add +00:00) → UTC Z
+
+    Handles late CT/HST games crossing 00:00 UTC by anchoring to provided local time when available.
+    """
+    try:
+        loc = row.get('start_time_local')
+        abbr = (row.get('start_tz_abbr') or '').upper()
+        if loc:
+            # Expect loc like 'YYYY-MM-DD HH:MM'
+            parts = str(loc).split(' ')
+            if len(parts) >= 2:
+                date, time = parts[0], parts[1]
+                tz_map = {
+                    'UTC': 0, 'Z': 0,
+                    'HST': -10, 'AKST': -9,
+                    'PST': -8, 'PDT': -7,
+                    'MST': -7, 'MDT': -6,
+                    'CST': -6, 'CDT': -5,
+                    'EST': -5, 'EDT': -4,
+                }
+                off = tz_map.get(abbr, None)
+                if off is not None:
+                    # Build offset ISO then normalize to UTC
+                    iso_local = f"{date}T{time}:00" + ("Z" if off == 0 else ("+" if off > 0 else "-") + str(abs(off)).rjust(2, '0') + ":00")
+                    try:
+                        d = pd.to_datetime(iso_local, errors='coerce', utc=True)
+                        if pd.notna(d):
+                            return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+                    except Exception:
+                        pass
+        # Fallbacks
+        _start = pd.to_datetime(row.get('_start_dt'), errors='coerce')
+        if pd.notna(_start):
+            try:
+                d = _start.tz_convert('UTC')
+                return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+            except Exception:
+                pass
+        comm = pd.to_datetime(row.get('commence_time'), errors='coerce', utc=True)
+        if pd.notna(comm):
+            return comm.strftime('%Y-%m-%dT%H:%M:%SZ')
+        st = row.get('start_time')
+        if st:
+            # Treat as UTC if naive
+            try:
+                d = pd.to_datetime(str(st).replace('Z','+00:00'), errors='coerce', utc=True)
+                if pd.notna(d):
+                    return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return None
+
 @app.route("/benchmarks")
 def benchmarks_page():
     """Simple benchmarks dashboard using backtest artifacts with a fallback.
@@ -326,6 +390,142 @@ try:
         logger.info("QNN SDK root detected: %s", _qnn_root)
 except Exception as _e:
     logger.info("ONNX Runtime not available; predictions will use numpy fallback (%s)", _e)
+
+# Sanity check route to verify API wiring
+@app.route("/api/debug-slate2")
+def api_debug_slate2():
+    try:
+        return jsonify({"ok": True, "message": "debug-slate2 route is active"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+    # --------------------------------------------------------------------------------------
+    # Debug endpoint: per-slate date/time source inspection
+    # --------------------------------------------------------------------------------------
+    @app.route("/api/debug-slate")
+    def api_debug_slate():
+        """Return per-row inspection of date/time fields and source precedence for a slate.
+
+        Query params:
+        - date: YYYY-MM-DD (optional; defaults to schedule tz 'today')
+        """
+        try:
+            date_q = request.args.get("date")
+        except Exception:
+            date_q = None
+        try:
+            target_date = date_q or _today_local().strftime('%Y-%m-%d')
+        except Exception:
+            target_date = None
+        rows = []
+        try:
+            OUT = ROOT / "outputs"
+            candidates = []
+            # Prefer fused/with_odds slates for richer fields
+            if target_date:
+                for name in [
+                    f"games_with_odds_{target_date}.csv",
+                    f"games_{target_date}_fused.csv",
+                    f"games_{target_date}.csv",
+                ]:
+                    p = OUT / name
+                    if p.exists():
+                        try:
+                            candidates.append(pd.read_csv(p))
+                        except Exception:
+                            pass
+            # Fallback to current games
+            p_curr = OUT / "games_curr.csv"
+            if p_curr.exists():
+                try:
+                    dfc = pd.read_csv(p_curr)
+                    candidates.append(dfc)
+                except Exception:
+                    pass
+            if not candidates:
+                return jsonify({"ok": False, "error": "No slate files found", "date": target_date, "rows": []})
+            try:
+                df_all = pd.concat(candidates, ignore_index=True)
+            except Exception:
+                df_all = candidates[0]
+            # Filter to target date using schedule tz if possible
+            try:
+                tz_name = os.getenv("SCHEDULE_TZ") or os.getenv("NCAAB_SCHEDULE_TZ") or "America/New_York"
+                sched_tz = ZoneInfo(tz_name)
+            except Exception:
+                sched_tz = None
+            if target_date:
+                try:
+                    date_col = pd.to_datetime(df_all.get('date'), errors='coerce').dt.strftime('%Y-%m-%d') if 'date' in df_all.columns else None
+                    ct = pd.to_datetime(df_all.get('commence_time', pd.Series([None]*len(df_all))).astype(str).str.replace('Z','+00:00', regex=False), errors='coerce', utc=True)
+                    ct_loc = ct.dt.tz_convert(sched_tz).dt.strftime('%Y-%m-%d') if sched_tz is not None else None
+                    mask = None
+                    if date_col is not None:
+                        mask = (date_col == target_date)
+                    if ct_loc is not None:
+                        mask = ct_loc == target_date if mask is None else (mask | (ct_loc == target_date))
+                    if mask is not None:
+                        df_all = df_all[mask]
+                except Exception:
+                    pass
+            # Build computed fields and source indicators
+            def _src_for_row(r: dict[str, Any]) -> str:
+                try:
+                    # Prefer local fields
+                    if r.get('start_time_local') and r.get('start_tz_abbr'):
+                        return 'local+abbr'
+                    # Next, explicit _start_dt
+                    if r.get('_start_dt'):
+                        return '_start_dt'
+                    # Next, commence_time
+                    if r.get('commence_time'):
+                        txt = str(r.get('commence_time'))
+                        return 'commence_time(offset)' if (txt.endswith('Z') or bool(re.search(r"[+-]\d{2}:\d{2}$", txt))) else 'commence_time(naive)'
+                    # Finally, start_time
+                    if r.get('start_time'):
+                        txt = str(r.get('start_time'))
+                        return 'start_time(offset)' if (txt.endswith('Z') or bool(re.search(r"[+-]\d{2}:\d{2}$", txt))) else 'start_time(naive)'
+                except Exception:
+                    pass
+                return 'unknown'
+            # Compute fields
+            df_all = df_all.copy()
+            df_all['_start_dt_parsed'] = pd.NaT
+            try:
+                # Use our helper precedence
+                iso_vals = df_all.to_dict(orient='records')
+                start_iso = []
+                for r in iso_vals:
+                    start_iso.append(_derive_start_iso(r))
+                df_all['start_time_iso_canonical'] = start_iso
+                df_all['_start_dt_parsed'] = pd.to_datetime(pd.Series(start_iso).astype(str).str.replace('Z','+00:00', regex=False), errors='coerce', utc=True)
+            except Exception:
+                pass
+            try:
+                disp_tz_name = _get_display_tz_name()
+                disp_tz = ZoneInfo(disp_tz_name)
+            except Exception:
+                disp_tz = dt.datetime.now().astimezone().tzinfo
+            try:
+                disp = pd.to_datetime(df_all['_start_dt_parsed'], errors='coerce').dt.tz_convert(disp_tz)
+                df_all['start_time_display_dbg'] = disp.dt.strftime('%Y-%m-%d %H:%M')
+                df_all['start_tz_abbr_dbg'] = disp.dt.tzname()
+            except Exception:
+                df_all['start_time_display_dbg'] = df_all.get('start_time')
+                df_all['start_tz_abbr_dbg'] = None
+            # Build output rows
+            cols = ['game_id','home_team','away_team','venue','date','start_time','commence_time','start_time_local','start_tz_abbr','start_time_iso','start_time_iso_canonical','start_time_display_dbg','start_tz_abbr_dbg']
+            for _, rr in df_all.iterrows():
+                row = {c: (rr.get(c) if c in rr else None) for c in cols}
+                row['source'] = _src_for_row(rr)
+                try:
+                    row['_start_dt_parsed'] = rr.get('_start_dt_parsed').isoformat() if pd.notna(rr.get('_start_dt_parsed')) else None
+                except Exception:
+                    row['_start_dt_parsed'] = None
+                rows.append(row)
+            return jsonify({"ok": True, "date": target_date, "count": len(rows), "rows": rows, "display_tz": str(disp_tz)})
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)})
 
 # --------------------------------------------------------------------------------------
 # New provider diagnostics + micro-benchmark endpoints
@@ -2996,16 +3196,45 @@ def index():
                         _sd = st_off.where(st_off.notna(), st_naive)
                     except Exception:
                         pass
-                # Apply commence_time authority if present (treat naive as UTC)
+                # Apply commence_time authority if present
                 if 'commence_time' in df_stable.columns:
                     try:
+                        naive_ct_count = 0
+                        offset_ct_count = 0
                         ct_raw = df_stable['commence_time']
                         if not np.issubdtype(ct_raw.dtype, np.datetime64):
                             ct_raw = ct_raw.astype(str)
-                            ct_off = pd.to_datetime(ct_raw.where(ct_raw.astype(str).str.contains(r"[+-]\\d{2}:\\d{2}$", regex=True) | ct_raw.astype(str).str.endswith('Z'), None).str.replace('Z','+00:00', regex=False), errors='coerce', utc=True)
+                            # If an explicit offset/Z is present, parse directly as UTC
+                            ct_off = pd.to_datetime(
+                                ct_raw.where(
+                                    ct_raw.astype(str).str.contains(r"[+-]\\d{2}:\\d{2}$", regex=True) | ct_raw.astype(str).str.endswith('Z'),
+                                    None
+                                ).str.replace('Z','+00:00', regex=False),
+                                errors='coerce', utc=True
+                            )
+                            try:
+                                offset_ct_count = int(ct_off.notna().sum())
+                            except Exception:
+                                pass
+                            # Otherwise, treat naive commence_time as schedule timezone, not UTC
                             ct_naive = pd.to_datetime(ct_raw, errors='coerce', utc=False)
                             if ct_naive.notna().any():
-                                ct_naive = ct_naive.map(lambda x: x.replace(tzinfo=dt.timezone.utc) if pd.notna(x) and getattr(x,'tzinfo',None) is None else x)
+                                def _attach_sched_tz(x):
+                                    try:
+                                        if pd.notna(x) and getattr(x, 'tzinfo', None) is None and sched_tz is not None:
+                                            return x.replace(tzinfo=sched_tz)
+                                        return x
+                                    except Exception:
+                                        return x
+                                ct_naive = ct_naive.map(_attach_sched_tz)
+                                try:
+                                    ct_naive = ct_naive.dt.tz_convert(dt.timezone.utc)
+                                except Exception:
+                                    pass
+                                try:
+                                    naive_ct_count = int(ct_naive.notna().sum())
+                                except Exception:
+                                    pass
                             ct = ct_off.where(ct_off.notna(), ct_naive)
                         else:
                             # Already datetime; ensure UTC
@@ -3013,7 +3242,23 @@ def index():
                             try:
                                 ct = ctmp.dt.tz_convert(dt.timezone.utc)
                             except Exception:
-                                ct = ctmp.map(lambda x: x.replace(tzinfo=dt.timezone.utc) if pd.notna(x) and getattr(x,'tzinfo',None) is None else x)
+                                # If tz-naive, assume schedule timezone then convert to UTC
+                                def _attach_sched_tz2(x):
+                                    try:
+                                        if pd.notna(x) and getattr(x, 'tzinfo', None) is None and sched_tz is not None:
+                                            return x.replace(tzinfo=sched_tz)
+                                        return x
+                                    except Exception:
+                                        return x
+                                ctmp2 = ctmp.map(_attach_sched_tz2)
+                                try:
+                                    ct = ctmp2.dt.tz_convert(dt.timezone.utc)
+                                except Exception:
+                                    ct = ctmp2
+                        try:
+                            logger.info("commence_time parsed: offset=%s naive->sched=%s", offset_ct_count, naive_ct_count)
+                        except Exception:
+                            pass
                         # Commence time is authoritative: replace whenever it exists
                         replace_mask = ct.notna()
                         if isinstance(replace_mask, pd.Series) and replace_mask.any():
@@ -3041,27 +3286,136 @@ def index():
                             df_stable['start_time_iso'] = _sd.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
                         except Exception:
                             pass
+                    # Final guard: if local hour remains early morning after prior adjustments, shift by 5h
+                    try:
+                        disp_loc2 = pd.to_datetime(df_stable.get('start_time_display'), errors='coerce')
+                        if disp_loc2.notna().any():
+                            early = disp_loc2.dt.hour.between(0,5)
+                            if early.any():
+                                try:
+                                    _sd.loc[early] = _sd.loc[early] - pd.to_timedelta(5, unit='h')
+                                except Exception:
+                                    pass
+                                try:
+                                    disp = _sd.dt.tz_convert(disp_tz)
+                                except Exception:
+                                    disp = _sd
+                                try:
+                                    df_stable['start_time_display'] = disp.dt.strftime('%Y-%m-%d %H:%M')
+                                except Exception:
+                                    pass
+                                try:
+                                    df_stable['start_tz_abbr'] = disp.dt.tzname()
+                                except Exception:
+                                    pass
+                                try:
+                                    df_stable['start_time_iso'] = _sd.dt.tz_convert(dt.timezone.utc).dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                                except Exception:
+                                    try:
+                                        df_stable['start_time_iso'] = _sd.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
+                    # Heuristic correction for UTC-midnight drift: if local display time is early morning, shift _start_dt back
+                    try:
+                        disp_loc = pd.to_datetime(df_stable.get('start_time_display'), errors='coerce')
+                        if disp_loc.notna().any():
+                            # Identify rows with local hour in early morning (typical spillover after UTC midnight)
+                            mismatch = disp_loc.dt.hour.between(0, 5)
+                            if mismatch.any():
+                                # First, align date: reconstruct UTC from slate target date + local time
+                                try:
+                                    target_date = str(date_stable) if date_stable else _today_local().strftime('%Y-%m-%d')
+                                except Exception:
+                                    target_date = None
+                                if target_date:
+                                    try:
+                                        loc_times = df_stable['start_time_display'].astype(str).str.slice(-5)
+                                        new_local = target_date + ' ' + loc_times
+                                        dloc = pd.to_datetime(new_local, errors='coerce')
+                                        def _to_utc(x):
+                                            try:
+                                                if pd.isna(x):
+                                                    return x
+                                                if getattr(x, 'tzinfo', None) is None and disp_tz is not None:
+                                                    x = x.replace(tzinfo=disp_tz)
+                                                try:
+                                                    x = x.tz_convert(dt.timezone.utc)
+                                                except Exception:
+                                                    pass
+                                                return x
+                                            except Exception:
+                                                return x
+                                        dutc = dloc.map(_to_utc)
+                                        ok_mask = mismatch & dutc.notna()
+                                        if ok_mask.any():
+                                            _sd.loc[ok_mask] = dutc[ok_mask]
+                                    except Exception:
+                                        pass
+                                # Secondary: subtract 5 hours to catch stubborn spillovers
+                                try:
+                                    _sd.loc[mismatch] = _sd.loc[mismatch] - pd.to_timedelta(5, unit='h')
+                                except Exception:
+                                    pass
+                                try:
+                                    disp = _sd.dt.tz_convert(disp_tz)
+                                except Exception:
+                                    disp = _sd
+                                try:
+                                    df_stable['start_time_display'] = disp.dt.strftime('%Y-%m-%d %H:%M')
+                                except Exception:
+                                    pass
+                                try:
+                                    df_stable['start_tz_abbr'] = disp.dt.tzname()
+                                except Exception:
+                                    pass
+                                try:
+                                    df_stable['start_time_iso'] = _sd.dt.tz_convert(dt.timezone.utc).dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                                except Exception:
+                                    try:
+                                        df_stable['start_time_iso'] = _sd.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
             except Exception:
                 pass
             df_stable = _normalize_display(df_stable)
-            # Filter stable display to selected date and ESPN subset when available
+            # Filter stable display to selected date using end-user display timezone to avoid UTC drift
             try:
-                # Date filter: prefer explicit 'date' column; fallback to parsing 'start_time'
                 if isinstance(df_stable, pd.DataFrame) and not df_stable.empty:
-                    if 'date' in df_stable.columns:
-                        try:
-                            df_stable['date'] = df_stable['date'].astype(str)
-                            if date_stable:
-                                df_stable = df_stable[df_stable['date'] == str(date_stable)]
-                        except Exception:
-                            pass
-                    elif 'start_time' in df_stable.columns:
-                        try:
-                            st_str = df_stable['start_time'].astype(str)
-                            st_date = st_str.str.slice(0, 10)
-                            df_stable = df_stable[st_date == str(date_stable)]
-                        except Exception:
-                            pass
+                    try:
+                        # Compute display date from _start_dt in user's display timezone
+                        _sd2 = pd.to_datetime(df_stable.get('_start_dt'), errors='coerce')
+                        if _sd2.notna().any():
+                            try:
+                                disp2 = _sd2.dt.tz_convert(disp_tz)
+                            except Exception:
+                                disp2 = _sd2
+                            df_stable['_display_date'] = disp2.dt.strftime('%Y-%m-%d')
+                        else:
+                            # Fallback via start_time text
+                            if 'start_time' in df_stable.columns:
+                                st_str = df_stable['start_time'].astype(str)
+                                st_off = pd.to_datetime(st_str.where(st_str.str.contains(r"[+-]\d{2}:\d{2}$", regex=True) | st_str.str.endswith('Z'), None).str.replace('Z','+00:00', regex=False), errors='coerce', utc=True)
+                                st_naive = pd.to_datetime(st_str.where(~(st_str.str.contains(r"[+-]\d{2}:\d{2}$", regex=True) | st_str.str.endswith('Z')), None), errors='coerce', utc=False)
+                                if st_naive.notna().any():
+                                    st_naive = st_naive.map(lambda x: x.replace(tzinfo=sched_tz) if pd.notna(x) and getattr(x,'tzinfo',None) is None else x)
+                                    try:
+                                        st_naive = st_naive.dt.tz_convert(disp_tz)
+                                    except Exception:
+                                        pass
+                                disp3 = st_off.where(st_off.notna(), st_naive)
+                                df_stable['_display_date'] = disp3.dt.strftime('%Y-%m-%d')
+                    except Exception:
+                        pass
+                    try:
+                        target_date = str(date_stable) if date_stable else None
+                        if target_date and '_display_date' in df_stable.columns:
+                            df_stable = df_stable[df_stable['_display_date'] == target_date]
+                    except Exception:
+                        pass
                 # ESPN subset filter: restrict to authoritative curated slate ids
                 try:
                     subset_path = OUT / f'schedule_espn_subset_{date_stable}.json'
@@ -6182,7 +6536,7 @@ def index():
                                 if miss_mask.any():
                                     df.loc[miss_mask, 'market_total'] = df.loc[miss_mask, '_mt_from_raw']
                             try:
-                                df.drop(columns=['_mt_from_raw'], inplace=True)
+                                 df.drop(columns=['_mt_from_raw'], inplace=True)
                             except Exception:
                                 pass
                     except Exception:
@@ -11334,6 +11688,42 @@ def index():
                 df["start_time_iso"] = df["_start_dt"].dt.tz_convert(dt.timezone.utc).dt.strftime("%Y-%m-%dT%H:%M:%SZ")
             except Exception:
                 df["start_time_iso"] = df["_start_dt"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+            # Override ISO using local fields when available to avoid UTC-midnight drift
+            try:
+                if {"start_time_local","start_tz_abbr"}.issubset(df.columns):
+                    tz_map = {
+                        'UTC': 0, 'Z': 0,
+                        'HST': -10, 'AKST': -9,
+                        'PST': -8, 'PDT': -7,
+                        'MST': -7, 'MDT': -6,
+                        'CST': -6, 'CDT': -5,
+                        'EST': -5, 'EDT': -4,
+                    }
+                    def _iso_from_local(row):
+                        try:
+                            loc = str(row.get('start_time_local') or '').strip()
+                            abbr = str(row.get('start_tz_abbr') or '').upper().strip()
+                            if not loc or abbr not in tz_map:
+                                return None
+                            parts = loc.split(' ')
+                            if len(parts) < 2:
+                                return None
+                            date, time = parts[0], parts[1]
+                            off = tz_map.get(abbr)
+                            sign = 'Z' if off == 0 else ('+' if off > 0 else '-') + str(abs(off)).rjust(2,'0') + ':00'
+                            iso_local = f"{date}T{time}:00" + (sign if sign == 'Z' else sign)
+                            d = pd.to_datetime(iso_local.replace('Z','+00:00'), errors='coerce', utc=True)
+                            if pd.notna(d):
+                                return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        except Exception:
+                            return None
+                        return None
+                    local_iso = df.apply(_iso_from_local, axis=1)
+                    mask_ok = local_iso.notna()
+                    if isinstance(mask_ok, pd.Series) and mask_ok.any():
+                        df.loc[mask_ok, 'start_time_iso'] = local_iso[mask_ok]
+            except Exception:
+                pass
             # Per-row fallback: if any iso/local still missing (NaN), derive from raw start_time string best-effort
             if "start_time" in df.columns:
                 st_str = df["start_time"].astype(str)
@@ -11359,19 +11749,69 @@ def index():
                     # Maintain backward-compat local string even if display conversion failed
                     df["start_time_local"] = st_str.str.replace("T", " ", regex=False).str.replace(r":\d\d(\+\d\d:\d\d|Z)$", "", regex=True)
         else:
-            # As last resort, if start_time looks like 'YYYY-MM-DD HH:MM:SS+00:00', format local display without tz conversion
+            # Fallback path when `_start_dt` is missing: parse `start_time` as UTC and convert to display TZ for correct local rendering
             if "start_time" in df.columns:
-                st_str = df["start_time"].astype(str)
-                # If contains 'T' already, keep as iso; if only date, leave as date (no time available)
-                # Plus sign doesn't need escaping when regex=False
-                df["start_time_iso"] = np.where(
-                    st_str.str.contains("T"),
-                    st_str,
-                    st_str.str.replace(" ", "T", regex=False).str.replace("+00:00", "Z", regex=False),
-                )
-                # For local display, drop seconds and tz if present
-                disp = st_str.str.replace("T", " ", regex=False).str.replace(r":\d\d(\+\d\d:\d\d|Z)$", "", regex=True)
-                df["start_time_local"] = disp
+                st_series = pd.to_datetime(df["start_time"], errors="coerce", utc=True)
+                # Determine display timezone
+                try:
+                    disp_tz_name = _get_display_tz_name()
+                except Exception:
+                    disp_tz_name = os.getenv("DISPLAY_TZ") or os.getenv("SCHEDULE_TZ") or "America/New_York"
+                try:
+                    disp_tz = ZoneInfo(disp_tz_name)
+                except Exception:
+                    disp_tz = dt.datetime.now().astimezone().tzinfo
+                # ISO in UTC
+                try:
+                    df["start_time_iso"] = st_series.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+                except Exception:
+                    df["start_time_iso"] = df["start_time"].astype(str).str.replace(" ", "T", regex=False).str.replace("+00:00", "Z", regex=False)
+                # If local fields present, prefer deriving ISO from local to avoid midnight drift
+                try:
+                    if {"start_time_local","start_tz_abbr"}.issubset(df.columns):
+                        tz_map = {
+                            'UTC': 0, 'Z': 0,
+                            'HST': -10, 'AKST': -9,
+                            'PST': -8, 'PDT': -7,
+                            'MST': -7, 'MDT': -6,
+                            'CST': -6, 'CDT': -5,
+                            'EST': -5, 'EDT': -4,
+                        }
+                        def _iso_from_local2(row):
+                            try:
+                                loc = str(row.get('start_time_local') or '').strip()
+                                abbr = str(row.get('start_tz_abbr') or '').upper().strip()
+                                if not loc or abbr not in tz_map:
+                                    return None
+                                parts = loc.split(' ')
+                                if len(parts) < 2:
+                                    return None
+                                date, time = parts[0], parts[1]
+                                off = tz_map.get(abbr)
+                                sign = 'Z' if off == 0 else ('+' if off > 0 else '-') + str(abs(off)).rjust(2,'0') + ':00'
+                                iso_local = f"{date}T{time}:00" + (sign if sign == 'Z' else sign)
+                                d = pd.to_datetime(iso_local.replace('Z','+00:00'), errors='coerce', utc=True)
+                                if pd.notna(d):
+                                    return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+                            except Exception:
+                                return None
+                            return None
+                        local_iso2 = df.apply(_iso_from_local2, axis=1)
+                        mask_ok2 = local_iso2.notna()
+                        if isinstance(mask_ok2, pd.Series) and mask_ok2.any():
+                            df.loc[mask_ok2, 'start_time_iso'] = local_iso2[mask_ok2]
+                except Exception:
+                    pass
+                # Local display in end-user TZ
+                try:
+                    disp_series = st_series.dt.tz_convert(disp_tz)
+                    df["start_time_local"] = disp_series.dt.strftime("%Y-%m-%d %H:%M")
+                    df["start_tz_abbr"] = disp_series.dt.tzname()
+                except Exception:
+                    # As last resort, drop seconds and tz suffix
+                    st_str = df["start_time"].astype(str)
+                    df["start_time_local"] = st_str.str.replace("T", " ", regex=False).str.replace(r":\d\d(\+\d\d:\d\d|Z)$", "", regex=True)
+                    df["start_tz_abbr"] = None
     except Exception:
         pass
 
@@ -13001,7 +13441,36 @@ def index():
         pass
     return render_template(
         "index.html",
-        rows=rows,
+        rows=[
+            (lambda _r: (
+                # Ensure tz-aware `start_time_iso` by deriving from `_start_dt`/`commence_time`/`start_time` when missing
+                (lambda r: (
+                    r.update({
+                        'start_time_iso': (
+                            # If already tz-aware, keep; else derive
+                            r.get('start_time_iso') if (r.get('start_time_iso') and (('Z' in str(r.get('start_time_iso'))) or ('+' in str(r.get('start_time_iso')) or ('-' in str(r.get('start_time_iso'))))))
+                            else (
+                                # Prefer `_start_dt` if present
+                                (pd.to_datetime(r.get('_start_dt'), errors='coerce')
+                                     .tz_convert('UTC')
+                                     .strftime('%Y-%m-%dT%H:%M:%SZ') if pd.to_datetime(r.get('_start_dt'), errors='coerce') is not pd.NaT else None)
+                                or (
+                                    # Next, try `commence_time`
+                                    (pd.to_datetime(r.get('commence_time'), errors='coerce', utc=True)
+                                         .strftime('%Y-%m-%dT%H:%M:%SZ') if pd.to_datetime(r.get('commence_time'), errors='coerce', utc=True) is not pd.NaT else None)
+                                )
+                                or (
+                                    # Fallback to `start_time` assuming UTC if naive
+                                    (pd.to_datetime(str(r.get('start_time')).replace('Z','+00:00'), errors='coerce', utc=True)
+                                         .strftime('%Y-%m-%dT%H:%M:%SZ') if r.get('start_time') else None)
+                                )
+                            )
+                        )
+                    })
+                ) or r)(dict(_r))
+            ))(_r)
+            for _r in rows
+        ],
         total_rows=total_rows,
         date_val=date_q,
         top_picks=top_picks,
@@ -14239,6 +14708,8 @@ def recommendations():
             picks["proj_home"] = None
             picks["proj_away"] = None
     rows = picks.to_dict(orient="records") if not picks.empty else []
+    # Harden display datetime using robust helper
+    rows = [ (lambda r: (r.update({'start_time_iso': r.get('start_time_iso') or _derive_start_iso(r)}), r)[1])(dict(_r)) for _r in rows ]
     return render_template("recommendations.html", rows=rows, total_rows=len(rows))
 
 
@@ -14283,6 +14754,8 @@ def picks_raw_page():
             r[f"{side}_logo"] = b.get("logo")
         return r
     rows = [_enrich_row(r) for r in df.to_dict(orient="records")]
+    # Derive tz-aware ISO using helper
+    rows = [ (lambda r: (r.update({'start_time_iso': r.get('start_time_iso') or _derive_start_iso(r)}), r)[1])(dict(_r)) for _r in rows ]
     return render_template("picks_raw.html", rows=rows, total_rows=len(rows), date_val=date_q, market_val=market_q, period_val=period_q)
 
 
@@ -14291,6 +14764,7 @@ def finals():
     """Season-to-date final scores table, aggregated from daily_results.*"""
     df = _load_all_finals(limit=2000)
     rows = df.to_dict(orient="records") if not df.empty else []
+    rows = [ (lambda r: (r.update({'start_time_iso': r.get('start_time_iso') or _derive_start_iso(r)}), r)[1])(dict(_r)) for _r in rows ]
     # Basic stats: count, last date range
     date_min = df["date"].min() if "date" in df.columns and not df.empty else None
     date_max = df["date"].max() if "date" in df.columns and not df.empty else None

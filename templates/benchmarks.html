@@ -16,6 +16,7 @@
         <a href="/">Cards</a>
         <a href="/home">Dashboard</a>
       </nav>
+      <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
     </div>
     {% if note %}<div class="card mb8"><div class="muted">{{ note }}</div></div>{% endif %}
     {% if summary %}
@@ -30,23 +31,23 @@
       <div class="card">
         <details open>
           <summary class="pill">Daily</summary>
-          <div class="diag-grid flex-row-wrap">
+          <div class="diag-grid flex-row-wrap" aria-label="Daily metrics sparkline">
             {% for r in daily_rows %}
-              <div class="pill small">{{ r.date }} · Bets {{ r.ou_bets or 0 }}+{{ r.ats_bets or 0 }} · Hits {{ r.ou_hits or 0 }}+{{ r.ats_hits or 0 }} · PnL {{ '%.2f' % (r.total_pnl or 0) }}{% if r.mae_total_mean is defined and r.mae_total_mean is not none %} · MAE {{ '%.2f' % r.mae_total_mean }}{% endif %}</div>
+              <div class="pill small" tabindex="0">{{ r.date }} · Bets {{ r.ou_bets or 0 }}+{{ r.ats_bets or 0 }} · Hits {{ r.ou_hits or 0 }}+{{ r.ats_hits or 0 }} · PnL {{ '%.2f' % (r.total_pnl or 0) }}{% if r.mae_total_mean is defined and r.mae_total_mean is not none %} · MAE {{ '%.2f' % r.mae_total_mean }}{% endif %}</div>
             {% endfor %}
           </div>
           {% if daily_rows|length > 1 %}
             <div class="mt4">
               <div class="muted">PnL Trend</div>
-              <svg id="pnlSpark" width="520" height="80"></svg>
+              <svg id="pnlSpark" width="520" height="80" role="img" aria-label="PnL sparkline"></svg>
             </div>
             <div class="mt4">
               <div class="muted">Hit Rate Trend</div>
-              <svg id="hitSpark" width="520" height="80"></svg>
+              <svg id="hitSpark" width="520" height="80" role="img" aria-label="Hit rate sparkline"></svg>
             </div>
             <div class="mt4">
               <div class="muted">MAE Total Trend</div>
-              <svg id="maeSpark" width="520" height="80"></svg>
+              <svg id="maeSpark" width="520" height="80" role="img" aria-label="MAE total sparkline"></svg>
             </div>
             <script>
               (function(){
@@ -110,5 +111,17 @@
       <div class="card"><div class="muted">No backtest artifacts found.</div></div>
     {% endif %}
   </div>
+  <script>
+    (function(){
+      var btn = document.getElementById('toggleContrast');
+      if(btn){
+        btn.addEventListener('click', function(){
+          document.documentElement.classList.toggle('high-contrast');
+          try{ localStorage.setItem('highContrast', document.documentElement.classList.contains('high-contrast')?'1':'0'); }catch(e){}
+        });
+        try{ if(localStorage.getItem('highContrast')==='1'){ document.documentElement.classList.add('high-contrast'); } }catch(e){}
+      }
+    })();
+  </script>
 </body>
 </html>

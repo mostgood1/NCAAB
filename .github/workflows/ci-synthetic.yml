@@ -1,35 +1,73 @@
 name: CI Synthetic Harness
-
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   schedule:
-    - cron: '0 13 * * *'  # 13:00 UTC daily (~8am ET)
-
+    - cron: '0 13 * * *' # 13:00 UTC daily (~8am ET)
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/ci-synthetic.yml'
+  pull_request:
+    branches:
+      - '**'
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.svg'
+      - '**/*.gif'
+      - '**/.gitignore'
+      - '**/.gitattributes'
+  workflow_call:
+    inputs:
+      run-backtest:
+        required: false
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+  checks: write
+concurrency:
+  group: ci-synthetic-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   synthetic-e2e:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ['3.10','3.11']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
+          python-version: ${{ matrix.python-version }}
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ matrix.python-version }}-
       - name: Install dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           if (Test-Path 'requirements.txt') { pip install -r requirements.txt }
           if (Test-Path 'pyproject.toml') { pip install -e . }
-
       - name: Run synthetic harness
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           ./scripts/ci_synthetic.ps1
-
       - name: Evaluate thresholds and fail if breached
         shell: pwsh
         run: |
@@ -37,7 +75,6 @@ jobs:
           $path = Join-Path $PWD 'outputs/synthetic_summary.json'
           if (!(Test-Path $path)) { Write-Host "No summary found at $path"; exit 1 }
           $json = Get-Content $path -Raw | ConvertFrom-Json
-          # Example keys: auc_total, ece_total, sharp_total
           $aucT = [double]$json.auc_total
           $eceT = [double]$json.ece_total
           $sharpT = [double]$json.sharp_total
@@ -47,7 +84,6 @@ jobs:
           if ($eceT -gt 0.12) { Write-Warning 'ECE Total above 0.12'; $fail = $true }
           if ($sharpT -lt 0.50) { Write-Warning 'Sharpness Total below 0.50'; $fail = $true }
           if ($fail) { Write-Error 'Synthetic thresholds breached'; exit 1 }
-
       - name: Comment PR with summary (if PR)
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -64,38 +100,43 @@ jobs:
               issue_number: context.issue.number,
               body
             });
-
       - name: Upload summary artifact
         uses: actions/upload-artifact@v4
         with:
           name: synthetic-summary
           path: outputs/synthetic_summary.json
           if-no-files-found: ignore
-
   backtest-nightly:
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_call' || inputs.run-backtest) }}
     runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ['3.11']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
+          python-version: ${{ matrix.python-version }}
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ matrix.python-version }}-
       - name: Install dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           if (Test-Path 'requirements.txt') { pip install -r requirements.txt }
           if (Test-Path 'pyproject.toml') { pip install -e . }
-
       - name: Run walk-forward backtest (last 28 days)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           python -m src.ncaab_model.cli backtest-walkforward
-
       - name: Upload backtest artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -104,7 +145,6 @@ jobs:
             outputs/backtest_summary.json
             outputs/backtest_daily.csv
           if-no-files-found: ignore
-
       - name: Gate minimal backtest thresholds
         shell: pwsh
         run: |

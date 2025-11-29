@@ -98,6 +98,38 @@
         <label class="pill"><input type="checkbox" id="onlyMarketAvail" aria-label="Only market available"> Market Available</label>
         <button id="applyFiltersBtn" class="pill accent">Apply Filters</button>
         <button id="clearFiltersBtn" class="pill">Clear</button>
+        <div class="flex-row-wrap">
+          <button id="presetStrongEdges" class="pill" title="Show edges ≥5%">Strong Edges</button>
+          <button id="presetModEdges" class="pill" title="Show edges ≥3%">Moderate Edges</button>
+          <button id="presetHighConf" class="pill" title="Show confidence ≥60%">High Confidence</button>
+          <button id="presetMarketAvail" class="pill" title="Require market availability">Market Only</button>
+        </div>
+      </div>
+      <div class="muted m4v8" id="filterSummary" aria-live="polite" role="status">Filtered: <span id="filteredCount">0</span> hidden · <span id="visibleCount">0</span> visible</div>
+    </div>
+    <div class="card mb8" id="sortBar" aria-label="Quick Sort" role="region">
+      <div class="flex-row-wrap m4v8">
+        <button id="sortByEdge" class="pill" title="Sort by Edge (desc)">Sort: Edge</button>
+        <button id="sortByConf" class="pill" title="Sort by Confidence (desc)">Sort: Confidence</button>
+        <button id="sortByFairDelta" class="pill" title="Sort by Fair vs Market delta (desc)">Sort: ΔFair-Mkt</button>
+        <div class="spacer"></div>
+        <label class="pill" title="Group cards by market"><input type="checkbox" id="groupByMarket"> Group by Market</label>
+        <label class="pill" title="Group cards by book"><input type="checkbox" id="groupByBook"> Group by Book</label>
+        <div class="spacer"></div>
+        <label class="pill" title="Pin top-N by confidence"><span>Pin top</span> <input type="number" id="pinTopNConf" min="0" step="1" value="0" class="filter-num" aria-label="Pin top N by confidence"><span> by Conf</span></label>
+        <label class="pill" title="Search teams/market"><span>Search</span> <input type="text" id="cardsSearch" placeholder="Team or market" class="archive-search" aria-label="Search cards"></label>
+        <div class="spacer"></div>
+        <label class="pill" title="Density">
+          <span>Density</span>
+          <select id="densityMode" aria-label="Card density">
+            <option value="compact">Compact</option>
+            <option value="standard" selected>Standard</option>
+            <option value="detailed">Detailed</option>
+          </select>
+        </label>
+        <button id="shortcutsHelp" class="pill" title="Show keyboard shortcuts">Shortcuts</button>
+        <button id="exportVisible" class="pill" title="Export visible cards to CSV">Export Visible</button>
+        <button id="exportVisibleJson" class="pill" title="Export visible cards to JSON">Export JSON</button>
       </div>
     </div>
     <div id="providersModal" class="modal providers-modal hidden">
@@ -200,6 +232,418 @@
             } catch(e){}
           }catch(e){/*silent*/}
         }
+        function sortCards(attr){
+          var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+          if(!grid) return;
+          var cards = Array.from(grid.querySelectorAll('.game-card'));
+          cards.sort(function(a,b){
+            var av = parseFloat(a.getAttribute('data-'+attr) || 'NaN');
+            var bv = parseFloat(b.getAttribute('data-'+attr) || 'NaN');
+            if(isNaN(av) && isNaN(bv)) return 0;
+            if(isNaN(av)) return 1;
+            if(isNaN(bv)) return -1;
+            return bv - av;
+          });
+          // Micro-performance: chunk DOM moves to avoid long reflow
+          var i = 0;
+          function chunk(){
+            var end = Math.min(i+50, cards.length);
+            for(; i<end; i++){ grid.appendChild(cards[i]); }
+            if(i < cards.length){ requestAnimationFrame(chunk); } else {
+              try { window.updateFilterSummary && window.updateFilterSummary(); } catch(e){}
+            }
+          }
+          requestAnimationFrame(chunk);
+          showToast('Sorted by '+attr, 'neutral');
+        }
+        function groupCards(by){
+          var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+          if(!grid) return;
+          var cards = Array.from(grid.querySelectorAll('.game-card'));
+          var groups = new Map();
+          cards.forEach(function(card){
+            var key = card.getAttribute('data-'+by) || '';
+            if(!key){ key = 'Other'; }
+            if(!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(card);
+          });
+          // Clear grid and reinsert with simple headers
+          var frag = document.createDocumentFragment();
+          groups.forEach(function(list, key){
+            var header = document.createElement('div');
+            header.className = 'card mb4';
+            header.setAttribute('role','heading');
+            var label = key;
+            if(by === 'market'){ label = 'Market: ' + key; }
+            header.innerHTML = '<div class="title-sm">'+label+'</div>';
+            frag.appendChild(header);
+            list.forEach(function(c){ frag.appendChild(c); });
+          });
+          grid.innerHTML = '';
+          grid.appendChild(frag);
+          try { window.updateFilterSummary && window.updateFilterSummary(); } catch(e){}
+          showToast('Grouped by '+by, 'neutral');
+        }
+        function ungroupCards(){
+          var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+          if(!grid) return;
+          // remove headers, keep cards order
+          var items = Array.from(grid.children);
+          var cards = items.filter(function(el){ return el.classList && el.classList.contains('game-card'); });
+          grid.innerHTML = '';
+          cards.forEach(function(c){ grid.appendChild(c); });
+          try { window.updateFilterSummary && window.updateFilterSummary(); } catch(e){}
+          showToast('Ungrouped', 'neutral');
+        }
+        function enhanceComparePanels(){
+          var cards = document.querySelectorAll('.game-card');
+          cards.forEach(function(card){
+            // Avoid double init
+            if(card.__compareInit) return; card.__compareInit = true;
+            var fair = parseFloat(card.getAttribute('data-fair-price') || 'NaN');
+            var mkt = parseFloat(card.getAttribute('data-market-price') || 'NaN');
+            if(isNaN(fair) && isNaN(mkt)) return;
+            var panel = document.createElement('div');
+            panel.className = 'muted m4v8 compare-panel';
+            var deltaTxt = '';
+            if(!isNaN(fair) && !isNaN(mkt)){
+              var d = fair - mkt;
+              deltaTxt = 'ΔFair-Mkt: '+d.toFixed(2)+' ('+fair.toFixed(2)+' vs '+mkt.toFixed(2)+')';
+            } else if(!isNaN(fair)) {
+              deltaTxt = 'Fair: '+fair.toFixed(2);
+            } else if(!isNaN(mkt)) {
+              deltaTxt = 'Market: '+mkt.toFixed(2);
+            }
+            panel.textContent = deltaTxt;
+            var toggle = document.createElement('button');
+            toggle.className = 'pill';
+            toggle.textContent = 'Compare';
+            toggle.addEventListener('click', function(){
+              panel.style.display = (panel.style.display==='none' || !panel.style.display) ? 'block' : 'none';
+            });
+            // Insert at footer area if present else append
+            card.appendChild(toggle);
+            card.appendChild(panel);
+            panel.style.display = 'none';
+          });
+        }
+        function addActionStrip(card){
+          if(card.__actionStripInit) return; card.__actionStripInit = true;
+          var edge = parseFloat(card.getAttribute('data-edge')||'NaN');
+          var conf = parseFloat(card.getAttribute('data-confidence')||'NaN');
+          var fair = parseFloat(card.getAttribute('data-fair-price')||'NaN');
+          var mkt = parseFloat(card.getAttribute('data-market-price')||'NaN');
+          var ev = parseFloat(card.getAttribute('data-ev')||'NaN');
+          var parts = [];
+          if(!isNaN(edge)) parts.push('<span class="kpi-item kpi-edge" title="Edge">▲ '+edge.toFixed(1)+'%</span>');
+          if(!isNaN(conf)) parts.push('<span class="kpi-item kpi-conf" title="Confidence">✓ '+conf.toFixed(0)+'%</span>');
+          if(!isNaN(fair) && !isNaN(mkt)){
+            var d = fair - mkt; parts.push('<span class="kpi-item kpi-delta" title="Fair minus Market">⇄ '+d.toFixed(2)+'</span>');
+          }
+          if(!isNaN(ev)) parts.push('<span class="kpi-item kpi-ev" title="Expected Value">∑ '+ev.toFixed(3)+'</span>');
+          if(!parts.length) return;
+          var strip = document.createElement('div');
+          strip.className = 'muted m4v8';
+          strip.setAttribute('aria-label','Action summary');
+          strip.innerHTML = parts.join(' · ');
+          card.appendChild(strip);
+        }
+        function lazyHydrate(){
+          var observer = new IntersectionObserver(function(entries){
+            entries.forEach(function(entry){
+              if(entry.isIntersecting){
+                var card = entry.target;
+                addActionStrip(card);
+                // Badge enhancement for EV/implied prob
+                if(!card.__badgesInit){
+                  card.__badgesInit = true;
+                  var ev = card.getAttribute('data-ev');
+                  var imp = card.getAttribute('data-implied-prob');
+                  var container = card.querySelector('.kpi') || card;
+                  if(ev && !isNaN(parseFloat(ev))){
+                    var evBadge = document.createElement('div');
+                    evBadge.className = 'pill ev-pill';
+                    evBadge.title = 'Expected value';
+                    evBadge.textContent = 'EV: '+parseFloat(ev).toFixed(3);
+                    container.appendChild(evBadge);
+                  }
+                  if(imp && !isNaN(parseFloat(imp))){
+                    var ipBadge = document.createElement('div');
+                    ipBadge.className = 'pill prob-pill';
+                    ipBadge.title = 'Implied probability';
+                    ipBadge.textContent = 'Imp: '+(parseFloat(imp)*100).toFixed(1)+'%';
+                    container.appendChild(ipBadge);
+                  }
+                }
+                observer.unobserve(card);
+              }
+            });
+          }, { rootMargin: '100px' });
+          document.querySelectorAll('.game-card').forEach(function(card){ observer.observe(card); });
+        }
+        // Wire sort buttons
+        document.addEventListener('DOMContentLoaded', function(){
+          var btnE = document.getElementById('sortByEdge');
+          var btnC = document.getElementById('sortByConf');
+          var btnD = document.getElementById('sortByFairDelta');
+          if(btnE) btnE.addEventListener('click', function(){ sortCards('edge'); });
+          if(btnC) btnC.addEventListener('click', function(){ sortCards('confidence'); });
+          if(btnD) btnD.addEventListener('click', function(){ sortCards('fair-delta'); });
+          var chkM = document.getElementById('groupByMarket');
+          var chkB = document.getElementById('groupByBook');
+          if(chkM){ chkM.addEventListener('change', function(){ if(chkM.checked){ groupCards('market'); if(chkB) chkB.checked=false; try{ localStorage.setItem('groupPref','market'); }catch(e){} } else { ungroupCards(); try{ localStorage.removeItem('groupPref'); }catch(e){} } }); }
+          if(chkB){ chkB.addEventListener('change', function(){ if(chkB.checked){ groupCards('book'); if(chkM) chkM.checked=false; try{ localStorage.setItem('groupPref','book'); }catch(e){} } else { ungroupCards(); try{ localStorage.removeItem('groupPref'); }catch(e){} } }); }
+          enhanceComparePanels();
+          lazyHydrate();
+          // Enhance badges: add EV / implied prob badges if attributes available
+          (function(){
+            var cards = document.querySelectorAll('.game-card');
+            cards.forEach(function(card){
+              if(card.__badgesInit) return; card.__badgesInit = true;
+              var ev = card.getAttribute('data-ev');
+              var imp = card.getAttribute('data-implied-prob');
+              var container = card.querySelector('.kpi') || card;
+              if(ev && !isNaN(parseFloat(ev))){
+                var evBadge = document.createElement('div');
+                evBadge.className = 'pill ev-pill';
+                evBadge.title = 'Expected value';
+                evBadge.textContent = 'EV: '+parseFloat(ev).toFixed(3);
+                container.appendChild(evBadge);
+              }
+              if(imp && !isNaN(parseFloat(imp))){
+                var ipBadge = document.createElement('div');
+                ipBadge.className = 'pill prob-pill';
+                ipBadge.title = 'Implied probability';
+                ipBadge.textContent = 'Imp: '+(parseFloat(imp)*100).toFixed(1)+'%';
+                container.appendChild(ipBadge);
+              }
+            });
+          })();
+          // Restore grouping preference
+          try{
+            var pref = localStorage.getItem('groupPref');
+            if(pref==='market' && chkM){ chkM.checked=true; groupCards('market'); }
+            if(pref==='book' && chkB){ chkB.checked=true; groupCards('book'); }
+          }catch(e){}
+          // Sticky shadow on scroll
+          (function(){
+            var fb = document.getElementById('filtersBar');
+            var sb = document.getElementById('sortBar');
+            function updateShadow(){
+              var y = window.scrollY||document.documentElement.scrollTop||0;
+              if(fb && y>4){ fb.classList.add('sticky-shadow'); } else if(fb){ fb.classList.remove('sticky-shadow'); }
+              if(sb && y>4){ sb.classList.add('sticky-shadow'); } else if(sb){ sb.classList.remove('sticky-shadow'); }
+            }
+            updateShadow();
+            window.addEventListener('scroll', updateShadow, {passive:true});
+          })();
+          // Pin top-N by edge
+          (function(){
+            var input = document.getElementById('pinTopN');
+            function applyPin(){
+              var n = parseInt(input && input.value || '0');
+              var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+              if(!grid) return;
+              var cards = Array.from(grid.querySelectorAll('.game-card'));
+              cards.forEach(function(c){ c.classList.remove('pinned'); });
+              if(!n || n<=0) return;
+              cards.sort(function(a,b){
+                var av = parseFloat(a.getAttribute('data-edge')||'NaN');
+                var bv = parseFloat(b.getAttribute('data-edge')||'NaN');
+                if(isNaN(av) && isNaN(bv)) return 0;
+                if(isNaN(av)) return 1;
+                if(isNaN(bv)) return -1;
+                return bv - av;
+              });
+              cards.slice(0, Math.min(n, cards.length)).forEach(function(c){ c.classList.add('pinned'); });
+            }
+            if(input){ input.addEventListener('change', applyPin); applyPin(); }
+          })();
+          // Pin top-N by confidence
+          (function(){
+            var input = document.getElementById('pinTopNConf');
+            function applyPin(){
+              var n = parseInt(input && input.value || '0');
+              var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+              if(!grid) return;
+              var cards = Array.from(grid.querySelectorAll('.game-card'));
+              // Do not clear .pinned from edge pin; allow overlap
+              if(!n || n<=0) return;
+              cards.sort(function(a,b){
+                var av = parseFloat(a.getAttribute('data-confidence')||'NaN');
+                var bv = parseFloat(b.getAttribute('data-confidence')||'NaN');
+                if(isNaN(av) && isNaN(bv)) return 0;
+                if(isNaN(av)) return 1;
+                if(isNaN(bv)) return -1;
+                return bv - av;
+              });
+              cards.slice(0, Math.min(n, cards.length)).forEach(function(c){ c.classList.add('pinned'); });
+            }
+            if(input){ input.addEventListener('change', applyPin); }
+          })();
+          // Micro search
+          (function(){
+            var input = document.getElementById('cardsSearch');
+            function applySearch(){
+              var q = (input && input.value || '').toLowerCase();
+              try{ localStorage.setItem('cardsSearch', q); }catch(e){}
+              var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+              if(!grid) return;
+              var cards = Array.from(grid.querySelectorAll('.game-card'));
+              cards.forEach(function(card){
+                var txt = (card.textContent || '').toLowerCase();
+                card.style.display = q && !txt.includes(q) ? 'none' : '';
+              });
+              try { window.updateFilterSummary && window.updateFilterSummary(); } catch(e){}
+            }
+            if(input){
+              try{ var saved = localStorage.getItem('cardsSearch'); if(saved){ input.value = saved; } }catch(e){}
+              input.addEventListener('input', applySearch);
+              applySearch();
+            }
+          })();
+          // Keyboard shortcuts
+          (function(){
+            document.addEventListener('keydown', function(e){
+              if(!e.altKey) return;
+              if(e.key==='1'){ sortCards('edge'); }
+              if(e.key==='2'){ sortCards('confidence'); }
+              if(e.key==='3'){ sortCards('fair-delta'); }
+              if(e.key==='m'){ var chk = document.getElementById('groupByMarket'); if(chk){ chk.checked=!chk.checked; chk.dispatchEvent(new Event('change')); } }
+              if(e.key==='b'){ var chk = document.getElementById('groupByBook'); if(chk){ chk.checked=!chk.checked; chk.dispatchEvent(new Event('change')); } }
+              if(e.key==='g'){ var cm=document.getElementById('groupByMarket'); var cb=document.getElementById('groupByBook'); if(cm) cm.checked=false; if(cb) cb.checked=false; ungroupCards(); }
+              if(e.key==='d'){ var sel=document.getElementById('densityMode'); if(sel){ var idx=Math.max(0, sel.selectedIndex); sel.selectedIndex=(idx+1)%sel.options.length; sel.dispatchEvent(new Event('change')); } }
+              if(e.key==='e'){ var btn=document.getElementById('exportVisible'); if(btn){ btn.click(); } }
+              if(e.key==='j'){ var btnJ=document.getElementById('exportVisibleJson'); if(btnJ){ btnJ.click(); } }
+            });
+          })();
+          // Shortcuts help
+          (function(){
+            var btn = document.getElementById('shortcutsHelp');
+            if(!btn) return;
+            btn.addEventListener('click', function(){
+              var lines = [
+                'Alt+1: Sort by Edge',
+                'Alt+2: Sort by Confidence',
+                'Alt+3: Sort by ΔFair-Mkt',
+                'Alt+M: Group by Market',
+                'Alt+B: Group by Book',
+                'Alt+G: Ungroup',
+                'Alt+D: Cycle Density',
+                'Alt+E: Export CSV',
+                'Alt+J: Export JSON'
+              ];
+              showToast('Shortcuts:\n'+lines.join('\n'), 'neutral');
+            });
+          })();
+          // Density toggle
+          (function(){
+            var sel = document.getElementById('densityMode');
+            function apply(mode){
+              var m = mode || (sel ? sel.value : 'standard');
+              document.body.classList.toggle('cards-compact', m==='compact');
+              // Toggle detailed-only visibility
+              document.querySelectorAll('.detailed-only').forEach(function(el){
+                el.style.display = (m==='detailed') ? '' : 'none';
+              });
+              try{ localStorage.setItem('cardsDensity', m); }catch(e){}
+            }
+            if(sel){
+              try{ var saved = localStorage.getItem('cardsDensity'); if(saved){ sel.value = saved; } }catch(e){}
+              apply(sel.value);
+              sel.addEventListener('change', function(){ apply(sel.value); });
+            } else {
+              apply('standard');
+            }
+          })();
+          // Export visible cards to CSV
+          (function(){
+            var btn = document.getElementById('exportVisible');
+            function exportCSV(){
+              var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+              if(!grid) return;
+              var cards = Array.from(grid.querySelectorAll('.game-card'));
+              var rows = [];
+              cards.forEach(function(card){
+                if(card.style.display==='none') return;
+                var row = {
+                  game: (card.querySelector('.title-sm') ? card.querySelector('.title-sm').textContent.trim() : ''),
+                  edge: card.getAttribute('data-edge')||'',
+                  confidence: card.getAttribute('data-confidence')||'',
+                  market_available: card.getAttribute('data-market-available')||'',
+                  fair_price: card.getAttribute('data-fair-price')||'',
+                  market_price: card.getAttribute('data-market-price')||'',
+                  ev: card.getAttribute('data-ev')||'',
+                  implied_prob: card.getAttribute('data-implied-prob')||''
+                };
+                rows.push(row);
+              });
+              if(!rows.length){ showToast('No visible cards', 'warn'); return; }
+              var headers = Object.keys(rows[0]);
+              var csv = headers.join(',')+'\n'+rows.map(function(r){ return headers.map(function(h){ var v = (r[h]||''); if(String(v).includes(',')){ return '"'+String(v).replace(/"/g,'""')+'"'; } return v; }).join(','); }).join('\n');
+              var blob = new Blob([csv], {type:'text/csv'});
+              var url = URL.createObjectURL(blob);
+              var a = document.createElement('a');
+              a.href = url; a.download = 'cards_visible.csv'; a.click();
+              setTimeout(function(){ URL.revokeObjectURL(url); }, 500);
+              showToast('Exported visible cards', 'ok');
+            }
+            if(btn){ btn.addEventListener('click', exportCSV); }
+          })();
+          // Export visible cards to JSON (full payload)
+          (function(){
+            var btn = document.getElementById('exportVisibleJson');
+            function exportJSON(){
+              var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+              // Fallback to overall cards container
+              var container = grid || document.querySelector('.cards');
+              if(!container) return;
+              var cards = Array.from(container.querySelectorAll('.game-card'));
+              var rows = [];
+              cards.forEach(function(card){
+                if(card.style.display==='none') return;
+                var obj = {};
+                // Include all data-* attributes
+                Array.from(card.attributes).forEach(function(attr){
+                  if(attr && attr.name && attr.name.startsWith('data-')){
+                    var key = attr.name.substring(5);
+                    obj[key] = attr.value;
+                  }
+                });
+                // Basic text fields
+                var header = card.querySelector('.game-header .teams-row');
+                obj.home_team = (card.querySelector('.badge-team.home .name') || {}).textContent || '';
+                obj.away_team = (card.querySelector('.badge-team.away .name') || {}).textContent || '';
+                obj.title = (card.querySelector('.title') || card.querySelector('.title-sm') || {}).textContent || '';
+                // KPI snippets
+                obj.kpi = Array.from(card.querySelectorAll('.kpi .pill')).map(function(p){ return (p.textContent||'').trim(); });
+                // Derivatives presence flags
+                obj.has_1h = !!card.querySelector('.deriv-group .group-title') && !!Array.from(card.querySelectorAll('.deriv-group .group-title')).find(function(x){ return (x.textContent||'').includes('1st'); });
+                obj.has_2h = !!card.querySelector('.deriv-group .group-title') && !!Array.from(card.querySelectorAll('.deriv-group .group-title')).find(function(x){ return (x.textContent||'').includes('2nd'); });
+                rows.push(obj);
+              });
+              if(!rows.length){ showToast('No visible cards', 'warn'); return; }
+              var blob = new Blob([JSON.stringify(rows, null, 2)], {type:'application/json'});
+              var url = URL.createObjectURL(blob);
+              var a = document.createElement('a');
+              a.href = url; a.download = 'cards_visible.json'; a.click();
+              setTimeout(function(){ URL.revokeObjectURL(url); }, 500);
+              showToast('Exported visible cards (JSON)', 'ok');
+            }
+            if(btn){ btn.addEventListener('click', exportJSON); }
+          })();
+        });
+        // Toast helper
+        function showToast(msg, variant){
+          try{
+            var t = document.createElement('div');
+            t.className = 'toast '+(variant||'');
+            t.textContent = msg;
+            document.body.appendChild(t);
+            requestAnimationFrame(function(){ t.classList.add('show'); });
+            setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 150); }, 1500);
+          }catch(e){}
+        }
                 // Diagnostics controls: copy providers, export status JSON
                 (function(){
                   const copyBtn = document.getElementById('btnCopyProviders');
@@ -234,12 +678,17 @@
           const edgeMin = document.getElementById('edgeMinInput');
           const confMin = document.getElementById('confMinInput');
           const onlyMarket = document.getElementById('onlyMarketAvail');
+          const presetStrongEdges = document.getElementById('presetStrongEdges');
+          const presetModEdges = document.getElementById('presetModEdges');
+          const presetHighConf = document.getElementById('presetHighConf');
+          const presetMarketAvail = document.getElementById('presetMarketAvail');
           function apply(){
             const eMin = parseFloat(edgeMin && edgeMin.value || '0');
             const cMin = parseFloat(confMin && confMin.value || '0');
             const mOnly = !!(onlyMarket && onlyMarket.checked);
             const cards = document.querySelectorAll('.card-item, .game-card');
             if(!cards || !cards.length) return;
+            let hidden = 0;
             cards.forEach(function(card){
               const e = parseFloat(card.getAttribute('data-edge') || 'NaN');
               const c = parseFloat(card.getAttribute('data-confidence') || 'NaN');
@@ -250,14 +699,33 @@
               if(!isNaN(c) && cMin>0) show = show && (c >= cMin);
               if(mOnly) show = show && mAvail;
               card.style.display = show ? '' : 'none';
+              if(!show) hidden++;
             });
+            const vis = cards.length - hidden;
+            const fc = document.getElementById('filteredCount');
+            const vc = document.getElementById('visibleCount');
+            if(fc) fc.textContent = String(hidden);
+            if(vc) vc.textContent = String(vis);
           }
           function clear(){
             const cards = document.querySelectorAll('.card-item, .game-card');
             cards.forEach(function(card){ card.style.display=''; });
+            if(edgeMin) edgeMin.value = '0';
+            if(confMin) confMin.value = '0';
+            if(onlyMarket) onlyMarket.checked = false;
+            const fc = document.getElementById('filteredCount');
+            const vc = document.getElementById('visibleCount');
+            if(fc) fc.textContent = '0';
+            if(vc) vc.textContent = String(cards.length);
           }
           if(applyBtn) applyBtn.addEventListener('click', apply);
           if(clearBtn) clearBtn.addEventListener('click', clear);
+          if(presetStrongEdges) presetStrongEdges.addEventListener('click', function(){ if(edgeMin) edgeMin.value='5'; apply(); });
+          if(presetModEdges) presetModEdges.addEventListener('click', function(){ if(edgeMin) edgeMin.value='3'; apply(); });
+          if(presetHighConf) presetHighConf.addEventListener('click', function(){ if(confMin) confMin.value='60'; apply(); });
+          if(presetMarketAvail) presetMarketAvail.addEventListener('click', function(){ if(onlyMarket) { onlyMarket.checked=true; } apply(); });
+          // Toast on clear
+          if(clearBtn){ clearBtn.addEventListener('click', function(){ showToast('Filters cleared', 'neutral'); }); }
         })();
         function start(){ if(timer) clearInterval(timer); timer = setInterval(poll, 30000); poll(); }
         function stop(){ if(timer) { clearInterval(timer); timer=null; } }
@@ -276,6 +744,26 @@
           modal.addEventListener('click', (e)=>{ if(e.target===modal){ modal.style.display='none'; } });
           document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ modal.style.display='none'; } });
         }
+        // Global summary updater used by sort/group/search actions
+        window.updateFilterSummary = function(){
+          try{
+            var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
+            if(!grid) return;
+            var cards = Array.from(grid.querySelectorAll('.game-card'));
+            var visible = cards.filter(function(c){ return c.style.display !== 'none'; }).length;
+            var hidden = cards.length - visible;
+            var fc = document.getElementById('filteredCount');
+            var vc = document.getElementById('visibleCount');
+            if(fc) fc.textContent = String(hidden);
+            if(vc) vc.textContent = String(visible);
+            var btn = document.getElementById('exportVisible');
+            if(btn){ btn.textContent = 'Export Visible'+(visible?(' ('+visible+')'):''); }
+            var btnJ = document.getElementById('exportVisibleJson');
+            if(btnJ){ btnJ.textContent = 'Export JSON'+(visible?(' ('+visible+')'):'' ); }
+          }catch(e){}
+        }
+        // Initialize export count
+        try{ window.updateFilterSummary && window.updateFilterSummary(); }catch(e){}
       })();
     </script>
     {% if pipeline_stats and (pipeline_stats.using_blended_predictions or pipeline_stats.prefer_cal_effective) %}
@@ -457,7 +945,19 @@
     {% endif %}
     <div class="cards">
       {% for r in rows %}
-        <div class="card" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}">
+        {% set _edge = (r.edge_total if (r.edge_total is defined and r.edge_total is not none and r.edge_total == r.edge_total) else None) %}
+        {% set _conf = (r.edge_confidence_pct if (r.edge_confidence_pct is defined and r.edge_confidence_pct is not none and r.edge_confidence_pct == r.edge_confidence_pct) else None) %}
+        {% set _has_total = (
+          (r.market_total is defined and r.market_total is not none and r.market_total == r.market_total)
+          or (r.closing_total is defined and r.closing_total is not none and r.closing_total == r.closing_total)
+        ) %}
+        {% set _has_spread = (
+          (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home)
+          or (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home)
+        ) %}
+        {% set _has_ml = (r.ml_home is defined and r.ml_home is not none) %}
+        {% set _market_avail = (1 if (_has_total or _has_spread or _has_ml) else 0) %}
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else '')) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -484,18 +984,21 @@
               {% endif %}
               {# Meta diagnostics badges: volatility and edge confidence if available #}
               {% if r.volatility_tag is defined and r.volatility_tag %}
-                <span class="badge" title="Volatility class from meta diagnostics">Vol {{ r.volatility_tag }}</span>
+                <span class="badge detailed-only" title="Volatility class from meta diagnostics">Vol {{ r.volatility_tag }}</span>
               {% endif %}
               {% if r.edge_conf_tag is defined and r.edge_conf_tag %}
-                <span class="badge" title="Edge confidence tag from meta">Conf {{ r.edge_conf_tag }}</span>
+                <span class="badge detailed-only" title="Edge confidence tag from meta">Conf {{ r.edge_conf_tag }}</span>
               {% endif %}
               {# Prefer server-provided ISO-UTC for stable JS conversion; fallback to raw start_time #}
-              {% set iso = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined) else None)) %}
+              {# Ensure tz-aware ISO: if missing Z/offset, append Z to treat as UTC #}
+              {% set _iso_raw = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined) else None)) %}
+              {% set iso = (_iso_raw ~ 'Z') if (_iso_raw and ('Z' not in _iso_raw) and (('+' not in _iso_raw) and ('-' not in _iso_raw))) else _iso_raw %}
               {# Display preference: dedicated display string -> legacy local -> raw start_time -> ISO #}
               {% set disp = (r.start_time_display if (r.start_time_display is defined and r.start_time_display) else (r.start_time_local if (r.start_time_local is defined and r.start_time_local) else (r.start_time if (r.start_time is defined and r.start_time) else (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else None)))) %}
               {% set tzabbr = (r.start_tz_abbr if (r.start_tz_abbr is defined and r.start_tz_abbr) else None) %}
               {% if iso or disp %}
                 <span class="pill time-local" data-iso="{{ iso or '' }}">{{ disp or '' }}{% if tzabbr %} {{ tzabbr }}{% endif %}</span>
+                <button type="button" class="pill small copy-time" title="Copy time details" aria-label="Copy time details">Copy</button>
               {% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
               {% if venue %}<span class="pill venue">{{ venue }}{% if r.city and r.state %} – {{ r.city }}, {{ r.state }}{% elif r.city %} – {{ r.city }}{% endif %}</span>{% endif %}
@@ -506,6 +1009,19 @@
             {% if r.pred_synthetic_hidden %}
               <div class="pill accent" title="Awaiting real model predictions ingestion for this date">Predictions Pending</div>
             {% endif %}
+            {# Compact Signals row: Edge | EV | Imp% | ΔOU (shown in Standard/Compact modes) #}
+            {% set _edge_s = (r.edge_total if (r.edge_total is defined and r.edge_total is not none and r.edge_total == r.edge_total) else None) %}
+            {% set _ev_s = (r.ev if (r.ev is defined and r.ev is not none and r.ev == r.ev) else None) %}
+            {% set _imp_s = (r.implied_prob if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else None) %}
+            {% set _pt_s = (r.pred_total if (r.pred_total is not none and r.pred_total == r.pred_total) else None) %}
+            {% set _mt_s = (r.market_total if (r.market_total is not none and r.market_total == r.market_total) else None) %}
+            {% set _d_ou_s = (_pt_s - _mt_s) if (_pt_s is not none and _mt_s is not none) else None %}
+            <div class="pill signals-row">
+              {% if _edge_s is not none %}<span>Edge {{ '%.1f' % _edge_s }}</span>{% endif %}
+              {% if _ev_s is not none %}<span>EV {{ '%.3f' % _ev_s }}</span>{% endif %}
+              {% if _imp_s is not none %}<span>Imp {{ '%.1f' % (_imp_s*100) }}%</span>{% endif %}
+              {% if _d_ou_s is not none %}<span>ΔOU {{ '%.1f' % _d_ou_s }}</span>{% endif %}
+            </div>
             {# Odds coverage badge: show when odds are missing or partial #}
             {# Treat market_total/spread_home/ml as coverage signals #}
             {% set has_total = (
@@ -533,24 +1049,37 @@
             {% set _mt = r.market_total if (r.market_total is defined) else None %}
             {% set _mt_valid = (_mt is not none and _mt == _mt) %}
             <div class="pill">Total: {{ '%.1f' % _pt if _pt_valid else ( '%.1f' % _mt if _mt_valid else '–') }}
-              {% if r.pred_total_adjusted %}<span class="badge adj" title="Low-total blend adjustment applied">Adj</span>{% endif %}
+              {% if r.pred_total_adjusted %}<span class="badge adj detailed-only" title="Low-total blend adjustment applied">Adj</span>{% endif %}
               {% if r.pred_total_model_raw is defined and r.pred_total_model_raw is not none and r.pred_total_model_raw == r.pred_total_model_raw and is_cal and _pt_valid %}
-                <span class="badge toggle-raw" data-raw="{{ '%.1f' % r.pred_total_model_raw }}" data-cal="{{ '%.1f' % _pt }}" onclick="toggleRaw(this)" title="Click to toggle raw vs calibrated">↔</span>
+                <span class="badge toggle-raw detailed-only" data-raw="{{ '%.1f' % r.pred_total_model_raw }}" data-cal="{{ '%.1f' % _pt }}" onclick="toggleRaw(this)" title="Click to toggle raw vs calibrated">↔</span>
               {% endif %}
-              {% if r.blend_effective is defined and r.blend_effective and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
-              {% if r.blend_effective is defined and r.blend_effective and r.seg_n_rows_orig is defined and r.seg_n_rows_orig is not none and r.seg_n_rows_orig > 0 %}<span class="badge sample" title="Segment sample size contributing to blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows_orig }}</span>{% endif %}
+              {% if _pt_valid and _mt_valid %}
+                {% set _delta_tot = (_pt - _mt) %}
+                <span class="badge" title="Model total minus market total (OU)">ΔOU {{ '%.1f' % _delta_tot }}</span>
+              {% endif %}
+              {% if r.blend_effective is defined and r.blend_effective and r.blend_weight is not none and r.blend_weight > 0 %}<span class="badge weight detailed-only" title="Blend weight (segmented vs baseline)">W={{ '%.2f' % r.blend_weight }}</span>{% endif %}
+              {% if r.blend_effective is defined and r.blend_effective and r.seg_n_rows_orig is defined and r.seg_n_rows_orig is not none and r.seg_n_rows_orig > 0 %}<span class="badge sample detailed-only" title="Segment sample size contributing to blended prediction (rows)">N={{ '%.0f' % r.seg_n_rows_orig }}</span>{% endif %}
+              {% if r.book_name is defined and r.book_name %}<span class="badge" title="Primary book source">Book: {{ r.book_name }}</span>{% endif %}
+              {% if r.market_basis is defined and r.market_basis %}<span class="badge" title="Market basis (median/last/etc)">Basis: {{ r.market_basis }}</span>{% endif %}
             </div>
             <div class="pill">
               {% if r.pred_margin is not none %}
                 {% if r.favored_side == 'Home' %}Margin: {{ r.home_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% elif r.favored_side == 'Away' %}Margin: {{ r.away_team or '–' }} by {{ '%.1f' % (r.favored_by or 0) }}{% else %}Margin: Even{% endif %}
               {% else %}Margin: –{% endif %}
+              {# ATS delta (model margin vs market spread) #}
+              {% if r.pred_margin is not none and ((r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) or (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home)) %}
+                {% set _spr = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else r.closing_spread_home) %}
+                {% if _spr is not none %}
+                  {% set _delta_ats = (r.pred_margin - _spr) %}
+                  <span class="badge" title="Model margin minus market spread (ATS)">ΔATS {{ '%.1f' % _delta_ats }}</span>
+                {% endif %}
+              {% endif %}
             </div>
             {% if (r.proj_home is not none and r.proj_home == r.proj_home) and (r.proj_away is not none and r.proj_away == r.proj_away) %}
-              {# Suppress projection pill when values are NaN (NaN != NaN) or missing #}
               {% set _ph_valid = (r.proj_home is not none and r.proj_home == r.proj_home) %}
               {% set _pa_valid = (r.proj_away is not none and r.proj_away == r.proj_away) %}
               {% if _ph_valid and _pa_valid %}
-                <div class="pill">Projected: {{ '%.1f' % r.proj_away }} - {{ '%.1f' % r.proj_home }}</div>
+                <div class="pill detailed-only">Projected: {{ '%.1f' % r.proj_away }} - {{ '%.1f' % r.proj_home }}</div>
               {% endif %}
             {% endif %}
             {% if r.market_total is defined and r.market_total is not none and r.market_total == r.market_total %}
@@ -611,6 +1140,9 @@
                   {% endif %}
                 </div>
               {% endif %}
+              {% if r.quote_ts is defined and r.quote_ts %}
+                <div class="pill quote-local" data-iso="{{ r.quote_ts }}" title="Quote (UTC): {{ r.quote_ts }}">Quote: {{ r.quote_ts }}</div>
+              {% endif %}
               {% if r.edge_total is defined and r.edge_total is not none and r.edge_total == r.edge_total %}
                 {% set abs_et = r.edge_total|abs %}
                 {% set cls_et = (
@@ -621,6 +1153,27 @@
                   'edge-extreme'
                 ) %}
                 <div class="pill {{ cls_et }}">Total Edge: {{ '%.1f' % r.edge_total }}</div>
+                {% if _conf is not none %}
+                  <span class="badge" title="Edge confidence">Conf {{ '%.0f' % _conf }}%</span>
+                {% endif %}
+                {% if r.fair_price is defined and r.fair_price is not none %}
+                  <span class="badge" title="Model fair price">Fair {{ r.fair_price }}</span>
+                  {# Fair vs Market delta for moneyline when available #}
+                  {% set mlh = r.ml_home if (r.ml_home is defined) else None %}
+                  {% set mla = r.ml_away if (r.ml_away is defined) else None %}
+                  {% set has_mlh = (mlh is not none and mlh == mlh) %}
+                  {% set has_mla = (mla is not none and mla == mla) %}
+                  {% if has_mlh or has_mla %}
+                    {% if has_mlh and (r.fair_price is not none) %}
+                      {% set delta_h = (r.fair_price - mlh) %}
+                      <span class="badge detailed-only" title="Fair minus Home ML">ΔFair(H) {{ '%+d' % delta_h }}</span>
+                    {% endif %}
+                    {% if has_mla and (r.fair_price is not none) %}
+                      {% set delta_a = (r.fair_price - mla) %}
+                      <span class="badge detailed-only" title="Fair minus Away ML">ΔFair(A) {{ '%+d' % delta_a }}</span>
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
                 {% if r.edge_total_z is defined and r.edge_total_z is not none and r.edge_total_z == r.edge_total_z %}
                   <span class="badge" title="Total edge z-score">Z={{ '%.2f' % r.edge_total_z }}</span>
                 {% endif %}
@@ -646,9 +1199,6 @@
               </div>
               <div class="seg">Winner: {% if r.pred_margin is not none %}{% if r.pred_margin > 0 %}{{ r.home_team }}{% elif r.pred_margin < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
               <div class="seg">Team Totals: {% if (r.proj_home is not none and r.proj_home == r.proj_home) and (r.proj_away is not none and r.proj_away == r.proj_away) %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
-                {% set _ph_valid = (r.proj_home is not none and r.proj_home == r.proj_home) %}
-                {% set _pa_valid = (r.proj_away is not none and r.proj_away == r.proj_away) %}
-                <div class="seg">Team Totals: {% if _ph_valid and _pa_valid %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home }}{% else %}–{% endif %}</div>
               <div class="seg">Overall: {% if r.pred_total is not none %}{{ '%.1f' % r.pred_total }}{% else %}–{% endif %}</div>
             </div>
             {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
@@ -941,38 +1491,80 @@
       }
     });
     // Render start times in server or user's local timezone with short TZ label.
-    // Preference persisted in localStorage ('local' default).
+    // Preference persisted in localStorage ('server' default). Only convert tz-aware ISO.
     try {
       var fmtLocal = new Intl.DateTimeFormat(undefined, {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', timeZoneName:'short'});
       function formatLocalISO(iso){
         try{
           if(!iso) return null;
+          iso = String(iso);
+          // normalize space-separated to ISO 'T'
+          if(iso.indexOf(' ')>=0 && iso.indexOf('T')<0){ iso = iso.replace(' ', 'T'); }
+          // Only convert when ISO has explicit timezone info (Z or +/-HH:MM)
+          var hasTz = /Z|[\+\-]\d{2}:?\d{2}$/.test(iso);
+          if(!hasTz) return null;
           var d = new Date(iso);
           if(isNaN(d)) return null;
           return {text: fmtLocal.format(d), title: d.toISOString()};
         }catch(e){ return null; }
       }
+      // Fallback: parse server-rendered "YYYY-MM-DD HH:MM TZ" to local
+      function parseServerTimeToLocal(txt){
+        try{
+          if(!txt) return null;
+          var m = String(txt).match(/(\d{4}-\d{2}-\d{2})[, ]\s*(\d{2}:\d{2})\s*(?:AM|PM)?\s*([A-Z]{2,4})?/);
+          if(!m) return null;
+          var date = m[1], time = m[2], tz = (m[3]||'').toUpperCase();
+          var tzMap = { 'UTC': 0, 'Z': 0, 'HST': -10, 'AKST': -9, 'PST': -8, 'PDT': -7, 'MST': -7, 'MDT': -6, 'CST': -6, 'CDT': -5, 'EST': -5, 'EDT': -4 };
+          var off = tzMap.hasOwnProperty(tz) ? tzMap[tz] : null;
+          if(off === null) return null;
+          var iso = date + 'T' + time + ':00' + (off===0 ? 'Z' : (off>0? '+' : '-') + String(Math.abs(off)).padStart(2,'0') + ':00');
+          return formatLocalISO(iso);
+        }catch(e){ return null; }
+      }
       function applyTzMode(mode){
+        var tzName = '';
+        try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){}
         document.querySelectorAll('.time-local').forEach(function(el){
           if(!el.dataset.server){ el.dataset.server = (el.textContent || '').trim(); }
-          if(mode === 'local'){
-            var iso = el.getAttribute('data-iso');
-            var out = formatLocalISO(iso);
-            if(out){ el.textContent = out.text; el.title = out.title; }
-          } else {
-            if(el.dataset.server){ el.textContent = el.dataset.server; }
+          var iso = el.getAttribute('data-iso');
+          var out = formatLocalISO(iso);
+          var used = null;
+          if(out){ el.textContent = out.text; used = {text: out.text, iso: (out.title||'')}; }
+          else {
+            var sv = el.dataset.server;
+            var out2 = parseServerTimeToLocal(sv);
+            if(out2){ el.textContent = out2.text; used = {text: out2.text, iso: (out2.title||'')}; }
+          }
+          // Append debug tooltip with resolved ISO and browser timezone
+          if(used){
+            var base = el.dataset.server ? ('Server: ' + el.dataset.server) : '';
+            var dbg = (base ? (base + ' | ') : '') + 'Local: ' + used.text + ' | Resolved ISO: ' + used.iso + (tzName ? (' | TZ: ' + tzName) : '');
+            el.title = dbg;
+          }
+        });
+        // Convert quote timestamps to local short format (always)
+        document.querySelectorAll('.quote-local').forEach(function(el){
+          var iso = el.getAttribute('data-iso');
+          var out = formatLocalISO(iso);
+          if(out){
+            el.textContent = 'Quote: ' + out.text;
+            el.title = 'Quote (UTC): ' + (iso||'') + (tzName ? (' | Local TZ: ' + tzName) : '');
           }
         });
       }
       var selTz = document.getElementById('tzMode');
       var prefKey = 'ncaab:tzMode';
-      var pref = localStorage.getItem(prefKey) || 'local';
-      if(selTz){ selTz.value = (pref === 'server' || pref === 'local') ? pref : 'local'; }
-      applyTzMode(selTz ? selTz.value : pref);
+      // Force local timezone display unconditionally; dropdown now informational
+      var pref = 'local';
+      try{ localStorage.setItem(prefKey, pref); }catch(e){}
+      if(selTz){ selTz.value = 'local'; }
+      applyTzMode('local');
       if(selTz){
         selTz.addEventListener('change', function(){
+          // Still store preference, but rendering remains local
           localStorage.setItem(prefKey, selTz.value);
-          applyTzMode(selTz.value);
+          applyTzMode('local');
         });
       }
     } catch(e) { /* noop */ }
@@ -1074,6 +1666,136 @@
     el.setAttribute('data-state', showingRaw ? 'cal' : 'raw');
     el.title = showingRaw ? 'Click to show raw model' : 'Click to show calibrated';
   }
+  </script>
+  <script>
+    (function(){
+      async function loadStatus(){
+        try{ const r = await fetch('/api/status'); return await r.json(); }catch(e){ return {}; }
+      }
+      function computeStake(edgePct, risk){
+        if(!(risk && typeof edgePct === 'number' && isFinite(edgePct))) return null;
+        var kcap = (risk.kelly_cap && isFinite(risk.kelly_cap)) ? Number(risk.kelly_cap) : 0.2;
+        var expCap = (risk.exposure_cap_units && isFinite(risk.exposure_cap_units)) ? Number(risk.exposure_cap_units) : 2.0;
+        var units = kcap * (edgePct/100) * 10;
+        if(!isFinite(units)) return null;
+        units = Math.max(0, Math.min(expCap, units));
+        var lo = Math.max(0, units*0.75), hi = units*1.25;
+        return {units: units, band: [lo, hi]};
+      }
+      function renderStakePills(risk){
+        var cards = document.querySelectorAll('.game-card');
+        cards.forEach(function(card){
+          var e = parseFloat(card.getAttribute('data-edge')||'NaN');
+          var stake = computeStake(e, risk);
+          if(stake){
+            var kpi = card.querySelector('.kpi');
+            if(kpi){
+              var pill = document.createElement('div');
+              pill.className = 'pill';
+              pill.textContent = 'Suggested Stake: ' + stake.units.toFixed(2) + 'u (' + stake.band[0].toFixed(2) + '–' + stake.band[1].toFixed(2) + 'u)';
+              kpi.appendChild(pill);
+            }
+          }
+        });
+      }
+      loadStatus().then(function(s){ renderStakePills(s && s.risk ? s.risk : null); });
+    })();
+  </script>
+    <script>
+      (function(){
+        // Attach copy handlers: copy the time pill's debug title to clipboard
+        function wireCopyButtons(){
+          document.querySelectorAll('.game-card').forEach(function(card){
+            var pill = card.querySelector('.time-local');
+            var btn = card.querySelector('.copy-time');
+            if(pill && btn && !btn.__wired){
+              btn.__wired = true;
+              btn.addEventListener('click', async function(){
+                var txt = pill.title || (pill.textContent||'').trim();
+                // Try modern clipboard API first
+                try{
+                  if(navigator.clipboard && navigator.clipboard.writeText){
+                    await navigator.clipboard.writeText(txt);
+                    try{ (window.showToast||function(){})('Time details copied', 'ok'); }catch(e){}
+                    return;
+                  }
+                }catch(e){ /* fall through to legacy */ }
+                // Legacy fallback using a temporary textarea
+                try{
+                  var ta = document.createElement('textarea');
+                  ta.value = txt;
+                  ta.setAttribute('readonly','');
+                  ta.style.position = 'absolute';
+                  ta.style.left = '-9999px';
+                  document.body.appendChild(ta);
+                  ta.select();
+                  var ok = false;
+                  try{ ok = document.execCommand('copy'); }catch(_e){ ok = false; }
+                  ta.remove();
+                  if(ok){ try{ (window.showToast||function(){})('Time details copied', 'ok'); }catch(e){} }
+                  else{ try{ (window.showToast||function(){})('Copy failed', 'bad'); }catch(_){} }
+                }catch(e){ try{ (window.showToast||function(){})('Copy failed', 'bad'); }catch(_){} }
+              });
+            }
+          });
+        }
+        document.addEventListener('DOMContentLoaded', wireCopyButtons);
+        // rewire on sorts/grouping as DOM changes
+        document.addEventListener('click', function(e){
+          var id = (e.target && e.target.id) || '';
+          if(['sortByEdge','sortByConf','sortByFairDelta','applyFiltersBtn','clearFiltersBtn','presetStrongEdges','presetModEdges','presetHighConf','presetMarketAvail'].includes(id)){
+            setTimeout(wireCopyButtons, 50);
+          }
+        });
+      })();
+    </script>
+  <script>
+    // Keyboard navigation across game cards (ArrowUp/Down/Page keys)
+    (function(){
+      var cards = Array.from(document.querySelectorAll('.game-card'));
+      function focusCard(i){
+        if(i<0||i>=cards.length) return;
+        cards[i].focus({preventScroll:false});
+        cards[i].scrollIntoView({behavior:'smooth', block:'center'});
+        current = i;
+      }
+      var current = 0;
+      document.addEventListener('keydown', function(e){
+        if(!cards.length) return;
+        if(e.key==='ArrowDown'){ e.preventDefault(); focusCard(Math.min(cards.length-1, current+1)); }
+        else if(e.key==='ArrowUp'){ e.preventDefault(); focusCard(Math.max(0, current-1)); }
+        else if(e.key==='PageDown'){ e.preventDefault(); focusCard(Math.min(cards.length-1, current+5)); }
+        else if(e.key==='PageUp'){ e.preventDefault(); focusCard(Math.max(0, current-5)); }
+      });
+    })();
+  </script>
+  <script>
+    // Performance: lazy-render large card lists using chunking + IntersectionObserver
+    (function(){
+      var container = document.querySelector('.cards');
+      if(!container) return;
+      var all = Array.from(container.children);
+      var MAX_INITIAL = 30; // render first 30 immediately
+      if(all.length <= MAX_INITIAL) return; // small lists: do nothing
+      // Hide and stage remaining cards
+      for(var i=MAX_INITIAL;i<all.length;i++){ all[i].style.display='none'; }
+      var idx = MAX_INITIAL;
+      function revealNextChunk(){
+        var count = 20; // chunk size
+        var end = Math.min(all.length, idx+count);
+        for(var j=idx;j<end;j++){ all[j].style.display=''; }
+        idx = end;
+        if(idx >= all.length && sentinel){ observer.disconnect(); sentinel.remove(); }
+      }
+      var sentinel = document.createElement('div');
+      sentinel.className = 'sentinel';
+      sentinel.setAttribute('aria-hidden','true');
+      container.appendChild(sentinel);
+      var observer = new IntersectionObserver(function(entries){
+        entries.forEach(function(ent){ if(ent.isIntersecting){ revealNextChunk(); } });
+      });
+      observer.observe(sentinel);
+    })();
   </script>
 </body>
 </html>

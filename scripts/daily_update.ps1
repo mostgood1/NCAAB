@@ -30,10 +30,21 @@ $script:CriticalFailures = @()
 
 function Add-CriticalFailure($msg) {
   $script:CriticalFailures += $msg
+  try {
+    if ($script:Steps -and $script:Steps.Count -gt 0) {
+      $cur = $script:Steps[-1].section
+      if (-not $script:StepErrors.ContainsKey($cur)) { $script:StepErrors[$cur] = @() }
+      $script:StepErrors[$cur] += $msg
+    }
+  } catch {}
   Write-Error "[critical] $msg"
 }
 
 function Write-Section($msg) {
+  $now = Get-Date
+  if (-not $script:Steps) { $script:Steps = @() }
+  if (-not $script:StepErrors) { $script:StepErrors = @{} }
+  $script:Steps += [pscustomobject]@{section=$msg; start=$now}
   Write-Host "`n==== $msg ====\n"
 }
 
@@ -578,6 +589,34 @@ print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows fo
   Write-Section 'DONE'
   $elapsed = (Get-Date) - $script:StartTime
   Write-Host ("Completed in {0:c}" -f $elapsed)
+
+  # Emit structured status JSON for external diagnosis
+  try {
+    $statusRows = @()
+    foreach ($s in $script:Steps) {
+      $sec = $s.section
+      $errs = if ($script:StepErrors.ContainsKey($sec)) { $script:StepErrors[$sec] } else { @() }
+      $statusRows += [pscustomobject]@{
+        section = $sec
+        start   = $s.start.ToString('o')
+        errors  = $errs
+        status  = if ($errs.Count -gt 0) { 'error' } else { 'ok' }
+      }
+    }
+    $summary = [pscustomobject]@{
+      date     = $todayIso
+      finished = (Get-Date).ToString('o')
+      elapsed_seconds = [Math]::Round($elapsed.TotalSeconds,2)
+      critical_failures = $script:CriticalFailures
+      steps    = $statusRows
+    }
+    $diagDir = Join-Path $OutDir 'logs'
+    $diagPath = Join-Path $diagDir ("daily_update_status_" + $todayIso + ".json")
+    ($summary | ConvertTo-Json -Depth 6) | Out-File -FilePath $diagPath -Encoding UTF8
+    Write-Host "Wrote status summary -> $diagPath" -ForegroundColor Green
+  } catch {
+    Write-Warning "Failed writing status summary JSON: $($_)"
+  }
 
   if ($script:CriticalFailures.Count -gt 0) {
     Write-Host "Critical failures encountered: $($script:CriticalFailures.Count)" -ForegroundColor Red

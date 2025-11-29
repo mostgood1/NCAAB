@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NCAAB Betting – Recommendations</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   <style>
     :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
     body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text)}
@@ -15,14 +16,17 @@
     th{color:var(--muted);text-align:left}
     .pill{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:999px;padding:3px 8px;font-size:12px}
     a{color:var(--accent)}
+    .rec-header{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+    .rec-header .spacer{flex:1}
   </style>
 </head>
 <body>
   <div class="container">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px">
+    <div class="rec-header">
       <h1>NCAAB – Recommendations</h1>
-      <div style="flex:1"></div>
+      <div class="spacer"></div>
       <a href="/">Cards</a>
+      <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
     </div>
     <div class="meta">{{ total_rows }} rows</div>
     {% if not rows %}
@@ -45,7 +49,7 @@
         </thead>
         <tbody>
           {% for r in rows %}
-          <tr>
+          <tr tabindex="0">
             <td>{{ r.date or '' }}</td>
             <td><strong>{{ r.home_team }}</strong> vs {{ r.away_team }}</td>
             <td>{{ r.book or '' }}</td>
@@ -62,5 +66,17 @@
       </table>
     {% endif %}
   </div>
+  <script>
+    (function(){
+      var btn = document.getElementById('toggleContrast');
+      if(btn){
+        btn.addEventListener('click', function(){
+          document.documentElement.classList.toggle('high-contrast');
+          try{ localStorage.setItem('highContrast', document.documentElement.classList.contains('high-contrast')?'1':'0'); }catch(e){}
+        });
+        try{ if(localStorage.getItem('highContrast')==='1'){ document.documentElement.classList.add('high-contrast'); } }catch(e){}
+      }
+    })();
+  </script>
 </body>
 </html>
