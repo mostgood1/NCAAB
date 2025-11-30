@@ -1,19 +1,19 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401822324,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,Ball State Cardinals,Le Moyne Dolphins,95,85,38.0,38.0,57.0,47.0,True,Kirby Sports Center
-401828684,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,New Haven Chargers,Mitchell College Mariners,74,55,54.0,37.0,20.0,18.0,False,Jeffery P. Hazell Athletics Center
-401828271,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,UAlbany Great Danes,SUNY-Oneonta Red Dragons,59,37,52.0,30.0,7.0,7.0,True,Place Bell
-401822669,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Princeton Tigers,Saint Joseph's Hawks,41,45,25.0,30.0,16.0,15.0,True,CURE Insurance Arena
-401820627,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Maine Black Bears,Siena Saints,36,45,25.0,36.0,11.0,9.0,True,Bender Arena
-401812648,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Central Connecticut Blue Devils,Johnson & Wales (RI) Griffins,98,46,55.0,28.0,43.0,18.0,False,Detrick Gymnasium
+401828684,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,New Haven Chargers,Mitchell College Mariners,85,64,54.0,37.0,31.0,27.0,False,Jeffery P. Hazell Athletics Center
+401828271,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,UAlbany Great Danes,SUNY-Oneonta Red Dragons,67,45,52.0,30.0,15.0,15.0,True,Place Bell
+401822669,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Princeton Tigers,Saint Joseph's Hawks,44,45,25.0,30.0,19.0,15.0,True,CURE Insurance Arena
+401820627,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Maine Black Bears,Siena Saints,38,51,25.0,36.0,13.0,15.0,True,Bender Arena
+401812648,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Central Connecticut Blue Devils,Johnson & Wales (RI) Griffins,112,55,55.0,28.0,57.0,27.0,False,Detrick Gymnasium
 401826735,2025,2025-11-30,2025-11-30 18:30:00+00:00,2025-11-30 13:30,EST,UNC Asheville Bulldogs,App State Mountaineers,33,26,33.0,26.0,,,True,Harrah's Cherokee Center
-401831376,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,UTSA Roadrunners,South Alabama Jaguars,9,12,9.0,12.0,,,False,UTSA Convocation Center
-401829388,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Chattanooga Mocs,Tennessee State Tigers,8,17,8.0,17.0,,,False,McKenzie Arena
-401827508,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,William & Mary Tribe,Old Dominion Monarchs,6,7,6.0,7.0,,,False,Kaplan Arena
-401823405,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Robert Morris Colonials,Stetson Hatters,14,10,14.0,10.0,,,False,UPMC Events Center
-401823191,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Fairfield Stags,New Hampshire Wildcats,16,15,16.0,15.0,,,False,Leo D. Mahoney Arena
-401820581,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Quinnipiac Bobcats,Stonehill Skyhawks,18,16,18.0,16.0,,,False,M&T Bank Arena
-401818302,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Vermont Catamounts,Yale Bulldogs,7,7,7.0,7.0,,,False,Patrick Gymnasium
-401809079,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Bucknell Bison,Cornell Big Red,9,9,9.0,9.0,,,False,Sojka Pavilion
+401831376,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,UTSA Roadrunners,South Alabama Jaguars,16,17,16.0,17.0,,,False,UTSA Convocation Center
+401829388,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Chattanooga Mocs,Tennessee State Tigers,18,25,18.0,25.0,,,False,McKenzie Arena
+401827508,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,William & Mary Tribe,Old Dominion Monarchs,12,7,12.0,7.0,,,False,Kaplan Arena
+401823405,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Robert Morris Colonials,Stetson Hatters,21,15,21.0,15.0,,,False,UPMC Events Center
+401823191,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Fairfield Stags,New Hampshire Wildcats,23,21,23.0,21.0,,,False,Leo D. Mahoney Arena
+401820581,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Quinnipiac Bobcats,Stonehill Skyhawks,20,21,20.0,21.0,,,False,M&T Bank Arena
+401818302,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Vermont Catamounts,Yale Bulldogs,16,11,16.0,11.0,,,False,Patrick Gymnasium
+401809079,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Bucknell Bison,Cornell Big Red,15,20,15.0,20.0,,,False,Sojka Pavilion
+401822324,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,Ball State Cardinals,Le Moyne Dolphins,96,85,38.0,38.0,58.0,47.0,True,Kirby Sports Center
 401822183,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,La Salle Explorers,Merrimack Warriors,60,66,36.0,42.0,24.0,24.0,True,The Palestra
 401824863,2025,2025-11-30,2025-11-30 19:30:00+00:00,2025-11-30 14:30,EST,Lafayette Leopards,Monmouth Hawks,0,0,,,,,False,Kirby Sports Center
 401812580,2025,2025-11-30,2025-11-30 19:30:00+00:00,2025-11-30 14:30,EST,Pennsylvania Quakers,Hofstra Pride,0,0,,,,,False,The Palestra
