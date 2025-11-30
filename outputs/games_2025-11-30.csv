@@ -1,11 +1,11 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401822324,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,Ball State Cardinals,Le Moyne Dolphins,40,48,38.0,38.0,2.0,10.0,True,Kirby Sports Center
-401822183,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,La Salle Explorers,Merrimack Warriors,44,51,36.0,42.0,8.0,9.0,True,The Palestra
-401828684,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,New Haven Chargers,Mitchell College Mariners,27,23,27.0,23.0,,,False,Jeffery P. Hazell Athletics Center
-401828271,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,UAlbany Great Danes,SUNY-Oneonta Red Dragons,16,11,16.0,11.0,,,True,Place Bell
-401822669,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Princeton Tigers,Saint Joseph's Hawks,16,13,16.0,13.0,,,True,CURE Insurance Arena
-401820627,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Maine Black Bears,Siena Saints,9,18,9.0,18.0,,,True,Bender Arena
-401812648,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Central Connecticut Blue Devils,Johnson & Wales (RI) Griffins,20,8,20.0,8.0,,,False,Detrick Gymnasium
+401822324,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,Ball State Cardinals,Le Moyne Dolphins,51,55,38.0,38.0,13.0,17.0,True,Kirby Sports Center
+401822183,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,La Salle Explorers,Merrimack Warriors,52,53,36.0,42.0,16.0,11.0,True,The Palestra
+401828684,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,New Haven Chargers,Mitchell College Mariners,52,35,52.0,35.0,,,False,Jeffery P. Hazell Athletics Center
+401828271,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,UAlbany Great Danes,SUNY-Oneonta Red Dragons,34,15,34.0,15.0,,,True,Place Bell
+401822669,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Princeton Tigers,Saint Joseph's Hawks,23,25,21.0,25.0,,,True,CURE Insurance Arena
+401820627,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Maine Black Bears,Siena Saints,19,25,19.0,25.0,,,True,Bender Arena
+401812648,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Central Connecticut Blue Devils,Johnson & Wales (RI) Griffins,41,25,41.0,25.0,,,False,Detrick Gymnasium
 401826735,2025,2025-11-30,2025-11-30 18:30:00+00:00,2025-11-30 13:30,EST,UNC Asheville Bulldogs,App State Mountaineers,0,0,,,,,True,Harrah's Cherokee Center
 401831376,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,UTSA Roadrunners,South Alabama Jaguars,0,0,,,,,False,UTSA Convocation Center
 401829388,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Chattanooga Mocs,Tennessee State Tigers,0,0,,,,,False,McKenzie Arena
