@@ -1,0 +1,34 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401822324,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,Ball State Cardinals,Le Moyne Dolphins,0,0,,,,,True,Kirby Sports Center
+401822183,2025,2025-11-30,2025-11-30 17:00:00+00:00,2025-11-30 12:00,EST,La Salle Explorers,Merrimack Warriors,0,0,,,,,True,The Palestra
+401828684,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,New Haven Chargers,Mitchell College Mariners,0,0,,,,,False,Jeffery P. Hazell Athletics Center
+401828271,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,UAlbany Great Danes,SUNY-Oneonta Red Dragons,0,0,,,,,True,Place Bell
+401822669,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Princeton Tigers,Saint Joseph's Hawks,0,0,,,,,True,CURE Insurance Arena
+401820627,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Maine Black Bears,Siena Saints,0,0,,,,,True,Bender Arena
+401812648,2025,2025-11-30,2025-11-30 18:00:00+00:00,2025-11-30 13:00,EST,Central Connecticut Blue Devils,Johnson & Wales (RI) Griffins,0,0,,,,,False,Detrick Gymnasium
+401826735,2025,2025-11-30,2025-11-30 18:30:00+00:00,2025-11-30 13:30,EST,UNC Asheville Bulldogs,App State Mountaineers,0,0,,,,,True,Harrah's Cherokee Center
+401831376,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,UTSA Roadrunners,South Alabama Jaguars,0,0,,,,,False,UTSA Convocation Center
+401829388,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Chattanooga Mocs,Tennessee State Tigers,0,0,,,,,False,McKenzie Arena
+401827508,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,William & Mary Tribe,Old Dominion Monarchs,0,0,,,,,False,Kaplan Arena
+401823405,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Robert Morris Colonials,Stetson Hatters,0,0,,,,,False,UPMC Events Center
+401823191,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Fairfield Stags,New Hampshire Wildcats,0,0,,,,,False,Leo D. Mahoney Arena
+401820581,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Quinnipiac Bobcats,Stonehill Skyhawks,0,0,,,,,False,M&T Bank Arena
+401818302,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Vermont Catamounts,Yale Bulldogs,0,0,,,,,False,Patrick Gymnasium
+401809079,2025,2025-11-30,2025-11-30 19:00:00+00:00,2025-11-30 14:00,EST,Bucknell Bison,Cornell Big Red,0,0,,,,,False,Sojka Pavilion
+401824863,2025,2025-11-30,2025-11-30 19:30:00+00:00,2025-11-30 14:30,EST,Lafayette Leopards,Monmouth Hawks,0,0,,,,,False,Kirby Sports Center
+401812580,2025,2025-11-30,2025-11-30 19:30:00+00:00,2025-11-30 14:30,EST,Pennsylvania Quakers,Hofstra Pride,0,0,,,,,False,The Palestra
+401819901,2025,2025-11-30,2025-11-30 20:00:00+00:00,2025-11-30 15:00,EST,Texas Tech Red Raiders,Wyoming Cowboys,0,0,,,,,False,United Supermarkets Arena
+401823326,2025,2025-11-30,2025-11-30 20:00:00+00:00,2025-11-30 15:00,EST,Missouri State Bears,Northeastern State RiverHawks,0,0,,,,,False,Great Southern Bank Arena
+401819918,2025,2025-11-30,2025-11-30 20:00:00+00:00,2025-11-30 15:00,EST,West Virginia Mountaineers,Mercyhurst Lakers,0,0,,,,,False,WVU Coliseum
+401829404,2025,2025-11-30,2025-11-30 20:30:00+00:00,2025-11-30 15:30,EST,Colgate Raiders,Fordham Rams,0,0,,,,,True,Place Bell
+401827174,2025,2025-11-30,2025-11-30 20:30:00+00:00,2025-11-30 15:30,EST,Coastal Carolina Chanticleers,Alabama A&M Bulldogs,0,0,,,,,False,The HTC Center
+401817200,2025,2025-11-30,2025-11-30 20:30:00+00:00,2025-11-30 15:30,EST,Florida Atlantic Owls,St. Bonaventure Bonnies,0,0,,,,,False,Eleanor R. Baldwin Arena
+401811970,2025,2025-11-30,2025-11-30 20:30:00+00:00,2025-11-30 15:30,EST,Charleston Cougars,Belmont Bruins,0,0,,,,,False,TD Arena
+401831380,2025,2025-11-30,2025-11-30 21:00:00+00:00,2025-11-30 16:00,EST,Western Illinois Leathernecks,St. Ambrose Fighting Bees,0,0,,,,,False,Western Hall
+401827042,2025,2025-11-30,2025-11-30 21:00:00+00:00,2025-11-30 16:00,EST,North Texas Mean Green,Prairie View A&M Panthers,0,0,,,,,False,The Super Pit
+401826993,2025,2025-11-30,2025-11-30 21:00:00+00:00,2025-11-30 16:00,EST,American University Eagles,Longwood Lancers,0,0,,,,,False,Bender Arena
+401826942,2025,2025-11-30,2025-11-30 21:00:00+00:00,2025-11-30 16:00,EST,Presbyterian Blue Hose,The Citadel Bulldogs,0,0,,,,,True,Harrah's Cherokee Center
+401829326,2025,2025-11-30,2025-11-30 22:00:00+00:00,2025-11-30 17:00,EST,San José State Spartans,UC Irvine Anteaters,0,0,,,,,False,Provident Credit Union Event Center
+401823310,2025,2025-11-30,2025-11-30 22:00:00+00:00,2025-11-30 17:00,EST,Long Beach State Beach,San Diego Toreros,0,0,,,,,False,Walter Pyramid
+401823736,2025,2025-11-30,2025-11-30 23:00:00+00:00,2025-11-30 18:00,EST,Fresno State Bulldogs,Cal State Bakersfield Roadrunners,0,0,,,,,False,Save Mart Center
+401820189,2025,2025-11-30,2025-11-30 23:00:00+00:00,2025-11-30 18:00,EST,Loyola Maryland Greyhounds,Coppin State Eagles,0,0,,,,,False,Reitz Arena
