@@ -1,8 +1,119 @@
+"""
+App post-run calibration integration
+
+This appended block applies persisted isotonic calibration and refined sigma
+to today's enriched predictions and generates the calibrated stake sheet.
+It runs safely after the main app logic, only if required artifacts exist.
+"""
 from __future__ import annotations
+
+from pathlib import Path as _Path
+import pandas as _pd
+import subprocess as _subprocess
+
+def _safe_read_csv(_p: _Path) -> _pd.DataFrame:
+    try:
+        return _pd.read_csv(_p)
+    except Exception:
+        return _pd.DataFrame()
+
+def _apply_calibration_and_sigma_post_run():
+    try:
+        outputs = _Path('outputs')
+        enriched = _safe_read_csv(outputs / 'predictions_history_enriched.csv')
+        if enriched.empty or 'date' not in enriched.columns:
+            return
+        latest = str(sorted(enriched['date'].dropna().astype(str).unique())[-1])
+        enriched['game_id'] = enriched['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+        today_df = enriched[enriched['date'].astype(str) == latest].copy()
+        # Import helper from src; adjust path if needed
+        try:
+            from src.calibration_utils import load_calibration_params, apply_calibration_to_df, apply_sigma_intervals
+        except Exception:
+            import sys as _sys
+            _sys.path.append(str(_Path('.').resolve() / 'src'))
+            from calibration_utils import load_calibration_params, apply_calibration_to_df, apply_sigma_intervals
+        params = load_calibration_params(outputs / 'calibration_params.json')
+        if params:
+            today_df = apply_calibration_to_df(today_df, params)
+        sigma_df = _safe_read_csv(outputs / 'predictions_history_sigma.csv')
+        if not sigma_df.empty and {'date','game_id'}.issubset(sigma_df.columns):
+            sigma_df['game_id'] = sigma_df['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+            today_df = today_df.merge(sigma_df[['date','game_id','sigma_total','sigma_margin']], on=['date','game_id'], how='left')
+        today_df = apply_sigma_intervals(today_df, sigma_total_col='sigma_total')
+        # Prefer quantile intervals when available
+        qdf = _safe_read_csv(outputs / 'quantiles_history.csv')
+        if not qdf.empty and {'date','game_id'}.issubset(qdf.columns):
+            qdf['game_id'] = qdf['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+            qdf_latest = qdf[qdf['date'].astype(str) == latest]
+            cols = [c for c in ['date','game_id','q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin'] if c in qdf.columns]
+            if cols:
+                today_df = today_df.merge(qdf_latest[cols], on=['date','game_id'], how='left')
+                if {'q10_total','q90_total'}.issubset(today_df.columns):
+                    today_df['total_p10'] = today_df['q10_total']
+                    today_df['total_p50'] = today_df.get('q50_total', today_df.get('pred_total'))
+                    today_df['total_p90'] = today_df['q90_total']
+                if {'q10_margin','q90_margin'}.issubset(today_df.columns):
+                    today_df['margin_p10'] = today_df['q10_margin']
+                    today_df['margin_p50'] = today_df.get('q50_margin', today_df.get('pred_margin'))
+                    today_df['margin_p90'] = today_df['q90_margin']
+        else:
+            # Fallback: compute residual-based central intervals on the fly
+            try:
+                bt = _safe_read_csv(outputs / 'backtest_reports' / 'backtest_joined.csv')
+                if not bt.empty and {'pred_total','actual_total','pred_margin','actual_margin'}.issubset(bt.columns):
+                    bt['_date'] = _pd.to_datetime(bt['date'], errors='coerce')
+                    ref = _pd.to_datetime(latest, errors='coerce')
+                    if _pd.isna(ref):
+                        ref = _pd.to_datetime(bt['_date'].max())
+                    win = bt[(bt['_date'] >= ref - _pd.Timedelta(days=28)) & (bt['_date'] <= ref)]
+                    resid_t = (win['actual_total'] - win['pred_total']).dropna()
+                    resid_m = (win['actual_margin'] - win['pred_margin']).dropna()
+                    if len(resid_t) and len(resid_m):
+                        eps = (1.0 - 0.8) / 2.0
+                        ql_t = float(np.nanquantile(resid_t, eps))
+                        qm_t = float(np.nanquantile(resid_t, 0.5))
+                        qh_t = float(np.nanquantile(resid_t, 1 - eps))
+                        ql_m = float(np.nanquantile(resid_m, eps))
+                        qm_m = float(np.nanquantile(resid_m, 0.5))
+                        qh_m = float(np.nanquantile(resid_m, 1 - eps))
+                        # apply
+                        today_df['q10_total'] = today_df['pred_total'] + ql_t
+                        today_df['q50_total'] = today_df['pred_total'] + qm_t
+                        today_df['q90_total'] = today_df['pred_total'] + qh_t
+                        today_df['q10_margin'] = today_df['pred_margin'] + ql_m
+                        today_df['q50_margin'] = today_df['pred_margin'] + qm_m
+                        today_df['q90_margin'] = today_df['pred_margin'] + qh_m
+                        # ensure monotone
+                        def _sort3(a,b,c,row):
+                            v = sorted([row[a], row[b], row[c]])
+                            return _pd.Series(v, index=[a,b,c])
+                        today_df[['q10_total','q50_total','q90_total']] = today_df.apply(lambda r: _sort3('q10_total','q50_total','q90_total', r), axis=1)
+                        today_df[['q10_margin','q50_margin','q90_margin']] = today_df.apply(lambda r: _sort3('q10_margin','q50_margin','q90_margin', r), axis=1)
+                        today_df['total_p10'] = today_df['q10_total']
+                        today_df['total_p50'] = today_df.get('q50_total', today_df.get('pred_total'))
+                        today_df['total_p90'] = today_df['q90_total']
+                        today_df['margin_p10'] = today_df['q10_margin']
+                        today_df['margin_p50'] = today_df.get('q50_margin', today_df.get('pred_margin'))
+                        today_df['margin_p90'] = today_df['q90_margin']
+            except Exception:
+                pass
+        out = outputs / 'predictions_today_calibrated.csv'
+        today_df.to_csv(out, index=False)
+        # Invoke staking script
+        try:
+            _subprocess.run(['python', 'scripts/stake_calibrated_kelly.py'], check=True)
+        except Exception:
+            pass
+    except Exception:
+        # Swallow errors to avoid impacting primary app flow
+        pass
+
+# Run post-run calibration block
+_apply_calibration_and_sigma_post_run()
 
 import json
 import shutil
-import pandas as pd
 import os
 from pathlib import Path
 from typing import Any, Dict, List
@@ -15,6 +126,7 @@ import datetime as dt
 import numpy as np
 from zoneinfo import ZoneInfo
 import re
+import json as _json
 
 # Ensure src/ is importable
 import sys
@@ -101,6 +213,429 @@ def enforce_calibrated_first(df: pd.DataFrame) -> pd.DataFrame:
         pass
     return df
 
+# -----------------------------
+# Quantile metrics API endpoint
+# -----------------------------
+@app.get('/api/quantile-metrics')
+def api_quantile_metrics():
+    try:
+        out_dir = ROOT / 'outputs'
+        qpath = out_dir / 'quantile_metrics.csv'
+        if not qpath.exists():
+            return jsonify({'status':'missing','data':[]})
+        m = pd.read_csv(qpath)
+        # Optional date filter
+        date_q = request.args.get('date')
+        if date_q:
+            m = m[m['date'].astype(str) == str(date_q)]
+        # Keep concise fields
+        cols = [c for c in ['date','crps_total','crps_margin','covered_80_total','covered_80_margin'] if c in m.columns]
+        data = m[cols].to_dict(orient='records')
+        return jsonify({'status':'ok','data':data})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Quantile metrics page
+# -----------------------------
+@app.get('/quantile-metrics')
+def page_quantile_metrics():
+    try:
+        date_q = request.args.get('date')
+        return render_template('quantile_metrics.html', date_q=date_q)
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Drift weekly metrics API + page
+# -----------------------------
+@app.get('/api/drift-weekly')
+def api_drift_weekly():
+    try:
+        out_dir = ROOT / 'outputs'
+        dpath = out_dir / 'drift_summary_weekly.csv'
+        if not dpath.exists():
+            return jsonify({'status':'missing','data':[]})
+        df = pd.read_csv(dpath)
+        return jsonify({'status':'ok','data': df.to_dict(orient='records')})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+@app.get('/drift-weekly')
+def page_drift_weekly():
+    try:
+        return render_template('drift_weekly.html')
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Quantile trend weekly API + page
+# -----------------------------
+@app.get('/api/quantile-trend-weekly')
+def api_quantile_trend_weekly():
+    try:
+        out_dir = ROOT / 'outputs'
+        qpath = out_dir / 'quantile_trend_weekly.csv'
+        if not qpath.exists():
+            return jsonify({'status':'missing','data':[]})
+        df = pd.read_csv(qpath)
+        # Optional date filter
+        date_q = request.args.get('date')
+        if date_q:
+            df = df[df['date'].astype(str) == str(date_q)]
+        return jsonify({'status':'ok','data': df.to_dict(orient='records')})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+@app.get('/quantile-trend-weekly')
+def page_quantile_trend_weekly():
+    try:
+        date_q = request.args.get('date')
+        return render_template('quantile_trend_weekly.html', date_q=date_q)
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Stake risk summary API + page
+# -----------------------------
+@app.get('/api/stake-risk-summary')
+def api_stake_risk_summary():
+    try:
+        out_dir = ROOT / 'outputs'
+        spath = out_dir / 'stake_risk_summary.csv'
+        if not spath.exists():
+            return jsonify({'status':'missing','data':[]})
+        df = pd.read_csv(spath)
+        return jsonify({'status':'ok','data': df.to_dict(orient='records')})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+@app.get('/stake-risk-summary')
+def page_stake_risk_summary():
+    try:
+        return render_template('stake_risk_summary.html')
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# (Dashboard route exists later as @app.route("/dashboard") with metrics.)
+
+# -----------------------------
+# Serve outputs CSVs securely
+# -----------------------------
+@app.get('/static/outputs/<path:fname>')
+def serve_outputs_file(fname: str):
+    try:
+        base = ROOT / 'outputs'
+        # prevent path traversal
+        target = (base / fname).resolve()
+        if base.resolve() not in target.parents and base.resolve() != target.parent:
+            return jsonify({'status':'error','message':'invalid path'})
+        if not target.exists():
+            return jsonify({'status':'missing'})
+        return send_file(str(target), as_attachment=True)
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Aggregated alerts API
+# -----------------------------
+@app.get('/api/alerts-today')
+def api_alerts_today():
+    try:
+        out_dir = ROOT / 'outputs'
+        result: Dict[str, Any] = {}
+
+        def _latest_by_date(path: Path, date_cols: list[str]) -> Dict[str, Any]:
+            try:
+                if not path.exists():
+                    return {'status':'missing'}
+                df = pd.read_csv(path)
+                # find the first present date-like column
+                col = next((c for c in date_cols if c in df.columns), None)
+                if col is None or df.empty:
+                    row = df.iloc[-1].to_dict() if not df.empty else {}
+                    return {'status':'ok','row':row}
+                # coerce to string and sort
+                sdf = df.copy()
+                sdf[col] = sdf[col].astype(str)
+                sdf = sdf.sort_values(by=col)
+                row = sdf.iloc[-1].to_dict()
+                return {'status':'ok','row':row}
+            except Exception:
+                return {'status':'error'}
+
+        qtw = _latest_by_date(out_dir / 'quantile_trend_weekly.csv', ['date','week'])
+        drift = _latest_by_date(out_dir / 'drift_summary_weekly.csv', ['week','date'])
+        sr = _latest_by_date(out_dir / 'stake_risk_summary.csv', ['date'])
+
+        def _extract_alerts(obj: Dict[str, Any]) -> str:
+            try:
+                if obj.get('status') != 'ok':
+                    return ''
+                row = obj.get('row') or {}
+                val = row.get('alerts')
+                if pd.isna(val):
+                    return ''
+                return str(val)
+            except Exception:
+                return ''
+
+        qa = _extract_alerts(qtw)
+        da = _extract_alerts(drift)
+        sa = _extract_alerts(sr)
+
+        # Quantile selection coverage alerts (overall + segments)
+        qsel_meta = out_dir / 'quantile_model_selection.json'
+        qsel_alert = ''
+        try:
+            if qsel_meta.exists():
+                with open(qsel_meta, 'r', encoding='utf-8') as f:
+                    m = _json.load(f)
+                tgt = float(m.get('target_coverage', 0.8))
+                # attempt to get coverage from overall scores for selected methods
+                cov_t = None; cov_m = None
+                try:
+                    st = m.get('scores_total') or []
+                    sm = m.get('scores_margin') or []
+                    sel_t = m.get('selected_method_total'); sel_m = m.get('selected_method_margin')
+                    for s in st:
+                        if s.get('name') == sel_t:
+                            cov_t = s.get('coverage')
+                            break
+                    for s in sm:
+                        if s.get('name') == sel_m:
+                            cov_m = s.get('coverage')
+                            break
+                except Exception:
+                    pass
+                msgs = []
+                def _fmt(name, cov):
+                    try:
+                        if cov is None:
+                            return None
+                        diff = abs(float(cov) - tgt)
+                        if diff >= 0.05:
+                            return f"{name} coverage {cov:.2f} vs target {tgt:.2f}"
+                    except Exception:
+                        return None
+                    return None
+                mt = _fmt('totals', cov_t)
+                mm = _fmt('margin', cov_m)
+                for x in [mt, mm]:
+                    if x:
+                        msgs.append(x)
+                # segment deviations
+                try:
+                    seg_t = m.get('segment_scores_total') or {}
+                    seg_m = m.get('segment_scores_margin') or {}
+                    def _seg_hits(seg_scores, label_prefix):
+                        out = []
+                        for k, arr in seg_scores.items():
+                            try:
+                                # arr is list of score dicts; find selected one by name
+                                sel_name = (m.get('selected_methods_by_segment_total') or {}).get(k) if label_prefix=='totals' else (m.get('selected_methods_by_segment_margin') or {}).get(k)
+                                cand = None
+                                if isinstance(arr, list):
+                                    for s in arr:
+                                        if not sel_name or s.get('name') == sel_name:
+                                            cand = s; break
+                                if cand is None and isinstance(arr, list) and arr:
+                                    cand = arr[0]
+                                cov = cand.get('coverage') if isinstance(cand, dict) else None
+                                if cov is not None and abs(float(cov) - tgt) >= 0.05:
+                                    out.append(f"{k} {float(cov):.2f}")
+                            except Exception:
+                                continue
+                        return out
+                    bad_t = _seg_hits(seg_t, 'totals')
+                    bad_m = _seg_hits(seg_m, 'margins')
+                    if bad_t:
+                        msgs.append("totals segs: " + ", ".join(bad_t))
+                    if bad_m:
+                        msgs.append("margin segs: " + ", ".join(bad_m))
+                except Exception:
+                    pass
+                qsel_alert = ' | '.join(msgs)
+        except Exception:
+            qsel_alert = ''
+
+        result['quantile_trend_weekly'] = {
+            'date': (qtw.get('row') or {}).get('date') or (qtw.get('row') or {}).get('week') or '',
+            'alerts': qa,
+        }
+        result['drift_weekly'] = {
+            'date': (drift.get('row') or {}).get('week') or (drift.get('row') or {}).get('date') or '',
+            'alerts': da,
+        }
+        result['stake_risk'] = {
+            'date': (sr.get('row') or {}).get('date') or '',
+            'alerts': sa,
+        }
+        result['quantile_selection'] = {
+            'date': (qtw.get('row') or {}).get('date') or (qtw.get('row') or {}).get('week') or '',
+            'alerts': qsel_alert,
+        }
+
+        sources = [qa, da, sa, qsel_alert]
+        alert_sources = sum(1 for x in sources if isinstance(x, str) and x.strip())
+        result['summary'] = {
+            'has_alerts': alert_sources > 0,
+            'alert_sources': alert_sources,
+        }
+        return jsonify({'status':'ok','data':result})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Backtest summary API
+# -----------------------------
+@app.get('/api/backtest-summary')
+def api_backtest_summary():
+    try:
+        out_dir = ROOT / 'outputs'
+        latest = out_dir / 'backtest_summary_latest.csv'
+        df = None
+        if latest.exists():
+            df = pd.read_csv(latest)
+        else:
+            cand = sorted(out_dir.glob('backtest_summary_*.csv'), key=lambda p: p.stat().st_mtime, reverse=True)
+            if cand:
+                df = pd.read_csv(cand[0])
+        if df is None or df.empty:
+            return jsonify({'status':'missing'})
+        row = df.iloc[0].to_dict()
+        return jsonify({'status':'ok','data': row})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Backtest ROI API
+# -----------------------------
+@app.get('/api/backtest-roi')
+def api_backtest_roi():
+    try:
+        out_dir = ROOT / 'outputs'
+        p = out_dir / 'backtest_roi_latest.csv'
+        if not p.exists():
+            return jsonify({'status':'missing'})
+        df = pd.read_csv(p)
+        return jsonify({'status':'ok','data': df.to_dict(orient='records')})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+# -----------------------------
+# Meta reliability API
+# -----------------------------
+@app.get('/api/meta-reliability')
+def api_meta_reliability():
+    try:
+        out_dir = ROOT / 'outputs'
+        p_json = out_dir / 'meta_ece.json'
+        p_csv = out_dir / 'meta_reliability.csv'
+        data = {}
+        if p_json.exists():
+            try:
+                data = json.loads(p_json.read_text())
+            except Exception:
+                data = {'status': 'error'}
+        rows = []
+        if p_csv.exists():
+            try:
+                rows = pd.read_csv(p_csv).to_dict(orient='records')
+            except Exception:
+                rows = []
+        return jsonify({'status':'ok','summary': data, 'reliability': rows})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+# Post-process enriched artifact to ensure predictions/time/display coverage
+def _postprocess_enriched_file(date_q: str):
+    try:
+        out_dir = ROOT / 'outputs'
+        enriched_path = out_dir / f'predictions_unified_enriched_{date_q}.csv'
+        base_unified = out_dir / f'predictions_unified_{date_q}.csv'
+        display_path = out_dir / f'predictions_display_{date_q}.csv'
+        if not enriched_path.exists():
+            return False
+        enr = pd.read_csv(enriched_path)
+        uni = pd.read_csv(base_unified) if base_unified.exists() else None
+        dis = pd.read_csv(display_path) if display_path.exists() else None
+        # Fallback fill for pred_total/pred_margin
+        enr = _fallback_merge_predictions(enr, uni, dis)
+        # Fill display_date fallback
+        if 'display_date' not in enr.columns:
+            enr['display_date'] = None
+        enr['display_date'] = enr['display_date'].fillna(enr.get('date'))
+        # Row-wise drift correction using slate date
+        rows = []
+        for r in enr.to_dict(orient='records'):
+            rows.append(_correct_midnight_drift(r, slate_date=date_q))
+        enr = pd.DataFrame(rows)
+        enr.to_csv(enriched_path, index=False)
+        return True
+    except Exception:
+        return False
+
+# Fallback + instrumentation helpers
+def _is_utc_normalized(dt):
+    try:
+        if isinstance(dt, str):
+            return dt.endswith('Z') or ('+00:00' in dt)
+        return isinstance(dt, dt.__class__) and getattr(dt, 'tzinfo', None) is not None and getattr(dt, 'tzinfo') == dt.timezone.utc
+    except Exception:
+        return False
+
+def _safe_to_utc_iso(val):
+    if val is None or val == '':
+        return None
+    try:
+        if isinstance(val, str):
+            if val.endswith('Z'):
+                return val
+            return pd.to_datetime(val.replace('Z','+00:00'), errors='coerce', utc=True).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return pd.to_datetime(val, errors='coerce', utc=True).strftime('%Y-%m-%dT%H:%M:%SZ')
+    except Exception:
+        return val
+
+def _fallback_merge_predictions(enriched_df: pd.DataFrame, unified_df: pd.DataFrame | None, display_df: pd.DataFrame | None) -> pd.DataFrame:
+    if enriched_df is None or len(enriched_df) == 0:
+        return enriched_df
+    def make_map(df):
+        if df is None:
+            return {}
+        cols = [c for c in ['game_id','date','pred_total','pred_margin'] if c in df.columns]
+        if not set(['game_id','date']).issubset(set(cols)):
+            return {}
+        return {(str(r.game_id), str(r.date)):(r.pred_total, r.pred_margin) for r in df[cols].itertuples()}
+    u_map = make_map(unified_df)
+    d_map = make_map(display_df)
+    for i, r in enriched_df.iterrows():
+        if (('pred_total' in enriched_df.columns and pd.isna(r.get('pred_total'))) or ('pred_margin' in enriched_df.columns and pd.isna(r.get('pred_margin')))):
+            key = (str(r.get('game_id')), str(r.get('date')))
+            vals = u_map.get(key) or d_map.get(key)
+            if vals:
+                enriched_df.at[i, 'pred_total'] = vals[0]
+                enriched_df.at[i, 'pred_margin'] = vals[1]
+    return enriched_df
+
+def _log_enrichment_drop(row: dict, drops_log: list):
+    reasons = []
+    if row.get('pred_total') is None and row.get('pred_margin') is None:
+        reasons.append('missing_predictions')
+    if not row.get('start_time_iso'):
+        reasons.append('missing_start_time_iso')
+    if not row.get('display_date'):
+        reasons.append('missing_display_date')
+    if (row.get('home_odds_decimal') is None) and (row.get('away_odds_decimal') is None):
+        reasons.append('missing_odds')
+    if reasons:
+        drops_log.append({
+            'game_id': row.get('game_id'),
+            'date': row.get('date'),
+            'home_team': row.get('home_team'),
+            'away_team': row.get('away_team'),
+            'reasons': '|'.join(reasons)
+        })
+
 # ------------------------------------------------------------------
 # Feature fallback enrichment stub (prevents undefined symbol errors)
 # ------------------------------------------------------------------
@@ -182,6 +717,7 @@ def _correct_midnight_drift(row: dict, slate_date: str | None = None) -> dict:
             except Exception:
                 ex_dt = pd.NaT
             if pd.notna(ex_dt):
+
                 # If difference in day and existing is +1 day vs derived, correct
                 if ex_dt.date() != utc_dt.date() and ex_dt.date() == (utc_dt.date() + dt.timedelta(days=1)):
                     row['start_time_iso'] = derived_iso
@@ -193,6 +729,18 @@ def _correct_midnight_drift(row: dict, slate_date: str | None = None) -> dict:
                             row['start_time_display'] = f"{local_date_str} {local_time_str} {abbr}".strip()
                         except Exception:
                             pass
+                    return row
+                # Guard against accidental +300 minute drift when raw UTC provided
+                raw = str(row.get('start_time') or '').strip()
+                if raw:
+                    try:
+                        raw_dt = pd.to_datetime(raw, errors='coerce', utc=True)
+                        delta = (ex_dt - raw_dt).total_seconds()
+                        if delta == 300 * 60:
+                            row['start_time_iso'] = raw_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                            return row
+                    except Exception:
+                        pass
                 return row
         # No existing ISO or unparsable – set derived
         row['start_time_iso'] = derived_iso
@@ -264,7 +812,92 @@ def _derive_start_iso(row: dict[str, Any]) -> str | None:
                 pass
     except Exception:
         pass
+
     return None
+
+# -----------------------------------------------------------------------------
+# Backfill & normalization helper for late UTC rollover games
+# -----------------------------------------------------------------------------
+def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
+    """Populate missing start_time_iso/start_time_local/start_tz_abbr and display_date.
+
+    Handles evening games whose UTC timestamp rolls into slate+1 but belong to the
+    original slate's local calendar date. This occurs for late Central / Mountain /
+    Pacific / Hawaii starts represented only by a raw UTC `start_time`.
+
+    Rules:
+      - If `start_time_iso` is missing but `start_time` present, derive ISO (UTC Z).
+      - If local fields missing, attempt Eastern localization (schedule anchor) then
+        fallback to UTC abbreviation.
+      - If UTC date == slate_date + 1 AND localized (Eastern) date == slate_date,
+        set `display_date` to slate_date (normalization for rollover) without
+        mutating original date column.
+      - Never override existing populated fields.
+            - Prefer venue-local fields when available on enriched artifacts.
+    """
+    try:
+        slate_raw = r.get('_slate_date') or r.get('date') or r.get('slate_date')
+        slate_dt = None
+        if slate_raw:
+            try:
+                slate_dt = pd.to_datetime(str(slate_raw), errors='coerce').date()
+            except Exception:
+                slate_dt = None
+        # Parse UTC source
+        utc_source = None
+        iso_val = r.get('start_time_iso')
+        if iso_val:
+            try:
+                utc_source = pd.to_datetime(str(iso_val), errors='coerce', utc=True)
+            except Exception:
+                utc_source = None
+        if utc_source is None:
+            st_raw = r.get('start_time')
+            if st_raw:
+                try:
+                    utc_source = pd.to_datetime(str(st_raw).replace('Z','+00:00'), errors='coerce', utc=True)
+                except Exception:
+                    utc_source = None
+        if utc_source is not None and pd.notna(utc_source):
+            if not iso_val:
+                r['start_time_iso'] = utc_source.strftime('%Y-%m-%dT%H:%M:%SZ')
+            if not r.get('start_time_local') or not r.get('start_tz_abbr'):
+                try:
+                    eastern_dt = utc_source.astimezone(ZoneInfo('America/New_York'))
+                    r.setdefault('start_time_local', eastern_dt.strftime('%Y-%m-%d %H:%M'))
+                    r.setdefault('start_tz_abbr', eastern_dt.tzname())
+                except Exception:
+                    try:
+                        r.setdefault('start_time_local', utc_source.strftime('%Y-%m-%d %H:%M'))
+                        r.setdefault('start_tz_abbr', 'UTC')
+                    except Exception:
+                        pass
+            # Prefer venue-local if present on input row
+            try:
+                vloc = r.get('start_time_local_venue')
+                vtz = r.get('start_tz_abbr_venue')
+                if vloc and vtz:
+                    r['start_time_local'] = vloc
+                    r['start_tz_abbr'] = vtz
+            except Exception:
+                pass
+            if slate_dt is not None:
+                try:
+                    if utc_source.date() == (slate_dt + dt.timedelta(days=1)):
+                        eastern_dt2 = utc_source.astimezone(ZoneInfo('America/New_York'))
+                        if eastern_dt2.date() == slate_dt:
+                            r['display_date'] = slate_dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+        # Final fallback: set display_date to slate date when still missing
+        try:
+            if slate_dt is not None and not r.get('display_date'):
+                r['display_date'] = slate_dt.strftime('%Y-%m-%d')
+        except Exception:
+            pass
+        return r
+    except Exception:
+        return r
 
 @app.route("/benchmarks")
 def benchmarks_page():
@@ -325,6 +958,41 @@ def apply_odds_backfill(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     try:
+        # 1. Normalize provider team names using alias map to improve joins/backfill
+        try:
+            alias_path = ROOT / 'data' / 'provider_aliases.csv'
+            if alias_path.exists():
+                alias_df = pd.read_csv(alias_path)
+                if {'from','to'}.issubset(alias_df.columns):
+                    amap = {str(r['from']).strip().lower(): str(r['to']).strip() for _, r in alias_df.iterrows()}
+                    def _norm_with_alias(x: Any) -> str:
+                        s = str(x or '').strip()
+                        key = s.lower()
+                        return amap.get(key, s)
+                    for col in ('home_team','away_team'):
+                        if col in df.columns:
+                            df[col] = df[col].map(_norm_with_alias)
+        except Exception:
+            pass
+        # 2. Build canonical unordered pair key for propagation & late join attempts
+        if {'home_team','away_team'}.issubset(df.columns):
+            try:
+                def _pair_key(a: str, b: str) -> str:
+                    return '::'.join(sorted([_canon_slug(str(a)), _canon_slug(str(b))]))
+                df['_pair_key'] = [
+                    _pair_key(ht, at) for ht, at in zip(df['home_team'].astype(str), df['away_team'].astype(str))
+                ]
+            except Exception:
+                df['_pair_key'] = None
+        # 3. Parse datetime helpers (start_time, commence_time) for time-window matching
+        # We allow a generous window (±3h, fallback ±5h) to bridge midnight UTC rollover & minute offsets.
+        try:
+            if 'start_time' in df.columns:
+                df['_start_dt'] = pd.to_datetime(df['start_time'], errors='coerce', utc=True)
+            if 'commence_time' in df.columns:
+                df['_commence_dt'] = pd.to_datetime(df['commence_time'], errors='coerce', utc=True)
+        except Exception:
+            pass
         if {'market_total','closing_total'}.issubset(df.columns):
             mt = pd.to_numeric(df['market_total'], errors='coerce')
             ct = pd.to_numeric(df['closing_total'], errors='coerce')
@@ -337,7 +1005,7 @@ def apply_odds_backfill(df: pd.DataFrame) -> pd.DataFrame:
             fill_mask = sh.isna() & csh.notna()
             if fill_mask.any():
                 df.loc[fill_mask, 'spread_home'] = csh[fill_mask]
-        # Propagate within game_id
+        # 4. Propagate within game_id (exact join already achieved elsewhere)
         if 'game_id' in df.columns:
             for col in ['market_total','closing_total','spread_home','closing_spread_home','ml_home','ml_away']:
                 if col in df.columns:
@@ -351,6 +1019,65 @@ def apply_odds_backfill(df: pd.DataFrame) -> pd.DataFrame:
                 for col in ['market_total','closing_total','spread_home','closing_spread_home','ml_home','ml_away']:
                     if col in df.columns:
                         df[col] = df.groupby(key)[col].transform(lambda s: s.bfill().ffill())
+        # 5. Late join propagation: for rows still missing odds but sharing _pair_key with an odds row.
+        try:
+            if '_pair_key' in df.columns:
+                odds_cols = ['market_total','closing_total','spread_home','closing_spread_home','ml_home','ml_away']
+                # Identify source odds rows (any populated odds column)
+                def _has_any_odds(r: pd.Series) -> bool:
+                    for c in odds_cols:
+                        if c in r.index:
+                            v = r.get(c)
+                            if v is not None and (not pd.isna(v)):
+                                return True
+                    return False
+                odds_rows = df[df.apply(_has_any_odds, axis=1)]
+                if not odds_rows.empty:
+                    # Map pair_key -> list of candidate odds rows
+                    by_pair: dict[str, list[pd.Series]] = {}
+                    for _, r in odds_rows.iterrows():
+                        pk = r.get('_pair_key')
+                        if not pk:
+                            continue
+                        by_pair.setdefault(str(pk), []).append(r)
+                    # For each target row missing odds, attempt propagation from closest time match
+                    window_primary = pd.Timedelta(hours=3)
+                    window_fallback = pd.Timedelta(hours=5)
+                    for idx, r in df.iterrows():
+                        pk = r.get('_pair_key')
+                        if not pk or pk not in by_pair:
+                            continue
+                        # Skip if already has odds
+                        if _has_any_odds(r):
+                            continue
+                        candidates = by_pair[str(pk)]
+                        # Time-based selection if possible
+                        best = None
+                        best_delta = None
+                        st = r.get('_start_dt')
+                        for cand in candidates:
+                            ct = cand.get('_commence_dt') or cand.get('_start_dt')
+                            if st is not None and pd.notna(st) and ct is not None and pd.notna(ct):
+                                delta = abs(st - ct)
+                                if (best is None) or (delta < best_delta):
+                                    best = cand
+                                    best_delta = delta
+                            else:
+                                # No time info; just take first
+                                best = cand
+                                best_delta = None
+                        # Enforce window thresholds if we had a delta
+                        if best is not None and (best_delta is None or best_delta <= window_primary or best_delta <= window_fallback):
+                            for c in odds_cols:
+                                if c in df.columns:
+                                    val = best.get(c)
+                                    if (r.get(c) is None or pd.isna(r.get(c))) and val is not None and (not pd.isna(val)):
+                                        df.at[idx, c] = val
+                            # Also propagate commence_time if missing
+                            if 'commence_time' in df.columns and (not r.get('commence_time')):
+                                df.at[idx, 'commence_time'] = best.get('commence_time')
+        except Exception:
+            pass
     except Exception:
         pass
     return df
@@ -2521,24 +3248,270 @@ def _load_daily_results_for(date_str: str) -> pd.DataFrame:
 def _load_schedule_coverage() -> pd.DataFrame:
     """Load per-day schedule coverage counts and anomaly flags if present."""
     p = OUT / "schedule_coverage.csv"
-    if not p.exists():
-        # Fallback to day counts if present
-        q = OUT / "schedule_day_counts.csv"
-        if q.exists():
-            try:
-                df = pd.read_csv(q)
-                # Normalize to expected columns
-                if {"date", "n_games"}.issubset(df.columns):
-                    if "anomaly" not in df.columns:
-                        df["anomaly"] = False
-                    return df
-            except Exception:
-                return pd.DataFrame()
-        return pd.DataFrame()
+    if p.exists():
+        try:
+            return pd.read_csv(p)
+        except Exception:
+            return pd.DataFrame()
+    # Fallback to simple day counts
+    q = OUT / "schedule_day_counts.csv"
+    if q.exists():
+        try:
+            df = pd.read_csv(q)
+            if {"date", "n_games"}.issubset(df.columns):
+                if "anomaly" not in df.columns:
+                    df["anomaly"] = False
+                return df[[c for c in ["date","n_games","anomaly"] if c in df.columns]]
+        except Exception:
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+# -----------------------------
+# Quantile selection summary API
+# -----------------------------
+@app.get('/api/quantile-selection')
+def api_quantile_selection():
     try:
-        return pd.read_csv(p)
-    except Exception:
-        return pd.DataFrame()
+        out_dir = ROOT / 'outputs'
+        meta_p = out_dir / 'quantile_model_selection.json'
+        sel_p = out_dir / 'quantiles_selected.csv'
+        result: Dict[str, Any] = {}
+        if meta_p.exists():
+            with open(meta_p, 'r', encoding='utf-8') as f:
+                result['summary'] = _json.load(f)
+        else:
+            result['summary'] = {}
+        if sel_p.exists():
+            df = pd.read_csv(sel_p)
+            result['count'] = int(len(df))
+            # include latest date if present
+            if 'date' in df.columns and not df.empty:
+                result['latest_date'] = str(sorted(df['date'].astype(str).unique())[-1])
+        else:
+            result['count'] = 0
+        return jsonify({'status':'ok','data': result})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+
+# -----------------------------
+# Quantile segment metrics API
+# -----------------------------
+@app.get('/api/quantile-segment-metrics')
+def api_quantile_segment_metrics():
+    try:
+        out_dir = ROOT / 'outputs'
+        bt_path = out_dir / 'backtest_reports' / 'backtest_joined.csv'
+        qhist_path = out_dir / 'quantiles_history.csv'
+        meta_path = out_dir / 'quantile_model_selection.json'
+        if not bt_path.exists() or not qhist_path.exists():
+            return jsonify({'status': 'missing'})
+        bt = pd.read_csv(bt_path)
+        qh = pd.read_csv(qhist_path)
+        # normalize types
+        qh['game_id'] = qh['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+        if 'game_id' in bt.columns:
+            bt['game_id'] = bt['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+        # choose pred columns
+        p_total = 'pred_total_calibrated' if 'pred_total_calibrated' in bt.columns else 'pred_total'
+        p_margin = 'pred_margin_calibrated' if 'pred_margin_calibrated' in bt.columns else 'pred_margin'
+        if any(c not in bt.columns for c in [p_total, p_margin, 'actual_total', 'actual_margin']):
+            return jsonify({'status': 'error', 'message': 'backtest_joined missing required columns'})
+        # join
+        cols = ['date','game_id', p_total, p_margin, 'actual_total', 'actual_margin']
+        j = pd.merge(qh, bt[cols], on=['date','game_id'], how='inner')
+        if j.empty:
+            return jsonify({'status': 'ok', 'data': {'count': 0}})
+        # window by latest date
+        latest_date = str(sorted(j['date'].dropna().astype(str).unique())[-1])
+        j['date_dt'] = pd.to_datetime(j['date'], errors='coerce')
+        ref = pd.to_datetime(latest_date, errors='coerce')
+        start = ref - pd.Timedelta(days=28)
+        jw = j[(j['date_dt'] >= start) & (j['date_dt'] <= ref)].copy()
+        # thresholds from meta
+        total_thr = (135.0, 155.0)
+        margin_thr = (5.0, 10.0)
+        try:
+            if meta_path.exists():
+                m = json.loads(meta_path.read_text(encoding='utf-8'))
+                sr = m.get('segment_rules') or {}
+                tt = sr.get('total_thresholds'); mt = sr.get('margin_thresholds')
+                if isinstance(tt, (list, tuple)) and len(tt) == 2:
+                    total_thr = (float(tt[0]), float(tt[1]))
+                if isinstance(mt, (list, tuple)) and len(mt) == 2:
+                    margin_thr = (float(mt[0]), float(mt[1]))
+        except Exception:
+            pass
+        # segment labels
+        def lab_total(v: float) -> str:
+            a,b = total_thr
+            try:
+                v = float(v)
+            except Exception:
+                return 'mid'
+            if v <= a: return 'low'
+            if v <= b: return 'mid'
+            return 'high'
+        def lab_margin(v: float) -> str:
+            a,b = margin_thr
+            try:
+                v = abs(float(v))
+            except Exception:
+                return 'med'
+            if v <= a: return 'small'
+            if v <= b: return 'med'
+            return 'large'
+        jw['_seg_total'] = jw[p_total].apply(lab_total)
+        jw['_seg_margin'] = jw[p_margin].apply(lab_margin)
+        # metrics helpers
+        def approx_crps_three(y, q10, q50, q90):
+            taus = np.linspace(0.05, 0.95, 19)
+            def interp3(a,b,c,t):
+                if t <= 0.5:
+                    m = (b - a) / 0.4
+                    return a + (t - 0.1) * m
+                m = (c - b) / 0.4
+                return b + (t - 0.5) * m
+            y = np.asarray(y, float); q10 = np.asarray(q10, float); q50 = np.asarray(q50, float); q90 = np.asarray(q90, float)
+            los = []
+            for t in taus:
+                qt = interp3(q10, q50, q90, t)
+                e = y - qt
+                los.append(np.nanmean(np.maximum(t * e, (t - 1.0) * e)))
+            return float(2.0 * np.nanmean(los))
+        def agg(df, kind: str):
+            if df.empty:
+                return {'n': 0}
+            if kind == 'total':
+                cov = float(np.nanmean((df['actual_total'] >= df['q10_total']) & (df['actual_total'] <= df['q90_total'])))
+                width = float(np.nanmedian(df['q90_total'] - df['q10_total']))
+                crps = approx_crps_three(df['actual_total'], df['q10_total'], df['q50_total'], df['q90_total'])
+            else:
+                cov = float(np.nanmean((df['actual_margin'] >= df['q10_margin']) & (df['actual_margin'] <= df['q90_margin'])))
+                width = float(np.nanmedian(df['q90_margin'] - df['q10_margin']))
+                crps = approx_crps_three(df['actual_margin'], df['q10_margin'], df['q50_margin'], df['q90_margin'])
+            return {'n': int(len(df)), 'coverage': cov, 'width_median': width, 'crps': float(crps)}
+        # overall and per segment
+        res = {
+            'latest_date': latest_date,
+            'window_days': 28,
+            'thresholds': {'total': total_thr, 'margin': margin_thr},
+            'totals': {
+                'overall': agg(jw, 'total'),
+                'low': agg(jw[jw['_seg_total']=='low'], 'total'),
+                'mid': agg(jw[jw['_seg_total']=='mid'], 'total'),
+                'high': agg(jw[jw['_seg_total']=='high'], 'total'),
+            },
+            'margins': {
+                'overall': agg(jw, 'margin'),
+                'small': agg(jw[jw['_seg_margin']=='small'], 'margin'),
+                'med': agg(jw[jw['_seg_margin']=='med'], 'margin'),
+                'large': agg(jw[jw['_seg_margin']=='large'], 'margin'),
+            }
+        }
+        # include target coverage if available
+        try:
+            if meta_path.exists():
+                m = json.loads(meta_path.read_text(encoding='utf-8'))
+                res['target_coverage'] = float(m.get('target_coverage', 0.8))
+        except Exception:
+            res['target_coverage'] = 0.8
+        return jsonify({'status': 'ok', 'data': res})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
+
+
+# -----------------------------
+# Quantile segment trend API (8-week)
+# -----------------------------
+@app.get('/api/quantile-segment-trend')
+def api_quantile_segment_trend():
+    try:
+        out_dir = ROOT / 'outputs'
+        bt_path = out_dir / 'backtest_reports' / 'backtest_joined.csv'
+        qhist_path = out_dir / 'quantiles_history.csv'
+        meta_path = out_dir / 'quantile_model_selection.json'
+        if not bt_path.exists() or not qhist_path.exists():
+            return jsonify({'status': 'missing'})
+        bt = pd.read_csv(bt_path)
+        qh = pd.read_csv(qhist_path)
+        qh['game_id'] = qh['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+        if 'game_id' in bt.columns:
+            bt['game_id'] = bt['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+        p_total = 'pred_total_calibrated' if 'pred_total_calibrated' in bt.columns else 'pred_total'
+        p_margin = 'pred_margin_calibrated' if 'pred_margin_calibrated' in bt.columns else 'pred_margin'
+        cols = ['date','game_id', p_total, p_margin, 'actual_total', 'actual_margin']
+        j = pd.merge(qh, bt[cols], on=['date','game_id'], how='inner')
+        if j.empty:
+            return jsonify({'status': 'ok', 'data': []})
+        j['date_dt'] = pd.to_datetime(j['date'], errors='coerce')
+        j['week'] = j['date_dt'].dt.to_period('W').astype(str)
+        # thresholds from meta
+        total_thr = (135.0, 155.0)
+        margin_thr = (5.0, 10.0)
+        try:
+            if meta_path.exists():
+                m = json.loads(meta_path.read_text(encoding='utf-8'))
+                sr = m.get('segment_rules') or {}
+                tt = sr.get('total_thresholds'); mt = sr.get('margin_thresholds')
+                if isinstance(tt, (list, tuple)) and len(tt) == 2:
+                    total_thr = (float(tt[0]), float(tt[1]))
+                if isinstance(mt, (list, tuple)) and len(mt) == 2:
+                    margin_thr = (float(mt[0]), float(mt[1]))
+        except Exception:
+            pass
+        def lab_total(v: float) -> str:
+            a,b = total_thr
+            try: v = float(v)
+            except Exception: return 'mid'
+            if v <= a: return 'low'
+            if v <= b: return 'mid'
+            return 'high'
+        def lab_margin(v: float) -> str:
+            a,b = margin_thr
+            try: v = abs(float(v))
+            except Exception: return 'med'
+            if v <= a: return 'small'
+            if v <= b: return 'med'
+            return 'large'
+        j['_seg_total'] = j[p_total].apply(lab_total)
+        j['_seg_margin'] = j[p_margin].apply(lab_margin)
+        # aggregate per week per segment
+        def agg(df, kind):
+            if df.empty:
+                return {'n': 0}
+            if kind == 'total':
+                cov = float(np.nanmean((df['actual_total'] >= df['q10_total']) & (df['actual_total'] <= df['q90_total'])))
+                width = float(np.nanmedian(df['q90_total'] - df['q10_total']))
+                crps = float(np.nanmean(_approx_crps_from_three(df['actual_total'].to_numpy(float), df['q10_total'].to_numpy(float), df['q50_total'].to_numpy(float), df['q90_total'].to_numpy(float))))
+            else:
+                cov = float(np.nanmean((df['actual_margin'] >= df['q10_margin']) & (df['actual_margin'] <= df['q90_margin'])))
+                width = float(np.nanmedian(df['q90_margin'] - df['q10_margin']))
+                crps = float(np.nanmean(_approx_crps_from_three(df['actual_margin'].to_numpy(float), df['q10_margin'].to_numpy(float), df['q50_margin'].to_numpy(float), df['q90_margin'].to_numpy(float))))
+            return {'n': int(len(df)), 'coverage': cov, 'width_median': width, 'crps': crps}
+        weeks = sorted(j['week'].dropna().unique())
+        if len(weeks) > 8:
+            weeks = weeks[-8:]
+        out = []
+        for w in weeks:
+            jw = j[j['week'] == w]
+            row = {
+                'week': w,
+                'totals': {
+                    'low': agg(jw[jw['_seg_total']=='low'], 'total'),
+                    'mid': agg(jw[jw['_seg_total']=='mid'], 'total'),
+                    'high': agg(jw[jw['_seg_total']=='high'], 'total'),
+                },
+                'margins': {
+                    'small': agg(jw[jw['_seg_margin']=='small'], 'margin'),
+                    'med': agg(jw[jw['_seg_margin']=='med'], 'margin'),
+                    'large': agg(jw[jw['_seg_margin']=='large'], 'margin'),
+                }
+            }
+            out.append(row)
+        return jsonify({'status': 'ok', 'data': out, 'thresholds': {'total': total_thr, 'margin': margin_thr}})
+    except Exception as e:
+        return jsonify({'status':'error','message':str(e)})
 
 
 def _load_branding_map() -> dict[str, dict[str, Any]]:
@@ -3065,7 +4038,13 @@ def index():
         stable_env = str(_os_mod.environ.get("STABLE_DISPLAY","0")).strip().lower() in ("1","true","yes")
     except Exception:
         stable_env = False
-    stable_mode = stable_q or stable_env
+    # Force stable display for rollover-affected dates to ensure consistent times
+    force_stable_dates = set([str((dt.datetime.utcnow()).strftime('%Y-%m-%d'))])
+    if today_str:
+        force_stable_dates.add(str(today_str))
+    # Also include the requested date if present and known problematic
+    known_rollover_dates = {"2025-11-29"}
+    stable_mode = stable_q or stable_env or (date_q in known_rollover_dates)
     if stable_mode:
         try:
             # Resolve date
@@ -3270,99 +4249,8 @@ def index():
                             df_stable['start_time_iso'] = _sd.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
                         except Exception:
                             pass
-                    # Final guard: if local hour remains early morning after prior adjustments, shift by 5h
-                    try:
-                        disp_loc2 = pd.to_datetime(df_stable.get('start_time_display'), errors='coerce')
-                        if disp_loc2.notna().any():
-                            early = disp_loc2.dt.hour.between(0,5)
-                            if early.any():
-                                try:
-                                    _sd.loc[early] = _sd.loc[early] - pd.to_timedelta(5, unit='h')
-                                except Exception:
-                                    pass
-                                try:
-                                    disp = _sd.dt.tz_convert(disp_tz)
-                                except Exception:
-                                    disp = _sd
-                                try:
-                                    df_stable['start_time_display'] = disp.dt.strftime('%Y-%m-%d %H:%M')
-                                except Exception:
-                                    pass
-                                try:
-                                    df_stable['start_tz_abbr'] = disp.dt.tzname()
-                                except Exception:
-                                    pass
-                                try:
-                                    df_stable['start_time_iso'] = _sd.dt.tz_convert(dt.timezone.utc).dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-                                except Exception:
-                                    try:
-                                        df_stable['start_time_iso'] = _sd.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-                                    except Exception:
-                                        pass
-                    except Exception:
-                        pass
-                    # Heuristic correction for UTC-midnight drift: if local display time is early morning, shift _start_dt back
-                    try:
-                        disp_loc = pd.to_datetime(df_stable.get('start_time_display'), errors='coerce')
-                        if disp_loc.notna().any():
-                            # Identify rows with local hour in early morning (typical spillover after UTC midnight)
-                            mismatch = disp_loc.dt.hour.between(0, 5)
-                            if mismatch.any():
-                                # First, align date: reconstruct UTC from slate target date + local time
-                                try:
-                                    target_date = str(date_stable) if date_stable else _today_local().strftime('%Y-%m-%d')
-                                except Exception:
-                                    target_date = None
-                                if target_date:
-                                    try:
-                                        loc_times = df_stable['start_time_display'].astype(str).str.slice(-5)
-                                        new_local = target_date + ' ' + loc_times
-                                        dloc = pd.to_datetime(new_local, errors='coerce')
-                                        def _to_utc(x):
-                                            try:
-                                                if pd.isna(x):
-                                                    return x
-                                                if getattr(x, 'tzinfo', None) is None and disp_tz is not None:
-                                                    x = x.replace(tzinfo=disp_tz)
-                                                try:
-                                                    x = x.tz_convert(dt.timezone.utc)
-                                                except Exception:
-                                                    pass
-                                                return x
-                                            except Exception:
-                                                return x
-                                        dutc = dloc.map(_to_utc)
-                                        ok_mask = mismatch & dutc.notna()
-                                        if ok_mask.any():
-                                            _sd.loc[ok_mask] = dutc[ok_mask]
-                                    except Exception:
-                                        pass
-                                # Secondary: subtract 5 hours to catch stubborn spillovers
-                                try:
-                                    _sd.loc[mismatch] = _sd.loc[mismatch] - pd.to_timedelta(5, unit='h')
-                                except Exception:
-                                    pass
-                                try:
-                                    disp = _sd.dt.tz_convert(disp_tz)
-                                except Exception:
-                                    disp = _sd
-                                try:
-                                    df_stable['start_time_display'] = disp.dt.strftime('%Y-%m-%d %H:%M')
-                                except Exception:
-                                    pass
-                                try:
-                                    df_stable['start_tz_abbr'] = disp.dt.tzname()
-                                except Exception:
-                                    pass
-                                try:
-                                    df_stable['start_time_iso'] = _sd.dt.tz_convert(dt.timezone.utc).dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-                                except Exception:
-                                    try:
-                                        df_stable['start_time_iso'] = _sd.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
-                                    except Exception:
-                                        pass
-                    except Exception:
-                        pass
+                    # Remove unconditional early-morning shift; rely on venue/display tz correctness
+                    # Remove heuristic 5-hour backshift; use venue tz overrides and display tz mapping
             except Exception:
                 pass
             df_stable = _normalize_display(df_stable)
@@ -4732,7 +5620,11 @@ def index():
                     # Normalize to UTC-aware ISO strings to ensure consistent parsing downstream
                     try:
                         ct_raw = df["commence_time_odds"].astype(str).str.replace("Z", "+00:00", regex=False)
-                        ct_parsed = pd.to_datetime(ct_raw, errors="coerce", utc=True)
+                        # Prefer explicit ISO format when possible; fall back to dateutil per-element if needed
+                        try:
+                            ct_parsed = pd.to_datetime(ct_raw, format="%Y-%m-%dT%H:%M:%S%z", utc=True, errors="coerce")
+                        except Exception:
+                            ct_parsed = pd.to_datetime(ct_raw, errors="coerce", utc=True)
                         df["commence_time_odds"] = ct_parsed.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
                     except Exception:
                         pass
@@ -5838,7 +6730,11 @@ def index():
             if closing_path is None:
                 closing_path = OUT / "games_with_closing.csv"
             if closing_path.exists():
-                cl = pd.read_csv(closing_path)
+                # Stabilize dtypes to avoid mixed-type warnings during downstream joins
+                try:
+                    cl = pd.read_csv(closing_path, low_memory=False)
+                except Exception:
+                    cl = pd.read_csv(closing_path)
                 if not cl.empty and "game_id" in cl.columns:
                     cl["game_id"] = cl["game_id"].astype(str)
                     # Build canonical pair keys to enable fallback joins when game_id mismatches
@@ -6026,7 +6922,8 @@ def index():
                 can_fill = missing_pred & mt_series.notna()
                 if can_fill.any():
                     import zlib
-                    baseline_league_avg = 141.5
+                    # Reduce reliance on a fixed league baseline to avoid uniform predictions
+                    baseline_league_avg = None
                     if {"home_tempo_rating","away_tempo_rating"}.issubset(df.columns):
                         ht = pd.to_numeric(df.get("home_tempo_rating"), errors="coerce")
                         at = pd.to_numeric(df.get("away_tempo_rating"), errors="coerce")
@@ -6046,8 +6943,9 @@ def index():
                         a = df.at[idx, "away_team"] if "away_team" in df.columns else ""
                         noise = _stable_noise(h, a)
                         tempo_avg = tempo_avg_series[idx] if not (isinstance(tempo_avg_series, float) or pd.isna(tempo_avg_series[idx])) else np.nan
-                        tempo_component = ((tempo_avg - 70.0) * 0.55) if (not pd.isna(tempo_avg)) else 0.0
-                        val = 0.60 * baseline_league_avg + 0.25 * float(mt_val) + 0.15 * (baseline_league_avg + tempo_component) + noise
+                        tempo_component = ((tempo_avg - 70.0) * 0.80) if (not pd.isna(tempo_avg)) else 0.0
+                        # Anchor primarily to market with tempo adjustment and small deterministic noise
+                        val = float(mt_val) + tempo_component + noise
                         if abs(val - mt_val) < 0.4:
                             val = val + (1.15 if val <= mt_val else -1.15)
                         # Guardrail: prevent implausibly low totals. Clamp to at least 110.
@@ -6099,7 +6997,8 @@ def index():
                         a = df.at[idx, "away_team"] if "away_team" in df.columns else ""
                         noise = _stable_noise2(h, a)
                         tempo_avg = tempo_avg_series[idx] if not (isinstance(tempo_avg_series, float) or pd.isna(tempo_avg_series[idx])) else np.nan
-                        tempo_component = ((tempo_avg - 70.0) * 0.65) if (not pd.isna(tempo_avg)) else 0.0
+                        tempo_component = ((tempo_avg - 70.0) * 0.85) if (not pd.isna(tempo_avg)) else 0.0
+                        # No market anchor: use league baseline with stronger tempo and noise
                         val = baseline_league_avg + tempo_component + noise
                         # Guardrail for no-market synthetic baseline
                         pre_clip2 = val
@@ -6226,25 +7125,28 @@ def index():
                         # Capture small sample for debugging
                         sample_u_cols = [c for c in ["game_id","home_team","away_team","pred_total","pred_total_basis","market_total","derived_total"] if c in df.columns]
                         pipeline_stats["pred_total_uniform_sample"] = df[sample_u_cols].head(10).to_dict(orient="records")
-                        # Optional mitigation: if NCAAB_UNIFORM_NULL=1, treat these as pending (null out pred_total/pred_margin) to avoid misleading constant display.
+                        # Default mitigation: treat uniform synthetic totals as pending unless explicitly disabled.
+                        # Disable by setting NCAAB_UNIFORM_NULL to 0/false/no.
                         try:
-                            if os.getenv("NCAAB_UNIFORM_NULL", "").strip().lower() in ("1","true","yes"):
-                                pipeline_stats["uniform_null_applied"] = True
-                                uniform_val = vc.index[0]
-                                mask_uniform = pd.to_numeric(df.get("pred_total"), errors="coerce") == float(uniform_val)
-                                # Null only rows entirely uniform to keep any legitimately distinct future inserts.
-                                df.loc[mask_uniform, "pred_total"] = np.nan
-                                if "pred_total_basis" in df.columns:
-                                    df.loc[mask_uniform, "pred_total_basis"] = df.loc[mask_uniform, "pred_total_basis"].where(df.loc[mask_uniform, "pred_total_basis"].notna(), "uniform_null")
-                                if "pred_margin" in df.columns:
-                                    # If margin shows little variance as well, null it; else keep.
-                                    pmv = pd.to_numeric(df.get("pred_margin"), errors="coerce")
-                                    if pmv.notna().sum() and (pmv.nunique() <= 2):
-                                        df.loc[mask_uniform, "pred_margin"] = np.nan
-                                        if "pred_margin_basis" in df.columns:
-                                            df.loc[mask_uniform, "pred_margin_basis"] = df.loc[mask_uniform, "pred_margin_basis"].where(df.loc[mask_uniform, "pred_margin_basis"].notna(), "uniform_null")
+                            flag = os.getenv("NCAAB_UNIFORM_NULL", "").strip().lower()
+                            enable_uniform_null = flag not in ("0","false","no")
                         except Exception:
-                            pass
+                            enable_uniform_null = True
+                        if enable_uniform_null:
+                            pipeline_stats["uniform_null_applied"] = True
+                            uniform_val = vc.index[0]
+                            mask_uniform = pd.to_numeric(df.get("pred_total"), errors="coerce") == float(uniform_val)
+                            # Null only rows entirely uniform to keep any legitimately distinct future inserts.
+                            df.loc[mask_uniform, "pred_total"] = np.nan
+                            if "pred_total_basis" in df.columns:
+                                df.loc[mask_uniform, "pred_total_basis"] = df.loc[mask_uniform, "pred_total_basis"].where(df.loc[mask_uniform, "pred_total_basis"].notna(), "uniform_null")
+                            if "pred_margin" in df.columns:
+                                # If margin shows little variance as well, null it; else keep.
+                                pmv = pd.to_numeric(df.get("pred_margin"), errors="coerce")
+                                if pmv.notna().sum() and (pmv.nunique() <= 2):
+                                    df.loc[mask_uniform, "pred_margin"] = np.nan
+                                    if "pred_margin_basis" in df.columns:
+                                        df.loc[mask_uniform, "pred_margin_basis"] = df.loc[mask_uniform, "pred_margin_basis"].where(df.loc[mask_uniform, "pred_margin_basis"].notna(), "uniform_null")
                         # Strict remediation path: if NCAAB_UNIFORM_STRICT=1 and the uniform value looks like a synthetic fallback
                         # (e.g., classic 112 collapse or variance < 1.0 across all non-null totals), aggressively null synthetic rows
                         # but retain any legitimately differing future inserts. This prevents the UI from displaying a misleading
@@ -7255,7 +8157,7 @@ def index():
     except Exception:
         pass
 
-    # Meta probability inference (guarded): load artifacts and compute p_cover_meta / p_over_meta
+    # Meta probability inference (guarded): load artifacts and compute p_home_cover_meta / p_over_meta
     try:
         if not df.empty:
             from pathlib import Path as _Path
@@ -7377,46 +8279,125 @@ def index():
                 ] if c in df.columns]
                 Xo = pd.DataFrame({c: pd.to_numeric(df[c], errors='coerce') for c in feat_cols_over}) if feat_cols_over else pd.DataFrame()
 
+            # Helper: align a feature frame to an expected ordered list, filling missing
+            def _align_features(X: pd.DataFrame, expected_feats: list[str] | None, index_like: pd.Index) -> pd.DataFrame:
+                try:
+                    if not isinstance(expected_feats, list) or not expected_feats:
+                        return X
+                    cols = {}
+                    for c in expected_feats:
+                        if c in X.columns:
+                            cols[c] = pd.to_numeric(X[c], errors='coerce')
+                        else:
+                            cols[c] = pd.Series(np.nan, index=index_like)
+                    X2 = pd.DataFrame(cols)
+                    # sanitize NaNs by mean-imputing per column to avoid model errors
+                    X2 = X2.replace([np.inf, -np.inf], np.nan)
+                    for c in X2.columns:
+                        col = X2[c]
+                        if col.isna().any():
+                            X2[c] = col.fillna(col.mean())
+                    return X2
+                except Exception:
+                    return X
+
             # Predict probabilities when models and features exist
             if cover_model is not None and not Xc.empty:
                 try:
                     # Ensure feature count matches training expectation strictly from model to avoid LightGBM fatals
                     try:
                         expected_n_cov = getattr(cover_model, 'n_features_in_', None)
+                        # Load persisted schema if present
+                        try:
+                            cov_schema_path = _outp / 'meta_cover_lgbm_features.json'
+                            if cov_schema_path.exists():
+                                _cov_schema = json.loads(cov_schema_path.read_text(encoding='utf-8')).get('features') or []
+                                if _cov_schema:
+                                    # Add any missing columns with neutral fill (0.0) then reorder
+                                    for _c in _cov_schema:
+                                        if _c not in Xc.columns:
+                                            Xc[_c] = 0.0
+                                    Xc = Xc[_cov_schema]
+                        except Exception:
+                            pass
                         # If model doesn't expose a reliable feature count, skip prediction to avoid LightGBM shape fatals
                         if (not isinstance(expected_n_cov, int)) or (expected_n_cov <= 0):
                             pipeline_stats['meta_cover_feature_mismatch'] = {'expected': 'unknown', 'got': int(Xc.shape[1])}
-                            raise RuntimeError('meta_cover_feature_mismatch_unknown_expected')
+                            # Attempt alignment using expected feature names if available
+                            Xc = _align_features(Xc, expected_cover_feats if isinstance(expected_cover_feats, list) else None, df.index)
                         if Xc.shape[1] != expected_n_cov:
-                            pipeline_stats['meta_cover_feature_mismatch'] = {'expected': int(expected_n_cov), 'got': int(Xc.shape[1])}
-                            # Skip prediction entirely on mismatch; fallback handled below
-                            raise RuntimeError('meta_cover_feature_mismatch')
+                            # Try to rebuild using expected feature names to match exact count
+                            Xc = _align_features(Xc, expected_cover_feats if isinstance(expected_cover_feats, list) else None, df.index)
+                            # Second attempt: if persisted schema exists but size mismatch, pad/truncate
+                            if 'meta_cover_feature_mismatch' in pipeline_stats and isinstance(expected_n_cov, int):
+                                try:
+                                    cov_schema_path2 = _outp / 'meta_cover_lgbm_features.json'
+                                    if cov_schema_path2.exists():
+                                        _cov_schema2 = json.loads(cov_schema_path2.read_text(encoding='utf-8')).get('features') or []
+                                        if _cov_schema2 and len(_cov_schema2) == expected_n_cov:
+                                            for _c in _cov_schema2:
+                                                if _c not in Xc.columns:
+                                                    Xc[_c] = 0.0
+                                            Xc = Xc[_cov_schema2]
+                                except Exception:
+                                    pass
+                            if Xc.shape[1] != expected_n_cov:
+                                pipeline_stats['meta_cover_feature_mismatch'] = {'expected': int(expected_n_cov), 'got': int(Xc.shape[1])}
+                                # Skip prediction entirely on mismatch; fallback handled below
+                                raise RuntimeError('meta_cover_feature_mismatch')
                     except Exception:
                         pass
                     pc = cover_model.predict_proba(Xc) if hasattr(cover_model, 'predict_proba') else cover_model.predict(Xc)
                     pc = pc[:,1] if isinstance(pc, np.ndarray) and pc.ndim==2 and pc.shape[1]>1 else pc
-                    df['p_cover_meta'] = pd.Series(pc)
-                    pipeline_stats['p_cover_meta_rows'] = int(df['p_cover_meta'].notna().sum())
+                    df['p_home_cover_meta'] = pd.Series(pc)
+                    pipeline_stats['p_home_cover_meta_rows'] = int(df['p_home_cover_meta'].notna().sum())
                 except Exception:
                     # Fallback to distribution-based probability when meta model fails or mismatches
                     if 'p_home_cover_dist' in df.columns:
-                        df['p_cover_meta'] = df['p_home_cover_dist']
-                        pipeline_stats['p_cover_meta_error'] = False
-                        pipeline_stats['p_cover_meta_fallback_dist'] = True
+                        df['p_home_cover_meta'] = df['p_home_cover_dist']
+                        pipeline_stats['p_home_cover_meta_error'] = False
+                        pipeline_stats['p_home_cover_meta_fallback_dist'] = True
                     else:
-                        pipeline_stats['p_cover_meta_error'] = True
+                        pipeline_stats['p_home_cover_meta_error'] = True
             if over_model is not None and not Xo.empty:
                 try:
                     # Ensure feature count matches training expectation strictly from model to avoid LightGBM fatals
                     try:
                         expected_n_ov = getattr(over_model, 'n_features_in_', None)
+                        try:
+                            ov_schema_path = _outp / 'meta_over_lgbm_features.json'
+                            if ov_schema_path.exists():
+                                _ov_schema = json.loads(ov_schema_path.read_text(encoding='utf-8')).get('features') or []
+                                if _ov_schema:
+                                    for _c in _ov_schema:
+                                        if _c not in Xo.columns:
+                                            Xo[_c] = 0.0
+                                    Xo = Xo[_ov_schema]
+                        except Exception:
+                            pass
                         if (not isinstance(expected_n_ov, int)) or (expected_n_ov <= 0):
                             pipeline_stats['meta_over_feature_mismatch'] = {'expected': 'unknown', 'got': int(Xo.shape[1])}
-                            raise RuntimeError('meta_over_feature_mismatch_unknown_expected')
+                            # Attempt alignment using expected feature names if available
+                            Xo = _align_features(Xo, expected_over_feats if isinstance(expected_over_feats, list) else None, df.index)
                         if Xo.shape[1] != expected_n_ov:
-                            pipeline_stats['meta_over_feature_mismatch'] = {'expected': int(expected_n_ov), 'got': int(Xo.shape[1])}
-                            # Skip prediction entirely on mismatch; fallback handled below
-                            raise RuntimeError('meta_over_feature_mismatch')
+                            # Try to rebuild using expected feature names to match exact count
+                            Xo = _align_features(Xo, expected_over_feats if isinstance(expected_over_feats, list) else None, df.index)
+                            if 'meta_over_feature_mismatch' in pipeline_stats and isinstance(expected_n_ov, int):
+                                try:
+                                    ov_schema_path2 = _outp / 'meta_over_lgbm_features.json'
+                                    if ov_schema_path2.exists():
+                                        _ov_schema2 = json.loads(ov_schema_path2.read_text(encoding='utf-8')).get('features') or []
+                                        if _ov_schema2 and len(_ov_schema2) == expected_n_ov:
+                                            for _c in _ov_schema2:
+                                                if _c not in Xo.columns:
+                                                    Xo[_c] = 0.0
+                                            Xo = Xo[_ov_schema2]
+                                except Exception:
+                                    pass
+                            if Xo.shape[1] != expected_n_ov:
+                                pipeline_stats['meta_over_feature_mismatch'] = {'expected': int(expected_n_ov), 'got': int(Xo.shape[1])}
+                                # Skip prediction entirely on mismatch; fallback handled below
+                                raise RuntimeError('meta_over_feature_mismatch')
                     except Exception:
                         pass
                     po = over_model.predict_proba(Xo) if hasattr(over_model, 'predict_proba') else over_model.predict(Xo)
@@ -7431,6 +8412,34 @@ def index():
                         pipeline_stats['p_over_meta_fallback_dist'] = True
                     else:
                         pipeline_stats['p_over_meta_error'] = True
+
+            # Apply isotonic-style meta calibration if available
+            try:
+                cal_path = _outp / 'meta_calibration.json'
+                if cal_path.exists():
+                    payload = _json.loads(cal_path.read_text(encoding='utf-8'))
+                    def _apply_map(series: pd.Series, key: str) -> pd.Series:
+                        try:
+                            m = payload.get(key, {}) if isinstance(payload, dict) else {}
+                            xs = np.asarray(m.get('x', []), dtype=float)
+                            ys = np.asarray(m.get('y', []), dtype=float)
+                            if xs.size >= 2 and ys.size == xs.size and series is not None and series.notna().any():
+                                s = pd.to_numeric(series, errors='coerce').clip(lower=0.0, upper=1.0)
+                                return pd.Series(np.interp(s.fillna(0.5), xs, ys), index=series.index)
+                        except Exception:
+                            return pd.Series([np.nan]*len(series))
+                        return pd.Series([np.nan]*len(series))
+                    if 'p_home_cover_meta' in df.columns and df['p_home_cover_meta'].notna().any():
+                        df['p_home_cover_meta_cal'] = _apply_map(df['p_home_cover_meta'], 'p_home_cover')
+                        pipeline_stats['p_home_cover_meta_cal_rows'] = int(df['p_home_cover_meta_cal'].notna().sum())
+                    if 'p_over_meta' in df.columns and df['p_over_meta'].notna().any():
+                        df['p_over_meta_cal'] = _apply_map(df['p_over_meta'], 'p_over')
+                        pipeline_stats['p_over_meta_cal_rows'] = int(df['p_over_meta_cal'].notna().sum())
+                    pipeline_stats['meta_calibration_applied'] = True
+                else:
+                    pipeline_stats['meta_calibration_missing'] = True
+            except Exception:
+                pipeline_stats['meta_calibration_error'] = True
 
             # Portable logistic fallback: compute meta probs from portable JSON artifacts if needed
             try:
@@ -7474,13 +8483,13 @@ def index():
                     except Exception:
                         return None
 
-                # Apply if meta probs missing or empty
-                if ('p_cover_meta' not in df.columns) or (df['p_cover_meta'].isna().all()):
+                # Apply if meta probs missing or empty (cover)
+                if ('p_home_cover_meta' not in df.columns) or (df['p_home_cover_meta'].isna().all()):
                     pc_series = _portable_predict('cover', expected_cover_feats if isinstance(expected_cover_feats, list) else None)
                     if pc_series is not None:
-                        df['p_cover_meta'] = pc_series
-                        pipeline_stats['p_cover_meta_portable_used'] = True
-                        pipeline_stats['p_cover_meta_rows'] = int(df['p_cover_meta'].notna().sum())
+                        df['p_home_cover_meta'] = pc_series
+                        pipeline_stats['p_home_cover_meta_portable_used'] = True
+                        pipeline_stats['p_home_cover_meta_rows'] = int(df['p_home_cover_meta'].notna().sum())
                 if ('p_over_meta' not in df.columns) or (df['p_over_meta'].isna().all()):
                     po_series = _portable_predict('over', expected_over_feats if isinstance(expected_over_feats, list) else None)
                     if po_series is not None:
@@ -7492,12 +8501,20 @@ def index():
 
             # Integrate into display precedence when available
             try:
-                if 'p_cover_meta' in df.columns and df['p_cover_meta'].notna().any():
-                    df['p_cover_display'] = df['p_cover_meta']
+                # Prefer calibrated meta when present
+                if 'p_home_cover_meta_cal' in df.columns and df['p_home_cover_meta_cal'].notna().any():
+                    df['p_cover_display'] = df['p_home_cover_meta_cal']
+                    pipeline_stats['p_cover_display_basis'] = 'meta_cal'
+                elif 'p_home_cover_meta' in df.columns and df['p_home_cover_meta'].notna().any():
+                    df['p_cover_display'] = df['p_home_cover_meta']
                     pipeline_stats['p_cover_display_basis'] = 'meta'
                 if 'p_over_meta' in df.columns and df['p_over_meta'].notna().any():
-                    df['p_over_display'] = df['p_over_meta']
-                    pipeline_stats['p_over_display_basis'] = 'meta'
+                    if 'p_over_meta_cal' in df.columns and df['p_over_meta_cal'].notna().any():
+                        df['p_over_display'] = df['p_over_meta_cal']
+                        pipeline_stats['p_over_display_basis'] = 'meta_cal'
+                    else:
+                        df['p_over_display'] = df['p_over_meta']
+                        pipeline_stats['p_over_display_basis'] = 'meta'
             except Exception:
                 pipeline_stats['meta_selection_precedence_error'] = True
     except Exception:
@@ -8074,14 +9091,14 @@ def index():
                         return
                 df[out_col] = np.nan
                 pipeline_stats[out_col + '_source'] = None
-            # Updated final selection precedence includes meta > ensemble > classifier > skew > cdf > dist
+            # Updated final selection precedence includes meta_cal > meta > ensemble > classifier > skew > cdf > dist
             # Calibrated variants precedence when enabled
             if calibrate_probs_enabled:
-                _select_final(['p_home_cover_meta','p_home_cover_ensemble','p_home_cover_cal','p_home_cover_mix_cal','p_home_cover_mix','p_home_cover_skew_cal','p_home_cover_skew','p_home_cover_piecewise_ext_cal','p_home_cover_piecewise_ext','p_home_cover_kde_cal','p_home_cover_kde','p_home_cover_cdf_cal','p_home_cover_cdf','p_home_cover_dist'], 'p_home_cover_final')
-                _select_final(['p_over_meta','p_over_ensemble','p_over_cal','p_over_mix_cal','p_over_mix','p_over_skew_cal','p_over_skew','p_over_piecewise_ext_cal','p_over_piecewise_ext','p_over_kde_cal','p_over_kde','p_over_cdf_cal','p_over_cdf','p_over_dist'], 'p_over_final')
+                _select_final(['p_home_cover_meta_cal','p_home_cover_meta','p_home_cover_ensemble','p_home_cover_cal','p_home_cover_mix_cal','p_home_cover_mix','p_home_cover_skew_cal','p_home_cover_skew','p_home_cover_piecewise_ext_cal','p_home_cover_piecewise_ext','p_home_cover_kde_cal','p_home_cover_kde','p_home_cover_cdf_cal','p_home_cover_cdf','p_home_cover_dist'], 'p_home_cover_final')
+                _select_final(['p_over_meta_cal','p_over_meta','p_over_ensemble','p_over_cal','p_over_mix_cal','p_over_mix','p_over_skew_cal','p_over_skew','p_over_piecewise_ext_cal','p_over_piecewise_ext','p_over_kde_cal','p_over_kde','p_over_cdf_cal','p_over_cdf','p_over_dist'], 'p_over_final')
             else:
-                _select_final(['p_home_cover_meta','p_home_cover_ensemble','p_home_cover','p_home_cover_mix','p_home_cover_skew','p_home_cover_piecewise_ext','p_home_cover_kde','p_home_cover_cdf','p_home_cover_dist'], 'p_home_cover_final')
-                _select_final(['p_over_meta','p_over_ensemble','p_over','p_over_mix','p_over_skew','p_over_piecewise_ext','p_over_kde','p_over_cdf','p_over_dist'], 'p_over_final')
+                _select_final(['p_home_cover_meta_cal','p_home_cover_meta','p_home_cover_ensemble','p_home_cover','p_home_cover_mix','p_home_cover_skew','p_home_cover_piecewise_ext','p_home_cover_kde','p_home_cover_cdf','p_home_cover_dist'], 'p_home_cover_final')
+                _select_final(['p_over_meta_cal','p_over_meta','p_over_ensemble','p_over','p_over_mix','p_over_skew','p_over_piecewise_ext','p_over_kde','p_over_cdf','p_over_dist'], 'p_over_final')
             pipeline_stats['probability_distribution_enrichment'] = True
 
             # Edge confidence tagging
@@ -8149,10 +9166,16 @@ def index():
                 if meta_used:
                     pipeline_stats['meta_probs_used'] = meta_used
                     # Update final selection precedence to prefer meta over prior choices
-                    if 'p_home_cover_meta' in df.columns and df['p_home_cover_meta'].notna().any():
+                    if 'p_home_cover_meta_cal' in df.columns and df['p_home_cover_meta_cal'].notna().any():
+                        df['p_home_cover_final'] = df['p_home_cover_meta_cal']
+                        pipeline_stats['p_home_cover_final_source'] = 'p_home_cover_meta_cal'
+                    elif 'p_home_cover_meta' in df.columns and df['p_home_cover_meta'].notna().any():
                         df['p_home_cover_final'] = df['p_home_cover_meta']
                         pipeline_stats['p_home_cover_final_source'] = 'p_home_cover_meta'
-                    if 'p_over_meta' in df.columns and df['p_over_meta'].notna().any():
+                    if 'p_over_meta_cal' in df.columns and df['p_over_meta_cal'].notna().any():
+                        df['p_over_final'] = df['p_over_meta_cal']
+                        pipeline_stats['p_over_final_source'] = 'p_over_meta_cal'
+                    elif 'p_over_meta' in df.columns and df['p_over_meta'].notna().any():
                         df['p_over_final'] = df['p_over_meta']
                         pipeline_stats['p_over_final_source'] = 'p_over_meta'
             except Exception:
@@ -9691,6 +10714,12 @@ def index():
                         df.to_csv(enriched_path, index=False)
                         pipeline_stats['enriched_unified_written'] = str(enriched_path.name)
                         pipeline_stats['enriched_unified_rows'] = int(len(df))
+                        # Post-process to ensure coverage (preds/time/display)
+                        try:
+                            ok_pp = _postprocess_enriched_file(t_date)
+                            pipeline_stats['enriched_unified_postprocessed'] = bool(ok_pp)
+                        except Exception:
+                            pipeline_stats['enriched_unified_postprocessed'] = False
                     except Exception:
                         pipeline_stats['enriched_unified_write_error'] = True
                 except Exception:
@@ -10192,7 +11221,10 @@ def index():
                                 vals_1h.append(np.nan)
                                 bases_1h.append(None)
                     df.loc[mask_pt1h, 'pred_total_1h'] = vals_1h
-                    df.loc[mask_pt1h, 'pred_total_1h_basis'] = bases_1h
+                    # Ensure basis column uses object dtype to accommodate string/None entries
+                    if 'pred_total_1h_basis' in df.columns:
+                        df['pred_total_1h_basis'] = df['pred_total_1h_basis'].astype('object')
+                    df.loc[mask_pt1h, 'pred_total_1h_basis'] = pd.Series(bases_1h, index=df.index[mask_pt1h]).astype('object')
 
                 # 2H totals: fill only where missing (remainder of full minus 1H)
                 mask_pt2h = pd.to_numeric(df['pred_total_2h'], errors='coerce').isna()
@@ -12588,6 +13620,93 @@ def index():
     except Exception:
         df_tpl = df
 
+    # Venue timezone enrichment: ensure venue-local fields exist and correct for rollover
+    try:
+        ov_path = ROOT / 'data' / 'venue_tz_overrides.csv'
+        tz_map: dict[str, str] = {}
+        if ov_path.exists():
+            try:
+                ov = pd.read_csv(ov_path)
+                if {'venue','tz'}.issubset(ov.columns):
+                    for _, rr in ov.iterrows():
+                        v = str(rr.get('venue') or '').strip()
+                        t = str(rr.get('tz') or '').strip()
+                        if v and t:
+                            tz_map[v.lower()] = t
+            except Exception:
+                pass
+        if tz_map and not df_tpl.empty:
+            # Compute venue-local time from start_time_iso when possible
+            if 'start_time_iso' in df_tpl.columns:
+                iso_ser = pd.to_datetime(df_tpl['start_time_iso'].astype(str).str.replace('Z','+00:00', regex=False), errors='coerce', utc=True)
+            else:
+                iso_ser = pd.to_datetime(df_tpl.get('start_time', pd.Series([None]*len(df_tpl))).astype(str).str.replace('Z','+00:00', regex=False), errors='coerce', utc=True)
+            venues = df_tpl.get('venue_full', df_tpl.get('venue', pd.Series([None]*len(df_tpl)))).astype(str)
+            # Fallback keys: try team names when venue string doesn't match overrides
+            homes = df_tpl.get('home_team', pd.Series([None]*len(df_tpl))).astype(str)
+            aways = df_tpl.get('away_team', pd.Series([None]*len(df_tpl))).astype(str)
+            def _loc_from_venue(idx: int):
+                try:
+                    v = (venues.iloc[idx] or '').strip().lower()
+                    tz_name = tz_map.get(v)
+                    if not tz_name:
+                        h = (homes.iloc[idx] or '').strip().lower()
+                        a = (aways.iloc[idx] or '').strip().lower()
+                        # Prefer home team mapping
+                        tz_name = tz_map.get(h) or tz_map.get(a)
+                    dt_utc = iso_ser.iloc[idx]
+                    if tz_name and pd.notna(dt_utc):
+                        try:
+                            loc = dt_utc.tz_convert(ZoneInfo(tz_name))
+                            return loc.strftime('%Y-%m-%d %H:%M'), loc.tzname()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                return None, None
+            loc_vals = []
+            tz_abbrs = []
+            for i in range(len(df_tpl)):
+                lt, ab = _loc_from_venue(i)
+                loc_vals.append(lt)
+                tz_abbrs.append(ab)
+            # Fill only where missing
+            if 'start_time_local_venue' not in df_tpl.columns:
+                df_tpl['start_time_local_venue'] = None
+            if 'start_tz_abbr_venue' not in df_tpl.columns:
+                df_tpl['start_tz_abbr_venue'] = None
+            m_loc = pd.Series(loc_vals)
+            m_tz = pd.Series(tz_abbrs)
+            df_tpl['start_time_local_venue'] = df_tpl['start_time_local_venue'].where(df_tpl['start_time_local_venue'].notna(), m_loc)
+            df_tpl['start_tz_abbr_venue'] = df_tpl['start_tz_abbr_venue'].where(df_tpl['start_tz_abbr_venue'].notna(), m_tz)
+            # Set display_date to venue-local date when UTC spills into next day
+            try:
+                base_date = df_tpl.get('date', pd.Series([None]*len(df_tpl))).astype(str)
+                loc_date = pd.to_datetime(df_tpl['start_time_local_venue'], errors='coerce').dt.strftime('%Y-%m-%d')
+                mask_diff = base_date.notna() & loc_date.notna() & (base_date != loc_date)
+                if 'display_date' not in df_tpl.columns:
+                    df_tpl['display_date'] = None
+                df_tpl.loc[mask_diff, 'display_date'] = loc_date[mask_diff]
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Sanitize numeric actuals/scores to avoid 'nan' strings leaking into template
+    try:
+        num_cols = [
+            'home_score','away_score','actual_total',
+            'home_score_1h','away_score_1h','actual_total_1h',
+            'home_score_2h','away_score_2h','actual_total_2h'
+        ]
+        for c in num_cols:
+            if c in df_tpl.columns:
+                s = pd.to_numeric(df_tpl[c], errors='coerce')
+                # Convert NaN back to None for template friendliness
+                df_tpl[c] = s.where(s.notna(), None)
+    except Exception:
+        pass
+
     # ESPN curated subset + date filter for non-stable display
     # Ensures the interactive path matches the authoritative ESPN slate when available
     try:
@@ -12824,6 +13943,108 @@ def index():
         pass
 
     rows = [_brand_row(r) for r in df_tpl.to_dict(orient="records")]
+
+    # Add display/coverage flags for template: has_odds/has_actuals/has_derivatives and a clean display_time_str
+    try:
+        def _is_num(v: Any) -> bool:
+            try:
+                if v is None: return False
+                if isinstance(v, (float, int)):
+                    return not pd.isna(v)
+                s = str(v).strip().lower()
+                if s in ("", "nan", "none", "null", "–", "-"): return False
+                return not pd.isna(pd.to_numeric(v, errors='coerce'))
+            except Exception:
+                return False
+        for r in rows:
+            # has_odds: any market_total/closing_total/spread_home/closing_spread_home/ml_home
+            has_total = _is_num(r.get('market_total')) or _is_num(r.get('closing_total'))
+            has_spread = _is_num(r.get('spread_home')) or _is_num(r.get('closing_spread_home'))
+            has_ml = _is_num(r.get('ml_home')) or _is_num(r.get('ml_away'))
+            r['has_odds'] = bool(has_total or has_spread or has_ml)
+            # has_actuals: any final totals or scores
+            has_act_full = _is_num(r.get('actual_total')) or (_is_num(r.get('home_score')) and _is_num(r.get('away_score')))
+            has_act_1h = _is_num(r.get('actual_total_1h')) or (_is_num(r.get('home_score_1h')) and _is_num(r.get('away_score_1h')))
+            has_act_2h = _is_num(r.get('actual_total_2h')) or (_is_num(r.get('home_score_2h')) and _is_num(r.get('away_score_2h')))
+            r['has_actuals'] = bool(has_act_full or has_act_1h or has_act_2h)
+            # has_derivatives: presence of any 1H/2H market or predictions
+            has_deriv_market = _is_num(r.get('market_total_1h')) or _is_num(r.get('market_total_2h')) or _is_num(r.get('spread_home_1h')) or _is_num(r.get('spread_home_2h'))
+            has_deriv_preds = _is_num(r.get('pred_total_1h')) or _is_num(r.get('pred_total_2h')) or _is_num(r.get('pred_margin_1h')) or _is_num(r.get('pred_margin_2h'))
+            r['has_derivatives'] = bool(has_deriv_market or has_deriv_preds)
+            # coverage classification: differentiate outright absence vs exhibition/non-D1 vs pending
+            try:
+                d1set = _load_d1_team_set() or set()
+            except Exception:
+                d1set = set()
+            try:
+                h_norm = normalize_name(str(r.get('home_team') or ''))
+                a_norm = normalize_name(str(r.get('away_team') or ''))
+            except Exception:
+                h_norm = str(r.get('home_team') or '')
+                a_norm = str(r.get('away_team') or '')
+            in_d1_pair = (h_norm in d1set) and (a_norm in d1set)
+            r['is_exhibition'] = not in_d1_pair
+            has_pred_any = _is_num(r.get('pred_total')) or _is_num(r.get('pred_margin'))
+            if r['has_odds']:
+                r['coverage_label'] = 'Odds Available'
+            else:
+                if has_pred_any:
+                    if r['is_exhibition']:
+                        r['coverage_label'] = 'No Market (Exhibition/Non-D1)'
+                    else:
+                        r['coverage_label'] = 'No Market (Unposted)'
+                else:
+                    r['coverage_label'] = 'No Market (No Data)'
+            # Force display in Central Time (America/Chicago): single date + HH:MM + tzabbr
+            try:
+                iso = r.get('start_time_iso') or r.get('start_time')
+                if iso:
+                    d_utc = pd.to_datetime(str(iso).replace('Z','+00:00'), errors='coerce', utc=True)
+                else:
+                    d_utc = pd.NaT
+                if pd.notna(d_utc):
+                    try:
+                        from zoneinfo import ZoneInfo
+                        ct_dt = d_utc.tz_convert(ZoneInfo('America/Chicago'))
+                    except Exception:
+                        # Fallback to fixed offset subtraction
+                        ct_dt = (d_utc + pd.to_timedelta(-6, unit='h')).to_pydatetime()
+                    # Normalize label to CST/CDT based on offset
+                    try:
+                        off_hours = int(round(ct_dt.utcoffset().total_seconds()/3600)) if hasattr(ct_dt, 'utcoffset') and ct_dt.utcoffset() else -6
+                    except Exception:
+                        off_hours = -6
+                    tzabbr = 'CST' if off_hours == -6 else ('CDT' if off_hours == -5 else 'CT')
+                    disp_date = ct_dt.strftime('%Y-%m-%d')
+                    hhmm = ct_dt.strftime('%H:%M')
+                    r['display_date'] = disp_date
+                    r['display_time_str'] = f"{disp_date} {hhmm} {tzabbr}".strip()
+                    # Debug: store UTC and venue-local (if available) for diagnostics
+                    if 'display_time_debug_utc' not in r:
+                        r['display_time_debug_utc'] = d_utc.strftime('%Y-%m-%d %H:%M UTC')
+                    vloc = r.get('start_time_local_venue')
+                    if vloc and 'display_time_debug_venue' not in r:
+                        r['display_time_debug_venue'] = str(vloc)
+                else:
+                    # Fallback to existing local if ISO parse fails
+                    disp_date = r.get('display_date') or r.get('date') or ''
+                    loc_time = r.get('start_time_local') or r.get('start_time_local_venue') or r.get('start_time_display') or r.get('start_time') or ''
+                    tzabbr = 'CT'
+                    try:
+                        parts = str(loc_time).split(' ')
+                        if len(parts) >= 2:
+                            hhmm = parts[-1] if (':' in parts[-1]) else parts[1]
+                        else:
+                            m = re.search(r"T(\d{2}:\d{2})", str(loc_time))
+                            hhmm = m.group(1) if m else str(loc_time)
+                    except Exception:
+                        hhmm = str(loc_time)
+                    r['display_time_str'] = f"{disp_date} {hhmm} {tzabbr}".strip()
+            except Exception:
+                # If anything goes wrong, leave prior display fields as-is
+                pass
+    except Exception:
+        pass
 
     # Display filter: keep only games with at least one Division I team unless override flag set (?all=1)
     # We apply after all enrichments so market lines/predictions remain intact; this is purely a view-level restriction.
@@ -13458,6 +14679,8 @@ def index():
     safe_rows = []
     for _r in rows:
         r = _ensure_index_row(dict(_r))
+        # Backfill normalized local/display fields (venue precedence) before drift correction
+        r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=str(date_q) if date_q else None)
         safe_rows.append(r)
     return render_template(
@@ -14706,6 +15929,8 @@ def recommendations():
         r = dict(_r)
         if not r.get('start_time_iso'):
             r['start_time_iso'] = _derive_start_iso(r)
+        # Backfill local/display normalization for evening UTC rollover
+        r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=str(r.get('date')) if r.get('date') else None)
         safe_rows.append(r)
     rows = safe_rows
@@ -14759,6 +15984,7 @@ def picks_raw_page():
             r['start_time_iso'] = _derive_start_iso(r)
         # Use row date for slate validation if present
         slate = str(r.get('date')) if r.get('date') else None
+        r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=slate)
         rows.append(r)
     return render_template("picks_raw.html", rows=rows, total_rows=len(rows), date_val=date_q, market_val=market_q, period_val=period_q)
@@ -14775,6 +16001,7 @@ def finals():
         if not r.get('start_time_iso'):
             r['start_time_iso'] = _derive_start_iso(r)
         slate = str(r.get('date')) if r.get('date') else None
+        r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=slate)
         rows.append(r)
     # Basic stats: count, last date range
@@ -15848,38 +17075,30 @@ def results_archive():
     """
     return render_template('results_archive.html')
 
+## Duplicate results endpoints removed; earlier implementations already exist.
+
     # (duplicate /api/health removed; existing implementation earlier provides health details)
 @app.route('/home')
 def home():
     """Simple dashboard with navigation and finalize hint badge."""
     return render_template('home.html')
 
-@app.route('/api/backtest-summary')
-def api_backtest_summary():
-    """Return latest backtest summary metrics from outputs/backtest_reports/backtest_summary.json."""
-    try:
-        from pathlib import Path
-        import json as _json
-        report = Path('outputs') / 'backtest_reports' / 'backtest_summary.json'
-        if report.exists():
-            with open(report, 'r') as f:
-                data = _json.load(f)
-            return jsonify({"status": "ok", "summary": data})
-        return jsonify({"status": "missing", "summary": None}), 404
-    except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
+## Duplicate /api/backtest-summary removed; CSV-based endpoint defined earlier.
 
 @app.route('/backtest')
 def backtest_page():
-    """Minimal UI page to display latest backtest summary metrics."""
+    """Minimal UI page to display latest backtest summary metrics from canonical CSV."""
     try:
-        from pathlib import Path
-        import json as _json
-        report = Path('outputs') / 'backtest_reports' / 'backtest_summary.json'
+        import pandas as _pd
+        p = OUT / 'backtest_summary_latest.csv'
         data = None
-        if report.exists():
-            with open(report, 'r') as f:
-                data = _json.load(f)
+        if p.exists():
+            try:
+                df = _pd.read_csv(p)
+                if not df.empty:
+                    data = df.iloc[0].to_dict()
+            except Exception:
+                data = None
         return render_template('backtest.html', summary=data)
     except Exception:
         return make_response("<html><body><h2>Backtest summary unavailable</h2></body></html>", 200)

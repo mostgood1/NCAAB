@@ -15,6 +15,8 @@ Next Targets:
 - [ ] Expand synthetic pipeline to exercise segmented + calibration + stake sizing end-to-end automatically
 - [ ] Add historical archive navigation for picks & results (multi-date browsing)
 - [ ] Introduce asynchronous polling for live games and finalize auto-trigger hints
+ - [ ] Train quantile models for totals/margins and emit q10/q50/q90
+ - [ ] Evaluate CRPS and replace normal-based intervals with quantiles
 
 Notes:
 - ONNX Runtime wheel still unavailable via pip for Windows ARM64 here; prediction commands gracefully prompt for manual ORT install (CPU/DirectML) or a custom build with QNN EP.

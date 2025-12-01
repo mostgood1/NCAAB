@@ -30,6 +30,19 @@
     <div class="meta" id="meta"></div>
   </div>
 
+  <div id="qmetrics" class="grid" style="margin-top:12px; grid-template-columns: repeat(4, minmax(160px, 1fr));">
+    <div><div class="meta">CRPS Total</div><div id="crpsTotal">—</div></div>
+    <div><div class="meta">CRPS Margin</div><div id="crpsMargin">—</div></div>
+    <div><div class="meta">80% Coverage Total</div><div id="covTotal">—</div></div>
+    <div><div class="meta">80% Coverage Margin</div><div id="covMargin">—</div></div>
+  </div>
+
+  <div class="meta" style="margin-top:8px;">
+    <a id="quantileLink" href="/quantile-metrics" target="_blank">Open Quantile Metrics</a>
+    &nbsp;|&nbsp;
+    <a href="/drift-weekly" target="_blank">Weekly Drift</a>
+  </div>
+
   <table id="table">
     <thead>
       <tr>
@@ -84,6 +97,23 @@
       const data = await fetchJSON('/api/results_by_date?date=' + encodeURIComponent(date));
       document.getElementById('meta').textContent = `Count: ${data.count}`;
       renderRows(data.rows || []);
+      // Load quantile metrics for the date
+      const qm = await fetchJSON('/api/quantile-metrics?date=' + encodeURIComponent(date));
+      if (qm.status === 'ok' && Array.isArray(qm.data) && qm.data.length > 0) {
+        const r = qm.data[0];
+        document.getElementById('crpsTotal').textContent = r.crps_total ?? '—';
+        document.getElementById('crpsMargin').textContent = r.crps_margin ?? '—';
+        document.getElementById('covTotal').textContent = r.covered_80_total ?? '—';
+        document.getElementById('covMargin').textContent = r.covered_80_margin ?? '—';
+      } else {
+        document.getElementById('crpsTotal').textContent = '—';
+        document.getElementById('crpsMargin').textContent = '—';
+        document.getElementById('covTotal').textContent = '—';
+        document.getElementById('covMargin').textContent = '—';
+      }
+      // Update link to open metrics page for date
+      const link = document.getElementById('quantileLink');
+      link.href = '/quantile-metrics?date=' + encodeURIComponent(date);
     }
     document.getElementById('refreshBtn').addEventListener('click', loadResults);
     (async function init(){ await loadDates(); await loadResults(); })();

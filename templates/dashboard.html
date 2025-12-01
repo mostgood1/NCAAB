@@ -1,49 +1,316 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NCAAB Dashboard</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: #fff; }
+    .card h2 { margin: 0 0 8px; font-size: 18px; }
+    .meta { color: #666; font-size: 12px; margin-bottom: 8px; }
+    .alert { color: #b00020; font-weight: 600; }
+    .links a { margin-right: 12px; }
+    .banner { margin: 12px 0; padding: 12px; border-radius: 6px; background: #fff3cd; border: 1px solid #ffecb5; display: none; }
+    .banner-summary { margin-left: 8px; }
+    .banner-list { margin-top: 6px; font-size: 14px; }
+  </style>
+  <script>
+    async function fetchJSON(url) {
+      try { const r = await fetch(url); return await r.json(); } catch { return {status:'error'}; }
+    }
+    function safeLen(j) { return (j && j.status === 'ok' && Array.isArray(j.data)) ? j.data.length : 0; }
+    function latest(j) { return (j && j.status === 'ok' && Array.isArray(j.data) && j.data.length) ? j.data[j.data.length-1] : null; }
+    function addAlertLine(title, text) {
+      if (!text || !String(text).trim()) return null;
+      const div = document.createElement('div');
+      div.innerHTML = `<span class="alert">${title}:</span> ${String(text)}`;
+      return div;
+    }
+    async function init() {
+      const quantTrend = await fetchJSON('/api/quantile-trend-weekly');
+      const driftWeekly = await fetchJSON('/api/drift-weekly');
+      const stakeRisk = await fetchJSON('/api/stake-risk-summary');
+      const alerts = await fetchJSON('/api/alerts-today');
+      const backtest = await fetchJSON('/api/backtest-summary');
+      const roi = await fetchJSON('/api/backtest-roi');
+      const metaRel = await fetchJSON('/api/meta-reliability');
+      const qsel = await fetchJSON('/api/quantile-selection');
+      const qseg = await fetchJSON('/api/quantile-segment-metrics');
+      const qsegTrend = await fetchJSON('/api/quantile-segment-trend');
+
+      const qtLatest = latest(quantTrend) || {};
+      const driftLatest = latest(driftWeekly) || {};
+      const srLatest = latest(stakeRisk) || {};
+
+      // Quantile Trend card
+      document.querySelector('#qt-count').textContent = safeLen(quantTrend);
+      document.querySelector('#qt-date').textContent = qtLatest.date || '';
+      document.querySelector('#qt-alerts').textContent = qtLatest.alerts || '';
+
+      // Drift card
+      document.querySelector('#drift-count').textContent = safeLen(driftWeekly);
+      document.querySelector('#drift-week').textContent = driftLatest.week || driftLatest.date || '';
+      document.querySelector('#drift-alerts').textContent = driftLatest.alerts || '';
+
+      // Stake Risk card
+      document.querySelector('#sr-count').textContent = safeLen(stakeRisk);
+      document.querySelector('#sr-date').textContent = srLatest.date || '';
+      document.querySelector('#sr-alerts').textContent = srLatest.alerts || '';
+
+      // Alerts banner
+      if (alerts && alerts.status === 'ok' && alerts.data) {
+        const sum = alerts.data.summary || {};
+        const qt = alerts.data.quantile_trend_weekly || {};
+        const dr = alerts.data.drift_weekly || {};
+        const sr = alerts.data.stake_risk || {};
+        if (sum.has_alerts) {
+          const banner = document.querySelector('#alerts-banner');
+          banner.style.display = 'block';
+          document.querySelector('#alerts-summary').textContent = `${sum.alert_sources} source(s) reporting alerts`;
+          const list = document.querySelector('#alerts-list');
+          list.innerHTML = '';
+          const qsel = alerts.data.quantile_selection || {};
+          for (const el of [addAlertLine('Quantile Trend', qt.alerts), addAlertLine('Drift Weekly', dr.alerts), addAlertLine('Stake Risk', sr.alerts), addAlertLine('Quantile Selection', qsel.alerts)]) {
+            if (el) list.appendChild(el);
+          }
+        }
+      }
+
+      // Backtest card
+      if (backtest && backtest.status === 'ok' && backtest.data) {
+        const b = backtest.data;
+        document.querySelector('#bt-range').textContent = `${b.start_date || ''} → ${b.end_date || ''}`;
+        document.querySelector('#bt-events').textContent = b.events_total || b.n || '';
+        document.querySelector('#bt-brier').textContent = b.brier_home_win ? Number(b.brier_home_win).toFixed(4) : 'N/A';
+        document.querySelector('#bt-logloss').textContent = b.logloss_home_win ? Number(b.logloss_home_win).toFixed(4) : 'N/A';
+        document.querySelector('#bt-crps').textContent = b.crps_margin ? Number(b.crps_margin).toFixed(4) : 'N/A';
+        document.querySelector('#bt-coverage').textContent = b.coverage_margin ? (Number(b.coverage_margin) * 100).toFixed(1) + '%' : 'N/A';
+      }
+
+      // ROI card
+      if (roi && roi.status === 'ok' && Array.isArray(roi.data)) {
+        const rowBase = roi.data.find(r => (r.kind || '').toLowerCase() === 'base') || {};
+        const rowCal = roi.data.find(r => (r.kind || '').toLowerCase() === 'cal') || {};
+        document.querySelector('#roi-base').textContent = (rowBase.roi != null) ? (Number(rowBase.roi) * 100).toFixed(1) + '%' : 'N/A';
+        document.querySelector('#roi-cal').textContent = (rowCal.roi != null) ? (Number(rowCal.roi) * 100).toFixed(1) + '%' : 'N/A';
+        document.querySelector('#roi-days').textContent = rowBase.days || rowCal.days || '';
+      }
+
+      // Meta reliability card (raw vs calibrated)
+      if (metaRel && metaRel.status === 'ok') {
+        const s = metaRel.summary || {};
+        const covRaw = s.ece_cover_raw;
+        const covCal = s.ece_cover_cal;
+        const ovrRaw = s.ece_over_raw;
+        const ovrCal = s.ece_over_cal;
+        const covTxt = [
+          (covRaw != null && !isNaN(covRaw)) ? `raw ${Number(covRaw).toFixed(3)}` : null,
+          (covCal != null && !isNaN(covCal)) ? `cal ${Number(covCal).toFixed(3)}` : null,
+        ].filter(Boolean).join(' | ');
+        const ovrTxt = [
+          (ovrRaw != null && !isNaN(ovrRaw)) ? `raw ${Number(ovrRaw).toFixed(3)}` : null,
+          (ovrCal != null && !isNaN(ovrCal)) ? `cal ${Number(ovrCal).toFixed(3)}` : null,
+        ].filter(Boolean).join(' | ');
+        document.querySelector('#meta-ece-cover').textContent = covTxt || 'N/A';
+        document.querySelector('#meta-ece-over').textContent = ovrTxt || 'N/A';
+        const rc = (s.rows_cover_raw || 0) + (s.rows_cover_cal || 0);
+        const ro = (s.rows_over_raw || 0) + (s.rows_over_cal || 0);
+        document.querySelector('#meta-rows').textContent = (rc || ro) ? `${rc}/${ro}` : '';
+      }
+
+      // Quantile Selection card
+      if (qsel && qsel.status === 'ok' && qsel.data) {
+        const s = qsel.data.summary || {};
+        document.querySelector('#qsel-count').textContent = qsel.data.count || 0;
+        document.querySelector('#qsel-date').textContent = qsel.data.latest_date || s.latest_date || '';
+        const covT = s.realized_coverage_total;
+        const covM = s.realized_coverage_margin;
+        const wT = s.median_width_total;
+        const wM = s.median_width_margin;
+        const methT = s.selected_method_total || s.method;
+        const methM = s.selected_method_margin || s.method;
+          document.querySelector('#qsel-cov').textContent = [
+          covT != null ? `tot ${(Number(covT) * 100).toFixed(1)}%` : null,
+          covM != null ? `mar ${(Number(covM) * 100).toFixed(1)}%` : null,
+        ].filter(Boolean).join(' | ') || 'N/A';
+        document.querySelector('#qsel-width').textContent = [
+          wT != null ? `tot ${Number(wT).toFixed(1)}` : null,
+          wM != null ? `mar ${Number(wM).toFixed(1)}` : null,
+        ].filter(Boolean).join(' | ') || 'N/A';
+        document.querySelector('#qsel-method').textContent = [
+          methT ? `tot ${methT}` : null,
+          methM ? `mar ${methM}` : null,
+        ].filter(Boolean).join(' | ') || '';
+          const crpsT = s.crps_total;
+          const crpsM = s.crps_margin;
+          document.querySelector('#qsel-crps').textContent = [
+            (crpsT != null) ? `tot ${Number(crpsT).toFixed(3)}` : null,
+            (crpsM != null) ? `mar ${Number(crpsM).toFixed(3)}` : null,
+          ].filter(Boolean).join(' | ') || '';
+      }
+
+      // Quantiles by Segment card
+      if (qseg && qseg.status === 'ok' && qseg.data) {
+        const s = qseg.data;
+        document.querySelector('#qseg-date').textContent = s.latest_date || '';
+        const tt = s.thresholds && s.thresholds.total ? s.thresholds.total : null;
+        const mt = s.thresholds && s.thresholds.margin ? s.thresholds.margin : null;
+        document.querySelector('#qseg-thr').textContent = [
+          tt ? `tot ${Number(tt[0]).toFixed(1)}/${Number(tt[1]).toFixed(1)}` : null,
+          mt ? `mar ${Number(mt[0]).toFixed(1)}/${Number(mt[1]).toFixed(1)}` : null,
+        ].filter(Boolean).join(' | ');
+        const tc = s.totals || {}; const mc = s.margins || {};
+        function fmtCov(x){ return (x && x.coverage!=null) ? (Number(x.coverage)*100).toFixed(1)+'%' : 'N/A'; }
+        function fmtW(x){ return (x && x.width_median!=null) ? Number(x.width_median).toFixed(1) : 'N/A'; }
+        document.querySelector('#qseg-totals').textContent = [
+          `low ${fmtCov(tc.low)} (${fmtW(tc.low)})`,
+          `mid ${fmtCov(tc.mid)} (${fmtW(tc.mid)})`,
+          `high ${fmtCov(tc.high)} (${fmtW(tc.high)})`,
+        ].join(' | ');
+        document.querySelector('#qseg-margins').textContent = [
+          `small ${fmtCov(mc.small)} (${fmtW(mc.small)})`,
+          `med ${fmtCov(mc.med)} (${fmtW(mc.med)})`,
+          `large ${fmtCov(mc.large)} (${fmtW(mc.large)})`,
+        ].join(' | ');
+      }
+
+      // Segment Trend card: show last weeks coverage for quick scan
+      if (qsegTrend && qsegTrend.status === 'ok' && Array.isArray(qsegTrend.data)) {
+        const rows = qsegTrend.data;
+        function rowCov(r, path) {
+          try {
+            const x = path.split('.').reduce((acc, k) => acc && acc[k], r);
+            return (x && x.coverage != null) ? Number(x.coverage) : NaN;
+          } catch { return NaN; }
+        }
+        function fmtSeries(path) {
+          const vals = rows.map(r => rowCov(r, path)).map(v => isNaN(v) ? '—' : (v*100).toFixed(0));
+          return vals.join(' | ');
+        }
+        document.querySelector('#qsegtr-tot-low').textContent = fmtSeries('totals.low');
+        document.querySelector('#qsegtr-tot-mid').textContent = fmtSeries('totals.mid');
+        document.querySelector('#qsegtr-tot-high').textContent = fmtSeries('totals.high');
+        document.querySelector('#qsegtr-mar-small').textContent = fmtSeries('margins.small');
+        document.querySelector('#qsegtr-mar-med').textContent = fmtSeries('margins.med');
+        document.querySelector('#qsegtr-mar-large').textContent = fmtSeries('margins.large');
+      }
+    }
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
 </head>
 <body>
-  <div class="container">
-    <div class="row header">
-      <h1>Monitoring Dashboard</h1>
-      <div class="spacer"></div>
-      <a class="pill" href="/">Cards</a>
+  <h1>NCAAB Dashboard</h1>
+  <div id="alerts-banner" class="banner">
+    <strong>Today’s Alerts:</strong>
+    <span id="alerts-summary" class="banner-summary"></span>
+    <div id="alerts-list" class="banner-list"></div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h2>Quantile Trend Weekly</h2>
+      <div class="meta">Rows: <span id="qt-count"></span> | Latest: <span id="qt-date"></span></div>
+      <div>Alerts: <span id="qt-alerts" class="alert"></span></div>
+      <div class="links">
+        <a href="/quantile-trend-weekly">View Page</a>
+        <a href="/api/quantile-trend-weekly" target="_blank">JSON</a>
+        <a href="/static/outputs/quantile_trend_weekly.csv" target="_blank">CSV</a>
+      </div>
     </div>
-    {% set closing = metrics.get('closing_backtest', {}) %}
-    {% set calib = metrics.get('calibration', {}) %}
-    {% set edgep = metrics.get('edge_persistence', {}) %}
-    <div class="grid grid1 gap12 mb8">
-      <div class="card">
-        <div class="title-sm">Calibration</div>
-        <div class="kpi">
-          <div class="pill">Brier: {{ '%.3f' % calib.brier if calib.brier is defined else '–' }}</div>
-          <div class="pill">LogLoss: {{ '%.3f' % calib.logloss if calib.logloss is defined else '–' }}</div>
-          <div class="pill">n: {{ calib.n if calib.n is defined else '–' }}</div>
-        </div>
+
+    <div class="card">
+      <h2>Drift Weekly</h2>
+      <div class="meta">Rows: <span id="drift-count"></span> | Latest: <span id="drift-week"></span></div>
+      <div>Alerts: <span id="drift-alerts" class="alert"></span></div>
+      <div class="links">
+        <a href="/drift-weekly">View Page</a>
+        <a href="/api/drift-weekly" target="_blank">JSON</a>
+        <a href="/static/outputs/drift_summary_weekly.csv" target="_blank">CSV</a>
       </div>
-      <div class="card">
-        <div class="title-sm">Closing Backtest</div>
-        <div class="kpi">
-          <div class="pill">Days: {{ closing.days if closing.days is defined else '–' }}</div>
-          <div class="pill">Total Bets: {{ closing.total_bets if closing.total_bets is defined else '–' }}</div>
-          <div class="pill">Avg Win Rate: {{ '%.2f' % closing.avg_daily_win_rate if closing.avg_daily_win_rate is defined and closing.avg_daily_win_rate is not none else '–' }}</div>
-          <div class="pill">Avg ROI: {{ '%.3f' % closing.avg_daily_roi if closing.avg_daily_roi is defined and closing.avg_daily_roi is not none else '–' }}</div>
-          <div class="pill">CLV Mean+: {{ '%.2f' % closing.clv_mean_of_means if closing.clv_mean_of_means is defined and closing.clv_mean_of_means is not none else '–' }}</div>
-          <div class="pill">CLV Pos Rate: {{ '%.2f' % closing.clv_mean_pos_rate if closing.clv_mean_pos_rate is defined and closing.clv_mean_pos_rate is not none else '–' }}</div>
-        </div>
+    </div>
+
+    <div class="card">
+      <h2>Stake Risk Summary</h2>
+      <div class="meta">Rows: <span id="sr-count"></span> | Latest: <span id="sr-date"></span></div>
+      <div>Alerts: <span id="sr-alerts" class="alert"></span></div>
+      <div class="links">
+        <a href="/stake-risk-summary">View Page</a>
+        <a href="/api/stake-risk-summary" target="_blank">JSON</a>
+        <a href="/static/outputs/stake_risk_summary.csv" target="_blank">CSV</a>
       </div>
-      <div class="card">
-        <div class="title-sm">Edge Persistence</div>
-        <div class="kpi">
-          <div class="pill">Correlation Total: {{ edgep.corr_total if edgep.corr_total is defined else '–' }}</div>
-          <div class="pill">Sign Retention Total: {{ edgep.sign_retention_total if edgep.sign_retention_total is defined else '–' }}</div>
-          <div class="pill">Magnitude Decay Total: {{ edgep.magnitude_decay_total if edgep.magnitude_decay_total is defined else '–' }}</div>
-          <div class="pill">Bet Retention Total: {{ edgep.bet_retention_total if edgep.bet_retention_total is defined else '–' }}</div>
-        </div>
+    </div>
+
+    <div class="card">
+      <h2>Backtest (28d)</h2>
+      <div class="meta">Range: <span id="bt-range"></span></div>
+      <div>Events: <span id="bt-events"></span></div>
+      <div>Brier: <span id="bt-brier"></span> | LogLoss: <span id="bt-logloss"></span></div>
+      <div>CRPS (margin): <span id="bt-crps"></span> | Coverage (margin): <span id="bt-coverage"></span></div>
+      <div class="links">
+        <a href="/api/backtest-summary" target="_blank">JSON</a>
+        <a href="/static/outputs/backtest_summary_latest.csv" target="_blank">CSV</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ROI (28d)</h2>
+      <div class="meta">Days: <span id="roi-days"></span></div>
+      <div>Base: <span id="roi-base"></span> | Calibrated: <span id="roi-cal"></span></div>
+      <div class="links">
+        <a href="/api/backtest-roi" target="_blank">JSON</a>
+        <a href="/static/outputs/backtest_roi_latest.csv" target="_blank">CSV</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Meta Reliability</h2>
+      <div class="meta">Rows (cover/over): <span id="meta-rows"></span></div>
+      <div>ECE Cover: <span id="meta-ece-cover"></span> | ECE Over: <span id="meta-ece-over"></span></div>
+      <div class="links">
+        <a href="/api/meta-reliability" target="_blank">JSON</a>
+        <a href="/static/outputs/meta_reliability.csv" target="_blank">CSV</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quantile Selection</h2>
+      <div class="meta">Rows: <span id="qsel-count"></span> | Latest: <span id="qsel-date"></span></div>
+      <div>Coverage: <span id="qsel-cov"></span></div>
+      <div>Width: <span id="qsel-width"></span></div>
+        <div>CRPS: <span id="qsel-crps"></span></div>
+      <div>Method: <span id="qsel-method"></span></div>
+      <div class="links">
+        <a href="/api/quantile-selection" target="_blank">JSON</a>
+        <a href="/static/outputs/quantiles_selected.csv" target="_blank">CSV</a>
+        <a href="/static/outputs/quantile_model_selection.json" target="_blank">Model</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quantiles by Segment</h2>
+      <div class="meta">Latest: <span id="qseg-date"></span></div>
+      <div>Thresholds: <span id="qseg-thr"></span></div>
+      <div>Totals (cov | width): <span id="qseg-totals"></span></div>
+      <div>Margins (cov | width): <span id="qseg-margins"></span></div>
+      <div class="links">
+        <a href="/api/quantile-segment-metrics" target="_blank">JSON</a>
+        <a href="/static/outputs/quantiles_history.csv" target="_blank">History CSV</a>
+        <a href="/static/outputs/backtest_reports/backtest_joined.csv" target="_blank">Backtest CSV</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Segment Coverage Trend (8w)</h2>
+      <div class="meta">Weekly coverage (%): newest → oldest</div>
+      <div>Totals Low: <span id="qsegtr-tot-low"></span></div>
+      <div>Totals Mid: <span id="qsegtr-tot-mid"></span></div>
+      <div>Totals High: <span id="qsegtr-tot-high"></span></div>
+      <div>Margins Small: <span id="qsegtr-mar-small"></span></div>
+      <div>Margins Med: <span id="qsegtr-mar-med"></span></div>
+      <div>Margins Large: <span id="qsegtr-mar-large"></span></div>
+      <div class="links">
+        <a href="/api/quantile-segment-trend" target="_blank">JSON</a>
       </div>
     </div>
   </div>
