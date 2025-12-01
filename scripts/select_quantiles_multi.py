@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import os
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _read_csv(p: Path) -> pd.DataFrame:
@@ -61,6 +63,51 @@ def candidate_normal(window_df: pd.DataFrame, preds_col: str, target_col: str, t
     return {'name':'normal_sigma', 'sigma': sig, 'z': z, 'produce': produce}
 
 
+def _load_lgbm_models(root: Path, target: str, segment: str):
+    try:
+        import lightgbm as lgb
+    except Exception:
+        return None
+    base = root / 'outputs' / 'quantile_models' / target / segment
+    models = {}
+    for q in [10,50,90]:
+        p = base / f'model_q{q}.txt'
+        if p.exists():
+            try:
+                models[q] = lgb.Booster(model_file=str(p))
+            except Exception:
+                return None
+        else:
+            return None
+    return models
+
+
+def candidate_lgbm(window_df: pd.DataFrame, preds_col: str, target_col: str, target_cov: float, segment: str, target_name: str, features: list, models):
+    # produce q10/q50/q90 via LightGBM models; conformalize residuals in window to hit coverage
+    Xw = window_df[features].copy().fillna(0)
+    q10_pred = np.asarray(models[10].predict(Xw), float)
+    q50_pred = np.asarray(models[50].predict(Xw), float)
+    q90_pred = np.asarray(models[90].predict(Xw), float)
+    # conformal shift using residuals of central interval
+    y = window_df[target_col].to_numpy(float)
+    eps = (1.0 - target_cov) / 2.0
+    # compute adjustment on residuals to center interval to target coverage
+    # error relative to median
+    e_med = y - q50_pred
+    adj_low = float(np.nanquantile(e_med, eps))
+    adj_high = float(np.nanquantile(e_med, 1.0 - eps))
+    def produce_row(xrow: pd.DataFrame):
+        xrow = pd.DataFrame(xrow, columns=features).fillna(0)
+        q10r = float(models[10].predict(xrow)[0]) + adj_low
+        q50r = float(models[50].predict(xrow)[0])
+        q90r = float(models[90].predict(xrow)[0]) + adj_high
+        return np.array([[q10r, q50r, q90r]], float)
+    def produce(preds_unused):
+        # ignore preds input, rely on features/models
+        return np.vstack([q10_pred + adj_low, q50_pred, q90_pred + adj_high]).T
+    return {'name': f'lgbm_quantile_conformal_{target_name}_{segment}', 'produce': produce, 'produce_row': produce_row, 'params': {'segment': segment, 'features': features}}
+
+
 def _interp_quantile_from_three(q10: float, q50: float, q90: float, tau: float) -> float:
     # Linear interpolation in tau across (0.1,0.5,0.9); extrapolate with end slopes
     q10, q50, q90 = float(q10), float(q50), float(q90)
@@ -96,7 +143,19 @@ def _approx_crps_from_three(y: np.ndarray, q10: np.ndarray, q50: np.ndarray, q90
 def score_candidate(win_df: pd.DataFrame, preds_col: str, target_col: str, cand):
     y = win_df[target_col].to_numpy(float)
     preds = win_df[preds_col].to_numpy(float)
-    qs = cand['produce'](preds)
+    # If candidate provides feature-based production, build feature matrix
+    if 'produce_row' in cand and 'params' in cand:
+        feats = cand.get('params', {}).get('features', [])
+        X = win_df[feats].copy().fillna(0)
+        q10_list = []
+        q50_list = []
+        q90_list = []
+        for i in range(len(X)):
+            qs = cand['produce_row']([list(X.iloc[i].values)])
+            q10_list.append(qs[0,0]); q50_list.append(qs[0,1]); q90_list.append(qs[0,2])
+        qs = np.vstack([np.array(q10_list), np.array(q50_list), np.array(q90_list)]).T
+    else:
+        qs = cand['produce'](preds)
     q10, q50, q90 = qs[:,0], qs[:,1], qs[:,2]
     # Coverage, width, CRPS (approx from three quantiles)
     cov = float(np.nanmean((y >= q10) & (y <= q90)))
@@ -136,7 +195,17 @@ def select_and_write(latest_date: str, out_dir: Path, preds_hist: pd.DataFrame, 
     arr_t = today['pred_total'].to_numpy(float)
     for i,seg in enumerate(today['_seg_total']):
         sel = sel_total_by_seg.get(seg) or sel_total_by_seg.get('overall')
-        qs = sel['produce'](np.array([arr_t[i]]))
+        if 'produce_row' in sel:
+            # build feature row from preds_hist by game_id
+            gid = today.iloc[i]['game_id']
+            r = preds_hist[preds_hist['game_id'].astype(str) == str(gid)].iloc[0] if not preds_hist.empty else None
+            x = []
+            feats = sel.get('params',{}).get('features',[])
+            for f in feats:
+                x.append(r.get(f) if r is not None else np.nan)
+            qs = sel['produce_row']([x])
+        else:
+            qs = sel['produce'](np.array([arr_t[i]]))
         q10_t.append(qs[0,0]); q50_t.append(qs[0,1]); q90_t.append(qs[0,2])
     today['q10_total'] = q10_t; today['q50_total'] = q50_t; today['q90_total'] = q90_t
     # margins by segment
@@ -144,7 +213,16 @@ def select_and_write(latest_date: str, out_dir: Path, preds_hist: pd.DataFrame, 
     arr_m = today['pred_margin'].to_numpy(float)
     for i,seg in enumerate(today['_seg_margin']):
         sel = sel_margin_by_seg.get(seg) or sel_margin_by_seg.get('overall')
-        qs = sel['produce'](np.array([arr_m[i]]))
+        if 'produce_row' in sel:
+            gid = today.iloc[i]['game_id']
+            r = preds_hist[preds_hist['game_id'].astype(str) == str(gid)].iloc[0] if not preds_hist.empty else None
+            x = []
+            feats = sel.get('params',{}).get('features',[])
+            for f in feats:
+                x.append(r.get(f) if r is not None else np.nan)
+            qs = sel['produce_row']([x])
+        else:
+            qs = sel['produce'](np.array([arr_m[i]]))
         q10_m.append(qs[0,0]); q50_m.append(qs[0,1]); q90_m.append(qs[0,2])
     today['q10_margin'] = q10_m; today['q50_margin'] = q50_m; today['q90_margin'] = q90_m
 
@@ -199,9 +277,36 @@ def main(window_days: int = 28, target_cov: float = 0.8):
         candidate_residual(win, preds_col_margin, 'actual_margin', target_cov),
         candidate_normal(win, preds_col_margin, 'actual_margin', target_cov),
     ]
+    # Attempt to add LightGBM quantile candidates (overall baseline using 'mid' segment models)
+    # Load features from quantile_models/meta.json
+    qmeta_path = out_dir / 'quantile_models' / 'meta.json'
+    qfeatures = []
+    if qmeta_path.exists():
+        try:
+            qmeta = json.loads(qmeta_path.read_text(encoding='utf-8'))
+            qfeatures = qmeta.get('features') or []
+        except Exception:
+            qfeatures = []
+    if qfeatures:
+        mt = _load_lgbm_models(ROOT, 'total', 'mid')
+        mm = _load_lgbm_models(ROOT, 'margin', 'med')
+        if mt:
+            try:
+                cands_total.append(candidate_lgbm(win, preds_col_total, 'actual_total', target_cov, 'mid', 'total', qfeatures, mt))
+            except Exception:
+                pass
+        if mm:
+            try:
+                cands_margin.append(candidate_lgbm(win, preds_col_margin, 'actual_margin', target_cov, 'med', 'margin', qfeatures, mm))
+            except Exception:
+                pass
     # Score overall
-    scores_total = [score_candidate(win, preds_col_total, 'actual_total', c) for c in cands_total]
-    scores_margin = [score_candidate(win, preds_col_margin, 'actual_margin', c) for c in cands_margin]
+    def _serializable_score(s: dict):
+        return {k: v for k, v in s.items() if k not in {'params','produce','produce_row'}}
+    scores_total_raw = [score_candidate(win, preds_col_total, 'actual_total', c) for c in cands_total]
+    scores_margin_raw = [score_candidate(win, preds_col_margin, 'actual_margin', c) for c in cands_margin]
+    scores_total = [_serializable_score(s) for s in scores_total_raw]
+    scores_margin = [_serializable_score(s) for s in scores_margin_raw]
 
     # Select by CRPS then coverage closeness then width
     def pick(scores):
@@ -210,8 +315,14 @@ def main(window_days: int = 28, target_cov: float = 0.8):
         return scores[0]
     best_t = pick(scores_total)
     best_m = pick(scores_margin)
-    sel_total_overall = next(c for c in cands_total if c['name'] == best_t['name'])
-    sel_margin_overall = next(c for c in cands_margin if c['name'] == best_m['name'])
+    # retrieve corresponding candidate objects including non-serializable fields for application
+    def _find_cand(cands, name):
+        for c in cands:
+            if c.get('name') == name:
+                return c
+        return cands[0]
+    sel_total_overall = _find_cand(cands_total, best_t['name'])
+    sel_margin_overall = _find_cand(cands_margin, best_m['name'])
 
     # Segment rules (adaptive thresholds with sensible fallbacks)
     def _round_half(x: float) -> float:
@@ -287,16 +398,32 @@ def main(window_days: int = 28, target_cov: float = 0.8):
     for seg in totals_segments:
         seg_df = win[win['_seg_total'] == seg]
         if len(seg_df) >= 100:
-            sc = [score_candidate(seg_df, preds_col_total, 'actual_total', c) for c in cands_total]
+            # add segment LGBM candidate if available
+            lmt = _load_lgbm_models(ROOT, 'total', seg)
+            seg_cands = list(cands_total)
+            if lmt and qfeatures:
+                try:
+                    seg_cands.append(candidate_lgbm(seg_df, preds_col_total, 'actual_total', target_cov, seg, 'total', qfeatures, lmt))
+                except Exception:
+                    pass
+            sc = [score_candidate(seg_df, preds_col_total, 'actual_total', c) for c in seg_cands]
             best = pick(sc)
-            sel_total_by_seg[seg] = next(c for c in cands_total if c['name'] == best['name'])
+            # locate candidate by name across seg_cands
+            sel_total_by_seg[seg] = next(c for c in seg_cands if c['name'] == best['name'])
             totals_seg_scores[seg] = sc
     for seg in margins_segments:
         seg_df = win[win['_seg_margin'] == seg]
         if len(seg_df) >= 100:
-            sc = [score_candidate(seg_df, preds_col_margin, 'actual_margin', c) for c in cands_margin]
+            lmm = _load_lgbm_models(ROOT, 'margin', seg)
+            seg_cands = list(cands_margin)
+            if lmm and qfeatures:
+                try:
+                    seg_cands.append(candidate_lgbm(seg_df, preds_col_margin, 'actual_margin', target_cov, seg, 'margin', qfeatures, lmm))
+                except Exception:
+                    pass
+            sc = [score_candidate(seg_df, preds_col_margin, 'actual_margin', c) for c in seg_cands]
             best = pick(sc)
-            sel_margin_by_seg[seg] = next(c for c in cands_margin if c['name'] == best['name'])
+            sel_margin_by_seg[seg] = next(c for c in seg_cands if c['name'] == best['name'])
             margins_seg_scores[seg] = sc
 
     # Write outputs
@@ -312,8 +439,18 @@ def main(window_days: int = 28, target_cov: float = 0.8):
         'crps_total': float(next(s['crps'] for s in scores_total if s['name'] == best_t['name'])),
         'crps_margin': float(next(s['crps'] for s in scores_margin if s['name'] == best_m['name'])),
         'segment_rules': {**seg_rules, 'total_thresholds_meta': total_thr_meta, 'margin_thresholds_meta': margin_thr_meta},
-        'segment_scores_total': totals_seg_scores,
-        'segment_scores_margin': margins_seg_scores,
+        'segment_scores_total': {
+            k: [
+                {kk: vv for kk, vv in s.items() if kk not in {'params','produce','produce_row'}}
+                for s in v
+            ] for k, v in totals_seg_scores.items()
+        },
+        'segment_scores_margin': {
+            k: [
+                {kk: vv for kk, vv in s.items() if kk not in {'params','produce','produce_row'}}
+                for s in v
+            ] for k, v in margins_seg_scores.items()
+        },
         'selected_methods_by_segment_total': {k: v['name'] for k,v in sel_total_by_seg.items() if isinstance(v, dict) and 'name' in v},
         'selected_methods_by_segment_margin': {k: v['name'] for k,v in sel_margin_by_seg.items() if isinstance(v, dict) and 'name' in v},
         'median_width_total': float(np.nanmedian(sel_df['q90_total'] - sel_df['q10_total'])) if not sel_df.empty else np.nan,
