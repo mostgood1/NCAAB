@@ -1,0 +1,20 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401837346,2025,2025-12-01,2025-12-01 17:00:00+00:00,2025-12-01 12:00,EST,Chicago State Cougars,St. Xavier  (IL) Cougars,0,0,,,,,False,Jones Convocation Center
+401827016,2025,2025-12-01,2025-12-01 17:00:00+00:00,2025-12-01 12:00,EST,Southern Jaguars,Louisiana Christian Wildcats,0,0,,,,,False,F.G. Clark Activity Center
+401823565,2025,2025-12-01,2025-12-01 23:30:00+00:00,2025-12-01 18:30,EST,Villanova Wildcats,Temple Owls,0,0,,,,,False,Finneran Pavilion
+401823470,2025,2025-12-01,2025-12-01 23:30:00+00:00,2025-12-01 18:30,EST,Toledo Rockets,Central State (OH) Marauders,0,0,,,,,False,Savage Arena
+401827523,2025,2025-12-01,2025-12-02 00:00:00+00:00,2025-12-01 19:00,EST,Hampton Pirates,Apprentice School Builders,0,0,,,,,False,Convocation Center (VA)
+401825387,2025,2025-12-01,2025-12-02 00:00:00+00:00,2025-12-01 19:00,EST,Troy Trojans,West Georgia Wolves,0,0,,,,,False,Trojan Arena
+401824308,2025,2025-12-01,2025-12-02 00:00:00+00:00,2025-12-01 19:00,EST,Delaware Blue Hens,Iona Gaels,0,0,,,,,False,Bob Carpenter Center
+401823437,2025,2025-12-01,2025-12-02 00:00:00+00:00,2025-12-01 19:00,EST,Jacksonville State Gamecocks,North Alabama Lions,0,0,,,,,False,Pete Mathews Coliseum
+401819846,2025,2025-12-01,2025-12-02 00:00:00+00:00,2025-12-01 19:00,EST,Cincinnati Bearcats,Tarleton State Texans,0,0,,,,,False,Fifth Third Arena
+401812384,2025,2025-12-01,2025-12-02 00:00:00+00:00,2025-12-01 19:00,EST,Xavier Musketeers,Saint Francis Red Flash,0,0,,,,,False,Cintas Center
+401822998,2025,2025-12-01,2025-12-02 00:30:00+00:00,2025-12-01 19:30,EST,Middle Tennessee Blue Raiders,UAB Blazers,0,0,,,,,False,Murphy Center
+401808731,2025,2025-12-01,2025-12-02 00:30:00+00:00,2025-12-01 19:30,EST,Incarnate Word Cardinals,McNeese Cowboys,0,0,,,,,False,McDermott Center
+401822368,2025,2025-12-01,2025-12-02 01:00:00+00:00,2025-12-01 20:00,EST,Eastern Illinois Panthers,Blackburn Beavers,0,0,,,,,False,Groniger Arena
+401820546,2025,2025-12-01,2025-12-02 01:00:00+00:00,2025-12-01 20:00,EST,Northern Iowa Panthers,Coe Kohawks,0,0,,,,,False,McLeod Center
+401819893,2025,2025-12-01,2025-12-02 01:00:00+00:00,2025-12-01 20:00,EST,Kansas State Wildcats,Bowling Green Falcons,0,0,,,,,False,Bramlage Coliseum
+401823546,2025,2025-12-01,2025-12-02 01:30:00+00:00,2025-12-01 20:30,EST,Southern Utah Thunderbirds,West Coast Baptist Eagles,0,0,,,,,False,America First Events Center
+401830319,2025,2025-12-01,2025-12-02 02:00:00+00:00,2025-12-01 21:00,EST,New Mexico Lobos,New Mexico Highlands Cowboys,0,0,,,,,False,The Pit
+401819866,2025,2025-12-01,2025-12-02 02:00:00+00:00,2025-12-01 21:00,EST,Colorado Buffaloes,California Baptist Lancers,0,0,,,,,False,CU Events Center
+401817470,2025,2025-12-01,2025-12-02 03:00:00+00:00,2025-12-01 22:00,EST,Stanford Cardinal,Portland Pilots,0,0,,,,,False,Maples Pavilion
