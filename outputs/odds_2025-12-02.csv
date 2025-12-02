@@ -1,0 +1,36 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+7710e36d30daeb32bf015a7d487d33e5,DraftKings,2025-12-02 17:10:47.578537+00:00,750.0,-1450.0,12.5,164.5,2025-12-02 16:02:46+00:00,Army Knights,GW Revolutionaries
+7710e36d30daeb32bf015a7d487d33e5,FanDuel,2025-12-02 17:10:47.578537+00:00,1060.0,-3500.0,12.5,163.5,2025-12-02 16:02:46+00:00,Army Knights,GW Revolutionaries
+7710e36d30daeb32bf015a7d487d33e5,BetRivers,2025-12-02 17:10:47.578537+00:00,1050.0,-10000.0,12.5,164.5,2025-12-02 16:02:46+00:00,Army Knights,GW Revolutionaries
+7710e36d30daeb32bf015a7d487d33e5,BetMGM,2025-12-02 17:10:47.578537+00:00,725.0,-1400.0,12.5,164.5,2025-12-02 16:02:46+00:00,Army Knights,GW Revolutionaries
+7710e36d30daeb32bf015a7d487d33e5,Bovada,2025-12-02 17:10:47.578537+00:00,750.0,-1600.0,12.5,163.5,2025-12-02 16:02:46+00:00,Army Knights,GW Revolutionaries
+7710e36d30daeb32bf015a7d487d33e5,Caesars,2025-12-02 17:10:47.578537+00:00,850.0,-1800.0,12.5,163.5,2025-12-02 16:02:46+00:00,Army Knights,GW Revolutionaries
+826ae60faaaad8f652914e5e6de164f6,DraftKings,2025-12-02 17:10:47.578537+00:00,-154.0,120.0,-1.5,143.5,2025-12-02 17:04:18+00:00,Tenn-Martin Skyhawks,Charleston Southern Buccaneers
+826ae60faaaad8f652914e5e6de164f6,BetOnline.ag,2025-12-02 17:10:47.578537+00:00,-175.0,153.0,-3.5,147.5,2025-12-02 17:04:18+00:00,Tenn-Martin Skyhawks,Charleston Southern Buccaneers
+826ae60faaaad8f652914e5e6de164f6,FanDuel,2025-12-02 17:10:47.578537+00:00,-125.0,-102.0,-1.5,144.5,2025-12-02 17:04:18+00:00,Tenn-Martin Skyhawks,Charleston Southern Buccaneers
+826ae60faaaad8f652914e5e6de164f6,BetRivers,2025-12-02 17:10:47.578537+00:00,-139.0,100.0,-1.5,143.5,2025-12-02 17:04:18+00:00,Tenn-Martin Skyhawks,Charleston Southern Buccaneers
+826ae60faaaad8f652914e5e6de164f6,BetMGM,2025-12-02 17:10:47.578537+00:00,-150.0,118.0,-2.5,143.5,2025-12-02 17:04:18+00:00,Tenn-Martin Skyhawks,Charleston Southern Buccaneers
+826ae60faaaad8f652914e5e6de164f6,Bovada,2025-12-02 17:10:47.578537+00:00,-170.0,130.0,-2.5,144.5,2025-12-02 17:04:18+00:00,Tenn-Martin Skyhawks,Charleston Southern Buccaneers
+826ae60faaaad8f652914e5e6de164f6,Caesars,2025-12-02 17:10:47.578537+00:00,-130.0,100.0,-1.5,142.5,2025-12-02 17:04:18+00:00,Tenn-Martin Skyhawks,Charleston Southern Buccaneers
+4d68dd66411eb94f94d7d603bf523fe9,DraftKings,2025-12-02 17:10:47.578537+00:00,-290.0,235.0,-6.5,132.5,2025-12-02 23:00:00+00:00,Bryant Bulldogs,Stonehill Skyhawks
+4d68dd66411eb94f94d7d603bf523fe9,BetOnline.ag,2025-12-02 17:10:47.578537+00:00,,,-6.0,132.5,2025-12-02 23:00:00+00:00,Bryant Bulldogs,Stonehill Skyhawks
+4d68dd66411eb94f94d7d603bf523fe9,BetMGM,2025-12-02 17:10:47.578537+00:00,-275.0,225.0,-6.5,132.5,2025-12-02 23:00:00+00:00,Bryant Bulldogs,Stonehill Skyhawks
+4d68dd66411eb94f94d7d603bf523fe9,BetRivers,2025-12-02 17:10:47.578537+00:00,-305.0,230.0,-6.5,132.5,2025-12-02 23:00:00+00:00,Bryant Bulldogs,Stonehill Skyhawks
+4d68dd66411eb94f94d7d603bf523fe9,FanDuel,2025-12-02 17:10:47.578537+00:00,-320.0,245.0,-6.5,132.5,2025-12-02 23:00:00+00:00,Bryant Bulldogs,Stonehill Skyhawks
+4d68dd66411eb94f94d7d603bf523fe9,Bovada,2025-12-02 17:10:47.578537+00:00,-285.0,235.0,-6.5,133.0,2025-12-02 23:00:00+00:00,Bryant Bulldogs,Stonehill Skyhawks
+4d68dd66411eb94f94d7d603bf523fe9,Caesars,2025-12-02 17:10:47.578537+00:00,-305.0,240.0,-6.5,132.5,2025-12-02 23:00:00+00:00,Bryant Bulldogs,Stonehill Skyhawks
+e5ab39fd2db9becce3055971b485e0ab,FanDuel,2025-12-02 17:10:47.578537+00:00,-1250.0,740.0,-13.5,154.5,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+e5ab39fd2db9becce3055971b485e0ab,BetOnline.ag,2025-12-02 17:10:47.578537+00:00,-1100.0,709.0,-13.0,155.0,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+e5ab39fd2db9becce3055971b485e0ab,Bovada,2025-12-02 17:10:47.578537+00:00,-1000.0,625.0,-13.0,155.0,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+e5ab39fd2db9becce3055971b485e0ab,DraftKings,2025-12-02 17:10:47.578537+00:00,-1100.0,700.0,-13.5,155.5,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+e5ab39fd2db9becce3055971b485e0ab,BetUS,2025-12-02 17:10:47.578537+00:00,-1100.0,700.0,-13.5,155.0,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+e5ab39fd2db9becce3055971b485e0ab,BetRivers,2025-12-02 17:10:47.578537+00:00,-1250.0,700.0,-13.5,154.5,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+e5ab39fd2db9becce3055971b485e0ab,Caesars,2025-12-02 17:10:47.578537+00:00,-1100.0,700.0,-13.5,155.0,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+e5ab39fd2db9becce3055971b485e0ab,BetMGM,2025-12-02 17:10:47.578537+00:00,-1100.0,675.0,-13.5,155.5,2025-12-02 23:00:00+00:00,Penn State Nittany Lions,Campbell Fighting Camels
+5aab929d592be240a36588441fc15313,DraftKings,2025-12-02 17:10:47.578537+00:00,124.0,-148.0,2.5,139.5,2025-12-02 23:07:00+00:00,Binghamton Bearcats,Lehigh Mountain Hawks
+5aab929d592be240a36588441fc15313,BetOnline.ag,2025-12-02 17:10:47.578537+00:00,,,3.0,139.5,2025-12-02 23:07:00+00:00,Binghamton Bearcats,Lehigh Mountain Hawks
+5aab929d592be240a36588441fc15313,BetMGM,2025-12-02 17:10:47.578537+00:00,125.0,-150.0,2.5,139.5,2025-12-02 23:07:00+00:00,Binghamton Bearcats,Lehigh Mountain Hawks
+5aab929d592be240a36588441fc15313,BetRivers,2025-12-02 17:10:47.578537+00:00,123.0,-152.0,3.0,139.5,2025-12-02 23:07:00+00:00,Binghamton Bearcats,Lehigh Mountain Hawks
+5aab929d592be240a36588441fc15313,FanDuel,2025-12-02 17:10:47.578537+00:00,124.0,-152.0,2.5,139.5,2025-12-02 23:07:00+00:00,Binghamton Bearcats,Lehigh Mountain Hawks
+5aab929d592be240a36588441fc15313,Bovada,2025-12-02 17:10:47.578537+00:00,125.0,-145.0,2.5,139.0,2025-12-02 23:07:00+00:00,Binghamton Bearcats,Lehigh Mountain Hawks
+5aab929d592be240a36588441fc15313,Caesars,2025-12-02 17:10:47.578537+00:00,122.0,-145.0,2.5,139.0,2025-12-02 23:07:00+00:00,Binghamton Bearcats,Lehigh Mountain Hawks
