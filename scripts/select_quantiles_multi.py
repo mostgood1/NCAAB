@@ -141,14 +141,53 @@ def candidate_lgbm(window_df: pd.DataFrame, preds_col: str, target_col: str, tar
         xdf = pd.DataFrame(arr, columns=present_feats)
         # Replace NaNs with 0 in numeric dtype (no object downcast occurs)
         xdf = xdf.fillna(0.0)
-        q10r = float(models[10].predict(xrow, predict_disable_shape_check=True)[0]) + adj_low
+        q10r = float(models[10].predict(xdf, predict_disable_shape_check=True)[0]) + adj_low
         q50r = float(models[50].predict(xdf, predict_disable_shape_check=True)[0])
         q90r = float(models[90].predict(xdf, predict_disable_shape_check=True)[0]) + adj_high
         return np.array([[q10r, q50r, q90r]], float)
+    def produce_batch(df_like: pd.DataFrame):
+        # Accept a DataFrame with arbitrary columns; synthesize missing features similarly to window path
+        if not isinstance(df_like, pd.DataFrame):
+            raise ValueError('produce_batch expects a DataFrame')
+        synth2 = df_like.copy()
+        for col in ['days_rest_home','days_rest_away']:
+            if col not in synth2.columns:
+                synth2[col] = 3
+        if 'travel_dist_km' not in synth2.columns:
+            synth2['travel_dist_km'] = 0.0
+        if 'market_spread' not in synth2.columns:
+            alt_cols = [c for c in ['closing_spread','home_spread_pred','spread','odds_spread'] if c in synth2.columns]
+            synth2['market_spread'] = synth2[alt_cols[0]] if alt_cols else 0.0
+        if 'market_total' not in synth2.columns:
+            alt_cols = [c for c in ['closing_total','total','odds_total'] if c in synth2.columns]
+            synth2['market_total'] = synth2[alt_cols[0]] if alt_cols else synth2.get('pred_total', pd.Series(0.0, index=synth2.index))
+        if 'market_moneyline_home_prob' not in synth2.columns:
+            if 'home_ml_prob' in synth2.columns:
+                synth2['market_moneyline_home_prob'] = synth2['home_ml_prob']
+            elif 'home_ml_price' in synth2.columns:
+                def _american_to_prob(price):
+                    try:
+                        price = float(price)
+                    except Exception:
+                        return np.nan
+                    if price > 0:
+                        return 100.0 / (price + 100.0)
+                    elif price < 0:
+                        return abs(price) / (abs(price) + 100.0)
+                    return np.nan
+                synth2['market_moneyline_home_prob'] = synth2['home_ml_price'].apply(_american_to_prob)
+            else:
+                synth2['market_moneyline_home_prob'] = 0.5
+        Xb = synth2[present_feats].copy()
+        Xb = Xb.apply(pd.to_numeric, errors='coerce').fillna(0.0)
+        q10b = np.asarray(models[10].predict(Xb, predict_disable_shape_check=True), float) + adj_low
+        q50b = np.asarray(models[50].predict(Xb, predict_disable_shape_check=True), float)
+        q90b = np.asarray(models[90].predict(Xb, predict_disable_shape_check=True), float) + adj_high
+        return np.vstack([q10b, q50b, q90b]).T
     def produce(preds_unused):
         # ignore preds input, rely on features/models
         return np.vstack([q10_pred + adj_low, q50_pred, q90_pred + adj_high]).T
-    return {'name': f'lgbm_quantile_conformal_{target_name}_{segment}', 'produce': produce, 'produce_row': produce_row, 'params': {'segment': segment, 'features': present_feats, 'missing_features': missing}}
+    return {'name': f'lgbm_quantile_conformal_{target_name}_{segment}', 'produce': produce, 'produce_row': produce_row, 'produce_batch': produce_batch, 'params': {'segment': segment, 'features': present_feats, 'missing_features': missing}}
 
 
 def _interp_quantile_from_three(q10: float, q50: float, q90: float, tau: float) -> float:
@@ -177,8 +216,17 @@ def _approx_crps_from_three(y: np.ndarray, q10: np.ndarray, q50: np.ndarray, q90
     y = np.asarray(y, float)
     q10 = np.asarray(q10, float); q50 = np.asarray(q50, float); q90 = np.asarray(q90, float)
     losses = []
+    m1 = (q50 - q10) / 0.4
+    m2 = (q90 - q50) / 0.4
     for t in taus:
-        qt = np.vectorize(_interp_quantile_from_three)(q10, q50, q90, t)
+        if t <= 0.1:
+            qt = q10 + (t - 0.1) * m1
+        elif t <= 0.5:
+            qt = q10 + (t - 0.1) * m1
+        elif t <= 0.9:
+            qt = q50 + (t - 0.5) * m2
+        else:
+            qt = q90 + (t - 0.9) * m2
         losses.append(pinball_loss(y, qt, t))
     return float(2.0 * np.nanmean(losses))
 
@@ -186,19 +234,34 @@ def _approx_crps_from_three(y: np.ndarray, q10: np.ndarray, q50: np.ndarray, q90
 def score_candidate(win_df: pd.DataFrame, preds_col: str, target_col: str, cand):
     y = win_df[target_col].to_numpy(float)
     preds = win_df[preds_col].to_numpy(float)
-    # If candidate provides feature-based production, build feature matrix
-    if 'produce_row' in cand and 'params' in cand:
-        feats = cand.get('params', {}).get('features', [])
-        X = win_df[feats].copy().fillna(0)
-        q10_list = []
-        q50_list = []
-        q90_list = []
-        for i in range(len(X)):
-            qs = cand['produce_row']([list(X.iloc[i].values)])
-            q10_list.append(qs[0,0]); q50_list.append(qs[0,1]); q90_list.append(qs[0,2])
-        qs = np.vstack([np.array(q10_list), np.array(q50_list), np.array(q90_list)]).T
-    else:
+    # Prefer batched production; fallback to per-row only if batch fails
+    try:
         qs = cand['produce'](preds)
+        if qs.shape[0] != len(y):
+            raise ValueError('batch_size_mismatch')
+    except Exception:
+        # Faster fallback: try produce_batch if provided
+        if 'produce_batch' in cand:
+            try:
+                qs = cand['produce_batch'](win_df)
+                if qs.shape[0] != len(y):
+                    raise ValueError('batch_size_mismatch_after_batch')
+            except Exception:
+                qs = None
+        if qs is None and 'produce_row' in cand and 'params' in cand:
+            feats = cand.get('params', {}).get('features', [])
+            X = win_df[feats].copy() if feats else pd.DataFrame(index=win_df.index)
+            X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
+            q10_list = []
+            q50_list = []
+            q90_list = []
+            for i in range(len(X)):
+                vals = [X.iloc[i][f] if f in X.columns else np.nan for f in feats]
+                qs_row = cand['produce_row']([vals])
+                q10_list.append(qs_row[0,0]); q50_list.append(qs_row[0,1]); q90_list.append(qs_row[0,2])
+            qs = np.vstack([np.array(q10_list), np.array(q50_list), np.array(q90_list)]).T
+        else:
+            raise
     q10, q50, q90 = qs[:,0], qs[:,1], qs[:,2]
     # Coverage, width, CRPS (approx from three quantiles)
     cov = float(np.nanmean((y >= q10) & (y <= q90)))
@@ -233,41 +296,57 @@ def select_and_write(latest_date: str, out_dir: Path, preds_hist: pd.DataFrame, 
         return 'large'
     today['_seg_total'] = today['pred_total'].apply(lambda v: bin_total(float(v)) if pd.notna(v) else 'mid')
     today['_seg_margin'] = today['pred_margin'].apply(lambda v: bin_margin(float(v)) if pd.notna(v) else 'med')
-    # totals by segment
-    q10_t = []; q50_t = []; q90_t = []
-    arr_t = today['pred_total'].to_numpy(float)
-    for i,seg in enumerate(today['_seg_total']):
+    # Initialize output columns
+    today['q10_total'] = np.nan; today['q50_total'] = np.nan; today['q90_total'] = np.nan
+    today['q10_margin'] = np.nan; today['q50_margin'] = np.nan; today['q90_margin'] = np.nan
+
+    # totals by segment (batched when possible)
+    for seg in ['low','mid','high']:
+        mask = today['_seg_total'] == seg
+        if not mask.any():
+            continue
         sel = sel_total_by_seg.get(seg) or sel_total_by_seg.get('overall')
-        if 'produce_row' in sel:
-            # build feature row from preds_hist by game_id
-            gid = today.iloc[i]['game_id']
-            r = preds_hist[preds_hist['game_id'].astype(str) == str(gid)].iloc[0] if not preds_hist.empty else None
-            x = []
+        if 'produce_batch' in sel:
+            mat = sel['produce_batch'](today.loc[mask])
+            today.loc[mask, ['q10_total','q50_total','q90_total']] = mat
+        elif 'produce_row' in sel:
             feats = sel.get('params',{}).get('features',[])
-            for f in feats:
-                x.append(r.get(f) if r is not None else np.nan)
-            qs = sel['produce_row']([x])
+            X = today.loc[mask, feats].copy() if feats else pd.DataFrame(index=today.index[today['_seg_total']==seg])
+            out = []
+            for i in range(len(X)):
+                row_vals = [X.iloc[i][f] if f in X.columns else np.nan for f in feats]
+                qs = sel['produce_row']([row_vals])
+                out.append(qs[0])
+            if out:
+                today.loc[mask, ['q10_total','q50_total','q90_total']] = np.array(out)
         else:
-            qs = sel['produce'](np.array([arr_t[i]]))
-        q10_t.append(qs[0,0]); q50_t.append(qs[0,1]); q90_t.append(qs[0,2])
-    today['q10_total'] = q10_t; today['q50_total'] = q50_t; today['q90_total'] = q90_t
-    # margins by segment
-    q10_m = []; q50_m = []; q90_m = []
-    arr_m = today['pred_margin'].to_numpy(float)
-    for i,seg in enumerate(today['_seg_margin']):
+            arr = today.loc[mask, 'pred_total'].to_numpy(float)
+            mat = sel['produce'](arr)
+            today.loc[mask, ['q10_total','q50_total','q90_total']] = mat
+
+    # margins by segment (batched when possible)
+    for seg in ['small','med','large']:
+        mask = today['_seg_margin'] == seg
+        if not mask.any():
+            continue
         sel = sel_margin_by_seg.get(seg) or sel_margin_by_seg.get('overall')
-        if 'produce_row' in sel:
-            gid = today.iloc[i]['game_id']
-            r = preds_hist[preds_hist['game_id'].astype(str) == str(gid)].iloc[0] if not preds_hist.empty else None
-            x = []
+        if 'produce_batch' in sel:
+            mat = sel['produce_batch'](today.loc[mask])
+            today.loc[mask, ['q10_margin','q50_margin','q90_margin']] = mat
+        elif 'produce_row' in sel:
             feats = sel.get('params',{}).get('features',[])
-            for f in feats:
-                x.append(r.get(f) if r is not None else np.nan)
-            qs = sel['produce_row']([x])
+            X = today.loc[mask, feats].copy() if feats else pd.DataFrame(index=today.index[today['_seg_margin']==seg])
+            out = []
+            for i in range(len(X)):
+                row_vals = [X.iloc[i][f] if f in X.columns else np.nan for f in feats]
+                qs = sel['produce_row']([row_vals])
+                out.append(qs[0])
+            if out:
+                today.loc[mask, ['q10_margin','q50_margin','q90_margin']] = np.array(out)
         else:
-            qs = sel['produce'](np.array([arr_m[i]]))
-        q10_m.append(qs[0,0]); q50_m.append(qs[0,1]); q90_m.append(qs[0,2])
-    today['q10_margin'] = q10_m; today['q50_margin'] = q50_m; today['q90_margin'] = q90_m
+            arr = today.loc[mask, 'pred_margin'].to_numpy(float)
+            mat = sel['produce'](arr)
+            today.loc[mask, ['q10_margin','q50_margin','q90_margin']] = mat
 
     # Enforce monotonicity per row
     def mono3(a,b,c,row):
@@ -451,7 +530,8 @@ def main(window_days: int = 28, target_cov: float = 0.8):
         if len(seg_df) >= 100:
             # add segment LGBM candidate if available
             lmt = _load_lgbm_models(ROOT, 'total', seg)
-            seg_cands = list(cands_total)
+            # Start from non-LGBM baselines only; add segment-specific LGBM candidate explicitly
+            seg_cands = [c for c in cands_total if not c.get('name','').startswith('lgbm_quantile_conformal_total_')]
             if lmt and (qfeatures or qfeatures_by_seg_total):
                 try:
                     feats_seg = qfeatures_by_seg_total.get(seg) or qfeatures
@@ -467,7 +547,7 @@ def main(window_days: int = 28, target_cov: float = 0.8):
         seg_df = win[win['_seg_margin'] == seg]
         if len(seg_df) >= 100:
             lmm = _load_lgbm_models(ROOT, 'margin', seg)
-            seg_cands = list(cands_margin)
+            seg_cands = [c for c in cands_margin if not c.get('name','').startswith('lgbm_quantile_conformal_margin_')]
             if lmm and (qfeatures or qfeatures_by_seg_margin):
                 try:
                     feats_seg = qfeatures_by_seg_margin.get(seg) or qfeatures

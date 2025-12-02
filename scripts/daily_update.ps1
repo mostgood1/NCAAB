@@ -21,6 +21,11 @@ param(
   [switch]$SkipVarianceDiag,
   [switch]$BootstrapEnv,
   [switch]$NoTranscript,
+  # Heavy quantile CV + model retrain gating (weekly + drift/age overrides)
+  [switch]$SkipHeavyQuantiles,
+  [switch]$ForceQuantileRefresh,
+  [string]$QuantileRetrainDay = 'Sunday',
+  [int]$QuantileMaxAgeDays = 6,
   [string]$GitCommitMessage
 )
 
@@ -93,6 +98,19 @@ try {
   $todayDate = [DateTime]::ParseExact($Today, 'yyyy-MM-dd', $null)
   $prevDate = $todayDate.AddDays(-1).ToString('yyyy-MM-dd')
   $todayIso = $todayDate.ToString('yyyy-MM-dd')
+
+  # Quantile heavy task gating setup
+  $qselPath = Join-Path $OutDir 'quantile_model_selection.json'
+  $artifactAgeDays = if (Test-Path $qselPath) { ((Get-Date) - (Get-Item $qselPath).LastWriteTime).TotalDays } else { [double]::PositiveInfinity }
+  $dow = (Get-Date $todayDate).DayOfWeek.ToString()
+  $RunHeavyQuantiles = $ForceQuantileRefresh.IsPresent -or (
+    (-not $SkipHeavyQuantiles.IsPresent) -and (
+      $dow -eq $QuantileRetrainDay -or
+      (-not (Test-Path $qselPath)) -or
+      $artifactAgeDays -ge $QuantileMaxAgeDays
+    )
+  )
+  Write-Host "[quantile-gating] day=$dow targetDay=$QuantileRetrainDay ageDays=$([Math]::Round($artifactAgeDays,2)) runHeavy=$RunHeavyQuantiles" -ForegroundColor DarkGray
 
   # 0) Ensure ESPN cache + TBD patch + subset parity before the rest of the flow
   Write-Section "0) ESPN schedule refresh + TBD patch + parity"
@@ -178,17 +196,14 @@ try {
     Write-Host 'SkipRetrain flag set; using existing models.'
   }
 
-  # Build engineered features for quantiles (rest/rolling) before quantile training
-  try {
-    & $VenvPython scripts/build_features.py
-  } catch { Write-Warning "build_features.py failed: $($_)" }
-  # Temporal CV for quantiles to pick best params or fallback spreads
-  try {
-    & $VenvPython scripts/train_quantiles_cv.py
-  } catch { Write-Warning "train_quantiles_cv.py failed: $($_)" }
-  try {
-    & $VenvPython scripts/train_quantiles.py
-  } catch { Write-Warning "train_quantiles.py failed: $($_)" }
+  # Build engineered features for quantiles (rest/rolling) + (legacy overall quantile training block)
+  if ($RunHeavyQuantiles) {
+    try { & $VenvPython scripts/build_features.py } catch { Write-Warning "build_features.py failed: $($_)" }
+    try { & $VenvPython scripts/train_quantiles_cv.py } catch { Write-Warning "train_quantiles_cv.py failed: $($_)" }
+    try { & $VenvPython scripts/train_quantiles.py } catch { Write-Warning "train_quantiles.py failed: $($_)" }
+  } else {
+    Write-Host '[skip] Heavy quantile CV + base quantile retrain (weekly gating)' -ForegroundColor Yellow
+  }
 
   # Generate team-level historical features EARLY so inference has the freshest aggregates
   Write-Section '5b) Generate/refresh team-level historical features (pre-inference)'
@@ -278,12 +293,12 @@ try {
     & $VenvPython scripts/enrich_backtest_features.py
   } catch { Write-Warning "enrich_backtest_features.py failed: $($_)" }
   # Refresh segment-specific LGBM quantile models using CV-selected features (if available)
-  try {
-    & $VenvPython scripts/train_quantiles_cv.py
-  } catch { Write-Warning "train_quantiles_cv.py (pre-selection refresh) failed: $($_)" }
-  try {
-    & $VenvPython scripts/train_quantiles_lgbm.py
-  } catch { Write-Warning "train_quantiles_lgbm.py failed: $($_)" }
+  if ($RunHeavyQuantiles) {
+    try { & $VenvPython scripts/train_quantiles_cv.py } catch { Write-Warning "train_quantiles_cv.py (pre-selection refresh) failed: $($_)" }
+    try { & $VenvPython scripts/train_quantiles_lgbm.py } catch { Write-Warning "train_quantiles_lgbm.py failed: $($_)" }
+  } else {
+    Write-Host '[skip] Segment LGBM quantile retrain (weekly gating)' -ForegroundColor Yellow
+  }
 
   # Quantile selection for today's slate using residual-based central intervals
   Write-Section '6j) Quantile selection (28d window, 80% coverage)'
