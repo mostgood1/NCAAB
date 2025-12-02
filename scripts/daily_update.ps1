@@ -361,6 +361,39 @@ try {
     & $VenvPython scripts/promote_force_fill_today.py $todayIso
   } catch { Write-Warning "promotion of force-filled enriched artifact failed: $($_)" }
 
+  # Persist normalized start fields in enriched predictions and assert no NaN _start_dt remain
+  Write-Section '6a.post) Normalize start fields and persist _start_dt'
+  try {
+    $normOutput = (& $VenvPython scripts/normalize_start_fields.py $todayIso --inplace) | Out-String
+    Write-Host $normOutput.Trim()
+  } catch {
+    Write-Warning "normalize_start_fields.py failed: $($_)"
+  }
+  try {
+    $pyCheck = @"
+import pandas as pd, sys
+from pathlib import Path
+date = '$todayIso'
+path = Path(r'$OutDir')/f'predictions_unified_enriched_{date}.csv'
+try:
+    df = pd.read_csv(path)
+except Exception as e:
+    print(f'[check] unable to read {path}: {e}')
+    sys.exit(2)
+mask = df['date'].astype(str).eq(date) if 'date' in df.columns else pd.Series([True]*len(df))
+sd = pd.to_datetime(df.loc[mask, '_start_dt'], errors='coerce', utc=True) if '_start_dt' in df.columns else pd.Series([], dtype='datetime64[ns, UTC]')
+nan_count = int(sd.isna().sum()) if len(sd) else 0
+print(f'[check] normalized rows={int(mask.sum())} nan__start_dt={nan_count}')
+sys.exit(1 if nan_count>0 else 0)
+"@
+    & $VenvPython -c $pyCheck
+    if ($LASTEXITCODE -eq 1) {
+      Add-CriticalFailure "Normalization left NaN _start_dt rows in predictions_unified_enriched_${todayIso}.csv"
+    }
+  } catch {
+    Write-Warning "post-normalization check failed: $($_)"
+  }
+
   # Now regenerate team-level historical features with any newly completed games merged by daily-run
   Write-Section '6b) Refresh team-level historical features post-ingestion'
   try {
