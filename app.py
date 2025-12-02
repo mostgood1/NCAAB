@@ -14746,8 +14746,9 @@ def index():
                 return r
             for cand_key, kwargs in [
                 ('_start_dt', {'errors': 'coerce'}),
-                ('commence_time', {'errors': 'coerce', 'utc': True}),
-                ('start_time', {'errors': 'coerce', 'utc': True}),
+                # Do NOT assume UTC for commence/start; provider may emit naive local
+                ('commence_time', {'errors': 'coerce'}),
+                ('start_time', {'errors': 'coerce'}),
             ]:
                 val = r.get(cand_key)
                 if not val:
@@ -14759,12 +14760,18 @@ def index():
                     continue
                 try:
                     if getattr(ts, 'tzinfo', None) is None:
-                        ts = ts.tz_localize('UTC')
+                        # Treat naive as Central Time by default to avoid UTC rollover
+                        ts = ts.tz_localize('America/Chicago')
                     else:
                         ts = ts.tz_convert('UTC')
                 except Exception:
                     pass
-                r['start_time_iso'] = ts.strftime('%Y-%m-%dT%H:%M:%SZ')
+                # Ensure UTC ISO for stable downstream
+                try:
+                    ts_utc = ts.tz_convert('UTC') if getattr(ts, 'tzinfo', None) else ts
+                except Exception:
+                    ts_utc = ts
+                r['start_time_iso'] = ts_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
                 break
         except Exception:
             pass
