@@ -688,12 +688,8 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   # Model selection and conformal autotune artifacts
   $qcv = Join-Path $OutDir 'quantile_cv_results.csv'
   if (Test-Path $qcv) { $toStage += $qcv }
-  $qsel = Join-Path $OutDir 'quantile_model_selection.json'
-  if (Test-Path $qsel) { $toStage += $qsel }
   $qhist = Join-Path $OutDir 'quantiles_history.csv'
   if (Test-Path $qhist) { $toStage += $qhist }
-  $qselCsv = Join-Path $OutDir 'quantiles_selected.csv'
-  if (Test-Path $qselCsv) { $toStage += $qselCsv }
   $confAuto = Join-Path $OutDir 'conformal_autotune.json'
   if (Test-Path $confAuto) { $toStage += $confAuto }
 

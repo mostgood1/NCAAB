@@ -45,9 +45,7 @@ __pycache__/
 !outputs/stake_sheet_today.csv
 !outputs/stake_sheet_today_cal.csv
 !outputs/stake_sheet_today_compare.csv
-# Quantile selection artifacts for frontend diagnostics
-!outputs/quantile_model_selection.json
-!outputs/quantiles_selected.csv
+# (do not commit quantile selection artifacts; diagnostics can be viewed locally)
 
 # Commit-mode display: allowlist dated public prediction snapshots (point + calibrated + interval)
 !outputs/predictions_2025-*.csv
