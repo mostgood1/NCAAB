@@ -4064,9 +4064,10 @@ def index():
     prefer_cal_eff = prefer_cal_param
     # Compact card mode toggle
     try:
-        compact_mode = (request.args.get("compact") or "").strip().lower() in ("1","true","yes")
+        q_compact = (request.args.get("compact") or "").strip().lower()
+        compact_mode = True if q_compact == "" else (q_compact in ("1","true","yes"))
     except Exception:
-        compact_mode = False
+        compact_mode = True
     # Probability calibration enable flag (?cal_probs=1 or env CALIBRATE_PROBS=1)
     try:
         calibrate_probs_param = (request.args.get("cal_probs") or "").strip().lower() in ("1","true","yes")
