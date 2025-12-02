@@ -14791,6 +14791,31 @@ def index():
                 record[k] = None
         return record
 
+    # Force Central Time display and date to avoid false rollover
+    def _apply_central_display(r: dict) -> dict:
+        try:
+            iso = r.get('start_time_iso') or r.get('start_time') or r.get('commence_time')
+            if not iso:
+                return r
+            ts = pd.to_datetime(str(iso), errors='coerce', utc=True)
+            if pd.isna(ts):
+                return r
+            try:
+                tz_local = ts.tz_convert('America/Chicago')
+            except Exception:
+                tz_local = ts
+            # Build display fields pinned to Central Time
+            tz_abbr = getattr(tz_local, 'tzname', lambda: 'CST')() if hasattr(tz_local, 'tzname') else 'CST'
+            disp_date = tz_local.strftime('%Y-%m-%d')
+            disp_time = tz_local.strftime('%H:%M')
+            r['display_date'] = disp_date
+            r['display_time_str'] = f"{disp_date} {disp_time} {tz_abbr or 'CST'}"
+            # Normalize 'date' to Central display date to avoid UTC rollover mismatches
+            r['date'] = disp_date
+        except Exception:
+            pass
+        return r
+
     safe_rows = []
     for _r in rows:
         r = _ensure_index_row(dict(_r))
@@ -14798,6 +14823,8 @@ def index():
         # Backfill normalized local/display fields (venue precedence) before drift correction
         r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=str(date_q) if date_q else None)
+        # Force Central display/date to prevent false rollover and 5h offset
+        r = _apply_central_display(r)
         safe_rows.append(r)
     return render_template(
         "index.html",
