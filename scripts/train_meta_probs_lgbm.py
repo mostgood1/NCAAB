@@ -207,11 +207,22 @@ def main():
     metrics['cover'] = met_cover
     if m_cover is not None and joblib:
         joblib.dump(m_cover, os.path.join(args.out_dir, 'meta_cover_lgbm.joblib'))
+        # Persist ordered feature schema sidecar for alignment at inference
+        try:
+            with open(os.path.join(args.out_dir, 'meta_cover_lgbm_features.json'), 'w', encoding='utf-8') as f:
+                json.dump({'features': feat_cols}, f)
+        except Exception as e:
+            print(f"[warn] Failed to write cover feature schema: {e}")
     # Train over
     m_over, met_over = train_lgbm(X, y_over)
     metrics['over'] = met_over
     if m_over is not None and joblib:
         joblib.dump(m_over, os.path.join(args.out_dir, 'meta_over_lgbm.joblib'))
+        try:
+            with open(os.path.join(args.out_dir, 'meta_over_lgbm_features.json'), 'w', encoding='utf-8') as f:
+                json.dump({'features': feat_cols}, f)
+        except Exception as e:
+            print(f"[warn] Failed to write over feature schema: {e}")
 
     # Write metrics JSON
     try:

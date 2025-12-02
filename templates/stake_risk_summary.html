@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stake Risk Summary</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f5f5f5; text-align: left; }
+    tr:nth-child(even) { background: #fafafa; }
+    .warn { color: #b00020; font-weight: 600; }
+    .toolbar { margin-bottom: 12px; }
+    .toolbar a { margin-right: 12px; }
+  </style>
+  <script>
+    async function loadData() {
+      const res = await fetch('/api/stake-risk-summary');
+      const j = await res.json();
+      const tbody = document.querySelector('#data-body');
+      tbody.innerHTML = '';
+      if (j.status !== 'ok') return;
+      for (const r of j.data) {
+        const tr = document.createElement('tr');
+        const cols = ['date','version','total_stake','top5_exposure_sum','clusters','alerts'];
+        for (const c of cols) {
+          const td = document.createElement('td');
+          let val = r[c];
+          if (c === 'alerts' && val) { td.className = 'warn'; }
+          td.textContent = val === undefined || val === null ? '' : String(val);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+    }
+    window.addEventListener('DOMContentLoaded', loadData);
+  </script>
+  </head>
+<body>
+  <h1>Stake Risk Summary</h1>
+  <div class="toolbar">
+    <a href="/api/stake-risk-summary" target="_blank">View JSON</a>
+    <a href="/static/outputs/stake_risk_summary.csv" target="_blank">Download CSV</a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Version</th>
+        <th>Total Stake</th>
+        <th>Top-5 Exposure Sum</th>
+        <th>Clusters</th>
+        <th>Alerts</th>
+      </tr>
+    </thead>
+    <tbody id="data-body"></tbody>
+  </table>
+</body>
+</html>

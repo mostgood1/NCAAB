@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quantile Trend Weekly</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f5f5f5; text-align: left; }
+    tr:nth-child(even) { background: #fafafa; }
+    .alert { color: #b00020; font-weight: 600; }
+    .toolbar { margin-bottom: 12px; }
+    .toolbar a { margin-right: 12px; }
+  </style>
+  <script>
+    async function loadData() {
+      const params = new URLSearchParams(window.location.search);
+      const date = params.get('date');
+      const url = date ? `/api/quantile-trend-weekly?date=${encodeURIComponent(date)}` : '/api/quantile-trend-weekly';
+      const res = await fetch(url);
+      const j = await res.json();
+      const tbody = document.querySelector('#data-body');
+      tbody.innerHTML = '';
+      if (j.status !== 'ok') return;
+      for (const r of j.data) {
+        const tr = document.createElement('tr');
+        const cols = ['date','games','q10_total_mean','q50_total_mean','q90_total_mean','coverage_80_total','coverage_80_margin','alerts'];
+        for (const c of cols) {
+          const td = document.createElement('td');
+          let val = r[c];
+          if (c === 'alerts' && val) { td.className = 'alert'; }
+          td.textContent = val === undefined || val === null ? '' : String(val);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+    }
+    window.addEventListener('DOMContentLoaded', loadData);
+  </script>
+  </head>
+<body>
+  <h1>Quantile Trend Weekly</h1>
+  <div class="toolbar">
+    <a href="/api/quantile-trend-weekly" target="_blank">View JSON</a>
+    <a href="/static/outputs/quantile_trend_weekly.csv" target="_blank">Download CSV</a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Games</th>
+        <th>q10 total mean</th>
+        <th>q50 total mean</th>
+        <th>q90 total mean</th>
+        <th>80% total coverage</th>
+        <th>80% margin coverage</th>
+        <th>Alerts</th>
+      </tr>
+    </thead>
+    <tbody id="data-body"></tbody>
+  </table>
+</body>
+</html>

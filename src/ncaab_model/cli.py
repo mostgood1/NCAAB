@@ -47,6 +47,105 @@ from .store.sqlite import connect as sqlite_connect, ingest_csv as sqlite_ingest
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
+# Venue timezone inference (heuristic)
+# --------------------------------------------------------------
+_VENUE_STATE_TZ = {
+    'MN': 'America/Chicago',
+    'NE': 'America/Chicago',
+    'CO': 'America/Denver',
+    'CA': 'America/Los_Angeles',
+    'OR': 'America/Los_Angeles',
+    'WA': 'America/Los_Angeles',
+    'AZ': 'America/Phoenix',
+    'UT': 'America/Denver',
+    'NV': 'America/Los_Angeles',
+    'ID': 'America/Denver',
+    'MT': 'America/Denver',
+    'WY': 'America/Denver',
+    'NM': 'America/Denver',
+    'TX': 'America/Chicago',  # split state; default to central
+    'OK': 'America/Chicago',
+    'KS': 'America/Chicago',
+    'MO': 'America/Chicago',
+    'IA': 'America/Chicago',
+    'IL': 'America/Chicago',
+    'WI': 'America/Chicago',
+    'IN': 'America/Indiana/Indianapolis',
+    'MI': 'America/Detroit',
+    'OH': 'America/New_York',
+    'PA': 'America/New_York',
+    'NY': 'America/New_York',
+    'NJ': 'America/New_York',
+    'CT': 'America/New_York',
+    'MA': 'America/New_York',
+    'VT': 'America/New_York',
+    'NH': 'America/New_York',
+    'ME': 'America/New_York',
+    'QC': 'America/Toronto',
+    'PQ': 'America/Toronto',  # legacy abbrev
+    'FL': 'America/New_York',
+    'GA': 'America/New_York',
+    'NC': 'America/New_York',
+    'SC': 'America/New_York',
+    'VA': 'America/New_York',
+    'WV': 'America/New_York',
+    'MD': 'America/New_York',
+    'DC': 'America/New_York',
+    'LA': 'America/Chicago',
+    'AR': 'America/Chicago',
+    'MS': 'America/Chicago',
+    'AL': 'America/Chicago',
+    'TN': 'America/Chicago',
+    'KY': 'America/New_York',  # split; choose east
+}
+
+# Optional venue overrides loaded from CSV (data/venue_tz_overrides.csv)
+_VENUE_OVERRIDES: dict[str,str] = {}
+_VENUE_OVERRIDES_LOADED = False
+
+def _load_venue_overrides() -> None:
+    global _VENUE_OVERRIDES_LOADED, _VENUE_OVERRIDES
+    if _VENUE_OVERRIDES_LOADED:
+        return
+    try:
+        override_path = settings.data_dir / 'venue_tz_overrides.csv'
+        if override_path.exists():
+            df = pd.read_csv(override_path)
+            for _, r in df.iterrows():
+                v = str(r.get('venue','')).strip()
+                tz = str(r.get('tz','')).strip()
+                if v and tz:
+                    _VENUE_OVERRIDES[v.lower()] = tz
+        _VENUE_OVERRIDES_LOADED = True
+    except Exception:
+        _VENUE_OVERRIDES_LOADED = True
+
+def _infer_venue_tz(venue: str) -> str | None:
+    """Infer timezone from venue string.
+
+    Priority:
+      1. Explicit override map (substring match, case-insensitive)
+      2. Trailing state/province abbreviation after comma
+    Returns None if no inference possible.
+    """
+    if not venue:
+        return None
+    try:
+        _load_venue_overrides()
+        vlow = venue.lower()
+        for key, tz in _VENUE_OVERRIDES.items():
+            if key in vlow:
+                return tz
+        parts = [p.strip() for p in venue.split(',') if p.strip()]
+        if parts:
+            last = parts[-1].upper()
+            last = ''.join(ch for ch in last if ch.isalnum())
+            if 2 <= len(last) <= 3 and last in _VENUE_STATE_TZ:
+                return _VENUE_STATE_TZ[last]
+        return None
+    except Exception:
+        return None
+
 
 def _today_local() -> dt.date:
     """Return 'today' in the configured schedule timezone (defaults America/New_York).
@@ -3467,6 +3566,7 @@ def predict_segmented_inline_cmd(
 @app.command(name="bankroll-optimize")
 def bankroll_optimize(
     merged_csv: Path = typer.Option(settings.outputs_dir / "games_with_last.csv", help="Joined games + last odds CSV (or any CSV with pred_* and market columns)"),
+    quantiles_csv: Path | None = typer.Option(None, help="Optional CSV with quantiles to merge (expects columns: game_id, q10_total,q50_total,q90_total and/or q10_margin,q50_margin,q90_margin)"),
     bankroll: float = typer.Option(1000.0, help="Total bankroll amount (currency units)"),
     kelly_fraction: float = typer.Option(0.5, help="Fractional Kelly to apply (0-1)"),
     include_markets: str = typer.Option("totals,spreads,h2h", help="Comma-separated markets to include: totals,spreads,h2h"),
@@ -3475,6 +3575,7 @@ def bankroll_optimize(
     min_kelly: float = typer.Option(0.01, help="Minimum Kelly fraction to include a pick (after sign, before fractional multiplier)"),
     max_pct_per_bet: float = typer.Option(0.03, help="Maximum stake per bet as a fraction of bankroll (0-1)"),
     max_daily_risk_pct: float = typer.Option(0.10, help="Cap total risk for a single date as a fraction of bankroll; stakes are scaled down if exceeded"),
+    max_pct_per_game: float = typer.Option(0.06, help="Cap total stake across all markets per game as a fraction of bankroll"),
     use_distributional: bool = typer.Option(False, help="If true and pred_total_mu/sigma available, compute totals Kelly from Normal CDF and scale stakes by uncertainty"),
     min_ev: float = typer.Option(0.0, help="Minimum expected value per unit stake (EV) to include a pick when EV is available"),
     sigma_ref: float = typer.Option(10.0, help="Reference sigma for uncertainty scaling: scale = sigma_ref / (sigma + sigma_ref)"),
@@ -3500,6 +3601,22 @@ def bankroll_optimize(
     if df.empty:
         print("[yellow]No rows in input; nothing to do.[/yellow]")
         raise typer.Exit(code=0)
+
+    # Optionally merge quantiles by game_id (and date if present)
+    if quantiles_csv is not None and Path(quantiles_csv).exists():
+        try:
+            qdf = pd.read_csv(quantiles_csv)
+            if not qdf.empty and 'game_id' in qdf.columns:
+                df['game_id'] = df['game_id'].astype(str)
+                qdf['game_id'] = qdf['game_id'].astype(str)
+                if 'date' in df.columns and 'date' in qdf.columns:
+                    df['date'] = df['date'].astype(str)
+                    qdf['date'] = qdf['date'].astype(str)
+                    df = df.merge(qdf, on=['date','game_id'], how='left', suffixes=('', '_q'))
+                else:
+                    df = df.merge(qdf, on='game_id', how='left', suffixes=('', '_q'))
+        except Exception as e:
+            print(f"[yellow]Warning: failed merging quantiles CSV: {e}[/yellow]")
     # Ensure edges present
     need_cols = {"edge_total", "edge_margin", "kelly_fraction_total", "kelly_fraction_ml_home", "kelly_fraction_ml_away"}
     if need_cols - set(df.columns):
@@ -3514,6 +3631,7 @@ def bankroll_optimize(
     kelly_fraction = float(np.clip(kelly_fraction, 0.0, 1.0))
     max_pct_per_bet = float(np.clip(max_pct_per_bet, 0.0, 1.0))
     max_daily_risk_pct = float(np.clip(max_daily_risk_pct, 0.0, 1.0))
+    max_pct_per_game = float(np.clip(max_pct_per_game, 0.0, 1.0))
 
     picks: list[dict] = []
 
@@ -3556,8 +3674,113 @@ def bankroll_optimize(
             line = r.get("total")
             if not np.isfinite(float(line)):
                 continue
-            # Distributional path
-            if use_distributional and ("pred_total_mu" in df.columns and "pred_total_sigma" in df.columns):
+            # Distributional path (Normal or Quantile-based)
+            use_quantiles = use_distributional and {"q10_total","q50_total","q90_total"}.issubset(df.columns)
+            use_normal = use_distributional and ("pred_total_mu" in df.columns and "pred_total_sigma" in df.columns)
+            if use_quantiles:
+                # Piecewise-linear CDF through (q10,0.1),(q50,0.5),(q90,0.9)
+                try:
+                    q10 = float(r.get("q10_total", np.nan))
+                    q50 = float(r.get("q50_total", np.nan))
+                    q90 = float(r.get("q90_total", np.nan))
+                except Exception:
+                    q10 = q50 = q90 = np.nan
+                if not (np.isfinite(q10) and np.isfinite(q50) and np.isfinite(q90)):
+                    # fallback to normal if available
+                    use_normal = True
+                else:
+                    # ensure order
+                    q10, q50, q90 = sorted([q10, q50, q90])
+                    def cdf_piecewise(x: float) -> float:
+                        if not np.isfinite(x):
+                            return np.nan
+                        if x <= q10:
+                            # linear to 0 below q10
+                            # extrapolate slope from (q10,0.1) to left; clamp to [0,1]
+                            t = 0.1 + (x - q10) * (0.4 / max(q50 - q10, 1e-6))
+                            return float(np.clip(t, 0.0, 1.0))
+                        if x <= q50:
+                            t = 0.1 + (x - q10) * (0.4 / max(q50 - q10, 1e-6))
+                            return float(np.clip(t, 0.0, 1.0))
+                        if x <= q90:
+                            t = 0.5 + (x - q50) * (0.4 / max(q90 - q50, 1e-6))
+                            return float(np.clip(t, 0.0, 1.0))
+                        # above q90
+                        t = 0.9 + (x - q90) * (0.1 / max(q90 - q50, 1e-6))
+                        return float(np.clip(t, 0.0, 1.0))
+                    F_line = cdf_piecewise(float(line))
+                    if not np.isfinite(F_line):
+                        continue
+                    p_over = 1.0 - F_line
+                    p_under = F_line
+                    # Clamp
+                    p_over = float(np.clip(p_over, 1e-4, 1.0 - 1e-4))
+                    p_under = float(np.clip(p_under, 1e-4, 1.0 - 1e-4))
+                    # Prices
+                    def american_to_b(odds: float) -> float:
+                        if pd.isna(odds):
+                            return np.nan
+                        return 100.0 / (-odds) if odds < 0 else odds / 100.0
+                    raw_over = float(r.get("over_price", np.nan)) if "over_price" in r.index else np.nan
+                    raw_under = float(r.get("under_price", np.nan)) if "under_price" in r.index else np.nan
+                    b_over = american_to_b(raw_over)
+                    b_under = american_to_b(raw_under)
+                    if not np.isfinite(b_over):
+                        b_over = american_to_b(-110.0)
+                    if not np.isfinite(b_under):
+                        b_under = american_to_b(-110.0)
+                    # EVs
+                    ev_over = (p_over * b_over - (1.0 - p_over)) if (np.isfinite(b_over) and np.isfinite(p_over)) else np.nan
+                    ev_under = (p_under * b_under - (1.0 - p_under)) if (np.isfinite(b_under) and np.isfinite(p_under)) else np.nan
+                    # Kelly
+                    def kelly_from_p(b: float, p: float) -> float:
+                        if not np.isfinite(b) or not np.isfinite(p):
+                            return np.nan
+                        q = 1.0 - p
+                        return float((b * p - q) / b)
+                    k_over = kelly_from_p(b_over, p_over)
+                    k_under = kelly_from_p(b_under, p_under)
+                    side = None; k = None; price = None
+                    if np.isfinite(k_over) and k_over > 0 and (not np.isfinite(k_under) or k_over >= k_under):
+                        side = "over"; k = k_over; price = r.get("over_price")
+                    elif np.isfinite(k_under) and k_under > 0:
+                        side = "under"; k = k_under; price = r.get("under_price")
+                    if side is None or k is None or k < float(min_kelly):
+                        continue
+                    ev_chosen = ev_over if side == "over" else ev_under
+                    if np.isfinite(min_ev) and min_ev > 0.0 and (not np.isfinite(ev_chosen) or ev_chosen < float(min_ev)):
+                        continue
+                    # Uncertainty scaling from inter-quantile width as proxy for sigma
+                    width = float(max(q90 - q10, 1e-6))
+                    sig_proxy = width / 2.563 # approx IQR to sigma for Normal (0.8 central width ~ 2.563 sigma)
+                    scale = float(sigma_ref / (sig_proxy + sigma_ref)) if sigma_ref > 0 else 1.0
+                    # Use q50 as central tendency for 'edge'
+                    mu_like = q50
+                    stake = cap_stake(bankroll * kelly_fraction * k * scale)
+                    picks.append({
+                        "date": r.get("date") or r.get("date_game") or np.nan,
+                        "game_id": r.get("game_id"),
+                        "event_id": r.get("event_id"),
+                        "book": r.get("book"),
+                        "market": "totals",
+                        "period": r.get("period"),
+                        "selection": side,
+                        "line": line,
+                        "price": price,
+                        "edge": (mu_like - float(line)),
+                        "kelly": k,
+                        "fractional": kelly_fraction,
+                        "uncertainty_scale": scale,
+                        "p_over": p_over,
+                        "p_under": p_under,
+                        "ev_over": ev_over,
+                        "ev_under": ev_under,
+                        "prob": p_over if side == "over" else p_under,
+                        "ev": ev_chosen,
+                        "stake": stake,
+                    })
+                    continue
+            if use_normal:
                 mu = float(r.get("pred_total_mu", np.nan))
                 sig = float(r.get("pred_total_sigma", np.nan))
                 if not np.isfinite(mu) or not np.isfinite(sig) or sig <= 0:
@@ -3666,26 +3889,101 @@ def bankroll_optimize(
                     "stake": stake,
                 })
 
-    # Build spread picks
+    # Build spread picks (quantile-aware when available)
     if "spreads" in markets_set and {"market", "home_spread", "pred_margin"}.issubset(df.columns):
         sp_rows = df[(df["market"].astype(str).str.lower() == "spreads") & df["edge_margin"].notna()]
+        use_q_spread = use_distributional and {"q10_margin","q50_margin","q90_margin"}.issubset(df.columns)
+        def american_to_b(odds: float) -> float:
+            if pd.isna(odds):
+                return np.nan
+            return 100.0 / (-odds) if odds < 0 else odds / 100.0
+        def cdf_piece(q10: float, q50: float, q90: float, x: float) -> float:
+            q10, q50, q90 = sorted([q10, q50, q90])
+            if x <= q10:
+                t = 0.1 + (x - q10) * (0.4 / max(q50 - q10, 1e-6))
+                return float(np.clip(t, 0.0, 1.0))
+            if x <= q50:
+                t = 0.1 + (x - q10) * (0.4 / max(q50 - q10, 1e-6))
+                return float(np.clip(t, 0.0, 1.0))
+            if x <= q90:
+                t = 0.5 + (x - q50) * (0.4 / max(q90 - q50, 1e-6))
+                return float(np.clip(t, 0.0, 1.0))
+            t = 0.9 + (x - q90) * (0.1 / max(q90 - q50, 1e-6))
+            return float(np.clip(t, 0.0, 1.0))
         for _, r in sp_rows.iterrows():
+            if use_q_spread:
+                try:
+                    q10 = float(r.get("q10_margin", np.nan)); q50 = float(r.get("q50_margin", np.nan)); q90 = float(r.get("q90_margin", np.nan))
+                except Exception:
+                    q10=q50=q90=np.nan
+                if np.isfinite(q10) and np.isfinite(q50) and np.isfinite(q90):
+                    # Home cover prob at threshold x = -home_spread
+                    hs = float(r.get("home_spread", np.nan))
+                    aspr = float(r.get("away_spread", np.nan))
+                    if np.isfinite(hs) and np.isfinite(aspr):
+                        F_home = cdf_piece(q10, q50, q90, x=-hs)
+                        F_away = cdf_piece(q10, q50, q90, x=-aspr)
+                        p_home = 1.0 - F_home
+                        p_away = F_away
+                        # prices
+                        ph = float(r.get("home_spread_price", np.nan)); pa = float(r.get("away_spread_price", np.nan))
+                        b_home = american_to_b(ph); b_away = american_to_b(pa)
+                        if not np.isfinite(b_home): b_home = american_to_b(-110.0)
+                        if not np.isfinite(b_away): b_away = american_to_b(-110.0)
+                        def kelly(b: float, p: float) -> float:
+                            if not np.isfinite(b) or not np.isfinite(p): return np.nan
+                            q = 1.0 - p; return float((b * p - q) / b)
+                        k_home = kelly(b_home, p_home)
+                        k_away = kelly(b_away, p_away)
+                        # choose
+                        side=None; k=None; line=None; price=None; prob=None
+                        if np.isfinite(k_home) and k_home > 0 and (not np.isfinite(k_away) or k_home >= k_away):
+                            side="home"; k=k_home; line=hs; price=ph; prob=p_home
+                        elif np.isfinite(k_away) and k_away > 0:
+                            side="away"; k=k_away; line=aspr; price=pa; prob=p_away
+                        if side is None or k is None or k < float(min_kelly):
+                            pass
+                        else:
+                            # EV gate
+                            ev = (prob * (american_to_b(price)) - (1.0 - prob)) if np.isfinite(price) else np.nan
+                            if np.isfinite(min_ev) and min_ev > 0.0 and (not np.isfinite(ev) or ev < float(min_ev)):
+                                pass
+                            else:
+                                width = float(max(q90 - q10, 1e-6))
+                                sig_proxy = width / 2.563
+                                scale = float(sigma_ref / (sig_proxy + sigma_ref)) if sigma_ref > 0 else 1.0
+                                stake = cap_stake(bankroll * kelly_fraction * k * scale)
+                                edge = float(r.get("edge_margin", np.nan))
+                                picks.append({
+                                    "date": r.get("date") or r.get("date_game") or np.nan,
+                                    "game_id": r.get("game_id"),
+                                    "event_id": r.get("event_id"),
+                                    "book": r.get("book"),
+                                    "market": "spreads",
+                                    "period": r.get("period"),
+                                    "selection": side,
+                                    "line": line,
+                                    "price": price,
+                                    "edge": edge,
+                                    "kelly": k,
+                                    "fractional": kelly_fraction,
+                                    "uncertainty_scale": scale,
+                                    "prob": prob,
+                                    "stake": stake,
+                                })
+                        continue
+            # Legacy heuristic path when quantiles not available
             edge = float(r.get("edge_margin", np.nan))
             if not np.isfinite(edge) or abs(edge) < float(min_edge_margin):
                 continue
-            # Approximate kelly-like fraction for spread via edge magnitude vs handicap size
             denom = max(1.0, abs(float(r.get("home_spread", 0.0))) * 2.0)
             k_proxy = float(np.clip(edge / denom, -1.0, 1.0))
             if k_proxy <= 0 or k_proxy < float(min_kelly):
                 continue
             if edge > 0:
-                side = "home"
-                line = r.get("home_spread")
-                price = r.get("home_spread_price")
+                side = "home"; line = r.get("home_spread"); price = r.get("home_spread_price")
             else:
-                side = "away"
-                line = r.get("away_spread")
-                price = r.get("away_spread_price")
+                side = "away"; line = r.get("away_spread"); price = r.get("away_spread_price")
             stake = cap_stake(bankroll * kelly_fraction * k_proxy)
             picks.append({
                 "date": r.get("date") or r.get("date_game") or np.nan,
@@ -3780,6 +4078,20 @@ def bankroll_optimize(
             scale = 1.0
             if total > cap_amt and cap_amt > 0:
                 scale = cap_amt / total
+            g = g.copy()
+            g["stake"] = g["stake"] * scale
+            grouped.append(g)
+        stake_df = pd.concat(grouped, ignore_index=True)
+
+    # Per-game exposure cap across markets (helps correlation risk)
+    if {"game_id","stake"}.issubset(stake_df.columns) and max_pct_per_game > 0:
+        grouped = []
+        cap_amt = bankroll * max_pct_per_game
+        for gid, g in stake_df.groupby(stake_df["game_id"].astype(str)):
+            total = g["stake"].sum()
+            scale = 1.0
+            if total > cap_amt and cap_amt > 0:
+                scale = cap_amt / max(total, 1e-9)
             g = g.copy()
             g["stake"] = g["stake"] * scale
             grouped.append(g)
@@ -6121,6 +6433,82 @@ def daily_run(
     """End-to-end daily pipeline: fetch games and odds for a date, build features, predict, make picks, ingest to SQLite."""
     target_date = dt.date.fromisoformat(date) if date else _today_local()
 
+    def _normalize_game_time_fields(df: pd.DataFrame) -> pd.DataFrame:
+        """Backfill/derive time localization & display_date for a games schedule frame.
+
+        Adds: start_time_iso (from start_time), display_date (rollover), venue-local fields.
+        Safe on partially populated historical rows.
+        """
+        if df.empty:
+            return df
+        try:
+            # Ensure string game_id for merge stability
+            if 'game_id' in df.columns:
+                df['game_id'] = df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+            # Derive ISO from UTC start_time where missing
+            if {'date','start_time'}.issubset(df.columns):
+                utc_dt = pd.to_datetime(df['start_time'].astype(str).str.replace('Z','+00:00'), errors='coerce', utc=True)
+                if 'start_time_iso' not in df.columns:
+                    df['start_time_iso'] = utc_dt.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                else:
+                    miss_iso = df['start_time_iso'].isna() | (df['start_time_iso'].astype(str).str.strip()== '')
+                    df.loc[miss_iso, 'start_time_iso'] = utc_dt.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+            # Rollover display_date using adapter-local start_time_local
+            if {'date','start_time_local','start_time_iso'}.issubset(df.columns):
+                try:
+                    local_dt = pd.to_datetime(df['start_time_local'], errors='coerce')
+                    slate_dt = pd.to_datetime(df['date'], errors='coerce')
+                    utc_dt2 = pd.to_datetime(df['start_time_iso'], errors='coerce', utc=True)
+                    rollover_mask = (utc_dt2.dt.date == (slate_dt.dt.date + pd.Timedelta(days=1))) & (local_dt.dt.date == slate_dt.dt.date)
+                    if 'display_date' not in df.columns:
+                        df['display_date'] = None
+                    df.loc[rollover_mask, 'display_date'] = slate_dt.dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+            # Venue localization
+            if 'venue' in df.columns and 'start_time_iso' in df.columns:
+                tz_list: list[str | None] = []
+                venue_local_list: list[str | None] = []
+                for iso_val, venue in zip(df['start_time_iso'].astype(str), df['venue'].astype(str)):
+                    try:
+                        tz_name = _infer_venue_tz(venue)
+                        if tz_name:
+                            dt_utc = pd.to_datetime(iso_val, errors='coerce', utc=True)
+                            if pd.notna(dt_utc):
+                                dt_loc = dt_utc.astimezone(ZoneInfo(tz_name))
+                                venue_local_list.append(dt_loc.strftime('%Y-%m-%d %H:%M'))
+                                tz_list.append(dt_loc.tzname() or 'LOC')
+                            else:
+                                venue_local_list.append(None); tz_list.append(None)
+                        else:
+                            venue_local_list.append(None); tz_list.append(None)
+                    except Exception:
+                        venue_local_list.append(None); tz_list.append(None)
+                df['start_time_local_venue'] = venue_local_list
+                df['start_tz_abbr_venue'] = tz_list
+                try:
+                    locv_dt = pd.to_datetime(df['start_time_local_venue'], errors='coerce')
+                    slate_dt2 = pd.to_datetime(df['date'], errors='coerce')
+                    utc_dt3 = pd.to_datetime(df['start_time_iso'], errors='coerce', utc=True)
+                    spill_mask = (utc_dt3.dt.date == (slate_dt2.dt.date + pd.Timedelta(days=1))) & (locv_dt.dt.date == slate_dt2.dt.date)
+                    if 'display_date' not in df.columns:
+                        df['display_date'] = None
+                    df.loc[spill_mask & df['display_date'].isna(), 'display_date'] = slate_dt2.dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+            # Final fallback: if display_date still null, set to canonical slate date
+            if {'date'}.issubset(df.columns):
+                try:
+                    if 'display_date' not in df.columns:
+                        df['display_date'] = None
+                    mask_null = df['display_date'].isna() | (df['display_date'].astype(str).str.strip()=='')
+                    df.loc[mask_null, 'display_date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+        except Exception as _e_norm_hist:
+            print(f"[yellow]Games time normalization partial failure (continuing):[/yellow] {_e_norm_hist}")
+        return df
+
     # 1) Fetch games for the target date -> games_curr.csv (with optional fused provider)
     prov = provider.lower()
     df_games: pd.DataFrame
@@ -6192,6 +6580,64 @@ def daily_run(
     except Exception as _e_gd:
         print(f"[yellow]Skipping dated games write:[/yellow] {_e_gd}")
 
+    # Normalize / backfill time fields directly on df_games (schedule) so downstream prediction enrichment can access display_date/start_time_iso/venue localization
+    try:
+        if not df_games.empty:
+            # Derive start_time_iso from UTC start_time if present and missing/blank
+            if {'date','start_time'}.issubset(df_games.columns):
+                utc_dt_g = pd.to_datetime(df_games['start_time'].astype(str).str.replace('Z','+00:00'), errors='coerce', utc=True)
+                if 'start_time_iso' not in df_games.columns:
+                    df_games['start_time_iso'] = utc_dt_g.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                else:
+                    miss_iso_g = df_games['start_time_iso'].isna() | (df_games['start_time_iso'].astype(str).str.strip()== '')
+                    df_games.loc[miss_iso_g, 'start_time_iso'] = utc_dt_g.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+            # Rollover display_date logic based on local adapter start_time_local
+            if {'date','start_time_local','start_time_iso'}.issubset(df_games.columns):
+                try:
+                    local_dt_g = pd.to_datetime(df_games['start_time_local'], errors='coerce')
+                    slate_dt_g = pd.to_datetime(df_games['date'], errors='coerce')
+                    utc_dt_g2 = pd.to_datetime(df_games['start_time_iso'], errors='coerce', utc=True)
+                    rollover_mask_g = (utc_dt_g2.dt.date == (slate_dt_g.dt.date + pd.Timedelta(days=1))) & (local_dt_g.dt.date == slate_dt_g.dt.date)
+                    if 'display_date' not in df_games.columns:
+                        df_games['display_date'] = None
+                    df_games.loc[rollover_mask_g, 'display_date'] = slate_dt_g.dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+            # Venue localization
+            if 'venue' in df_games.columns and 'start_time_iso' in df_games.columns:
+                tz_list_g: list[str | None] = []
+                venue_local_list_g: list[str | None] = []
+                for iso_val, venue in zip(df_games['start_time_iso'].astype(str), df_games['venue'].astype(str)):
+                    try:
+                        tz_name = _infer_venue_tz(venue)
+                        if tz_name:
+                            dt_utc = pd.to_datetime(iso_val, errors='coerce', utc=True)
+                            if pd.notna(dt_utc):
+                                dt_loc = dt_utc.astimezone(ZoneInfo(tz_name))
+                                venue_local_list_g.append(dt_loc.strftime('%Y-%m-%d %H:%M'))
+                                tz_list_g.append(dt_loc.tzname() or 'LOC')
+                            else:
+                                venue_local_list_g.append(None); tz_list_g.append(None)
+                        else:
+                            venue_local_list_g.append(None); tz_list_g.append(None)
+                    except Exception:
+                        venue_local_list_g.append(None); tz_list_g.append(None)
+                df_games['start_time_local_venue'] = venue_local_list_g
+                df_games['start_tz_abbr_venue'] = tz_list_g
+                # Spillover for venue-local rollover
+                try:
+                    locv_dt_g = pd.to_datetime(df_games['start_time_local_venue'], errors='coerce')
+                    slate_dt_g2 = pd.to_datetime(df_games['date'], errors='coerce')
+                    utc_dt_g3 = pd.to_datetime(df_games['start_time_iso'], errors='coerce', utc=True)
+                    spill_mask_g2 = (utc_dt_g3.dt.date == (slate_dt_g2.dt.date + pd.Timedelta(days=1))) & (locv_dt_g.dt.date == slate_dt_g2.dt.date)
+                    if 'display_date' not in df_games.columns:
+                        df_games['display_date'] = None
+                    df_games.loc[spill_mask_g2 & df_games['display_date'].isna(), 'display_date'] = slate_dt_g2.dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+    except Exception as _e_norm_games:
+        print(f"[yellow]Games normalization skipped (error):[/yellow] {_e_norm_games}")
+
     # Optional schedule accumulation into games_all.csv so downstream daily-results has full slate
     try:
         if accumulate_schedule:
@@ -6214,6 +6660,8 @@ def daily_run(
                     # Sort so higher _score_nonnull comes first; drop duplicates keeping first
                     combined = combined.sort_values(["game_id","_score_nonnull"], ascending=[True, False]).drop_duplicates(subset=["game_id"], keep="first")
                     combined = combined.drop(columns=["_score_nonnull"], errors="ignore")
+            # Historical backfill of time fields
+            combined = _normalize_game_time_fields(combined)
             combined.to_csv(all_path, index=False)
             print(f"[green]Accumulated schedule ->[/green] {all_path} ({len(combined)} unique games)")
     except Exception as _acc_e:
@@ -6301,6 +6749,77 @@ def daily_run(
             print(f"[yellow]Failed to load team map, proceeding without:[/yellow] {e}")
     merged_odds_path = settings.outputs_dir / "games_with_odds_today.csv"
     merged = join_odds_to_games(df_games, df_odds, team_map=mapping) if not df_odds.empty else df_games.copy()
+    # Normalize rollover for merged frame (retain any existing display_date from games)
+    try:
+        if not merged.empty and {'date','start_time'}.issubset(merged.columns):
+            utc_dt_m = pd.to_datetime(merged['start_time'].astype(str).str.replace('Z','+00:00'), errors='coerce', utc=True)
+            if 'start_time_iso' not in merged.columns:
+                merged['start_time_iso'] = utc_dt_m.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+            else:
+                miss_iso_m = merged['start_time_iso'].isna() | (merged['start_time_iso'].astype(str).str.strip()== '')
+                merged.loc[miss_iso_m, 'start_time_iso'] = utc_dt_m.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+            if 'start_time_local' in merged.columns:
+                local_dt_m = pd.to_datetime(merged['start_time_local'], errors='coerce')
+                slate_dt_m = pd.to_datetime(merged['date'], errors='coerce')
+                rollover_mask_m = (utc_dt_m.dt.date == (slate_dt_m.dt.date + pd.Timedelta(days=1))) & (local_dt_m.dt.date == slate_dt_m.dt.date)
+                if 'display_date' not in merged.columns:
+                    merged['display_date'] = None
+                merged.loc[rollover_mask_m, 'display_date'] = slate_dt_m.dt.strftime('%Y-%m-%d')
+            # Venue localization for merged
+            if 'venue' in merged.columns and 'start_time_iso' in merged.columns:
+                tz_list_m = []
+                venue_local_list_m = []
+                for iso_val, venue in zip(merged['start_time_iso'].astype(str), merged['venue'].astype(str)):
+                    try:
+                        tz_name = _infer_venue_tz(venue)
+                        if tz_name:
+                            dt_utc = pd.to_datetime(iso_val, errors='coerce', utc=True)
+                            if pd.notna(dt_utc):
+                                dt_loc = dt_utc.astimezone(ZoneInfo(tz_name))
+                                venue_local_list_m.append(dt_loc.strftime('%Y-%m-%d %H:%M'))
+                                tz_list_m.append(dt_loc.tzname() or 'LOC')
+                            else:
+                                venue_local_list_m.append(None); tz_list_m.append(None)
+                        else:
+                            venue_local_list_m.append(None); tz_list_m.append(None)
+                    except Exception:
+                        venue_local_list_m.append(None); tz_list_m.append(None)
+                merged['start_time_local_venue'] = venue_local_list_m
+                merged['start_tz_abbr_venue'] = tz_list_m
+                try:
+                    locv_dt_m = pd.to_datetime(merged['start_time_local_venue'], errors='coerce')
+                    slate_dt_m2 = pd.to_datetime(merged['date'], errors='coerce')
+                    spill_mask_m2 = (utc_dt_m.dt.date == (slate_dt_m2.dt.date + pd.Timedelta(days=1))) & (locv_dt_m.dt.date == slate_dt_m2.dt.date)
+                    if 'display_date' not in merged.columns:
+                        merged['display_date'] = None
+                    merged.loc[spill_mask_m2 & merged['display_date'].isna(), 'display_date'] = slate_dt_m2.dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+            # Fallback fill display_date for non-rollover rows
+            try:
+                if 'date' in merged.columns:
+                    if 'display_date' not in merged.columns:
+                        merged['display_date'] = None
+                    null_mask = merged['display_date'].isna() | (merged['display_date'].astype(str).str.strip()=='')
+                    if null_mask.any():
+                        merged.loc[null_mask, 'display_date'] = pd.to_datetime(merged['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+            except Exception:
+                pass
+            # Apply generic normalization helper (ensures venue-local spillover + fallback)
+            try:
+                merged = _normalize_game_time_fields(merged)
+            except Exception:
+                pass
+            # Deduplicate identical rows (retain first per game_id/start_time_iso)
+            try:
+                if 'game_id' in merged.columns and 'start_time_iso' in merged.columns:
+                    merged = merged.sort_values(['game_id','start_time_iso']).drop_duplicates(subset=['game_id','start_time_iso'], keep='first')
+                else:
+                    merged = merged.drop_duplicates()
+            except Exception:
+                pass
+    except Exception as _e_norm_m:
+        print(f"[yellow]Merged normalization skipped (error):[/yellow] {_e_norm_m}")
     merged.to_csv(merged_odds_path, index=False)
     print(f"[green]Wrote merged games+odds to[/green] {merged_odds_path} ({len(merged)} rows)")
     # Also write a dated merged games+odds using per-date odds or historical snapshot if needed
@@ -6310,6 +6829,77 @@ def daily_run(
             merged_d = join_odds_to_games(df_games, df_odds_join, team_map=mapping)
         else:
             merged_d = merged.copy()
+        # Apply normalization to dated merged as well
+        try:
+            if not merged_d.empty and {'date','start_time'}.issubset(merged_d.columns):
+                utc_dt_md = pd.to_datetime(merged_d['start_time'].astype(str).str.replace('Z','+00:00'), errors='coerce', utc=True)
+                if 'start_time_iso' not in merged_d.columns:
+                    merged_d['start_time_iso'] = utc_dt_md.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                else:
+                    miss_iso_md = merged_d['start_time_iso'].isna() | (merged_d['start_time_iso'].astype(str).str.strip()== '')
+                    merged_d.loc[miss_iso_md, 'start_time_iso'] = utc_dt_md.dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                if 'start_time_local' in merged_d.columns:
+                    local_dt_md = pd.to_datetime(merged_d['start_time_local'], errors='coerce')
+                    slate_dt_md = pd.to_datetime(merged_d['date'], errors='coerce')
+                    rollover_mask_md = (utc_dt_md.dt.date == (slate_dt_md.dt.date + pd.Timedelta(days=1))) & (local_dt_md.dt.date == slate_dt_md.dt.date)
+                    if 'display_date' not in merged_d.columns:
+                        merged_d['display_date'] = None
+                    merged_d.loc[rollover_mask_md, 'display_date'] = slate_dt_md.dt.strftime('%Y-%m-%d')
+                # Venue localization for dated merged
+                if 'venue' in merged_d.columns and 'start_time_iso' in merged_d.columns:
+                    tz_list_md = []
+                    venue_local_list_md = []
+                    for iso_val, venue in zip(merged_d['start_time_iso'].astype(str), merged_d['venue'].astype(str)):
+                        try:
+                            tz_name = _infer_venue_tz(venue)
+                            if tz_name:
+                                dt_utc = pd.to_datetime(iso_val, errors='coerce', utc=True)
+                                if pd.notna(dt_utc):
+                                    dt_loc = dt_utc.astimezone(ZoneInfo(tz_name))
+                                    venue_local_list_md.append(dt_loc.strftime('%Y-%m-%d %H:%M'))
+                                    tz_list_md.append(dt_loc.tzname() or 'LOC')
+                                else:
+                                    venue_local_list_md.append(None); tz_list_md.append(None)
+                            else:
+                                venue_local_list_md.append(None); tz_list_md.append(None)
+                        except Exception:
+                            venue_local_list_md.append(None); tz_list_md.append(None)
+                    merged_d['start_time_local_venue'] = venue_local_list_md
+                    merged_d['start_tz_abbr_venue'] = tz_list_md
+                    try:
+                        locv_dt_md = pd.to_datetime(merged_d['start_time_local_venue'], errors='coerce')
+                        slate_dt_md2 = pd.to_datetime(merged_d['date'], errors='coerce')
+                        spill_mask_md2 = (utc_dt_md.dt.date == (slate_dt_md2.dt.date + pd.Timedelta(days=1))) & (locv_dt_md.dt.date == slate_dt_md2.dt.date)
+                        if 'display_date' not in merged_d.columns:
+                            merged_d['display_date'] = None
+                        merged_d.loc[spill_mask_md2 & merged_d['display_date'].isna(), 'display_date'] = slate_dt_md2.dt.strftime('%Y-%m-%d')
+                    except Exception:
+                        pass
+                # Fallback fill display_date for non-rollover rows
+                try:
+                    if 'date' in merged_d.columns:
+                        if 'display_date' not in merged_d.columns:
+                            merged_d['display_date'] = None
+                        null_mask_d = merged_d['display_date'].isna() | (merged_d['display_date'].astype(str).str.strip()=='')
+                        if null_mask_d.any():
+                            merged_d.loc[null_mask_d, 'display_date'] = pd.to_datetime(merged_d['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+                # Apply generic normalization helper
+                try:
+                    merged_d = _normalize_game_time_fields(merged_d)
+                except Exception:
+                    pass
+                # Deduplicate
+                try:
+                    if 'game_id' in merged_d.columns and 'start_time_iso' in merged_d.columns:
+                        merged_d = merged_d.sort_values(['game_id','start_time_iso']).drop_duplicates(subset=['game_id','start_time_iso'], keep='first')
+                    else:
+                        merged_d = merged_d.drop_duplicates()
+                except Exception:
+                    pass
+        except Exception as _e_norm_md:
+            print(f"[yellow]Dated merged normalization skipped (error):[/yellow] {_e_norm_md}")
         merged_d.to_csv(merged_dated_path, index=False)
         print(f"[green]Wrote dated merged games+odds to[/green] {merged_dated_path} ({len(merged_d)} rows)")
     except Exception as _e_md:
@@ -6467,6 +7057,9 @@ def daily_run(
         if 'game_id' in prev.columns:
             prev['game_id'] = prev['game_id'].astype(str)
         merged = pd.concat([prev, df], ignore_index=True)
+        if 'game_id' in merged.columns:
+            # Strip any trailing .0 artifacts from float conversions
+            merged['game_id'] = merged['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
         if {'game_id','date'}.issubset(merged.columns):
             try:
                 merged['_dt'] = pd.to_datetime(merged['date'], errors='coerce')
@@ -6475,6 +7068,18 @@ def daily_run(
                 merged = merged.drop_duplicates(subset=['game_id','date'], keep='last')
         elif 'game_id' in merged.columns:
             merged = merged.drop_duplicates(subset=['game_id'], keep='last')
+        # Enrichment merge from today's games (display_date, iso, venue localization) if available
+        try:
+            enrich_cols = [c for c in ['game_id','display_date','start_time_iso','start_time_local','start_time_local_venue','start_tz_abbr','start_tz_abbr_venue'] if c in df_games.columns]
+            if enrich_cols and 'game_id' in merged.columns:
+                # Pre-drop any columns whose root name matches enrichment targets (handles legacy suffix variants like _x/_y)
+                root_targets = {r for r in enrich_cols if r != 'game_id'}
+                drop_like = [c for c in merged.columns if any(c == rt or c.startswith(rt + '_') for rt in root_targets)]
+                if drop_like:
+                    merged = merged.drop(columns=drop_like)
+                merged = merged.merge(df_games[enrich_cols].drop_duplicates(subset=['game_id']), on='game_id', how='left')
+        except Exception as _wk_enrich_e:
+            print(f"[yellow]Week predictions enrichment skipped:[/yellow] {_wk_enrich_e}")
         merged.to_csv(path, index=False)
         added_rows = len(df)
         date_label = df['date'].iloc[0] if 'date' in df.columns and not df.empty else 'unknown-date'
@@ -6920,10 +7525,12 @@ def daily_run(
             if accumulate_predictions and 'game_id' in out_df.columns:
                 pad = settings.outputs_dir / 'predictions_all.csv'
                 out_df['game_id'] = out_df['game_id'].astype(str)
+                out_df['game_id'] = out_df['game_id'].str.replace(r'\.0$', '', regex=True)
                 if pad.exists():
                     prev = pd.read_csv(pad)
                     if 'game_id' in prev.columns:
                         prev['game_id'] = prev['game_id'].astype(str)
+                        prev['game_id'] = prev['game_id'].str.replace(r'\.0$', '', regex=True)
                     merged_pred = pd.concat([prev, out_df], ignore_index=True)
                     # Keep latest occurrence (assume later row has updated blend/guardrails). Sort by date if present.
                     if 'date' in merged_pred.columns:
@@ -6936,13 +7543,327 @@ def daily_run(
                         merged_pred = merged_pred.sort_values(['game_id']).drop_duplicates(subset=['game_id'], keep='last')
                 else:
                     merged_pred = out_df.copy()
+                # Enrich accumulated predictions with time fields
+                try:
+                    enrich_cols_all = [c for c in ['game_id','display_date','start_time_iso','start_time_local','start_time_local_venue','start_tz_abbr','start_tz_abbr_venue'] if c in df_games.columns]
+                    if enrich_cols_all and 'game_id' in merged_pred.columns:
+                        # Drop any pre-existing enrichment columns (including suffixed variants) before merge
+                        root_targets_all = {r for r in enrich_cols_all if r != 'game_id'}
+                        drop_like_all = [c for c in merged_pred.columns if any(c == rt or c.startswith(rt + '_') for rt in root_targets_all)]
+                        if drop_like_all:
+                            merged_pred = merged_pred.drop(columns=drop_like_all)
+                        merged_pred = merged_pred.merge(df_games[enrich_cols_all].drop_duplicates(subset=['game_id']), on='game_id', how='left')
+                except Exception as _all_enrich_e:
+                    print(f"[yellow]predictions_all enrichment skipped:[/yellow] {_all_enrich_e}")
+                # Merge odds lines for probability computation (market/closing totals & spreads)
+                try:
+                    odds_hist_path = settings.outputs_dir / 'games_with_last.csv'
+                    if odds_hist_path.exists() and 'game_id' in merged_pred.columns:
+                        raw = pd.read_csv(odds_hist_path)
+                        # Normalize key dtype
+                        try:
+                            if 'game_id' in raw.columns:
+                                raw['game_id'] = raw['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+                            merged_pred['game_id'] = merged_pred['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+                        except Exception:
+                            pass
+                        # Derive market_total / spread_home from provider raw cols when absent
+                        if 'market_total' not in raw.columns and 'total' in raw.columns:
+                            raw['market_total'] = pd.to_numeric(raw['total'], errors='coerce')
+                        if 'spread_home' not in raw.columns and 'home_spread' in raw.columns:
+                            raw['spread_home'] = pd.to_numeric(raw['home_spread'], errors='coerce')
+                        # Filter to full-game rows where applicable
+                        if 'period' in raw.columns:
+                            raw_fg = raw[raw['period'].astype(str).str.lower().isin(['full_game','full','fg'])].copy()
+                        else:
+                            raw_fg = raw.copy()
+                        # Select latest per game_id per market using last_update timestamp if present
+                        def _sel_latest(df: pd.DataFrame, market: str, col_map: dict[str,str]) -> pd.DataFrame:
+                            if df.empty: return df.iloc[0:0]
+                            work = df[df.get('market','').astype(str).str.lower() == market].copy()
+                            if work.empty: return work.iloc[0:0]
+                            if 'last_update' in work.columns:
+                                try:
+                                    work['_lu'] = pd.to_datetime(work['last_update'], errors='coerce')
+                                    work = work.sort_values(['game_id','_lu']).drop_duplicates(subset=['game_id'], keep='last').drop(columns=['_lu'])
+                                except Exception:
+                                    work = work.sort_values(['game_id']).drop_duplicates(subset=['game_id'], keep='last')
+                            else:
+                                work = work.sort_values(['game_id']).drop_duplicates(subset=['game_id'], keep='last')
+                            cols = ['game_id'] + [v for v in col_map.values() if v in work.columns]
+                            out = work[['game_id']].copy()
+                            for k,v in col_map.items():
+                                out[k] = work[v] if v in work.columns else np.nan
+                            return out
+                        # Totals latest
+                        totals_map = {'market_total':'market_total'}
+                        totals_latest = _sel_latest(raw_fg, 'totals', totals_map)
+                        # Spreads latest
+                        spreads_map = {'spread_home':'spread_home'}
+                        spreads_latest = _sel_latest(raw_fg, 'spreads', spreads_map)
+                        odds_df = totals_latest.merge(spreads_latest, on='game_id', how='outer')
+                        # Closing placeholders if not present
+                        if 'closing_total' not in odds_df.columns:
+                            odds_df['closing_total'] = odds_df.get('market_total')
+                        if 'closing_spread_home' not in odds_df.columns:
+                            odds_df['closing_spread_home'] = odds_df.get('spread_home')
+                        # Drop existing to avoid suffix clutter
+                        for col in ['market_total','closing_total','spread_home','closing_spread_home']:
+                            if col in merged_pred.columns:
+                                merged_pred = merged_pred.drop(columns=[col])
+                        merged_pred = merged_pred.merge(odds_df, on='game_id', how='left')
+                        print(f"[green]Odds merged -> lines available for {odds_df['game_id'].nunique()} games[/green]")
+                except Exception as _odds_merge_e:
+                    print(f"[yellow]Odds merge skipped:[/yellow] {_odds_merge_e}")
+                # Probability & interval enrichment for totals (robust fallbacks)
+                try:
+                    # Select mu source with fallback order
+                    mu_source_cols = [c for c in ["pred_total_mu","pred_total_adjusted","pred_total"] if c in merged_pred.columns]
+                    if mu_source_cols:
+                        mu_series = pd.to_numeric(merged_pred.get(mu_source_cols[0]), errors="coerce")
+                        # Sigma: prefer model distributional sigma, else constant fallback (global RMSE ~12)
+                        if "pred_total_sigma" in merged_pred.columns:
+                            sig_series = pd.to_numeric(merged_pred.get("pred_total_sigma"), errors="coerce")
+                        else:
+                            sig_series = pd.Series(12.0, index=merged_pred.index)
+                        valid = sig_series > 0
+                        # Market line (for p_over/p_under) if available
+                        line_series = pd.to_numeric(merged_pred.get("market_total"), errors="coerce") if "market_total" in merged_pred.columns else pd.Series(np.nan, index=merged_pred.index)
+                        if line_series.isna().all() and "closing_total" in merged_pred.columns:
+                            line_series = pd.to_numeric(merged_pred.get("closing_total"), errors="coerce")
+                        import math as _math
+                        def _norm_cdf(zv: pd.Series) -> pd.Series:
+                            return 0.5 * (1.0 + zv.apply(lambda x: float(_math.erf(x / _math.sqrt(2.0))) if pd.notna(x) else np.nan))
+                        p_over_calc = pd.Series(np.nan, index=merged_pred.index)
+                        p_under_calc = pd.Series(np.nan, index=merged_pred.index)
+                        if not line_series.isna().all():
+                            z = (line_series - mu_series) / sig_series
+                            z = z.where(valid)
+                            p_over_calc = (1.0 - _norm_cdf(z)).where(valid)
+                            p_under_calc = _norm_cdf(z).where(valid)
+                            p_over_calc = p_over_calc.clip(lower=1e-4, upper=1.0 - 1e-4)
+                            p_under_calc = p_under_calc.clip(lower=1e-4, upper=1.0 - 1e-4)
+                        def _assign_col(col: str, series: pd.Series):
+                            if col not in merged_pred.columns or merged_pred[col].isna().all():
+                                merged_pred[col] = series
+                        _assign_col("p_over", p_over_calc)
+                        _assign_col("p_under", p_under_calc)
+                        # Intervals (90% & 95%) always derivable
+                        z90 = 1.645; z95 = 1.96
+                        low_90 = (mu_series - z90 * sig_series).where(valid)
+                        high_90 = (mu_series + z90 * sig_series).where(valid)
+                        low_95 = (mu_series - z95 * sig_series).where(valid)
+                        high_95 = (mu_series + z95 * sig_series).where(valid)
+                        _assign_col("pred_total_low_90", low_90)
+                        _assign_col("pred_total_high_90", high_90)
+                        _assign_col("pred_total_low_95", low_95)
+                        _assign_col("pred_total_high_95", high_95)
+                        print(f"[green]Probability/interval enrichment applied (totals)[/green]")
+                except Exception as _prob_int_e:
+                    print(f"[yellow]Probability/interval enrichment skipped:[/yellow] {_prob_int_e}")
+                # Margin cover probability (distributional approximation) if spread & pred_margin present
+                try:
+                    if ("pred_margin" in merged_pred.columns) and ("closing_spread_home" in merged_pred.columns or "spread_home" in merged_pred.columns):
+                        spread_series = pd.to_numeric(merged_pred.get("closing_spread_home") if "closing_spread_home" in merged_pred.columns else merged_pred.get("spread_home"), errors="coerce")
+                        pm_series = pd.to_numeric(merged_pred.get("pred_margin"), errors="coerce")
+                        # Approximate sigma for margin if not available
+                        sig_m = pd.to_numeric(merged_pred.get("pred_margin_sigma"), errors="coerce") if "pred_margin_sigma" in merged_pred.columns else pd.Series(11.0, index=merged_pred.index)
+                        if "pred_margin_sigma" not in merged_pred.columns:
+                            merged_pred["pred_margin_sigma"] = sig_m
+                        valid_m = sig_m > 0
+                        if valid_m.any():
+                            z_m = (spread_series - pm_series) / sig_m
+                            import math as _m2
+                            def _norm_cdf_m(zv: pd.Series) -> pd.Series:
+                                return 0.5 * (1.0 + zv.apply(lambda x: float(_m2.erf(x / _m2.sqrt(2.0))) if pd.notna(x) else np.nan))
+                            p_home_cover = (1.0 - _norm_cdf_m(z_m)).where(valid_m)  # Probability home covers spread (margin > spread)
+                            p_home_cover = p_home_cover.clip(lower=1e-4, upper=1.0 - 1e-4)
+                            if "p_home_cover_dist" not in merged_pred.columns or merged_pred["p_home_cover_dist"].isna().all():
+                                merged_pred["p_home_cover_dist"] = p_home_cover
+                            print("[green]Margin cover probability enrichment applied[/green]")
+                except Exception as _margin_prob_e:
+                    print(f"[yellow]Margin cover probability skipped:[/yellow] {_margin_prob_e}")
+                # Edge & Kelly backfill for totals/margins when missing
+                try:
+                    # Helper to ensure we always have a Series (avoid scalar .isna() errors)
+                    def _ensure_series(obj, index):
+                        if isinstance(obj, pd.Series):
+                            return obj
+                        # If obj is array-like convert; else broadcast scalar/None
+                        try:
+                            return pd.Series(obj, index=index)
+                        except Exception:
+                            return pd.Series(np.nan, index=index)
+                    # Totals edge
+                    if "edge_total" not in merged_pred.columns or merged_pred["edge_total"].isna().all():
+                        base_pred = _ensure_series(merged_pred.get("pred_total_mu"), merged_pred.index)
+                        base_pred = pd.to_numeric(base_pred, errors="coerce")
+                        if base_pred.isna().all():
+                            alt_pred = _ensure_series(merged_pred.get("pred_total"), merged_pred.index)
+                            base_pred = pd.to_numeric(alt_pred, errors="coerce")
+                        line_series2 = _ensure_series(merged_pred.get("market_total"), merged_pred.index)
+                        line_series2 = pd.to_numeric(line_series2, errors="coerce")
+                        if line_series2.isna().all() and "closing_total" in merged_pred.columns:
+                            alt_line = _ensure_series(merged_pred.get("closing_total"), merged_pred.index)
+                            line_series2 = pd.to_numeric(alt_line, errors="coerce")
+                        merged_pred["edge_total"] = (base_pred - line_series2)
+                    # Kelly fraction totals (placeholder scaling by sigma)
+                    if "kelly_fraction_total" not in merged_pred.columns or merged_pred["kelly_fraction_total"].isna().all():
+                        sig_raw = merged_pred.get("pred_total_sigma") if "pred_total_sigma" in merged_pred.columns else pd.Series(8.0, index=merged_pred.index)
+                        sig_series2 = _ensure_series(sig_raw, merged_pred.index)
+                        sig_series2 = pd.to_numeric(sig_series2, errors="coerce")
+                        et = _ensure_series(merged_pred.get("edge_total"), merged_pred.index)
+                        et = pd.to_numeric(et, errors="coerce")
+                        vol_proxy = sig_series2.replace(0, np.nan).fillna(8.0)
+                        merged_pred["kelly_fraction_total"] = (et / (2.0 * vol_proxy)).clip(lower=-1, upper=1)
+                    # Margin edge
+                    if "edge_margin" not in merged_pred.columns or merged_pred["edge_margin"].isna().all():
+                        pm_series2 = _ensure_series(merged_pred.get("pred_margin"), merged_pred.index)
+                        pm_series2 = pd.to_numeric(pm_series2, errors="coerce")
+                        spread_source = merged_pred.get("closing_spread_home") if "closing_spread_home" in merged_pred.columns else merged_pred.get("spread_home")
+                        spread_series2 = _ensure_series(spread_source, merged_pred.index)
+                        spread_series2 = pd.to_numeric(spread_series2, errors="coerce")
+                        merged_pred["edge_margin"] = (pm_series2 + spread_series2 * -1.0)  # predicted margin vs home spread
+                    if "kelly_fraction_ml_home" not in merged_pred.columns:
+                        merged_pred["kelly_fraction_ml_home"] = np.nan
+                    if "kelly_fraction_ml_away" not in merged_pred.columns:
+                        merged_pred["kelly_fraction_ml_away"] = np.nan
+                except Exception as _edge_e:
+                    print(f"[yellow]Edge/Kelly backfill skipped:[/yellow] {_edge_e}")
+                # Bias / variance correction for totals (rolling)
+                try:
+                    if {"pred_total_mu","actual_total"}.issubset(merged_pred.columns):
+                        work = merged_pred.sort_values("date") if "date" in merged_pred.columns else merged_pred.copy()
+                        mu_vals = pd.to_numeric(work.get("pred_total_mu"), errors="coerce")
+                        act_vals = pd.to_numeric(work.get("actual_total"), errors="coerce")
+                        diff = act_vals - mu_vals
+                        # Rolling window
+                        window = 300
+                        bias_roll = diff.rolling(window, min_periods=50).mean()
+                        var_act = act_vals.rolling(window, min_periods=50).std()
+                        var_pred = mu_vals.rolling(window, min_periods=50).std()
+                        scale = (var_act / var_pred).replace([np.inf,-np.inf], np.nan)
+                        # Map back to merged_pred index
+                        merged_pred["pred_total_mu_bias"] = bias_roll.reindex(merged_pred.index)
+                        merged_pred["pred_total_sigma_scale"] = scale.reindex(merged_pred.index)
+                        merged_pred["pred_total_mu_corrected"] = mu_vals + merged_pred["pred_total_mu_bias"]
+                        if "pred_total_sigma" in merged_pred.columns:
+                            base_sig = pd.to_numeric(merged_pred.get("pred_total_sigma"), errors="coerce")
+                            merged_pred["pred_total_sigma_adjusted"] = base_sig * merged_pred["pred_total_sigma_scale"].clip(lower=0.25, upper=4.0)
+                        print("[green]Bias/variance correction applied (totals)\n")
+                except Exception as _bias_e:
+                    print(f"[yellow]Bias/variance correction skipped:[/yellow] {_bias_e}")
                 merged_pred.to_csv(pad, index=False)
-                print(f"[green]Accumulated predictions ->[/green] {pad} ({len(merged_pred)} unique games)")
+                print(f"[green]Accumulated predictions (enriched) ->[/green] {pad} ({len(merged_pred)} unique games)")
+                # Secondary enrichment/backfill using full historical games_all for older predictions lacking fields
+                try:
+                    all_sched_path = settings.outputs_dir / 'games_all.csv'
+                    if all_sched_path.exists():
+                        g_all_df = pd.read_csv(all_sched_path)
+                        if 'game_id' in g_all_df.columns:
+                            g_all_df['game_id'] = g_all_df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                        enrich_cols_hist = [c for c in ['game_id','display_date','start_time_iso','start_time_local','start_time_local_venue','start_tz_abbr','start_tz_abbr_venue'] if c in g_all_df.columns]
+                        if enrich_cols_hist and 'game_id' in merged_pred.columns:
+                            # Only merge columns not present or fully null in merged_pred
+                            need_cols = [c for c in enrich_cols_hist if c not in merged_pred.columns or merged_pred[c].isna().all()]
+                            if need_cols:
+                                subset = g_all_df[enrich_cols_hist].drop_duplicates(subset=['game_id'])
+                                # Drop any existing variants to avoid suffix creation
+                                drop_like_hist = [c for c in merged_pred.columns if any(c == nc or c.startswith(nc + '_') for nc in need_cols if nc != 'game_id')]
+                                if drop_like_hist:
+                                    merged_pred = merged_pred.drop(columns=drop_like_hist)
+                                merged_pred = merged_pred.merge(subset, on='game_id', how='left')
+                                # Fallback fill display_date from date
+                                try:
+                                    if 'display_date' in merged_pred.columns and 'date' in merged_pred.columns:
+                                        mnull_all = merged_pred['display_date'].isna() | (merged_pred['display_date'].astype(str).str.strip()=='')
+                                        merged_pred.loc[mnull_all, 'display_date'] = pd.to_datetime(merged_pred['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                except Exception:
+                                    pass
+                                merged_pred.to_csv(pad, index=False)
+                                print(f"[green]Historical predictions backfill applied from games_all[/green] -> {pad}")
+                except Exception as _hist_enrich_e:
+                    print(f"[yellow]Historical predictions backfill skipped:[/yellow] {_hist_enrich_e}")
         except Exception as _pred_acc_e:
             print(f"[yellow]Predictions accumulation skipped:[/yellow] {_pred_acc_e}")
     except Exception as e:
         print(f"[red]Prediction failed:[/red] {e}")
         return
+
+    # Enrich predictions with display_date & ISO for downstream consumers
+    try:
+        if preds_out.exists() and not df_games.empty:
+            _preds_tmp = pd.read_csv(preds_out)
+            if 'game_id' in _preds_tmp.columns:
+                _preds_tmp['game_id'] = _preds_tmp['game_id'].astype(str)
+                _preds_tmp['game_id'] = _preds_tmp['game_id'].str.replace(r'\.0$', '', regex=True)
+            games_subset_cols = [c for c in ['game_id','display_date','start_time_iso','start_time_local','start_time_local_venue','start_tz_abbr','start_tz_abbr_venue'] if c in df_games.columns]
+            if games_subset_cols and 'game_id' in df_games.columns:
+                # Drop any existing enrichment columns including suffixed variants (legacy) to avoid suffix conflicts
+                root_targets_final = {r for r in games_subset_cols if r != 'game_id'}
+                drop_like_final = [c for c in _preds_tmp.columns if any(c == rt or c.startswith(rt + '_') for rt in root_targets_final)]
+                if drop_like_final:
+                    _preds_tmp = _preds_tmp.drop(columns=drop_like_final)
+                _preds_tmp = _preds_tmp.merge(df_games[games_subset_cols].drop_duplicates(subset=['game_id']), on='game_id', how='left')
+                # Fallback fill display_date from date
+                try:
+                    if 'display_date' in _preds_tmp.columns and 'date' in _preds_tmp.columns:
+                        mnull = _preds_tmp['display_date'].isna() | (_preds_tmp['display_date'].astype(str).str.strip()=='')
+                        _preds_tmp.loc[mnull, 'display_date'] = pd.to_datetime(_preds_tmp['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                except Exception:
+                    pass
+                _preds_tmp.to_csv(preds_out, index=False)
+                print(f"[green]Predictions enriched with display_date/start_time fields[/green] -> {preds_out}")
+    except Exception as _pred_enrich_e:
+        print(f"[yellow]Prediction enrichment skipped:[/yellow] {_pred_enrich_e}")
+
+    # Validation summary of enrichment fields
+    try:
+        val_rows = []
+        pw_path = preds_out
+        pa_path = settings.outputs_dir / 'predictions_all.csv'
+        pw_df = pd.read_csv(pw_path) if pw_path.exists() else pd.DataFrame()
+        pa_df = pd.read_csv(pa_path) if pa_path.exists() else pd.DataFrame()
+        def _rollover_count(df: pd.DataFrame) -> int:
+            if {'date','start_time_iso','start_time_local'}.issubset(df.columns):
+                utc_dt = pd.to_datetime(df['start_time_iso'], errors='coerce', utc=True)
+                local_dt = pd.to_datetime(df['start_time_local'], errors='coerce')
+                slate_dt = pd.to_datetime(df['date'], errors='coerce')
+                mask = (utc_dt.dt.date == (slate_dt.dt.date + pd.Timedelta(days=1))) & (local_dt.dt.date == slate_dt.dt.date)
+                return int(mask.sum())
+            return 0
+        stats = {
+            'week_rows': len(pw_df),
+            'all_rows': len(pa_df),
+            'week_missing_display_date': int(pw_df['display_date'].isna().sum()) if 'display_date' in pw_df.columns else -1,
+            'all_missing_display_date': int(pa_df['display_date'].isna().sum()) if 'display_date' in pa_df.columns else -1,
+            'week_rollover_candidate_rows': _rollover_count(pw_df),
+            'all_rollover_candidate_rows': _rollover_count(pa_df),
+        }
+        print(f"[green]Enrichment validation:[/green] {stats} | Validation keys: display_date should be set for rollover candidates (utc next-day while local == slate).")
+        # Hard check: if display_date missing in more than 20% of week rows, emit warning
+        try:
+            if stats['week_rows'] > 0 and stats['week_missing_display_date'] >= 0:
+                rate = stats['week_missing_display_date'] / stats['week_rows']
+                if rate > 0.2:
+                    print(f"[yellow]Warning:[/yellow] display_date missing for {stats['week_missing_display_date']} of {stats['week_rows']} week rows ({rate:.1%}).")
+        except Exception:
+            pass
+        # Write a small validation sample CSV focusing on rows with rollover candidates missing display_date
+        try:
+            if not pa_df.empty and {'date','start_time_iso','start_time_local','display_date'}.issubset(pa_df.columns):
+                utc_dt = pd.to_datetime(pa_df['start_time_iso'], errors='coerce', utc=True)
+                local_dt = pd.to_datetime(pa_df['start_time_local'], errors='coerce')
+                slate_dt = pd.to_datetime(pa_df['date'], errors='coerce')
+                rollover_mask = (utc_dt.dt.date == (slate_dt.dt.date + pd.Timedelta(days=1))) & (local_dt.dt.date == slate_dt.dt.date)
+                prob = pa_df[rollover_mask & pa_df['display_date'].isna()].head(100)
+                val_path = settings.outputs_dir / 'predictions_time_validation.csv'
+                prob.to_csv(val_path, index=False)
+                print(f"[green]Wrote rollover validation sample[/green] -> {val_path} ({len(prob)} rows)")
+        except Exception as _val_csv_e:
+            print(f"[yellow]Validation sample skipped:[/yellow] {_val_csv_e}")
+    except Exception as _val_e:
+        print(f"[yellow]Enrichment validation failed:[/yellow] {_val_e}")
 
     # Before picks: build strict last-odds aggregate and merge to games for derivatives
     try:
@@ -6988,6 +7909,13 @@ def daily_run(
                 picks = picks.sort_values(["abs_edge", "price"], ascending=[False, False]).head(int(target_picks))
             cols = ["game_id","date","home_team","away_team","book","bet","line","price","pred","edge"]
             picks = picks[cols].rename(columns={"pred":"pred_total"})
+            # Add display/local time fields
+            try:
+                enrich_cols = [c for c in ['game_id','display_date','start_time_iso','start_time_local','start_time_local_venue','start_tz_abbr','start_tz_abbr_venue'] if c in df_games.columns]
+                if enrich_cols:
+                    picks = picks.merge(df_games[enrich_cols], on='game_id', how='left')
+            except Exception:
+                pass
             picks.to_csv(picks_out, index=False)
             print(f"[green]Wrote {len(picks)} picks to[/green] {picks_out}")
     except Exception as e:
@@ -7011,6 +7939,18 @@ def daily_run(
                 moneyline_margin_scale=7.0,
                 moneyline_edge_pct=2.0,
             )
+            # Enrich raw picks file
+            try:
+                raw_df_tmp = pd.read_csv(picks_raw_out)
+                if 'game_id' in raw_df_tmp.columns and 'game_id' in df_games.columns:
+                    raw_df_tmp['game_id'] = raw_df_tmp['game_id'].astype(str)
+                    enrich_cols = [c for c in ['game_id','display_date','start_time_iso','start_time_local','start_time_local_venue','start_tz_abbr','start_tz_abbr_venue'] if c in df_games.columns]
+                    if enrich_cols:
+                        raw_df_tmp = raw_df_tmp.merge(df_games[enrich_cols], on='game_id', how='left')
+                        raw_df_tmp.to_csv(picks_raw_out, index=False)
+                        print(f"[green]Raw picks enriched with display/local time fields[/green] -> {picks_raw_out}")
+            except Exception as _raw_enrich_e:
+                print(f"[yellow]Raw picks enrichment skipped:[/yellow] {_raw_enrich_e}")
         else:
             print("[yellow]Skipped produce-picks (missing merged last odds or predictions empty).[/yellow]")
     except Exception as e:

@@ -26,12 +26,26 @@ def main():
 
     o = pd.read_csv(args.orig)
     c = pd.read_csv(args.cal)
-    # Normalize types for merge keys
-    for df in (o, c):
-        for k in ("game_id",):
+
+    def normalize_keys(df: pd.DataFrame) -> pd.DataFrame:
+        # Coerce date to uniform string YYYY-MM-DD if present
+        if "date" in df.columns:
+            # Handle various representations; errors='coerce' turns invalid to NaT
+            df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        # Ensure game_id always string
+        if "game_id" in df.columns:
+            df["game_id"] = df["game_id"].astype(str)
+        # Other merge keys may differ in dtype (e.g., line numeric vs object); cast both sides to string
+        for k in ("book","market","period","selection","line"):
             if k in df.columns:
                 df[k] = df[k].astype(str)
+        return df
+
+    o = normalize_keys(o)
+    c = normalize_keys(c)
+
     cols_common = [k for k in KEYS if k in o.columns and k in c.columns]
+    # Safe outer merge now that dtypes are harmonized
     merged = o.merge(c, on=cols_common, how="outer", suffixes=("_orig","_cal"))
     # Compute deltas for key numeric columns present
     num_cols = [

@@ -16,9 +16,14 @@
     .badge.adj{background:#d9480f;}
     .badge.toggle-raw{background:#495057;cursor:pointer;}
     .badge.toggle-raw:hover,.badge:hover{opacity:0.85;}
+    /* Time pill styling: base + rollover emphasis */
+    .pill.time-local{background:#12324e;border-color:#1d4d75;color:#f6f8ff;}
+    .pill.time-local.rollover{background:#53257c;border-color:#6d36a5;color:#fff;}
+    .pill.time-local.rollover::after{content:' • rollover';font-size:10px;margin-left:4px;opacity:0.85;}
   </style>
 </head>
 <body>
+  <div id="notifyHost" aria-live="polite" class="notify-host"></div>
   {# Dynamic CSS removed; will apply colors via data attributes and a script to avoid template/CSS lint conflicts #}
   <div class="container">
     {# Removed top picks and season summary for declutter #}
@@ -26,7 +31,7 @@
       <h1>NCAAB – Cards</h1>
       <div class="spacer"></div>
       <nav class="nav-links">
-        <a href="/home">Dashboard</a>
+        <a href="/dashboard">Dashboard</a>
         <a href="/finals">Final Scores</a>
         <a href="/recommendations">Recommendations</a>
         <a href="/stake-sheet">Stake Sheet</a>
@@ -127,6 +132,7 @@
             <option value="detailed">Detailed</option>
           </select>
         </label>
+        <button id="toggleRollover" class="pill" title="Show only rollover games (UTC spill)" aria-pressed="false">Show Rollover Only</button>
         <button id="shortcutsHelp" class="pill" title="Show keyboard shortcuts">Shortcuts</button>
         <button id="exportVisible" class="pill" title="Export visible cards to CSV">Export Visible</button>
         <button id="exportVisibleJson" class="pill" title="Export visible cards to JSON">Export JSON</button>
@@ -141,6 +147,29 @@
     </div>
     <script>
       (function(){
+        // Lightweight notification system replacing missing external Noty
+        const notifyHost = document.getElementById('notifyHost');
+        function notify(type, text, opts){
+          opts = opts || {};
+          if(!notifyHost){ console.warn('notifyHost missing'); return; }
+          const div = document.createElement('div');
+          div.className = 'notify-item notify-' + (type||'info');
+          div.innerHTML = '<span class="notify-text"></span><button class="notify-close" aria-label="Close">×</button>';
+          div.querySelector('.notify-text').textContent = text;
+          const ttl = typeof opts.ttl === 'number' ? opts.ttl : (type==='error'?8000:4000);
+          let closed = false;
+          function close(){ if(closed) return; closed = true; div.classList.add('hide'); setTimeout(()=>div.remove(),250); }
+          div.querySelector('.notify-close').addEventListener('click', close);
+          notifyHost.appendChild(div);
+          if(ttl>0) setTimeout(close, ttl);
+          return { close, el: div };
+        }
+        window.notify = notify;
+        window.notifySuccess = (t,o)=>notify('success',t,o);
+        window.notifyWarn = (t,o)=>notify('warn',t,o);
+        window.notifyError = (t,o)=>notify('error',t,o);
+        const _fetchErrKeys = new Set();
+        window.reportFetchError = (key, err)=>{ if(_fetchErrKeys.has(key)) return; _fetchErrKeys.add(key); notifyError(key+': '+(err&&err.message?err.message:String(err))); };
         const chk = document.getElementById('autoRefreshChk');
         let timer = null;
         const modal = document.getElementById('providersModal');
@@ -227,11 +256,12 @@
                 const base = (j.finalize_suggested || (j.finalize && j.finalize.ready)) ? 15000 : 30000;
                 const fast = (skewMs > 120000) ? 15000 : base;
                 if(timer){ clearInterval(timer); }
+                      notifySuccess('Providers loaded ('+j.length+')');
                 timer = setInterval(poll, fast);
               }
+                      notifyWarn('No providers reported');
             } catch(e){}
-          }catch(e){/*silent*/}
-        }
+                  } catch(e){ if(modalList) modalList.textContent='Error loading providers'; reportFetchError('Providers', e); }
         function sortCards(attr){
           var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
           if(!grid) return;
@@ -255,7 +285,7 @@
           }
           requestAnimationFrame(chunk);
           showToast('Sorted by '+attr, 'neutral');
-        }
+            }catch(e){ reportFetchError('Status Poll', e); }
         function groupCards(by){
           var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
           if(!grid) return;
@@ -386,9 +416,35 @@
           var btnE = document.getElementById('sortByEdge');
           var btnC = document.getElementById('sortByConf');
           var btnD = document.getElementById('sortByFairDelta');
+          var btnRollover = document.getElementById('toggleRollover');
           if(btnE) btnE.addEventListener('click', function(){ sortCards('edge'); });
           if(btnC) btnC.addEventListener('click', function(){ sortCards('confidence'); });
           if(btnD) btnD.addEventListener('click', function(){ sortCards('fair-delta'); });
+          if(btnRollover){
+            btnRollover.addEventListener('click', function(){
+              var active = btnRollover.getAttribute('aria-pressed') === 'true';
+              if(!active){
+                // Activate rollover filter: hide all cards whose time-local pill data-rollover != 1
+                var cards = document.querySelectorAll('.game-card');
+                var hidden = 0; var visible = 0;
+                cards.forEach(function(card){
+                  var pill = card.querySelector('.time-local');
+                  var isRoll = pill && pill.getAttribute('data-rollover') === '1';
+                  if(!isRoll){ card.style.display='none'; hidden++; } else { card.style.display=''; visible++; }
+                });
+                btnRollover.textContent='Show All Games';
+                btnRollover.setAttribute('aria-pressed','true');
+                showToast('Filtered rollover games', 'neutral');
+              } else {
+                // Deactivate: show all
+                document.querySelectorAll('.game-card').forEach(function(card){ card.style.display=''; });
+                btnRollover.textContent='Show Rollover Only';
+                btnRollover.setAttribute('aria-pressed','false');
+                showToast('Cleared rollover filter', 'neutral');
+              }
+              try{ window.updateFilterSummary && window.updateFilterSummary(); }catch(e){}
+            });
+          }
           var chkM = document.getElementById('groupByMarket');
           var chkB = document.getElementById('groupByBook');
           if(chkM){ chkM.addEventListener('change', function(){ if(chkM.checked){ groupCards('market'); if(chkB) chkB.checked=false; try{ localStorage.setItem('groupPref','market'); }catch(e){} } else { ungroupCards(); try{ localStorage.removeItem('groupPref'); }catch(e){} } }); }
@@ -576,6 +632,35 @@
                   ev: card.getAttribute('data-ev')||'',
                   implied_prob: card.getAttribute('data-implied-prob')||''
                 };
+
+                // Post-render cleanup: hide empty Odds/Actuals/Derivatives blocks and clean time headers
+                function cleanupCards(){
+                  const cards = document.querySelectorAll('.game-card');
+                  cards.forEach(card=>{
+                    // Hide sections where all values are "–" or contain "nan"
+                    ['.section-odds','.section-actuals','.section-derivatives'].forEach(sel=>{
+                      const sec = card.querySelector(sel);
+                      if(!sec) return;
+                      const txt = sec.textContent.trim().toLowerCase();
+                      if(!txt || txt === '-' || txt.indexOf('nan')>=0 || txt.indexOf('—')>=0){
+                        sec.classList.add('hidden');
+                      }
+                    });
+                    // Ensure predictions section visible
+                    const pred = card.querySelector('.section-predictions');
+                    if(pred){ pred.classList.remove('hidden'); }
+                    // Clean time header: prefer data attributes if present
+                    const timePill = card.querySelector('.pill.time-local');
+                    if(timePill){
+                      const disp = timePill.getAttribute('data-display');
+                      const tz = timePill.getAttribute('data-tz');
+                      if(disp){
+                        timePill.textContent = disp + (tz?(' '+tz):'');
+                      }
+                    }
+                  });
+                }
+                document.addEventListener('DOMContentLoaded', cleanupCards);
                 rows.push(row);
               });
               if(!rows.length){ showToast('No visible cards', 'warn'); return; }
@@ -957,7 +1042,7 @@
         ) %}
         {% set _has_ml = (r.ml_home is defined and r.ml_home is not none) %}
         {% set _market_avail = (1 if (_has_total or _has_spread or _has_ml) else 0) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else '')) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}">
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else '')) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -989,15 +1074,11 @@
               {% if r.edge_conf_tag is defined and r.edge_conf_tag %}
                 <span class="badge detailed-only" title="Edge confidence tag from meta">Conf {{ r.edge_conf_tag }}</span>
               {% endif %}
-              {# Prefer server-provided ISO-UTC for stable JS conversion; fallback to raw start_time #}
-              {# Ensure tz-aware ISO: if missing Z/offset, append Z to treat as UTC #}
-              {% set _iso_raw = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined) else None)) %}
-              {% set iso = (_iso_raw ~ 'Z') if (_iso_raw and ('Z' not in _iso_raw) and (('+' not in _iso_raw) and ('-' not in _iso_raw))) else _iso_raw %}
-              {# Display preference: dedicated display string -> legacy local -> raw start_time -> ISO #}
-              {% set disp = (r.start_time_display if (r.start_time_display is defined and r.start_time_display) else (r.start_time_local if (r.start_time_local is defined and r.start_time_local) else (r.start_time if (r.start_time is defined and r.start_time) else (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else None)))) %}
-              {% set tzabbr = (r.start_tz_abbr if (r.start_tz_abbr is defined and r.start_tz_abbr) else None) %}
-              {% if iso or disp %}
-                <span class="pill time-local" data-iso="{{ iso or '' }}" data-slate="{{ date_val or '' }}">{{ disp or '' }}{% if tzabbr %} {{ tzabbr }}{% endif %}</span>
+              {# Hard lock: render only server-provided CST display_time_str; no client conversion #}
+              {% set disp_date = (r.display_date if (r.display_date is defined and r.display_date) else (r.date if (r.date is defined and r.date) else '')) %}
+              {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
+              {% if r.display_time_str is defined and r.display_time_str %}
+                <span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-iso="" data-slate="{{ disp_date }}" data-rollover="{{ '1' if is_rollover else '0' }}" title="Time shown in Central Time">{{ r.display_time_str }}</span>
                 <button type="button" class="pill small copy-time" title="Copy time details" aria-label="Copy time details">Copy</button>
               {% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
@@ -1022,21 +1103,20 @@
               {% if _imp_s is not none %}<span>Imp {{ '%.1f' % (_imp_s*100) }}%</span>{% endif %}
               {% if _d_ou_s is not none %}<span>ΔOU {{ '%.1f' % _d_ou_s }}</span>{% endif %}
             </div>
-            {# Odds coverage badge: show when odds are missing or partial #}
-            {# Treat market_total/spread_home/ml as coverage signals #}
-            {% set has_total = (
-              (r.market_total is defined and r.market_total is not none and r.market_total == r.market_total)
-              or (r.closing_total is defined and r.closing_total is not none and r.closing_total == r.closing_total)
-            ) %}
-            {% set has_spread = (
-              (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home)
-              or (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home)
-            ) %}
-            {% set has_ml = (r.ml_home is defined and r.ml_home is not none) %}
-            {% if not has_total and not has_spread and not has_ml %}
-              <div class="pill bad">No Odds Coverage</div>
-            {% elif not has_total or not has_spread or not has_ml %}
-              <div class="pill neutral">Partial Odds Coverage</div>
+            {# Unified coverage label produced server-side: r.coverage_label #}
+            {% if r.coverage_label %}
+              {% if r.coverage_label == 'Odds Available' %}
+                {# Suppress positive pill to reduce noise; uncomment to show #}
+                {# <div class="pill good">Odds Available</div> #}
+              {% elif 'Exhibition' in r.coverage_label %}
+                <div class="pill bad">{{ r.coverage_label }}</div>
+              {% elif 'Unposted' in r.coverage_label %}
+                <div class="pill neutral">{{ r.coverage_label }}</div>
+              {% elif 'No Data' in r.coverage_label %}
+                <div class="pill bad">{{ r.coverage_label }}</div>
+              {% else %}
+                <div class="pill neutral">{{ r.coverage_label }}</div>
+              {% endif %}
             {% endif %}
             {% if r.neutral_site %}
               <div class="pill">Neutral Site</div>
@@ -1126,9 +1206,12 @@
                   </div>
                 {% endif %}
               {% endif %}
-                <div class="pill">Last (pre-tip): {{ '%.1f' % r.market_total }}</div>
+              {% if r.has_odds is defined and r.has_odds %}
+                <div class="pill section-odds">Last (pre-tip): {{ '%.1f' % r.market_total }}</div>
+              {% endif %}
               {% else %}
-                <div class="pill">Market Total: {{ '%.1f' % r.market_total }}
+                {% if r.has_odds is defined and r.has_odds %}
+                <div class="pill section-odds">Market Total: {{ '%.1f' % r.market_total }}
                   {% if r.quotes_count is defined and r.quotes_count is not none %}
                     {% if r.quotes_count >= 2 %}
                       <span class="badge" title="Number of bookmaker totals aggregated for market total median">Q={{ r.quotes_count }}</span>
@@ -1139,6 +1222,7 @@
                     {% endif %}
                   {% endif %}
                 </div>
+                {% endif %}
               {% endif %}
               {% if r.quote_ts is defined and r.quote_ts %}
                 <div class="pill quote-local" data-iso="{{ r.quote_ts }}" title="Quote (UTC): {{ r.quote_ts }}">Quote: {{ r.quote_ts }}</div>
@@ -1203,7 +1287,8 @@
             </div>
             {% set spread_full = r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else None %}
             {% set total_full = r.market_total if (r.market_total is not none and r.market_total == r.market_total) else None %}
-            <div class="line-row odds-row">
+            {% if r.has_odds is defined and r.has_odds %}
+            <div class="line-row odds-row section-odds">
               <div class="seg label">Odds</div>
               <div class="seg">ATS: {% if spread_full is not none %}{% if spread_full < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % spread_full }}{% elif spread_full > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % spread_full }}{% else %}Pick{% endif %}{% else %}–{% endif %}</div>
               <div class="seg">
@@ -1252,7 +1337,9 @@
               <div class="seg">Team Totals: {% if total_full is not none and spread_full is not none %}{% set home_imp_full = (total_full / 2) - (spread_full / 2) %}{% set away_imp_full = total_full - home_imp_full %}{{ r.away_team or '–' }} {{ '%.1f' % away_imp_full }} / {{ r.home_team or '–' }} {{ '%.1f' % home_imp_full }}{% else %}–{% endif %}</div>
               <div class="seg">Overall: {% if total_full is not none %}{{ '%.1f' % total_full }}{% else %}–{% endif %}</div>
             </div>
-            <div class="line-row actuals-row">
+            {% endif %}
+            {% if r.has_actuals is defined and r.has_actuals %}
+            <div class="line-row actuals-row section-actuals">
               <div class="seg label">Actuals</div>
               {% set cls_ats_full = 'neutral' if (r.ats_result == 'Push') else ('ok' if r.eval_ats_ok else ('bad' if r.ats_result else 'neutral')) %}
               {# Coerce ats_result to string to avoid TypeError when NaN/float #}
@@ -1274,6 +1361,7 @@
               <div class="seg {{ ou_cls }}" title="{{ tooltip }}">Overall: {% if r.actual_total is defined and r.actual_total is not none %}{{ '%.0f' % r.actual_total }}{% else %}–{% endif %}</div>
               {# Removed half basis badges from Full Game Actuals; now shown in Derivatives Odds rows #}
             </div>
+            {% endif %}
           </div>
           <div class="actions">
             {% if show_bootstrap and bootstrap_url %}
@@ -1286,7 +1374,8 @@
             <a class="btn btn-sm btn-outline-warning" href="{{ fused_bootstrap_url }}" target="_blank">Fused Bootstrap</a>
             {% endif %}
           </div>
-          <div class="section">
+          {% if r.has_derivatives is defined and r.has_derivatives %}
+          <div class="section section-derivatives">
             <div class="title">Derivatives</div>
             <div class="half-lines">
               {# Full Game block removed from Derivatives per request #}
@@ -1439,6 +1528,7 @@
               </div>
             </div>
           </div>
+          {% endif %}
           {% if r.home_score is not none and r.away_score is not none %}
             {% set hs = r.get('home_score') if r.get('home_score') is not none else 0 %}
             {% set as = r.get('away_score') if r.get('away_score') is not none else 0 %}
@@ -1707,6 +1797,17 @@
     el.title = showingRaw ? 'Click to show raw model' : 'Click to show calibrated';
   }
   </script>
+  <style>
+    .notify-host{position:fixed;top:8px;right:8px;z-index:5000;display:flex;flex-direction:column;gap:6px;max-width:320px;}
+    .notify-item{background:#222;color:#eee;padding:8px 12px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.4);font-size:14px;line-height:1.3;position:relative;opacity:.95;transition:opacity .25s,transform .25s;}
+    .notify-item.notify-success{border-left:4px solid #2e8b57;}
+    .notify-item.notify-warn{border-left:4px solid #b8860b;}
+    .notify-item.notify-error{border-left:4px solid #b22222;}
+    .notify-item.notify-info{border-left:4px solid #4682b4;}
+    .notify-item.hide{opacity:0;transform:translateX(40px);}    
+    .notify-close{background:transparent;border:none;color:#bbb;cursor:pointer;position:absolute;top:4px;right:6px;font-size:16px;line-height:14px;padding:2px;}
+    .notify-close:hover{color:#fff;}
+  </style>
   <script>
     (function(){
       async function loadStatus(){
@@ -1788,6 +1889,23 @@
           }
         });
       })();
+    </script>
+    <script>
+      // Hide empty sections (Odds/Actuals/Derivatives) based on data flags
+      document.addEventListener('DOMContentLoaded', function(){
+        var cards = document.querySelectorAll('.game-card');
+        cards.forEach(function(card){
+          var hasOdds = card.getAttribute('data-has-odds') === '1';
+          var hasActuals = card.getAttribute('data-has-actuals') === '1';
+          var hasDeriv = card.getAttribute('data-has-derivatives') === '1';
+          var secOdds = card.querySelector('.section-odds');
+          var secActuals = card.querySelector('.section-actuals');
+          var secDeriv = card.querySelector('.section-derivatives');
+          if(secOdds && !hasOdds) secOdds.classList.add('hidden');
+          if(secActuals && !hasActuals) secActuals.classList.add('hidden');
+          if(secDeriv && !hasDeriv) secDeriv.classList.add('hidden');
+        });
+      });
     </script>
   <script>
     // Keyboard navigation across game cards (ArrowUp/Down/Page keys)

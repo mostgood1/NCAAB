@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse, pathlib, datetime as dt, json
 import pandas as pd
 import numpy as np
+import json as _json
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "outputs"
@@ -146,6 +147,27 @@ def build_intervals(date_str: str, pred_path: pathlib.Path, calibrated_path: pat
     if rows_used < 15 or not np.isfinite(rmse_margin):
         rmse_margin = 10.0
 
+    # Optional conformal scaling hints (gentle scale factors to target coverage)
+    conf_scale_total = None
+    conf_scale_margin = None
+    try:
+        conf_path = OUT / 'conformal_autotune.json'
+        if conf_path.exists():
+            conf = _json.loads(conf_path.read_text(encoding='utf-8'))
+            st = conf.get('scale_total')
+            sm = conf.get('scale_margin')
+            if isinstance(st, (int, float)) and st > 0:
+                conf_scale_total = float(st)
+            if isinstance(sm, (int, float)) and sm > 0:
+                conf_scale_margin = float(sm)
+    except Exception:
+        pass
+
+    if conf_scale_total:
+        rmse_total = rmse_total * conf_scale_total
+    if conf_scale_margin:
+        rmse_margin = rmse_margin * conf_scale_margin
+
     # Build intervals
     for level, z in Z.items():
         if level == "95":
@@ -172,6 +194,8 @@ def build_intervals(date_str: str, pred_path: pathlib.Path, calibrated_path: pat
         "rows_used": rows_used,
         "rmse_total": rmse_total,
         "rmse_margin": rmse_margin,
+        "conformal_scale_total": conf_scale_total,
+        "conformal_scale_margin": conf_scale_margin,
         "point_total_column": point_total_col,
         "point_margin_column": point_margin_col,
         "z_values": Z,

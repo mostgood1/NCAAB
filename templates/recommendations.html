@@ -18,6 +18,8 @@
     a{color:var(--accent)}
     .rec-header{display:flex; align-items:center; gap:12px; margin-bottom:12px}
     .rec-header .spacer{flex:1}
+    .pill.time-local{background:#12324e;border-color:#1d4d75;color:#f6f8ff;}
+    .pill.time-local.rollover{background:#53257c;border-color:#6d36a5;color:#fff;}
   </style>
 </head>
 <body>
@@ -36,6 +38,7 @@
         <thead>
           <tr>
             <th>Date</th>
+            <th>Start (Local)</th>
             <th>Matchup</th>
             <th>Book</th>
             <th>Bet</th>
@@ -49,8 +52,13 @@
         </thead>
         <tbody>
           {% for r in rows %}
+          {% set disp_date = r.display_date if r.display_date is defined and r.display_date else (r.date if r.date else '') %}
+          {% set loc_time = r.start_time_local_venue if r.start_time_local_venue else (r.start_time_local if r.start_time_local else (r.start_time_display if r.start_time_display else '')) %}
+          {% set tz_abbr = r.start_tz_abbr_venue if r.start_tz_abbr_venue else (r.start_tz_abbr if r.start_tz_abbr else '') %}
+          {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
           <tr tabindex="0">
-            <td>{{ r.date or '' }}</td>
+            <td>{{ disp_date }}</td>
+            <td><span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-rollover="{{ '1' if is_rollover else '0' }}">{{ loc_time }}{% if tz_abbr %} {{ tz_abbr }}{% endif %}</span></td>
             <td><strong>{{ r.home_team }}</strong> vs {{ r.away_team }}</td>
             <td>{{ r.book or '' }}</td>
             <td>{{ r.bet or '' }}</td>
@@ -79,4 +87,22 @@
     })();
   </script>
 </body>
+      function cleanupTable(){
+        const rows = document.querySelectorAll('table tbody tr');
+        rows.forEach(tr=>{
+          tr.querySelectorAll('td').forEach(td=>{
+            const txt = (td.textContent||'').trim().toLowerCase();
+            if(txt==='nan' || txt==='-' || txt==='—'){
+              td.textContent = '';
+            }
+          });
+          const pill = tr.querySelector('.pill.time-local');
+          if(pill){
+            const disp = pill.getAttribute('data-display');
+            const tz = pill.getAttribute('data-tz');
+            if(disp){ pill.textContent = disp + (tz?(' '+tz):''); }
+          }
+        });
+      }
+      document.addEventListener('DOMContentLoaded', cleanupTable);
 </html>

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def _read_csv(p: Path) -> pd.DataFrame:
     try:
-        return pd.read_csv(p)
+        return pd.read_csv(p, low_memory=False)
     except Exception:
         return pd.DataFrame()
 
@@ -84,10 +84,49 @@ def _load_lgbm_models(root: Path, target: str, segment: str):
 
 def candidate_lgbm(window_df: pd.DataFrame, preds_col: str, target_col: str, target_cov: float, segment: str, target_name: str, features: list, models):
     # produce q10/q50/q90 via LightGBM models; conformalize residuals in window to hit coverage
-    Xw = window_df[features].copy().fillna(0)
-    q10_pred = np.asarray(models[10].predict(Xw), float)
-    q50_pred = np.asarray(models[50].predict(Xw), float)
-    q90_pred = np.asarray(models[90].predict(Xw), float)
+    # Synthesize common missing features from available columns to reduce gaps
+    synth = window_df.copy()
+    # Rest days: default to 3 if missing
+    for col in ['days_rest_home','days_rest_away']:
+        if col not in synth.columns:
+            synth[col] = 3
+    # Travel distance: default 0 if missing
+    if 'travel_dist_km' not in synth.columns:
+        synth['travel_dist_km'] = 0.0
+    # Market anchors: try derive
+    if 'market_spread' not in synth.columns:
+        # prefer closing/home spread if present, else model spread pred
+        alt_cols = [c for c in ['closing_spread','home_spread_pred','spread','odds_spread'] if c in synth.columns]
+        synth['market_spread'] = synth[alt_cols[0]] if alt_cols else 0.0
+    if 'market_total' not in synth.columns:
+        alt_cols = [c for c in ['closing_total','total','odds_total'] if c in synth.columns]
+        synth['market_total'] = synth[alt_cols[0]] if alt_cols else synth.get('pred_total', pd.Series(0.0, index=synth.index))
+    if 'market_moneyline_home_prob' not in synth.columns:
+        if 'home_ml_prob' in synth.columns:
+            synth['market_moneyline_home_prob'] = synth['home_ml_prob']
+        elif 'home_ml_price' in synth.columns:
+            def _american_to_prob(price):
+                try:
+                    price = float(price)
+                except Exception:
+                    return np.nan
+                if price > 0:
+                    return 100.0 / (price + 100.0)
+                elif price < 0:
+                    return abs(price) / (abs(price) + 100.0)
+                return np.nan
+            synth['market_moneyline_home_prob'] = synth['home_ml_price'].apply(_american_to_prob)
+        else:
+            synth['market_moneyline_home_prob'] = 0.5
+    # Verify features presence and log missing
+    missing = [f for f in features if f not in synth.columns]
+    if missing:
+        print(f'[LGBM {target_name}/{segment}] Missing features in window after synth: {missing}')
+    present_feats = [f for f in features if f in synth.columns]
+    Xw = synth[present_feats].copy().fillna(0)
+    q10_pred = np.asarray(models[10].predict(Xw, predict_disable_shape_check=True), float)
+    q50_pred = np.asarray(models[50].predict(Xw, predict_disable_shape_check=True), float)
+    q90_pred = np.asarray(models[90].predict(Xw, predict_disable_shape_check=True), float)
     # conformal shift using residuals of central interval
     y = window_df[target_col].to_numpy(float)
     eps = (1.0 - target_cov) / 2.0
@@ -97,15 +136,17 @@ def candidate_lgbm(window_df: pd.DataFrame, preds_col: str, target_col: str, tar
     adj_low = float(np.nanquantile(e_med, eps))
     adj_high = float(np.nanquantile(e_med, 1.0 - eps))
     def produce_row(xrow: pd.DataFrame):
-        xrow = pd.DataFrame(xrow, columns=features).fillna(0)
-        q10r = float(models[10].predict(xrow)[0]) + adj_low
-        q50r = float(models[50].predict(xrow)[0])
-        q90r = float(models[90].predict(xrow)[0]) + adj_high
+        xrow = pd.DataFrame(xrow, columns=present_feats)
+        xrow = xrow.fillna(0)
+        xrow = xrow.infer_objects(copy=False)
+        q10r = float(models[10].predict(xrow, predict_disable_shape_check=True)[0]) + adj_low
+        q50r = float(models[50].predict(xrow, predict_disable_shape_check=True)[0])
+        q90r = float(models[90].predict(xrow, predict_disable_shape_check=True)[0]) + adj_high
         return np.array([[q10r, q50r, q90r]], float)
     def produce(preds_unused):
         # ignore preds input, rely on features/models
         return np.vstack([q10_pred + adj_low, q50_pred, q90_pred + adj_high]).T
-    return {'name': f'lgbm_quantile_conformal_{target_name}_{segment}', 'produce': produce, 'produce_row': produce_row, 'params': {'segment': segment, 'features': features}}
+    return {'name': f'lgbm_quantile_conformal_{target_name}_{segment}', 'produce': produce, 'produce_row': produce_row, 'params': {'segment': segment, 'features': present_feats, 'missing_features': missing}}
 
 
 def _interp_quantile_from_three(q10: float, q50: float, q90: float, tau: float) -> float:
@@ -255,7 +296,9 @@ def select_and_write(latest_date: str, out_dir: Path, preds_hist: pd.DataFrame, 
 def main(window_days: int = 28, target_cov: float = 0.8):
     root = Path(__file__).resolve().parents[1]
     out_dir = root / 'outputs'
-    bt = _read_csv(out_dir / 'backtest_reports' / 'backtest_joined.csv')
+    # Prefer enriched backtest for feature availability
+    bt_en = out_dir / 'backtest_reports' / 'backtest_joined_enriched.csv'
+    bt = _read_csv(bt_en if bt_en.exists() else (out_dir / 'backtest_reports' / 'backtest_joined.csv'))
     preds_hist = _read_csv(out_dir / 'predictions_history_enriched.csv')
     if bt.empty or preds_hist.empty:
         raise SystemExit('Missing backtest_joined or predictions_history_enriched')
@@ -281,10 +324,14 @@ def main(window_days: int = 28, target_cov: float = 0.8):
     # Load features from quantile_models/meta.json
     qmeta_path = out_dir / 'quantile_models' / 'meta.json'
     qfeatures = []
+    qfeatures_by_seg_total = {}
+    qfeatures_by_seg_margin = {}
     if qmeta_path.exists():
         try:
             qmeta = json.loads(qmeta_path.read_text(encoding='utf-8'))
             qfeatures = qmeta.get('features') or []
+            qfeatures_by_seg_total = qmeta.get('features_by_segment_total') or {}
+            qfeatures_by_seg_margin = qmeta.get('features_by_segment_margin') or {}
         except Exception:
             qfeatures = []
     if qfeatures:
@@ -292,12 +339,14 @@ def main(window_days: int = 28, target_cov: float = 0.8):
         mm = _load_lgbm_models(ROOT, 'margin', 'med')
         if mt:
             try:
-                cands_total.append(candidate_lgbm(win, preds_col_total, 'actual_total', target_cov, 'mid', 'total', qfeatures, mt))
+                feats_mid = qfeatures_by_seg_total.get('mid') or qfeatures
+                cands_total.append(candidate_lgbm(win, preds_col_total, 'actual_total', target_cov, 'mid', 'total', feats_mid, mt))
             except Exception:
                 pass
         if mm:
             try:
-                cands_margin.append(candidate_lgbm(win, preds_col_margin, 'actual_margin', target_cov, 'med', 'margin', qfeatures, mm))
+                feats_med = qfeatures_by_seg_margin.get('med') or qfeatures
+                cands_margin.append(candidate_lgbm(win, preds_col_margin, 'actual_margin', target_cov, 'med', 'margin', feats_med, mm))
             except Exception:
                 pass
     # Score overall
@@ -401,9 +450,10 @@ def main(window_days: int = 28, target_cov: float = 0.8):
             # add segment LGBM candidate if available
             lmt = _load_lgbm_models(ROOT, 'total', seg)
             seg_cands = list(cands_total)
-            if lmt and qfeatures:
+            if lmt and (qfeatures or qfeatures_by_seg_total):
                 try:
-                    seg_cands.append(candidate_lgbm(seg_df, preds_col_total, 'actual_total', target_cov, seg, 'total', qfeatures, lmt))
+                    feats_seg = qfeatures_by_seg_total.get(seg) or qfeatures
+                    seg_cands.append(candidate_lgbm(seg_df, preds_col_total, 'actual_total', target_cov, seg, 'total', feats_seg, lmt))
                 except Exception:
                     pass
             sc = [score_candidate(seg_df, preds_col_total, 'actual_total', c) for c in seg_cands]
@@ -416,9 +466,10 @@ def main(window_days: int = 28, target_cov: float = 0.8):
         if len(seg_df) >= 100:
             lmm = _load_lgbm_models(ROOT, 'margin', seg)
             seg_cands = list(cands_margin)
-            if lmm and qfeatures:
+            if lmm and (qfeatures or qfeatures_by_seg_margin):
                 try:
-                    seg_cands.append(candidate_lgbm(seg_df, preds_col_margin, 'actual_margin', target_cov, seg, 'margin', qfeatures, lmm))
+                    feats_seg = qfeatures_by_seg_margin.get(seg) or qfeatures
+                    seg_cands.append(candidate_lgbm(seg_df, preds_col_margin, 'actual_margin', target_cov, seg, 'margin', feats_seg, lmm))
                 except Exception:
                     pass
             sc = [score_candidate(seg_df, preds_col_margin, 'actual_margin', c) for c in seg_cands]

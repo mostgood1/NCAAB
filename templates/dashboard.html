@@ -15,6 +15,8 @@
     .banner { margin: 12px 0; padding: 12px; border-radius: 6px; background: #fff3cd; border: 1px solid #ffecb5; display: none; }
     .banner-summary { margin-left: 8px; }
     .banner-list { margin-top: 6px; font-size: 14px; }
+    .kv { width: 100%; border-collapse: collapse; }
+    .kv td { padding: 4px 6px; border-bottom: 1px solid #eee; }
   </style>
   <script>
     async function fetchJSON(url) {
@@ -39,6 +41,7 @@
       const qsel = await fetchJSON('/api/quantile-selection');
       const qseg = await fetchJSON('/api/quantile-segment-metrics');
       const qsegTrend = await fetchJSON('/api/quantile-segment-trend');
+      const stakeRiskVar = (stakeRisk && stakeRisk.var) ? stakeRisk.var : {};
 
       const qtLatest = latest(quantTrend) || {};
       const driftLatest = latest(driftWeekly) || {};
@@ -58,6 +61,18 @@
       document.querySelector('#sr-count').textContent = safeLen(stakeRisk);
       document.querySelector('#sr-date').textContent = srLatest.date || '';
       document.querySelector('#sr-alerts').textContent = srLatest.alerts || '';
+      // Portfolio VaR/ES subcard and alert
+      const warnThreshold = (stakeRiskVar && stakeRiskVar.threshold_es99 != null) ? Number(stakeRiskVar.threshold_es99) : -500; // ES99 alert threshold
+      const es99 = stakeRiskVar.es99;
+      const riskAlert = (es99 != null && !isNaN(es99) && Number(es99) < warnThreshold)
+        ? `Risk Alert: ES99 ${Number(es99).toFixed(0)} below ${warnThreshold}`
+        : '';
+      document.querySelector('#risk-alert').textContent = riskAlert;
+      function fmt0(x){ return (x!=null && !isNaN(x)) ? Number(x).toFixed(0) : 'N/A'; }
+      document.querySelector('#var95').textContent = fmt0(stakeRiskVar.var95);
+      document.querySelector('#var99').textContent = fmt0(stakeRiskVar.var99);
+      document.querySelector('#es95').textContent = fmt0(stakeRiskVar.es95);
+      document.querySelector('#es99').textContent = fmt0(stakeRiskVar.es99);
 
       // Alerts banner
       if (alerts && alerts.status === 'ok' && alerts.data) {
@@ -234,6 +249,13 @@
       <h2>Stake Risk Summary</h2>
       <div class="meta">Rows: <span id="sr-count"></span> | Latest: <span id="sr-date"></span></div>
       <div>Alerts: <span id="sr-alerts" class="alert"></span></div>
+      <div id="risk-alert" class="alert"></div>
+      <table class="kv">
+        <tr><td>VaR 95%</td><td><span id="var95"></span></td></tr>
+        <tr><td>VaR 99%</td><td><span id="var99"></span></td></tr>
+        <tr><td>ES 95%</td><td><span id="es95"></span></td></tr>
+        <tr><td>ES 99%</td><td><span id="es99"></span></td></tr>
+      </table>
       <div class="links">
         <a href="/stake-risk-summary">View Page</a>
         <a href="/api/stake-risk-summary" target="_blank">JSON</a>

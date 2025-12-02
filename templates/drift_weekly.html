@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Drift Weekly Summary</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f7f7f7; text-align: left; }
+    .alert { color: #b00020; font-weight: 600; }
+    .ok { color: #0a7; }
+  </style>
+</head>
+<body>
+  <h1>Drift Weekly Summary</h1>
+  <p class="muted">Shows interval coverage and quantile CRPS; highlights alerts.</p>
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>Week</th>
+        <th>Coverage Total (80%)</th>
+        <th>Coverage Margin (80%)</th>
+        <th>CRPS Total</th>
+        <th>CRPS Margin</th>
+        <th>Alert Total</th>
+        <th>Alert Margin</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    async function load() {
+      const res = await fetch('/api/drift-weekly');
+      const json = await res.json();
+      const tbody = document.querySelector('#tbl tbody');
+      tbody.innerHTML = '';
+      if (json.status !== 'ok' || !Array.isArray(json.data)) return;
+      for (const row of json.data) {
+        const tr = document.createElement('tr');
+        const c = (v) => v == null ? '—' : v;
+        const at = (row.alert_low_coverage_total === 1 || row.alert_high_crps_total === 1);
+        const am = (row.alert_low_coverage_margin === 1 || row.alert_high_crps_margin === 1);
+        tr.innerHTML = `
+          <td>${c(row.week)}</td>
+          <td>${c(row.covered_80_total)}</td>
+          <td>${c(row.covered_80_margin)}</td>
+          <td>${c(row.crps_total)}</td>
+          <td>${c(row.crps_margin)}</td>
+          <td class="${at ? 'alert' : 'ok'}">${at ? 'ALERT' : 'OK'}</td>
+          <td class="${am ? 'alert' : 'ok'}">${am ? 'ALERT' : 'OK'}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

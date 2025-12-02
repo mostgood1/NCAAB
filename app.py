@@ -115,6 +115,12 @@ _apply_calibration_and_sigma_post_run()
 import json
 import shutil
 import os
+# Load .env for configurable thresholds/settings if available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -303,10 +309,86 @@ def api_stake_risk_summary():
     try:
         out_dir = ROOT / 'outputs'
         spath = out_dir / 'stake_risk_summary.csv'
+        # Optional VaR/ES computed from today's stake and quantiles
+        try:
+            import os
+        except Exception:
+            os = None
+        threshold_es99 = -500.0
+        if os:
+            try:
+                threshold_es99 = float(os.environ.get('RISK_ES99_ALERT_THRESHOLD', threshold_es99))
+            except Exception:
+                pass
+        var95 = None; var99 = None; es95 = None; es99 = None
+        try:
+            stake_csv = out_dir / 'stake_sheet_calibrated.csv'
+            quant_csv = out_dir / 'quantiles_selected.csv'
+            if stake_csv.exists() and quant_csv.exists():
+                sdf = pd.read_csv(stake_csv)
+                qdf = pd.read_csv(quant_csv)
+                # Join by game_id and date
+                for df in (sdf, qdf):
+                    if 'game_id' in df.columns:
+                        df['game_id'] = df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                cols = ['date','game_id','stake','bet_kind','line','price']
+                sdf = sdf[[c for c in cols if c in sdf.columns]].copy()
+                j = pd.merge(sdf, qdf, on=['date','game_id'], how='inner')
+                # Approximate PnL distribution per bet using quantiles
+                pnls = []
+                for _, r in j.iterrows():
+                    stake = float(r.get('stake') or 0.0)
+                    price = float(r.get('price') or 0.0)
+                    kind = str(r.get('bet_kind') or '').lower()
+                    # probability from quantiles: over/under/spread implied via margin/total
+                    # Simplified: use q50 as central and width as uncertainty
+                    if 'total' in kind:
+                        q50 = float(r.get('q50_total') or np.nan)
+                        q10 = float(r.get('q10_total') or np.nan)
+                        q90 = float(r.get('q90_total') or np.nan)
+                    else:
+                        q50 = float(r.get('q50_margin') or np.nan)
+                        q10 = float(r.get('q10_margin') or np.nan)
+                        q90 = float(r.get('q90_margin') or np.nan)
+                    if not np.isfinite(q50) or not np.isfinite(q10) or not np.isfinite(q90):
+                        continue
+                    width = max(1e-6, q90 - q10)
+                    # crude mapping: win prob increases as central exceeds line for over/spread
+                    line = float(r.get('line') or 0.0)
+                    if 'over' in kind:
+                        edge = (q50 - line) / width
+                    elif 'under' in kind:
+                        edge = (line - q50) / width
+                    elif 'spread' in kind or 'ats' in kind:
+                        edge = (abs(q50) - abs(line)) / width
+                    else:
+                        edge = 0.0
+                    p_win = max(0.0, min(1.0, 0.5 + 0.4 * edge))
+                    # payoff: American odds price
+                    win_ret = stake * (price/100.0) if price > 0 else stake * (100.0/abs(price))
+                    lose_ret = -stake
+                    # sample PnL from a Bernoulli on quantile grid for portfolio approximation
+                    # represent as two-point distribution
+                    pnls.append(win_ret)
+                    pnls.append(lose_ret)
+                if pnls:
+                    arr = np.array(pnls, float)
+                    arr.sort()
+                    def _var(arr, lvl):
+                        return float(np.quantile(arr, 1.0 - lvl))
+                    def _es(arr, lvl):
+                        # expected shortfall beyond VaR
+                        cutoff = np.quantile(arr, 1.0 - lvl)
+                        tail = arr[arr <= cutoff]
+                        return float(np.mean(tail)) if len(tail) else cutoff
+                    var95 = _var(arr, 0.95); var99 = _var(arr, 0.99)
+                    es95 = _es(arr, 0.95); es99 = _es(arr, 0.99)
+        except Exception:
+            pass
         if not spath.exists():
-            return jsonify({'status':'missing','data':[]})
+            return jsonify({'status':'missing','data':[], 'var': {'var95': var95, 'var99': var99, 'es95': es95, 'es99': es99, 'threshold_es99': threshold_es99}})
         df = pd.read_csv(spath)
-        return jsonify({'status':'ok','data': df.to_dict(orient='records')})
+        return jsonify({'status':'ok','data': df.to_dict(orient='records'), 'var': {'var95': var95, 'var99': var99, 'es95': es95, 'es99': es99, 'threshold_es99': threshold_es99}})
     except Exception as e:
         return jsonify({'status':'error','message':str(e)})
 

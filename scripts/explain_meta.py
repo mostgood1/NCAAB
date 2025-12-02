@@ -186,6 +186,15 @@ def explain(model_path: Path, prefix: str):
     except Exception:
         pass
     xv = np.nan_to_num(X.values, nan=float(np.nanmean(X.values)))
+    # Guard against shape mismatch; pad or trim to match coef length
+    if xv.shape[1] != len(coef):
+        n_rows = xv.shape[0]
+        k = len(coef)
+        if xv.shape[1] < k:
+            pad = np.zeros((n_rows, k - xv.shape[1]), dtype=float)
+            xv = np.concatenate([xv, pad], axis=1)
+        else:
+            xv = xv[:, :k]
     raw_scores = xv @ coef + intercept
     # Compute per-feature contributions (matrix: n_rows x n_features)
     contrib = xv * coef.reshape(1, -1)

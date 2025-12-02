@@ -178,6 +178,18 @@ try {
     Write-Host 'SkipRetrain flag set; using existing models.'
   }
 
+  # Build engineered features for quantiles (rest/rolling) before quantile training
+  try {
+    & $VenvPython scripts/build_features.py
+  } catch { Write-Warning "build_features.py failed: $($_)" }
+  # Temporal CV for quantiles to pick best params or fallback spreads
+  try {
+    & $VenvPython scripts/train_quantiles_cv.py
+  } catch { Write-Warning "train_quantiles_cv.py failed: $($_)" }
+  try {
+    & $VenvPython scripts/train_quantiles.py
+  } catch { Write-Warning "train_quantiles.py failed: $($_)" }
+
   # Generate team-level historical features EARLY so inference has the freshest aggregates
   Write-Section '5b) Generate/refresh team-level historical features (pre-inference)'
   try {
@@ -236,6 +248,51 @@ try {
       & $VenvPython -m src.modeling.interval_predictions --date $todayIso --predictions-file $modelPredPath --results-dir (Join-Path $OutDir 'daily_results') --window-days 30
     }
   } catch { Write-Warning "interval predictions failed: $($_)" }
+
+  # Auto-recalibrate conformal buffers (writes scale hints JSON)
+  try {
+    & $VenvPython scripts/auto_recalibrate_conformal.py
+  } catch { Write-Warning "auto_recalibrate_conformal.py failed: $($_)" }
+
+  # Rolling backtest over trailing 28 days and publish latest summary
+  Write-Section '6i) Rolling backtest (28 days)'
+  try {
+    & $VenvPython scripts/backtest_models.py --days 28 --name latest
+    # Normalize latest summary/daily filenames for UI consumption
+    $btSummaries = Get-ChildItem -Path $OutDir -Filter 'backtest_summary_latest_*.csv' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+    if ($btSummaries -and $btSummaries.Count -gt 0) {
+      Copy-Item $btSummaries[0].FullName (Join-Path $OutDir 'backtest_summary_latest.csv') -Force
+    }
+    $btDailies = Get-ChildItem -Path $OutDir -Filter 'backtest_daily_latest_*.csv' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+    if ($btDailies -and $btDailies.Count -gt 0) {
+      Copy-Item $btDailies[0].FullName (Join-Path $OutDir 'backtest_daily_latest.csv') -Force
+    }
+  } catch { Write-Warning "backtest_models.py failed: $($_)" }
+
+  # Normalize odds and enrich backtest for quantile training/selection
+  Write-Section '6i.a) Normalize odds and enrich backtest (rest/travel/market)'
+  try {
+    & $VenvPython scripts/normalize_odds.py
+  } catch { Write-Warning "normalize_odds.py failed: $($_)" }
+  try {
+    & $VenvPython scripts/enrich_backtest_features.py
+  } catch { Write-Warning "enrich_backtest_features.py failed: $($_)" }
+  # Refresh segment-specific LGBM quantile models using CV-selected features (if available)
+  try {
+    & $VenvPython scripts/train_quantiles_cv.py
+  } catch { Write-Warning "train_quantiles_cv.py (pre-selection refresh) failed: $($_)" }
+  try {
+    & $VenvPython scripts/train_quantiles_lgbm.py
+  } catch { Write-Warning "train_quantiles_lgbm.py failed: $($_)" }
+
+  # Quantile selection for today's slate using residual-based central intervals
+  Write-Section '6j) Quantile selection (28d window, 80% coverage)'
+  try {
+    & $VenvPython scripts/select_quantiles_multi.py --window-days 28 --target-coverage 0.8
+  } catch {
+    Write-Warning "select_quantiles_multi.py failed: $($_). Falling back to simple residual-based selection."
+    try { & $VenvPython scripts/select_quantiles.py --window-days 28 --target-coverage 0.8 } catch { Write-Warning "select_quantiles.py failed: $($_)" }
+  }
 
   # Post-inference variance summary (inference-level dispersion)
   try {
@@ -381,6 +438,14 @@ try {
     & $VenvPython scripts/auto_refresh_calibration.py --date $todayIso
   } catch { Write-Warning "auto_refresh_calibration failed: $($_)" }
 
+  Write-Section '6g.i) Meta probability reliability + calibration'
+  try {
+    & $VenvPython scripts/compute_meta_reliability.py --limit-days 45
+  } catch { Write-Warning "compute_meta_reliability failed: $($_)" }
+  try {
+    & $VenvPython scripts/auto_calibrate_meta.py
+  } catch { Write-Warning "auto_calibrate_meta failed: $($_)" }
+
   Write-Section '6h) Explain meta models (feature contributions)'
   try {
     & $VenvPython scripts/explain_meta.py --date $todayIso
@@ -470,7 +535,9 @@ print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows fo
     Write-Section "9) Generate calibrated distributional stake sheet (if distributional columns present)"
   $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
   $calArtifact = Join-Path $OutDir 'models_dist\calibration_totals.json'
+  $qselForCli = Join-Path $OutDir 'quantiles_selected.csv'
   $distributionalArgs = @('--merged-csv', $alignEdges, '--out', $stakeCal, '--bankroll', '1000', '--kelly-fraction', '0.5', '--include-markets', 'totals,spreads', '--use-distributional', '--calibrate-probabilities')
+    if (Test-Path $qselForCli) { $distributionalArgs += @('--quantiles-csv', $qselForCli) }
     if (Test-Path $calArtifact) { $distributionalArgs += @('--calibration-artifact', $calArtifact) }
     try {
       & $VenvPython -m ncaab_model.cli bankroll-optimize @distributionalArgs
@@ -478,6 +545,48 @@ print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows fo
     catch {
       Write-Warning "bankroll-optimize distributional failed: $($_)"
     }
+
+    # Enrich stake sheets with quantile columns if available
+    Write-Section "9a) Annotate stake sheets with quantiles (q10/q50/q90)"
+    try {
+      $qselPath = Join-Path $OutDir 'quantiles_selected.csv'
+      if (Test-Path $qselPath) {
+        $pyAnnotate = @"
+import pandas as pd
+from pathlib import Path
+out_dir = Path(r'$OutDir')
+today = '$todayIso'
+q = pd.read_csv(out_dir/'quantiles_selected.csv')
+q['game_id'] = q['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+if 'date' in q.columns:
+    q = q[q['date'].astype(str) == today]
+keep = ['game_id','q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin']
+q = q[[c for c in keep if c in q.columns]].drop_duplicates('game_id')
+for name in ['stake_sheet_today.csv','stake_sheet_today_cal.csv']:
+    p = out_dir/name
+    try:
+        df = pd.read_csv(p)
+    except Exception:
+        continue
+    if 'game_id' not in df.columns:
+        # cannot safely join; skip
+        continue
+    df['game_id'] = df['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+    merged = df.merge(q, on='game_id', how='left')
+    merged.to_csv(p, index=False)
+print('Annotated stake sheets with quantiles (if matched by game_id).')
+"@
+        & $VenvPython -c $pyAnnotate
+      } else {
+        Write-Host 'quantiles_selected.csv not found; skipping stake sheet annotation.' -ForegroundColor Yellow
+      }
+    } catch { Write-Warning "Stake sheet quantile annotation failed: $($_)" }
+
+    # Archive dated copies of stake sheets for ROI backtests
+    try {
+      if (Test-Path $stakeBase) { Copy-Item $stakeBase (Join-Path $OutDir ("stake_sheet_" + $todayIso + "_base.csv")) -Force }
+      if (Test-Path $stakeCal)  { Copy-Item $stakeCal  (Join-Path $OutDir ("stake_sheet_" + $todayIso + "_cal.csv")) -Force }
+    } catch { Write-Warning "Failed archiving dated stake sheets: $($_)" }
 
     if ((Test-Path $stakeBase) -and (Test-Path $stakeCal)) {
       Write-Section "10) Compare baseline vs calibrated stake sheets"
@@ -544,6 +653,12 @@ print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows fo
   if ($autoCal) { $toStage += $autoCal.FullName }
   $metaExplain = Get-ChildItem -Path $OutDir -Filter ('meta_explain_' + $todayIso + '.json') -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($metaExplain) { $toStage += $metaExplain.FullName }
+  $metaECE = Join-Path $OutDir 'meta_ece.json'
+  if (Test-Path $metaECE) { $toStage += $metaECE }
+  $metaRel = Join-Path $OutDir 'meta_reliability.csv'
+  if (Test-Path $metaRel) { $toStage += $metaRel }
+  $metaCal = Join-Path $OutDir 'meta_calibration.json'
+  if (Test-Path $metaCal) { $toStage += $metaCal }
 
   # Newly produced aligned and stake artifacts
   $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
@@ -554,6 +669,30 @@ print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows fo
   if (Test-Path $stakeBase) { $toStage += $stakeBase }
   $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
   if (Test-Path $stakeCal) { $toStage += $stakeCal }
+
+  # Model selection and conformal autotune artifacts
+  $qcv = Join-Path $OutDir 'quantile_cv_results.csv'
+  if (Test-Path $qcv) { $toStage += $qcv }
+  $qsel = Join-Path $OutDir 'quantile_model_selection.json'
+  if (Test-Path $qsel) { $toStage += $qsel }
+  $qhist = Join-Path $OutDir 'quantiles_history.csv'
+  if (Test-Path $qhist) { $toStage += $qhist }
+  $qselCsv = Join-Path $OutDir 'quantiles_selected.csv'
+  if (Test-Path $qselCsv) { $toStage += $qselCsv }
+  $confAuto = Join-Path $OutDir 'conformal_autotune.json'
+  if (Test-Path $confAuto) { $toStage += $confAuto }
+
+  # Backtest latest summaries for dashboard
+  $btLatest = Join-Path $OutDir 'backtest_summary_latest.csv'
+  if (Test-Path $btLatest) { $toStage += $btLatest }
+
+  # ROI backtest generation and staging
+  Write-Section '10b) ROI backtest (28 days)'
+  try {
+    & $VenvPython scripts/backtest_roi.py --days 28 --name latest
+    $roiLatest = Join-Path $OutDir 'backtest_roi_latest.csv'
+    if (Test-Path $roiLatest) { $toStage += $roiLatest }
+  } catch { Write-Warning "backtest_roi.py failed: $($_)" }
 
       # Allowlist per-date odds snapshots so historical odds persist on Render
       $oddsPrev = Join-Path $OutDir ("odds_history/odds_" + $prevDate + ".csv")
