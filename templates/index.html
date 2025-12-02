@@ -1275,10 +1275,16 @@
               <div class="seg label">Predictions</div>
               <div class="seg">ATS: {% if r.pred_margin is not none %}{% set imp = (r.pred_margin * -1) %}{% if imp < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp }}{% elif imp > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp }}{% else %}Pick{% endif %}{% else %}–{% endif %}
                 {% if r.edge_ats is defined and r.edge_ats is not none and r.edge_ats == r.edge_ats %}
-                  <span class="badge" title="ATS edge vs spread (pred_margin + spread)">Edge={{ '%.1f' % r.edge_ats }}</span>
+                  <span class="badge" title="ATS edge vs spread (predicted spread − market spread)">Edge={{ '%.1f' % r.edge_ats }}</span>
                   {% if r.edge_ats_z is defined and r.edge_ats_z is not none and r.edge_ats_z == r.edge_ats_z %}
                     <span class="badge" title="ATS edge z-score">Z={{ '%.2f' % r.edge_ats_z }}</span>
                   {% endif %}
+                {% endif %}
+                {# ΔATS badge: predicted spread minus market spread #}
+                {% set _spr = (r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else none)) %}
+                {% if (r.pred_margin is not none and r.pred_margin == r.pred_margin) and (_spr is not none) %}
+                  {% set _delta_ats = ((r.pred_margin * -1) - _spr) %}
+                  <span class="badge" title="Predicted spread minus market spread (ATS)">ΔATS {{ '%.1f' % _delta_ats }}</span>
                 {% endif %}
               </div>
               <div class="seg">Winner: {% if r.pred_margin is not none %}{% if r.pred_margin > 0 %}{{ r.home_team }}{% elif r.pred_margin < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>

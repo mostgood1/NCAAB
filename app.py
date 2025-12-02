@@ -7879,7 +7879,8 @@ def index():
                             if "closing_spread_home" in df.columns:
                                 cs_series = pd.to_numeric(df["closing_spread_home"], errors="coerce")
                                 pm_series2 = pd.to_numeric(df["pred_margin"], errors="coerce")
-                                df.loc[override_mask_margin_cal, "edge_closing_ats"] = pm_series2[override_mask_margin_cal] - cs_series[override_mask_margin_cal]
+                                # Closing ATS edge: predicted home spread minus closing spread
+                                df.loc[override_mask_margin_cal, "edge_closing_ats"] = (-pm_series2[override_mask_margin_cal]) - cs_series[override_mask_margin_cal]
                                 pipeline_stats["calibration_recomputed_edge_closing_margin"] = int(override_mask_margin_cal.sum())
                         except Exception:
                             pipeline_stats["calibration_recompute_edge_closing_margin_error"] = True
@@ -9415,11 +9416,12 @@ def index():
             if {'pred_margin','spread_home'}.issubset(df.columns):
                 pm_d = pd.to_numeric(df['pred_margin'], errors='coerce')
                 sh_d = pd.to_numeric(df['spread_home'], errors='coerce')
-                df['edge_ats'] = pm_d + sh_d
+                # ATS edge is predicted home spread minus market spread: (-pred_margin) - spread_home
+                df['edge_ats'] = (-pm_d) - sh_d
                 # Z for ATS if sigma available
                 if 'pred_margin_sigma_bootstrap' in df.columns:
                     sigm = pd.to_numeric(df['pred_margin_sigma_bootstrap'], errors='coerce').replace(0, np.nan)
-                    z_m = (pm_d + sh_d) / sigm
+                    z_m = ((-pm_d) - sh_d) / sigm
                     df['edge_ats_z'] = z_m
                     zv_m = z_m.replace([np.inf,-np.inf], np.nan).dropna()
                     if not zv_m.empty:
@@ -9749,7 +9751,8 @@ def index():
                     pipeline_stats['pred_margin_force_fill_error'] = True
                 if 'spread_home' in df.columns:
                     sh2 = pd.to_numeric(df['spread_home'], errors='coerce')
-                    df['edge_ats'] = pd.to_numeric(df['pred_margin'], errors='coerce') - sh2
+                    # ATS edge: predicted home spread minus market spread
+                    df['edge_ats'] = (-pd.to_numeric(df['pred_margin'], errors='coerce')) - sh2
                 # Recompute favored side / by values
                 pm_num = pd.to_numeric(df['pred_margin'], errors='coerce')
                 df['favored_side'] = np.where(pm_num > 0, 'Home', np.where(pm_num < 0, 'Away', 'Even'))
@@ -10814,15 +10817,18 @@ def index():
     # Compute ATS and ML helpers if odds present
     try:
         if "spread_home" in df.columns and "pred_margin" in df.columns:
-            df["edge_ats"] = pd.to_numeric(df["pred_margin"], errors="coerce") - pd.to_numeric(df["spread_home"], errors="coerce")
+            # ATS edge (full game): predicted home spread minus market spread
+            df["edge_ats"] = -pd.to_numeric(df["pred_margin"], errors="coerce") - pd.to_numeric(df["spread_home"], errors="coerce")
         if "spread_home_1h" in df.columns and "pred_margin_1h" in df.columns:
-            df["edge_ats_1h"] = pd.to_numeric(df["pred_margin_1h"], errors="coerce") - pd.to_numeric(df["spread_home_1h"], errors="coerce")
+            # ATS edge (1H): predicted home spread minus market spread
+            df["edge_ats_1h"] = -pd.to_numeric(df["pred_margin_1h"], errors="coerce") - pd.to_numeric(df["spread_home_1h"], errors="coerce")
         if "market_total_1h" in df.columns and "pred_total_1h" in df.columns:
             df["edge_total_1h"] = pd.to_numeric(df["pred_total_1h"], errors="coerce") - pd.to_numeric(df["market_total_1h"], errors="coerce")
         if "market_total_2h" in df.columns and "pred_total_2h" in df.columns:
             df["edge_total_2h"] = pd.to_numeric(df["pred_total_2h"], errors="coerce") - pd.to_numeric(df["market_total_2h"], errors="coerce")
         if "spread_home_2h" in df.columns and "pred_margin_2h" in df.columns:
-            df["edge_ats_2h"] = pd.to_numeric(df["pred_margin_2h"], errors="coerce") - pd.to_numeric(df["spread_home_2h"], errors="coerce")
+            # ATS edge (2H): predicted home spread minus market spread
+            df["edge_ats_2h"] = -pd.to_numeric(df["pred_margin_2h"], errors="coerce") - pd.to_numeric(df["spread_home_2h"], errors="coerce")
         # Derivative leans for 1H/2H totals and ATS
         if "edge_total_1h" in df.columns:
             et1 = pd.to_numeric(df["edge_total_1h"], errors="coerce")
