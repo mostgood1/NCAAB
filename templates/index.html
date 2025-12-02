@@ -20,12 +20,30 @@
     .pill.time-local{background:#12324e;border-color:#1d4d75;color:#f6f8ff;}
     .pill.time-local.rollover{background:#53257c;border-color:#6d36a5;color:#fff;}
     .pill.time-local.rollover::after{content:' • rollover';font-size:10px;margin-left:4px;opacity:0.85;}
+    /* Compact card mode: reduces spacing, font sizes, and enables grid layout */
+    .compact-card .card { padding: 8px; margin: 8px 0; }
+    .compact-card .card h3, .compact-card .card h4 { margin: 4px 0; font-size: 0.95rem; }
+    .compact-card .pill { padding: 2px 6px; font-size: 0.8rem; }
+    .compact-card .section { margin: 6px 0; }
+    .compact-card .kpi-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-items: center; }
+    .compact-card .kpi { background: rgba(255,255,255,0.06); border-radius: 6px; padding: 6px; font-size: 0.82rem; }
+    .compact-card .bar { height: 8px; border-radius: 4px; }
+    .compact-card .row-inline { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .compact-card .row-inline-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .compact-card .tiny { font-size: 0.75rem; opacity: 0.9; }
+    .compact-card .wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+    .compact-card .nowrap { white-space: nowrap; }
+    .compact-card .collapse-pad { padding: 4px 0; }
+    /* Reduce large sliders width if present */
+    .compact-card .slider { max-width: 100%; }
+    /* Prevent vertical overflow by allowing content to wrap inline */
+    .compact-card .stack { display: contents; }
   </style>
 </head>
 <body>
   <div id="notifyHost" aria-live="polite" class="notify-host"></div>
   {# Dynamic CSS removed; will apply colors via data attributes and a script to avoid template/CSS lint conflicts #}
-  <div class="container">
+  <div class="container {% if compact_mode %}compact-card{% endif %}">
     {# Removed top picks and season summary for declutter #}
     <div class="row header">
       <h1>NCAAB – Cards</h1>
@@ -1274,17 +1292,15 @@
             <div class="line-row preds-row">
               <div class="seg label">Predictions</div>
               <div class="seg">ATS: {% if r.pred_margin is not none %}{% set imp = (r.pred_margin * -1) %}{% if imp < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp }}{% elif imp > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp }}{% else %}Pick{% endif %}{% else %}–{% endif %}
-                {% if r.edge_ats is defined and r.edge_ats is not none and r.edge_ats == r.edge_ats %}
-                  <span class="badge" title="ATS edge vs spread (predicted spread − market spread)">Edge={{ '%.1f' % r.edge_ats }}</span>
-                  {% if r.edge_ats_z is defined and r.edge_ats_z is not none and r.edge_ats_z == r.edge_ats_z %}
-                    <span class="badge" title="ATS edge z-score">Z={{ '%.2f' % r.edge_ats_z }}</span>
-                  {% endif %}
-                {% endif %}
-                {# ΔATS badge: predicted spread minus market spread #}
+                {# Compute Edge and ΔATS inline from pred_margin and available spread to avoid stale CSV fields #}
                 {% set _spr = (r.spread_home if (r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else none)) %}
                 {% if (r.pred_margin is not none and r.pred_margin == r.pred_margin) and (_spr is not none) %}
-                  {% set _delta_ats = ((r.pred_margin * -1) - _spr) %}
-                  <span class="badge" title="Predicted spread minus market spread (ATS)">ΔATS {{ '%.1f' % _delta_ats }}</span>
+                  {% set _edge_ats = ((r.pred_margin * -1) - _spr) %}
+                  <span class="badge" title="ATS edge vs spread (predicted spread − market spread)">Edge={{ '%.1f' % _edge_ats }}</span>
+                  <span class="badge" title="Predicted spread minus market spread (ATS)">ΔATS {{ '%.1f' % _edge_ats }}</span>
+                {% endif %}
+                {% if r.edge_ats_z is defined and r.edge_ats_z is not none and r.edge_ats_z == r.edge_ats_z %}
+                  <span class="badge" title="ATS edge z-score">Z={{ '%.2f' % r.edge_ats_z }}</span>
                 {% endif %}
               </div>
               <div class="seg">Winner: {% if r.pred_margin is not none %}{% if r.pred_margin > 0 %}{{ r.home_team }}{% elif r.pred_margin < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
@@ -1389,7 +1405,20 @@
                 <div class="group-title">1st Half</div>
                 <div class="line-row">
                   <div class="seg label">Predictions</div>
-                  <div class="seg">ATS: {% if r.pred_margin_1h is not none %}{% set imp1 = (r.pred_margin_1h * -1) %}{% if imp1 < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp1 }}{% elif imp1 > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp1 }}{% else %}Pick{% endif %}{% else %}–{% endif %}</div>
+                  <div class="seg">ATS: {% if r.pred_margin_1h is not none %}{% set imp1 = (r.pred_margin_1h * -1) %}{% if imp1 < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp1 }}{% elif imp1 > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp1 }}{% else %}Pick{% endif %}{% else %}–{% endif %}
+                    {% set _spr1 = (
+                      (r.spread_home_1h if (r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else none)
+                      if (r.spread_home_1h is defined) else none
+                    ) %}
+                    {% if _spr1 is none and (r.closing_spread_home_1h is defined) %}
+                      {% set _spr1 = (r.closing_spread_home_1h if (r.closing_spread_home_1h is not none and r.closing_spread_home_1h == r.closing_spread_home_1h) else none) %}
+                    {% endif %}
+                    {% if (r.pred_margin_1h is not none and r.pred_margin_1h == r.pred_margin_1h) and (_spr1 is not none) %}
+                      {% set _edge_ats_1h = ((r.pred_margin_1h * -1) - _spr1) %}
+                      <span class="badge" title="ATS edge vs spread (predicted 1H spread − market 1H spread)">Edge={{ '%.1f' % _edge_ats_1h }}</span>
+                      <span class="badge" title="Predicted 1H spread minus market 1H spread (ATS)">ΔATS {{ '%.1f' % _edge_ats_1h }}</span>
+                    {% endif %}
+                  </div>
                   <div class="seg">Winner: {% if r.pred_margin_1h is not none %}{% if r.pred_margin_1h > 0 %}{{ r.home_team }}{% elif r.pred_margin_1h < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
                   <div class="seg">Team Totals: {% if r.proj_home_1h is not none and r.proj_away_1h is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away_1h }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home_1h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if r.pred_total_1h is not none %}{{ '%.1f' % r.pred_total_1h }}{% else %}–{% endif %}</div>
@@ -1464,7 +1493,20 @@
                 <div class="group-title">2nd Half</div>
                 <div class="line-row">
                   <div class="seg label">Predictions</div>
-                  <div class="seg">ATS: {% if r.pred_margin_2h is not none %}{% set imp2 = (r.pred_margin_2h * -1) %}{% if imp2 < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp2 }}{% elif imp2 > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp2 }}{% else %}Pick{% endif %}{% else %}–{% endif %}</div>
+                  <div class="seg">ATS: {% if r.pred_margin_2h is not none %}{% set imp2 = (r.pred_margin_2h * -1) %}{% if imp2 < 0 %}{{ r.home_team or '–' }} {{ '%.1f' % imp2 }}{% elif imp2 > 0 %}{{ r.away_team or '–' }} -{{ '%.1f' % imp2 }}{% else %}Pick{% endif %}{% else %}–{% endif %}
+                    {% set _spr2 = (
+                      (r.spread_home_2h if (r.spread_home_2h is not none and r.spread_home_2h == r.spread_home_2h) else none)
+                      if (r.spread_home_2h is defined) else none
+                    ) %}
+                    {% if _spr2 is none and (r.closing_spread_home_2h is defined) %}
+                      {% set _spr2 = (r.closing_spread_home_2h if (r.closing_spread_home_2h is not none and r.closing_spread_home_2h == r.closing_spread_home_2h) else none) %}
+                    {% endif %}
+                    {% if (r.pred_margin_2h is not none and r.pred_margin_2h == r.pred_margin_2h) and (_spr2 is not none) %}
+                      {% set _edge_ats_2h = ((r.pred_margin_2h * -1) - _spr2) %}
+                      <span class="badge" title="ATS edge vs spread (predicted 2H spread − market 2H spread)">Edge={{ '%.1f' % _edge_ats_2h }}</span>
+                      <span class="badge" title="Predicted 2H spread minus market 2H spread (ATS)">ΔATS {{ '%.1f' % _edge_ats_2h }}</span>
+                    {% endif %}
+                  </div>
                   <div class="seg">Winner: {% if r.pred_margin_2h is not none %}{% if r.pred_margin_2h > 0 %}{{ r.home_team }}{% elif r.pred_margin_2h < 0 %}{{ r.away_team }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
                   <div class="seg">Team Totals: {% if r.proj_home_2h is not none and r.proj_away_2h is not none %}{{ r.away_team or '–' }} {{ '%.1f' % r.proj_away_2h }} / {{ r.home_team or '–' }} {{ '%.1f' % r.proj_home_2h }}{% else %}–{% endif %}</div>
                   <div class="seg">Overall: {% if r.pred_total_2h is not none %}{{ '%.1f' % r.pred_total_2h }}{% else %}–{% endif %}</div>

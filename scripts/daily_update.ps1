@@ -719,6 +719,13 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
 
       if ($toStage.Count -gt 0) {
         foreach ($p in $toStage) { git add $p }
+        # Also stage core frontend/backend files if modified today
+        $codePaths = @(
+          (Join-Path $RepoRoot 'app.py'),
+          (Join-Path $RepoRoot 'templates\index.html'),
+          (Join-Path $RepoRoot 'static\css\app.css')
+        )
+        foreach ($cp in $codePaths) { if (Test-Path $cp) { git add $cp } }
         # Optionally stage variance diagnostics if produced today
         $varTotalPath = Join-Path $OutDir ("variance/variance_total_" + $todayIso + ".json")
         $varMarginPath = Join-Path $OutDir ("variance/variance_margin_" + $todayIso + ".json")
@@ -727,7 +734,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   # Inference variance summary (produced earlier in step 5d) if present
   $infVarSummaryPath = Join-Path $OutDir ("variance/inference_variance_" + $todayIso + ".json")
   if (Test-Path $infVarSummaryPath) { git add $infVarSummaryPath }
-        $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data): update results and odds for $prevDate (today $todayIso)" }
+        $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data+ui): update outputs and UI for $prevDate (today $todayIso)" }
         $status = git status --porcelain
         if ($status) {
           git commit -m $msg

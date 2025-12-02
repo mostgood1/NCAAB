@@ -4062,6 +4062,11 @@ def index():
     # Optional view preference: force-calibrated display precedence even for tiny diffs
     prefer_cal_param = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
     prefer_cal_eff = prefer_cal_param
+    # Compact card mode toggle
+    try:
+        compact_mode = (request.args.get("compact") or "").strip().lower() in ("1","true","yes")
+    except Exception:
+        compact_mode = False
     # Probability calibration enable flag (?cal_probs=1 or env CALIBRATE_PROBS=1)
     try:
         calibrate_probs_param = (request.args.get("cal_probs") or "").strip().lower() in ("1","true","yes")
@@ -14764,9 +14769,31 @@ def index():
             pass
         return r
     # Apply midnight drift correction across rows (index page)
+    def _ensure_half_keys(record: dict) -> dict:
+        # Ensure half-time and closing keys exist to avoid Jinja UndefinedError
+        half_keys = [
+            "spread_home_1h",
+            "spread_home_2h",
+            "closing_spread_home_1h",
+            "closing_spread_home_2h",
+            "total_1h",
+            "total_2h",
+            "closing_total_1h",
+            "closing_total_2h",
+            "pred_margin_1h",
+            "pred_margin_2h",
+            "pred_total_1h",
+            "pred_total_2h",
+        ]
+        for k in half_keys:
+            if k not in record:
+                record[k] = None
+        return record
+
     safe_rows = []
     for _r in rows:
         r = _ensure_index_row(dict(_r))
+        r = _ensure_half_keys(r)
         # Backfill normalized local/display fields (venue precedence) before drift correction
         r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=str(date_q) if date_q else None)
@@ -14786,6 +14813,7 @@ def index():
         coverage=coverage_summary,
         archive_dates=archive_dates,
         show_bootstrap=show_bootstrap,
+        compact_mode=compact_mode,
         bootstrap_url=bootstrap_url,
         show_diag=show_diag,
         diag_url=diag_url,
