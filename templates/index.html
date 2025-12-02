@@ -1405,14 +1405,14 @@
               {% set cls_ats_full = 'neutral' if (r.ats_result == 'Push') else ('ok' if r.eval_ats_ok else ('bad' if r.ats_result else 'neutral')) %}
               {# Coerce ats_result to string to avoid TypeError when NaN/float #}
               {% set ats_text = (r.ats_result ~ '') %}
-              {% set ats_team_full = (r.home_team if ('Home' in ats_text) else (r.away_team if ('Away' in ats_text) else ('Push' if ats_text == 'Push' else None))) %}
+              {% set ats_team_full = (home_disp if ('Home' in ats_text) else (away_disp if ('Away' in ats_text) else ('Push' if ats_text == 'Push' else None))) %}
               <div class="seg {{ cls_ats_full }}">ATS: {% if ats_team_full == 'Push' %}Push{% elif ats_team_full %}{{ ats_team_full }} Cover{% else %}–{% endif %}</div>
               {# Safe ML winner extraction: coerce ml_result to string to avoid TypeError on NaN/None #}
               {% set ml_text = (r.ml_result ~ '') %}
-              {% set winner_team = r.home_team if 'Home' in ml_text else (r.away_team if 'Away' in ml_text else ('Push' if ml_text == 'Push' else None)) %}
+              {% set winner_team = home_disp if 'Home' in ml_text else (away_disp if 'Away' in ml_text else ('Push' if ml_text == 'Push' else None)) %}
               {% set cls_ml_full = 'neutral' if (winner_team == 'Push') else ('ok' if r.eval_ml_ok else ('bad' if winner_team else 'neutral')) %}
               <div class="seg {{ cls_ml_full }}">Winner: {{ winner_team or '–' }}</div>
-              <div class="seg">Team Totals: {% if r.home_score is not none and r.away_score is not none %}{{ r.away_team or '–' }} {{ r.away_score }} / {{ r.home_team or '–' }} {{ r.home_score }}{% else %}–{% endif %}</div>
+              <div class="seg">Team Totals: {% if r.home_score is not none and r.away_score is not none %}{{ away_disp or '–' }} {{ r.away_score }} / {{ home_disp or '–' }} {{ r.home_score }}{% else %}–{% endif %}</div>
               {% set ou_actual = ( 'Over' if (r.actual_total is not none and r.market_total is not none and r.actual_total > r.market_total) else ( 'Under' if (r.actual_total is not none and r.market_total is not none and r.actual_total < r.market_total) else ('Push' if (r.actual_total is not none and r.market_total is not none and r.actual_total == r.market_total) else None))) %}
               {% set ou_cls = 'neutral' if (ou_actual == 'Push' or ou_actual is none) else ( 'ok' if (r.lean_ou_side is defined and r.lean_ou_side == ou_actual) else ('bad' if (r.lean_ou_side is defined and r.lean_ou_side and ou_actual and r.lean_ou_side != ou_actual) else 'neutral')) %}
               {% set tooltip = '' %}
