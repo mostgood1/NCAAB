@@ -57,6 +57,11 @@ outputs/predictions_*.csv
 outputs/align_period_*.csv
 outputs/align_period_*_edges.csv
 
+# Frontend display snapshots: explicitly allowlist (place after generic ignores)
+!outputs/predictions_display_2025-*.csv
+!outputs/predictions_unified_enriched_2025-*.csv
+!outputs/archive/2025-*/predictions_display_2025-*.csv
+
 # Vendors / embedded repos
 onnxruntime/
 

@@ -697,6 +697,12 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   $btLatest = Join-Path $OutDir 'backtest_summary_latest.csv'
   if (Test-Path $btLatest) { $toStage += $btLatest }
 
+  # Frontend display snapshots and enriched predictions for current date
+  $predDisplay = Join-Path $OutDir ("predictions_display_" + $todayIso + ".csv")
+  if (Test-Path $predDisplay) { $toStage += $predDisplay }
+  $predEnriched = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
+  if (Test-Path $predEnriched) { $toStage += $predEnriched }
+
   # ROI backtest generation and staging
   Write-Section '10b) ROI backtest (28 days)'
   try {
