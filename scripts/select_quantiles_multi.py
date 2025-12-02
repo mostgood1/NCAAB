@@ -136,12 +136,14 @@ def candidate_lgbm(window_df: pd.DataFrame, preds_col: str, target_col: str, tar
     adj_low = float(np.nanquantile(e_med, eps))
     adj_high = float(np.nanquantile(e_med, 1.0 - eps))
     def produce_row(xrow: pd.DataFrame):
-        xrow = pd.DataFrame(xrow, columns=present_feats)
-        xrow = xrow.fillna(0)
-        xrow = xrow.infer_objects(copy=False)
+        # Build numeric frame directly to avoid FutureWarning on fillna downcasting
+        arr = np.array(xrow, dtype=float)
+        xdf = pd.DataFrame(arr, columns=present_feats)
+        # Replace NaNs with 0 in numeric dtype (no object downcast occurs)
+        xdf = xdf.fillna(0.0)
         q10r = float(models[10].predict(xrow, predict_disable_shape_check=True)[0]) + adj_low
-        q50r = float(models[50].predict(xrow, predict_disable_shape_check=True)[0])
-        q90r = float(models[90].predict(xrow, predict_disable_shape_check=True)[0]) + adj_high
+        q50r = float(models[50].predict(xdf, predict_disable_shape_check=True)[0])
+        q90r = float(models[90].predict(xdf, predict_disable_shape_check=True)[0]) + adj_high
         return np.array([[q10r, q50r, q90r]], float)
     def produce(preds_unused):
         # ignore preds input, rely on features/models
