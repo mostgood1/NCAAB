@@ -5,34 +5,34 @@ game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_
 401820609,Binghamton Bearcats,Lehigh Mountain Hawks,140.191,9.361599762960738,cal,cal,0.6910000000000025,6.861599762960738,139.5,2.5
 401820618,Bryant Bulldogs,Stonehill Skyhawks,141.7584,9.361599762960738,cal,cal,9.258399999999995,15.861599762960738,132.5,-6.5
 401827278,Penn State Nittany Lions,Campbell Fighting Camels,143.064,9.361599762960738,cal,cal,-11.936000000000007,22.861599762960736,155.0,-13.5
-401820827,Butler Bulldogs,Eastern Michigan Eagles,142.2548,9.361599762960738,cal,cal,-8.245200000000011,26.861599762960736,150.5,-17.5
-401820801,Charlotte 49ers,North Carolina A&T Aggies,140.837,9.361599762960738,cal,cal,-4.163000000000011,17.861599762960736,145.0,-8.5
-401813440,Dayton Flyers,East Tennessee State Buccaneers,142.1256,9.361599762960738,cal,cal,1.3755999999999915,20.861599762960736,140.75,-11.5
-401813451,Duquesne Dukes,William & Mary Tribe,140.259,9.361599762960738,cal,cal,-29.241000000000014,14.861599762960738,169.5,-5.5
-401820811,East Carolina Pirates,Maryland Eastern Shore Hawks,143.0776,9.361599762960738,cal,cal,15.57759999999999,21.861599762960736,127.5,-12.5
-401826703,George Mason Patriots,Cornell Big Red,142.078,9.361599762960738,cal,cal,-11.421999999999997,20.111599762960736,153.5,-10.75
-401830740,Indiana State Sycamores,Eureka Red Devils,140.259,9.361599762960738,cal,cal,-0.46650964355470137,10.520993073507613,,
-401823345,Jacksonville Dolphins,Florida A&M Rattlers,141.9522,9.361599762960738,cal,cal,3.452200000000005,19.861599762960736,138.5,-10.5
-401828340,Kennesaw State Owls,Jackson State Tigers,140.6398,9.361599762960738,cal,cal,-15.860199999999992,23.861599762960736,156.5,-14.5
-401823489,Mercer Bears,Georgia State Panthers,141.5544,9.361599762960738,cal,cal,-11.695600000000013,20.111599762960736,153.25,-10.75
-401831072,Miami (OH) RedHawks,Indiana University East IU EAST,141.5986,9.361599762960738,cal,cal,-1.3286308349609328,13.954492409750289,,
-401825392,Michigan State Spartans,Iowa Hawkeyes,141.6326,9.361599762960738,cal,cal,8.632599999999996,14.361599762960738,133.0,-5.0
-401823447,North Florida Ospreys,SIU Edwardsville Cougars,142.1154,9.361599762960738,cal,cal,-12.134600000000006,0.8615997629607381,154.25,8.5
-401806367,Pittsburgh Panthers,Texas A&M Aggies,139.8782,9.361599762960738,cal,cal,-10.121800000000007,5.861599762960738,150.0,3.5
-401812289,Providence Friars,Fairleigh Dickinson Knights,140.0992,9.361599762960738,cal,cal,-25.900800000000004,37.111599762960736,166.0,-27.75
-401817168,Rhode Island Rams,Brown Bears,140.5956,9.361599762960738,cal,cal,3.0955999999999904,23.361599762960736,137.5,-14.0
-401830631,South Alabama Jaguars,New Mexico State Aggies,141.6632,9.361599762960738,cal,cal,4.163199999999989,6.361599762960738,137.5,3.0
-401806372,South Carolina Gamecocks,Virginia Tech Hokies,142.1596,9.361599762960738,cal,cal,-8.840399999999988,10.861599762960738,151.0,-1.5
-401806366,Syracuse Orange,Tennessee Volunteers,140.6466,9.361599762960738,cal,cal,-5.3533999999999935,1.8615997629607381,146.0,7.5
-401830118,UNC Asheville Bulldogs,UNC Greensboro Spartans,141.4456,9.361599762960738,cal,cal,-2.054399999999987,14.861599762960738,143.5,-5.5
-401806370,Wake Forest Demon Deacons,Oklahoma Sooners,142.9178,9.361599762960738,cal,cal,-14.5822,13.861599762960738,157.5,-4.5
-401818303,Yale Bulldogs,SUNY-Maritime Privateers,140.769,9.361599762960738,cal,cal,-3.480893188476557,16.0171531038726,,
-401828909,Drake Bulldogs,Western Illinois Leathernecks,141.3912,9.361599762960738,cal,cal,5.891199999999998,26.861599762960736,135.5,-17.5
-401806364,Duke Blue Devils,Florida Gators,140.1468,9.361599762960738,cal,cal,-14.853199999999987,17.861599762960736,155.0,-8.5
-401812359,Long Island University Sharks,Winthrop Eagles,141.9284,9.361599762960738,cal,cal,2.095376928710948,-4.795788924173049,,
-401829349,Southeast Missouri State Redhawks,Saint Mary of the Woods College Pomeroys,139.8986,9.361599762960738,cal,cal,-2.2740379394531374,12.777730544134444,,
-401826845,Tulane Green Wave,Grambling Tigers,140.9526,9.361599762960738,cal,cal,0.7627348876953022,29.426216919943165,,
-401826882,Wichita State Shockers,Mount Marty College Lancers,142.8872,9.361599762960738,cal,cal,1.8097524902343878,16.66593898110039,,
+401820827,Butler Bulldogs,Eastern Michigan Eagles,142.2548,6.044055094962912,cal,cal,,,,
+401820801,Charlotte 49ers,North Carolina A&T Aggies,140.837,6.044055094962912,cal,cal,,,,
+401813440,Dayton Flyers,East Tennessee State Buccaneers,142.1256,6.044055094962912,cal,cal,,,,
+401813451,Duquesne Dukes,William & Mary Tribe,140.259,6.044055094962912,cal,cal,,,,
+401820811,East Carolina Pirates,Maryland Eastern Shore Hawks,143.0776,6.044055094962912,cal,cal,,,,
+401826703,George Mason Patriots,Cornell Big Red,142.078,6.044055094962912,cal,cal,,,,
+401830740,Indiana State Sycamores,Eureka Red Devils,140.259,6.044055094962912,cal,cal,,,,
+401823345,Jacksonville Dolphins,Florida A&M Rattlers,141.9522,6.044055094962912,cal,cal,,,,
+401828340,Kennesaw State Owls,Jackson State Tigers,140.6398,6.044055094962912,cal,cal,,,,
+401823489,Mercer Bears,Georgia State Panthers,141.5544,6.044055094962912,cal,cal,,,,
+401831072,Miami (OH) RedHawks,Indiana University East IU EAST,141.5986,6.044055094962912,cal,cal,,,,
+401825392,Michigan State Spartans,Iowa Hawkeyes,141.6326,6.044055094962912,cal,cal,,,,
+401823447,North Florida Ospreys,SIU Edwardsville Cougars,142.1154,6.044055094962912,cal,cal,,,,
+401806367,Pittsburgh Panthers,Texas A&M Aggies,139.8782,6.044055094962912,cal,cal,,,,
+401812289,Providence Friars,Fairleigh Dickinson Knights,140.0992,6.044055094962912,cal,cal,,,,
+401817168,Rhode Island Rams,Brown Bears,140.5956,6.044055094962912,cal,cal,,,,
+401830631,South Alabama Jaguars,New Mexico State Aggies,141.6632,6.044055094962912,cal,cal,,,,
+401806372,South Carolina Gamecocks,Virginia Tech Hokies,142.1596,6.044055094962912,cal,cal,,,,
+401806366,Syracuse Orange,Tennessee Volunteers,140.6466,6.044055094962912,cal,cal,,,,
+401830118,UNC Asheville Bulldogs,UNC Greensboro Spartans,141.4456,6.044055094962912,cal,cal,,,,
+401806370,Wake Forest Demon Deacons,Oklahoma Sooners,142.9178,6.044055094962912,cal,cal,,,,
+401818303,Yale Bulldogs,SUNY-Maritime Privateers,140.769,6.044055094962912,cal,cal,,,,
+401828909,Drake Bulldogs,Western Illinois Leathernecks,141.3912,6.044055094962912,cal,cal,,,,
+401806364,Duke Blue Devils,Florida Gators,140.1468,6.044055094962912,cal,cal,,,,
+401812359,Long Island University Sharks,Winthrop Eagles,141.9284,6.044055094962912,cal,cal,,,,
+401829349,Southeast Missouri State Redhawks,Saint Mary of the Woods College Pomeroys,139.8986,6.044055094962912,cal,cal,,,,
+401826845,Tulane Green Wave,Grambling Tigers,140.9526,6.044055094962912,cal,cal,,,,
+401826882,Wichita State Shockers,Mount Marty College Lancers,142.8872,6.044055094962912,cal,cal,,,,
 401823871,Arkansas State Red Wolves,UT Arlington Mavericks,140.5106,6.044055094962912,cal,cal,,,,
 401819828,Baylor Bears,Sacramento State Hornets,141.7448,6.044055094962912,cal,cal,,,,
 401824138,Bradley Braves,Washington State Cougars,141.5204,6.044055094962912,cal,cal,,,,

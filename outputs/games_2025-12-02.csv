@@ -1,10 +1,10 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401820844,2025,2025-12-02,2025-12-02 17:00:00+00:00,2025-12-02 12:00,EST,UT Martin Skyhawks,Charleston Southern Buccaneers,36,31,36.0,31.0,0.0,0.0,False,Kathleen and Tom Elam Center
+401827278,2025,2025-12-02,2025-12-02 23:00:00+00:00,2025-12-02 18:00,EST,Penn State Nittany Lions,Campbell Fighting Camels,18,19,18.0,19.0,,,False,Bryce Jordan Center
+401820618,2025,2025-12-02,2025-12-02 23:00:00+00:00,2025-12-02 18:00,EST,Bryant Bulldogs,Stonehill Skyhawks,25,26,25.0,26.0,,,False,Chace Athletic Center
 401826753,2025,2025-12-02,2025-12-02 16:00:00+00:00,2025-12-02 11:00,EST,Western Carolina Catamounts,Virginia-Lynchburg Dragons,124,62,58.0,32.0,66.0,30.0,False,Ramsey Center
 401817148,2025,2025-12-02,2025-12-02 16:00:00+00:00,2025-12-02 11:00,EST,Army Black Knights,George Washington Revolutionaries,70,84,37.0,45.0,33.0,39.0,False,Christl Arena
-401827278,2025,2025-12-02,2025-12-02 23:00:00+00:00,2025-12-02 18:00,EST,Penn State Nittany Lions,Campbell Fighting Camels,0,0,,,,,False,Bryce Jordan Center
-401820618,2025,2025-12-02,2025-12-02 23:00:00+00:00,2025-12-02 18:00,EST,Bryant Bulldogs,Stonehill Skyhawks,0,0,,,,,False,Chace Athletic Center
-401820609,2025,2025-12-02,2025-12-02 23:00:00+00:00,2025-12-02 18:00,EST,Binghamton Bearcats,Lehigh Mountain Hawks,0,0,,,,,False,Events Center (Binghamton)
+401820844,2025,2025-12-02,2025-12-02 17:00:00+00:00,2025-12-02 12:00,EST,UT Martin Skyhawks,Charleston Southern Buccaneers,73,56,36.0,31.0,37.0,25.0,False,Kathleen and Tom Elam Center
+401820609,2025,2025-12-02,2025-12-03 00:00:00+00:00,2025-12-02 19:00,EST,Binghamton Bearcats,Lehigh Mountain Hawks,0,0,,,,,False,Events Center (Binghamton)
 401825392,2025,2025-12-02,2025-12-03 00:00:00+00:00,2025-12-02 19:00,EST,Michigan State Spartans,Iowa Hawkeyes,0,0,,,,,False,Breslin Center
 401806366,2025,2025-12-02,2025-12-03 00:00:00+00:00,2025-12-02 19:00,EST,Syracuse Orange,Tennessee Volunteers,0,0,,,,,False,JMA Wireless Dome
 401831072,2025,2025-12-02,2025-12-03 00:00:00+00:00,2025-12-02 19:00,EST,Miami (OH) RedHawks,Indiana University East IU EAST,0,0,,,,,False,Millett Hall
