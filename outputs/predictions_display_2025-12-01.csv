@@ -1,0 +1,20 @@
+game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home
+401837346,Chicago State Cougars,St. Xavier  (IL) Cougars,151.0936,6.044055094962912,cal,cal,1.5936000000000092,8.544055094962912,,
+401827016,Southern Jaguars,Louisiana Christian Wildcats,142.075,6.044055094962912,cal,cal,0.0,6.044055094962912,,
+401823470,Toledo Rockets,Central State (OH) Marauders,141.065,6.044055094962912,cal,cal,0.0,6.044055094962912,,
+401823565,Villanova Wildcats,Temple Owls,149.9088,6.044055094962912,cal,cal,0.9088000000000136,18.794055094962914,149.0,-12.75
+401819846,Cincinnati Bearcats,Tarleton State Texans,144.9108,6.044055094962912,cal,cal,-1.0892000000000053,25.544055094962914,146.0,-19.5
+401824308,Delaware Blue Hens,Iona Gaels,152.5208,6.044055094962912,cal,cal,1.0208000000000084,4.044055094962912,151.5,2.0
+401827523,Hampton Pirates,Apprentice School Builders,143.285,6.044055094962912,cal,cal,0.0,6.044055094962912,,
+401823437,Jacksonville State Gamecocks,North Alabama Lions,135.7756,6.044055094962912,cal,cal,0.7755999999999972,11.044055094962912,135.0,-5.0
+401825387,Troy Trojans,West Georgia Wolves,149.86,6.044055094962912,cal,cal,1.3600000000000136,23.544055094962914,148.5,-17.5
+401812384,Xavier Musketeers,Saint Francis Red Flash,149.6112,6.044055094962912,cal,cal,-1.3888000000000034,34.044055094962914,,
+401808731,Incarnate Word Cardinals,McNeese Cowboys,143.6328,6.044055094962912,cal,cal,-0.8671999999999969,-4.455944905037088,144.5,10.5
+401822998,Middle Tennessee Blue Raiders,UAB Blazers,152.2168,6.044055094962912,cal,cal,-1.2831999999999937,4.544055094962912,153.5,1.5
+401822368,Eastern Illinois Panthers,Blackburn Beavers,141.279,6.044055094962912,cal,cal,,,,
+401819893,Kansas State Wildcats,Bowling Green Falcons,140.4902,6.044055094962912,cal,cal,,,,
+401820546,Northern Iowa Panthers,Coe Kohawks,141.789,6.044055094962912,cal,cal,,,,
+401823546,Southern Utah Thunderbirds,West Coast Baptist Eagles,139.834,6.044055094962912,cal,cal,,,,
+401819866,Colorado Buffaloes,California Baptist Lancers,141.262,6.044055094962912,cal,cal,,,,
+401830319,New Mexico Lobos,New Mexico Highlands Cowboys,142.2004,6.044055094962912,cal,cal,,,,
+401817470,Stanford Cardinal,Portland Pilots,141.6598,6.044055094962912,cal,cal,,,,
