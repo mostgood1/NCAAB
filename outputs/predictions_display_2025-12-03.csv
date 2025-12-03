@@ -1,10 +1,10 @@
 game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home
-401824952,Lipscomb Bisons,Tennessee Tech Golden Eagles,140.6568,9.361599762960738,cal,cal,-11.843199999999996,19.361599762960736,152.5,-10.0
-401827132,UIC Flames,Arkansas-Pine Bluff Golden Lions,140.0992,9.361599762960738,cal,cal,-23.400800000000004,25.611599762960736,163.5,-16.0
+401824952,Lipscomb Bisons,Tennessee Tech Golden Eagles,140.6568,9.361599762960738,cal,cal,-26.843199999999996,7.861599762960738,152.5,-10.0
+401827132,UIC Flames,Arkansas-Pine Bluff Golden Lions,140.0992,9.361599762960738,cal,cal,7.599199999999996,12.861599762960738,163.5,-16.25
 401824360,Boston University Terriers,Vermont State - Johnson Badgers,142.6152,9.361599762960738,cal,cal,0.7639579345702998,12.276539643331832,,
-401812667,Holy Cross Crusaders,Northeastern Huskies,141.3232,9.361599762960738,cal,cal,-4.176799999999986,1.8615997629607381,145.5,7.5
+401812667,Holy Cross Crusaders,Northeastern Huskies,141.3232,9.361599762960738,cal,cal,-3.176799999999986,1.8615997629607381,144.5,7.5
 401826736,App State Mountaineers,Virginia-Lynchburg Dragons,140.0006,9.361599762960738,cal,cal,-1.850642065429696,12.276539643331832,,
-401817503,Youngstown State Penguins,Wright State Raiders,141.7176,9.361599762960738,cal,cal,-1.7823999999999955,12.861599762960738,143.5,-3.5
+401817503,Youngstown State Penguins,Wright State Raiders,141.7176,9.361599762960738,cal,cal,-2.7823999999999955,13.361599762960738,144.5,-4.0
 401809080,Akron Zips,Bucknell Bison,141.8978,6.044055094962912,cal,cal,,,,
 401827515,American University Eagles,Drexel Dragons,141.9012,6.044055094962912,cal,cal,,,,
 401823219,Bellarmine Knights,Midway University Eagles,141.6428,6.044055094962912,cal,cal,,,,
