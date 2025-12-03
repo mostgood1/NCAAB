@@ -1,0 +1,35 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+ffc616c4bbe31ee7815fb057a1330970,FanDuel,2025-12-03 14:40:41.862991+00:00,-2500.0,1100.0,-16.5,164.5,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+ffc616c4bbe31ee7815fb057a1330970,LowVig.ag,2025-12-03 14:40:41.862991+00:00,,,-16.0,164.5,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+ffc616c4bbe31ee7815fb057a1330970,Fanatics,2025-12-03 14:40:41.862991+00:00,-2000.0,1100.0,-16.0,163.5,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+ffc616c4bbe31ee7815fb057a1330970,BetOnline.ag,2025-12-03 14:40:41.862991+00:00,,,-16.0,164.5,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+ffc616c4bbe31ee7815fb057a1330970,DraftKings,2025-12-03 14:40:41.862991+00:00,,,-16.5,163.5,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+ffc616c4bbe31ee7815fb057a1330970,BetMGM,2025-12-03 14:40:41.862991+00:00,-2500.0,1100.0,-16.5,163.5,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+ffc616c4bbe31ee7815fb057a1330970,BetRivers,2025-12-03 14:40:41.862991+00:00,-1667.0,800.0,-16.5,165.0,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+ffc616c4bbe31ee7815fb057a1330970,Bovada,2025-12-03 14:40:41.862991+00:00,,,-16.0,163.0,2025-12-03 17:00:00+00:00,UIC Flames,Arkansas-Pine Bluff Golden Lions
+25ae5e0cd06f13daf547ffa4785f00ec,FanDuel,2025-12-03 14:40:41.862991+00:00,-530.0,390.0,-9.5,152.5,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+25ae5e0cd06f13daf547ffa4785f00ec,Fanatics,2025-12-03 14:40:41.862991+00:00,-450.0,350.0,-9.0,151.5,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+25ae5e0cd06f13daf547ffa4785f00ec,BetOnline.ag,2025-12-03 14:40:41.862991+00:00,,,-9.0,152.5,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+25ae5e0cd06f13daf547ffa4785f00ec,LowVig.ag,2025-12-03 14:40:41.862991+00:00,,,-9.0,152.5,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+25ae5e0cd06f13daf547ffa4785f00ec,DraftKings,2025-12-03 14:40:41.862991+00:00,-455.0,350.0,-8.5,152.5,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+25ae5e0cd06f13daf547ffa4785f00ec,BetMGM,2025-12-03 14:40:41.862991+00:00,-550.0,400.0,-9.5,152.5,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+25ae5e0cd06f13daf547ffa4785f00ec,BetRivers,2025-12-03 14:40:41.862991+00:00,-560.0,390.0,-9.5,151.5,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+25ae5e0cd06f13daf547ffa4785f00ec,Bovada,2025-12-03 14:40:41.862991+00:00,-550.0,390.0,-9.0,151.0,2025-12-03 17:00:00+00:00,Lipscomb Bisons,Tennessee Tech Golden Eagles
+e62544a6bae038fb0fbb5eaa6fc49b91,DraftKings,2025-12-03 14:40:41.862991+00:00,235.0,-290.0,6.5,145.5,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,BetOnline.ag,2025-12-03 14:40:41.862991+00:00,,,6.5,145.5,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,LowVig.ag,2025-12-03 14:40:41.862991+00:00,,,6.5,145.5,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,BetMGM,2025-12-03 14:40:41.862991+00:00,230.0,-285.0,6.5,145.5,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,Fanatics,2025-12-03 14:40:41.862991+00:00,240.0,-300.0,7.0,144.5,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,FanDuel,2025-12-03 14:40:41.862991+00:00,250.0,-325.0,7.5,144.5,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,BetRivers,2025-12-03 14:40:41.862991+00:00,210.0,-278.0,6.5,145.5,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,Bovada,2025-12-03 14:40:41.862991+00:00,240.0,-290.0,7.0,144.0,2025-12-03 23:00:00+00:00,Holy Cross Crusaders,Northeastern Huskies
+63368b0c284621d88fb919a63cd178b1,DraftKings,2025-12-03 14:40:41.862991+00:00,-170.0,142.0,-3.5,143.5,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,LowVig.ag,2025-12-03 14:40:41.862991+00:00,-155.0,135.0,-3.0,143.0,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,BetOnline.ag,2025-12-03 14:40:41.862991+00:00,-155.0,135.0,-3.0,143.0,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,Fanatics,2025-12-03 14:40:41.862991+00:00,-170.0,140.0,-3.5,144.0,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,BetMGM,2025-12-03 14:40:41.862991+00:00,-170.0,140.0,-3.5,143.5,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,Caesars,2025-12-03 14:40:41.862991+00:00,,,-3.5,143.0,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,Bovada,2025-12-03 14:40:41.862991+00:00,-165.0,140.0,-3.5,144.0,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,BetUS,2025-12-03 14:40:41.862991+00:00,-155.0,134.0,-3.5,143.5,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,BetRivers,2025-12-03 14:40:41.862991+00:00,-167.0,130.0,-3.5,144.5,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,FanDuel,2025-12-03 14:40:41.862991+00:00,-170.0,138.0,-3.5,143.5,2025-12-03 23:30:00+00:00,Youngstown St Penguins,Wright St Raiders

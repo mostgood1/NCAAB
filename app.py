@@ -221,6 +221,28 @@ def _ensure_index_row_global(r: dict) -> dict:
 
 def _apply_central_display_global(r: dict) -> dict:
     try:
+        # If canonical UTC start is available, use it directly for Central display
+        try:
+            _sd = r.get('_start_dt')
+            ts_direct = None
+            if _sd is not None and (not (isinstance(_sd, float) and pd.isna(_sd))):
+                ts_direct = pd.to_datetime(str(_sd).replace('Z','+00:00'), errors='coerce', utc=True)
+            if ts_direct is not None and pd.notna(ts_direct):
+                try:
+                    tz_local = ts_direct.tz_convert('America/Chicago')
+                except Exception:
+                    tz_local = ts_direct
+                tz_abbr = getattr(tz_local, 'tzname', lambda: 'CST')() if hasattr(tz_local, 'tzname') else 'CST'
+                disp_date = tz_local.strftime('%Y-%m-%d')
+                disp_time = tz_local.strftime('%H:%M')
+                r['display_date'] = disp_date
+                r['display_time_str'] = f"{disp_date} {disp_time} {tz_abbr or 'CST'}"
+                r['start_time_display'] = r['display_time_str']
+                # Normalize date anchor
+                r['date'] = disp_date
+                return r
+        except Exception:
+            pass
         # Primary rule: root display to start_time_local across all cards to align with odds
         loc = str(r.get('start_time_local') or r.get('start_time_local_venue') or '').strip()
         abbr_raw = (r.get('start_tz_abbr') or r.get('start_tz_abbr_venue'))
@@ -230,15 +252,56 @@ def _apply_central_display_global(r: dict) -> dict:
         except Exception:
             missing_abbr = True
         abbr = '' if missing_abbr else str(abbr_raw).strip().upper()
-        # If we have a local date/time, use that verbatim for display and date anchoring
+        # If we have a local date/time, convert to Central for display and date anchoring
         if loc:
             parts = loc.split()
             if len(parts) >= 2:
                 dstr, tstr = parts[0], parts[1]
-                r['display_date'] = dstr
                 # Default abbr to CST when missing
                 label_abbr = abbr if abbr else 'CST'
-                r['display_time_str'] = f"{dstr} {tstr} {label_abbr}"
+                # Map common US tz abbreviations to fixed offsets (standard only)
+                off_map = {
+                    'UTC': 0, 'Z': 0,
+                    'HST': -10, 'AKST': -9,
+                    'PST': -8, 'PDT': -7,
+                    'MST': -7, 'MDT': -6,
+                    'CST': -6, 'CDT': -5,
+                    'EST': -5, 'EDT': -4,
+                }
+                try:
+                    off = off_map.get(label_abbr, None)
+                    base_dt = pd.to_datetime(f"{dstr} {tstr}", errors='coerce')
+                    central_dt = None
+                    if (off is not None) and pd.notna(base_dt):
+                        # Build aware local using fixed offset, then convert to America/Chicago
+                        tzinfo = dt.timezone(dt.timedelta(hours=off))
+                        aware = base_dt.replace(tzinfo=tzinfo)
+                        aware_pd = pd.to_datetime(aware)
+                        try:
+                            central_dt = aware_pd.tz_convert('America/Chicago')
+                        except Exception:
+                            central_dt = aware_pd
+                    # Fallback: if conversion failed, use original parts
+                    if central_dt is not None and pd.notna(central_dt):
+                        disp_date = central_dt.strftime('%Y-%m-%d')
+                        disp_time = central_dt.strftime('%H:%M')
+                        # Determine CST/CDT by actual offset of Central time
+                        try:
+                            off_hours = int(round(central_dt.utcoffset().total_seconds()/3600)) if central_dt.utcoffset() else -6
+                        except Exception:
+                            off_hours = -6
+                        tzabbr_central = 'CST' if off_hours == -6 else ('CDT' if off_hours == -5 else 'CT')
+                    else:
+                        disp_date = dstr
+                        disp_time = tstr
+                        tzabbr_central = 'CST'
+                except Exception:
+                    disp_date = dstr
+                    disp_time = tstr
+                    tzabbr_central = 'CST'
+                # Always set display fields after computing disp_date/time and tzabbr
+                r['display_date'] = disp_date
+                r['display_time_str'] = f"{disp_date} {disp_time} {tzabbr_central}"
                 r['start_time_display'] = r['display_time_str']
                 # Ensure a non-empty timezone abbreviation field for downstream consumers
                 try:
@@ -4302,7 +4365,7 @@ def index():
     if today_str:
         force_stable_dates.add(str(today_str))
     # Also include the requested date if present and known problematic
-    known_rollover_dates = {"2025-11-29"}
+    known_rollover_dates = {"2025-11-29", "2025-12-02"}
     stable_mode = stable_q or stable_env or (date_q in known_rollover_dates)
     if stable_mode:
         try:
@@ -15142,7 +15205,64 @@ def index():
                             r['display_time_str'] = f"{r['display_date']} {ct.strftime('%H:%M')} {ab}"
         except Exception:
             pass
+        # Align start with odds commence_time when available (authoritative)
+        try:
+            if isinstance(odds, pd.DataFrame) and 'game_id' in r:
+                if not hasattr(app, '_commence_map_cache'):
+                    o2 = odds.copy()
+                    try:
+                        o2['game_id'] = o2['game_id'].astype(str)
+                        o2['_ct_raw'] = pd.to_datetime(o2['commence_time'], errors='coerce', utc=False)
+                        # If offset/Z present, parse as UTC; else attach schedule tz then convert
+                        has_off = o2['commence_time'].astype(str).str.contains(r"[+-]\d{2}:\d{2}$", regex=True) | o2['commence_time'].astype(str).str.endswith('Z')
+                        ct_off = pd.to_datetime(o2['commence_time'].astype(str).where(has_off, None).str.replace('Z','+00:00', regex=False), errors='coerce', utc=True)
+                        ct_naive = pd.to_datetime(o2['commence_time'].astype(str).where(~has_off, None), errors='coerce', utc=False)
+                        if ct_naive.notna().any():
+                            try:
+                                from zoneinfo import ZoneInfo as _ZoneInfo
+                                sched_tz_name = os.getenv('SCHEDULE_TZ') or os.getenv('NCAAB_SCHEDULE_TZ') or 'America/New_York'
+                                try:
+                                    sched_tz = _ZoneInfo(sched_tz_name)
+                                except Exception:
+                                    sched_tz = dt.datetime.now().astimezone().tzinfo
+                                ct_naive = ct_naive.map(lambda x: x.replace(tzinfo=sched_tz) if pd.notna(x) and getattr(x,'tzinfo',None) is None else x)
+                                ct_naive = ct_naive.dt.tz_convert(dt.timezone.utc)
+                            except Exception:
+                                pass
+                        o2['_ct'] = ct_off.where(ct_off.notna(), ct_naive)
+                        ct_map = o2.groupby('game_id')['_ct'].min()
+                        app._commence_map_cache = ct_map
+                    except Exception:
+                        app._commence_map_cache = pd.Series(dtype='datetime64[ns]')
+                gid = str(r.get('game_id'))
+                if gid and hasattr(app, '_commence_map_cache'):
+                    ct = app._commence_map_cache.get(gid)
+                    if ct is not None and pd.notna(ct):
+                        r['_start_dt'] = ct
+        except Exception:
+            pass
+        # Enforce canonical Central display before templating
+        try:
+            r = _apply_central_display_global(r)
+        except Exception:
+            pass
         safe_rows.append(r)
+    # Sort rows by Central start time to avoid perceived gaps
+    try:
+        def _central_ts(row: dict):
+            iso = row.get('_start_dt') or row.get('start_time_iso') or row.get('start_time')
+            if not iso:
+                return pd.NaT
+            s = str(iso)
+            s2 = s if 'Z' in s else s.replace('Z','+00:00')
+            ts = pd.to_datetime(s2, errors='coerce', utc=True)
+            try:
+                return ts.tz_convert('America/Chicago') if pd.notna(ts) else ts
+            except Exception:
+                return ts
+        safe_rows = sorted(safe_rows, key=lambda r: (_central_ts(r) or pd.NaT))
+    except Exception:
+        pass
     return render_template(
         "index.html",
         rows=safe_rows,
@@ -16491,6 +16611,8 @@ def recommendations():
         # Backfill local/display normalization for evening UTC rollover
         r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=str(r.get('date')) if r.get('date') else None)
+        # Enforce canonical Central display using robust helper
+        r = _apply_central_display_global(r)
         safe_rows.append(r)
     rows = safe_rows
     return render_template("recommendations.html", rows=rows, total_rows=len(rows))
@@ -16545,6 +16667,8 @@ def picks_raw_page():
         slate = str(r.get('date')) if r.get('date') else None
         r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=slate)
+        # Enforce canonical Central display using robust helper
+        r = _apply_central_display_global(r)
         rows.append(r)
     return render_template("picks_raw.html", rows=rows, total_rows=len(rows), date_val=date_q, market_val=market_q, period_val=period_q)
 
