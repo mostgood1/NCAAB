@@ -1,10 +1,10 @@
 game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home
 401817148,Army Black Knights,George Washington Revolutionaries,141.1362,9.361599762960738,cal,cal,-0.3354491699218727,7.686188061758346,,
 401826753,Western Carolina Catamounts,Virginia-Lynchburg Dragons,140.0686,9.361599762960738,cal,cal,-3.463733374023434,32.60524256996758,,
-401820844,UT Martin Skyhawks,Charleston Southern Buccaneers,140.7384,9.361599762960738,cal,cal,-2.761599999999987,14.361599762960738,,
-401820609,Binghamton Bearcats,Lehigh Mountain Hawks,140.191,9.361599762960738,cal,cal,0.6910000000000025,6.861599762960738,139.5,2.5
-401820618,Bryant Bulldogs,Stonehill Skyhawks,141.7584,9.361599762960738,cal,cal,9.258399999999995,15.861599762960738,132.5,-6.5
-401827278,Penn State Nittany Lions,Campbell Fighting Camels,143.064,9.361599762960738,cal,cal,-11.936000000000007,22.861599762960736,155.0,-13.5
+401820844,UT Martin Skyhawks,Charleston Southern Buccaneers,140.7384,9.361599762960738,cal,cal,-1.5737948242187372,17.850539048239057,,
+401820618,Bryant Bulldogs,Stonehill Skyhawks,141.7584,9.361599762960738,cal,cal,1.2583999999999946,17.861599762960736,132.5,-6.5
+401827278,Penn State Nittany Lions,Campbell Fighting Camels,143.064,9.361599762960738,cal,cal,-9.936000000000007,19.861599762960736,155.0,-13.5
+401820609,Binghamton Bearcats,Lehigh Mountain Hawks,140.191,6.044055094962912,cal,cal,,,,
 401820827,Butler Bulldogs,Eastern Michigan Eagles,142.2548,6.044055094962912,cal,cal,,,,
 401820801,Charlotte 49ers,North Carolina A&T Aggies,140.837,6.044055094962912,cal,cal,,,,
 401813440,Dayton Flyers,East Tennessee State Buccaneers,142.1256,6.044055094962912,cal,cal,,,,

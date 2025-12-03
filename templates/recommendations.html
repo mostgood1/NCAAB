@@ -53,7 +53,11 @@
         <tbody>
           {% for r in rows %}
           {% set disp_date = r.display_date if r.display_date is defined and r.display_date else (r.date if r.date else '') %}
-          {% set loc_time = r.start_time_local_venue if r.start_time_local_venue else (r.start_time_local if r.start_time_local else (r.start_time_display if r.start_time_display else '')) %}
+           {% set disp_date = (r.display_date if (r.display_date is defined and r.display_date) else (r.date if (r.date is defined and r.date) else '')) %}
+           {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
+           {% if r.display_time_str is defined and r.display_time_str %}
+             <span class="pill time-local{% if is_rollover %} rollover{% endif %}" title="Time shown in Central Time">{{ r.display_time_str }}</span>
+           {% endif %}
           {% set tz_abbr = r.start_tz_abbr_venue if r.start_tz_abbr_venue else (r.start_tz_abbr if r.start_tz_abbr else '') %}
           {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
           <tr tabindex="0">
