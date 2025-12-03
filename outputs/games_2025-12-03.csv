@@ -1,10 +1,10 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401824360,2025,2025-12-03,2025-12-03 23:00:00+00:00,2025-12-03 18:00,EST,Boston University Terriers,Vermont State - Johnson Badgers,37,14,37.0,14.0,,,False,Case Gym
-401812667,2025,2025-12-03,2025-12-03 23:00:00+00:00,2025-12-03 18:00,EST,Holy Cross Crusaders,Northeastern Huskies,23,20,23.0,20.0,,,False,Hart Center
+401824360,2025,2025-12-03,2025-12-03 23:00:00+00:00,2025-12-03 18:00,EST,Boston University Terriers,Vermont State - Johnson Badgers,49,17,49.0,17.0,,,False,Case Gym
+401812667,2025,2025-12-03,2025-12-03 23:00:00+00:00,2025-12-03 18:00,EST,Holy Cross Crusaders,Northeastern Huskies,30,23,30.0,23.0,,,False,Hart Center
 401827132,2025,2025-12-03,2025-12-03 17:00:00+00:00,2025-12-03 12:00,EST,UIC Flames,Arkansas-Pine Bluff Golden Lions,62,63,26.0,35.0,36.0,28.0,False,Credit Union 1 Arena
 401824952,2025,2025-12-03,2025-12-03 17:00:00+00:00,2025-12-03 12:00,EST,Lipscomb Bisons,Tennessee Tech Golden Eagles,83,80,38.0,36.0,45.0,44.0,False,Allen Arena
-401826736,2025,2025-12-03,2025-12-03 23:30:00+00:00,2025-12-03 18:30,EST,App State Mountaineers,Virginia-Lynchburg Dragons,0,0,,,,,False,Holmes Convocation Center
-401817503,2025,2025-12-03,2025-12-03 23:30:00+00:00,2025-12-03 18:30,EST,Youngstown State Penguins,Wright State Raiders,0,0,,,,,False,Beeghly Center
+401826736,2025,2025-12-03,2025-12-03 23:30:00+00:00,2025-12-03 18:30,EST,App State Mountaineers,Virginia-Lynchburg Dragons,6,0,6.0,0.0,,,False,Holmes Convocation Center
+401817503,2025,2025-12-03,2025-12-03 23:30:00+00:00,2025-12-03 18:30,EST,Youngstown State Penguins,Wright State Raiders,5,6,5.0,6.0,,,False,Beeghly Center
 401825395,2025,2025-12-03,2025-12-04 00:00:00+00:00,2025-12-03 19:00,EST,Minnesota Golden Gophers,Indiana Hoosiers,0,0,,,,,False,Williams Arena
 401829054,2025,2025-12-03,2025-12-04 00:00:00+00:00,2025-12-03 19:00,EST,Western Michigan Broncos,Southern Indiana Screaming Eagles,0,0,,,,,False,University Arena (MI)
 401828737,2025,2025-12-03,2025-12-04 00:00:00+00:00,2025-12-03 19:00,EST,James Madison Dukes,North Carolina Central Eagles,0,0,,,,,False,Atlantic Union Bank Center

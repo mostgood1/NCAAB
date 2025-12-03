@@ -13406,7 +13406,24 @@ def index():
         except Exception:
             pass
         cols_keep = []
-        base_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','edge_total','edge_ats','closing_total','closing_spread_home']
+        base_cols = [
+            'game_id',
+            'home_team',
+            'away_team',
+            'pred_total',
+            'pred_margin',
+            'pred_total_basis',
+            'pred_margin_basis',
+            'edge_total',
+            'edge_ats',
+            'closing_total',
+            'closing_spread_home',
+            # Display-related fields to support stable Cards UI
+            'display_date',
+            'display_time_str',
+            'start_time_display',
+            'start_time_local',
+        ]
         for c in base_cols:
             if c in df.columns:
                 cols_keep.append(c)
