@@ -1700,54 +1700,18 @@
         }catch(e){ return null; }
       }
       function applyTzMode(mode){
+        // Hard lock: do NOT convert server-rendered Central times.
+        // Preserve server text; only set informative titles.
         var tzName = '';
         try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){}
         document.querySelectorAll('.time-local').forEach(function(el){
-          if(!el.dataset.server){ el.dataset.server = (el.textContent || '').trim(); }
-          var iso = el.getAttribute('data-iso');
-          var out = formatLocalISO(iso);
-          var used = null;
-          if(out){ el.textContent = out.text; used = {text: out.text, iso: (out.title||'')}; }
-          else {
-            var sv = el.dataset.server;
-            var out2 = parseServerTimeToLocal(sv);
-            if(out2){ el.textContent = out2.text; used = {text: out2.text, iso: (out2.title||'')}; }
-          }
-          // Midnight drift correction: if local date is slate+1 and hour < 6, shift back one day
-          try {
-            var slate = el.getAttribute('data-slate');
-            if(used && slate){
-              var datePart = used.text.split(',')[0].trim(); // formatted MM/DD/YYYY or similar
-              // Extract YYYY-MM-DD from title ISO
-              var isoTitle = used.iso;
-              if(out && out.dateObj instanceof Date){
-                var localYear = out.dateObj.getFullYear();
-                var localMonth = (out.dateObj.getMonth()+1).toString().padStart(2,'0');
-                var localDay = out.dateObj.getDate().toString().padStart(2,'0');
-                var localHour = out.dateObj.getHours();
-                var localDateStr = localYear+'-'+localMonth+'-'+localDay';
-                // Compare to slate
-                if(slate && localDateStr === _addDays(slate,1) && localHour < 6){
-                  // Rebuild display using previous day
-                  var adjDate = slate;
-                  // Extract time portion from formatted text (HH:MM)
-                  var tmMatch = used.text.match(/\b(\d{2}:\d{2})/);
-                  var timePart = tmMatch ? tmMatch[1] : (localHour.toString().padStart(2,'0')+':'+out.dateObj.getMinutes().toString().padStart(2,'0'));
-                  // Extract TZ abbreviation
-                  var tzMatch = used.text.match(/\b([A-Z]{2,4})$/);
-                  var tzPart = tzMatch ? tzMatch[1] : '';
-                  el.textContent = adjDate+' '+timePart+(tzPart?(' '+tzPart):'');
-                  el.title = 'Adjusted (midnight drift) from '+localDateStr+' to '+adjDate+' | '+isoTitle;
-                }
-              }
-            }
-          } catch(e) { /* silent */ }
-          // Append debug tooltip with resolved ISO and browser timezone
-          if(used){
-            var base = el.dataset.server ? ('Server: ' + el.dataset.server) : '';
-            var dbg = (base ? (base + ' | ') : '') + 'Local: ' + used.text + ' | Resolved ISO: ' + used.iso + (tzName ? (' | TZ: ' + tzName) : '');
-            el.title = dbg;
-          }
+          var serverText = (el.textContent || '').trim();
+          el.dataset.server = serverText;
+          // Keep displayed text exactly as provided by server (Central).
+          // Build a debug title showing browser timezone for context.
+          var iso = el.getAttribute('data-iso') || '';
+          var dbg = 'Server: ' + serverText + (iso ? (' | ISO: ' + iso) : '') + (tzName ? (' | Browser TZ: ' + tzName) : '');
+          el.title = dbg;
         });
               // Helper to add days in YYYY-MM-DD
               function _addDays(ymd, delta){
@@ -1772,16 +1736,16 @@
       }
       var selTz = document.getElementById('tzMode');
       var prefKey = 'ncaab:tzMode';
-      // Force local timezone display unconditionally; dropdown now informational
-      var pref = 'local';
+      // Force server timezone display; dropdown is informational only.
+      var pref = 'server';
       try{ localStorage.setItem(prefKey, pref); }catch(e){}
-      if(selTz){ selTz.value = 'local'; }
-      applyTzMode('local');
+      if(selTz){ selTz.value = 'server'; }
+      applyTzMode('server');
       if(selTz){
         selTz.addEventListener('change', function(){
-          // Still store preference, but rendering remains local
-          localStorage.setItem(prefKey, selTz.value);
-          applyTzMode('local');
+          // Store preference but do not change rendering (server-locked)
+          try{ localStorage.setItem(prefKey, selTz.value); }catch(e){}
+          applyTzMode('server');
         });
       }
     } catch(e) { /* noop */ }
