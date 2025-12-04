@@ -229,6 +229,20 @@ def _apply_site_display_global(r: dict, tz_name: str | None = None) -> dict:
     - Fills `display_date`, `display_time_str`, `start_time_display`, and normalizes `date`
     """
     try:
+        # If the row already carries a finalized display string from a
+        # persisted artifact (e.g., predictions_display_<date>.csv), honor
+        # that as-is and just back-fill display_date/date when missing.
+        existing_disp = str(r.get('start_time_display') or r.get('display_time_str') or '').strip()
+        if existing_disp:
+            parts = existing_disp.split()
+            if len(parts) >= 2:
+                date_part = parts[0]
+                r['display_date'] = r.get('display_date') or date_part
+                r['date'] = r.get('date') or date_part
+            r['display_time_str'] = existing_disp
+            r['start_time_display'] = existing_disp
+            return r
+
         try:
             tz_name_eff = tz_name or _get_display_tz_name()
         except Exception:
