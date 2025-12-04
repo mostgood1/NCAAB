@@ -1,15 +1,14 @@
 game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
-e62544a6bae038fb0fbb5eaa6fc49b91,DraftKings,2025-12-04 00:30:27.097847+00:00,,,-21.5,150.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
-e62544a6bae038fb0fbb5eaa6fc49b91,BetMGM,2025-12-04 00:30:27.097847+00:00,-10000.0,3300.0,-21.5,151.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
-e62544a6bae038fb0fbb5eaa6fc49b91,Fanatics,2025-12-04 00:30:27.097847+00:00,-100000.0,3500.0,-21.5,148.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
-e62544a6bae038fb0fbb5eaa6fc49b91,FanDuel,2025-12-04 00:30:27.097847+00:00,,,-21.5,149.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
-e62544a6bae038fb0fbb5eaa6fc49b91,BetRivers,2025-12-04 00:30:27.097847+00:00,,,-20.5,152.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
-e62544a6bae038fb0fbb5eaa6fc49b91,Bovada,2025-12-04 00:30:27.097847+00:00,,,-14.5,154.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
-e62544a6bae038fb0fbb5eaa6fc49b91,Caesars,2025-12-04 00:30:27.097847+00:00,,,-20.5,149.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
-63368b0c284621d88fb919a63cd178b1,DraftKings,2025-12-04 00:30:27.097847+00:00,-500.0,340.0,-8.5,141.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
-63368b0c284621d88fb919a63cd178b1,Fanatics,2025-12-04 00:30:27.097847+00:00,-450.0,310.0,-7.5,141.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
-63368b0c284621d88fb919a63cd178b1,BetMGM,2025-12-04 00:30:27.097847+00:00,-525.0,350.0,-7.5,141.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
-63368b0c284621d88fb919a63cd178b1,Caesars,2025-12-04 00:30:27.097847+00:00,-550.0,380.0,-7.5,140.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
-63368b0c284621d88fb919a63cd178b1,Bovada,2025-12-04 00:30:27.097847+00:00,-525.0,340.0,-7.5,140.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
-63368b0c284621d88fb919a63cd178b1,BetRivers,2025-12-04 00:30:27.097847+00:00,-910.0,450.0,-8.5,140.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
-63368b0c284621d88fb919a63cd178b1,FanDuel,2025-12-04 00:30:27.097847+00:00,-500.0,340.0,-7.5,140.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
+e62544a6bae038fb0fbb5eaa6fc49b91,DraftKings,2025-12-04 00:55:49.737215+00:00,,,-15.5,,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,BetMGM,2025-12-04 00:55:49.737215+00:00,,,-17.5,135.5,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,Fanatics,2025-12-04 00:55:49.737215+00:00,,,-15.5,,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,FanDuel,2025-12-04 00:55:49.737215+00:00,,,-14.5,,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,BetRivers,2025-12-04 00:55:49.737215+00:00,,,-16.5,,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
+e62544a6bae038fb0fbb5eaa6fc49b91,Caesars,2025-12-04 00:55:49.737215+00:00,,,-16.5,,2025-12-03 23:02:28+00:00,Holy Cross Crusaders,Northeastern Huskies
+63368b0c284621d88fb919a63cd178b1,DraftKings,2025-12-04 00:55:49.737215+00:00,-375.0,270.0,-5.5,140.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,Fanatics,2025-12-04 00:55:49.737215+00:00,-325.0,230.0,-5.5,145.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,BetMGM,2025-12-04 00:55:49.737215+00:00,-325.0,240.0,-5.5,141.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,Caesars,2025-12-04 00:55:49.737215+00:00,-400.0,290.0,-5.5,143.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,Bovada,2025-12-04 00:55:49.737215+00:00,-385.0,265.0,-5.5,143.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,BetRivers,2025-12-04 00:55:49.737215+00:00,-455.0,275.0,-5.5,141.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
+63368b0c284621d88fb919a63cd178b1,FanDuel,2025-12-04 00:55:49.737215+00:00,-410.0,290.0,-5.5,143.5,2025-12-03 23:32:15+00:00,Youngstown St Penguins,Wright St Raiders
