@@ -1,5 +1,5 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401812290,2025,2025-12-04,2025-12-04 21:00:00+00:00,2025-12-04 16:00,EST,Fairleigh Dickinson Knights,Manor College Blue Jays,67,32,44.0,21.0,23.0,11.0,False,Bogota Savings Bank Center
+401812290,2025,2025-12-04,2025-12-04 21:00:00+00:00,2025-12-04 16:00,EST,Fairleigh Dickinson Knights,Manor College Blue Jays,71,34,44.0,21.0,27.0,13.0,False,Bogota Savings Bank Center
 401828643,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Davidson Wildcats,The Citadel Bulldogs,0,0,,,,,False,John M. Belk Arena
 401826835,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,South Florida Bulls,Utah State Aggies,0,0,,,,,False,Yuengling Center
 401823852,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Merrimack Warriors,Rider Broncs,0,0,,,,,False,Hammel Court
