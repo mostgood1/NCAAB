@@ -2580,7 +2580,7 @@ def _get_display_tz_name() -> str:
     2) Cookie `display_tz`
     3) Env `DISPLAY_TZ`
     4) Env `SCHEDULE_TZ`
-    5) Default 'America/New_York'
+    5) Default 'America/Chicago'
     """
     try:
         # Prefer explicit query arg when provided
@@ -2590,21 +2590,21 @@ def _get_display_tz_name() -> str:
             tz_candidate = (request.cookies.get("display_tz") or "").strip()
         if not tz_candidate:
             # Fall back to environment configuration
-            tz_candidate = os.getenv("DISPLAY_TZ") or os.getenv("SCHEDULE_TZ") or "America/New_York"
+            tz_candidate = os.getenv("DISPLAY_TZ") or os.getenv("SCHEDULE_TZ") or "America/Chicago"
         # Validate candidate; if invalid, fall back to schedule tz then default
         try:
             ZoneInfo(tz_candidate)
             return tz_candidate
         except Exception:
-            fallback = os.getenv("SCHEDULE_TZ") or "America/New_York"
+            fallback = os.getenv("SCHEDULE_TZ") or "America/Chicago"
             try:
                 ZoneInfo(fallback)
                 return fallback
             except Exception:
-                return "America/New_York"
+                return "America/Chicago"
     except Exception:
         # On any unexpected error, use a safe default
-        return os.getenv("SCHEDULE_TZ") or "America/New_York"
+        return os.getenv("SCHEDULE_TZ") or "America/Chicago"
 
 
 def _safe_read_csv(p: Path) -> pd.DataFrame:
