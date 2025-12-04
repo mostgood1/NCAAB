@@ -1,25 +1,25 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401819837,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,BYU Cougars,California Baptist Lancers,42,26,42.0,26.0,,,False,Delta Center
-401806375,2025,2025-12-03,2025-12-04 02:15:00+00:00,2025-12-03 21:15,EST,Vanderbilt Commodores,SMU Mustangs,46,38,46.0,38.0,,,False,Memorial Gymnasium (TN)
-401806373,2025,2025-12-03,2025-12-04 02:25:00+00:00,2025-12-03 21:25,EST,Auburn Tigers,NC State Wolfpack,28,29,28.0,29.0,,,False,Neville Arena
-401827195,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Alabama A&M Bulldogs,Tennessee State Tigers,70,53,32.0,27.0,38.0,26.0,False,Event Center
-401825592,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Northern Arizona Lumberjacks,South Dakota State Jackrabbits,62,73,26.0,36.0,36.0,37.0,False,J. Lawrence Walkup Skydome
-401824864,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Monmouth Hawks,Princeton Tigers,57,51,31.0,27.0,26.0,24.0,False,OceanFirst Bank Center
-401824855,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Kansas City Roos,Idaho State Bengals,56,66,29.0,25.0,27.0,41.0,False,Swinney Center
+401819837,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,BYU Cougars,California Baptist Lancers,55,35,42.0,26.0,13.0,9.0,False,Delta Center
+401806375,2025,2025-12-03,2025-12-04 02:15:00+00:00,2025-12-03 21:15,EST,Vanderbilt Commodores,SMU Mustangs,48,38,48.0,38.0,,,False,Memorial Gymnasium (TN)
+401806373,2025,2025-12-03,2025-12-04 02:25:00+00:00,2025-12-03 21:25,EST,Auburn Tigers,NC State Wolfpack,39,33,39.0,33.0,,,False,Neville Arena
+401827195,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Alabama A&M Bulldogs,Tennessee State Tigers,80,53,32.0,27.0,48.0,26.0,False,Event Center
+401825592,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Northern Arizona Lumberjacks,South Dakota State Jackrabbits,62,75,26.0,36.0,36.0,39.0,False,J. Lawrence Walkup Skydome
+401824864,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Monmouth Hawks,Princeton Tigers,58,55,31.0,27.0,27.0,28.0,False,OceanFirst Bank Center
+401824855,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Kansas City Roos,Idaho State Bengals,59,68,29.0,25.0,30.0,43.0,False,Swinney Center
 401813259,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Illinois State Redbirds,Eastern Kentucky Colonels,89,78,49.0,41.0,40.0,37.0,False,CEFCU Arena
-401811109,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,South Dakota Coyotes,Portland State Vikings,69,74,31.0,38.0,38.0,36.0,False,Sanford Coyote Sports Center
+401811109,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,South Dakota Coyotes,Portland State Vikings,71,77,31.0,38.0,40.0,39.0,False,Sanford Coyote Sports Center
 401808898,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Memphis Tigers,New Orleans Privateers,86,70,48.0,28.0,38.0,42.0,False,FedExForum
-401828292,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Montana Grizzlies,North Dakota State Bison,33,38,31.0,34.0,2.0,4.0,False,Dahlberg Arena
-401826955,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Weber State Wildcats,Oral Roberts Golden Eagles,43,23,43.0,23.0,,,False,Dee Events Center
-401826809,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Rice Owls,Texas State Bobcats,40,28,40.0,28.0,,,False,Tudor Fieldhouse
-401825580,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Montana State Bobcats,St. Thomas-Minnesota Tommies,40,37,40.0,37.0,,,False,Worthington Arena
-401825397,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Wisconsin Badgers,Northwestern Wildcats,55,32,55.0,32.0,,,False,Kohl Center
-401823568,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Idaho Vandals,North Dakota Fighting Hawks,41,27,41.0,27.0,,,False,ICCU Arena
-401823504,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Denver Pioneers,Eastern Washington Eagles,48,43,48.0,43.0,,,False,Hamilton Gymnasium
-401820556,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Air Force Falcons,Pacific Tigers,26,41,26.0,41.0,,,False,Clune Arena
-401806379,2025,2025-12-03,2025-12-04 02:15:00+00:00,2025-12-03 21:15,EST,Texas Longhorns,Virginia Cavaliers,19,34,19.0,34.0,,,False,Moody Center
-401806377,2025,2025-12-03,2025-12-04 02:15:00+00:00,2025-12-03 21:15,EST,Georgia Tech Yellow Jackets,Mississippi State Bulldogs,21,30,21.0,30.0,,,False,McCamish Pavilion
-401824059,2025,2025-12-03,2025-12-04 02:30:00+00:00,2025-12-03 21:30,EST,Oregon State Beavers,Vermont Catamounts,27,13,27.0,13.0,,,False,Gill Coliseum
+401828292,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Montana Grizzlies,North Dakota State Bison,38,49,31.0,34.0,7.0,15.0,False,Dahlberg Arena
+401826955,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Weber State Wildcats,Oral Roberts Golden Eagles,54,29,43.0,23.0,11.0,6.0,False,Dee Events Center
+401826809,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Rice Owls,Texas State Bobcats,42,35,40.0,28.0,2.0,7.0,False,Tudor Fieldhouse
+401825580,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Montana State Bobcats,St. Thomas-Minnesota Tommies,47,45,40.0,37.0,7.0,8.0,False,Worthington Arena
+401825397,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Wisconsin Badgers,Northwestern Wildcats,55,34,55.0,32.0,0.0,2.0,False,Kohl Center
+401823568,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Idaho Vandals,North Dakota Fighting Hawks,44,31,41.0,27.0,3.0,4.0,False,ICCU Arena
+401823504,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Denver Pioneers,Eastern Washington Eagles,51,49,48.0,43.0,3.0,6.0,False,Hamilton Gymnasium
+401820556,2025,2025-12-03,2025-12-04 02:00:00+00:00,2025-12-03 21:00,EST,Air Force Falcons,Pacific Tigers,32,43,26.0,41.0,4.0,2.0,False,Clune Arena
+401806379,2025,2025-12-03,2025-12-04 02:15:00+00:00,2025-12-03 21:15,EST,Texas Longhorns,Virginia Cavaliers,23,40,23.0,40.0,,,False,Moody Center
+401806377,2025,2025-12-03,2025-12-04 02:15:00+00:00,2025-12-03 21:15,EST,Georgia Tech Yellow Jackets,Mississippi State Bulldogs,28,37,28.0,37.0,,,False,McCamish Pavilion
+401824059,2025,2025-12-03,2025-12-04 02:30:00+00:00,2025-12-03 21:30,EST,Oregon State Beavers,Vermont Catamounts,35,18,35.0,18.0,,,False,Gill Coliseum
 401806374,2025,2025-12-03,2025-12-04 00:15:00+00:00,2025-12-03 19:15,EST,Arkansas Razorbacks,Louisville Cardinals,89,80,47.0,29.0,42.0,51.0,False,Bud Walton Arena
 401819876,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Iowa State Cyclones,Alcorn State Braves,132,68,65.0,28.0,67.0,40.0,False,Hilton Coliseum
 401806376,2025,2025-12-03,2025-12-04 00:15:00+00:00,2025-12-03 19:15,EST,Alabama Crimson Tide,Clemson Tigers,90,84,45.0,30.0,45.0,54.0,False,Coleman Coliseum
@@ -72,8 +72,8 @@ game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_tea
 401826921,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Omaha Mavericks,Northern Colorado Bears,70,75,33.0,36.0,37.0,39.0,False,Baxter Arena
 401822726,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Georgetown Hoyas,UMBC Retrievers,90,81,45.0,37.0,45.0,44.0,False,Capital One Arena
 401822325,2025,2025-12-03,2025-12-04 01:00:00+00:00,2025-12-03 20:00,EST,Evansville Purple Aces,Ball State Cardinals,64,52,33.0,32.0,31.0,20.0,False,Ford Center
-401824128,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,Seattle U Redhawks,Puget Sound Loggers,0,0,,,,,False,Redhawk Center
-401824028,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,Santa Clara Broncos,Utah Tech Trailblazers,0,0,,,,,False,Leavey Center
-401823766,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,San Diego State Aztecs,Utah Valley Wolverines,0,0,,,,,False,Viejas Arena
-401823438,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,San Francisco Dons,North Alabama Lions,0,0,,,,,False,The Sobrato Center
+401824128,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,Seattle U Redhawks,Puget Sound Loggers,11,3,11.0,3.0,,,False,Redhawk Center
+401824028,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,Santa Clara Broncos,Utah Tech Trailblazers,16,8,16.0,8.0,,,False,Leavey Center
+401823766,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,San Diego State Aztecs,Utah Valley Wolverines,7,8,7.0,8.0,,,False,Viejas Arena
+401823438,2025,2025-12-03,2025-12-04 03:00:00+00:00,2025-12-03 22:00,EST,San Francisco Dons,North Alabama Lions,8,2,8.0,2.0,,,False,The Sobrato Center
 401825396,2025,2025-12-03,2025-12-04 04:00:00+00:00,2025-12-03 23:00,EST,Washington Huskies,UCLA Bruins,0,0,,,,,False,Alaska Airlines Arena
