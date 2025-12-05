@@ -17941,4 +17941,8 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))
     debug_flag = str(os.environ.get("FLASK_DEBUG", "")).lower()
     debug = debug_flag in ("1", "true", "yes", "on")
+    try:
+        logger.info("Starting Flask app on 0.0.0.0:%s (debug=%s)", port, debug)
+    except Exception:
+        pass
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=debug)
