@@ -9020,6 +9020,68 @@ def index():
             df["edge_closing"] = df["pred_total"] - df["closing_total"]
         except Exception:
             df["edge_closing"] = None
+    # Empirical quantile-based probabilities (ATS/OU) using residual quantiles
+    try:
+        z90 = 1.2815515655446004
+        qt10 = pipeline_stats.get('quantile_total_q10')
+        qt90 = pipeline_stats.get('quantile_total_q90')
+        qm10 = pipeline_stats.get('quantile_margin_q10')
+        qm90 = pipeline_stats.get('quantile_margin_q90')
+        sigma_t = None
+        sigma_m = None
+        if isinstance(qt10, (int,float)) and isinstance(qt90, (int,float)):
+            try:
+                span_t = float(qt90) - float(qt10)
+                if abs(span_t) > 1e-6:
+                    sigma_t = span_t / (2.0 * z90)
+            except Exception:
+                pass
+        if isinstance(qm10, (int,float)) and isinstance(qm90, (int,float)):
+            try:
+                span_m = float(qm90) - float(qm10)
+                if abs(span_m) > 1e-6:
+                    sigma_m = span_m / (2.0 * z90)
+            except Exception:
+                pass
+        if sigma_t is not None:
+            pipeline_stats['sigma_total_emp'] = float(sigma_t)
+        if sigma_m is not None:
+            pipeline_stats['sigma_margin_emp'] = float(sigma_m)
+        # Compute OU probability using empirical sigma
+        if not df.empty and sigma_t and {"pred_total","market_total"}.issubset(df.columns):
+            try:
+                pt = pd.to_numeric(df['pred_total'], errors='coerce')
+                mt = pd.to_numeric(df['market_total'], errors='coerce')
+                z_t = (mt - pt) / float(sigma_t)
+                from math import erf, sqrt
+                def _phi(v):
+                    try:
+                        return 0.5 * (1.0 + erf(float(v) / sqrt(2.0)))
+                    except Exception:
+                        return np.nan
+                df['p_over_emp'] = 1.0 - z_t.map(_phi)
+                pipeline_stats['p_over_emp_rows'] = int(pd.to_numeric(df['p_over_emp'], errors='coerce').notna().sum())
+            except Exception:
+                pipeline_stats['p_over_emp_error'] = True
+        # Compute ATS probability (home cover) using empirical sigma
+        if not df.empty and sigma_m and {"pred_margin","closing_spread_home"}.issubset(df.columns):
+            try:
+                pm = pd.to_numeric(df['pred_margin'], errors='coerce')
+                cs = pd.to_numeric(df['closing_spread_home'], errors='coerce')
+                # Home cover when predicted home spread (-pred_margin) > closing_spread_home
+                z_m = (cs - (-pm)) / float(sigma_m)
+                from math import erf, sqrt
+                def _phi2(v):
+                    try:
+                        return 0.5 * (1.0 + erf(float(v) / sqrt(2.0)))
+                    except Exception:
+                        return np.nan
+                df['p_home_cover_emp'] = 1.0 - z_m.map(_phi2)
+                pipeline_stats['p_home_cover_emp_rows'] = int(pd.to_numeric(df['p_home_cover_emp'], errors='coerce').notna().sum())
+            except Exception:
+                pipeline_stats['p_home_cover_emp_error'] = True
+    except Exception:
+        pipeline_stats['empirical_quantile_probs_error'] = True
     # Distribution-based ATS & OU probabilities (normal approximation)
     try:
         if not df.empty:
@@ -9079,6 +9141,23 @@ def index():
                         pipeline_stats['margin_sigma_quantile_rows'] = int(msigma_est.notna().sum())
             except Exception:
                 pipeline_stats['quantile_sigma_error'] = True
+
+            # Interval bands from residual quantiles (p10/p90) when quantile_model loaded
+            try:
+                qt10 = pipeline_stats.get('quantile_total_q10')
+                qt90 = pipeline_stats.get('quantile_total_q90')
+                qm10 = pipeline_stats.get('quantile_margin_q10')
+                qm90 = pipeline_stats.get('quantile_margin_q90')
+                if isinstance(qt10, (int,float)) and isinstance(qt90, (int,float)) and len(total_mean):
+                    df['pred_total_p10'] = total_mean + float(qt10)
+                    df['pred_total_p90'] = total_mean + float(qt90)
+                    pipeline_stats['pred_total_interval_rows'] = int(df['pred_total_p10'].notna().sum())
+                if isinstance(qm10, (int,float)) and isinstance(qm90, (int,float)) and len(margin_mean):
+                    df['pred_margin_p10'] = margin_mean + float(qm10)
+                    df['pred_margin_p90'] = margin_mean + float(qm90)
+                    pipeline_stats['pred_margin_interval_rows'] = int(df['pred_margin_p10'].notna().sum())
+            except Exception:
+                pipeline_stats['interval_residual_quantiles_error'] = True
 
             from math import erf, sqrt
             def _norm_sf(z: pd.Series) -> pd.Series:
