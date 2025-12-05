@@ -4687,6 +4687,30 @@ def index():
             pipeline_stats['residuals_ingested'] = False
     except Exception:
         pipeline_stats['residuals_error'] = True
+    # Quantile residual model ingestion (totals/margins) from outputs/quantile_model.json
+    try:
+        qm_path = OUT / 'quantile_model.json'
+        if qm_path.exists():
+            import json as _json
+            qm_payload = _json.loads(qm_path.read_text(encoding='utf-8'))
+            rq = qm_payload.get('residual_quantiles', {}) if isinstance(qm_payload, dict) else {}
+            tot = rq.get('total', {}) if isinstance(rq, dict) else {}
+            mar = rq.get('margin', {}) if isinstance(rq, dict) else {}
+            def _lift_quant(prefix: str, obj: Any):
+                if isinstance(obj, dict):
+                    for k, v in obj.items():
+                        if isinstance(v, (int, float)):
+                            pipeline_stats[f'{prefix}_{k}'] = float(v)
+            _lift_quant('quantile_total', tot)
+            _lift_quant('quantile_margin', mar)
+            for k in ('n_total','n_margin','window_days','source'):
+                if k in qm_payload:
+                    pipeline_stats[f'quantile_model_{k}'] = qm_payload[k]
+            pipeline_stats['quantile_model_loaded'] = True
+        else:
+            pipeline_stats['quantile_model_loaded'] = False
+    except Exception:
+        pipeline_stats['quantile_model_error'] = True
     # Team variance ingestion for adaptive sigma scaling
     try:
         tv_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
