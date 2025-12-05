@@ -1407,18 +1407,25 @@ logger = logging.getLogger("ncaab_app")
 _INGEST_TOKEN = os.getenv("NCAAB_INGEST_TOKEN", "").strip()
 
 # ONNX Runtime provider diagnostics (one-time at startup)
-try:
-    import onnxruntime as ort  # type: ignore
-    _ORT_PROVIDERS = ort.get_available_providers()
-    logger.info("ONNX Runtime providers available at startup: %s", _ORT_PROVIDERS)
-    _dll_dir = os.environ.get("NCAAB_ORT_DLL_DIR")
-    if _dll_dir:
-        logger.info("NCAAB_ORT_DLL_DIR=%s", _dll_dir)
-    _qnn_root = os.environ.get("QNN_SDK_ROOT") or os.environ.get("NCAAB_QNN_SDK_DIR")
-    if _qnn_root:
-        logger.info("QNN SDK root detected: %s", _qnn_root)
-except Exception as _e:
-    logger.info("ONNX Runtime not available; predictions will use numpy fallback (%s)", _e)
+# Avoid probing providers on platforms where ORT may crash (e.g., some Render Linux images).
+_DISABLE_ORT_STARTUP = str(os.environ.get("NCAAB_DISABLE_ORT_STARTUP", "")).lower() in ("1", "true", "yes", "on") or \
+                       str(os.environ.get("RENDER", "")).lower() in ("1", "true", "yes", "on")
+if _DISABLE_ORT_STARTUP:
+    logger.info("Skipping ONNX Runtime provider probing at startup (disabled via env)")
+    _ORT_PROVIDERS = []
+else:
+    try:
+        import onnxruntime as ort  # type: ignore
+        _ORT_PROVIDERS = ort.get_available_providers()
+        logger.info("ONNX Runtime providers available at startup: %s", _ORT_PROVIDERS)
+        _dll_dir = os.environ.get("NCAAB_ORT_DLL_DIR")
+        if _dll_dir:
+            logger.info("NCAAB_ORT_DLL_DIR=%s", _dll_dir)
+        _qnn_root = os.environ.get("QNN_SDK_ROOT") or os.environ.get("NCAAB_QNN_SDK_DIR")
+        if _qnn_root:
+            logger.info("QNN SDK root detected: %s", _qnn_root)
+    except Exception as _e:
+        logger.info("ONNX Runtime not available; predictions will use numpy fallback (%s)", _e)
 
 # Sanity check route to verify API wiring
 @app.route("/api/debug-slate2")
