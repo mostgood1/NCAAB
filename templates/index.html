@@ -120,6 +120,14 @@
           <input type="number" id="confMinInput" min="0" max="100" step="1" value="50" class="filter-num" aria-label="Minimum confidence percent">
           <span>%</span>
         </label>
+        <label class="pill"><span>Over%_emp ≥</span>
+          <input type="number" id="overEmpMinInput" min="0" max="100" step="1" value="0" class="filter-num" aria-label="Minimum empirical Over percent">
+          <span>%</span>
+        </label>
+        <label class="pill"><span>ATS%_emp ≥</span>
+          <input type="number" id="atsEmpMinInput" min="0" max="100" step="1" value="0" class="filter-num" aria-label="Minimum empirical ATS percent">
+          <span>%</span>
+        </label>
         <label class="pill"><input type="checkbox" id="onlyMarketAvail" aria-label="Only market available"> Market Available</label>
         <button id="applyFiltersBtn" class="pill accent">Apply Filters</button>
         <button id="clearFiltersBtn" class="pill">Clear</button>
@@ -650,7 +658,9 @@
                   fair_price: card.getAttribute('data-fair-price')||'',
                   market_price: card.getAttribute('data-market-price')||'',
                   ev: card.getAttribute('data-ev')||'',
-                  implied_prob: card.getAttribute('data-implied-prob')||''
+                  implied_prob: card.getAttribute('data-implied-prob')||'',
+                  p_over_emp: card.getAttribute('data-p-over-emp')||'',
+                  p_home_cover_emp: card.getAttribute('data-p-home-cover-emp')||''
                 };
 
                 // Post-render cleanup: hide empty Odds/Actuals/Derivatives blocks and clean time headers
@@ -782,6 +792,8 @@
           const clearBtn = document.getElementById('clearFiltersBtn');
           const edgeMin = document.getElementById('edgeMinInput');
           const confMin = document.getElementById('confMinInput');
+          const overEmpMin = document.getElementById('overEmpMinInput');
+          const atsEmpMin = document.getElementById('atsEmpMinInput');
           const onlyMarket = document.getElementById('onlyMarketAvail');
           const presetStrongEdges = document.getElementById('presetStrongEdges');
           const presetModEdges = document.getElementById('presetModEdges');
@@ -790,6 +802,10 @@
           function apply(){
             const eMin = parseFloat(edgeMin && edgeMin.value || '0');
             const cMin = parseFloat(confMin && confMin.value || '0');
+            const oMin = parseFloat(overEmpMin && overEmpMin.value || '0');
+            const aMin = parseFloat(atsEmpMin && atsEmpMin.value || '0');
+            const oThr = isNaN(oMin) ? 0 : (oMin/100.0);
+            const aThr = isNaN(aMin) ? 0 : (aMin/100.0);
             const mOnly = !!(onlyMarket && onlyMarket.checked);
             const cards = document.querySelectorAll('.card-item, .game-card');
             if(!cards || !cards.length) return;
@@ -797,11 +813,15 @@
             cards.forEach(function(card){
               const e = parseFloat(card.getAttribute('data-edge') || 'NaN');
               const c = parseFloat(card.getAttribute('data-confidence') || 'NaN');
+              const pOverEmp = parseFloat(card.getAttribute('data-p-over-emp') || 'NaN');
+              const pATSEmp = parseFloat(card.getAttribute('data-p-home-cover-emp') || 'NaN');
               const m = card.getAttribute('data-market-available');
               const mAvail = (m === '1' || m === 'true');
               let show = true;
               if(!isNaN(e) && eMin>0) show = show && (e >= eMin);
               if(!isNaN(c) && cMin>0) show = show && (c >= cMin);
+              if(oThr>0) show = show && (!isNaN(pOverEmp) && (pOverEmp >= oThr));
+              if(aThr>0) show = show && (!isNaN(pATSEmp) && (pATSEmp >= aThr));
               if(mOnly) show = show && mAvail;
               card.style.display = show ? '' : 'none';
               if(!show) hidden++;
@@ -817,6 +837,8 @@
             cards.forEach(function(card){ card.style.display=''; });
             if(edgeMin) edgeMin.value = '0';
             if(confMin) confMin.value = '0';
+            if(overEmpMin) overEmpMin.value = '0';
+            if(atsEmpMin) atsEmpMin.value = '0';
             if(onlyMarket) onlyMarket.checked = false;
             const fc = document.getElementById('filteredCount');
             const vc = document.getElementById('visibleCount');
@@ -1062,7 +1084,7 @@
         ) %}
         {% set _has_ml = (r.ml_home is defined and r.ml_home is not none) %}
         {% set _market_avail = (1 if (_has_total or _has_spread or _has_ml) else 0) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else '')) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}">
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else '')) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -1141,7 +1163,21 @@
               {% if _ev_s is not none %}<span>EV {{ '%.3f' % _ev_s }}</span>{% endif %}
               {% if _imp_s is not none %}<span>Imp {{ '%.1f' % (_imp_s*100) }}%</span>{% endif %}
               {% if _d_ou_s is not none %}<span>ΔOU {{ '%.1f' % _d_ou_s }}</span>{% endif %}
+              {% if r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp %}<span title="Empirical probability of Over">Over% {{ '%.0f' % (r.p_over_emp*100) }}</span>{% endif %}
+              {% if r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp %}<span title="Empirical probability of home cover (ATS)">ATS% {{ '%.0f' % (r.p_home_cover_emp*100) }}</span>{% endif %}
             </div>
+            {% if r.pred_total_p10 is defined and r.pred_total_p10 is not none and r.pred_total_p10 == r.pred_total_p10 and r.pred_total_p90 is defined and r.pred_total_p90 is not none and r.pred_total_p90 == r.pred_total_p90 %}
+              <div class="pill detailed-only" title="Empirical interval for total from residual quantiles">Total p10–p90: {{ '%.1f' % r.pred_total_p10 }}–{{ '%.1f' % r.pred_total_p90 }}</div>
+            {% endif %}
+            {% if r.pred_margin_p10 is defined and r.pred_margin_p10 is not none and r.pred_margin_p10 == r.pred_margin_p10 and r.pred_margin_p90 is defined and r.pred_margin_p90 is not none and r.pred_margin_p90 == r.pred_margin_p90 %}
+              <div class="pill detailed-only" title="Empirical interval for margin from residual quantiles">Margin p10–p90: {{ '%.1f' % r.pred_margin_p10 }}–{{ '%.1f' % r.pred_margin_p90 }}</div>
+            {% endif %}
+            {% if r.sigma_total_emp is defined and r.sigma_total_emp is not none and r.sigma_total_emp == r.sigma_total_emp %}
+              <span class="badge detailed-only" title="Empirical sigma for totals">σT {{ '%.2f' % r.sigma_total_emp }}</span>
+            {% endif %}
+            {% if r.sigma_margin_emp is defined and r.sigma_margin_emp is not none and r.sigma_margin_emp == r.sigma_margin_emp %}
+              <span class="badge detailed-only" title="Empirical sigma for margins">σM {{ '%.2f' % r.sigma_margin_emp }}</span>
+            {% endif %}
             {# Unified coverage label produced server-side: r.coverage_label #}
             {% if r.coverage_label %}
               {% if r.coverage_label == 'Odds Available' %}
