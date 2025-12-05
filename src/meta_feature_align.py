@@ -7,13 +7,19 @@ OUT = Path(__file__).resolve().parent.parent / "outputs"
 
 def _load_sidecar(fname: str) -> Optional[List[str]]:
     p = OUT / fname
-    if p.exists():
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            if isinstance(data, list) and all(isinstance(x, str) for x in data):
-                return data
-        except Exception:
-            return None
+    if not p.exists():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        # Accept either a raw list or an object with a "features" list
+        if isinstance(data, list) and all(isinstance(x, str) for x in data):
+            return data
+        if isinstance(data, dict):
+            feats = data.get("features")
+            if isinstance(feats, list) and all(isinstance(x, str) for x in feats):
+                return feats
+    except Exception:
+        return None
     return None
 
 def build_ordered_feature_frame(df: pd.DataFrame, sidecar_name: str) -> Tuple[pd.DataFrame, Optional[List[str]]]:

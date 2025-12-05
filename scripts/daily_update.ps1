@@ -125,6 +125,73 @@ try {
     Write-Warning "schedule_refresh preflight failed: $($_)"
   }
 
+  # 0.pre) Fetch today's slate immediately and normalize display times (Central)
+  Write-Section "0.pre) Fetch today's slate + normalize display times"
+  try {
+    $gamesTodayPath = Join-Path $OutDir ("games_" + $todayIso + ".csv")
+    & $VenvPython -m ncaab_model.cli fetch-games --season $todayDate.Year --start $todayIso --end $todayIso --provider $Provider --out $gamesTodayPath
+    $tmpNorm = Join-Path $OutDir "_tmp_norm_games.py"
+    $normCode = @"
+import pandas as pd
+from pathlib import Path
+from zoneinfo import ZoneInfo
+import datetime as dt
+
+out_dir = Path(r'${OutDir}')
+date = '${todayIso}'
+games_path = out_dir / f'games_{date}.csv'
+df = pd.read_csv(games_path)
+
+central = ZoneInfo('America/Chicago')
+
+def parse_utc(row):
+    for c in ['_start_dt','start_time_iso','commence_time','start_time']:
+        v = row.get(c)
+        if v is None or str(v).strip()=='':
+            continue
+        try:
+            s = str(v).replace('Z','+00:00')
+            ts = pd.to_datetime(s, errors='coerce', utc=True)
+            if pd.notna(ts):
+                return ts
+        except Exception:
+            pass
+    return None
+
+rows = []
+for r in df.to_dict('records'):
+    ts_utc = parse_utc(r)
+    if ts_utc is not None:
+        ts_loc = ts_utc.tz_convert(central)
+        disp_date = ts_loc.strftime('%Y-%m-%d')
+        disp_time = ts_loc.strftime('%H:%M')
+        abbr = ts_loc.tzname() or 'CST'
+        r['start_time_iso'] = ts_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+        r['start_time_display'] = f"{disp_date} {disp_time} {abbr}"
+        r['display_time_str'] = r['start_time_display']
+        r['start_time_local'] = f"{disp_date} {disp_time}"
+        r['display_date'] = disp_date
+        r['date'] = disp_date
+        r['start_tz_abbr'] = abbr
+    rows.append(r)
+df2 = pd.DataFrame(rows)
+df2.to_csv(games_path, index=False)
+print({'path': str(games_path), 'rows': len(df2)})
+"@
+    $normCode | Set-Content -Path $tmpNorm -Encoding UTF8
+    & $VenvPython $tmpNorm
+    Remove-Item -Path $tmpNorm -ErrorAction SilentlyContinue
+  } catch {
+    Write-Warning "Slate fetch/normalization failed: $($_)"
+  }
+
+  # 0.pre.b) Build canonical start times for the date (single source of truth)
+  Write-Section "0.pre.b) Canonical start times"
+  try {
+    $canon = (& $VenvPython scripts/canonical_start_times.py $todayIso) | Out-String
+    Write-Host $canon.Trim()
+  } catch { Write-Warning "canonical_start_times.py failed: $($_)" }
+
   Write-Section "1) Fetch previous day's games ($prevDate)"
   $noCacheFlag = @()
   if ($NoCache.IsPresent) { $noCacheFlag += '--no-use-cache' }
@@ -394,6 +461,18 @@ sys.exit(1 if nan_count>0 else 0)
     Write-Warning "post-normalization check failed: $($_)"
   }
 
+  # Enrich meta probabilities in-place using aligned features; guard against model/schema gaps
+  Write-Section '6a.post.b) Enrich meta probabilities (aligned)'
+  try {
+    & $VenvPython scripts/enrich_meta_probs.py $todayIso --inplace
+  } catch { Write-Warning "enrich_meta_probs.py failed: $($_)" }
+
+  # Inject sigma fields and adjusted Kelly after enrichment to ensure availability downstream
+  Write-Section '6a.post.c) Inject sigma and adjusted Kelly'
+  try {
+    & $VenvPython scripts/inject_sigma_and_kelly.py --date $todayIso
+  } catch { Write-Warning "inject_sigma_and_kelly.py failed: $($_)" }
+
   # Now regenerate team-level historical features with any newly completed games merged by daily-run
   Write-Section '6b) Refresh team-level historical features post-ingestion'
   try {
@@ -474,6 +553,8 @@ sys.exit(1 if nan_count>0 else 0)
   try {
     & $VenvPython scripts/train_meta_probs.py --limit-days 45
     & $VenvPython scripts/train_meta_probs_lgbm.py --limit-days 45
+    # Emit sidecar schemas aligned to trained LGBM models for app-time alignment
+    & $VenvPython scripts/emit_meta_sidecars.py
   } catch { Write-Warning "train_meta_probs failed: $($_)" }
 
   Write-Section '6f) Probability distribution stability (JS divergence)'
@@ -830,5 +911,9 @@ catch {
   if ($env:NCAAB_STRICT_EXIT -eq '1') { exit 1 }
 }
 finally {
-  Stop-Transcript | Out-Null
+  try {
+    Stop-Transcript | Out-Null
+  } catch {
+    # Safely ignore when transcription isn't active (e.g., -NoTranscript)
+  }
 }

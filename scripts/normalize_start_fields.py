@@ -14,7 +14,7 @@ TZ_ABBR_MAP = {
 }
 
 
-def _derive_iso(row: dict[str, Any]) -> str | None:
+def _derive_iso(row: dict[str, Any], games_lookup: dict[str, dict[str, Any]] | None = None) -> str | None:
     """Canonical ISO derivation with preference for local+abbr, else ISO, else start_time.
     Returns a UTC Z string like 'YYYY-MM-DDTHH:MM:SSZ'.
     """
@@ -43,12 +43,55 @@ def _derive_iso(row: dict[str, Any]) -> str | None:
             d = pd.to_datetime(s.replace('Z','+00:00'), errors='coerce', utc=True)
             if pd.notna(d):
                 return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+        # fallback: combine display_date + start_time_display/local as Central time
+        disp_date = str(row.get('display_date') or '').strip()
+        disp_time = str(row.get('start_time_display') or '').strip()
+        if disp_date and disp_time:
+            try:
+                # Normalize common display forms like '6:00 PM' or '18:00'
+                t = disp_time.upper().replace(' CT','').replace(' CST','').replace(' CDT','').strip()
+                # Try 12h then 24h
+                for fmt in ('%I:%M %p','%H:%M'):
+                    try:
+                        naive = dt.datetime.strptime(f"{disp_date} {t}", f"%Y-%m-%d {fmt}")
+                        local_dt = naive.replace(tzinfo=ZoneInfo('America/Chicago'))
+                        utc_dt = local_dt.astimezone(ZoneInfo('UTC'))
+                        return utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        # fallback: start_time_local without abbr, assume Central
+        st_loc = str(row.get('start_time_local') or '').strip()
+        if st_loc and len(st_loc.split()) >= 2:
+            try:
+                dd, tt = st_loc.split()[0], st_loc.split()[1]
+                for fmt in ('%I:%M','%H:%M'):
+                    try:
+                        naive = dt.datetime.strptime(f"{dd} {tt}", f"%Y-%m-%d {fmt}")
+                        local_dt = naive.replace(tzinfo=ZoneInfo('America/Chicago'))
+                        utc_dt = local_dt.astimezone(ZoneInfo('UTC'))
+                        return utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        # final fallback: use games lookup by game_id for canonical times
+        gid = str(row.get('game_id') or '').strip()
+        if games_lookup and gid and gid in games_lookup:
+            g = games_lookup[gid]
+            for key in ('start_time_iso','commence_time','start_time'):
+                val = g.get(key)
+                if val:
+                    d = pd.to_datetime(str(val).replace('Z','+00:00'), errors='coerce', utc=True)
+                    if pd.notna(d):
+                        return d.strftime('%Y-%m-%dT%H:%M:%SZ')
     except Exception:
         pass
     return None
 
 
-def _apply_defaults(row: dict[str, Any]) -> dict[str, Any]:
+def _apply_defaults(row: dict[str, Any], games_lookup: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     """Apply defaults and persist stable UTC start datetime for downstream usage."""
     # Default missing tz abbr for display to CST
     abbr = row.get('start_tz_abbr')
@@ -59,7 +102,7 @@ def _apply_defaults(row: dict[str, Any]) -> dict[str, Any]:
         row['start_tz_abbr'] = 'CST'
     # Derive ISO if missing
     if not row.get('start_time_iso'):
-        iso = _derive_iso(row)
+        iso = _derive_iso(row, games_lookup)
         if iso:
             row['start_time_iso'] = iso
     # Persist _start_dt when missing or NaN
@@ -70,7 +113,7 @@ def _apply_defaults(row: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         _sdt_missing = True
     if _sdt_missing:
-        iso2 = _derive_iso(row)
+        iso2 = _derive_iso(row, games_lookup)
         if iso2:
             try:
                 row['_start_dt'] = pd.to_datetime(str(iso2).replace('Z','+00:00'), errors='coerce', utc=True)
@@ -111,9 +154,38 @@ def main():
     else:
         df_sel = df.copy()
 
+    # Build games lookup for robust fallbacks
+    games_lookup: dict[str, dict[str, Any]] | None = None
+    try:
+        gpath = f'outputs/games_{args.date}.csv'
+        gdf = pd.read_csv(gpath)
+        if 'game_id' in gdf.columns:
+            gdf['game_id'] = gdf['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+            games_lookup = {str(r['game_id']).strip(): r for r in gdf.to_dict(orient='records')}
+    except Exception:
+        games_lookup = None
+
+    # Prefer canonical start times if available
+    canonical_lookup: dict[str, dict[str, Any]] | None = None
+    try:
+        cpath = f'outputs/canonical_start_times_{args.date}.csv'
+        cdf = pd.read_csv(cpath)
+        if 'game_id' in cdf.columns:
+            cdf['game_id'] = cdf['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+            canonical_lookup = {str(r['game_id']).strip(): r for r in cdf.to_dict(orient='records')}
+    except Exception:
+        canonical_lookup = None
+
     recs = []
     for r in df_sel.to_dict(orient='records'):
-        recs.append(_apply_defaults(r))
+        # merge canonical fields if present
+        gid = str(r.get('game_id') or '').strip()
+        if canonical_lookup and gid in canonical_lookup:
+            c = canonical_lookup[gid]
+            for k in ['start_time_iso','display_date','start_time_display','start_time_local','start_tz_abbr','_start_dt']:
+                if c.get(k):
+                    r[k] = c.get(k)
+        recs.append(_apply_defaults(r, games_lookup))
     df_norm = pd.DataFrame(recs)
 
     # Merge normalized columns back into full frame

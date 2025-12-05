@@ -105,9 +105,25 @@ def join_games_with_closing(
     merged["date_game"] = pd.to_datetime(merged["date_game"], errors="coerce").dt.date
     merged["date_line"] = pd.to_datetime(merged["date_line"], errors="coerce").dt.date
     # Compute absolute day difference
-    merged["_day_diff"] = (pd.to_datetime(merged["date_line"]) - pd.to_datetime(merged["date_game"])).dt.days.abs()
+    merged["_day_diff"] = (pd.to_datetime(merged["date_line"]) - pd.to_datetime(merged["date_game"])) .dt.days.abs()
     tol = int(max(0, date_tolerance_days))
-    merged = merged[merged["_day_diff"] <= tol].copy()
+    # If canonical UTC start is available, prefer an hours-based window around true start time
+    if "_start_dt" in games.columns:
+        # Bring canonical start into merged
+        g2 = games[["game_id", "_start_dt"]].copy()
+        g2["game_id"] = g2["game_id"].astype(str)
+        merged["game_id"] = merged["game_id"].astype(str)
+        merged = merged.merge(g2, on="game_id", how="left")
+        merged["_start_dt"] = pd.to_datetime(merged["_start_dt"], errors="coerce")
+        # commence_time already parsed in prepare_closing_keys
+        if "commence_time" in merged.columns:
+            merged["_hours_diff"] = (merged["commence_time"] - merged["_start_dt"]).dt.total_seconds().abs() / 3600.0
+            # Accept lines within +/- 12 hours of canonical start, or fallback to day tolerance
+            merged = merged[(merged["_hours_diff"].le(12)) | (merged["_day_diff"].le(tol))].copy()
+        else:
+            merged = merged[merged["_day_diff"].le(tol)].copy()
+    else:
+        merged = merged[merged["_day_diff"].le(tol)].copy()
     # Prefer exact-date matches when multiple per game/book exist; otherwise keep nearest by day diff
     merged.sort_values(["game_id", "_day_diff", "book" if "book" in merged.columns else "pair_key"], inplace=True)
     # If there are multiple rows per game/book/market/period, keep the first (closest date)

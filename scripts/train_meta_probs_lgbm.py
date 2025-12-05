@@ -211,6 +211,9 @@ def main():
         try:
             with open(os.path.join(args.out_dir, 'meta_cover_lgbm_features.json'), 'w', encoding='utf-8') as f:
                 json.dump({'features': feat_cols}, f)
+            # Also persist generic schema used by app inference
+            with open(os.path.join(args.out_dir, 'meta_features_cover.json'), 'w', encoding='utf-8') as f:
+                json.dump({'kind': 'cover', 'features': feat_cols}, f)
         except Exception as e:
             print(f"[warn] Failed to write cover feature schema: {e}")
     # Train over
@@ -221,6 +224,8 @@ def main():
         try:
             with open(os.path.join(args.out_dir, 'meta_over_lgbm_features.json'), 'w', encoding='utf-8') as f:
                 json.dump({'features': feat_cols}, f)
+            with open(os.path.join(args.out_dir, 'meta_features_total.json'), 'w', encoding='utf-8') as f:
+                json.dump({'kind': 'total', 'features': feat_cols}, f)
         except Exception as e:
             print(f"[warn] Failed to write over feature schema: {e}")
 
