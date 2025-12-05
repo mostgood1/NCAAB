@@ -9035,8 +9035,9 @@ def index():
                     if isinstance(v, (int,float)) and not pd.isna(v) and v > 0:
                         return float(v)
                 return fallback
-            margin_sigma_base = _resolve_sigma(['resid_margin_sigma','margin_resid_sigma','margin_sigma','pred_margin_sigma'], 10.5)
-            total_sigma_base = _resolve_sigma(['resid_total_sigma','total_resid_sigma','total_sigma','pred_total_sigma'], 11.0)
+            # Prefer empirical residual sigma from quantile_model when available
+            margin_sigma_base = _resolve_sigma(['sigma_margin_emp','resid_margin_sigma','margin_resid_sigma','margin_sigma','pred_margin_sigma'], 10.5)
+            total_sigma_base = _resolve_sigma(['sigma_total_emp','resid_total_sigma','total_resid_sigma','total_sigma','pred_total_sigma'], 11.0)
 
             def _team_scale(row: pd.Series, base_sigma: float, variance_map: dict[str,float] | None) -> float:
                 if not variance_map or 'home_team' not in row or 'away_team' not in row:
