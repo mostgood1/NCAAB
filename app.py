@@ -6699,7 +6699,47 @@ def index():
                     except Exception:
                         pass
                     before = len(df)
+                    # Prefer canonical UTC start window or Central-local comparison when available
                     sel = slate_date == str(date_q)
+                    try:
+                        # If canonical start present, accept rows within +/- 12 hours of _start_dt
+                        if "_start_dt" in df.columns:
+                            start_dt = pd.to_datetime(df["_start_dt"], errors="coerce", utc=True)
+                            # Build candidate commence/start columns to compare
+                            cand = None
+                            for cname in ("commence_time","start_time_iso","start_time"):
+                                if cname in df.columns:
+                                    try:
+                                        cser = pd.to_datetime(df[cname].astype(str).str.replace("Z","+00:00"), errors="coerce", utc=True)
+                                        cand = cser if cand is None else cand.where(cand.notna(), cser)
+                                    except Exception:
+                                        pass
+                            if cand is not None:
+                                hours = (cand - start_dt).dt.total_seconds().abs() / 3600.0
+                                sel = sel | hours.le(12)
+                        else:
+                            # As a fallback, compare Central-local date for commence/start
+                            try:
+                                import pytz
+                                central = pytz.timezone("America/Chicago")
+                                cands = []
+                                for cname in ("commence_time","start_time_iso","start_time"):
+                                    if cname in df.columns:
+                                        try:
+                                            cser = pd.to_datetime(df[cname].astype(str).str.replace("Z","+00:00"), errors="coerce", utc=True)
+                                            cser = cser.dt.tz_convert(central)
+                                            cands.append(cser.dt.strftime("%Y-%m-%d"))
+                                        except Exception:
+                                            pass
+                                if cands:
+                                    local_date = pd.Series([None]*len(df))
+                                    for s in cands:
+                                        local_date = local_date.where(local_date.notna(), s)
+                                    sel = sel | (local_date == str(date_q))
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
                     try:
                         sel = sel.reindex(df.index, fill_value=False)
                     except Exception:
