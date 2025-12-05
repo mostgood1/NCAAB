@@ -8338,6 +8338,11 @@ def index():
             from pathlib import Path as _Path
             import joblib as _joblib  # type: ignore
             _outp = _Path(OUT)
+            # Prefer pre-enriched meta columns; if present, skip model inference to avoid shape errors
+            pre_enriched_cover = ('p_home_cover_meta' in df.columns) and df['p_home_cover_meta'].notna().any()
+            pre_enriched_over = ('p_over_meta' in df.columns) and df['p_over_meta'].notna().any()
+            if pre_enriched_cover or pre_enriched_over:
+                pipeline_stats['meta_pre_enriched_used'] = True
             cover_model_path = _outp / 'meta_cover_lgbm.joblib'
             over_model_path = _outp / 'meta_over_lgbm.joblib'
             cover_model = _joblib.load(cover_model_path) if cover_model_path.exists() else None
@@ -8477,7 +8482,7 @@ def index():
                     return X
 
             # Predict probabilities when models and features exist
-            if cover_model is not None and not Xc.empty:
+            if cover_model is not None and not Xc.empty and not pre_enriched_cover:
                 try:
                     # Ensure feature count matches training expectation strictly from model to avoid LightGBM fatals
                     try:
@@ -8498,8 +8503,9 @@ def index():
                         # If model doesn't expose a reliable feature count, skip prediction to avoid LightGBM shape fatals
                         if (not isinstance(expected_n_cov, int)) or (expected_n_cov <= 0):
                             pipeline_stats['meta_cover_feature_mismatch'] = {'expected': 'unknown', 'got': int(Xc.shape[1])}
-                            # Attempt alignment using expected feature names if available
+                            # Attempt alignment using expected feature names if available, then abort to fallback
                             Xc = _align_features(Xc, expected_cover_feats if isinstance(expected_cover_feats, list) else None, df.index)
+                            raise RuntimeError('meta_cover_feature_mismatch')
                         if Xc.shape[1] != expected_n_cov:
                             # Try to rebuild using expected feature names to match exact count
                             Xc = _align_features(Xc, expected_cover_feats if isinstance(expected_cover_feats, list) else None, df.index)
@@ -8534,7 +8540,7 @@ def index():
                         pipeline_stats['p_home_cover_meta_fallback_dist'] = True
                     else:
                         pipeline_stats['p_home_cover_meta_error'] = True
-            if over_model is not None and not Xo.empty:
+            if over_model is not None and not Xo.empty and not pre_enriched_over:
                 try:
                     # Ensure feature count matches training expectation strictly from model to avoid LightGBM fatals
                     try:
@@ -8552,8 +8558,9 @@ def index():
                             pass
                         if (not isinstance(expected_n_ov, int)) or (expected_n_ov <= 0):
                             pipeline_stats['meta_over_feature_mismatch'] = {'expected': 'unknown', 'got': int(Xo.shape[1])}
-                            # Attempt alignment using expected feature names if available
+                            # Attempt alignment using expected feature names if available, then abort to fallback
                             Xo = _align_features(Xo, expected_over_feats if isinstance(expected_over_feats, list) else None, df.index)
+                            raise RuntimeError('meta_over_feature_mismatch')
                         if Xo.shape[1] != expected_n_ov:
                             # Try to rebuild using expected feature names to match exact count
                             Xo = _align_features(Xo, expected_over_feats if isinstance(expected_over_feats, list) else None, df.index)
