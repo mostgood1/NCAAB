@@ -19,6 +19,8 @@
 .pill.bad { background:#c92a2a; color:#fff; }
 .pill.neutral { background:#868e96; color:#fff; }
 .pill.warn { background:#d9480f; color:#fff; }
+/* Force high-contrast white text for all pills */
+.pill, .pill * { color:#fff !important; }
 
 /* Edge intensity coloring if missing */
 .pill.edge-zero { background:#5c6f7b; }

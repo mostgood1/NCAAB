@@ -376,6 +376,17 @@ print({'path': str(games_path), 'rows': len(df2)})
     try { & $VenvPython scripts/select_quantiles.py --window-days 28 --target-coverage 0.8 } catch { Write-Warning "select_quantiles.py failed: $($_)" }
   }
 
+  # Daily quantile retrain + scoring artifacts (lightweight; safe to run post-predictions)
+  Write-Section '6j.ii) Daily quantile retrain + scoring'
+  try {
+    $dq = Join-Path $RepoRoot 'scripts\daily_quantile_scoring.ps1'
+    if (Test-Path $dq) {
+      & $dq
+    } else {
+      Write-Warning "daily_quantile_scoring.ps1 not found: $dq"
+    }
+  } catch { Write-Warning "daily quantile scoring failed: $($_)" }
+
   # Post-inference variance summary (inference-level dispersion)
   try {
     $predCsv = Get-Content $modelPredPath | Select-Object -Skip 1
@@ -776,6 +787,11 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $metaMetrics) { $toStage += $metaMetrics }
   $metaMetricsLgbm = Join-Path $OutDir 'meta_probs_metrics_lgbm.json'
   if (Test-Path $metaMetricsLgbm) { $toStage += $metaMetricsLgbm }
+  # Quantile model + proper scoring for today
+  $quantModel = Join-Path $OutDir 'quantile_model.json'
+  if (Test-Path $quantModel) { $toStage += $quantModel }
+  $scoreToday = Join-Path $OutDir ("scoring_" + $todayIso + ".json")
+  if (Test-Path $scoreToday) { $toStage += $scoreToday }
   $probStability = Get-ChildItem -Path $OutDir -Filter ('prob_stability_' + $todayIso + '.json') -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($probStability) { $toStage += $probStability.FullName }
   $autoCal = Get-ChildItem -Path $OutDir -Filter 'auto_refresh_calibration_*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1

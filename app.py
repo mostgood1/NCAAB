@@ -4870,6 +4870,33 @@ def index():
                     pipeline_stats[f'reliability_{k}'] = rel_payload.get(k)
         else:
             pipeline_stats['reliability_ingested'] = False
+        # Season evaluation ingestion (SOT reliability badges: ECE, Brier, Log-loss)
+        try:
+            season_eval = {}
+            p = OUT / 'backtest_reports' / 'season_eval_summary.json'
+            if p.exists():
+                import json
+                with open(p, 'r', encoding='utf-8') as f:
+                    season_eval = json.load(f) or {}
+                pipeline_stats['season_eval_loaded'] = True
+                ou = season_eval.get('probabilities', {}).get('over', {})
+                ats = season_eval.get('probabilities', {}).get('cover', {})
+                if ou:
+                    pipeline_stats['ou_n'] = int(ou.get('n', 0))
+                    pipeline_stats['ou_brier'] = float(ou.get('brier', float('nan')))
+                    pipeline_stats['ou_log_loss'] = float(ou.get('log_loss', float('nan')))
+                    if 'ece' in ou:
+                        pipeline_stats['ou_ece'] = float(ou.get('ece', float('nan')))
+                    pipeline_stats['ou_prob_column_used'] = str(ou.get('prob_column_used', ''))
+                if ats:
+                    pipeline_stats['ats_n'] = int(ats.get('n', 0))
+                    pipeline_stats['ats_brier'] = float(ats.get('brier', float('nan')))
+                    pipeline_stats['ats_log_loss'] = float(ats.get('log_loss', float('nan')))
+                    if 'ece' in ats:
+                        pipeline_stats['ats_ece'] = float(ats.get('ece', float('nan')))
+                    pipeline_stats['ats_prob_column_used'] = str(ats.get('prob_column_used', ''))
+        except Exception:
+            pipeline_stats['season_eval_loaded_error'] = True
     except Exception:
         pipeline_stats['reliability_error'] = True
     # Reliability trend ingestion (rolling window metrics)
@@ -9082,6 +9109,29 @@ def index():
                 pipeline_stats['p_home_cover_emp_error'] = True
     except Exception:
         pipeline_stats['empirical_quantile_probs_error'] = True
+    # Prefer empirical probabilities for display when available
+    try:
+        if not df.empty:
+            if 'p_over_emp' in df.columns:
+                df['p_over'] = df.get('p_over_emp')
+                pipeline_stats['prob_over_basis'] = 'empirical'
+            elif 'p_over_dist' in df.columns:
+                df['p_over'] = df.get('p_over_dist')
+                pipeline_stats['prob_over_basis'] = 'distribution'
+            elif 'p_over_meta' in df.columns:
+                df['p_over'] = df.get('p_over_meta')
+                pipeline_stats['prob_over_basis'] = 'meta'
+            if 'p_home_cover_emp' in df.columns:
+                df['p_home_cover'] = df.get('p_home_cover_emp')
+                pipeline_stats['prob_cover_basis'] = 'empirical'
+            elif 'p_home_cover_dist' in df.columns:
+                df['p_home_cover'] = df.get('p_home_cover_dist')
+                pipeline_stats['prob_cover_basis'] = 'distribution'
+            elif 'p_home_cover_meta' in df.columns:
+                df['p_home_cover'] = df.get('p_home_cover_meta')
+                pipeline_stats['prob_cover_basis'] = 'meta'
+    except Exception:
+        pipeline_stats['prob_display_coalesce_error'] = True
     # Distribution-based ATS & OU probabilities (normal approximation)
     try:
         if not df.empty:

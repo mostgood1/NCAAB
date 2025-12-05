@@ -31,6 +31,7 @@
       return div;
     }
     async function init() {
+      const status = await fetchJSON('/api/status');
       const quantTrend = await fetchJSON('/api/quantile-trend-weekly');
       const driftWeekly = await fetchJSON('/api/drift-weekly');
       const stakeRisk = await fetchJSON('/api/stake-risk-summary');
@@ -42,6 +43,22 @@
       const qseg = await fetchJSON('/api/quantile-segment-metrics');
       const qsegTrend = await fetchJSON('/api/quantile-segment-trend');
       const stakeRiskVar = (stakeRisk && stakeRisk.var) ? stakeRisk.var : {};
+
+      // Season Reliability Badges (from server pipeline_stats)
+      try {
+        const status2 = status || {};
+        function fmt3(x){ return (x!=null && !isNaN(x)) ? Number(x).toFixed(3) : 'N/A'; }
+        document.querySelector('#rel-ou-n').textContent = status2.ou_n != null ? String(status2.ou_n) : '';
+        document.querySelector('#rel-ou-brier').textContent = fmt3(status2.ou_brier);
+        document.querySelector('#rel-ou-logloss').textContent = fmt3(status2.ou_log_loss);
+        document.querySelector('#rel-ou-ece').textContent = fmt3(status2.ou_ece);
+        document.querySelector('#rel-ou-probcol').textContent = status2.ou_prob_column_used || '';
+        document.querySelector('#rel-ats-n').textContent = status2.ats_n != null ? String(status2.ats_n) : '';
+        document.querySelector('#rel-ats-brier').textContent = fmt3(status2.ats_brier);
+        document.querySelector('#rel-ats-logloss').textContent = fmt3(status2.ats_log_loss);
+        document.querySelector('#rel-ats-ece').textContent = fmt3(status2.ats_ece);
+        document.querySelector('#rel-ats-probcol').textContent = status2.ats_prob_column_used || '';
+      } catch {}
 
       const qtLatest = latest(quantTrend) || {};
       const driftLatest = latest(driftWeekly) || {};
@@ -210,6 +227,40 @@
         document.querySelector('#qsegtr-mar-small').textContent = fmtSeries('margins.small');
         document.querySelector('#qsegtr-mar-med').textContent = fmtSeries('margins.med');
         document.querySelector('#qsegtr-mar-large').textContent = fmtSeries('margins.large');
+
+        // Latest Scoring (CRPS/log-likelihood) for selected/today date
+        try {
+          const dateStr = (status && status.date) ? status.date : (status && status.server_timestamp ? (new Date(status.server_timestamp)).toISOString().slice(0,10) : '');
+          if (dateStr) {
+            const scoring = await fetchJSON(`/static/outputs/scoring_${dateStr}.json`);
+            const s = (scoring && scoring.error) ? {} : scoring;
+            function fmt4(x){ return (x!=null && !isNaN(x)) ? Number(x).toFixed(4) : 'N/A'; }
+            document.querySelector('#score-date').textContent = dateStr;
+            document.querySelector('#score-crps-t').textContent = fmt4(s.crps_total);
+            document.querySelector('#score-crps-m').textContent = fmt4(s.crps_margin);
+            document.querySelector('#score-logloss-t').textContent = fmt4(s.logloss_total);
+            document.querySelector('#score-logloss-m').textContent = fmt4(s.logloss_margin);
+          }
+        } catch {}
+
+        // Quantile residual model summary (width and sigma approx)
+        try {
+          const qm = await fetchJSON('/static/outputs/quantile_model.json');
+          const q10t = Number(qm.q10_total), q90t = Number(qm.q90_total);
+          const q10m = Number(qm.q10_margin), q90m = Number(qm.q90_margin);
+          const wT = (isNaN(q10t)||isNaN(q90t)) ? NaN : (q90t - q10t);
+          const wM = (isNaN(q10m)||isNaN(q90m)) ? NaN : (q90m - q10m);
+          const z = 2.5631031310892007; // width for central 80% (2*1.28155*sigma)
+          const sT = isNaN(wT) ? NaN : (wT / z);
+          const sM = isNaN(wM) ? NaN : (wM / z);
+          function fmt1(x){ return (x!=null && !isNaN(x)) ? Number(x).toFixed(1) : 'N/A'; }
+          function fmt2(x){ return (x!=null && !isNaN(x)) ? Number(x).toFixed(2) : 'N/A'; }
+          document.querySelector('#qm-width-t').textContent = fmt1(wT);
+          document.querySelector('#qm-width-m').textContent = fmt1(wM);
+          document.querySelector('#qm-sigma-t').textContent = fmt2(sT);
+          document.querySelector('#qm-sigma-m').textContent = fmt2(sM);
+          document.querySelector('#qm-window').textContent = (qm.window_days!=null) ? String(qm.window_days) : '';
+        } catch {}
       }
     }
     window.addEventListener('DOMContentLoaded', init);
@@ -223,6 +274,45 @@
     <div id="alerts-list" class="banner-list"></div>
   </div>
   <div class="grid">
+    <div class="card">
+      <h2>Season Reliability</h2>
+      <div class="meta">Source columns used shown for transparency</div>
+      <table class="kv">
+        <tr><td><strong>OU</strong> n</td><td><span id="rel-ou-n"></span></td></tr>
+        <tr><td>OU Brier</td><td><span id="rel-ou-brier"></span></td></tr>
+        <tr><td>OU LogLoss</td><td><span id="rel-ou-logloss"></span></td></tr>
+        <tr><td>OU ECE</td><td><span id="rel-ou-ece"></span></td></tr>
+        <tr><td>OU Prob Col</td><td><span id="rel-ou-probcol"></span></td></tr>
+        <tr><td><strong>ATS</strong> n</td><td><span id="rel-ats-n"></span></td></tr>
+        <tr><td>ATS Brier</td><td><span id="rel-ats-brier"></span></td></tr>
+        <tr><td>ATS LogLoss</td><td><span id="rel-ats-logloss"></span></td></tr>
+        <tr><td>ATS ECE</td><td><span id="rel-ats-ece"></span></td></tr>
+        <tr><td>ATS Prob Col</td><td><span id="rel-ats-probcol"></span></td></tr>
+      </table>
+      <div class="links">
+        <a href="/static/outputs/backtest_reports/season_eval_summary.json" target="_blank">Season Eval JSON</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Scoring (Latest)</h2>
+      <div class="meta">Date: <span id="score-date"></span></div>
+      <div>CRPS Total: <span id="score-crps-t"></span> | CRPS Margin: <span id="score-crps-m"></span></div>
+      <div>LogLoss Total: <span id="score-logloss-t"></span> | LogLoss Margin: <span id="score-logloss-m"></span></div>
+      <div class="links">
+        <a href="/api/status" target="_blank">Status</a>
+        <a href="/static/outputs/" target="_blank">Outputs</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quantile Residuals</h2>
+      <div class="meta">Window (days): <span id="qm-window"></span></div>
+      <div>Width 80% (tot|mar): <span id="qm-width-t"></span> | <span id="qm-width-m"></span></div>
+      <div>σ approx (tot|mar): <span id="qm-sigma-t"></span> | <span id="qm-sigma-m"></span></div>
+      <div class="links">
+        <a href="/static/outputs/quantile_model.json" target="_blank">Model JSON</a>
+      </div>
+    </div>
     <div class="card">
       <h2>Quantile Trend Weekly</h2>
       <div class="meta">Rows: <span id="qt-count"></span> | Latest: <span id="qt-date"></span></div>

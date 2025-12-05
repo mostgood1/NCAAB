@@ -167,6 +167,29 @@ def load_daily_results(outputs_dir: Path, min_date: str | None, max_date: str | 
         out['game_id'] = out['game_id'].astype(str)
     return out
 
+def load_enriched_predictions(outputs_dir: Path, min_date: str | None, max_date: str | None) -> pd.DataFrame:
+    """Load per-date enriched unified predictions as a robust fallback.
+    Files: outputs/predictions_unified_enriched_<date>.csv
+    """
+    enr_dir = outputs_dir
+    frames: List[pd.DataFrame] = []
+    for p in sorted(enr_dir.glob('predictions_unified_enriched_*.csv')):
+        date_part = p.stem.split('_')[-1]
+        if min_date and date_part < min_date: continue
+        if max_date and date_part > max_date: continue
+        df = safe_read_csv(p)
+        if not df.empty:
+            df['date'] = date_part
+            frames.append(df)
+    if not frames:
+        return pd.DataFrame()
+    out = pd.concat(frames, ignore_index=True, sort=False)
+    if 'game_id' in out.columns:
+        out['game_id'] = out['game_id'].astype(str)
+    # Normalize date
+    out['date'] = pd.to_datetime(out['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+    return out
+
 def compute_regression_metrics(pred: pd.Series, actual: pd.Series) -> Dict[str, Any]:
     predn = pd.to_numeric(pred, errors='coerce')
     actn = pd.to_numeric(actual, errors='coerce')
@@ -233,8 +256,9 @@ def main():
     ap.add_argument('--max-date')
     ap.add_argument('--edge-threshold', type=float, default=0.02, help='Absolute edge threshold for selecting bets.')
     ap.add_argument('--kelly-floor', type=float, default=0.01, help='Minimum Kelly fraction to count a bet.')
-    ap.add_argument('--prob-cols-cover', nargs='*', default=['p_home_cover_dist','p_cover_display','p_home_cover_meta_cal','p_home_cover_meta'])
-    ap.add_argument('--prob-cols-over', nargs='*', default=['p_over_dist','p_over_display','p_over_meta_cal','p_over_meta'])
+    # Prefer empirical probabilities first when available
+    ap.add_argument('--prob-cols-cover', nargs='*', default=['p_home_cover_emp','p_home_cover_meta_cal','p_home_cover_meta','p_cover_display','p_home_cover_dist'])
+    ap.add_argument('--prob-cols-over', nargs='*', default=['p_over_emp','p_over_meta_cal','p_over_meta','p_over_display','p_over_dist'])
     ap.add_argument('--interval-point-col', default='pred_total_calibrated')
     ap.add_argument('--interval-lower-col', default='pred_total_calibrated_low_90')
     ap.add_argument('--interval-upper-col', default='pred_total_calibrated_high_90')
@@ -259,25 +283,117 @@ def main():
         last_odds['game_id'] = last_odds['game_id'].astype(str)
     if 'game_id' in daily.columns:
         daily['game_id'] = daily['game_id'].astype(str)
+    # Coerce 'date' to canonical YYYY-MM-DD when present
+    for df_ in (preds_all, closing, last_odds, daily):
+        if 'date' in df_.columns:
+            try:
+                df_['date'] = pd.to_datetime(df_['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+            except Exception:
+                df_['date'] = df_['date'].astype(str)
 
-    # Merge core frame
-    join_cols = ['game_id','date']
+    # If predictions_all sparse, fallback to enriched unified predictions
+    preds_enriched = load_enriched_predictions(out_dir, args.min_date, args.max_date)
+    base_source = 'predictions_all.csv'
     base = preds_all.copy()
-    for df_extra, suffix in [(closing,'_closing'), (last_odds,'_last'), (daily,'_daily')]:
+    if base.empty or len(base) < 50:
+        if not preds_enriched.empty:
+            base = preds_enriched.copy()
+            base_source = 'predictions_unified_enriched_<range>.csv'
+    # Merge core frame with robust key fallback
+    join_cols = ['game_id','date']
+    if 'date' not in base.columns:
+        # Attempt derive from commence/start_dt if present
+        if 'start_dt' in base.columns:
+            try:
+                base['date'] = pd.to_datetime(base['start_dt'], errors='coerce').dt.strftime('%Y-%m-%d')
+            except Exception:
+                base['date'] = None
+        else:
+            base['date'] = None
+    for df_extra, suff in [(closing,'_closing'), (last_odds,'_last'), (daily,'_daily')]:
         inter = df_extra.copy()
-        # Drop duplicate columns that would collide during merge except keys
-        dup = [c for c in inter.columns if c in base.columns and c not in join_cols]
-        inter = inter.drop(columns=dup)
+        # Decide merge keys dynamically
+        keys = join_cols if set(join_cols).issubset(inter.columns) else (['game_id'] if 'game_id' in inter.columns else None)
+        if keys is None and 'commence_time' in inter.columns:
+            try:
+                inter['date'] = pd.to_datetime(inter['commence_time'], errors='coerce').dt.strftime('%Y-%m-%d')
+                keys = join_cols if set(join_cols).issubset(inter.columns) else (['game_id'] if 'game_id' in inter.columns else None)
+            except Exception:
+                keys = ['game_id'] if 'game_id' in inter.columns else None
         try:
-            base = base.merge(inter, on=join_cols, how='left')
+            if keys:
+                base = base.merge(inter, on=keys, how='left', suffixes=('', suff))
         except Exception:
             pass
+
+    # Secondary actuals join by game_id only to avoid date mismatches
+    if not daily.empty and 'game_id' in daily.columns:
+        try:
+            dr = daily.copy()
+            # Prefer the latest record per game_id within the selected window
+            dr = dr.sort_values(['game_id','date']).drop_duplicates(['game_id'], keep='last')
+            cols_keep = [c for c in ['game_id','home_score','away_score','actual_total','actual_margin'] if c in dr.columns]
+            dr = dr[cols_keep]
+            base = base.merge(dr, on=['game_id'], how='left', suffixes=('', '_daily_gid'))
+        except Exception:
+            pass
+
+    # Coalesce key columns from merged sources back into canonical names
+    def coalesce(target: str, candidates: list[str]):
+        nonlocal base
+        # Initialize target as all-NaN if missing
+        if target not in base.columns:
+            base[target] = np.nan
+        for c in candidates:
+            if c in base.columns:
+                ser = pd.to_numeric(base[c], errors='coerce') if base[c].dtype.kind in 'biufc' else base[c]
+                # Fill where target is NaN and candidate has a value
+                try:
+                    mask = base[target].isna() & ser.notna()
+                except Exception:
+                    # Fallback when target dtype not supporting isna
+                    mask = pd.Series([True]*len(base)) & ser.notna()
+                if mask.any():
+                    base.loc[mask, target] = ser[mask]
+        return
+
+    # Actual scores
+    if 'home_score' not in base.columns:
+        coalesce('home_score', ['home_score_daily','home_score'])
+    if 'away_score' not in base.columns:
+        coalesce('away_score', ['away_score_daily','away_score'])
+    # Closing market values
+    if 'closing_total' not in base.columns:
+        coalesce('closing_total', ['closing_total_closing','closing_total_last','closing_total'])
+    if 'closing_spread_home' not in base.columns:
+        coalesce('closing_spread_home', ['closing_spread_home_closing','closing_spread_home_last','closing_spread_home'])
+    # Actuals from daily by gid
+    if 'actual_total' not in base.columns:
+        coalesce('actual_total', ['actual_total_daily','actual_total_daily_gid'])
+    if 'actual_margin' not in base.columns:
+        coalesce('actual_margin', ['actual_margin_daily','actual_margin_daily_gid'])
 
     base = derive_outcomes(base)
 
     # Regression metrics
-    reg_total = compute_regression_metrics(base.get('pred_total_calibrated') or base.get('pred_total'), base.get('actual_total'))
-    reg_margin = compute_regression_metrics(base.get('pred_margin_calibrated') or base.get('pred_margin'), base.get('actual_margin'))
+    # Prefer calibrated series when present; otherwise fallback to raw model/display columns.
+    # Prefer calibrated predictions; otherwise fallback to display/model/raw
+    pred_total_series = None
+    for c in ['pred_total_calibrated','pred_total_model_unified','pred_total']:
+        if c in base.columns:
+            pred_total_series = base[c]
+            break
+    pred_margin_series = None
+    for c in ['pred_margin_calibrated','pred_margin_model_unified','pred_margin']:
+        if c in base.columns:
+            pred_margin_series = base[c]
+            break
+    if pred_total_series is None:
+        pred_total_series = base.get('pred_total')
+    if pred_margin_series is None:
+        pred_margin_series = base.get('pred_margin')
+    reg_total = compute_regression_metrics(pred_total_series, base.get('actual_total'))
+    reg_margin = compute_regression_metrics(pred_margin_series, base.get('actual_margin'))
 
     # Probability metrics (cover/over)
     prob_metrics = {}

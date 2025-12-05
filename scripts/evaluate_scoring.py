@@ -84,13 +84,32 @@ def loglik_normal(mean: np.ndarray, sigma: np.ndarray, x: np.ndarray) -> np.ndar
     return -np.log(sigma * math.sqrt(2.0 * math.pi)) - 0.5 * (z ** 2)
 
 
-def evaluate(outputs: Path, window_days: int = 90) -> dict:
+def evaluate(outputs: Path, window_days: int = 90, date: str | None = None) -> dict:
     bt = _safe_read_csv(outputs / 'backtest_reports' / 'backtest_joined.csv')
     pt = pd.Series(dtype=float)
     pm = pd.Series(dtype=float)
     at = pd.Series(dtype=float)
     am = pd.Series(dtype=float)
-    if not bt.empty and {'date','pred_total','pred_margin','actual_total','actual_margin'}.issubset(bt.columns):
+    sel_date = None
+    # When an explicit date is provided, prefer per-date evaluation against daily results + predictions
+    if date:
+        try:
+            sel_date = str(date)
+            dfr = _safe_read_csv(outputs / 'daily_results' / f'results_{sel_date}.csv')
+            dfp = _safe_read_csv(outputs / f'predictions_unified_enriched_{sel_date}.csv')
+            if dfr.empty or dfp.empty:
+                return {"error": f"missing artifacts for {sel_date}"}
+            hs = pd.to_numeric(dfr.get('home_score'), errors='coerce')
+            as_ = pd.to_numeric(dfr.get('away_score'), errors='coerce')
+            at = (hs + as_)
+            am = (hs - as_)
+            pt = pd.to_numeric(dfp.get('pred_total'), errors='coerce')
+            pm = pd.to_numeric(dfp.get('pred_margin'), errors='coerce')
+            n = min(len(pt), len(at))
+            pt = pt.iloc[:n]; at = at.iloc[:n]; pm = pm.iloc[:n]; am = am.iloc[:n]
+        except Exception:
+            return {"error": f"failed per-date evaluation for {sel_date}"}
+    elif not bt.empty and {'date','pred_total','pred_margin','actual_total','actual_margin'}.issubset(bt.columns):
         bt['_date'] = pd.to_datetime(bt['date'], errors='coerce')
         ref = pd.to_datetime(bt['_date'].max())
         win = bt[(bt['_date'] >= ref - pd.Timedelta(days=window_days)) & (bt['_date'] <= ref)].copy()
@@ -103,7 +122,6 @@ def evaluate(outputs: Path, window_days: int = 90) -> dict:
         # Fallback: evaluate using the most recent available daily_results + matching predictions_enriched
         candidates = sorted((outputs / 'daily_results').glob('results_*.csv'))
         dfp = pd.DataFrame(); dfr = pd.DataFrame()
-        sel_date = None
         for p in reversed(candidates):
             try:
                 name = p.name  # results_YYYY-MM-DD.csv
@@ -166,12 +184,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--outputs', type=str, default=str(Path.cwd() / 'outputs'))
     ap.add_argument('--window-days', type=int, default=90)
+    ap.add_argument('--date', type=str, default=None, help='Evaluate a specific date (YYYY-MM-DD)')
     args = ap.parse_args()
     out_dir = Path(args.outputs)
     out_dir.mkdir(parents=True, exist_ok=True)
-    payload = evaluate(out_dir, args.window_days)
+    payload = evaluate(out_dir, args.window_days, args.date)
     # Write date-specific scoring artifact for app ingestion
-    scoring_path = out_dir / f'scoring_{_today_str_local()}.json'
+    target_date = args.date if args.date else _today_str_local()
+    scoring_path = out_dir / f'scoring_{target_date}.json'
     with open(scoring_path, 'w', encoding='utf-8') as f:
         json.dump(payload, f, indent=2)
     print(f"[scoring] wrote {scoring_path}")
