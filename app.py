@@ -4617,6 +4617,34 @@ def index():
             pipeline_stats['backtest_ingested'] = False
     except Exception:
         pipeline_stats['backtest_error'] = True
+    # Meta backtest ingestion (ATS/OU/ML) from outputs/logs/meta_backtest_summary.json
+    try:
+        mb_sum_path = OUT / 'logs' / 'meta_backtest_summary.json'
+        if mb_sum_path.exists():
+            import json as _json
+            mb = _json.loads(mb_sum_path.read_text(encoding='utf-8'))
+            g = mb.get('global', {})
+            def _put_global(prefix: str, d: Any):
+                if isinstance(d, dict):
+                    for k, v in d.items():
+                        if isinstance(v, (int, float, str)) or v is None:
+                            pipeline_stats[f'meta_{prefix}_{k}'] = v
+            _put_global('ats', g.get('ats', {}))
+            _put_global('totals', g.get('totals', {}))
+            _put_global('ml', g.get('ml', {}))
+            pipeline_stats['meta_backtest_ingested'] = True
+            # Lift by-date metrics for the selected/today date if present
+            sel_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
+            bd = mb.get('by_date', {})
+            if isinstance(bd, dict) and sel_date in bd:
+                for k, v in bd[sel_date].items():
+                    if isinstance(v, (int, float, str)) or v is None:
+                        pipeline_stats[f'meta_by_date_{k}'] = v
+                pipeline_stats['meta_by_date'] = sel_date
+        else:
+            pipeline_stats['meta_backtest_ingested'] = False
+    except Exception:
+        pipeline_stats['meta_backtest_error'] = True
     # Proper scoring rules (CRPS / log-likelihood) ingestion if JSON exists
     try:
         scoring_date = date_q if date_q else _today_local().strftime('%Y-%m-%d')
