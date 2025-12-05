@@ -4,7 +4,10 @@ FROM python:3.11-slim
 # Prevent .pyc files and enable unbuffered stdout
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    TZ=UTC
+    TZ=UTC \
+    RENDER=1 \
+    FLASK_ENV=production \
+    FLASK_DEBUG=0
 
 WORKDIR /app
 
@@ -29,6 +32,5 @@ COPY README.md ./
 # Expose port (Render sets $PORT, but this helps local runs)
 EXPOSE 5050
 
-# Default command. Use exec form so we can expand $PORT via /bin/sh -c
-# Render sets $PORT; fall back to 5050 locally if unset.
-CMD ["/bin/sh", "-c", "gunicorn -w 2 -k gthread -b 0.0.0.0:${PORT:-5050} app:app"]
+# Default: run single-process Flask app binding to $PORT (Render provides PORT)
+CMD ["python", "app.py"]
