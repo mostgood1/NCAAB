@@ -115,6 +115,41 @@ _apply_calibration_and_sigma_post_run()
 import json
 import shutil
 import os
+# --- Meta models/sidecars preload (lightweight) ---
+from typing import Optional
+_META_PRELOAD_DONE = False
+_META_FEATURES_CACHE = {
+    "cover": None,
+    "over": None,
+}
+
+def _read_json_safe(_p: str) -> Optional[dict]:
+    try:
+        if os.path.exists(_p):
+            with open(_p, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        return None
+    return None
+
+def preload_meta_models_and_sidecars(outputs_dir: Optional[str] = None) -> None:
+    global _META_PRELOAD_DONE, _META_FEATURES_CACHE
+    if _META_PRELOAD_DONE:
+        return
+    try:
+        out_dir = outputs_dir or os.environ.get("NCAAB_OUTPUTS_DIR") or os.path.join(os.getcwd(), "outputs")
+        cover_sidecar = os.path.join(out_dir, "meta_features_cover.json")
+        total_sidecar = os.path.join(out_dir, "meta_features_total.json")
+        _META_FEATURES_CACHE["cover"] = _read_json_safe(cover_sidecar)
+        _META_FEATURES_CACHE["over"] = _read_json_safe(total_sidecar)
+    except Exception:
+        # Non-fatal: keep app start resilient
+        pass
+    finally:
+        _META_PRELOAD_DONE = True
+
+# Perform preload once when module is imported
+preload_meta_models_and_sidecars()
 # Load .env for configurable thresholds/settings if available
 try:
     from dotenv import load_dotenv
@@ -295,6 +330,27 @@ def _apply_site_display_global(r: dict, tz_name: str | None = None) -> dict:
                         'EST': -5, 'EDT': -4,
                     }
                     label_abbr = abbr if abbr else 'UTC'
+                    @app.route('/api/health/meta')
+                    def api_health_meta():
+                        try:
+                            cover = _META_FEATURES_CACHE.get("cover") if isinstance(_META_FEATURES_CACHE, dict) else None
+                            over = _META_FEATURES_CACHE.get("over") if isinstance(_META_FEATURES_CACHE, dict) else None
+                            return jsonify({
+                                "preload_done": bool(_META_PRELOAD_DONE),
+                                "cover_sidecar_present": bool(cover),
+                                "over_sidecar_present": bool(over),
+                                "cover_keys": list(cover.keys()) if isinstance(cover, dict) else [],
+                                "over_keys": list(over.keys()) if isinstance(over, dict) else [],
+                            })
+                        except Exception:
+                            return jsonify({
+                                "preload_done": False,
+                                "cover_sidecar_present": False,
+                                "over_sidecar_present": False,
+                            })
+
+                    # health route mistakenly inserted here previously; kept logic out of flow
+
                     try:
                         base_dt = pd.to_datetime(f"{dstr} {tstr}", errors='coerce')
                         if pd.notna(base_dt):
@@ -15889,6 +15945,36 @@ def api_health():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route('/api/health/meta')
+def api_health_meta():
+    try:
+        cover = _META_FEATURES_CACHE.get("cover") if isinstance(_META_FEATURES_CACHE, dict) else None
+        over = _META_FEATURES_CACHE.get("over") if isinstance(_META_FEATURES_CACHE, dict) else None
+        return jsonify({
+            "preload_done": bool(_META_PRELOAD_DONE),
+            "cover_sidecar_present": bool(cover),
+            "over_sidecar_present": bool(over),
+            "cover_keys": list(cover.keys()) if isinstance(cover, dict) else [],
+            "over_keys": list(over.keys()) if isinstance(over, dict) else [],
+        }), 200
+    except Exception as e:
+        logger.exception('/api/health/meta failure')
+        return jsonify({
+            "preload_done": False,
+            "cover_sidecar_present": False,
+            "over_sidecar_present": False,
+            "error": str(e),
+        }), 500
+
+@app.route('/healthz')
+def healthz():
+    """Minimal health check for platform probes (e.g., Render)."""
+    try:
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        # Even on exception, respond with 200 and include message
+        return jsonify({"status": "ok", "note": str(e)}), 200
+
 @app.route('/api/status')
 def api_status():
     """Lightweight status for header strip.
@@ -17823,4 +17909,6 @@ def download_backtest_cohort():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug_flag = str(os.environ.get("FLASK_DEBUG", "")).lower()
+    debug = debug_flag in ("1", "true", "yes", "on")
+    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=debug)
