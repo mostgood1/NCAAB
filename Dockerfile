@@ -1,5 +1,8 @@
 # Base lightweight Python image
 FROM python:3.11-slim
+LABEL org.opencontainers.image.source="https://github.com/mostgood1/NCAAB" \
+    org.opencontainers.image.title="NCAAB App" \
+    org.opencontainers.image.description="NCAAB Flask app for predictions"
 
 # Prevent .pyc files and enable unbuffered stdout
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,6 +34,9 @@ COPY README.md ./
 
 # Expose port (Render sets $PORT, but this helps local runs)
 EXPOSE 5050
+
+# Container healthcheck uses the app's /healthz endpoint
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fsS http://127.0.0.1:${PORT:-5050}/healthz || exit 1
 
 # Default: run single-process Flask app binding to $PORT (Render provides PORT)
 CMD ["python", "app.py"]
