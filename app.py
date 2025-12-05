@@ -2874,7 +2874,12 @@ def _load_predictions_current() -> pd.DataFrame:
 ## End _load_predictions_current
 
 # Perform bootstrap now that _load_predictions_current is defined.
-ensure_runtime_artifacts()
+# Defer runtime bootstrap to first request or __main__ to avoid heavy IO at import
+try:
+    if str(os.environ.get("NCAAB_BOOTSTRAP_ON_IMPORT", "")).lower() in ("1","true","yes"):
+        ensure_runtime_artifacts()
+except Exception:
+    pass
 
 # --------------------------------------------------------------------------------------
 # Commit-mode status diagnostics endpoint
@@ -17943,6 +17948,12 @@ if __name__ == "__main__":
     debug = debug_flag in ("1", "true", "yes", "on")
     try:
         logger.info("Starting Flask app on 0.0.0.0:%s (debug=%s)", port, debug)
+    except Exception:
+        pass
+    try:
+        # Perform lightweight bootstrap only when explicitly enabled
+        if str(os.environ.get("NCAAB_BOOTSTRAP_ON_START", "")).lower() in ("1","true","yes"):
+            ensure_runtime_artifacts()
     except Exception:
         pass
     app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=debug)
