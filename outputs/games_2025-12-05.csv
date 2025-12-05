@@ -1,0 +1,23 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401824034,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Kentucky Wildcats,Gonzaga Bulldogs,0,0,,,,,False,Rupp Arena
+401827112,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Bethune-Cookman Wildcats,South Carolina State Bulldogs,0,0,,,,,False,Moore Gymnasium (FL)
+401826979,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,High Point Panthers,NJIT Highlanders,0,0,,,,,False,Qubein Center
+401824891,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,East Tennessee State Buccaneers,South Alabama Jaguars,0,0,,,,,False,Freedom Hall (TN)
+401822739,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,VCU Rams,Samford Bulldogs,0,0,,,,,False,Siegel Center
+401820582,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Iona Gaels,Quinnipiac Bobcats,0,0,,,,,False,Hynes Athletics Center
+401820213,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Lafayette Leopards,Mercyhurst Lakers,0,0,,,,,False,Kirby Sports Center
+401818554,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Brown Bears,Bryant Bulldogs,0,0,,,,,False,Pizzitola Sports Center
+401813380,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Siena Saints,Niagara Purple Eagles,0,0,,,,,False,MVP Arena
+401813353,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Saint Peter's Peacocks,Canisius Golden Griffins,0,0,,,,,False,Yanitelli Center
+401813324,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Marist Red Foxes,Mount St. Mary's Mountaineers,0,0,,,,,False,McCann Arena
+401813299,2025,2025-12-05,2025-12-06 00:00:00+00:00,2025-12-05 19:00,EST,Manhattan Jaspers,Fairfield Stags,0,0,,,,,False,Draddy Gymnasium
+401812792,2025,2025-12-05,2025-12-06 00:30:00+00:00,2025-12-05 19:30,EST,UConn Huskies,East Texas A&M Lions,0,0,,,,,False,Gampel Pavilion
+401827756,2025,2025-12-05,2025-12-06 00:30:00+00:00,2025-12-05 19:30,EST,Eastern Michigan Eagles,Cleary University Cougars,0,0,,,,,False,Gervin GameAbove Center
+401826875,2025,2025-12-05,2025-12-06 00:30:00+00:00,2025-12-05 19:30,EST,Drake Bulldogs,UAB Blazers,0,0,,,,,False,Knapp Center
+401823519,2025,2025-12-05,2025-12-06 00:30:00+00:00,2025-12-05 19:30,EST,VMI Keydets,Christendom Crusaders,0,0,,,,,False,Cameron Hall
+401819847,2025,2025-12-05,2025-12-06 00:30:00+00:00,2025-12-05 19:30,EST,Xavier Musketeers,Cincinnati Bearcats,0,0,,,,,False,Cintas Center
+401808732,2025,2025-12-05,2025-12-06 00:30:00+00:00,2025-12-05 19:30,EST,McNeese Cowboys,Northwestern State Demons,0,0,,,,,False,Townsley Law Arena
+401812254,2025,2025-12-05,2025-12-06 01:00:00+00:00,2025-12-05 20:00,EST,TCU Horned Frogs,Notre Dame Fighting Irish,0,0,,,,,False,Schollmaier Arena
+401824113,2025,2025-12-05,2025-12-06 03:00:00+00:00,2025-12-05 22:00,EST,San José State Spartans,San Diego Toreros,0,0,,,,,False,Provident Credit Union Event Center
+401824092,2025,2025-12-05,2025-12-06 03:00:00+00:00,2025-12-05 22:00,EST,Portland Pilots,Lewis & Clark Pioneers,0,0,,,,,False,Chiles Center
+401831241,2025,2025-12-05,2025-12-05 22:00:00+00:00,2025-12-05 17:00,EST,Florida A&M Rattlers,Barber Scotia BARBER SCOTIA,0,0,,,,,True,State Farm Field House
