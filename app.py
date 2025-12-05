@@ -2416,7 +2416,7 @@ def ensure_runtime_artifacts() -> None:
         need_games = True
         if games_curr.exists():
             try:
-                gdf = pd.read_csv(games_curr)
+                gdf = pd.read_csv(games_curr, engine='python')
                 if not gdf.empty and "date" in gdf.columns and (gdf["date"].astype(str) == today_str).any():
                     need_games = False
             except Exception:
@@ -2427,7 +2427,7 @@ def ensure_runtime_artifacts() -> None:
                 try:
                     if p.name.startswith("games_curr"):  # skip accidental patterns
                         continue
-                    df = pd.read_csv(p)
+                    df = pd.read_csv(p, engine='python')
                     if df.empty or "date" not in df.columns:
                         continue
                     mask = df["date"].astype(str) == today_str
@@ -2495,7 +2495,7 @@ def ensure_runtime_artifacts() -> None:
                                 srcp = calib if calib.exists() else (rawm if rawm.exists() else None)
                                 if srcp:
                                     try:
-                                        mdf = pd.read_csv(srcp)
+                                        mdf = pd.read_csv(srcp, engine='python')
                                         if not mdf.empty and 'game_id' in mdf.columns:
                                             pt_col = next((c for c in mdf.columns if c.startswith('pred_total')), None)
                                             pm_col = next((c for c in mdf.columns if c.startswith('pred_margin')), None)
