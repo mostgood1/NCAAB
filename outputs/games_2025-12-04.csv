@@ -1,9 +1,9 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401828643,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Davidson Wildcats,The Citadel Bulldogs,26,20,26.0,20.0,,,False,John M. Belk Arena
-401826835,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,South Florida Bulls,Utah State Aggies,28,11,28.0,11.0,,,False,Yuengling Center
-401823852,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Merrimack Warriors,Rider Broncs,25,23,25.0,23.0,,,False,Hammel Court
-401820845,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Charleston Southern Buccaneers,Warren Wilson Owls,48,12,48.0,12.0,,,False,Buccaneer Fieldhouse
-401817505,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Green Bay Phoenix,Robert Morris Colonials,21,26,21.0,26.0,,,False,Resch Center
+401828643,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Davidson Wildcats,The Citadel Bulldogs,32,21,32.0,21.0,,,False,John M. Belk Arena
+401826835,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,South Florida Bulls,Utah State Aggies,35,15,35.0,15.0,,,False,Yuengling Center
+401823852,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Merrimack Warriors,Rider Broncs,30,27,30.0,27.0,,,False,Hammel Court
+401820845,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Charleston Southern Buccaneers,Warren Wilson Owls,61,18,61.0,18.0,,,False,Buccaneer Fieldhouse
+401817505,2025,2025-12-04,2025-12-05 00:00:00+00:00,2025-12-04 19:00,EST,Green Bay Phoenix,Robert Morris Colonials,27,30,27.0,30.0,,,False,Resch Center
 401812290,2025,2025-12-04,2025-12-04 21:00:00+00:00,2025-12-04 16:00,EST,Fairleigh Dickinson Knights,Manor College Blue Jays,86,38,44.0,21.0,42.0,17.0,False,Bogota Savings Bank Center
 401823311,2025,2025-12-04,2025-12-05 02:00:00+00:00,2025-12-04 21:00,EST,UC Santa Barbara Gauchos,Long Beach State Beach,0,0,,,,,False,The Thunderdome
 401823261,2025,2025-12-04,2025-12-05 03:00:00+00:00,2025-12-04 22:00,EST,Cal State Northridge Matadors,Cal State Bakersfield Roadrunners,0,0,,,,,False,Premier America Credit Union Arena
