@@ -1416,6 +1416,22 @@ if _DISABLE_ORT_STARTUP:
 else:
     try:
         import onnxruntime as ort  # type: ignore
+        # Optional hardening: force CPU-only providers and lazy import behavior on Render
+        _ORT_FORCE_CPU = str(os.environ.get("NCAAB_ORT_FORCE_CPU", "")).lower() in ("1", "true", "yes", "on") or \
+                         str(os.environ.get("RENDER", "")).lower() in ("1", "true", "yes", "on")
+        if _ORT_FORCE_CPU:
+            try:
+                _orig_InferenceSession = ort.InferenceSession
+                def _cpu_only_InferenceSession(*args, **kwargs):
+                    # Enforce CPU EP if no providers specified
+                    providers = kwargs.get('providers')
+                    if not providers:
+                        kwargs['providers'] = ['CPUExecutionProvider']
+                    return _orig_InferenceSession(*args, **kwargs)
+                ort.InferenceSession = _cpu_only_InferenceSession  # type: ignore
+                logger.info("ONNX Runtime hardened: forcing CPUExecutionProvider for sessions")
+            except Exception as _mp_e:
+                logger.info("Failed to harden ORT sessions to CPU-only (%s)", _mp_e)
         _ORT_PROVIDERS = ort.get_available_providers()
         logger.info("ONNX Runtime providers available at startup: %s", _ORT_PROVIDERS)
         _dll_dir = os.environ.get("NCAAB_ORT_DLL_DIR")
