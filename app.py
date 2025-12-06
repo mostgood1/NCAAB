@@ -17791,22 +17791,55 @@ def _classify_pred_margin(row: dict[str, Any]) -> str:
 def _normalize_display(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
+    # Avoid deep copies; create a shallow copy only once
     out = df.copy()
     if 'pred_total_basis' not in out.columns:
         out['pred_total_basis'] = None
     if 'pred_margin_basis' not in out.columns:
         out['pred_margin_basis'] = None
+    # Use itertuples to reduce per-row object overhead
     t_bases = []
     m_bases = []
-    for _, r in out.iterrows():
-        rr = r.to_dict()
-        t_bases.append(_classify_pred_total(rr))
-        m_bases.append(_classify_pred_margin(rr))
+    cols = set(out.columns)
+    use_total_cal = 'pred_total_calibrated' in cols
+    use_total_model = 'pred_total_model' in cols
+    use_total_blend = 'pred_total_model_blended' in cols
+    use_total_derived = 'derived_total' in cols
+    use_total_basis = 'pred_total_basis' in cols
+    use_margin_cal = 'pred_margin_calibrated' in cols
+    use_margin_model = 'pred_margin_model' in cols
+    use_spread_home = 'spread_home' in cols
+    use_margin_basis = 'pred_margin_basis' in cols
+    # Pre-resolve column indices for speed
+    cols_list = list(out.columns)
+    idx = {c: i for i, c in enumerate(cols_list)}
+    for row in out.itertuples(index=False):
+        # Assemble minimal dict-like views needed by classifiers without full to_dict()
+        def _get(name):
+            return getattr(row, name) if name in idx else None
+        rr_tot = {
+            'pred_total': _get('pred_total'),
+            'pred_total_calibrated': (_get('pred_total_calibrated') if use_total_cal else None),
+            'pred_total_model': (_get('pred_total_model') if use_total_model else None),
+            'pred_total_model_blended': (_get('pred_total_model_blended') if use_total_blend else None),
+            'derived_total': (_get('derived_total') if use_total_derived else None),
+            'pred_total_basis': (_get('pred_total_basis') if use_total_basis else None),
+        }
+        rr_mar = {
+            'pred_margin': _get('pred_margin'),
+            'pred_margin_calibrated': (_get('pred_margin_calibrated') if use_margin_cal else None),
+            'pred_margin_model': (_get('pred_margin_model') if use_margin_model else None),
+            'spread_home': (_get('spread_home') if use_spread_home else None),
+            'pred_margin_basis': (_get('pred_margin_basis') if use_margin_basis else None),
+        }
+        t_bases.append(_classify_pred_total(rr_tot))
+        m_bases.append(_classify_pred_margin(rr_mar))
     out['pred_total_basis'] = t_bases
     out['pred_margin_basis'] = m_bases
     return out
 
 def _persist_display(df: pd.DataFrame, date_str: str) -> tuple[Path, str]:
+    # Normalize with minimal copying to reduce memory footprint
     norm = _normalize_display(df)
     # Ensure canonical display-date/time fields are present so the cards UI
     # can rely on them directly without recomputing from UTC on each request.
@@ -17896,10 +17929,19 @@ def _persist_display(df: pd.DataFrame, date_str: str) -> tuple[Path, str]:
         core = norm[['game_id','pred_total','pred_margin']] if {'game_id','pred_total','pred_margin'}.issubset(norm.columns) else norm
         if 'game_id' in core.columns:
             core = core.sort_values('game_id')
-        blob = '\n'.join([
-            ','.join(map(str, [row.get(col, '') for col in core.columns])) for _, row in core.iterrows()
-        ])
-        digest = _hashlib_mod.sha256(blob.encode()).hexdigest()
+        # Compute hash incrementally to avoid building large strings in memory
+        hasher = _hashlib_mod.sha256()
+        cols = list(core.columns)
+        for _, row in core.iterrows():
+            try:
+                # Access via row.get for safety when using dict-like rows
+                line_vals = [row.get(col, '') for col in cols]
+            except AttributeError:
+                # Fallback for pandas Series rows
+                line_vals = [row[col] if col in row.index else '' for col in cols]
+            line = ','.join(map(str, line_vals)) + '\n'
+            hasher.update(line.encode())
+        digest = hasher.hexdigest()
     except Exception:
         digest = 'hash_error'
     return path, digest
@@ -17920,7 +17962,21 @@ def api_display_predictions():
     path = OUT / f'predictions_display_{date_q}.csv'
     if path.exists():
         try:
-            df = pd.read_csv(path)
+            # Use low_memory reads and limit columns to reduce peak RAM
+            usecols = [
+                'game_id','home_team','away_team','pred_total','pred_margin',
+                'pred_total_basis','pred_margin_basis','market_total','spread_home',
+                'edge_total','edge_ats','start_time','date','display_date','display_time_str'
+            ]
+            # Some files may not have all keep columns; let pandas skip missing via errors='ignore' pattern
+            try:
+                df = pd.read_csv(path, low_memory=True, usecols=lambda c: True)
+                # Then project down to desired columns if present
+                df = df[[c for c in usecols if c in df.columns]]
+            except Exception:
+                # Fallback without usecols in case of engine quirks
+                df = pd.read_csv(path, low_memory=True)
+                df = df[[c for c in usecols if c in df.columns]]
         except Exception:
             df = pd.DataFrame()
     else:
