@@ -16825,6 +16825,10 @@ def finals():
     rows = []
     for _r in rows_raw:
         r = dict(_r)
+        # Ensure expected numeric keys exist for template formatting
+        for k in ("home_score","away_score","actual_total","pred_total","closing_total"):
+            if k not in r:
+                r[k] = None
         if not r.get('start_time_iso'):
             r['start_time_iso'] = _derive_start_iso(r)
         slate = str(r.get('date')) if r.get('date') else None
@@ -17021,6 +17025,44 @@ def api_accuracy():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     return jsonify({"error": "no accuracy report found"}), 404
+
+
+@app.route("/api/scoring", methods=["GET"])
+def api_scoring():
+    """Serve per-date scoring metrics JSON (CRPS/log-likelihood).
+
+    Query params:
+    - date: YYYY-MM-DD (optional; defaults to today UTC)
+
+    Returns 404 if the scoring artifact is missing for the requested date.
+    """
+    try:
+        import datetime as dt
+        import json as _json
+        from pathlib import Path as _P
+    except Exception:
+        return jsonify({"error": "internal import error"}), 500
+
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        try:
+            date_q = str(dt.datetime.utcnow().strftime('%Y-%m-%d'))
+        except Exception:
+            date_q = str(dt.datetime.now().strftime('%Y-%m-%d'))
+
+    try:
+        outputs_dir = OUT if 'OUT' in globals() else _P(__file__).parent / 'outputs'
+        fp = outputs_dir / f"scoring_{date_q}.json"
+        if not fp.exists():
+            return jsonify({"status": "missing", "date": date_q, "path": str(fp) }), 404
+        payload = _json.loads(fp.read_text(encoding='utf-8'))
+        # Attach minimal metadata for consumers
+        if isinstance(payload, dict):
+            payload.setdefault("date", date_q)
+            payload.setdefault("path", str(fp))
+        return jsonify(payload)
+    except Exception as e:
+        return jsonify({"status": "error", "date": date_q, "message": str(e)}), 500
 
 
 @app.route("/api/finalize-day", methods=["GET","POST"])
