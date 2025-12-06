@@ -97,8 +97,20 @@ def evaluate(outputs: Path, window_days: int = 90, date: str | None = None) -> d
             sel_date = str(date)
             dfr = _safe_read_csv(outputs / 'daily_results' / f'results_{sel_date}.csv')
             dfp = _safe_read_csv(outputs / f'predictions_unified_enriched_{sel_date}.csv')
-            if dfr.empty or dfp.empty:
-                return {"error": f"missing artifacts for {sel_date}"}
+            # Pending mode: if finals are missing for the selected date but predictions exist,
+            # emit a non-error payload so the UI doesn't show a red warning during the day.
+            if dfr.empty and not dfp.empty:
+                return {
+                    "pending": True,
+                    "status": "pending",
+                    "reason": "daily_results missing for selected date",
+                    "source_date": sel_date,
+                    "totals_rows": 0,
+                    "margins_rows": 0,
+                    "window_days": int(window_days),
+                }
+            if dfr.empty and dfp.empty:
+                return {"error": f"no artifacts for {sel_date}"}
             hs = pd.to_numeric(dfr.get('home_score'), errors='coerce')
             as_ = pd.to_numeric(dfr.get('away_score'), errors='coerce')
             at = (hs + as_)

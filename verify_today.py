@@ -1,8 +1,10 @@
-import json, re
+import json, re, os
 from pathlib import Path
 import pandas as pd
+import datetime as dt
 
-DATE = '2025-11-19'
+# Resolve target date from env or default to today (YYYY-MM-DD)
+DATE = os.environ.get('TARGET_DATE') or dt.date.today().strftime('%Y-%m-%d')
 OUT = Path('outputs')
 res = {}
 
