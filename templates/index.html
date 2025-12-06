@@ -41,6 +41,7 @@
     /* Prevent vertical overflow by allowing content to wrap inline */
     .compact-card .stack { display: contents; }
   </style>
+  {% set e = 2.718281828459045 %}
 </head>
 <body>
   <div id="notifyHost" aria-live="polite" class="notify-host"></div>
@@ -1163,8 +1164,17 @@
               {% if _ev_s is not none %}<span>EV {{ '%.3f' % _ev_s }}</span>{% endif %}
               {% if _imp_s is not none %}<span>Imp {{ '%.1f' % (_imp_s*100) }}%</span>{% endif %}
               {% if _d_ou_s is not none %}<span>ΔOU {{ '%.1f' % _d_ou_s }}</span>{% endif %}
-              {% if r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp %}<span title="Empirical probability of Over">Over% {{ '%.0f' % (r.p_over_emp*100) }}</span>{% endif %}
-              {% if r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp %}<span title="Empirical probability of home cover (ATS)">ATS% {{ '%.0f' % (r.p_home_cover_emp*100) }}</span>{% endif %}
+              {# Prefer display-clipped probabilities with meta precedence #}
+              {% if r.p_over_display is defined and r.p_over_display is not none and r.p_over_display == r.p_over_display %}
+                <span title="Over probability (display)">Over% {{ '%.0f' % (r.p_over_display*100) }}</span>
+              {% elif r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp %}
+                <span title="Empirical probability of Over">Over% {{ '%.0f' % (r.p_over_emp*100) }}</span>
+              {% endif %}
+              {% if r.p_cover_display is defined and r.p_cover_display is not none and r.p_cover_display == r.p_cover_display %}
+                <span title="Home cover probability (ATS display)">ATS% {{ '%.0f' % (r.p_cover_display*100) }}</span>
+              {% elif r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp %}
+                <span title="Empirical probability of home cover (ATS)">ATS% {{ '%.0f' % (r.p_home_cover_emp*100) }}</span>
+              {% endif %}
             </div>
             {% if r.pred_total_p10 is defined and r.pred_total_p10 is not none and r.pred_total_p10 == r.pred_total_p10 and r.pred_total_p90 is defined and r.pred_total_p90 is not none and r.pred_total_p90 == r.pred_total_p90 %}
               <div class="pill detailed-only" title="Empirical interval for total from residual quantiles">Total p10–p90: {{ '%.1f' % r.pred_total_p10 }}–{{ '%.1f' % r.pred_total_p90 }}</div>
@@ -1512,7 +1522,9 @@
                       <span class="badge" title="Predicted 1H spread minus market 1H spread (ATS)">ΔATS {{ '%.1f' % _edge_ats_1h }}</span>
                       {# 1H Cover%: prefer meta prob, then empirical/model, else logistic fallback #}
                       {% set _cover1_pct = None %}
-                      {% if r.p_home_cover_meta_1h is defined and r.p_home_cover_meta_1h is not none and r.p_home_cover_meta_1h == r.p_home_cover_meta_1h %}
+                      {% if r.p_home_cover_display_1h is defined and r.p_home_cover_display_1h is not none and r.p_home_cover_display_1h == r.p_home_cover_display_1h %}
+                        {% set _cover1_pct = (r.p_home_cover_display_1h * 100.0) %}
+                      {% elif r.p_home_cover_meta_1h is defined and r.p_home_cover_meta_1h is not none and r.p_home_cover_meta_1h == r.p_home_cover_meta_1h %}
                         {% set _cover1_pct = (r.p_home_cover_meta_1h * 100.0) %}
                       {% elif r.p_home_cover_1h is defined and r.p_home_cover_1h is not none and r.p_home_cover_1h == r.p_home_cover_1h %}
                         {% set _cover1_pct = (r.p_home_cover_1h * 100.0) %}
@@ -1629,7 +1641,9 @@
                   {# 2H Cover% badge mirroring 1H logic: prefer meta, then empirical/model, then logistic #}
                   {% if _spr2 is not none and r.pred_margin_2h is not none and r.pred_margin_2h == r.pred_margin_2h %}
                     {% set _cover2_pct = None %}
-                    {% if r.p_home_cover_meta_2h is defined and r.p_home_cover_meta_2h is not none and r.p_home_cover_meta_2h == r.p_home_cover_meta_2h %}
+                    {% if r.p_home_cover_display_2h is defined and r.p_home_cover_display_2h is not none and r.p_home_cover_display_2h == r.p_home_cover_display_2h %}
+                      {% set _cover2_pct = (r.p_home_cover_display_2h * 100.0) %}
+                    {% elif r.p_home_cover_meta_2h is defined and r.p_home_cover_meta_2h is not none and r.p_home_cover_meta_2h == r.p_home_cover_meta_2h %}
                       {% set _cover2_pct = (r.p_home_cover_meta_2h * 100.0) %}
                     {% elif r.p_home_cover_2h is defined and r.p_home_cover_2h is not none and r.p_home_cover_2h == r.p_home_cover_2h %}
                       {% set _cover2_pct = (r.p_home_cover_2h * 100.0) %}

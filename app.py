@@ -8885,6 +8885,47 @@ def index():
                     else:
                         df['p_over_display'] = df['p_over_meta']
                         pipeline_stats['p_over_display_basis'] = 'meta'
+
+                # Clip display probabilities to reasonable bounds for UI
+                if 'p_cover_display' in df.columns:
+                    df['p_cover_display'] = pd.to_numeric(df['p_cover_display'], errors='coerce').clip(lower=0.05, upper=0.95)
+                    pipeline_stats['p_cover_display_clipped'] = int(df['p_cover_display'].notna().sum())
+                if 'p_over_display' in df.columns:
+                    df['p_over_display'] = pd.to_numeric(df['p_over_display'], errors='coerce').clip(lower=0.05, upper=0.95)
+                    pipeline_stats['p_over_display_clipped'] = int(df['p_over_display'].notna().sum())
+
+                # Create half-level display probabilities with precedence and clipping
+                # 1H
+                if 'p_home_cover_meta_1h' in df.columns and df['p_home_cover_meta_1h'].notna().any():
+                    df['p_home_cover_display_1h'] = df['p_home_cover_meta_1h']
+                    pipeline_stats['p_home_cover_display_1h_basis'] = 'meta'
+                elif 'p_home_cover_1h' in df.columns and df['p_home_cover_1h'].notna().any():
+                    df['p_home_cover_display_1h'] = df['p_home_cover_1h']
+                    pipeline_stats['p_home_cover_display_1h_basis'] = 'empirical'
+                if 'p_home_cover_display_1h' in df.columns:
+                    df['p_home_cover_display_1h'] = pd.to_numeric(df['p_home_cover_display_1h'], errors='coerce').clip(lower=0.05, upper=0.95)
+                    pipeline_stats['p_home_cover_display_1h_clipped'] = int(df['p_home_cover_display_1h'].notna().sum())
+                # 2H
+                if 'p_home_cover_meta_2h' in df.columns and df['p_home_cover_meta_2h'].notna().any():
+                    df['p_home_cover_display_2h'] = df['p_home_cover_meta_2h']
+                    pipeline_stats['p_home_cover_display_2h_basis'] = 'meta'
+                elif 'p_home_cover_2h' in df.columns and df['p_home_cover_2h'].notna().any():
+                    df['p_home_cover_display_2h'] = df['p_home_cover_2h']
+                    pipeline_stats['p_home_cover_display_2h_basis'] = 'empirical'
+                if 'p_home_cover_display_2h' in df.columns:
+                    df['p_home_cover_display_2h'] = pd.to_numeric(df['p_home_cover_display_2h'], errors='coerce').clip(lower=0.05, upper=0.95)
+                    pipeline_stats['p_home_cover_display_2h_clipped'] = int(df['p_home_cover_display_2h'].notna().sum())
+
+                # Backfill raw columns used by template for compatibility
+                if 'p_cover_display' in df.columns:
+                    df['p_home_cover'] = df['p_cover_display']
+                    pipeline_stats['p_home_cover_backfilled_from_display'] = True
+                if 'p_home_cover_display_1h' in df.columns:
+                    df['p_home_cover_1h'] = df['p_home_cover_display_1h']
+                    pipeline_stats['p_home_cover_1h_backfilled_from_display'] = True
+                if 'p_home_cover_display_2h' in df.columns:
+                    df['p_home_cover_2h'] = df['p_home_cover_display_2h']
+                    pipeline_stats['p_home_cover_2h_backfilled_from_display'] = True
             except Exception:
                 pipeline_stats['meta_selection_precedence_error'] = True
     except Exception:
@@ -9155,6 +9196,14 @@ def index():
             elif 'p_home_cover_meta' in df.columns:
                 df['p_home_cover'] = df.get('p_home_cover_meta')
                 pipeline_stats['prob_cover_basis'] = 'meta'
+            # Clip display probabilities to realistic bounds to avoid 0%/100% artifacts
+            try:
+                if 'p_over' in df.columns:
+                    df['p_over'] = pd.to_numeric(df['p_over'], errors='coerce').clip(lower=0.05, upper=0.95)
+                if 'p_home_cover' in df.columns:
+                    df['p_home_cover'] = pd.to_numeric(df['p_home_cover'], errors='coerce').clip(lower=0.05, upper=0.95)
+            except Exception:
+                pass
     except Exception:
         pipeline_stats['prob_display_coalesce_error'] = True
     # Distribution-based ATS & OU probabilities (normal approximation)
