@@ -1227,6 +1227,24 @@
                 {% if _spr is not none %}
                   {% set _delta_ats = ((r.pred_margin * -1) - _spr) %}
                   <span class="badge" title="Predicted spread minus market spread (ATS)">ΔATS {{ '%.1f' % _delta_ats }}</span>
+                  {# ATS Cover%: prefer empirical/meta if present; else logistic using K from pipeline_stats #}
+                  {% set _cover_pct = None %}
+                  {% if r.p_home_cover_empirical is defined and r.p_home_cover_empirical is not none and r.p_home_cover_empirical == r.p_home_cover_empirical %}
+                    {% set _cover_pct = (r.p_home_cover_empirical * 100.0) %}
+                  {% elif r.p_home_cover is defined and r.p_home_cover is not none and r.p_home_cover == r.p_home_cover %}
+                    {% set _cover_pct = (r.p_home_cover * 100.0) %}
+                  {% else %}
+                    {% if pipeline_stats.spread_logistic_K is defined and pipeline_stats.spread_logistic_K is not none and pipeline_stats.spread_logistic_K > 0 %}
+                      {% set _K = pipeline_stats.spread_logistic_K %}
+                      {# diff for home cover logistic uses (pred_margin - spread) #}
+                      {% set _diff = (r.pred_margin - _spr) %}
+                      {% set _p = (1.0 / (1.0 + (e ** (-(_diff / _K))))) %}
+                      {% set _cover_pct = (_p * 100.0) %}
+                    {% endif %}
+                  {% endif %}
+                  {% if _cover_pct is not none %}
+                    <span class="badge" title="Home cover probability (ATS)">Cover% {{ '%.0f' % _cover_pct }}</span>
+                  {% endif %}
                 {% endif %}
               {% endif %}
             </div>
@@ -1492,6 +1510,21 @@
                       {% set _edge_ats_1h = ((r.pred_margin_1h * -1) - _spr1) %}
                       <span class="badge" title="ATS edge vs spread (predicted 1H spread − market 1H spread)">Edge={{ '%.1f' % _edge_ats_1h }}</span>
                       <span class="badge" title="Predicted 1H spread minus market 1H spread (ATS)">ΔATS {{ '%.1f' % _edge_ats_1h }}</span>
+                      {# 1H Cover% using same logistic if available; prefer explicit prob columns if present #}
+                      {% set _cover1_pct = None %}
+                      {% if r.p_home_cover_1h is defined and r.p_home_cover_1h is not none and r.p_home_cover_1h == r.p_home_cover_1h %}
+                        {% set _cover1_pct = (r.p_home_cover_1h * 100.0) %}
+                      {% else %}
+                        {% if pipeline_stats.spread_logistic_K is defined and pipeline_stats.spread_logistic_K is not none and pipeline_stats.spread_logistic_K > 0 and r.pred_margin_1h is not none and r.pred_margin_1h == r.pred_margin_1h %}
+                          {% set _K = pipeline_stats.spread_logistic_K %}
+                          {% set _diff1 = (r.pred_margin_1h - _spr1) %}
+                          {% set _p1 = (1.0 / (1.0 + (e ** (-(_diff1 / _K))))) %}
+                          {% set _cover1_pct = (_p1 * 100.0) %}
+                        {% endif %}
+                      {% endif %}
+                      {% if _cover1_pct is not none %}
+                        <span class="badge" title="Home cover probability (ATS 1H)">Cover% {{ '%.0f' % _cover1_pct }}</span>
+                      {% endif %}
                     {% endif %}
                   </div>
                   <div class="seg">Winner: {% if r.pred_margin_1h is not none %}{% if r.pred_margin_1h > 0 %}{{ home_disp }}{% elif r.pred_margin_1h < 0 %}{{ away_disp }}{% else %}Even{% endif %}{% else %}–{% endif %}</div>
