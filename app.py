@@ -8023,6 +8023,22 @@ def index():
     except Exception:
         pipeline_stats['synthetic_odds_error'] = True
 
+    # Optional synthetic suppression: hide rows with synthetic game_ids when requested
+    try:
+        hide_synth = (request.args.get("hide_synth") or "").strip().lower() in ("1","true","yes")
+        if hide_synth and not df.empty and 'game_id' in df.columns:
+            synth_mask = df['game_id'].astype(str).str.startswith('synthetic:')
+            if synth_mask.any():
+                removed_count = int(synth_mask.sum())
+                df = df.loc[~synth_mask].copy()
+                try:
+                    pipeline_stats['synthetic_rows_removed'] = removed_count
+                except Exception:
+                    pass
+            pipeline_stats['hide_synth_enabled'] = True
+    except Exception:
+        pipeline_stats['hide_synth_error'] = True
+
     # Prefer calibrated predictions over blended/base when available; then blended as secondary.
     # Ensures UI basis shows 'CAL' instead of 'BLEN' when both artifacts exist.
     try:
@@ -8621,6 +8637,15 @@ def index():
                     'pred_total','market_total','closing_total','edge_total','pred_total_calibrated'
                 ] if c in df.columns]
                 Xo = pd.DataFrame({c: pd.to_numeric(df[c], errors='coerce') for c in feat_cols_over}) if feat_cols_over else pd.DataFrame()
+
+            # Coalesce half-level meta/empirical cover probabilities when present (type-sanitize only)
+            try:
+                for cname in ('p_home_cover_meta_1h','p_home_cover_meta_2h','p_home_cover_1h','p_home_cover_2h'):
+                    if cname in df.columns:
+                        df[cname] = pd.to_numeric(df[cname], errors='coerce')
+                pipeline_stats['half_cover_prob_sanitized'] = True
+            except Exception:
+                pipeline_stats['half_cover_prob_sanitize_error'] = True
 
             # Helper: align a feature frame to an expected ordered list, filling missing
             def _align_features(X: pd.DataFrame, expected_feats: list[str] | None, index_like: pd.Index) -> pd.DataFrame:
