@@ -16812,6 +16812,15 @@ def picks_raw_page():
 def finals():
     """Season-to-date final scores table, aggregated from daily_results.*"""
     df = _load_all_finals(limit=2000)
+    # Normalize numeric fields to avoid template formatting errors
+    try:
+        for c in ("home_score","away_score","actual_total","pred_total","closing_total"):
+            if c in df.columns and not df.empty:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+        # Replace NaNs with None for Jinja-friendly checks
+        df = df.where(pd.notna(df), None)
+    except Exception:
+        pass
     rows_raw = df.to_dict(orient="records") if not df.empty else []
     rows = []
     for _r in rows_raw:
