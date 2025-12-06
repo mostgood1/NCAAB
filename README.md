@@ -110,6 +110,7 @@ Reports are written to `outputs/eval_last2/` and include per-game and summary CS
 - `scripts/` — runnable helpers (synthetic demo)
 - `tests/` — minimal test(s) to validate setup
 - `outputs/` — artifacts (models, reports)
+  - `scoring_YYYY-MM-DD.json` — per-date proper scoring metrics (CRPS/log-likelihood)
 
 ## NPU acceleration (DirectML and Qualcomm QNN)
 
@@ -197,6 +198,23 @@ Instrumentation keys (in `pipeline_stats` snapshot) include:
 
 ### Coverage Diagnostics
 
+## Scoring API
+
+- Endpoint: `/api/scoring?date=YYYY-MM-DD`
+  - Serves `outputs/scoring_<date>.json` with CRPS, log-loss, reliability badges, and metadata when present.
+  - Returns `404` if artifact is missing for the requested date.
+  - Default `date` is today if not provided.
+
+Quick fetch via Windows PowerShell (local dev):
+
+```powershell
+$date = (Get-Date).ToString('yyyy-MM-dd')
+Invoke-WebRequest -Uri "http://127.0.0.1:5050/api/scoring?date=$date" -OutFile "outputs/scoring_$date.json"
+Get-Content "outputs/scoring_$date.json" | Write-Host
+```
+
+If deployed (e.g., Render), replace `http://127.0.0.1:5050` with your service base URL.
+
 Two ways to inspect calibration coverage:
 
 1. HTTP: `GET /api/calibration_diagnostic?date=YYYY-MM-DD` returns JSON with reason counts, basis shares, and a sample of up to 50 games.
@@ -238,6 +256,24 @@ Invoke-RestMethod http://localhost:5050/api/ort-benchmark | ConvertTo-Json
 ```
 
 Expect lower `avg_ms` after enabling DirectML (and potentially even lower with QNN on supported hardware/models).
+
+## Scoring JSON Artifacts
+
+Daily scoring JSONs are tracked in git for parity and review.
+
+- Location: `outputs/scoring_YYYY-MM-DD.json`
+- Contents: aggregate metrics for totals and margins, including keys like `totals_crps_mean`, `margins_crps_mean`, `totals_loglik_mean`, `margins_loglik_mean`, plus row counts.
+- Producer: `scripts/evaluate_scoring.py` — run after predictions and (optionally) after finals are written.
+
+Generate scoring for a date:
+
+```powershell
+.venv\Scripts\python.exe scripts\evaluate_scoring.py --date 2025-12-05
+```
+
+Notes:
+- If finals are missing, the evaluator emits pending-mode metrics based on model + odds.
+- `.gitignore` allowlists `outputs/scoring_2025-*.json` and `outputs/scoring_2026-*.json`.
 
 ## Remote Predictions Parity & Ingestion
 
