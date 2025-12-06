@@ -1225,8 +1225,8 @@
               {% if r.pred_margin is not none and ((r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) or (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home)) %}
                 {% set _spr = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else r.closing_spread_home) %}
                 {% if _spr is not none %}
-                  {% set _delta_ats = (r.pred_margin - _spr) %}
-                  <span class="badge" title="Model margin minus market spread (ATS)">ΔATS {{ '%.1f' % _delta_ats }}</span>
+                  {% set _delta_ats = ((r.pred_margin * -1) - _spr) %}
+                  <span class="badge" title="Predicted spread minus market spread (ATS)">ΔATS {{ '%.1f' % _delta_ats }}</span>
                 {% endif %}
               {% endif %}
             </div>
