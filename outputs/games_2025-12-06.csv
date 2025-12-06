@@ -1,0 +1,117 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401819877,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Purdue Boilermakers,Iowa State Cyclones,0,0,,,,,False,Mackey Arena
+401817235,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Michigan State Spartans,Duke Blue Devils,0,0,,,,,False,Breslin Center
+401824865,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Georgia Tech Yellow Jackets,Monmouth Hawks,0,0,,,,,False,McCamish Pavilion
+401817215,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Boston College Eagles,New Haven Chargers,0,0,,,,,False,Conte Forum
+401817169,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Providence Friars,Rhode Island Rams,0,0,,,,,False,Amica Mutual Pavilion
+401813441,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Virginia Cavaliers,Dayton Flyers,0,0,,,,,True,Spectrum Center
+401809420,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Miami Hurricanes,Southern Miss Golden Eagles,0,0,,,,,False,Watsco Center
+401809081,2025,2025-12-06,2025-12-06 17:00:00+00:00,2025-12-06 12:00,EST,Bucknell Bison,UMBC Retrievers,0,0,,,,,False,Sojka Pavilion
+401817177,2025,2025-12-06,2025-12-06 17:30:00+00:00,2025-12-06 12:30,EST,Richmond Spiders,Old Dominion Monarchs,0,0,,,,,False,Robins Center
+401831529,2025,2025-12-06,2025-12-06 18:00:00+00:00,2025-12-06 13:00,EST,Wagner Seahawks,Bryant Str-Alb Bobcats,0,0,,,,,False,Spiro Sports Center
+401823422,2025,2025-12-06,2025-12-06 18:00:00+00:00,2025-12-06 13:00,EST,Bowling Green Falcons,Utah Valley Wolverines,0,0,,,,,False,Stroh Center
+401820629,2025,2025-12-06,2025-12-06 18:00:00+00:00,2025-12-06 13:00,EST,Miami (OH) RedHawks,Maine Black Bears,0,0,,,,,False,Millett Hall
+401817257,2025,2025-12-06,2025-12-06 18:00:00+00:00,2025-12-06 13:00,EST,NC State Wolfpack,UNC Asheville Bulldogs,0,0,,,,,False,Lenovo Center
+401831238,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Drexel Dragons,La Salle Explorers,0,0,,,,,False,Xfinity Mobile Arena
+401830634,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Western Illinois Leathernecks,Hannibal-Lagrange Trojans,0,0,,,,,False,Western Hall
+401829405,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Colgate Raiders,St. John Fisher Cardinals,0,0,,,,,False,Cotterell Court
+401829275,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,SIU Edwardsville Cougars,Western Michigan Broncos,0,0,,,,,False,First Community Arena
+401828722,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,James Madison Dukes,Norfolk State Spartans,0,0,,,,,False,Atlantic Union Bank Center
+401828305,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Delaware State Hornets,Delaware Blue Hens,0,0,,,,,False,Memorial Hall (DE)
+401827070,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Winthrop Eagles,Coastal Carolina Chanticleers,0,0,,,,,False,Winthrop Coliseum
+401826970,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Gardner-Webb Runnin' Bulldogs,Georgia Southern Eagles,0,0,,,,,False,Paul Porter Arena
+401826944,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Presbyterian Blue Hose,Morehead State Eagles,0,0,,,,,False,Templeton Center
+401826754,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,South Carolina Upstate Spartans,Western Carolina Catamounts,0,0,,,,,False,G.B. Hodge Center
+401825399,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Northwestern Wildcats,Ohio State Buckeyes,0,0,,,,,False,Welsh-Ryan Arena
+401825388,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,West Georgia Wolves,Tennessee Tech Golden Eagles,0,0,,,,,False,The Coliseum
+401825207,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,South Carolina Gamecocks,Stetson Hatters,0,0,,,,,False,Colonial Life Arena
+401823346,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Florida International Panthers,Jacksonville Dolphins,0,0,,,,,False,Ocean Bank Convocation Center
+401823041,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,American University Eagles,Maryland Eastern Shore Hawks,0,0,,,,,False,Bender Arena
+401823027,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Wisconsin Badgers,Marquette Golden Eagles,0,0,,,,,False,Kohl Center
+401822763,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Liberty Flames,Coppin State Eagles,0,0,,,,,False,Liberty Arena (VA)
+401820828,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Butler Bulldogs,Boise State Broncos,0,0,,,,,False,Hinkle Fieldhouse
+401817508,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,IU Indianapolis Jaguars,Youngstown State Penguins,0,0,,,,,False,The Jungle
+401817507,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Cleveland State Vikings,Detroit Mercy Titans,0,0,,,,,False,Wolstein Center
+401817506,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Purdue Fort Wayne Mastodons,Northern Kentucky Norse,0,0,,,,,False,Memorial Coliseum (IN)
+401817202,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Buffalo Bulls,St. Bonaventure Bonnies,0,0,,,,,False,Alumni Arena
+401813452,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Duquesne Dukes,Stony Brook Seawolves,0,0,,,,,False,UPMC Cooper Fieldhouse
+401812668,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Fordham Rams,Holy Cross Crusaders,0,0,,,,,False,Rose Hill Gym
+401812609,2025,2025-12-06,2025-12-06 19:00:00+00:00,2025-12-06 14:00,EST,Furman Paladins,Harvard Crimson,0,0,,,,,False,Timmons Arena
+401817246,2025,2025-12-06,2025-12-06 19:15:00+00:00,2025-12-06 14:15,EST,Indiana Hoosiers,Louisville Cardinals,0,0,,,,,True,Gainbridge Fieldhouse
+401817160,2025,2025-12-06,2025-12-06 19:30:00+00:00,2025-12-06 14:30,EST,Loyola Chicago Ramblers,Princeton Tigers,0,0,,,,,False,Gentile Arena
+401828341,2025,2025-12-06,2025-12-06 20:00:00+00:00,2025-12-06 15:00,EST,Kennesaw State Owls,Georgia State Panthers,0,0,,,,,False,KSU Convocation Center
+401823569,2025,2025-12-06,2025-12-06 20:00:00+00:00,2025-12-06 15:00,EST,South Dakota State Jackrabbits,Idaho Vandals,0,0,,,,,False,First Bank & Trust Arena
+401823471,2025,2025-12-06,2025-12-06 20:00:00+00:00,2025-12-06 15:00,EST,Oakland Golden Grizzlies,Toledo Rockets,0,0,,,,,False,OU Credit Union O'rena
+401823327,2025,2025-12-06,2025-12-06 20:00:00+00:00,2025-12-06 15:00,EST,Tulsa Golden Hurricane,Missouri State Bears,0,0,,,,,False,Reynolds Center
+401823220,2025,2025-12-06,2025-12-06 20:00:00+00:00,2025-12-06 15:00,EST,Murray State Racers,Bellarmine Knights,0,0,,,,,False,CFSB Center
+401822336,2025,2025-12-06,2025-12-06 20:00:00+00:00,2025-12-06 15:00,EST,Valparaiso Beacons,Calumet Crimson Wave,0,0,,,,,False,Athletics-Recreation Center
+401817523,2025,2025-12-06,2025-12-06 20:00:00+00:00,2025-12-06 15:00,EST,Virginia Tech Hokies,George Mason Patriots,0,0,,,,,False,Cassell Coliseum
+401825400,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Michigan Wolverines,Rutgers Scarlet Knights,0,0,,,,,False,Crisler Center
+401826791,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Arkansas Razorbacks,Fresno State Bulldogs,0,0,,,,,True,Simmons Bank Arena
+401828546,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Eastern Kentucky Colonels,Indiana University East IU EAST,0,0,,,,,False,Baptist Health Arena
+401827528,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,North Carolina Central Eagles,North Carolina A&T Aggies,0,0,,,,,False,McDougald-McLendon Arena
+401827519,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Wofford Terriers,Elon Phoenix,0,0,,,,,False,Jerry Richardson Indoor Stadium
+401827263,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Ohio Bobcats,Marshall Thundering Herd,0,0,,,,,False,Convocation Center (OH)
+401827043,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Prairie View A&M Panthers,Champion Christian Tigers,0,0,,,,,False,William Nicks Building
+401826764,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Massachusetts Minutemen,UMass Lowell River Hawks,0,0,,,,,False,Mullins Center
+401825398,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Iowa Hawkeyes,Maryland Terrapins,0,0,,,,,False,Carver-Hawkeye Arena
+401823761,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Wyoming Cowboys,Dartmouth Big Green,0,0,,,,,False,Arena-Auditorium
+401823595,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Louisiana Ragin' Cajuns,UNC Wilmington Seahawks,0,0,,,,,False,Cajundome
+401823528,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Abilene Christian Wildcats,New Mexico State Aggies,0,0,,,,,False,Moody Coliseum (Abilene)
+401823363,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Western Kentucky Hilltoppers,Evansville Purple Aces,0,0,,,,,False,E.A. Diddle Arena
+401823017,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Kent State Golden Flashes,Roberts Wesleyan Redhawks,0,0,,,,,False,M.A.C. Center
+401820812,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,East Carolina Pirates,UNC Greensboro Spartans,0,0,,,,,False,Minges Coliseum
+401820610,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Binghamton Bearcats,Le Moyne Dolphins,0,0,,,,,False,Events Center (Binghamton)
+401820601,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Tulane Green Wave,Akron Zips,0,0,,,,,False,Devlin Fieldhouse
+401819894,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Kansas State Wildcats,Seton Hall Pirates,0,0,,,,,False,Bramlage Coliseum
+401813279,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Morgan State Bears,Longwood Lancers,0,0,,,,,False,Hill Field House
+401808918,2025,2025-12-06,2025-12-06 21:00:00+00:00,2025-12-06 16:00,EST,Nicholls Colonels,Incarnate Word Cardinals,0,0,,,,,False,David R. Stopher Gymnasium
+401831239,2025,2025-12-06,2025-12-06 21:30:00+00:00,2025-12-06 16:30,EST,Saint Joseph's Hawks,Temple Owls,0,0,,,,,True,Xfinity Mobile Arena
+401829350,2025,2025-12-06,2025-12-06 21:30:00+00:00,2025-12-06 16:30,EST,Chattanooga Mocs,Southeast Missouri State Redhawks,0,0,,,,,False,McKenzie Arena
+401827211,2025,2025-12-06,2025-12-06 21:30:00+00:00,2025-12-06 16:30,EST,Troy Trojans,LaGrange Panthers,0,0,,,,,False,Trojan Arena
+401819829,2025,2025-12-06,2025-12-06 21:30:00+00:00,2025-12-06 16:30,EST,Memphis Tigers,Baylor Bears,0,0,,,,,False,FedExForum
+401826924,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Portland State Vikings,Omaha Mavericks,0,0,,,,,False,Viking Pavilion
+401824073,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Pepperdine Waves,Vermont Catamounts,0,0,,,,,False,Firestone Fieldhouse
+401823547,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Oregon State Beavers,Southern Utah Thunderbirds,0,0,,,,,False,Gill Coliseum
+401823505,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Eastern Washington Eagles,Kansas City Roos,0,0,,,,,False,Reese Court
+401823355,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Texas Southern Tigers,Sam Houston Bearkats,0,0,,,,,False,H&PE Arena
+401819867,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Colorado State Rams,Colorado Buffaloes,0,0,,,,,False,Moby Arena
+401818555,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Brown Bears,Elms College Blazers,0,0,,,,,False,Pizzitola Sports Center
+401817225,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,California Golden Bears,Pacific Tigers,0,0,,,,,False,Haas Pavilion
+401812360,2025,2025-12-06,2025-12-06 22:00:00+00:00,2025-12-06 17:00,EST,Lehigh Mountain Hawks,Long Island University Sharks,0,0,,,,,False,Stabler Arena
+401831242,2025,2025-12-06,2025-12-06 22:30:00+00:00,2025-12-06 17:30,EST,Florida A&M Rattlers,Florida Memorial FLORIDA MEMORIAL,0,0,,,,,True,State Farm Field House
+401818535,2025,2025-12-06,2025-12-06 22:30:00+00:00,2025-12-06 17:30,EST,Columbia Lions,UAlbany Great Danes,0,0,,,,,False,Levien Gymnasium
+401825402,2025,2025-12-06,2025-12-06 23:00:00+00:00,2025-12-06 18:00,EST,USC Trojans,Washington Huskies,0,0,,,,,False,Galen Center
+401830238,2025,2025-12-06,2025-12-06 23:00:00+00:00,2025-12-06 18:00,EST,Howard Bison,Bowie State Bulldogs,0,0,,,,,False,Burr Gymnasium
+401825401,2025,2025-12-06,2025-12-06 23:00:00+00:00,2025-12-06 18:00,EST,UCLA Bruins,Oregon Ducks,0,0,,,,,False,Pauley Pavilion
+401824856,2025,2025-12-06,2025-12-06 23:00:00+00:00,2025-12-06 18:00,EST,Idaho State Bengals,Denver Pioneers,0,0,,,,,False,Reed Gym
+401817534,2025,2025-12-06,2025-12-06 23:00:00+00:00,2025-12-06 18:00,EST,West Virginia Mountaineers,Wake Forest Demon Deacons,0,0,,,,,True,Charleston Coliseum
+401817149,2025,2025-12-06,2025-12-06 23:00:00+00:00,2025-12-06 18:00,EST,George Washington Revolutionaries,William & Mary Tribe,0,0,,,,,False,Charles E. Smith Center
+401808899,2025,2025-12-06,2025-12-06 23:00:00+00:00,2025-12-06 18:00,EST,New Orleans Privateers,Houston Christian Huskies,0,0,,,,,False,Lakefront Arena
+401824361,2025,2025-12-06,2025-12-07 00:00:00+00:00,2025-12-06 19:00,EST,New Hampshire Wildcats,Boston University Terriers,0,0,,,,,False,Lundholm Gymnasium
+401820488,2025,2025-12-06,2025-12-07 00:00:00+00:00,2025-12-06 19:00,EST,Lamar Cardinals,Texas A&M-Corpus Christi Islanders,0,0,,,,,False,Montagne Center
+401819911,2025,2025-12-06,2025-12-07 00:00:00+00:00,2025-12-06 19:00,EST,Utah Utes,California Baptist Lancers,0,0,,,,,False,Jon M. Huntsman Center
+401809154,2025,2025-12-06,2025-12-07 00:00:00+00:00,2025-12-06 19:00,EST,Cal Poly Mustangs,UC Riverside Highlanders,0,0,,,,,False,Mott Athletics Center
+401831240,2025,2025-12-06,2025-12-07 00:30:00+00:00,2025-12-06 19:30,EST,Villanova Wildcats,Pennsylvania Quakers,0,0,,,,,False,Xfinity Mobile Arena
+401813293,2025,2025-12-06,2025-12-07 00:30:00+00:00,2025-12-06 19:30,EST,Grand Canyon Lopes,Oklahoma State Cowboys,0,0,,,,,True,Mortgage Matchup Center
+401824813,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Houston Cougars,Florida State Seminoles,0,0,,,,,True,Toyota Center (Houston)
+401811099,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Tennessee Volunteers,Illinois Fighting Illini,0,0,,,,,True,Bridgestone Arena
+401826916,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,St. John's Red Storm,Ole Miss Rebels,0,0,,,,,False,Madison Square Garden
+401828293,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,North Dakota Fighting Hawks,Montana Grizzlies,0,0,,,,,False,Betty Engelstad Sioux Center
+401825593,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,North Dakota State Bison,Northern Arizona Lumberjacks,0,0,,,,,False,Scheels Center
+401825581,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Oral Roberts Golden Eagles,Montana State Bobcats,0,0,,,,,False,Mabee Center
+401823465,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Bradley Braves,Northern Illinois Huskies,0,0,,,,,False,Carver Arena
+401820547,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Northern Iowa Panthers,Wichita State Shockers,0,0,,,,,False,McLeod Center
+401817509,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Milwaukee Panthers,Robert Morris Colonials,0,0,,,,,False,UW-Milwaukee Panther Arena
+401813260,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Illinois State Redbirds,Chicago State Cougars,0,0,,,,,False,CEFCU Arena
+401811110,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Northern Colorado Bears,South Dakota Coyotes,0,0,,,,,False,Bank of Colorado Arena
+401806343,2025,2025-12-06,2025-12-07 01:00:00+00:00,2025-12-06 20:00,EST,Eastern Illinois Panthers,Lindenwood Lions,0,0,,,,,False,Groniger Arena
+401825574,2025,2025-12-06,2025-12-07 02:00:00+00:00,2025-12-06 21:00,EST,DePaul Blue Demons,Arkansas-Pine Bluff Golden Lions,0,0,,,,,False,Wintrust Arena
+401825189,2025,2025-12-06,2025-12-07 02:00:00+00:00,2025-12-06 21:00,EST,Little Rock Trojans,Arkansas State Red Wolves,0,0,,,,,False,Jack Stephens Center
+401824122,2025,2025-12-06,2025-12-07 02:00:00+00:00,2025-12-06 21:00,EST,New Mexico Lobos,Santa Clara Broncos,0,0,,,,,False,The Pit
+401823737,2025,2025-12-06,2025-12-07 02:00:00+00:00,2025-12-06 21:00,EST,UC Santa Barbara Gauchos,Cal State Bakersfield Roadrunners,0,0,,,,,False,The Thunderdome
+401809085,2025,2025-12-06,2025-12-07 02:00:00+00:00,2025-12-06 21:00,EST,Long Beach State Beach,UC San Diego Tritons,0,0,,,,,False,Walter Pyramid
+401823480,2025,2025-12-06,2025-12-07 03:00:00+00:00,2025-12-06 22:00,EST,Arizona Wildcats,Auburn Tigers,0,0,,,,,False,McKale Memorial Center
+401819819,2025,2025-12-06,2025-12-07 03:00:00+00:00,2025-12-06 22:00,EST,Arizona State Sun Devils,Oklahoma Sooners,0,0,,,,,True,Mortgage Matchup Center
+401809106,2025,2025-12-06,2025-12-07 03:00:00+00:00,2025-12-06 22:00,EST,UC Irvine Anteaters,Cal State Northridge Matadors,0,0,,,,,False,Bren Events Center
+401809139,2025,2025-12-06,2025-12-07 04:59:00+00:00,2025-12-06 23:59,EST,Hawai'i Rainbow Warriors,Cal State Fullerton Titans,0,0,,,,,False,Stan Sheriff Center
