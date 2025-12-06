@@ -1,0 +1,6 @@
+{
+  "date": "2025-11-28",
+  "generated_at": "2025-12-05T15:22:59.814204",
+  "rows": 0,
+  "error": "You are trying to merge on object and int64 columns for key 'game_id'. If you wish to proceed you should use pd.concat"
+}

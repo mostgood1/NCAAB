@@ -1,0 +1,12 @@
+{
+  "totals_crps_mean": 20.600360641898433,
+  "margins_crps_mean": 15.424273584226485,
+  "totals_loglik_mean": -7.702449945260915,
+  "margins_loglik_mean": -4.593299641780089,
+  "totals_rows": 22,
+  "margins_rows": 22,
+  "sigma_total_default_used": false,
+  "sigma_margin_default_used": false,
+  "window_days": 1,
+  "source_date": "2025-12-05"
+}

@@ -62,6 +62,10 @@ outputs/align_period_*_edges.csv
 !outputs/predictions_unified_enriched_2025-*.csv
 !outputs/archive/2025-*/predictions_display_2025-*.csv
 
+# Scoring metrics JSONs: track per-date CRPS/log-likelihood outputs
+!outputs/scoring_2025-*.json
+!outputs/scoring_2026-*.json
+
 # Re-ignore noisy derived variants even if their base pattern is allowlisted
 # Keeps backfilled/force_fill artifacts out of git while allowing primary snapshots
 outputs/*_backfilled.csv
