@@ -1,11 +1,8 @@
-game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home,display_date,start_time_display,start_time_local
-401828342,Kennesaw State Owls,Southern Wesleyan Warriors,140.3984,6.044055094962912,cal,cal,,,,,,2025-12-08 12:00,
-401812581,Pennsylvania Quakers,Lafayette Leopards,141.7652,6.044055094962912,cal,cal,,,,,,2025-12-08 17:00,
-401820846,Charleston Southern Buccaneers,South Carolina State Bulldogs,139.9496,6.044055094962912,cal,cal,,,,,,2025-12-08 18:00,
-401819895,Kansas State Wildcats,Mississippi Valley State Delta Devils,139.9564,6.044055094962912,cal,cal,,,,,,2025-12-08 19:00,
-401808900,New Orleans Privateers,Incarnate Word Cardinals,141.0852,6.044055094962912,cal,cal,,,,,,2025-12-08 19:00,
-401827090,Southern Miss Golden Eagles,Grambling Tigers,140.8744,6.044055094962912,cal,cal,,,,,,2025-12-08 19:00,
-401827017,Texas Longhorns,Southern Jaguars,140.1298,6.044055094962912,cal,cal,,,,,,2025-12-08 19:00,
-synthetic:iowastate::syracuse@2025-12-08,Syracuse Orange,Iowa State Cyclones,142.0338,6.044055094962912,cal,cal,,,,,,,
-synthetic:towson::ucsandiegotritons@2025-12-08,Towson Tigers,UC San Diego Tritons,143.1524,6.044055094962912,cal,cal,,,,,,,
-synthetic:stfrancisparedflash::troytrojans@2025-12-08,Troy Trojans,Saint Francis (PA) Red Flash,142.724,6.044055094962912,cal,cal,,,,,,,
+game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home,start_time_display,start_time_local
+401828342,Kennesaw State Owls,Southern Wesleyan Warriors,140.3984,9.361599762960738,cal,cal,-2.9441300000000012,30.310066762960737,,,2025-12-08 11:00,2025-12-08 11:00
+401812581,Pennsylvania Quakers,Lafayette Leopards,141.7652,9.361599762960738,cal,cal,-9.734800000000007,15.861599762960738,,,2025-12-08 17:00,2025-12-08 17:00
+401820846,Charleston Southern Buccaneers,South Carolina State Bulldogs,139.9496,9.361599762960738,cal,cal,2.4154399999999896,19.248033762960738,,,2025-12-08 18:00,2025-12-08 18:00
+401819895,Kansas State Wildcats,Mississippi Valley State Delta Devils,139.9564,9.361599762960738,cal,cal,-4.268300000000011,65.73145376296074,,,2025-12-08 19:00,2025-12-08 19:00
+401808900,New Orleans Privateers,Incarnate Word Cardinals,141.0852,9.361599762960738,cal,cal,2.0549699999999973,14.316108762960738,,,2025-12-08 19:00,2025-12-08 19:00
+401827090,Southern Miss Golden Eagles,Grambling Tigers,140.8744,9.361599762960738,cal,cal,2.031630000000007,25.66738576296074,,,2025-12-08 19:00,2025-12-08 19:00
+401827017,Texas Longhorns,Southern Jaguars,140.1298,9.361599762960738,cal,cal,-9.24908000000002,45.663895762960735,,,2025-12-08 19:00,2025-12-08 19:00
