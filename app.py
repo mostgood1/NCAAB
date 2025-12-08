@@ -17970,6 +17970,12 @@ def _persist_display(df: pd.DataFrame, date_str: str) -> tuple[Path, str]:
 @app.route('/api/display_predictions')
 def api_display_predictions():
     date_q = (request.args.get('date') or '').strip()
+    # Resolve target timezone: query param 'tz' wins, else cookie 'tz', else UTC
+    tz_q = (request.args.get('tz') or request.cookies.get('tz') or 'UTC').strip()
+    try:
+        tzinfo = ZoneInfo(tz_q)
+    except Exception:
+        tzinfo = ZoneInfo('UTC')
     # Infer date from last_index_df if not provided
     if not date_q:
         base_df = getattr(app, 'last_index_df', pd.DataFrame())
@@ -18014,8 +18020,24 @@ def api_display_predictions():
         for c in keep_cols:
             if c in df.columns:
                 item[c] = r.get(c)
+        # Add AM/PM local time derived from start_time if available
+        try:
+            ts = item.get('start_time') or r.get('display_time_str')
+            dt_obj = None
+            if isinstance(ts, str) and ts:
+                # Accept ISO strings with Z or offset
+                try:
+                    dt_obj = dt.datetime.fromisoformat(ts.replace('Z','+00:00'))
+                except Exception:
+                    dt_obj = None
+            if dt_obj is not None:
+                dt_local = dt_obj.astimezone(tzinfo)
+                item['display_time_ampm'] = dt_local.strftime('%I:%M %p')
+                item['display_date_local'] = dt_local.strftime('%Y-%m-%d')
+        except Exception:
+            pass
         rows.append(item)
-    return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows})
+    return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
 
 @app.route('/api/display_prediction_dates')
 def api_display_prediction_dates():

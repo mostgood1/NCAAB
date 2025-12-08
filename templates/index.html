@@ -1136,11 +1136,12 @@
               {% if r.edge_conf_tag is defined and r.edge_conf_tag %}
                 <span class="badge detailed-only" title="Edge confidence tag from meta">Conf {{ r.edge_conf_tag }}</span>
               {% endif %}
-              {# Hard lock: render only server-provided CST display_time_str; no client conversion #}
+              {# Prefer AM/PM string from API when available; fallback to display_time_str #}
               {% set disp_date = (r.display_date if (r.display_date is defined and r.display_date) else (r.date if (r.date is defined and r.date) else '')) %}
               {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
-              {% if r.display_time_str is defined and r.display_time_str %}
-                <span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-iso="" data-slate="{{ disp_date }}" data-rollover="{{ '1' if is_rollover else '0' }}" title="Time shown in Central Time">{{ r.display_time_str }}</span>
+              {% set ampm = r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '') %}
+              {% if ampm %}
+                <span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-iso="" data-slate="{{ disp_date }}" data-rollover="{{ '1' if is_rollover else '0' }}" title="Time shown in {{ tz or 'local' }}">{{ ampm }}</span>
                 <button type="button" class="pill small copy-time" title="Copy time details" aria-label="Copy time details">Copy</button>
               {% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
