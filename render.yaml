@@ -7,16 +7,15 @@ services:
     startCommand: python app.py
     autoDeploy: true
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.7
-      - key: RENDER
-        value: "1"
-      - key: FLASK_ENV
-        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: NCAAB_BOOTSTRAP_ON_START
+        value: "0"
+      - key: NCAAB_THEODDS_API_KEY
+        sync: false
+        fromSecret: theoddsapi-key
       - key: TZ
         value: UTC
-      - key: DISPLAY_TZ
-        value: America/New_York
     healthCheckPath: /healthz
     
     # Optional persistent disk if you later want to write outputs on Render

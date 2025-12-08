@@ -853,7 +853,8 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         $codePaths = @(
           (Join-Path $RepoRoot 'app.py'),
           (Join-Path $RepoRoot 'templates\index.html'),
-          (Join-Path $RepoRoot 'static\css\app.css')
+          (Join-Path $RepoRoot 'static\css\app.css'),
+          (Join-Path $RepoRoot 'render.yaml')
         )
         foreach ($cp in $codePaths) { if (Test-Path $cp) { git add $cp } }
         # Optionally stage variance diagnostics if produced today
