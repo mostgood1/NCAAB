@@ -2410,6 +2410,32 @@ def ensure_runtime_artifacts() -> None:
         today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
+    # Optional strict snapshot-first: require today's predictions_display_<date>.csv and avoid cross-date fallbacks.
+    # Enable via env NCAAB_REQUIRE_TODAY_DISPLAY=1 on Render to prevent silent drift.
+    try:
+        _require_today_display = str(os.getenv("NCAAB_REQUIRE_TODAY_DISPLAY", "")).lower() in ("1","true","yes","on")
+    except Exception:
+        _require_today_display = False
+    if _require_today_display and today_str:
+        try:
+            _disp_today = OUT / f"predictions_display_{today_str}.csv"
+            if _disp_today.exists():
+                try:
+                    _df_disp_today = pd.read_csv(_disp_today)
+                    _PREDICTIONS_SOURCE_PATH = str(_disp_today)
+                    return _df_disp_today
+                except Exception:
+                    # unreadable snapshot: signal pending state
+                    _PREDICTIONS_SOURCE_PATH = None
+                    return pd.DataFrame()
+            else:
+                # missing snapshot: signal pending state without older fallbacks
+                logger.warning("Strict snapshot-first enabled: missing %s; UI will show pending state.", _disp_today)
+                _PREDICTIONS_SOURCE_PATH = None
+                return pd.DataFrame()
+        except Exception:
+            # non-fatal: if strict mode fails unexpectedly, continue normal flow
+            pass
     if not today_str:
         return
     sentinel = OUT / ".bootstrap_done"
