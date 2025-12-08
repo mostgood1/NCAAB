@@ -16463,6 +16463,13 @@ def api_bootstrap():
 
     Returns JSON with counts and any warnings. Safe to call multiple times; will skip heavy work if data present.
     """
+    # Light-mode guard: disable bootstrap on constrained deployments
+    try:
+        _lm = str(os.environ.get("NCAAB_LIGHT_MODE", "")).lower()
+        if _lm in ("1","true","yes","on"):
+            return jsonify({"ok": False, "error": "light_mode_enabled", "message": "Bootstrap disabled in LIGHT_MODE."}), 403
+    except Exception:
+        pass
     if cli_daily_run is None:
         return jsonify({"status": "error", "message": "daily_run not importable in this environment"}), 500
     date_param = (request.args.get("date") or (request.json.get("date") if request.is_json else None) or "").strip()
@@ -16650,6 +16657,13 @@ def api_schedule_diagnostics():
     Returns JSON with counts and sample team lists to help diagnose under-coverage.
     Does not write any output files.
     """
+    # Light-mode guard: disable live schedule diagnostics on constrained deployments
+    try:
+        _lm = str(os.environ.get("NCAAB_LIGHT_MODE", "")).lower()
+        if _lm in ("1","true","yes","on"):
+            return jsonify({"ok": False, "error": "light_mode_enabled", "message": "Schedule diagnostics disabled in LIGHT_MODE."}), 403
+    except Exception:
+        pass
     date_param = (request.args.get("date") or "").strip()
     refresh = (request.args.get("refresh") or "").strip().lower() in ("1","true","yes")
     try:
@@ -17191,6 +17205,13 @@ def api_refresh_odds():
       4. Refresh master games_with_last.csv for that single date (append/replace row subset).
       5. Return coverage counts.
     """
+    # Light-mode guard: disable heavy odds refresh on constrained deployments
+    try:
+        _lm = str(os.environ.get("NCAAB_LIGHT_MODE", "")).lower()
+        if _lm in ("1","true","yes","on"):
+            return jsonify({"ok": False, "error": "light_mode_enabled", "message": "Odds refresh disabled in LIGHT_MODE."}), 403
+    except Exception:
+        pass
     date_q = (request.args.get("date") or "").strip()
     region = (request.args.get("region") or "us").strip()
     markets = (request.args.get("markets") or "h2h,spreads,totals").strip()

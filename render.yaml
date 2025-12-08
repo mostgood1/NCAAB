@@ -16,6 +16,8 @@ services:
         fromSecret: theoddsapi-key
       - key: TZ
         value: UTC
+      - key: NCAAB_LIGHT_MODE
+        value: "1"
     healthCheckPath: /healthz
     
     # Optional persistent disk if you later want to write outputs on Render
