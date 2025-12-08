@@ -1175,10 +1175,10 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
 
 @app.get('/api/debug-times')
 def api_debug_times():
-    """Debug endpoint: list start times and Central display times for a date.
+    """Inspect per-row time display fields for a given slate date.
 
-    Query params:
-      - date: YYYY-MM-DD (required)
+    Query parameters:
+    - date: YYYY-MM-DD (required)
     """
     try:
         date_q = request.args.get("date")
@@ -1186,33 +1186,23 @@ def api_debug_times():
             return jsonify({"status": "error", "message": "missing date"}), 400
         gpath = ROOT / "outputs" / f"games_{date_q}.csv"
         if not gpath.exists():
-            return jsonify(
-                {
-                    "status": "missing",
-                    "message": f"games_{date_q}.csv not found",
-                    "rows": [],
-                }
-            )
+            return jsonify({"status": "missing", "message": f"games_{date_q}.csv not found"}), 404
         df = pd.read_csv(gpath)
         if df.empty or "game_id" not in df.columns:
             return jsonify({"status": "empty", "rows": []})
         df["game_id"] = df["game_id"].astype(str)
-        # Apply central-display helper row-wise
         rows = []
         for row in df.to_dict("records"):
             r2 = _apply_site_display_global(row)
-            rows.append(
-                {
-                    "game_id": r2.get("game_id"),
-                    "home_team": r2.get("home_team"),
-                    "away_team": r2.get("away_team"),
-                    "start_time_utc": r2.get("start_time") or r2.get("_start_dt"),
-                    "start_time_local": r2.get("start_time_local"),
-                    "start_tz_abbr": r2.get("start_tz_abbr"),
-                    "display_time_str": r2.get("display_time_str"),
-                    "display_date": r2.get("display_date"),
-                }
-            )
+            rows.append({
+                "game_id": r2.get("game_id"),
+                "home_team": r2.get("home_team"),
+                "away_team": r2.get("away_team"),
+                "start_time_utc": r2.get("start_time") or r2.get("_start_dt"),
+                "start_time_local": r2.get("start_time_local"),
+                "start_tz_abbr": r2.get("start_tz_abbr"),
+                "display_time_str": r2.get("display_time_str"),
+            })
         return jsonify({"status": "ok", "date": date_q, "rows": rows})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -1458,8 +1448,8 @@ def api_debug_slate2():
     def api_debug_slate():
         """Return per-row inspection of date/time fields and source precedence for a slate.
 
-        Query params:
-        - date: YYYY-MM-DD (optional; defaults to schedule tz 'today')
+        # Query params:
+        # - date: YYYY-MM-DD (optional; defaults to schedule tz 'today')
         """
         try:
             date_q = request.args.get("date")
@@ -1482,6 +1472,20 @@ def api_debug_slate2():
                 ]:
                     p = OUT / name
                     if p.exists():
+                        # Read and parse subset ids safely; tolerate empty/invalid JSON
+                        txt = ''
+                        try:
+                            txt = subset_path_p.read_text(encoding='utf-8')
+                        except Exception:
+                            txt = ''
+                        if not txt or not txt.strip():
+                            payload_p = None
+                        else:
+                            try:
+                                payload_p = _json.loads(txt)
+                            except Exception:
+                                payload_p = None
+                        # Read candidate CSV safely
                         try:
                             candidates.append(pd.read_csv(p))
                         except Exception:
@@ -4379,6 +4383,73 @@ def index():
         compact_mode = True if q_compact == "" else (q_compact in ("1","true","yes"))
     except Exception:
         compact_mode = True
+    # Snapshot-first: render strictly from persisted predictions_display_<date>.csv
+    try:
+        from datetime import datetime as _dt
+        target_date = date_q or _dt.utcnow().strftime('%Y-%m-%d')
+        snap_path = OUT / f"predictions_display_{target_date}.csv"
+        df_snap = _safe_read_csv(snap_path)
+        if not df_snap.empty:
+            branding = _load_branding_map()
+            rows = []
+            keep = [
+                'game_id','home_team','away_team','pred_total','pred_margin',
+                'pred_total_basis','pred_margin_basis','market_total','spread_home',
+                'display_date','display_time_str','start_time','start_time_display'
+            ]
+            for r in df_snap.to_dict(orient='records'):
+                rec = {k: r.get(k) for k in keep}
+                b = branding.get(_canon_slug(rec.get('home_team') or ''))
+                if b:
+                    rec['home_logo'] = b.get('logo')
+                b2 = branding.get(_canon_slug(rec.get('away_team') or ''))
+                if b2:
+                    rec['away_logo'] = b2.get('logo')
+                rows.append(rec)
+            total_rows = len(rows)
+            removed_empty_rows = 0
+            dynamic_css = None
+            status = None
+            coverage_note = None
+            results_note = None
+            accuracy = None
+            uniform_note = None
+            show_bootstrap = False
+            bootstrap_url = None
+            show_diag = False
+            diag_url = None
+            fused_bootstrap_url = None
+            refresh_odds_url = None
+            safe_rows = rows
+            archive_dates = []
+            pipeline_stats = {}
+            return render_template(
+                "index.html",
+                rows=safe_rows,
+                total_rows=total_rows,
+                date_val=target_date,
+                top_picks=[],
+                accuracy=accuracy,
+                uniform_note=uniform_note,
+                dynamic_css=dynamic_css,
+                coverage_note=coverage_note,
+                results_note=results_note,
+                show_edges=True,
+                coverage={},
+                archive_dates=archive_dates,
+                show_bootstrap=show_bootstrap,
+                compact_mode=compact_mode,
+                bootstrap_url=bootstrap_url,
+                show_diag=show_diag,
+                diag_url=diag_url,
+                fused_bootstrap_url=fused_bootstrap_url,
+                refresh_odds_url=refresh_odds_url,
+                removed_empty_rows=removed_empty_rows,
+                status=status,
+                pipeline_stats=pipeline_stats,
+            )
+    except Exception:
+        pass
     # Probability calibration enable flag (?cal_probs=1 or env CALIBRATE_PROBS=1)
     try:
         calibrate_probs_param = (request.args.get("cal_probs") or "").strip().lower() in ("1","true","yes")
@@ -18006,6 +18077,48 @@ def api_display_predictions():
                 df = df[[c for c in usecols if c in df.columns]]
         except Exception:
             df = pd.DataFrame()
+        # Snapshot-first: compute hash and return rows without re-normalizing/persisting
+        digest = None
+        try:
+            core = df[['game_id','pred_total','pred_margin']] if {'game_id','pred_total','pred_margin'}.issubset(df.columns) else df
+            if 'game_id' in core.columns:
+                core = core.sort_values('game_id')
+            hasher = _hashlib_mod.sha256()
+            cols = list(core.columns)
+            for _, row in core.iterrows():
+                try:
+                    line_vals = [row.get(col, '') for col in cols]
+                except AttributeError:
+                    line_vals = [row[col] if col in row.index else '' for col in cols]
+                line = ','.join(map(str, line_vals)) + '\n'
+                hasher.update(line.encode())
+            digest = hasher.hexdigest()
+        except Exception:
+            digest = 'hash_error'
+        keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','display_date','display_time_str']
+        rows: list[dict[str, Any]] = []
+        for _, r in df.iterrows():
+            item = {}
+            for c in keep_cols:
+                if c in df.columns:
+                    item[c] = r.get(c)
+            # Add AM/PM local time derived from start_time/display_time_str
+            try:
+                ts = item.get('start_time') or item.get('display_time_str')
+                dt_obj = None
+                if isinstance(ts, str) and ts:
+                    try:
+                        dt_obj = dt.datetime.fromisoformat(ts.replace('Z','+00:00'))
+                    except Exception:
+                        dt_obj = None
+                if dt_obj is not None:
+                    dt_local = dt_obj.astimezone(tzinfo)
+                    item['display_time_ampm'] = dt_local.strftime('%I:%M %p')
+                    item['display_date_local'] = dt_local.strftime('%Y-%m-%d')
+            except Exception:
+                pass
+            rows.append(item)
+        return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
     else:
         df = getattr(app, 'last_index_df', pd.DataFrame())
         if not df.empty:
@@ -18013,19 +18126,17 @@ def api_display_predictions():
     df = _normalize_display(df)
     # Persist again with refined bases (idempotent safe)
     _, digest = _persist_display(df, date_q)
-    keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time']
+    keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','display_date','display_time_str']
     rows: list[dict[str, Any]] = []
     for _, r in df.iterrows():
         item = {}
         for c in keep_cols:
             if c in df.columns:
                 item[c] = r.get(c)
-        # Add AM/PM local time derived from start_time if available
         try:
-            ts = item.get('start_time') or r.get('display_time_str')
+            ts = item.get('start_time') or item.get('display_time_str')
             dt_obj = None
             if isinstance(ts, str) and ts:
-                # Accept ISO strings with Z or offset
                 try:
                     dt_obj = dt.datetime.fromisoformat(ts.replace('Z','+00:00'))
                 except Exception:
