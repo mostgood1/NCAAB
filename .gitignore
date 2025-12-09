@@ -61,6 +61,9 @@ outputs/align_period_*_edges.csv
 !outputs/predictions_display_2025-*.csv
 !outputs/predictions_unified_enriched_2025-*.csv
 !outputs/archive/2025-*/predictions_display_2025-*.csv
+!outputs/predictions_display_2026-*.csv
+!outputs/predictions_unified_enriched_2026-*.csv
+!outputs/archive/2026-*/predictions_display_2026-*.csv
 
 # Scoring metrics JSONs: track per-date CRPS/log-likelihood outputs
 !outputs/scoring_2025-*.json
