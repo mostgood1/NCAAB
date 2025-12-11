@@ -17,7 +17,8 @@ MAP = {
 
 def _read_csv(p: Path) -> pd.DataFrame:
     try:
-        return pd.read_csv(p)
+        # Use explicit dtype handling to avoid mixed-type DtypeWarning and disable low_memory chunking
+        return pd.read_csv(p, dtype=str, low_memory=False)
     except Exception:
         return pd.DataFrame()
 

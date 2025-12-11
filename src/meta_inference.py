@@ -38,7 +38,13 @@ def _align_features(df: pd.DataFrame, schema_kind: str) -> Optional[pd.DataFrame
     try:
         X = build_ordered_matrix(df, feats)
         # Fill NaNs with zeros for LightGBM predict
-        return X.fillna(0)
+        # Avoid future downcasting warning by inferring objects after fillna
+        X = X.fillna(0)
+        try:
+            X = X.infer_objects(copy=False)
+        except Exception:
+            pass
+        return X
     except Exception:
         return None
 

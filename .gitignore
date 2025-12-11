@@ -16,8 +16,7 @@ __pycache__/
 !outputs/.gitkeep
 !outputs/daily_results/
 /outputs/daily_results/*
-!outputs/daily_results/results_2025-*.csv
-!outputs/daily_results/results_2026-*.csv
+!outputs/daily_results/results_*-*.csv
 !outputs/games_with_last.csv
 !outputs/games_with_closing.csv
 !outputs/priors.csv
@@ -42,9 +41,9 @@ __pycache__/
 !outputs/align_period_2025-*_edges.csv
 !outputs/align_period_2026-*.csv
 !outputs/align_period_2026-*_edges.csv
-!outputs/stake_sheet_today.csv
-!outputs/stake_sheet_today_cal.csv
-!outputs/stake_sheet_today_compare.csv
+!outputs/stake_sheet_today*.csv
+!outputs/stake_sheet_today_cal*.csv
+!outputs/stake_sheet_today_compare*.csv
 # (do not commit quantile selection artifacts; diagnostics can be viewed locally)
 
 # Commit-mode display: allowlist dated public prediction snapshots (point + calibrated + interval)
@@ -58,12 +57,9 @@ outputs/align_period_*.csv
 outputs/align_period_*_edges.csv
 
 # Frontend display snapshots: explicitly allowlist (place after generic ignores)
-!outputs/predictions_display_2025-*.csv
-!outputs/predictions_unified_enriched_2025-*.csv
-!outputs/archive/2025-*/predictions_display_2025-*.csv
-!outputs/predictions_display_2026-*.csv
-!outputs/predictions_unified_enriched_2026-*.csv
-!outputs/archive/2026-*/predictions_display_2026-*.csv
+!outputs/predictions_display_*-*.csv
+!outputs/predictions_unified_enriched_*-*.csv
+!outputs/archive/*/predictions_display_*-*.csv
 
 # Scoring metrics JSONs: track per-date CRPS/log-likelihood outputs
 !outputs/scoring_2025-*.json

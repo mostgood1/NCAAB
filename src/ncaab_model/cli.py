@@ -7559,7 +7559,8 @@ def daily_run(
                 try:
                     odds_hist_path = settings.outputs_dir / 'games_with_last.csv'
                     if odds_hist_path.exists() and 'game_id' in merged_pred.columns:
-                        raw = pd.read_csv(odds_hist_path)
+                        # Read odds history with explicit dtype handling to avoid mixed-type DtypeWarning
+                        raw = pd.read_csv(odds_hist_path, dtype=str, low_memory=False)
                         # Normalize key dtype
                         try:
                             if 'game_id' in raw.columns:
