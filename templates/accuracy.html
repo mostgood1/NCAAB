@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Season Accuracy</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    h1 { margin-bottom: 0.5rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+    th { background: #f7f7f7; }
+    .muted { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Season Accuracy</h1>
+  <p class="muted">Model-implied accuracy vs market for ATS and totals; includes daily breakdown and team/conference aggregates.</p>
+
+  {% set o = payload.get('overall', {}) %}
+  <div class="grid">
+    <div>
+      <h2>YTD Overall</h2>
+      <table>
+        <tr><th>ATS total</th><td>{{ o.get('ats_total') }}</td></tr>
+        <tr><th>ATS correct</th><td>{{ o.get('ats_correct') }}</td></tr>
+        <tr><th>ATS accuracy</th><td>{{ '%.3f' % o.get('ats_accuracy') if o.get('ats_accuracy') is not none else '—' }}</td></tr>
+        <tr><th>Totals total</th><td>{{ o.get('totals_total') }}</td></tr>
+        <tr><th>Totals correct</th><td>{{ o.get('totals_correct') }}</td></tr>
+        <tr><th>Totals accuracy</th><td>{{ '%.3f' % o.get('totals_accuracy') if o.get('totals_accuracy') is not none else '—' }}</td></tr>
+      </table>
+    </div>
+
+    <div>
+      <h2>Quick Links</h2>
+      <ul>
+        <li><a href="/api/accuracy" target="_blank">Accuracy JSON</a></li>
+        <li><a href="/">Home</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Daily Accuracy</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>ATS acc</th>
+        <th>ATS (correct/total)</th>
+        <th>Totals acc</th>
+        <th>Totals (correct/total)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d, rec in (payload.get('daily', {}) | dict | items) %}
+        <tr>
+          <td>{{ d }}</td>
+          <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
+          <td>{{ rec.get('ats_correct') }}/{{ rec.get('ats_total') }}</td>
+          <td>{{ '%.3f' % rec.get('totals_accuracy') if rec.get('totals_accuracy') is not none else '—' }}</td>
+          <td>{{ rec.get('totals_correct') }}/{{ rec.get('totals_total') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>By Conference (ATS)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Conference</th>
+        <th>ATS acc</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for conf, rec in (payload.get('conferences', {}) | dict | items) %}
+        <tr>
+          <td>{{ conf }}</td>
+          <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
+          <td>{{ rec.get('ats_total') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>By Team (ATS)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Team</th>
+        <th>ATS acc</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for team, rec in (payload.get('teams', {}) | dict | items) %}
+        <tr>
+          <td>{{ team }}</td>
+          <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
+          <td>{{ rec.get('ats_total') }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</body>
+</html>

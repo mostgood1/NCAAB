@@ -192,7 +192,7 @@ try:
             if not SNAPSHOT_ONLY:
                 return None
             path = request.path if request else ''
-            allowed = {'/', '/api/status', '/api/display_predictions', '/api/accuracy'}
+            allowed = {'/', '/api/status', '/api/display_predictions', '/api/accuracy', '/accuracy'}
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
                 return None
@@ -323,6 +323,19 @@ def api_accuracy():
     except Exception:
         pass
     return payload
+except Exception:
+    pass
+
+# Accuracy page (lightweight render using server-side JSON)
+try:
+    if isinstance(app, Flask):
+        from flask import render_template
+
+        @app.route('/accuracy')
+        def accuracy_page():
+            df = _load_all_daily_results()
+            payload = _accuracy_payload(df)
+            return render_template('accuracy.html', payload=payload)
 except Exception:
     pass
 def _safe_nanmean(x):
