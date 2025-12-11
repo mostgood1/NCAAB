@@ -192,13 +192,137 @@ try:
             if not SNAPSHOT_ONLY:
                 return None
             path = request.path if request else ''
-            allowed = {'/', '/api/status', '/api/display_predictions'}
+            allowed = {'/', '/api/status', '/api/display_predictions', '/api/accuracy'}
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
                 return None
             if path in allowed:
                 return None
             abort(503, description='Snapshot-only mode: endpoint disabled')
+import glob
+import json
+import pandas as pd
+
+def _load_all_daily_results() -> pd.DataFrame:
+    try:
+        out_dir = os.path.join(os.getcwd(), 'outputs', 'daily_results')
+        files = sorted(glob.glob(os.path.join(out_dir, 'results_*.csv')))
+        dfs = []
+        for f in files:
+            df = pd.read_csv(f, dtype=str, low_memory=False)
+            if 'date' not in df.columns:
+                df['date'] = os.path.basename(f).split('_', 1)[1].split('.csv')[0]
+            dfs.append(df)
+        if not dfs:
+            return pd.DataFrame()
+        return pd.concat(dfs, ignore_index=True)
+    except Exception:
+        return pd.DataFrame()
+
+def _coerce_numeric(df: pd.DataFrame, cols: list[str]):
+    for c in cols:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce')
+    return df
+
+def _conference_map() -> dict:
+    m = {}
+    try:
+        p = os.path.join(os.getcwd(), 'data', 'conferences.csv')
+        if os.path.exists(p):
+            cdf = pd.read_csv(p, dtype=str)
+            if {'team','conference'}.issubset(cdf.columns):
+                for r in cdf[['team','conference']].itertuples(index=False):
+                    m[str(r.team)] = str(r.conference)
+    except Exception:
+        pass
+    return m
+
+def _accuracy_payload(df: pd.DataFrame) -> dict:
+    if df.empty:
+        return {'status':'empty'}
+    df = _coerce_numeric(df, ['pred_margin','spread_home','actual_margin','pred_total','market_total','actual_total',
+                              'pred_total_1h','market_total_1h','actual_total_1h','pred_margin_1h','spread_home_1h','actual_margin_1h'])
+    # Overall (YTD)
+    mask_ats = df[['pred_margin','spread_home','actual_margin']].notna().all(axis=1)
+    ats_df = df.loc[mask_ats].copy()
+    ats_df['pred_home_cover'] = ats_df['pred_margin'] > (-ats_df['spread_home'])
+    ats_df['actual_home_cover'] = ats_df['actual_margin'] > (-ats_df['spread_home'])
+    mask_tot = df[['pred_total','market_total','actual_total']].notna().all(axis=1)
+    tot_df = df.loc[mask_tot].copy()
+    tot_df['pred_over'] = tot_df['pred_total'] > tot_df['market_total']
+    tot_df['actual_over'] = tot_df['actual_total'] > tot_df['market_total']
+    overall = {
+        'ats_total': int(len(ats_df)),
+        'ats_correct': int((ats_df['pred_home_cover'] == ats_df['actual_home_cover']).sum()),
+        'ats_accuracy': float((ats_df['pred_home_cover'] == ats_df['actual_home_cover']).mean()) if len(ats_df) else None,
+        'totals_total': int(len(tot_df)),
+        'totals_correct': int((tot_df['pred_over'] == tot_df['actual_over']).sum()),
+        'totals_accuracy': float((tot_df['pred_over'] == tot_df['actual_over']).mean()) if len(tot_df) else None,
+    }
+    # Daily breakdown
+    df['date'] = pd.to_datetime(df.get('date'), errors='coerce')
+    daily = {}
+    for d, g in df.groupby(df['date'].dt.date):
+        gd = _coerce_numeric(g.copy(), ['pred_margin','spread_home','actual_margin','pred_total','market_total','actual_total'])
+        m_ats = gd[['pred_margin','spread_home','actual_margin']].notna().all(axis=1)
+        m_tot = gd[['pred_total','market_total','actual_total']].notna().all(axis=1)
+        ad = gd.loc[m_ats].copy(); ad['pred_home_cover'] = ad['pred_margin'] > (-ad['spread_home']); ad['actual_home_cover'] = ad['actual_margin'] > (-ad['spread_home'])
+        td = gd.loc[m_tot].copy(); td['pred_over'] = td['pred_total'] > td['market_total']; td['actual_over'] = td['actual_total'] > td['market_total']
+        daily[str(d)] = {
+            'ats_total': int(len(ad)),
+            'ats_correct': int((ad['pred_home_cover'] == ad['actual_home_cover']).sum()),
+            'ats_accuracy': float((ad['pred_home_cover'] == ad['actual_home_cover']).mean()) if len(ad) else None,
+            'totals_total': int(len(td)),
+            'totals_correct': int((td['pred_over'] == td['actual_over']).sum()),
+            'totals_accuracy': float((td['pred_over'] == td['actual_over']).mean()) if len(td) else None,
+        }
+    # Conference/team breakdowns
+    conf_map = _conference_map()
+    df['conference_home'] = df.get('home_team', '').map(lambda t: conf_map.get(str(t), None)) if 'home_team' in df.columns else None
+    df['conference_away'] = df.get('away_team', '').map(lambda t: conf_map.get(str(t), None)) if 'away_team' in df.columns else None
+    # Compute team-level accuracy (home+away combined by `home_team`/`away_team` perspective)
+    team_rows = []
+    for side, team_col, margin_sign in [('home','home_team', 1), ('away','away_team', -1)]:
+        if team_col in df.columns:
+            g = df.copy()
+            g['team'] = g[team_col]
+            # Recompute covers from the side's perspective
+            g['pred_cover_side'] = (margin_sign * g['pred_margin']) > (-g['spread_home'])
+            g['actual_cover_side'] = (margin_sign * g['actual_margin']) > (-g['spread_home'])
+            team_rows.append(g[['team','pred_cover_side','actual_cover_side']])
+    team_df = pd.concat(team_rows, ignore_index=True) if team_rows else pd.DataFrame()
+    teams = {}
+    if not team_df.empty:
+        for t, tg in team_df.groupby('team'):
+            acc = float((tg['pred_cover_side'] == tg['actual_cover_side']).mean()) if len(tg) else None
+            teams[str(t)] = {'ats_total': int(len(tg)), 'ats_accuracy': acc}
+    # Conference accuracy (aggregate by conference using home team conference if available)
+    confs = {}
+    if 'conference_home' in df.columns:
+        tmp = df.dropna(subset=['conference_home']).copy()
+        m = tmp[['pred_margin','spread_home','actual_margin']].notna().all(axis=1)
+        tmp = tmp.loc[m]
+        tmp['pred_home_cover'] = tmp['pred_margin'] > (-tmp['spread_home'])
+        tmp['actual_home_cover'] = tmp['actual_margin'] > (-tmp['spread_home'])
+        for c, cg in tmp.groupby('conference_home'):
+            acc = float((cg['pred_home_cover'] == cg['actual_home_cover']).mean()) if len(cg) else None
+            confs[str(c)] = {'ats_total': int(len(cg)), 'ats_accuracy': acc}
+    return {'overall': overall, 'daily': daily, 'teams': teams, 'conferences': confs}
+
+@app.route('/api/accuracy')
+def api_accuracy():
+    df = _load_all_daily_results()
+    payload = _accuracy_payload(df)
+    # Persist a snapshot for downstream consumption
+    try:
+        out_path = os.path.join(os.getcwd(), 'outputs', 'metrics', 'season_accuracy_summary.json')
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        with open(out_path, 'w') as f:
+            json.dump(payload, f, indent=2)
+    except Exception:
+        pass
+    return payload
 except Exception:
     pass
 def _safe_nanmean(x):
