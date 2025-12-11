@@ -164,7 +164,43 @@ import logging
 from flask import send_file
 import pandas as pd
 import datetime as dt
+import os
 import numpy as np
+SNAPSHOT_ONLY = os.getenv('APP_REQUIRE_DISPLAY_SNAPSHOT', 'false').lower() == 'true' or os.getenv('RENDER_MODE', 'false').lower() == 'true'
+DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
+
+try:
+    import pandas as pd
+    # Reduce memory churn by enabling copy-on-write and disabling chained assignment copies
+    pd.options.mode.copy_on_write = True
+except Exception:
+    pd = None
+
+try:
+    from flask import Flask, request, abort
+except Exception:
+    Flask = None
+    request = None
+    abort = None
+
+# Guard non-display endpoints in snapshot-only/Render mode
+try:
+    app  # type: ignore[name-defined]
+    if isinstance(app, Flask):
+        @app.before_request
+        def _render_mode_gate():
+            if not SNAPSHOT_ONLY:
+                return None
+            path = request.path if request else ''
+            allowed = {'/', '/api/status', '/api/display_predictions'}
+            # Allow specific static assets and templates
+            if path.startswith('/static/') or path.startswith('/templates/'):
+                return None
+            if path in allowed:
+                return None
+            abort(503, description='Snapshot-only mode: endpoint disabled')
+except Exception:
+    pass
 def _safe_nanmean(x):
     try:
         x = np.asarray(x)
