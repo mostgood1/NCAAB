@@ -165,6 +165,14 @@ from flask import send_file
 import pandas as pd
 import datetime as dt
 import numpy as np
+def _safe_nanmean(x):
+    try:
+        x = np.asarray(x)
+        if x.size == 0:
+            return np.nan
+        return float(np.nanmean(x))
+    except Exception:
+        return np.nan
 from zoneinfo import ZoneInfo
 import re
 import json as _json
@@ -481,8 +489,8 @@ def _approx_crps_from_three(y, q10, q50, q90):
     for t in taus:
         qt = _interp3(q10, q50, q90, t)
         e = y - qt
-        losses.append(np.nanmean(np.maximum(t * e, (t - 1.0) * e)))
-    return float(2.0 * np.nanmean(losses))
+        losses.append(_safe_nanmean(np.maximum(t * e, (t - 1.0) * e)))
+    return float(2.0 * _safe_nanmean(losses))
 
 # -----------------------------
 # Quantile metrics page
@@ -3800,17 +3808,17 @@ def api_quantile_segment_metrics():
             for t in taus:
                 qt = interp3(q10, q50, q90, t)
                 e = y - qt
-                los.append(np.nanmean(np.maximum(t * e, (t - 1.0) * e)))
-            return float(2.0 * np.nanmean(los))
+                los.append(_safe_nanmean(np.maximum(t * e, (t - 1.0) * e)))
+            return float(2.0 * _safe_nanmean(los))
         def agg(df, kind: str):
             if df.empty:
                 return {'n': 0}
             if kind == 'total':
-                cov = float(np.nanmean((df['actual_total'] >= df['q10_total']) & (df['actual_total'] <= df['q90_total'])))
+                cov = float(_safe_nanmean((df['actual_total'] >= df['q10_total']) & (df['actual_total'] <= df['q90_total'])))
                 width = float(np.nanmedian(df['q90_total'] - df['q10_total']))
                 crps = approx_crps_three(df['actual_total'], df['q10_total'], df['q50_total'], df['q90_total'])
             else:
-                cov = float(np.nanmean((df['actual_margin'] >= df['q10_margin']) & (df['actual_margin'] <= df['q90_margin'])))
+                cov = float(_safe_nanmean((df['actual_margin'] >= df['q10_margin']) & (df['actual_margin'] <= df['q90_margin'])))
                 width = float(np.nanmedian(df['q90_margin'] - df['q10_margin']))
                 crps = approx_crps_three(df['actual_margin'], df['q10_margin'], df['q50_margin'], df['q90_margin'])
             return {'n': int(len(df)), 'coverage': cov, 'width_median': width, 'crps': float(crps)}
@@ -3904,13 +3912,13 @@ def api_quantile_segment_trend():
             if df.empty:
                 return {'n': 0}
             if kind == 'total':
-                cov = float(np.nanmean((df['actual_total'] >= df['q10_total']) & (df['actual_total'] <= df['q90_total'])))
+                cov = float(_safe_nanmean((df['actual_total'] >= df['q10_total']) & (df['actual_total'] <= df['q90_total'])))
                 width = float(np.nanmedian(df['q90_total'] - df['q10_total']))
-                crps = float(np.nanmean(_approx_crps_from_three(df['actual_total'].to_numpy(float), df['q10_total'].to_numpy(float), df['q50_total'].to_numpy(float), df['q90_total'].to_numpy(float))))
+                crps = float(_safe_nanmean(_approx_crps_from_three(df['actual_total'].to_numpy(float), df['q10_total'].to_numpy(float), df['q50_total'].to_numpy(float), df['q90_total'].to_numpy(float))))
             else:
-                cov = float(np.nanmean((df['actual_margin'] >= df['q10_margin']) & (df['actual_margin'] <= df['q90_margin'])))
+                cov = float(_safe_nanmean((df['actual_margin'] >= df['q10_margin']) & (df['actual_margin'] <= df['q90_margin'])))
                 width = float(np.nanmedian(df['q90_margin'] - df['q10_margin']))
-                crps = float(np.nanmean(_approx_crps_from_three(df['actual_margin'].to_numpy(float), df['q10_margin'].to_numpy(float), df['q50_margin'].to_numpy(float), df['q90_margin'].to_numpy(float))))
+                crps = float(_safe_nanmean(_approx_crps_from_three(df['actual_margin'].to_numpy(float), df['q10_margin'].to_numpy(float), df['q50_margin'].to_numpy(float), df['q90_margin'].to_numpy(float))))
             return {'n': int(len(df)), 'coverage': cov, 'width_median': width, 'crps': crps}
         weeks = sorted(j['week'].dropna().unique())
         if len(weeks) > 8:
