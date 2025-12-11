@@ -447,6 +447,50 @@ print({'path': str(games_path), 'rows': len(df2)})
   } catch {
     Write-Warning "normalize_start_fields.py failed: $($_)"
   }
+  # Ensure predictions_display_<date>.csv exists for snapshot-first UI parity
+  Write-Section '6a.post.i) Persist display snapshot for today if missing'
+  try {
+    $displaySnap = Join-Path $OutDir ("predictions_display_" + $todayIso + ".csv")
+    $enrichedPred = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
+    if (-not (Test-Path $displaySnap)) {
+      if (Test-Path $enrichedPred) {
+        $pyPersist = @"
+import pandas as pd
+from pathlib import Path
+out_dir = Path(r'${OutDir}')
+date = '${todayIso}'
+enr = out_dir / f'predictions_unified_enriched_{date}.csv'
+dis = out_dir / f'predictions_display_{date}.csv'
+try:
+    df = pd.read_csv(enr)
+except Exception as e:
+    print(f'[persist-display] read enriched failed: {e}'); raise SystemExit(1)
+# Keep core columns plus display fields if present
+keep = [
+    'game_id','date','home_team','away_team',
+    'pred_total','pred_margin','pred_total_basis','pred_margin_basis',
+    'market_total','spread_home',
+    'start_time_iso','_start_dt','start_time','commence_time',
+    'display_date','start_time_display','display_time_str','start_tz_abbr'
+]
+cols = [c for c in keep if c in df.columns]
+df = df[cols].copy()
+# Basic sanitization
+df['game_id'] = df['game_id'].astype(str).str.replace(r'\\.0$','', regex=True) if 'game_id' in df.columns else df.get('game_id')
+df['date'] = df['date'].astype(str) if 'date' in df.columns else df.get('date')
+if 'date' in df.columns:
+    df = df[df['date'].astype(str) == date]
+df.to_csv(dis, index=False)
+print({'path': str(dis), 'rows': len(df)})
+"@
+        & $VenvPython -c $pyPersist
+      } else {
+        Write-Warning "Enriched predictions not found at $enrichedPred; cannot persist display snapshot."
+      }
+    } else {
+      Write-Host "Display snapshot already present -> $displaySnap" -ForegroundColor DarkGray
+    }
+  } catch { Write-Warning "Persisting display snapshot failed: $($_)" }
   try {
     $pyCheck = @"
 import pandas as pd, sys
@@ -471,6 +515,12 @@ sys.exit(1 if nan_count>0 else 0)
   } catch {
     Write-Warning "post-normalization check failed: $($_)"
   }
+
+    # Safeguard: drop unposted/no-market games not present in provider slate
+    Write-Section '6a.post.ii) Safeguard: remove No Market (Unposted) games'
+    try {
+      & $VenvPython scripts/remove_unposted_no_market.py $todayIso $OutDir
+    } catch { Write-Warning "safeguard removal failed: $($_)" }
 
   # Enrich meta probabilities in-place using aligned features; guard against model/schema gaps
   Write-Section '6a.post.b) Enrich meta probabilities (aligned)'
@@ -848,7 +898,14 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       if (Test-Path $oddsTodayHist) { $toStage += $oddsTodayHist }
 
       if ($toStage.Count -gt 0) {
-        foreach ($p in $toStage) { git add $p }
+        # Use force-add for critical daily snapshots in case .gitignore blocks outputs
+        foreach ($p in $toStage) {
+          if ($p -like "*predictions_display_*.csv" -or $p -like "*predictions_unified_enriched_*.csv") {
+            git add -f $p
+          } else {
+            git add $p
+          }
+        }
         # Also stage core frontend/backend files if modified today
         $codePaths = @(
           (Join-Path $RepoRoot 'app.py'),
