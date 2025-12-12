@@ -240,24 +240,41 @@ def _coerce_numeric(df: pd.DataFrame, cols: list[str]):
 def _conference_map() -> dict:
     m: dict[str, str] = {}
     try:
-        p = os.path.join(os.getcwd(), 'data', 'conferences.csv')
-        if os.path.exists(p):
-            cdf = pd.read_csv(p, dtype=str)
-            # Try to be flexible on column names
-            team_col = next((c for c in cdf.columns if c.lower() in ('team','school','name','team_name')), None)
+        # Prefer populated D1 mapping if available
+        p_d1 = os.path.join(os.getcwd(), 'data', 'd1_conferences.csv')
+        paths = [p_d1, os.path.join(os.getcwd(), 'data', 'conferences.csv')]
+        for p in paths:
+            if not os.path.exists(p):
+                continue
+            cdf = pd.read_csv(p, dtype=str, comment='#')
+            team_col = next((c for c in cdf.columns if c.lower() in ('team','school','name','team_name','canonical')), None)
             conf_col = next((c for c in cdf.columns if c.lower() in ('conference','conf','league')), None)
-            if team_col and conf_col:
-                for _, r in cdf[[team_col, conf_col]].dropna().iterrows():
-                    raw_team = str(r[team_col]).strip()
-                    conf = str(r[conf_col]).strip()
-                    if not raw_team or not conf:
-                        continue
-                    m[raw_team] = conf
-                    try:
-                        canon = _canon_slug(raw_team)
-                        m[canon] = conf
-                    except Exception:
-                        pass
+            if not team_col or not conf_col:
+                continue
+            for _, r in cdf[[team_col, conf_col]].iterrows():
+                raw_team = str(r[team_col]).strip()
+                conf = str(r[conf_col]).strip()
+                if not raw_team or not conf:
+                    continue
+                m[raw_team] = conf
+                try:
+                    canon = _canon_slug(raw_team)
+                    m[canon] = conf
+                except Exception:
+                    pass
+        # Also fold in provider aliases to catch variants
+        alias_path = os.path.join(os.getcwd(), 'data', 'provider_aliases.csv')
+        if os.path.exists(alias_path):
+            adf = pd.read_csv(alias_path, dtype=str)
+            src_col = next((c for c in adf.columns if c.lower() in ('provider_name','raw','alias','source')), None)
+            can_col = next((c for c in adf.columns if c.lower() in ('canonical','team','name')), None)
+            if src_col and can_col:
+                for _, r in adf[[src_col, can_col]].dropna().iterrows():
+                    src = str(r[src_col]).strip()
+                    can = str(r[can_col]).strip()
+                    conf = m.get(can) or m.get(_canon_slug(can))
+                    if src and conf:
+                        m[src] = conf
     except Exception:
         pass
     return m
@@ -293,6 +310,9 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
         m_tot = gd[['pred_total','market_total','actual_total']].notna().all(axis=1)
         ad = gd.loc[m_ats].copy(); ad['pred_home_cover'] = ad['pred_margin'] > (-ad['spread_home']); ad['actual_home_cover'] = ad['actual_margin'] > (-ad['spread_home'])
         td = gd.loc[m_tot].copy(); td['pred_over'] = td['pred_total'] > td['market_total']; td['actual_over'] = td['actual_total'] > td['market_total']
+        # Skip days with zero games to avoid cluttering the UI with 0/0 rows
+        if len(ad) == 0 and len(td) == 0:
+            continue
         daily[str(d)] = {
             'ats_total': int(len(ad)),
             'ats_correct': int((ad['pred_home_cover'] == ad['actual_home_cover']).sum()),
@@ -303,10 +323,15 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
         }
     # Conference/team breakdowns
     conf_map = _conference_map()
+    # Map conferences for home/away with flexible column fallbacks
     if 'home_team' in df.columns:
         df['conference_home'] = df['home_team'].astype(str).map(lambda t: conf_map.get(t, conf_map.get(_canon_slug(t), None)))
+    elif 'home' in df.columns:
+        df['conference_home'] = df['home'].astype(str).map(lambda t: conf_map.get(t, conf_map.get(_canon_slug(t), None)))
     if 'away_team' in df.columns:
         df['conference_away'] = df['away_team'].astype(str).map(lambda t: conf_map.get(t, conf_map.get(_canon_slug(t), None)))
+    elif 'away' in df.columns:
+        df['conference_away'] = df['away'].astype(str).map(lambda t: conf_map.get(t, conf_map.get(_canon_slug(t), None)))
     # Compute team-level accuracy (home+away combined by `home_team`/`away_team` perspective)
     team_rows = []
     for side, team_col, margin_sign in [('home','home_team', 1), ('away','away_team', -1)]:
@@ -334,11 +359,23 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
                 'totals_total': int(tot_mask.sum()),
                 'totals_accuracy': tot_acc,
             }
-    # Conference accuracy (aggregate by conference using home team conference if available)
+    # Conference accuracy: aggregate by conference considering both home and away mappings
     confs = {}
-    if 'conference_home' in df.columns:
+    if {'conference_home','conference_away'}.issubset(df.columns):
         tmp = df.copy()
-        tmp['conference_home'] = tmp['conference_home'].fillna('Unknown')
+        # Normalize both sides and prefer D1 names when present
+        for col in ['conference_home','conference_away']:
+            tmp[col] = tmp[col].fillna('Unknown')
+            try:
+                tmp[col] = tmp[col].astype(str).replace({'nan': 'Unknown', 'None': 'Unknown', '': 'Unknown'})
+            except Exception:
+                pass
+            try:
+                tmp[col] = tmp[col].replace({'Unknown': 'Non-D1/Other'})
+            except Exception:
+                pass
+        # Build the set of conferences from both sides
+        conf_set = sorted(set(tmp['conference_home'].astype(str)) | set(tmp['conference_away'].astype(str)))
         # ATS
         ats_mask = tmp[['pred_margin','spread_home','actual_margin']].notna().all(axis=1)
         tmp_ats = tmp.loc[ats_mask].copy()
@@ -349,16 +386,17 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
         tmp_tot = tmp.loc[tot_mask].copy()
         tmp_tot['pred_over'] = tmp_tot['pred_total'] > tmp_tot['market_total']
         tmp_tot['actual_over'] = tmp_tot['actual_total'] > tmp_tot['market_total']
-        for c in sorted(set(tmp['conference_home'].astype(str))):
-            cg_ats = tmp_ats[tmp_ats['conference_home'].astype(str) == c]
-            cg_tot = tmp_tot[tmp_tot['conference_home'].astype(str) == c]
-            ats_acc = float((cg_ats['pred_home_cover'] == cg_ats['actual_home_cover']).mean()) if len(cg_ats) else None
-            tot_acc = float((cg_tot['pred_over'] == cg_tot['actual_over']).mean()) if len(cg_tot) else None
-            confs[str(c)] = {
-                'ats_total': int(len(cg_ats)),
-                'ats_accuracy': ats_acc,
-                'totals_total': int(len(cg_tot)),
-                'totals_accuracy': tot_acc,
+        # Per-conference aggregation: include games where either side belongs to the conference
+        for c in conf_set:
+            # ATS slice
+            ats_c = tmp_ats[(tmp_ats['conference_home'] == c) | (tmp_ats['conference_away'] == c)]
+            # Totals slice
+            tot_c = tmp_tot[(tmp_tot['conference_home'] == c) | (tmp_tot['conference_away'] == c)]
+            confs[c] = {
+                'ats_total': int(len(ats_c)),
+                'ats_accuracy': float((ats_c['pred_home_cover'] == ats_c['actual_home_cover']).mean()) if len(ats_c) else None,
+                'totals_total': int(len(tot_c)),
+                'totals_accuracy': float((tot_c['pred_over'] == tot_c['actual_over']).mean()) if len(tot_c) else None,
             }
     # Provide friendly header labels for UI readability
     headers = {

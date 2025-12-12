@@ -1,0 +1,14 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401826056,2025,2025-12-12,2025-12-12 23:00:00+00:00,2025-12-12 18:00,EST,UMBC Retrievers,Army Black Knights,0,0,,,,,False,Chesapeake Employers Insurance Arena
+401830119,2025,2025-12-12,2025-12-13 00:00:00+00:00,2025-12-12 19:00,EST,UNC Greensboro Spartans,William Peace Pacers,0,0,,,,,False,Bodford Arena
+401826971,2025,2025-12-12,2025-12-13 00:00:00+00:00,2025-12-12 19:00,EST,Gardner-Webb Runnin' Bulldogs,Brevard Tornados,0,0,,,,,False,Paul Porter Arena
+401823496,2025,2025-12-12,2025-12-13 00:00:00+00:00,2025-12-12 19:00,EST,Queens University Royals,South Carolina State Bulldogs,0,0,,,,,False,Curry Arena
+401823328,2025,2025-12-12,2025-12-13 00:00:00+00:00,2025-12-12 19:00,EST,Xavier Musketeers,Missouri State Bears,0,0,,,,,False,Cintas Center
+401823042,2025,2025-12-12,2025-12-13 00:00:00+00:00,2025-12-12 19:00,EST,North Carolina A&T Aggies,Maryland Eastern Shore Hawks,0,0,,,,,False,Corbett Sports Center
+401822353,2025,2025-12-12,2025-12-13 00:00:00+00:00,2025-12-12 19:00,EST,Stonehill Skyhawks,Vermont State - Johnson Badgers,0,0,,,,,False,Merkert Gymnasium
+401812794,2025,2025-12-12,2025-12-13 01:00:00+00:00,2025-12-12 20:00,EST,UConn Huskies,Texas Longhorns,0,0,,,,,False,PeoplesBank Arena
+401829476,2025,2025-12-12,2025-12-13 01:00:00+00:00,2025-12-12 20:00,EST,South Dakota State Jackrabbits,Dakota Wesleyan Tigers,0,0,,,,,False,First Bank & Trust Arena
+401824893,2025,2025-12-12,2025-12-13 01:00:00+00:00,2025-12-12 20:00,EST,Austin Peay Governors,East Tennessee State Buccaneers,0,0,,,,,False,F&M Bank Arena
+401820489,2025,2025-12-12,2025-12-13 01:00:00+00:00,2025-12-12 20:00,EST,Texas A&M-Corpus Christi Islanders,Dallas Christian Crusaders,0,0,,,,,False,American Bank Center
+401808702,2025,2025-12-12,2025-12-13 01:30:00+00:00,2025-12-12 20:30,EST,McNeese Cowboys,East Texas A&M Lions,0,0,,,,,False,Townsley Law Arena
+401823506,2025,2025-12-12,2025-12-13 02:00:00+00:00,2025-12-12 21:00,EST,Eastern Washington Eagles,California Baptist Lancers,0,0,,,,,False,Reese Court
