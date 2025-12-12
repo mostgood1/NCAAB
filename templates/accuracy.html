@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Season Accuracy</title>
   <link rel="stylesheet" href="/static/style.css" />
@@ -11,7 +11,7 @@
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
-    th { background: #f7f7f7; }
+    th { background: #000; color: #fff; }
     .muted { color: #666; }
   </style>
 </head>
@@ -54,7 +54,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for d, rec in (payload.get('daily', {}) | dict | items) %}
+      {% for d, rec in daily_sorted %}
         <tr>
           <td>{{ d }}</td>
           <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
@@ -66,41 +66,49 @@
     </tbody>
   </table>
 
-  <h2>By Conference (ATS)</h2>
+  <h2>By Conference</h2>
   <table>
     <thead>
       <tr>
         <th>Conference</th>
-        <th>ATS acc</th>
-        <th>Total</th>
+        <th>ATS Accuracy</th>
+        <th>ATS Total</th>
+        <th>Totals Accuracy</th>
+        <th>Totals Total</th>
       </tr>
     </thead>
     <tbody>
-      {% for conf, rec in (payload.get('conferences', {}) | dict | items) %}
+      {% for conf, rec in conf_sorted %}
         <tr>
           <td>{{ conf }}</td>
           <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('ats_total') }}</td>
+          <td>{{ '%.3f' % rec.get('totals_accuracy') if rec.get('totals_accuracy') is not none else '—' }}</td>
+          <td>{{ rec.get('totals_total') }}</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <h2>By Team (ATS)</h2>
+  <h2>By Team</h2>
   <table>
     <thead>
       <tr>
         <th>Team</th>
-        <th>ATS acc</th>
-        <th>Total</th>
+        <th>ATS Accuracy</th>
+        <th>ATS Total</th>
+        <th>Totals Accuracy</th>
+        <th>Totals Total</th>
       </tr>
     </thead>
     <tbody>
-      {% for team, rec in (payload.get('teams', {}) | dict | items) %}
+      {% for team, rec in team_sorted %}
         <tr>
           <td>{{ team }}</td>
           <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('ats_total') }}</td>
+          <td>{{ '%.3f' % rec.get('totals_accuracy') if rec.get('totals_accuracy') is not none else '—' }}</td>
+          <td>{{ rec.get('totals_total') }}</td>
         </tr>
       {% endfor %}
     </tbody>

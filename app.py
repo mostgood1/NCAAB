@@ -183,6 +183,15 @@ except Exception:
     request = None
     abort = None
 
+# Ensure a Flask app instance exists before route registration
+try:
+    app
+except NameError:
+    if Flask is not None:
+        app = Flask(__name__)
+    else:
+        app = None
+
 # Guard non-display endpoints in snapshot-only/Render mode
 try:
     app  # type: ignore[name-defined]
@@ -199,6 +208,9 @@ try:
             if path in allowed:
                 return None
             abort(503, description='Snapshot-only mode: endpoint disabled')
+except Exception:
+    # If Flask or app isn't available yet, skip gating setup
+    pass
 import glob
 import json
 import pandas as pd
@@ -231,9 +243,12 @@ def _conference_map() -> dict:
         p = os.path.join(os.getcwd(), 'data', 'conferences.csv')
         if os.path.exists(p):
             cdf = pd.read_csv(p, dtype=str)
-            if {'team','conference'}.issubset(cdf.columns):
-                for r in cdf[['team','conference']].itertuples(index=False):
-                    m[str(r.team)] = str(r.conference)
+            # Try to be flexible on column names
+            team_col = next((c for c in cdf.columns if c.lower() in ('team','school','name')), None)
+            conf_col = next((c for c in cdf.columns if c.lower() in ('conference','conf')), None)
+            if team_col and conf_col:
+                for _, r in cdf[[team_col, conf_col]].dropna().iterrows():
+                    m[str(r[team_col]).strip()] = str(r[conf_col]).strip()
     except Exception:
         pass
     return m
@@ -279,38 +294,82 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
         }
     # Conference/team breakdowns
     conf_map = _conference_map()
-    df['conference_home'] = df.get('home_team', '').map(lambda t: conf_map.get(str(t), None)) if 'home_team' in df.columns else None
-    df['conference_away'] = df.get('away_team', '').map(lambda t: conf_map.get(str(t), None)) if 'away_team' in df.columns else None
+    if 'home_team' in df.columns:
+        df['conference_home'] = df['home_team'].astype(str).map(lambda t: conf_map.get(t, None))
+    if 'away_team' in df.columns:
+        df['conference_away'] = df['away_team'].astype(str).map(lambda t: conf_map.get(t, None))
     # Compute team-level accuracy (home+away combined by `home_team`/`away_team` perspective)
     team_rows = []
     for side, team_col, margin_sign in [('home','home_team', 1), ('away','away_team', -1)]:
         if team_col in df.columns:
             g = df.copy()
             g['team'] = g[team_col]
-            # Recompute covers from the side's perspective
+            # Recompute covers from the side's perspective (ATS)
             g['pred_cover_side'] = (margin_sign * g['pred_margin']) > (-g['spread_home'])
             g['actual_cover_side'] = (margin_sign * g['actual_margin']) > (-g['spread_home'])
-            team_rows.append(g[['team','pred_cover_side','actual_cover_side']])
+            # Totals are independent of side
+            g['pred_over'] = g['pred_total'] > g['market_total']
+            g['actual_over'] = g['actual_total'] > g['market_total']
+            team_rows.append(g[['team','pred_cover_side','actual_cover_side','pred_over','actual_over']])
     team_df = pd.concat(team_rows, ignore_index=True) if team_rows else pd.DataFrame()
     teams = {}
     if not team_df.empty:
         for t, tg in team_df.groupby('team'):
-            acc = float((tg['pred_cover_side'] == tg['actual_cover_side']).mean()) if len(tg) else None
-            teams[str(t)] = {'ats_total': int(len(tg)), 'ats_accuracy': acc}
+            ats_mask = tg[['pred_cover_side','actual_cover_side']].notna().all(axis=1)
+            tot_mask = tg[['pred_over','actual_over']].notna().all(axis=1)
+            ats_acc = float((tg.loc[ats_mask, 'pred_cover_side'] == tg.loc[ats_mask, 'actual_cover_side']).mean()) if ats_mask.any() else None
+            tot_acc = float((tg.loc[tot_mask, 'pred_over'] == tg.loc[tot_mask, 'actual_over']).mean()) if tot_mask.any() else None
+            teams[str(t)] = {
+                'ats_total': int(ats_mask.sum()),
+                'ats_accuracy': ats_acc,
+                'totals_total': int(tot_mask.sum()),
+                'totals_accuracy': tot_acc,
+            }
     # Conference accuracy (aggregate by conference using home team conference if available)
     confs = {}
     if 'conference_home' in df.columns:
-        tmp = df.dropna(subset=['conference_home']).copy()
-        m = tmp[['pred_margin','spread_home','actual_margin']].notna().all(axis=1)
-        tmp = tmp.loc[m]
-        tmp['pred_home_cover'] = tmp['pred_margin'] > (-tmp['spread_home'])
-        tmp['actual_home_cover'] = tmp['actual_margin'] > (-tmp['spread_home'])
-        for c, cg in tmp.groupby('conference_home'):
-            acc = float((cg['pred_home_cover'] == cg['actual_home_cover']).mean()) if len(cg) else None
-            confs[str(c)] = {'ats_total': int(len(cg)), 'ats_accuracy': acc}
-    return {'overall': overall, 'daily': daily, 'teams': teams, 'conferences': confs}
+        tmp = df.copy()
+        tmp['conference_home'] = tmp['conference_home'].fillna('Unknown')
+        # ATS
+        ats_mask = tmp[['pred_margin','spread_home','actual_margin']].notna().all(axis=1)
+        tmp_ats = tmp.loc[ats_mask].copy()
+        tmp_ats['pred_home_cover'] = tmp_ats['pred_margin'] > (-tmp_ats['spread_home'])
+        tmp_ats['actual_home_cover'] = tmp_ats['actual_margin'] > (-tmp_ats['spread_home'])
+        # Totals
+        tot_mask = tmp[['pred_total','market_total','actual_total']].notna().all(axis=1)
+        tmp_tot = tmp.loc[tot_mask].copy()
+        tmp_tot['pred_over'] = tmp_tot['pred_total'] > tmp_tot['market_total']
+        tmp_tot['actual_over'] = tmp_tot['actual_total'] > tmp_tot['market_total']
+        for c in sorted(set(tmp['conference_home'].astype(str))):
+            cg_ats = tmp_ats[tmp_ats['conference_home'].astype(str) == c]
+            cg_tot = tmp_tot[tmp_tot['conference_home'].astype(str) == c]
+            ats_acc = float((cg_ats['pred_home_cover'] == cg_ats['actual_home_cover']).mean()) if len(cg_ats) else None
+            tot_acc = float((cg_tot['pred_over'] == cg_tot['actual_over']).mean()) if len(cg_tot) else None
+            confs[str(c)] = {
+                'ats_total': int(len(cg_ats)),
+                'ats_accuracy': ats_acc,
+                'totals_total': int(len(cg_tot)),
+                'totals_accuracy': tot_acc,
+            }
+    # Provide friendly header labels for UI readability
+    headers = {
+        'overall': {
+            'ats_total': 'ATS Total',
+            'ats_correct': 'ATS Correct',
+            'ats_accuracy': 'ATS Accuracy',
+            'totals_total': 'Totals Total',
+            'totals_correct': 'Totals Correct',
+            'totals_accuracy': 'Totals Accuracy',
+        },
+        'breakdowns': {
+            'ats_total': 'ATS Total',
+            'ats_accuracy': 'ATS Accuracy',
+            'totals_total': 'Totals Total',
+            'totals_accuracy': 'Totals Accuracy',
+        }
+    }
+    return {'overall': overall, 'daily': daily, 'teams': teams, 'conferences': confs, 'headers': headers}
 
-@app.route('/api/accuracy')
 def api_accuracy():
     df = _load_all_daily_results()
     payload = _accuracy_payload(df)
@@ -323,6 +382,9 @@ def api_accuracy():
     except Exception:
         pass
     return payload
+try:
+    if isinstance(app, Flask) and 'api_accuracy' not in getattr(app, 'view_functions', {}):
+        app.add_url_rule('/api/accuracy', endpoint='api_accuracy', view_func=api_accuracy)
 except Exception:
     pass
 
@@ -331,11 +393,36 @@ try:
     if isinstance(app, Flask):
         from flask import render_template
 
-        @app.route('/accuracy')
         def accuracy_page():
             df = _load_all_daily_results()
             payload = _accuracy_payload(df)
-            return render_template('accuracy.html', payload=payload)
+            # Build sorted views
+            daily_items = list(payload.get('daily', {}).items())
+            try:
+                daily_sorted = sorted(daily_items, key=lambda x: x[0], reverse=True)
+            except Exception:
+                daily_sorted = daily_items
+            conf_items = list(payload.get('conferences', {}).items())
+            def _acc_key_conf(item):
+                rec = item[1] or {}
+                v = rec.get('ats_accuracy')
+                return (v is None, -(v or 0.0))
+            try:
+                conf_sorted = sorted(conf_items, key=_acc_key_conf)
+            except Exception:
+                conf_sorted = conf_items
+            team_items = list(payload.get('teams', {}).items())
+            def _acc_key_team(item):
+                rec = item[1] or {}
+                v = rec.get('ats_accuracy')
+                return (v is None, -(v or 0.0))
+            try:
+                team_sorted = sorted(team_items, key=_acc_key_team)
+            except Exception:
+                team_sorted = team_items
+            return render_template('accuracy.html', payload=payload, daily_sorted=daily_sorted, conf_sorted=conf_sorted, team_sorted=team_sorted)
+        if 'accuracy_page' not in app.view_functions:
+            app.add_url_rule('/accuracy', endpoint='accuracy_page', view_func=accuracy_page)
 except Exception:
     pass
 def _safe_nanmean(x):
@@ -369,7 +456,11 @@ except Exception:
     cli_daily_run = None  # type: ignore
     typer = None  # type: ignore
 
-app = Flask(__name__)
+# Avoid re-initializing the Flask app (preserve existing routes)
+try:
+    app
+except NameError:
+    app = Flask(__name__)
 
 # Guardrails and precedence helpers (added)
 def _league_total_bounds(df: pd.DataFrame) -> tuple[float, float]:
@@ -17381,8 +17472,8 @@ def api_picks_raw():
     return jsonify({"rows": len(rows), "data": rows})
 
 
-@app.route("/api/accuracy")
-def api_accuracy():
+@app.route("/api/accuracy_alt")
+def api_accuracy_alt():
     acc_json = OUT / "eval_last2" / "accuracy_summary.json"
     if acc_json.exists():
         try:
