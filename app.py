@@ -238,17 +238,26 @@ def _coerce_numeric(df: pd.DataFrame, cols: list[str]):
     return df
 
 def _conference_map() -> dict:
-    m = {}
+    m: dict[str, str] = {}
     try:
         p = os.path.join(os.getcwd(), 'data', 'conferences.csv')
         if os.path.exists(p):
             cdf = pd.read_csv(p, dtype=str)
             # Try to be flexible on column names
-            team_col = next((c for c in cdf.columns if c.lower() in ('team','school','name')), None)
-            conf_col = next((c for c in cdf.columns if c.lower() in ('conference','conf')), None)
+            team_col = next((c for c in cdf.columns if c.lower() in ('team','school','name','team_name')), None)
+            conf_col = next((c for c in cdf.columns if c.lower() in ('conference','conf','league')), None)
             if team_col and conf_col:
                 for _, r in cdf[[team_col, conf_col]].dropna().iterrows():
-                    m[str(r[team_col]).strip()] = str(r[conf_col]).strip()
+                    raw_team = str(r[team_col]).strip()
+                    conf = str(r[conf_col]).strip()
+                    if not raw_team or not conf:
+                        continue
+                    m[raw_team] = conf
+                    try:
+                        canon = _canon_slug(raw_team)
+                        m[canon] = conf
+                    except Exception:
+                        pass
     except Exception:
         pass
     return m
@@ -295,9 +304,9 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
     # Conference/team breakdowns
     conf_map = _conference_map()
     if 'home_team' in df.columns:
-        df['conference_home'] = df['home_team'].astype(str).map(lambda t: conf_map.get(t, None))
+        df['conference_home'] = df['home_team'].astype(str).map(lambda t: conf_map.get(t, conf_map.get(_canon_slug(t), None)))
     if 'away_team' in df.columns:
-        df['conference_away'] = df['away_team'].astype(str).map(lambda t: conf_map.get(t, None))
+        df['conference_away'] = df['away_team'].astype(str).map(lambda t: conf_map.get(t, conf_map.get(_canon_slug(t), None)))
     # Compute team-level accuracy (home+away combined by `home_team`/`away_team` perspective)
     team_rows = []
     for side, team_col, margin_sign in [('home','home_team', 1), ('away','away_team', -1)]:
