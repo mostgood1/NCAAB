@@ -1,5 +1,5 @@
 team,conference
-# ACC
+# ACC,
 Boston College Eagles,ACC
 Clemson Tigers,ACC
 Duke Blue Devils,ACC
@@ -15,7 +15,7 @@ Syracuse Orange,ACC
 Virginia Cavaliers,ACC
 Virginia Tech Hokies,ACC
 Wake Forest Demon Deacons,ACC
-# Big Ten
+# Big Ten,
 Illinois Fighting Illini,Big Ten
 Indiana Hoosiers,Big Ten
 Iowa Hawkeyes,Big Ten
@@ -34,7 +34,7 @@ UCLA Bruins,Big Ten
 USC Trojans,Big Ten
 Oregon Ducks,Big Ten
 Washington Huskies,Big Ten
-# Big 12
+# Big 12,
 Arizona Wildcats,Big 12
 Arizona State Sun Devils,Big 12
 Baylor Bears,Big 12
@@ -51,7 +51,7 @@ Texas Tech Red Raiders,Big 12
 UCF Knights,Big 12
 Utah Utes,Big 12
 West Virginia Mountaineers,Big 12
-# SEC
+# SEC,
 Alabama Crimson Tide,SEC
 Arkansas Razorbacks,SEC
 Auburn Tigers,SEC
@@ -68,7 +68,7 @@ Texas A&M Aggies,SEC
 Vanderbilt Commodores,SEC
 Texas Longhorns,SEC
 Oklahoma Sooners,SEC
-# Big East
+# Big East,
 UConn Huskies,Big East
 Villanova Wildcats,Big East
 Marquette Golden Eagles,Big East
@@ -80,7 +80,7 @@ Xavier Musketeers,Big East
 Seton Hall Pirates,Big East
 DePaul Blue Demons,Big East
 Creighton Bluejays,Big East
-# A-10
+# A-10,
 Dayton Flyers,A-10
 VCU Rams,A-10
 Saint Louis Billikens,A-10
@@ -91,7 +91,7 @@ Saint Joseph's Hawks,A-10
 George Mason Patriots,A-10
 Duquesne Dukes,A-10
 Loyola Chicago Ramblers,A-10
-# AAC (deduplicated; includes SMU)
+# AAC (deduplicated; includes SMU),
 Memphis Tigers,AAC
 Florida Atlantic Owls,AAC
 UAB Blazers,AAC
@@ -106,7 +106,7 @@ Charlotte 49ers,AAC
 UTSA Roadrunners,AAC
 Tulsa Golden Hurricane,AAC
 SMU Mustangs,AAC
-# Mountain West
+# Mountain West,
 San Diego State Aztecs,Mountain West
 New Mexico Lobos,Mountain West
 UNLV Rebels,Mountain West
@@ -118,7 +118,7 @@ Fresno State Bulldogs,Mountain West
 Wyoming Cowboys,Mountain West
 Air Force Falcons,Mountain West
 San José State Spartans,Mountain West
-# WCC
+# WCC,
 Gonzaga Bulldogs,WCC
 Saint Mary's Gaels,WCC
 San Francisco Dons,WCC
@@ -128,7 +128,7 @@ Pepperdine Waves,WCC
 San Diego Toreros,WCC
 Portland Pilots,WCC
 Pacific Tigers,WCC
-# MAAC
+# MAAC,
 Iona Gaels,MAAC
 Rider Broncs,MAAC
 Fairfield Stags,MAAC
@@ -140,7 +140,7 @@ Canisius Golden Griffins,MAAC
 Siena Saints,MAAC
 Saint Peter's Peacocks,MAAC
 Mount St. Mary's Mountaineers,MAAC
-# MAC
+# MAC,
 Akron Zips,MAC
 Ball State Cardinals,MAC
 Bowling Green Falcons,MAC
@@ -153,7 +153,7 @@ Northern Illinois Huskies,MAC
 Ohio Bobcats,MAC
 Toledo Rockets,MAC
 Western Michigan Broncos,MAC
-# Sun Belt (canonical 'App State')
+# Sun Belt (canonical 'App State'),
 App State Mountaineers,Sun Belt
 Arkansas State Red Wolves,Sun Belt
 Coastal Carolina Chanticleers,Sun Belt
@@ -168,12 +168,12 @@ Texas State Bobcats,Sun Belt
 Troy Trojans,Sun Belt
 ULM Warhawks,Sun Belt
 Southern Miss Golden Eagles,Sun Belt
-# Pac-12 (remaining)
+# Pac-12 (remaining),
 California Golden Bears,Pac-12
 Oregon State Beavers,Pac-12
 Stanford Cardinal,Pac-12
 Washington State Cougars,Pac-12
-# SWAC
+# SWAC,
 Alabama A&M Bulldogs,SWAC
 Alabama State Hornets,SWAC
 Alcorn State Braves,SWAC
@@ -185,7 +185,7 @@ Mississippi Valley State Delta Devils,SWAC
 Prairie View A&M Panthers,SWAC
 Southern Jaguars,SWAC
 Texas Southern Tigers,SWAC
-# MEAC
+# MEAC,
 Howard Bison,MEAC
 Norfolk State Spartans,MEAC
 North Carolina Central Eagles,MEAC
@@ -194,7 +194,7 @@ Delaware State Hornets,MEAC
 Maryland Eastern Shore Hawks,MEAC
 South Carolina State Bulldogs,MEAC
 Morgan State Bears,MEAC
-# NEC
+# NEC,
 Le Moyne Dolphins,NEC
 Fairleigh Dickinson Knights,NEC
 LIU Sharks,NEC
@@ -204,7 +204,7 @@ Saint Francis (PA) Red Flash,NEC
 Stonehill Skyhawks,NEC
 Wagner Seahawks,NEC
 Central Connecticut Blue Devils,NEC
-# Ivy
+# Ivy,
 Brown Bears,Ivy
 Columbia Lions,Ivy
 Cornell Big Red,Ivy
@@ -213,7 +213,7 @@ Harvard Crimson,Ivy
 Penn Quakers,Ivy
 Princeton Tigers,Ivy
 Yale Bulldogs,Ivy
-# Patriot
+# Patriot,
 American University Eagles,Patriot
 Army Black Knights,Patriot
 Boston University Terriers,Patriot
@@ -236,7 +236,7 @@ Bellarmine Knights,ASUN
 Central Arkansas Bears,ASUN
 Eastern Kentucky Colonels,ASUN
 North Florida Ospreys,ASUN
-# WAC
+# WAC,
 UT Arlington Mavericks,WAC
 Abilene Christian Wildcats,WAC
 California Baptist Lancers,WAC
@@ -247,7 +247,7 @@ Southern Utah Thunderbirds,WAC
 Seattle Redhawks,WAC
 UTRGV Vaqueros,WAC
 Utah Tech Trailblazers,WAC
-# Horizon
+# Horizon,
 Milwaukee Panthers,Horizon
 Purdue Fort Wayne Mastodons,Horizon
 Detroit Mercy Titans,Horizon
@@ -258,7 +258,7 @@ Cleveland State Vikings,Horizon
 Robert Morris Colonials,Horizon
 Youngstown State Penguins,Horizon
 Northern Kentucky Norse,Horizon
-# Missouri Valley (canonical; remove MVC duplicates)
+# Missouri Valley (canonical; remove MVC duplicates),
 Evansville Purple Aces,Missouri Valley
 Belmont Bruins,Missouri Valley
 Bradley Braves,Missouri Valley
@@ -272,7 +272,7 @@ Northern Iowa Panthers,Missouri Valley
 Southern Illinois Salukis,Missouri Valley
 Valparaiso Beacons,Missouri Valley
 Western Illinois Leathernecks,Missouri Valley
-# SoCon
+# SoCon,
 Chattanooga Mocs,SoCon
 The Citadel Bulldogs,SoCon
 ETSU Buccaneers,SoCon
@@ -283,7 +283,7 @@ UNC Greensboro Spartans,SoCon
 VMI Keydets,SoCon
 Western Carolina Catamounts,SoCon
 Wofford Terriers,SoCon
-# CAA
+# CAA,
 Campbell Fighting Camels,CAA
 Charleston Cougars,CAA
 Delaware Fightin' Blue Hens,CAA
@@ -298,7 +298,7 @@ Stony Brook Seawolves,CAA
 Towson Tigers,CAA
 UNC Wilmington Seahawks,CAA
 William & Mary Tribe,CAA
-# America East
+# America East,
 Albany Great Danes,America East
 Binghamton Bearcats,America East
 Bryant Bulldogs,America East
@@ -307,7 +307,7 @@ UMass Lowell River Hawks,America East
 New Hampshire Wildcats,America East
 NJIT Highlanders,America East
 Vermont Catamounts,America East
-# Big South
+# Big South,
 Gardner-Webb Runnin' Bulldogs,Big South
 High Point Panthers,Big South
 Longwood Lancers,Big South
@@ -316,7 +316,7 @@ Radford Highlanders,Big South
 UNC Asheville Bulldogs,Big South
 USC Upstate Spartans,Big South
 Winthrop Eagles,Big South
-# Ohio Valley (incl Southern Indiana)
+# Ohio Valley (incl Southern Indiana),
 Eastern Illinois Panthers,Ohio Valley
 Little Rock Trojans,Ohio Valley
 Lindenwood Lions,Ohio Valley
@@ -327,7 +327,7 @@ Tennessee State Tigers,Ohio Valley
 Tennessee Tech Golden Eagles,Ohio Valley
 UT Martin Skyhawks,Ohio Valley
 Southern Indiana Screaming Eagles,Ohio Valley
-# Big Sky
+# Big Sky,
 Portland State Vikings,Big Sky
 Eastern Washington Eagles,Big Sky
 Idaho Vandals,Big Sky
@@ -338,7 +338,7 @@ Northern Arizona Lumberjacks,Big Sky
 Northern Colorado Bears,Big Sky
 Sacramento State Hornets,Big Sky
 Weber State Wildcats,Big Sky
-# Big West
+# Big West,
 Cal Poly Mustangs,Big West
 Cal State Bakersfield Roadrunners,Big West
 Cal State Fullerton Titans,Big West
@@ -350,7 +350,7 @@ UC Irvine Anteaters,Big West
 UC Riverside Highlanders,Big West
 UC San Diego Tritons,Big West
 UC Santa Barbara Gauchos,Big West
-# Conference USA (realigned; deduplicated)
+# Conference USA (realigned; deduplicated),
 FIU Panthers,Conference USA
 Jacksonville State Gamecocks,Conference USA
 Kennesaw State Owls,Conference USA
@@ -361,7 +361,7 @@ New Mexico State Aggies,Conference USA
 Sam Houston Bearkats,Conference USA
 UTEP Miners,Conference USA
 Western Kentucky Hilltoppers,Conference USA
-# Southland (full set)
+# Southland (full set),
 Incarnate Word Cardinals,Southland
 Houston Christian Huskies,Southland
 Lamar Cardinals,Southland
@@ -371,7 +371,7 @@ Nicholls Colonels,Southland
 Northwestern State Demons,Southland
 Southeastern Louisiana Lions,Southland
 Texas A&M-Corpus Christi Islanders,Southland
-# Summit League
+# Summit League,
 Denver Pioneers,Summit League
 Kansas City Roos,Summit League
 North Dakota Fighting Hawks,Summit League
@@ -381,8 +381,7 @@ Oral Roberts Golden Eagles,Summit League
 South Dakota Coyotes,Summit League
 South Dakota State Jackrabbits,Summit League
 St. Thomas (MN) Tommies,Summit League
-
-# Aliases & recent additions for coverage normalization
+# Aliases & recent additions for coverage normalization,
 Charleston Southern Buccaneers,Big South
 Chicago State Cougars,Independent
 Delaware Blue Hens,CAA
@@ -391,3 +390,642 @@ South Carolina Upstate Spartans,Big South
 Utah Valley Wolverines,WAC
 Texas A&M-Commerce Lions,Southland
 East Texas A&M Lions,Southland
+adamsstategrizzlies,Unknown
+adrian,Unknown
+alabama,Unknown
+alaskaanchorage,Unknown
+albanystategagolden,Unknown
+alfredstate,Unknown
+alicelloydcollege,Unknown
+alleghenygators,Unknown
+allenyellowjackets,Unknown
+alliance,Unknown
+andersoninravens,Unknown
+andersonsctrojans,Unknown
+andrews,Unknown
+angelostate,Unknown
+antelopevalley,Unknown
+appalachianstate,Unknown
+apprenticeschoolbuilders,Unknown
+aquinassaints,Unknown
+arcadiaarcadia,Unknown
+arkansasbaptist,Unknown
+arkansasfortsmith,Unknown
+arkansaslittlerocktrojans,Unknown
+arkansastechwonderboys,Unknown
+arlingtonbaptistpatriots,Unknown
+army,Unknown
+asbury,Unknown
+auburnmontgomerysenators,Unknown
+augusta,Unknown
+aurora,Unknown
+avemariagyrenes,Unknown
+averett,Unknown
+avila,Unknown
+away,Unknown
+bacone,Unknown
+baldwinwallaceyellowjackets,Unknown
+baptistfl,Unknown
+barberscotiabarberscotia,Unknown
+barclaycollege,Unknown
+bardcollegebard,Unknown
+belhavenblazers,Unknown
+bellevue,Unknown
+belmontabbeycrusaders,Unknown
+benedictineaz,Unknown
+benedictineil,Unknown
+berea,Unknown
+bethanywv,Unknown
+bethelinpilots,Unknown
+betheltn,Unknown
+bethesdaflames,Unknown
+birminghamsouthern,Unknown
+blackburnbeavers,Unknown
+bloomfield,Unknown
+bloomsburg,Unknown
+bluefieldramblin,Unknown
+bluefieldstatebigblues,Unknown
+bluemountaintoppers,Unknown
+bobjones,Unknown
+bowdoinpolar,Unknown
+bowiestate,Unknown
+boyce,Unknown
+brandeisjudges,Unknown
+brescia,Unknown
+brevardtornados,Unknown
+brewtonparker,Unknown
+bridgewatercollegeva,Unknown
+bryantandstrattonohio,Unknown
+bryantn,Unknown
+bryantstralb,Unknown
+brynathyn,Unknown
+buenavistabeavers,Unknown
+buffalostatebengals,Unknown
+cairn,Unknown
+caldwell,Unknown
+californiamerced,Unknown
+calmaritimekeelhaulers,Unknown
+calstateeastbay,Unknown
+calstatelagolden,Unknown
+caltechcaltech,Unknown
+calumetcrimson,Unknown
+calvary,Unknown
+cameron,Unknown
+campbellsville,Unknown
+campbellsvilleharrodsburg,Unknown
+capitalcrusaders,Unknown
+cardinalstritchwolves,Unknown
+carolina,Unknown
+carolinachristiancollegecenturions,Unknown
+carrollmtfightingsaints,Unknown
+carvercollege,Unknown
+catawbachiefs,Unknown
+cedarvilleyellowjackets,Unknown
+centenarylagentlemen,Unknown
+centenarynj,Unknown
+centralbaptistcollege,Unknown
+centralchristiancollege,Unknown
+centralconnecticutstatebluedevils,Unknown
+centralpenn,Unknown
+centralstateohmarauders,Unknown
+chadronstate,Unknown
+chaminadesilverswords,Unknown
+championchristian,Unknown
+chatham,Unknown
+chestnuthillcollege,Unknown
+cheyneypawolves,Unknown
+christendomcrusaders,Unknown
+christianbrothers,Unknown
+cincinnaticlermont,Unknown
+citycollegenybeavers,Unknown
+clarkssummitdefenders,Unknown
+cleary,Unknown
+clintoncollegegolden,Unknown
+coastalgeorgiamariner,Unknown
+coekohawks,Unknown
+cokercobras,Unknown
+colbysawyerchargers,Unknown
+collegeofbiblicalstudiesambassadors,Unknown
+collegeofnewjersey,Unknown
+coloradochristian,Unknown
+coloradocollege,Unknown
+coloradocoloradospringsmountain,Unknown
+columbiacollegescfightingkoalas,Unknown
+columbiainternational,Unknown
+concordiaannarbor,Unknown
+concordianebraskaclippers,Unknown
+concordiastatepaulgolden,Unknown
+concordmountain,Unknown
+conversevalkyries,Unknown
+corbancollege,Unknown
+cornellcollegeia,Unknown
+covenantfightingscots,Unknown
+creighton,Unknown
+crowleysridge,Unknown
+crowncollegepolars,Unknown
+csdominguezhillstoros,Unknown
+csunorthridge,Unknown
+csupueblothunderwolves,Unknown
+culverstockton,Unknown
+cumberlandkypatriots,Unknown
+cumberlandtnphoenix,Unknown
+currycollegecolonels,Unknown
+dakotastatetrojans,Unknown
+dakotawesleyan,Unknown
+dallaschristiancrusaders,Unknown
+dallascrusaders,Unknown
+daltonstate,Unknown
+davenport,Unknown
+davisandelkinssenators,Unknown
+defianceyellowjackets,Unknown
+delawarevalley,Unknown
+desales,Unknown
+dickinsonpareddevils,Unknown
+dickinsonstatendblue,Unknown
+dillardbluedevils,Unknown
+districtofcolumbiafirebirds,Unknown
+doane,Unknown
+dominicanca,Unknown
+dominicanil,Unknown
+duke,Unknown
+dyouvillesaints,Unknown
+earlhamcollegequakers,Unknown
+easternmennoniteroyals,Unknown
+easternoregon,Unknown
+easternpa,Unknown
+eastwestphantoms,Unknown
+ecclesiaroyals,Unknown
+eckerdtritons,Unknown
+edwardwaters,Unknown
+elizabethcitystate,Unknown
+elmirasoaring,Unknown
+elmscollegeblazers,Unknown
+embryriddleaz,Unknown
+emerson,Unknown
+emmanuelma,Unknown
+endicottcollegegulls,Unknown
+enewmexico,Unknown
+erskineflyingfleet,Unknown
+eurekareddevils,Unknown
+evangelcrusaders,Unknown
+evergreenstategeoducks,Unknown
+fairmontstate,Unknown
+farmingdalestate,Unknown
+fduflorhamdevils,Unknown
+feliciangolden,Unknown
+ferrum,Unknown
+fishercollege,Unknown
+fisk,Unknown
+floridaintlgolden,Unknown
+floridamemorialfloridamemorial,Unknown
+floridanationalconquistadors,Unknown
+floridatech,Unknown
+fortlauderdale,Unknown
+fortvalleystate,Unknown
+framinghamstate,Unknown
+franciscanbarons,Unknown
+franklingrizzlies,Unknown
+franklinpierceravens,Unknown
+fredoniastatebluedevils,Unknown
+fresnopacificsunbirds,Unknown
+friends,Unknown
+frostburgstate,Unknown
+gallaudet,Unknown
+gardnerwebb,Unknown
+genevagoldentornadoes,Unknown
+georgewashington,Unknown
+georgiacollege,Unknown
+georgiancourt,Unknown
+glenvillestate,Unknown
+goldeybeacomlightning,Unknown
+goshenmapleleafs,Unknown
+gramblingstate,Unknown
+grandcanyonlopes,Unknown
+greensborocollegepride,Unknown
+gwyneddmercy,Unknown
+hanniballagrangetrojans,Unknown
+hanover,Unknown
+hardinsimmons,Unknown
+harrisstowestate,Unknown
+hartford,Unknown
+haskelljayhawks,Unknown
+hawaiihilovulcans,Unknown
+hawaiipacificsea,Unknown
+heidelbergstudentprinces,Unknown
+hendrixcollege,Unknown
+hiwassee,Unknown
+holycrosscollegeinsaints,Unknown
+holyfamily,Unknown
+home,Unknown
+hoodcollegeblazers,Unknown
+houghton,Unknown
+howardpayneyellowjackets,Unknown
+humboldtstatelumberjacks,Unknown
+huntingdoncollegeal,Unknown
+hustontillotson,Unknown
+illinoistechscarlet,Unknown
+immaculatamightymacs,Unknown
+indianaeastiueast,Unknown
+indiananorthwestindiananorthwest,Unknown
+iucolumbuscrimsonpride,Unknown
+iupui,Unknown
+jamestownjimmies,Unknown
+jarvischristian,Unknown
+jessup,Unknown
+johnbrowngolden,Unknown
+johnjaycollegebloodhounds,Unknown
+johnmelvinmillers,Unknown
+johnsonandwalesncjohnsonandwalescharlotte,Unknown
+johnsonandwalesri,Unknown
+johnsoncsmithgoldenbulls,Unknown
+johnsonfloridasuns,Unknown
+johnsontnroyals,Unknown
+judson,Unknown
+justicecollege,Unknown
+kansaschristian,Unknown
+kean,Unknown
+keenestate,Unknown
+keiserseahawks,Unknown
+kentuckychristian,Unknown
+kentuckystatethorobreds,Unknown
+kentuckywesleyan,Unknown
+keystonegiants,Unknown
+kingtntornado,Unknown
+lagrange,Unknown
+lakeeriestorm,Unknown
+lakesuperiorstate,Unknown
+lancasaterbiblecollegechargers,Unknown
+landersenators,Unknown
+lanecollege,Unknown
+lasierragolden,Unknown
+laverne,Unknown
+lawrence,Unknown
+lehmancollegebridges,Unknown
+lenoirrhyne,Unknown
+lesleylynx,Unknown
+letourneauyellowjackets,Unknown
+lewisandclark,Unknown
+lifepacific,Unknown
+limestonesaints,Unknown
+lincolncaoaklanders,Unknown
+lincolnmoblue,Unknown
+lindseywilsonblueraiders,Unknown
+linfieldcollege,Unknown
+liubrooklynliubrooklyn,Unknown
+livingstoneblue,Unknown
+longbeachstate49ers,Unknown
+lorasduhawks,Unknown
+louisianachristian,Unknown
+lourdesgraywolves,Unknown
+loyolachi,Unknown
+loyolamd,Unknown
+loyolaneworleans,Unknown
+lsushreveportpilots,Unknown
+lynchburg,Unknown
+lynnfighting,Unknown
+lyonscots,Unknown
+maineaugustamoose,Unknown
+mainefortkentbengals,Unknown
+mainemachiasclippers,Unknown
+mainepresqueisle,Unknown
+manchester,Unknown
+manhattanchristianthunder,Unknown
+manhattanvillevaliants,Unknown
+manorcollegebluejays,Unknown
+mansfield,Unknown
+marquette,Unknown
+marybaldwinfightingsquirrels,Unknown
+marywoodpacers,Unknown
+massachusettsbostonbeacons,Unknown
+massachusettscollegeofliberalartsmohawks,Unknown
+mayvillestatecomets,Unknown
+mckendree,Unknown
+mcmurrywar,Unknown
+mcphersonmcpherson,Unknown
+medgarevers,Unknown
+menlooaks,Unknown
+merchantmarineacademymariners,Unknown
+mercy,Unknown
+miamiohhamiltonharriers,Unknown
+miamiohmiddletownthunderhawks,Unknown
+michigantech,Unknown
+midamericachristianevangels,Unknown
+midatlanticchristian,Unknown
+middlegeorgiastate,Unknown
+midlandmidland,Unknown
+midway,Unknown
+midwesternstate,Unknown
+milligan,Unknown
+millsapsmajors,Unknown
+milwaukeeschoolofengineeringraiders,Unknown
+minnesotacrookstongolden,Unknown
+misericordia,Unknown
+mississippicollegechoctaws,Unknown
+mississippiforwomen,Unknown
+missouribaptist,Unknown
+missourisandtminers,Unknown
+missourisouthernstate,Unknown
+missvalleystatedeltadevils,Unknown
+mit,Unknown
+mitchellcollegemariners,Unknown
+mobile,Unknown
+molloy,Unknown
+monmouthilfightingscots,Unknown
+montanastatenorthernlights,Unknown
+montanatechorediggers,Unknown
+montanawestern,Unknown
+montevallo,Unknown
+montreatcavaliers,Unknown
+moravian,Unknown
+morehousemaroon,Unknown
+morriscollege,Unknown
+mountaloysiusmounties,Unknown
+mountmartycollege,Unknown
+mountolivetrojans,Unknown
+mountstatemaryny,Unknown
+mountstatevincent,Unknown
+mtstatemarys,Unknown
+muskingumfightingmuskies,Unknown
+navajotechskyhawks,Unknown
+ncolorado,Unknown
+ncwesleyanbattlingbishops,Unknown
+nelson,Unknown
+neumann,Unknown
+newberrywolves,Unknown
+newcollegeflmightybanyans,Unknown
+newmexicohighlands,Unknown
+nichollsstatecolonels,Unknown
+nobel,Unknown
+northamericanstallions,Unknown
+northcentralcollege,Unknown
+northcentralmn,Unknown
+northeasternstateriverhawks,Unknown
+northernnewmexico,Unknown
+northernstatewolves,Unknown
+northgreenvillecrusaders,Unknown
+northlandlumberjacks,Unknown
+northpark,Unknown
+northwest,Unknown
+northwesternoklahomastaterangers,Unknown
+northwestindian,Unknown
+northwestnazarenenwnazarene,Unknown
+northwoodmitimberwolves,Unknown
+notredamemdgators,Unknown
+oakhillschristian,Unknown
+oaklandcitymightyoaks,Unknown
+oakwoodambassadors,Unknown
+occidental,Unknown
+ofhealthsciencesandpharmacyeutectics,Unknown
+ofsouthwest,Unknown
+ofstatekatherinestatekatherine,Unknown
+ofstatemary,Unknown
+ofwisconsinriverfalls,Unknown
+oglethorpestormypetrels,Unknown
+ohiochristiantrailblazers,Unknown
+ohiodominican,Unknown
+ohiowesleyanbattlingbishops,Unknown
+oklahomachristianoklahomachristian,Unknown
+oldwestbury,Unknown
+olivetcomets,Unknown
+ottawaazspirit,Unknown
+ouachitabaptist,Unknown
+ourladyoflakesaints,Unknown
+ozarkchristianambassadors,Unknown
+pacificlutheranlutes,Unknown
+pacificunionpacificunion,Unknown
+paine,Unknown
+palmbeachatlanticsailfish,Unknown
+parkgilbert,Unknown
+paulquinn,Unknown
+paulsmiths,Unknown
+pennstateabingtonnittany,Unknown
+pennstatealleghanynittany,Unknown
+pennstatealtoonanittany,Unknown
+pennstatebehrend,Unknown
+pennstatebrandywine,Unknown
+pennstatehazletonnittany,Unknown
+pennstatenewkensington,Unknown
+pennstateschuylkillnittany,Unknown
+pennstatescrantonnittany,Unknown
+pennstateshenangonittany,Unknown
+pennstatewilkesbarremountain,Unknown
+pennstateyorknittany,Unknown
+pensacolachristiancollegepensacolachristian,Unknown
+perustate,Unknown
+perustateperustate,Unknown
+pfeiffer,Unknown
+philadelphiabiblical,Unknown
+piedmont,Unknown
+pinemanor,Unknown
+pittsburghbradford,Unknown
+pittsburghgreensburg,Unknown
+plattsburghstate,Unknown
+pointlomanazarenesea,Unknown
+pointpark,Unknown
+pointskyhawks,Unknown
+portlandbiblearrows,Unknown
+prairieview,Unknown
+prattcannoneers,Unknown
+presentationcollegesaints,Unknown
+principiacollegeprincipia,Unknown
+puertoricobayamon,Unknown
+puertoricomayaguez,Unknown
+puertoricoriopiedrasgallitos,Unknown
+pugetsoundloggers,Unknown
+purchase,Unknown
+purdue,Unknown
+purduenorthwestpride,Unknown
+queenscollegeny,Unknown
+randallsaints,Unknown
+randolphcollege,Unknown
+randolphmaconyellowjackets,Unknown
+redlands,Unknown
+regentroyals,Unknown
+regiscoregis,Unknown
+regispride,Unknown
+reinhardt,Unknown
+rhodeislandcollegeanchormen,Unknown
+rhodeslynx,Unknown
+riponred,Unknown
+rit,Unknown
+rivierraiders,Unknown
+robertswesleyan,Unknown
+rochestermi,Unknown
+rockfordregents,Unknown
+rockymountain,Unknown
+rogersstatehillcats,Unknown
+rosemontravens,Unknown
+rowan,Unknown
+rust,Unknown
+rutgerscamdenrutgerscamden,Unknown
+rutgerscamdenscarletraptors,Unknown
+saginawvalleystate,Unknown
+salishkootenai,Unknown
+salvereginaseahawks,Unknown
+samhoustonstatebearkats,Unknown
+sandiegochristian,Unknown
+sanfranciscostategators,Unknown
+sarahlawrencegryphons,Unknown
+savannahstate,Unknown
+schreiner,Unknown
+scienceandartsokdrovers,Unknown
+seattlepacific,Unknown
+semissouristate,Unknown
+shaw,Unknown
+shawneestate,Unknown
+shenandoah,Unknown
+sienaheightssaints,Unknown
+simonfraserredleafs,Unknown
+simpsoncollegeiastorm,Unknown
+southdakotamineshardrockers,Unknown
+southeasternfires,Unknown
+southeasternoklahomastatesavagestorm,Unknown
+southernarkansasmuleriders,Unknown
+southernnazarenecrimsonstorm,Unknown
+southernneworleans,Unknown
+southernoregonraiders,Unknown
+southernvirginia,Unknown
+southernwesleyan,Unknown
+southwesternadventist,Unknown
+southwesternassembliesofgod,Unknown
+southwesternchristian,Unknown
+southwesternoklahomastate,Unknown
+southwesterntx,Unknown
+spaldingpelicans,Unknown
+spartanburgmethodist,Unknown
+springfieldpride,Unknown
+springhillbadgers,Unknown
+stambrosefightingbees,Unknown
+standrews,Unknown
+stanislausstate,Unknown
+stantonelks,Unknown
+staugustines,Unknown
+stedwardshilltoppers,Unknown
+stelizabeth,Unknown
+sterlingcollegeks,Unknown
+stfrancisbrooklyn,Unknown
+stfrancisilfightingsaints,Unknown
+stjohnfisher,Unknown
+stjohnsmnjohnnies,Unknown
+stjosephslongislandgolden,Unknown
+stjosephsny,Unknown
+stleo,Unknown
+stmaryofwoodscollegepomeroys,Unknown
+stmarysmdseahawks,Unknown
+stmarysmn,Unknown
+stmarystxrattlers,Unknown
+stnorbertgreen,Unknown
+stscholasticasaints,Unknown
+stthomastxcelts,Unknown
+stvincent,Unknown
+stxavieril,Unknown
+sulrossstate,Unknown
+sunybrockportgolden,Unknown
+sunycantonroos,Unknown
+sunycobleskillfighting,Unknown
+sunydelhi,Unknown
+sunymaritime,Unknown
+sunymorrisville,Unknown
+sunyoneontared,Unknown
+sunypoly,Unknown
+sunypotsdamsunypotsdam,Unknown
+tabor,Unknown
+talladegatornadoes,Unknown
+taylortrojans,Unknown
+tbd,Unknown
+tennesseesouthernfirehawks,Unknown
+tennesseewesleyan,Unknown
+tennmartinskyhawks,Unknown
+texasaandmcc,Unknown
+texasaandmsanantonio,Unknown
+texasaandmtexarkana,Unknown
+texascollegesteers,Unknown
+texaslutheran,Unknown
+texaswesleyan,Unknown
+thieltomcats,Unknown
+thomasganight,Unknown
+thomasme,Unknown
+tiffin,Unknown
+toccoafalls,Unknown
+tougaloo,Unknown
+transylvania,Unknown
+treveccanazarenetrojans,Unknown
+trinitybaptist,Unknown
+trinitychristianiltrolls,Unknown
+trinitycollegeofjacksonville,Unknown
+trinityfl,Unknown
+trinitytx,Unknown
+truettmcconnell,Unknown
+trumanstate,Unknown
+tusculum,Unknown
+ucsantacruzbananaslugs,Unknown
+umkckangaroos,Unknown
+unionky,Unknown
+untdallastrailblazers,Unknown
+urbanablue,Unknown
+utdallascomets,Unknown
+utpermianbasin,Unknown
+uttylerpatriots,Unknown
+uvawisecavaliers,Unknown
+valleycity,Unknown
+valleyforgepatriots,Unknown
+vanguard,Unknown
+vassarbrewers,Unknown
+vermontstatejohnsonbadgers,Unknown
+vermontstatelyndon,Unknown
+vermontstaterandolph,Unknown
+virginialynchburg,Unknown
+virginiastatetrojans,Unknown
+virginiawesleyanbluemarlins,Unknown
+voorhees,Unknown
+waldorfcollege,Unknown
+wallawallawolves,Unknown
+warnerpacific,Unknown
+warnerroyals,Unknown
+warrenwilson,Unknown
+washburnichabods,Unknown
+washingtonadventistshock,Unknown
+washingtonandleegenerals,Unknown
+washingtoncollegemdshoremen,Unknown
+waylandbaptist,Unknown
+waynesburgyellowjackets,Unknown
+webberinternational,Unknown
+webstergorloks,Unknown
+wellscollegeexpress,Unknown
+westalabama,Unknown
+westcliff,Unknown
+westcoastbaptist,Unknown
+westerncolorado,Unknown
+westernnewenglandgolden,Unknown
+westernnewmexico,Unknown
+westernoregonwolves,Unknown
+westfieldstate,Unknown
+westminstermobluejays,Unknown
+westminsterpa,Unknown
+westminsterut,Unknown
+westmont,Unknown
+westvirginiawesleyan,Unknown
+wheelockcollegewheelock,Unknown
+whitmanmissionaries,Unknown
+whittierpoets,Unknown
+widenerpride,Unknown
+wilberforce,Unknown
+wiley,Unknown
+wilkescolonels,Unknown
+willamette,Unknown
+williamcareycrusaders,Unknown
+williampeacepacers,Unknown
+williamsbaptist,Unknown
+williamwoods,Unknown
+wilmingtonde,Unknown
+wilsoncollegewilson,Unknown
+wisconsin,Unknown
+wisconsinstoutbluedevils,Unknown
+wittenberg,Unknown
+worcesterstate,Unknown
+wpiengineers,Unknown
+wvutechgolden,Unknown
+xavierlagoldnuggets,Unknown
+yellowstonechristiancollegecenturions,Unknown
+yorkcollegenebraska,Unknown
+yorkny,Unknown
