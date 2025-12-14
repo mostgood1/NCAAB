@@ -238,6 +238,21 @@ print({'path': str(games_path), 'rows': len(df2)})
     catch {
       Write-Warning "finalize-day failed for ${prevDate}: $($_)"
     }
+
+    # Cleanup: remove any non-date daily_results files (e.g., results_TEST.csv)
+    try {
+      $resultsDir = Join-Path $OutDir 'daily_results'
+      if (Test-Path $resultsDir) {
+        Get-ChildItem $resultsDir -File | Where-Object {
+          $_.Name -like 'results_*.csv' -and ($_.Name -notmatch '^results_\d{4}-\d{2}-\d{2}\.csv$')
+        } | ForEach-Object {
+          Write-Host "[cleanup] Removing stray results file: $($_.FullName)" -ForegroundColor DarkGray
+          Remove-Item $_.FullName -Force
+        }
+      }
+    } catch {
+      Write-Warning "[cleanup] Failed to remove stray results files: $($_)"
+    }
   } else {
     Write-Host "SkipFinalizePrev flag set; skipping finalize-day for $prevDate." -ForegroundColor Yellow
   }
