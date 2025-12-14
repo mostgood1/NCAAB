@@ -1,0 +1,33 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401817525,2025,2025-12-14,2025-12-14 17:00:00+00:00,2025-12-14 12:00,EST,Virginia Tech Hokies,Maryland Eastern Shore Hawks,0,0,,,,,False,Cassell Coliseum
+401812386,2025,2025-12-14,2025-12-14 17:00:00+00:00,2025-12-14 12:00,EST,Temple Owls,Saint Francis Red Flash,0,0,,,,,False,Liacouras Center
+401819879,2025,2025-12-14,2025-12-14 18:00:00+00:00,2025-12-14 13:00,EST,Iowa State Cyclones,Eastern Illinois Panthers,0,0,,,,,False,Hilton Coliseum
+401827008,2025,2025-12-14,2025-12-14 18:00:00+00:00,2025-12-14 13:00,EST,Minnesota Golden Gophers,Texas Southern Tigers,0,0,,,,,False,Williams Arena
+401820814,2025,2025-12-14,2025-12-14 18:00:00+00:00,2025-12-14 13:00,EST,East Carolina Pirates,Buffalo Bulls,0,0,,,,,False,Minges Coliseum
+401832162,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Bradley Braves,North Central College Cardinals,0,0,,,,,False,Carver Arena
+401829344,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,SIU Edwardsville Cougars,Eureka Red Devils,0,0,,,,,False,First Community Arena
+401827487,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Cleveland State Vikings,Oakland City Mighty Oaks,0,0,,,,,False,Wolstein Center
+401827113,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Missouri Tigers,Bethune-Cookman Wildcats,0,0,,,,,False,Mizzou Arena
+401826769,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Vermont Catamounts,Merrimack Warriors,0,0,,,,,False,Patrick Gymnasium
+401826737,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,App State Mountaineers,High Point Panthers,0,0,,,,,True,Tarlton Complex
+401823313,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Fairfield Stags,Monmouth Hawks,0,0,,,,,False,Leo D. Mahoney Arena
+401823005,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Youngstown State Penguins,Thiel Tomcats,0,0,,,,,False,Beeghly Center
+401822327,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Campbell Fighting Camels,Ball State Cardinals,0,0,,,,,False,John W. Pope Jr. Convocation Center
+401822314,2025,2025-12-14,2025-12-14 19:00:00+00:00,2025-12-14 14:00,EST,Milwaukee Panthers,Indiana State Sycamores,0,0,,,,,False,UW-Milwaukee Panther Arena
+401822764,2025,2025-12-14,2025-12-14 19:30:00+00:00,2025-12-14 14:30,EST,Radford Highlanders,Coppin State Eagles,0,0,,,,,False,The Dedmon Center
+401829351,2025,2025-12-14,2025-12-14 20:00:00+00:00,2025-12-14 15:00,EST,Southeast Missouri State Redhawks,St. Xavier  (IL) Cougars,0,0,,,,,False,Show Me Center
+401826876,2025,2025-12-14,2025-12-14 20:00:00+00:00,2025-12-14 15:00,EST,UAB Blazers,Troy Trojans,0,0,,,,,False,Bartow Arena
+401823812,2025,2025-12-14,2025-12-14 20:00:00+00:00,2025-12-14 15:00,EST,Colorado State Rams,Northern New Mexico Eagles,0,0,,,,,False,Moby Arena
+401823650,2025,2025-12-14,2025-12-14 20:00:00+00:00,2025-12-14 15:00,EST,Iowa Hawkeyes,Western Michigan Broncos,0,0,,,,,False,Carver-Hawkeye Arena
+401823234,2025,2025-12-14,2025-12-14 21:00:00+00:00,2025-12-14 16:00,EST,New Mexico Lobos,Florida Gulf Coast Eagles,0,0,,,,,False,The Pit
+401820803,2025,2025-12-14,2025-12-14 21:00:00+00:00,2025-12-14 16:00,EST,Charleston Cougars,Charlotte 49ers,0,0,,,,,False,TD Arena
+401823570,2025,2025-12-14,2025-12-14 22:00:00+00:00,2025-12-14 17:00,EST,Idaho Vandals,Evergreen State Geoducks,0,0,,,,,False,ICCU Arena
+401823018,2025,2025-12-14,2025-12-14 22:00:00+00:00,2025-12-14 17:00,EST,Portland Pilots,Kent State Golden Flashes,0,0,,,,,False,Chiles Center
+401817535,2025,2025-12-14,2025-12-14 22:00:00+00:00,2025-12-14 17:00,EST,Wake Forest Demon Deacons,Queens University Royals,0,0,,,,,False,LJVM Coliseum
+401817512,2025,2025-12-14,2025-12-14 22:00:00+00:00,2025-12-14 17:00,EST,Purdue Fort Wayne Mastodons,Detroit Mercy Titans,0,0,,,,,False,Memorial Coliseum (IN)
+401817161,2025,2025-12-14,2025-12-14 22:00:00+00:00,2025-12-14 17:00,EST,Loyola Chicago Ramblers,Chicago State Cougars,0,0,,,,,False,Gentile Arena
+401829394,2025,2025-12-14,2025-12-14 22:30:00+00:00,2025-12-14 17:30,EST,UT Martin Skyhawks,Champion Christian Tigers,0,0,,,,,False,Kathleen and Tom Elam Center
+401828279,2025,2025-12-14,2025-12-14 22:30:00+00:00,2025-12-14 17:30,EST,South Alabama Jaguars,North Texas Mean Green,0,0,,,,,False,Mitchell Center
+401823819,2025,2025-12-14,2025-12-14 23:00:00+00:00,2025-12-14 18:00,EST,Boise State Broncos,Saint Mary's Gaels,0,0,,,,,True,Mountain America Center
+401823348,2025,2025-12-14,2025-12-15 00:00:00+00:00,2025-12-14 19:00,EST,Texas A&M Aggies,Jacksonville Dolphins,0,0,,,,,False,Reed Arena
+401824140,2025,2025-12-14,2025-12-15 00:30:00+00:00,2025-12-14 19:30,EST,USC Trojans,Washington State Cougars,0,0,,,,,False,Galen Center

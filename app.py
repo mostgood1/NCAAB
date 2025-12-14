@@ -214,11 +214,15 @@ except Exception:
 import glob
 import json
 import pandas as pd
+import re
 
 def _load_all_daily_results() -> pd.DataFrame:
     try:
         out_dir = os.path.join(os.getcwd(), 'outputs', 'daily_results')
         files = sorted(glob.glob(os.path.join(out_dir, 'results_*.csv')))
+        # Filter to valid date filenames: results_YYYY-MM-DD.csv
+        date_re = re.compile(r"^results_\d{4}-\d{2}-\d{2}\.csv$")
+        files = [f for f in files if date_re.match(os.path.basename(f))]
         dfs = []
         for f in files:
             df = pd.read_csv(f, dtype=str, low_memory=False)
@@ -236,6 +240,27 @@ def _coerce_numeric(df: pd.DataFrame, cols: list[str]):
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce')
     return df
+def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
+    if df.empty:
+        return {}
+    df = df.copy()
+    df['date'] = pd.to_datetime(df.get('date'), errors='coerce')
+    out = {}
+    for d, g in df.groupby(df['date'].dt.date):
+        rec = {'date': str(d)}
+        # ATS required fields
+        ats_reqs = ['pred_margin','spread_home','actual_margin']
+        for c in ats_reqs:
+            rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
+        rec['ats_rows_complete'] = int(g[ats_reqs].notna().all(axis=1).sum()) if set(ats_reqs).issubset(g.columns) else 0
+        # Totals required fields
+        tot_reqs = ['pred_total','market_total','actual_total']
+        for c in tot_reqs:
+            rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
+        rec['tot_rows_complete'] = int(g[tot_reqs].notna().all(axis=1).sum()) if set(tot_reqs).issubset(g.columns) else 0
+        rec['rows'] = int(len(g))
+        out[str(d)] = rec
+    return out
 
 def _conference_map() -> dict:
     m: dict[str, str] = {}
@@ -310,9 +335,7 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
         m_tot = gd[['pred_total','market_total','actual_total']].notna().all(axis=1)
         ad = gd.loc[m_ats].copy(); ad['pred_home_cover'] = ad['pred_margin'] > (-ad['spread_home']); ad['actual_home_cover'] = ad['actual_margin'] > (-ad['spread_home'])
         td = gd.loc[m_tot].copy(); td['pred_over'] = td['pred_total'] > td['market_total']; td['actual_over'] = td['actual_total'] > td['market_total']
-        # Skip days with zero games to avoid cluttering the UI with 0/0 rows
-        if len(ad) == 0 and len(td) == 0:
-            continue
+        # Always include the date, even if assessable rows are zero, to reflect coverage
         daily[str(d)] = {
             'ats_total': int(len(ad)),
             'ats_correct': int((ad['pred_home_cover'] == ad['actual_home_cover']).sum()),
@@ -320,7 +343,25 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
             'totals_total': int(len(td)),
             'totals_correct': int((td['pred_over'] == td['actual_over']).sum()),
             'totals_accuracy': float((td['pred_over'] == td['actual_over']).mean()) if len(td) else None,
+            # Diagnostics: counts of missing fields for transparency
+            'missing_counts': {
+                'pred_margin_missing': int(gd['pred_margin'].isna().sum()) if 'pred_margin' in gd.columns else 0,
+                'spread_home_missing': int(gd['spread_home'].isna().sum()) if 'spread_home' in gd.columns else 0,
+                'actual_margin_missing': int(gd['actual_margin'].isna().sum()) if 'actual_margin' in gd.columns else 0,
+                'pred_total_missing': int(gd['pred_total'].isna().sum()) if 'pred_total' in gd.columns else 0,
+                'market_total_missing': int(gd['market_total'].isna().sum()) if 'market_total' in gd.columns else 0,
+                'actual_total_missing': int(gd['actual_total'].isna().sum()) if 'actual_total' in gd.columns else 0,
+                'rows': int(len(gd)),
+            }
         }
+    # Coverage metadata: enumerate all dates seen in results and those assessed
+    try:
+        all_dates = sorted({str(x) for x in df['date'].dt.date.dropna().unique()})
+    except Exception:
+        all_dates = []
+    assessed_dates = sorted(daily.keys())
+    zero_dates = sorted(set(all_dates) - set(assessed_dates))
+
     # Conference/team breakdowns
     conf_map = _conference_map()
     # Map conferences for home/away with flexible column fallbacks
@@ -415,7 +456,25 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
             'totals_accuracy': 'Totals Accuracy',
         }
     }
-    return {'overall': overall, 'daily': daily, 'teams': teams, 'conferences': confs, 'headers': headers}
+    coverage = {
+        'files_dates': all_dates,
+        'assessed_dates': assessed_dates,
+        'zero_dates': zero_dates,
+        'files_count': len(all_dates),
+        'assessed_count': len(assessed_dates),
+        'zero_count': len(zero_dates),
+    }
+    return {'overall': overall, 'daily': daily, 'teams': teams, 'conferences': confs, 'headers': headers, 'coverage': coverage}
+
+def api_accuracy_coverage():
+    df = _load_all_daily_results()
+    payload = _accuracy_payload(df)
+    return payload.get('coverage', {})
+try:
+    if isinstance(app, Flask) and 'api_accuracy_coverage' not in getattr(app, 'view_functions', {}):
+        app.add_url_rule('/api/accuracy-coverage', endpoint='api_accuracy_coverage', view_func=api_accuracy_coverage)
+except Exception:
+    pass
 
 def api_accuracy():
     df = _load_all_daily_results()
@@ -429,6 +488,14 @@ def api_accuracy():
     except Exception:
         pass
     return payload
+def api_accuracy_missing():
+    df = _load_all_daily_results()
+    return _accuracy_missing_by_date(df)
+try:
+    if isinstance(app, Flask) and 'api_accuracy_missing' not in getattr(app, 'view_functions', {}):
+        app.add_url_rule('/api/accuracy-missing', endpoint='api_accuracy_missing', view_func=api_accuracy_missing)
+except Exception:
+    pass
 try:
     if isinstance(app, Flask) and 'api_accuracy' not in getattr(app, 'view_functions', {}):
         app.add_url_rule('/api/accuracy', endpoint='api_accuracy', view_func=api_accuracy)
