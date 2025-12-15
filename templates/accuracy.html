@@ -51,6 +51,7 @@
         <th>ATS (correct/total)</th>
         <th>Totals acc</th>
         <th>Totals (correct/total)</th>
+        <th class="muted">Missing (key fields)</th>
       </tr>
     </thead>
     <tbody>
@@ -61,6 +62,14 @@
           <td>{{ rec.get('ats_correct') }}/{{ rec.get('ats_total') }}</td>
           <td>{{ '%.3f' % rec.get('totals_accuracy') if rec.get('totals_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('totals_correct') }}/{{ rec.get('totals_total') }}</td>
+          {% set mc = rec.get('missing_counts', {}) %}
+          <td class="muted">
+            {% if mc %}
+              mkt_tot: {{ mc.get('market_total_missing') }}, spr: {{ mc.get('spread_home_missing') }},
+              act_tot: {{ mc.get('actual_total_missing') }}, act_mar: {{ mc.get('actual_margin_missing') }},
+              pred_tot: {{ mc.get('pred_total_missing') }}, pred_mar: {{ mc.get('pred_margin_missing') }}
+            {% else %}—{% endif %}
+          </td>
         </tr>
       {% endfor %}
     </tbody>

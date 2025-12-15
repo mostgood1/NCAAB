@@ -912,10 +912,27 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       $oddsTodayHist = Join-Path $OutDir ("odds_history/odds_" + $todayIso + ".csv")
       if (Test-Path $oddsTodayHist) { $toStage += $oddsTodayHist }
 
+      # Accuracy snapshot + diagnostics (ensure UI and coverage are in sync)
+      $accSnap = Join-Path $OutDir 'metrics\season_accuracy_summary.json'
+      if (Test-Path $accSnap) { $toStage += $accSnap }
+      $accDiagJson = Join-Path $OutDir 'diagnostics\accuracy_missing_by_date.json'
+      if (Test-Path $accDiagJson) { $toStage += $accDiagJson }
+      $accDiagCsv = Join-Path $OutDir 'diagnostics\accuracy_missing_by_date.csv'
+      if (Test-Path $accDiagCsv) { $toStage += $accDiagCsv }
+
+      # Daily update status JSON for observability on Render
+      $statusJson = Join-Path $OutDir ("logs\daily_update_status_" + $todayIso + ".json")
+      if (Test-Path $statusJson) { $toStage += $statusJson }
+
       if ($toStage.Count -gt 0) {
         # Use force-add for critical daily snapshots in case .gitignore blocks outputs
         foreach ($p in $toStage) {
-          if ($p -like "*predictions_display_*.csv" -or $p -like "*predictions_unified_enriched_*.csv") {
+          if (
+            $p -like "*predictions_display_*.csv" -or 
+            $p -like "*predictions_unified_enriched_*.csv" -or 
+            $p -like "*outputs\\metrics\\*.json" -or 
+            $p -like "*outputs\\diagnostics\\*"
+          ) {
             git add -f $p
           } else {
             git add $p
@@ -924,6 +941,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         # Also stage core frontend/backend files if modified today
         $codePaths = @(
           (Join-Path $RepoRoot 'app.py'),
+          (Join-Path $RepoRoot 'scripts\persist_odds_into_daily_results.py'),
           (Join-Path $RepoRoot 'templates\index.html'),
           (Join-Path $RepoRoot 'static\css\app.css'),
           (Join-Path $RepoRoot 'render.yaml')

@@ -1,0 +1,1034 @@
+﻿{
+    "date":  "2025-12-07",
+    "finished":  "2025-12-07T08:06:33.3298238-06:00",
+    "elapsed_seconds":  489,
+    "critical_failures":  [
+
+                          ],
+    "steps":  [
+                  {
+                      "section":  "0) ESPN schedule refresh + TBD patch + parity",
+                      "start":  "2025-12-05T10:19:38.0767105-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0.pre) Fetch today\u0027s slate + normalize display times",
+                      "start":  "2025-12-05T10:19:50.7525552-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0.pre.b) Canonical start times",
+                      "start":  "2025-12-05T10:19:52.2988941-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "1) Fetch previous day\u0027s games (2025-12-04)",
+                      "start":  "2025-12-05T10:19:52.9011972-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "2) Fetch odds snapshots for 2025-12-04 and build last/closing lines",
+                      "start":  "2025-12-05T10:19:54.0194312-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3) Build daily results (reconcile vs finals) for 2025-12-04",
+                      "start":  "2025-12-05T10:20:19.2202616-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3a) Fetch previous day raw scores (no cache) and boxscores",
+                      "start":  "2025-12-05T10:20:20.5245878-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3b) Finalize previous day (refresh + fallback + overrides)",
+                      "start":  "2025-12-05T10:20:25.2088669-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "4) Update model tuning from recent daily results",
+                      "start":  "2025-12-05T10:20:27.7459657-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5) Retrain baseline models on latest features_all.csv",
+                      "start":  "2025-12-05T10:20:28.8138950-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5b) Generate/refresh team-level historical features (pre-inference)",
+                      "start":  "2025-12-05T10:20:32.0382316-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5c) Generate today\u0027s placeholder features (features_curr.csv)",
+                      "start":  "2025-12-05T10:20:40.5304800-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5d) Run model inference harness (forced refresh)",
+                      "start":  "2025-12-05T10:20:42.9195059-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5e) Calibrate model predictions (forced refresh)",
+                      "start":  "2025-12-05T10:20:45.8796085-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5f) Generate prediction intervals (forced refresh)",
+                      "start":  "2025-12-05T10:20:46.7164005-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6i) Rolling backtest (28 days)",
+                      "start":  "2025-12-05T10:20:48.9348055-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6i.a) Normalize odds and enrich backtest (rest/travel/market)",
+                      "start":  "2025-12-05T10:20:51.1443954-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6j) Quantile selection (28d window, 80% coverage)",
+                      "start":  "2025-12-05T10:20:53.4569695-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6) Fetch today\u0027s schedule, odds, and run predictions/picks",
+                      "start":  "2025-12-05T10:20:54.4601955-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.pre) Ensure full game \u0026 prediction coverage (force-fill)",
+                      "start":  "2025-12-05T10:21:06.8967065-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post) Normalize start fields and persist _start_dt",
+                      "start":  "2025-12-05T10:21:08.3146818-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post.b) Enrich meta probabilities (aligned)",
+                      "start":  "2025-12-05T10:21:09.6199968-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post.c) Inject sigma and adjusted Kelly",
+                      "start":  "2025-12-05T10:21:10.3791483-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6b) Refresh team-level historical features post-ingestion",
+                      "start":  "2025-12-05T10:21:11.0595141-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6b.i) Run model integrity tests",
+                      "start":  "2025-12-05T10:21:21.0621452-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6c) Train/refresh model-first total \u0026 margin predictors (LightGBM/XGBoost)",
+                      "start":  "2025-12-05T10:21:22.8176955-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6d) Prediction variance diagnostics",
+                      "start":  "2025-12-05T10:21:29.3477945-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6e) Train meta probability models (cover/over)",
+                      "start":  "2025-12-05T10:21:32.8028517-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6f) Probability distribution stability (JS divergence)",
+                      "start":  "2025-12-05T10:21:36.3318211-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6g) Auto-refresh probability calibration (ECE/drift/age)",
+                      "start":  "2025-12-05T10:21:36.8509607-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6g.i) Meta probability reliability + calibration",
+                      "start":  "2025-12-05T10:21:37.3256216-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6h) Explain meta models (feature contributions)",
+                      "start":  "2025-12-05T10:21:38.4170145-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a) Restore full games_with_last.csv (historical) after daily-run",
+                      "start":  "2025-12-05T10:21:39.0163903-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "7) Filter merged last odds to today\u0027s slate",
+                      "start":  "2025-12-05T10:21:49.7776501-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "7b) Align predictions to period and compute edges",
+                      "start":  "2025-12-05T10:21:50.4602674-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "8) Generate baseline stake sheet (edge-based Kelly)",
+                      "start":  "2025-12-05T10:21:51.6000682-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "9) Generate calibrated distributional stake sheet (if distributional columns present)",
+                      "start":  "2025-12-05T10:21:52.7599849-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "9a) Annotate stake sheets with quantiles (q10/q50/q90)",
+                      "start":  "2025-12-05T10:21:53.8533818-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "10) Compare baseline vs calibrated stake sheets",
+                      "start":  "2025-12-05T10:21:54.4095498-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "11) Commit and push updated data files",
+                      "start":  "2025-12-05T10:21:54.9307302-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "10b) ROI backtest (28 days)",
+                      "start":  "2025-12-05T10:21:54.9402439-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "DONE",
+                      "start":  "2025-12-05T10:22:02.2592405-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0) ESPN schedule refresh + TBD patch + parity",
+                      "start":  "2025-12-06T10:13:04.4259431-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0.pre) Fetch today\u0027s slate + normalize display times",
+                      "start":  "2025-12-06T10:14:04.2709637-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0.pre.b) Canonical start times",
+                      "start":  "2025-12-06T10:14:06.1812281-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "1) Fetch previous day\u0027s games (2025-12-05)",
+                      "start":  "2025-12-06T10:14:06.8704124-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "2) Fetch odds snapshots for 2025-12-05 and build last/closing lines",
+                      "start":  "2025-12-06T10:14:09.5316840-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3) Build daily results (reconcile vs finals) for 2025-12-05",
+                      "start":  "2025-12-06T10:15:48.8060640-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3a) Fetch previous day raw scores (no cache) and boxscores",
+                      "start":  "2025-12-06T10:15:50.0270943-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3b) Finalize previous day (refresh + fallback + overrides)",
+                      "start":  "2025-12-06T10:15:55.6752845-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "4) Update model tuning from recent daily results",
+                      "start":  "2025-12-06T10:15:59.1278470-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5) Retrain baseline models on latest features_all.csv",
+                      "start":  "2025-12-06T10:16:00.9157026-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5b) Generate/refresh team-level historical features (pre-inference)",
+                      "start":  "2025-12-06T10:16:11.3151062-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5c) Generate today\u0027s placeholder features (features_curr.csv)",
+                      "start":  "2025-12-06T10:16:21.5312443-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5d) Run model inference harness (forced refresh)",
+                      "start":  "2025-12-06T10:16:22.2057890-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5e) Calibrate model predictions (forced refresh)",
+                      "start":  "2025-12-06T10:16:23.9784171-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5f) Generate prediction intervals (forced refresh)",
+                      "start":  "2025-12-06T10:16:24.5452855-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6i) Rolling backtest (28 days)",
+                      "start":  "2025-12-06T10:16:25.8367562-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6i.a) Normalize odds and enrich backtest (rest/travel/market)",
+                      "start":  "2025-12-06T10:16:27.0906104-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6j) Quantile selection (28d window, 80% coverage)",
+                      "start":  "2025-12-06T10:16:28.4336578-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6j.ii) Daily quantile retrain + scoring",
+                      "start":  "2025-12-06T10:16:29.0116998-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6) Fetch today\u0027s schedule, odds, and run predictions/picks",
+                      "start":  "2025-12-06T10:16:30.2507321-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.pre) Ensure full game \u0026 prediction coverage (force-fill)",
+                      "start":  "2025-12-06T10:16:42.3279667-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post) Normalize start fields and persist _start_dt",
+                      "start":  "2025-12-06T10:16:43.4116576-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post.b) Enrich meta probabilities (aligned)",
+                      "start":  "2025-12-06T10:16:44.4526845-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post.c) Inject sigma and adjusted Kelly",
+                      "start":  "2025-12-06T10:16:45.0541934-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6b) Refresh team-level historical features post-ingestion",
+                      "start":  "2025-12-06T10:16:45.5986445-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6b.i) Run model integrity tests",
+                      "start":  "2025-12-06T10:16:56.6666133-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6c) Train/refresh model-first total \u0026 margin predictors (LightGBM/XGBoost)",
+                      "start":  "2025-12-06T10:17:13.0752527-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6d) Prediction variance diagnostics",
+                      "start":  "2025-12-06T10:17:37.1542114-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6e) Train meta probability models (cover/over)",
+                      "start":  "2025-12-06T10:17:43.2088580-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6f) Probability distribution stability (JS divergence)",
+                      "start":  "2025-12-06T10:17:49.5807422-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6g) Auto-refresh probability calibration (ECE/drift/age)",
+                      "start":  "2025-12-06T10:17:50.2376104-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6g.i) Meta probability reliability + calibration",
+                      "start":  "2025-12-06T10:17:50.8531315-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6h) Explain meta models (feature contributions)",
+                      "start":  "2025-12-06T10:17:52.3471619-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a) Restore full games_with_last.csv (historical) after daily-run",
+                      "start":  "2025-12-06T10:17:53.0089475-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "7) Filter merged last odds to today\u0027s slate",
+                      "start":  "2025-12-06T10:18:06.5916786-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "7b) Align predictions to period and compute edges",
+                      "start":  "2025-12-06T10:18:07.4376925-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "8) Generate baseline stake sheet (edge-based Kelly)",
+                      "start":  "2025-12-06T10:18:08.8477828-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "9) Generate calibrated distributional stake sheet (if distributional columns present)",
+                      "start":  "2025-12-06T10:18:10.2559770-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "9a) Annotate stake sheets with quantiles (q10/q50/q90)",
+                      "start":  "2025-12-06T10:18:11.5903738-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "10) Compare baseline vs calibrated stake sheets",
+                      "start":  "2025-12-06T10:18:12.1599935-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "11) Commit and push updated data files",
+                      "start":  "2025-12-06T10:18:12.7757834-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "10b) ROI backtest (28 days)",
+                      "start":  "2025-12-06T10:18:12.7855442-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "DONE",
+                      "start":  "2025-12-06T10:18:21.3858310-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0) ESPN schedule refresh + TBD patch + parity",
+                      "start":  "2025-12-07T07:58:24.3351375-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0.pre) Fetch today\u0027s slate + normalize display times",
+                      "start":  "2025-12-07T07:58:44.3649761-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "0.pre.b) Canonical start times",
+                      "start":  "2025-12-07T07:58:46.0856330-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "1) Fetch previous day\u0027s games (2025-12-06)",
+                      "start":  "2025-12-07T07:58:46.7543227-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "2) Fetch odds snapshots for 2025-12-06 and build last/closing lines",
+                      "start":  "2025-12-07T07:58:48.5006937-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3) Build daily results (reconcile vs finals) for 2025-12-06",
+                      "start":  "2025-12-07T08:02:59.6995875-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3a) Fetch previous day raw scores (no cache) and boxscores",
+                      "start":  "2025-12-07T08:03:06.9819074-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "3b) Finalize previous day (refresh + fallback + overrides)",
+                      "start":  "2025-12-07T08:03:32.9395559-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "4) Update model tuning from recent daily results",
+                      "start":  "2025-12-07T08:03:38.1874226-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5) Retrain baseline models on latest features_all.csv",
+                      "start":  "2025-12-07T08:04:06.9128240-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5b) Generate/refresh team-level historical features (pre-inference)",
+                      "start":  "2025-12-07T08:04:35.6775779-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5c) Generate today\u0027s placeholder features (features_curr.csv)",
+                      "start":  "2025-12-07T08:04:47.2042365-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5d) Run model inference harness (forced refresh)",
+                      "start":  "2025-12-07T08:04:47.8432684-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5e) Calibrate model predictions (forced refresh)",
+                      "start":  "2025-12-07T08:04:49.3061726-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "5f) Generate prediction intervals (forced refresh)",
+                      "start":  "2025-12-07T08:04:49.8573202-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6i) Rolling backtest (28 days)",
+                      "start":  "2025-12-07T08:04:51.0414966-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6i.a) Normalize odds and enrich backtest (rest/travel/market)",
+                      "start":  "2025-12-07T08:04:52.3440404-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6j) Quantile selection (28d window, 80% coverage)",
+                      "start":  "2025-12-07T08:04:55.3042531-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6j.ii) Daily quantile retrain + scoring",
+                      "start":  "2025-12-07T08:04:55.8106622-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6) Fetch today\u0027s schedule, odds, and run predictions/picks",
+                      "start":  "2025-12-07T08:04:56.9302423-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.pre) Ensure full game \u0026 prediction coverage (force-fill)",
+                      "start":  "2025-12-07T08:05:05.6085159-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post) Normalize start fields and persist _start_dt",
+                      "start":  "2025-12-07T08:05:06.6140451-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post.b) Enrich meta probabilities (aligned)",
+                      "start":  "2025-12-07T08:05:07.5497469-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a.post.c) Inject sigma and adjusted Kelly",
+                      "start":  "2025-12-07T08:05:08.1536154-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6b) Refresh team-level historical features post-ingestion",
+                      "start":  "2025-12-07T08:05:08.6777200-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6b.i) Run model integrity tests",
+                      "start":  "2025-12-07T08:05:17.4585565-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6c) Train/refresh model-first total \u0026 margin predictors (LightGBM/XGBoost)",
+                      "start":  "2025-12-07T08:05:19.2238432-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6d) Prediction variance diagnostics",
+                      "start":  "2025-12-07T08:05:30.9686147-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6e) Train meta probability models (cover/over)",
+                      "start":  "2025-12-07T08:05:36.9539292-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6f) Probability distribution stability (JS divergence)",
+                      "start":  "2025-12-07T08:05:44.4724805-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6g) Auto-refresh probability calibration (ECE/drift/age)",
+                      "start":  "2025-12-07T08:05:45.1319416-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6g.i) Meta probability reliability + calibration",
+                      "start":  "2025-12-07T08:05:45.7105063-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6h) Explain meta models (feature contributions)",
+                      "start":  "2025-12-07T08:05:47.1421648-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "6a) Restore full games_with_last.csv (historical) after daily-run",
+                      "start":  "2025-12-07T08:05:47.8568448-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "7) Filter merged last odds to today\u0027s slate",
+                      "start":  "2025-12-07T08:06:09.8730753-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "7b) Align predictions to period and compute edges",
+                      "start":  "2025-12-07T08:06:17.9763256-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "8) Generate baseline stake sheet (edge-based Kelly)",
+                      "start":  "2025-12-07T08:06:19.5402376-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "9) Generate calibrated distributional stake sheet (if distributional columns present)",
+                      "start":  "2025-12-07T08:06:21.0492130-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "9a) Annotate stake sheets with quantiles (q10/q50/q90)",
+                      "start":  "2025-12-07T08:06:22.4878208-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "10) Compare baseline vs calibrated stake sheets",
+                      "start":  "2025-12-07T08:06:23.1364411-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "11) Commit and push updated data files",
+                      "start":  "2025-12-07T08:06:23.7987110-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "10b) ROI backtest (28 days)",
+                      "start":  "2025-12-07T08:06:23.8092274-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  },
+                  {
+                      "section":  "DONE",
+                      "start":  "2025-12-07T08:06:33.3242408-06:00",
+                      "errors":  {
+
+                                 },
+                      "status":  "ok"
+                  }
+              ]
+}
