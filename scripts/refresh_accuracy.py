@@ -4,11 +4,11 @@ import pandas as pd
 ROOT = str(pathlib.Path(__file__).resolve().parents[1])
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
-from app import _load_all_daily_results, _accuracy_payload
+from app import api_accuracy
 
 def main():
-    df = _load_all_daily_results()
-    payload = _accuracy_payload(df)
+    # Use the same computation path the app uses to ensure parity
+    payload = api_accuracy()
     out_dir = os.path.join(os.getcwd(), 'outputs', 'metrics')
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, 'season_accuracy_summary.json')
