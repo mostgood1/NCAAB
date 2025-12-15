@@ -1,0 +1,14 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401829435,2025,2025-12-15,2025-12-15 18:00:00+00:00,2025-12-15 13:00,EST,Samford Bulldogs,Bryan (TN) Lions,0,0,,,,,False,Pete Hanna Center
+401827134,2025,2025-12-15,2025-12-16 00:00:00+00:00,2025-12-15 19:00,EST,Arkansas-Pine Bluff Golden Lions,Ecclesia Royals,0,0,,,,,False,H.O. Clemmons Arena
+401826972,2025,2025-12-15,2025-12-16 00:00:00+00:00,2025-12-15 19:00,EST,Gardner-Webb Runnin' Bulldogs,Wofford Terriers,0,0,,,,,False,Paul Porter Arena
+401825208,2025,2025-12-15,2025-12-16 00:00:00+00:00,2025-12-15 19:00,EST,Stetson Hatters,Rhodes Lynx,0,0,,,,,False,Edmunds Center
+401813382,2025,2025-12-15,2025-12-16 00:00:00+00:00,2025-12-15 19:00,EST,VCU Rams,Niagara Purple Eagles,0,0,,,,,False,Siegel Center
+401808703,2025,2025-12-15,2025-12-16 00:00:00+00:00,2025-12-15 19:00,EST,SE Louisiana Lions,East Texas A&M Lions,0,0,,,,,False,University Center
+401823365,2025,2025-12-15,2025-12-16 00:30:00+00:00,2025-12-15 19:30,EST,Western Kentucky Hilltoppers,Campbellsville Tigers,0,0,,,,,False,E.A. Diddle Arena
+401829464,2025,2025-12-15,2025-12-16 01:00:00+00:00,2025-12-15 20:00,EST,North Dakota State Bison,Minnesota Crookston Golden Eagles,0,0,,,,,False,Scheels Center
+401829375,2025,2025-12-15,2025-12-16 01:00:00+00:00,2025-12-15 20:00,EST,Southern Indiana Screaming Eagles,East-West University Phantoms,0,0,,,,,False,Liberty Arena (IN)
+401823762,2025,2025-12-15,2025-12-16 01:00:00+00:00,2025-12-15 20:00,EST,South Dakota State Jackrabbits,Wyoming Cowboys,0,0,,,,,True,Sanford Pentagon
+401823439,2025,2025-12-15,2025-12-16 01:00:00+00:00,2025-12-15 20:00,EST,Alabama A&M Bulldogs,North Alabama Lions,0,0,,,,,False,Event Center
+401820475,2025,2025-12-15,2025-12-16 01:00:00+00:00,2025-12-15 20:00,EST,Houston Christian Huskies,McNeese Cowboys,0,0,,,,,False,Sharp Gymnasium
+401812256,2025,2025-12-15,2025-12-16 01:00:00+00:00,2025-12-15 20:00,EST,TCU Horned Frogs,Incarnate Word Cardinals,0,0,,,,,False,Schollmaier Arena

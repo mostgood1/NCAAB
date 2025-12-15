@@ -220,9 +220,19 @@ def _load_all_daily_results() -> pd.DataFrame:
     try:
         out_dir = os.path.join(os.getcwd(), 'outputs', 'daily_results')
         files = sorted(glob.glob(os.path.join(out_dir, 'results_*.csv')))
-        # Filter to valid date filenames: results_YYYY-MM-DD.csv
+        # Filter to valid date filenames: results_YYYY-MM-DD.csv; log skipped for observability
         date_re = re.compile(r"^results_\d{4}-\d{2}-\d{2}\.csv$")
-        files = [f for f in files if date_re.match(os.path.basename(f))]
+        valid_files = []
+        for f in files:
+            base = os.path.basename(f)
+            if date_re.match(base):
+                valid_files.append(f)
+            else:
+                try:
+                    print(f"[accuracy-loader] Skipping non-date results file: {f}")
+                except Exception:
+                    pass
+        files = valid_files
         dfs = []
         for f in files:
             df = pd.read_csv(f, dtype=str, low_memory=False)
@@ -240,20 +250,58 @@ def _coerce_numeric(df: pd.DataFrame, cols: list[str]):
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce')
     return df
+
 def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
     if df.empty:
         return {}
     df = df.copy()
+    df = _coerce_numeric(df, ['pred_margin','spread_home','actual_margin','pred_total','market_total','actual_total'])
+    # Enrich odds from closing lines if missing, mirroring _accuracy_payload logic
+    try:
+        need_market = (df.get('market_total') is None) or (int(pd.Series(df.get('market_total')).notna().sum()) == 0)
+        need_spread = (df.get('spread_home') is None) or (int(pd.Series(df.get('spread_home')).notna().sum()) == 0)
+        if (need_market or need_spread):
+            closing_path = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+            if os.path.exists(closing_path):
+                cl = pd.read_csv(closing_path, dtype=str, low_memory=False)
+                gid = 'game_id' if 'game_id' in cl.columns else None
+                mtc = 'close_total' if 'close_total' in cl.columns else ('total' if 'total' in cl.columns else None)
+                shc = 'close_home_spread' if 'close_home_spread' in cl.columns else ('home_spread' if 'home_spread' in cl.columns else None)
+                dcol = 'date_game' if 'date_game' in cl.columns else ('date' if 'date' in cl.columns else None)
+                hc = 'home_team' if 'home_team' in cl.columns else ('home' if 'home' in cl.columns else None)
+                ac = 'away_team' if 'away_team' in cl.columns else ('away' if 'away' in cl.columns else None)
+                if gid and 'game_id' in df.columns and (mtc or shc):
+                    clw = cl[[gid] + [c for c in [mtc, shc] if c]].copy()
+                    if mtc and mtc in clw.columns:
+                        clw['market_total'] = pd.to_numeric(clw[mtc], errors='coerce')
+                    if shc and shc in clw.columns:
+                        clw['spread_home'] = pd.to_numeric(clw[shc], errors='coerce')
+                    df = df.merge(clw[[gid,'market_total','spread_home']].drop_duplicates(gid), on=['game_id'], how='left')
+                elif dcol and hc and ac and (mtc or shc) and {'date','home_team','away_team'}.issubset(df.columns):
+                    clw = cl[[dcol, hc, ac] + [c for c in [mtc, shc] if c]].copy()
+                    clw.rename(columns={dcol:'date', hc:'home_team', ac:'away_team'}, inplace=True)
+                    for c in ['date','home_team','away_team']:
+                        if c in clw.columns:
+                            clw[c] = clw[c].astype(str)
+                    if mtc and mtc in clw.columns:
+                        clw['market_total'] = pd.to_numeric(clw[mtc], errors='coerce')
+                    if shc and shc in clw.columns:
+                        clw['spread_home'] = pd.to_numeric(clw[shc], errors='coerce')
+                    try:
+                        clw['date'] = pd.to_datetime(clw['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                    except Exception:
+                        pass
+                    df = df.merge(clw[['date','home_team','away_team','market_total','spread_home']], on=['date','home_team','away_team'], how='left')
+    except Exception:
+        pass
     df['date'] = pd.to_datetime(df.get('date'), errors='coerce')
     out = {}
     for d, g in df.groupby(df['date'].dt.date):
         rec = {'date': str(d)}
-        # ATS required fields
         ats_reqs = ['pred_margin','spread_home','actual_margin']
         for c in ats_reqs:
             rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
         rec['ats_rows_complete'] = int(g[ats_reqs].notna().all(axis=1).sum()) if set(ats_reqs).issubset(g.columns) else 0
-        # Totals required fields
         tot_reqs = ['pred_total','market_total','actual_total']
         for c in tot_reqs:
             rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
@@ -309,6 +357,46 @@ def _accuracy_payload(df: pd.DataFrame) -> dict:
         return {'status':'empty'}
     df = _coerce_numeric(df, ['pred_margin','spread_home','actual_margin','pred_total','market_total','actual_total',
                               'pred_total_1h','market_total_1h','actual_total_1h','pred_margin_1h','spread_home_1h','actual_margin_1h'])
+    # Fallback: if market/spread fields are largely missing, try enriching from closing lines by date+teams
+    try:
+        need_market = (df.get('market_total') is None) or (int(pd.Series(df.get('market_total')).notna().sum()) == 0)
+        need_spread = (df.get('spread_home') is None) or (int(pd.Series(df.get('spread_home')).notna().sum()) == 0)
+        if (need_market or need_spread) and {'date','home_team','away_team'}.issubset(df.columns):
+            closing_path = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+            if os.path.exists(closing_path):
+                cl = pd.read_csv(closing_path, dtype=str, low_memory=False)
+                # Determine date and team columns
+                dcol = 'date_game' if 'date_game' in cl.columns else ('date' if 'date' in cl.columns else None)
+                hc = 'home_team' if 'home_team' in cl.columns else ('home' if 'home' in cl.columns else None)
+                ac = 'away_team' if 'away_team' in cl.columns else ('away' if 'away' in cl.columns else None)
+                mtc = 'close_total' if 'close_total' in cl.columns else ('total' if 'total' in cl.columns else None)
+                shc = 'close_home_spread' if 'close_home_spread' in cl.columns else ('home_spread' if 'home_spread' in cl.columns else None)
+                if dcol and hc and ac and (mtc or shc):
+                    clw = cl[[dcol, hc, ac] + [c for c in [mtc, shc] if c]].copy()
+                    clw.rename(columns={dcol:'date', hc:'home_team', ac:'away_team'}, inplace=True)
+                    # Coerce types
+                    for c in ['date','home_team','away_team']:
+                        if c in clw.columns:
+                            clw[c] = clw[c].astype(str)
+                    if mtc and mtc in clw.columns:
+                        clw['market_total'] = pd.to_numeric(clw[mtc], errors='coerce')
+                    if shc and shc in clw.columns:
+                        clw['spread_home'] = pd.to_numeric(clw[shc], errors='coerce')
+                    # Normalize date format
+                    try:
+                        clw['date'] = pd.to_datetime(clw['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                    except Exception:
+                        pass
+                    # Merge into df on date+teams
+                    base_cols = [c for c in df.columns]
+                    df = df.merge(clw[['date','home_team','away_team','market_total','spread_home']], on=['date','home_team','away_team'], how='left', suffixes=('',''))
+                    # Preserve original column order as much as practical
+                    for extra in ['market_total','spread_home']:
+                        if extra in df.columns and extra not in base_cols:
+                            base_cols.append(extra)
+                    df = df[base_cols]
+    except Exception:
+        pass
     # Overall (YTD)
     mask_ats = df[['pred_margin','spread_home','actual_margin']].notna().all(axis=1)
     ats_df = df.loc[mask_ats].copy()
@@ -508,8 +596,19 @@ try:
         from flask import render_template
 
         def accuracy_page():
-            df = _load_all_daily_results()
-            payload = _accuracy_payload(df)
+            # Prefer snapshot-first: load persisted JSON if present
+            payload = None
+            try:
+                snap_path = os.path.join(os.getcwd(), 'outputs', 'metrics', 'season_accuracy_summary.json')
+                if os.path.exists(snap_path):
+                    with open(snap_path, 'r') as f:
+                        payload = json.load(f)
+            except Exception:
+                payload = None
+            if not payload or 'daily' not in payload:
+                # Fallback to live computation if snapshot missing or invalid
+                df = _load_all_daily_results()
+                payload = _accuracy_payload(df)
             # Build sorted views
             daily_items = list(payload.get('daily', {}).items())
             try:
