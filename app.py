@@ -5114,6 +5114,16 @@ def index():
                 df_tpl = df_stable.where(pd.notna(df_stable), None)
             except Exception:
                 df_tpl = df_stable
+            # Dedupe by game_id to avoid repeated rows from upstream joins
+            try:
+                if "game_id" in df_tpl.columns:
+                    # Prefer latest by any timestamp field if present
+                    sort_cols = [c for c in ["last_update","updated_at","commence_time"] if c in df_tpl.columns]
+                    if sort_cols:
+                        df_tpl = df_tpl.sort_values(by=sort_cols)
+                    df_tpl = df_tpl.drop_duplicates(subset=["game_id"], keep="last")
+            except Exception:
+                pass
             raw_rows = [_brand_row(r) for r in df_tpl.to_dict(orient("records"))]
             rows: list[dict[str, Any]] = [dict(_r) for _r in raw_rows]
             total_rows = len(rows)
