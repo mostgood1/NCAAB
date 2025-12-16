@@ -1,0 +1,56 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+81db83958b19d14eeaf8bbab335c2a59,FanDuel,2025-12-16 15:42:46.573259+00:00,-260.0,210.0,-5.5,138.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,Fanatics,2025-12-16 15:42:46.573259+00:00,-250.0,200.0,-6.0,137.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,BetRivers,2025-12-16 15:42:46.573259+00:00,-295.0,225.0,-6.0,137.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,LowVig.ag,2025-12-16 15:42:46.573259+00:00,-245.0,203.0,-6.0,138.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,BetOnline.ag,2025-12-16 15:42:46.573259+00:00,-245.0,203.0,-6.0,138.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,DraftKings,2025-12-16 15:42:46.573259+00:00,,,-6.5,138.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,BetMGM,2025-12-16 15:42:46.573259+00:00,-250.0,200.0,-6.5,138.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,Bovada,2025-12-16 15:42:46.573259+00:00,-280.0,230.0,-6.5,135.0,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+81db83958b19d14eeaf8bbab335c2a59,Caesars,2025-12-16 15:42:46.573259+00:00,-260.0,210.0,-6.0,137.5,2025-12-16 16:00:00+00:00,Drexel Dragons,Howard Bison
+1134e9a33f4e2433bf6a6418f11d44e1,BetOnline.ag,2025-12-16 15:42:46.573259+00:00,,,1.5,147.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,LowVig.ag,2025-12-16 15:42:46.573259+00:00,,,1.5,147.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,DraftKings,2025-12-16 15:42:46.573259+00:00,-102.0,-118.0,1.5,146.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,Fanatics,2025-12-16 15:42:46.573259+00:00,100.0,-120.0,1.0,146.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,BetRivers,2025-12-16 15:42:46.573259+00:00,-103.0,-124.0,1.5,147.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,FanDuel,2025-12-16 15:42:46.573259+00:00,-104.0,-118.0,1.5,146.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,BetMGM,2025-12-16 15:42:46.573259+00:00,-102.0,-118.0,1.5,147.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,Bovada,2025-12-16 15:42:46.573259+00:00,,,1.0,146.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+1134e9a33f4e2433bf6a6418f11d44e1,Caesars,2025-12-16 15:42:46.573259+00:00,100.0,-120.0,1.5,146.5,2025-12-16 23:00:00+00:00,Holy Cross Crusaders,Dartmouth Big Green
+c339b984660a44726b7cdd7f8d4c8bb4,FanDuel,2025-12-16 15:42:46.573259+00:00,,,-31.5,151.5,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,BetRivers,2025-12-16 15:42:46.573259+00:00,,,-32.5,152.0,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,Fanatics,2025-12-16 15:42:46.573259+00:00,,,-33.0,152.0,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,LowVig.ag,2025-12-16 15:42:46.573259+00:00,,,-31.5,151.5,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,BetOnline.ag,2025-12-16 15:42:46.573259+00:00,,,-31.5,151.5,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,DraftKings,2025-12-16 15:42:46.573259+00:00,,,-31.5,151.5,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,BetMGM,2025-12-16 15:42:46.573259+00:00,,,-31.5,151.5,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,Bovada,2025-12-16 15:42:46.573259+00:00,,,-33.5,151.5,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+c339b984660a44726b7cdd7f8d4c8bb4,Caesars,2025-12-16 15:42:46.573259+00:00,,,-31.5,151.5,2025-12-16 23:00:00+00:00,Duke Blue Devils,Lipscomb Bisons
+d6b7a87524c77c1da74605e3c3f8e920,BetOnline.ag,2025-12-16 15:42:46.573259+00:00,,,3.0,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,LowVig.ag,2025-12-16 15:42:46.573259+00:00,,,3.0,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,DraftKings,2025-12-16 15:42:46.573259+00:00,130.0,-155.0,2.5,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,Fanatics,2025-12-16 15:42:46.573259+00:00,125.0,-150.0,2.5,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,BetRivers,2025-12-16 15:42:46.573259+00:00,117.0,-150.0,2.5,155.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,FanDuel,2025-12-16 15:42:46.573259+00:00,132.0,-162.0,2.5,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,BetMGM,2025-12-16 15:42:46.573259+00:00,125.0,-150.0,2.5,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,Bovada,2025-12-16 15:42:46.573259+00:00,,,1.5,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+d6b7a87524c77c1da74605e3c3f8e920,Caesars,2025-12-16 15:42:46.573259+00:00,130.0,-155.0,2.5,154.5,2025-12-16 23:00:00+00:00,UMass Lowell River Hawks,Sacred Heart Pioneers
+18e70793ee6eeb23b04f1f9617db25fa,BetOnline.ag,2025-12-16 15:42:46.573259+00:00,,,9.5,148.5,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,LowVig.ag,2025-12-16 15:42:46.573259+00:00,,,9.5,148.5,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,DraftKings,2025-12-16 15:42:46.573259+00:00,,,9.5,147.5,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,Fanatics,2025-12-16 15:42:46.573259+00:00,400.0,-550.0,10.0,147.0,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,BetRivers,2025-12-16 15:42:46.573259+00:00,410.0,-625.0,10.5,147.5,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,FanDuel,2025-12-16 15:42:46.573259+00:00,410.0,-590.0,10.5,147.5,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,BetMGM,2025-12-16 15:42:46.573259+00:00,375.0,-500.0,9.5,147.5,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,Bovada,2025-12-16 15:42:46.573259+00:00,,,10.5,147.0,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+18e70793ee6eeb23b04f1f9617db25fa,Caesars,2025-12-16 15:42:46.573259+00:00,400.0,-550.0,9.5,147.5,2025-12-16 23:00:00+00:00,South Carolina St Bulldogs,South Carolina Upstate Spartans
+6accf2eca46209d5167a187d268c7116,BetOnline.ag,2025-12-16 15:42:46.573259+00:00,,,-24.0,152.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,LowVig.ag,2025-12-16 15:42:46.573259+00:00,,,-24.0,152.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,DraftKings,2025-12-16 15:42:46.573259+00:00,-6500.0,2000.0,-24.5,152.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,Fanatics,2025-12-16 15:42:46.573259+00:00,-8000.0,2000.0,-24.5,152.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,Caesars,2025-12-16 15:42:46.573259+00:00,,,-24.0,149.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,FanDuel,2025-12-16 15:42:46.573259+00:00,-10000.0,2500.0,-23.5,151.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,Bovada,2025-12-16 15:42:46.573259+00:00,,,-24.5,151.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,BetRivers,2025-12-16 15:42:46.573259+00:00,,,-24.0,153.0,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,BetUS,2025-12-16 15:42:46.573259+00:00,,,-24.0,153.0,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
+6accf2eca46209d5167a187d268c7116,BetMGM,2025-12-16 15:42:46.573259+00:00,-10000.0,1900.0,-24.5,152.5,2025-12-16 23:30:00+00:00,Michigan St Spartans,Toledo Rockets
