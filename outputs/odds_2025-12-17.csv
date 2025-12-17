@@ -1,0 +1,38 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+3fdae7883c7eb0b4fe00927d043d69ba,BetOnline.ag,2025-12-17 17:01:03.546726+00:00,186.0,-220.0,5.0,135.0,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,LowVig.ag,2025-12-17 17:01:03.546726+00:00,186.0,-220.0,5.0,135.0,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,FanDuel,2025-12-17 17:01:03.546726+00:00,180.0,-220.0,4.5,134.5,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,Fanatics,2025-12-17 17:01:03.546726+00:00,175.0,-210.0,5.0,135.0,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,DraftKings,2025-12-17 17:01:03.546726+00:00,170.0,-205.0,4.5,135.5,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,BetMGM,2025-12-17 17:01:03.546726+00:00,180.0,-220.0,4.5,134.5,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,BetRivers,2025-12-17 17:01:03.546726+00:00,160.0,-200.0,4.5,134.5,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,Bovada,2025-12-17 17:01:03.546726+00:00,180.0,-220.0,5.0,135.0,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+3fdae7883c7eb0b4fe00927d043d69ba,BetUS,2025-12-17 17:01:03.546726+00:00,185.0,-220.0,5.0,135.0,2025-12-17 22:00:00+00:00,UIC Flames,Northern Iowa Panthers
+abb1663b271f86d7f6672942bcca7df4,BetOnline.ag,2025-12-17 17:01:03.546726+00:00,,,-4.0,137.0,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,LowVig.ag,2025-12-17 17:01:03.546726+00:00,,,-4.0,137.0,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,FanDuel,2025-12-17 17:01:03.546726+00:00,-194.0,160.0,-3.5,136.5,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,Fanatics,2025-12-17 17:01:03.546726+00:00,-175.0,145.0,-4.0,137.0,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,DraftKings,2025-12-17 17:01:03.546726+00:00,-180.0,150.0,-3.5,137.5,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,BetMGM,2025-12-17 17:01:03.546726+00:00,-180.0,145.0,-3.5,137.5,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,BetRivers,2025-12-17 17:01:03.546726+00:00,-177.0,140.0,-3.5,137.5,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,Bovada,2025-12-17 17:01:03.546726+00:00,,,-3.5,137.5,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+abb1663b271f86d7f6672942bcca7df4,Caesars,2025-12-17 17:01:03.546726+00:00,-180.0,152.0,-3.5,137.0,2025-12-17 23:00:00+00:00,New Hampshire Wildcats,Stonehill Skyhawks
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,BetOnline.ag,2025-12-17 17:01:03.546726+00:00,-170.0,149.0,-3.5,152.0,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,LowVig.ag,2025-12-17 17:01:03.546726+00:00,-170.0,149.0,-3.5,152.0,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,FanDuel,2025-12-17 17:01:03.546726+00:00,-170.0,140.0,-3.5,151.5,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,Fanatics,2025-12-17 17:01:03.546726+00:00,-175.0,145.0,-4.0,152.0,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,Caesars,2025-12-17 17:01:03.546726+00:00,-170.0,143.0,-4.0,153.0,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,DraftKings,2025-12-17 17:01:03.546726+00:00,-170.0,142.0,-3.5,152.5,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,BetMGM,2025-12-17 17:01:03.546726+00:00,-175.0,145.0,-3.5,152.5,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,Bovada,2025-12-17 17:01:03.546726+00:00,-150.0,130.0,-3.0,150.0,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,BetRivers,2025-12-17 17:01:03.546726+00:00,-177.0,140.0,-3.5,151.5,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+f94cc52cd2f0d4b1a0f6b4a5d53e8e4c,BetUS,2025-12-17 17:01:03.546726+00:00,-170.0,146.0,-3.5,152.0,2025-12-17 23:30:00+00:00,Xavier Musketeers,Creighton Bluejays
+1801e0818672789a58e120797497d060,BetOnline.ag,2025-12-17 17:01:03.546726+00:00,,,-45.5,157.0,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,LowVig.ag,2025-12-17 17:01:03.546726+00:00,,,-45.5,157.0,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,FanDuel,2025-12-17 17:01:03.546726+00:00,,,-45.5,156.5,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,Fanatics,2025-12-17 17:01:03.546726+00:00,,,-45.0,156.5,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,DraftKings,2025-12-17 17:01:03.546726+00:00,,,-45.5,156.5,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,BetMGM,2025-12-17 17:01:03.546726+00:00,,,-45.5,156.5,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,BetRivers,2025-12-17 17:01:03.546726+00:00,,,-46.5,156.5,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,Bovada,2025-12-17 17:01:03.546726+00:00,,,-45.5,154.5,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
+1801e0818672789a58e120797497d060,Caesars,2025-12-17 17:01:03.546726+00:00,,,-45.5,156.5,2025-12-17 23:30:00+00:00,Florida Gators,St. Francis (PA) Red Flash
