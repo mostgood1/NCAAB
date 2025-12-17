@@ -813,8 +813,6 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       Write-Section "11) Commit and push updated data files"
       # Add a small, curated set of whitelisted artifacts per .gitignore
       $toStage = @()
-      $resPath = Join-Path $OutDir ("daily_results/results_" + $prevDate + ".csv")
-      if (Test-Path $resPath) { $toStage += $resPath }
       # Keep small set of stable merged references
       $gwl = Join-Path $OutDir 'games_with_last.csv'
       if (Test-Path $gwl) { $toStage += $gwl }

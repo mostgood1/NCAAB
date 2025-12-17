@@ -62,6 +62,9 @@
       </nav>
         <a href="/accuracy">Season Accuracy</a>
     </div>
+    {% if source_path or source_rows %}
+      <div class="muted m4v8" aria-live="polite">Source: {{ source_path or 'n/a' }} · Rows: {{ source_rows or 0 }}</div>
+    {% endif %}
     {% if status %}
       <div class="mb8 flex-row-wrap" id="statusStrip">
         {% if status.finalize %}
