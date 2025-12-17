@@ -5159,7 +5159,7 @@ def index():
                 archive_dates = sorted(set(archive_dates))
             except Exception:
                 archive_dates = []
-            # Early return rendering from stable artifact
+            # Early return rendering from stable artifact, include source context for parity checks
             return render_template(
                 "index.html",
                 rows=rows,
@@ -5180,6 +5180,8 @@ def index():
                 diag_url=None,
                 fused_bootstrap_url=None,
                 refresh_odds_url=None,
+                source_path=str(path),
+                source_rows=total_rows,
             )
         except Exception as _stable_e:
             pipeline_stats['stable_display_error'] = str(_stable_e)[:160]
