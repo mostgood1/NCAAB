@@ -1,3 +1,166 @@
+import argparse
+import datetime as dt
+import json
+import os
+from typing import Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+
+from src.ncaab_model.metrics.crps import crps_from_quantiles, gaussian_crps
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Evaluate CRPS for totals/margins using quantiles if available, else Gaussian fallback.")
+    p.add_argument("--date", type=str, default=None, help="Date YYYY-MM-DD; defaults to today")
+    p.add_argument("--pred-csv", type=str, default=None, help="Predictions CSV (unified enriched). Defaults to outputs/predictions_unified_enriched_<date>.csv")
+    p.add_argument("--quantiles-csv", type=str, default=None, help="Quantiles sidecar path. Defaults to outputs/quantiles_<date>.csv")
+    p.add_argument("--results-csv", type=str, default=None, help="Daily results CSV. Defaults to daily_results/results_<date>.csv")
+    p.add_argument("--output-json", type=str, default=None, help="Scoring JSON output. Defaults to outputs/scoring_<date>.json (merged if exists)")
+    return p.parse_args()
+
+
+def today_str() -> str:
+    return dt.date.today().strftime("%Y-%m-%d")
+
+
+def load_truth(df: pd.DataFrame, results_path: str) -> Dict[str, np.ndarray]:
+    if not os.path.exists(results_path):
+        return {"pending": True}
+    res = pd.read_csv(results_path)
+    if "game_id" not in res.columns:
+        return {"pending": True}
+    merged = df[["game_id"]].merge(res, on="game_id", how="left")
+
+    total_candidates = [
+        "total_final",
+        "final_total",
+        "total",
+        "score_total",
+        "total_points",
+    ]
+    margin_candidates = [
+        "margin_final",
+        "final_margin",
+        "margin",
+        "score_diff",
+    ]
+
+    truth = {"pending": False}
+    for key, cands in [("total", total_candidates), ("margin", margin_candidates)]:
+        for c in cands:
+            if c in merged.columns:
+                truth[key] = pd.to_numeric(merged[c], errors="coerce").to_numpy()
+                break
+    return truth
+
+
+def merge_existing_json(path: str) -> Dict:
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def main() -> None:
+    args = parse_args()
+    date = args.date or today_str()
+
+    pred_csv = args.pred_csv or os.path.join("outputs", f"predictions_unified_enriched_{date}.csv")
+    q_csv = args.quantiles_csv or os.path.join("outputs", f"quantiles_{date}.csv")
+    results_csv = args.results_csv or os.path.join("daily_results", f"results_{date}.csv")
+    out_json = args.output_json or os.path.join("outputs", f"scoring_{date}.json")
+
+    if not os.path.exists(pred_csv):
+        raise FileNotFoundError(f"Predictions CSV not found: {pred_csv}")
+    df = pd.read_csv(pred_csv)
+    if "game_id" not in df.columns:
+        raise ValueError("Predictions CSV must contain 'game_id'")
+
+    truth = load_truth(df, results_csv)
+    pending = truth.get("pending", True) or ("total" not in truth and "margin" not in truth)
+
+    qdf = None
+    if os.path.exists(q_csv):
+        qdf = pd.read_csv(q_csv)
+        if "game_id" not in qdf.columns:
+            qdf = None
+
+    metrics: Dict[str, object] = {
+        "date": date,
+        "crps_method": None,
+        "pending": pending,
+    }
+
+    # Totals
+    if not pending and "total" in truth:
+        y_total = truth["total"]
+        crps_total = None
+        method_total = None
+        if qdf is not None and set(["pred_total_q10", "pred_total_q50", "pred_total_q90"]).issubset(qdf.columns):
+            merged = df[["game_id"]].merge(qdf, on="game_id", how="left")
+            q10 = pd.to_numeric(merged["pred_total_q10"], errors="coerce").to_numpy()
+            q50 = pd.to_numeric(merged["pred_total_q50"], errors="coerce").to_numpy()
+            q90 = pd.to_numeric(merged["pred_total_q90"], errors="coerce").to_numpy()
+            crps_total = crps_from_quantiles(y_total, [q10, q50, q90], [0.1, 0.5, 0.9])
+            method_total = "quantiles"
+        else:
+            # Gaussian fallback
+            mu = pd.to_numeric(df.get("pred_total"), errors="coerce").to_numpy()
+            sigma = None
+            for c in ["sigma_total", "pred_total_sigma", "total_sigma"]:
+                if c in df.columns:
+                    sigma = pd.to_numeric(df[c], errors="coerce").to_numpy()
+                    break
+            if sigma is None:
+                sigma = np.full(len(df), 12.0, dtype=float)
+            crps_total = gaussian_crps(y_total, mu, sigma)
+            method_total = "gaussian"
+        metrics["totals_crps_mean"] = float(np.nanmean(crps_total))
+        metrics["totals_crps_count"] = int(np.sum(np.isfinite(crps_total)))
+        metrics["totals_crps_method"] = method_total
+
+    # Margins
+    if not pending and "margin" in truth:
+        y_margin = truth["margin"]
+        crps_margin = None
+        method_margin = None
+        if qdf is not None and set(["pred_margin_q10", "pred_margin_q50", "pred_margin_q90"]).issubset(qdf.columns):
+            merged = df[["game_id"]].merge(qdf, on="game_id", how="left")
+            q10 = pd.to_numeric(merged["pred_margin_q10"], errors="coerce").to_numpy()
+            q50 = pd.to_numeric(merged["pred_margin_q50"], errors="coerce").to_numpy()
+            q90 = pd.to_numeric(merged["pred_margin_q90"], errors="coerce").to_numpy()
+            crps_margin = crps_from_quantiles(y_margin, [q10, q50, q90], [0.1, 0.5, 0.9])
+            method_margin = "quantiles"
+        else:
+            mu = pd.to_numeric(df.get("pred_margin"), errors="coerce").to_numpy()
+            sigma = None
+            for c in ["sigma_margin", "pred_margin_sigma", "margin_sigma"]:
+                if c in df.columns:
+                    sigma = pd.to_numeric(df[c], errors="coerce").to_numpy()
+                    break
+            if sigma is None:
+                sigma = np.full(len(df), 7.0, dtype=float)
+            crps_margin = gaussian_crps(y_margin, mu, sigma)
+            method_margin = "gaussian"
+        metrics["margins_crps_mean"] = float(np.nanmean(crps_margin))
+        metrics["margins_crps_count"] = int(np.sum(np.isfinite(crps_margin)))
+        metrics["margins_crps_method"] = method_margin
+
+    # Merge with existing scoring JSON if present
+    base = merge_existing_json(out_json)
+    base.update(metrics)
+    os.makedirs(os.path.dirname(out_json), exist_ok=True)
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(base, f, indent=2)
+    print(f"Wrote {out_json}")
+
+
+if __name__ == "__main__":
+    main()
 """Compute CRPS and interval coverage using quantiles_history.csv.
 
 Inputs:
