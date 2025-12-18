@@ -14,61 +14,13 @@ __pycache__/
 !data/conferences.csv
 /outputs/*
 !outputs/.gitkeep
-!outputs/daily_results/
-/outputs/daily_results/*
-!outputs/daily_results/results_*-*.csv
-!outputs/games_with_last.csv
-!outputs/games_with_closing.csv
-!outputs/priors.csv
-!outputs/*with_priors*.csv
-!outputs/models_preseason/
-!outputs/models_preseason/**
-!outputs/odds_history/odds_2025-*.csv
-!outputs/odds_history/odds_2026-*.csv
-!outputs/games_2025-*.csv
-!outputs/games_2026-*.csv
-!outputs/odds_2025-*.csv
-!outputs/odds_2026-*.csv
-!outputs/games_with_odds_2025-*.csv
-!outputs/games_with_odds_2026-*.csv
-# Daily model prediction artifacts and stake sheets are large/noisy; keep local only
-# (Previously whitelisted; removing to prevent repo churn and size growth)
-# If archival needed, add Parquet outputs under a separate retained directory.
-!outputs/predictions_model_calibrated_2026-*.csv
-!outputs/predictions_model_interval_2025-*.csv
-!outputs/predictions_model_interval_2026-*.csv
-!outputs/align_period_2025-*.csv
-!outputs/align_period_2025-*_edges.csv
-!outputs/align_period_2026-*.csv
-!outputs/align_period_2026-*_edges.csv
-!outputs/stake_sheet_today*.csv
-!outputs/stake_sheet_today_cal*.csv
-!outputs/stake_sheet_today_compare*.csv
-# (do not commit quantile selection artifacts; diagnostics can be viewed locally)
-
-# Commit-mode display: allowlist dated public prediction snapshots (point + calibrated + interval)
-!outputs/predictions_2025-*.csv
-!outputs/predictions_model_2025-*.csv
-!outputs/predictions_model_calibrated_2025-*.csv
-
-# Large per-date artifacts: do not commit (size and churn)
-outputs/predictions_*.csv
-outputs/align_period_*.csv
-outputs/align_period_*_edges.csv
-
-# Frontend display snapshots: explicitly allowlist (place after generic ignores)
+# Keep only minimal UI snapshots and archives for Render parity
 !outputs/predictions_display_*-*.csv
 !outputs/predictions_unified_enriched_*-*.csv
 !outputs/archive/*/predictions_display_*-*.csv
-
-# Scoring metrics JSONs: track per-date CRPS/log-likelihood outputs
-!outputs/scoring_2025-*.json
-!outputs/scoring_2026-*.json
-
-# Re-ignore noisy derived variants even if their base pattern is allowlisted
-# Keeps backfilled/force_fill artifacts out of git while allowing primary snapshots
-outputs/*_backfilled.csv
-outputs/*_force_fill.csv
+# Allow status and diagnostics via forced staging in the daily script; .gitignore will still ignore by default
+# (daily_update.ps1 uses force-add for outputs/metrics and outputs/diagnostics)
+# Everything else in outputs remains ignored to avoid noisy commits and large files
 
 # Vendors / embedded repos
 onnxruntime/
