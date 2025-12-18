@@ -21,6 +21,8 @@ __pycache__/
 # Allow status and diagnostics via forced staging in the daily script; .gitignore will still ignore by default
 # (daily_update.ps1 uses force-add for outputs/metrics and outputs/diagnostics)
 # Everything else in outputs remains ignored to avoid noisy commits and large files
+outputs/*_backfilled.csv
+outputs/*_force_fill.csv
 
 # Vendors / embedded repos
 onnxruntime/
