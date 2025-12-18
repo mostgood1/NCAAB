@@ -24,6 +24,8 @@ param(
   # Heavy quantile CV + model retrain gating (weekly + drift/age overrides)
   [switch]$SkipHeavyQuantiles,
   [switch]$ForceQuantileRefresh,
+  # Lightweight per-day quantiles+CRPS (quantiles-first, Gaussian fallback)
+  [switch]$WithQuantilesCRPS,
   [string]$QuantileRetrainDay = 'Sunday',
   [int]$QuantileMaxAgeDays = 6,
   [string]$GitCommitMessage
@@ -542,6 +544,20 @@ sys.exit(1 if nan_count>0 else 0)
     Write-Warning "post-normalization check failed: $($_)"
   }
 
+  # Optional: emit q10/q50/q90 sidecar and evaluate CRPS (quantiles-first)
+  if ($WithQuantilesCRPS.IsPresent) {
+    Write-Section '6a.post.ii.a) Emit quantiles sidecar (q10/q50/q90)'
+    try {
+      & $VenvPython scripts/emit_quantile_predictions.py --date $todayIso
+    } catch { Write-Warning "emit_quantile_predictions.py failed: $($_)" }
+    Write-Section '6a.post.ii.b) Evaluate CRPS (quantiles-first, Gaussian fallback)'
+    try {
+      & $VenvPython scripts/evaluate_crps.py --date $todayIso
+    } catch { Write-Warning "evaluate_crps.py failed: $($_)" }
+  } else {
+    Write-Host '[skip] Quantiles sidecar + CRPS evaluation (enable with -WithQuantilesCRPS)' -ForegroundColor Yellow
+  }
+
     # Safeguard: drop unposted/no-market games not present in provider slate
     Write-Section '6a.post.ii) Safeguard: remove No Market (Unposted) games'
     try {
@@ -926,6 +942,8 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $quantModel) { $toStage += $quantModel }
   $scoreToday = Join-Path $OutDir ("scoring_" + $todayIso + ".json")
   if (Test-Path $scoreToday) { $toStage += $scoreToday }
+  $quantSidecar = Join-Path $OutDir ("quantiles_" + $todayIso + ".csv")
+  if (Test-Path $quantSidecar) { $toStage += $quantSidecar }
   $probStability = Get-ChildItem -Path $OutDir -Filter ('prob_stability_' + $todayIso + '.json') -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($probStability) { $toStage += $probStability.FullName }
   $autoCal = Get-ChildItem -Path $OutDir -Filter 'auto_refresh_calibration_*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
