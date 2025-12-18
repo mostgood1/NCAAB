@@ -215,6 +215,17 @@ print({'path': str(games_path), 'rows': len(df2)})
   # Prefer strict last odds for reconciliation; closing kept for reference.
   & $VenvPython -m ncaab_model.cli daily-results --date $prevDate --games-path (Join-Path $OutDir 'games_prev.csv') --preds-path $predsAll --closing-merged (Join-Path $OutDir 'games_with_last_prev.csv') --picks-path $picksClean --out-dir (Join-Path $OutDir 'daily_results')
 
+  # Evaluate previous day accuracy vs odds (OU/ATS) and persist metrics
+  Write-Section "3c) Evaluate previous-day accuracy vs odds"
+  try {
+    $evalOut = (& $VenvPython scripts/evaluate_vs_odds.py --date $prevDate) | Out-String
+    $metricsDir = Join-Path $OutDir 'metrics'
+    New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+    $metricsPath = Join-Path $metricsDir ("accuracy_vs_odds_" + $prevDate + ".json")
+    $evalOut.Trim() | Out-File -FilePath $metricsPath -Encoding UTF8
+    Write-Host "[metrics] Wrote $metricsPath"
+  } catch { Write-Warning "evaluate_vs_odds failed for ${prevDate}: $($_)" }
+
   if (-not $SkipFinalizePrev) {
     Write-Section "3a) Fetch previous day raw scores (no cache) and boxscores"
     try {
@@ -543,11 +554,71 @@ sys.exit(1 if nan_count>0 else 0)
     & $VenvPython scripts/enrich_meta_probs.py $todayIso --inplace
   } catch { Write-Warning "enrich_meta_probs.py failed: $($_)" }
 
+  # (moved) Feature parity checks run after sigma+blend to avoid false missing columns
+
   # Inject sigma fields and adjusted Kelly after enrichment to ensure availability downstream
   Write-Section '6a.post.c) Inject sigma and adjusted Kelly'
   try {
     & $VenvPython scripts/inject_sigma_and_kelly.py --date $todayIso
   } catch { Write-Warning "inject_sigma_and_kelly.py failed: $($_)" }
+
+  # Market-aware posterior blend + mismatch guardrails
+  Write-Section '6a.post.d) Market-aware blend + guardrails'
+  try {
+    & $VenvPython scripts/apply_market_blend.py --date $todayIso --w-market-total 0.8 --w-market-margin 0.7 --thr-total 20 --thr-margin 8
+  } catch { Write-Warning "apply_market_blend.py failed: $($_)" }
+
+  # Feature parity check against trained meta probability schemas (post sigma+blend)
+  Write-Section '6a.post.e) Feature parity checks (meta probs)'
+  try {
+    $parityOut = (& $VenvPython scripts/check_feature_parity.py --date $todayIso) | Out-String
+    $metricsDir = Join-Path $OutDir 'metrics'
+    New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+    $parityPath = Join-Path $metricsDir ("feature_parity_" + $todayIso + ".txt")
+    $parityOut.Trim() | Out-File -FilePath $parityPath -Encoding UTF8
+    Write-Host "[metrics] Wrote $parityPath"
+  } catch { Write-Warning "feature parity check failed: $($_)" }
+
+  # Tune OU/ATS thresholds using recent history
+  Write-Section '6a.post.f) Tune OU/ATS thresholds vs odds'
+  try {
+    & $VenvPython scripts/tune_thresholds_vs_odds.py --window-days 60
+  } catch { Write-Warning "tune_thresholds_vs_odds.py failed: $($_)" }
+
+  # Tune OU selection policy to achieve >=75% accuracy with gating
+  Write-Section '6a.post.f.i) Tune OU selection policy (>=75% acc)'
+  try {
+    & $VenvPython scripts/tune_ou_selection.py --window-days 60 --target-accuracy 0.75 --min-coverage 20 --use-closing
+  } catch { Write-Warning "tune_ou_selection.py failed: $($_)" }
+
+  # Evaluate selected OU policy and persist metrics
+  Write-Section '6a.post.f.ii) Evaluate OU policy (coverage + accuracy)'
+  try {
+    & $VenvPython scripts/evaluate_ou_policy.py --window-days 90 --use-closing
+  } catch { Write-Warning "evaluate_ou_policy.py failed: $($_)" }
+
+  # Tune ATS selection policy to achieve >=75% accuracy with gating
+  Write-Section '6a.post.f.iii) Tune ATS selection policy (>=75% acc)'
+  try {
+    & $VenvPython scripts/tune_ats_selection.py --window-days 60 --target-accuracy 0.75 --min-coverage 20 --use-closing
+  } catch { Write-Warning "tune_ats_selection.py failed: $($_)" }
+
+  # Evaluate selected ATS policy and persist metrics
+  Write-Section '6a.post.f.iv) Evaluate ATS policy (coverage + accuracy)'
+  try {
+    & $VenvPython scripts/evaluate_ats_policy.py --window-days 90 --use-closing
+  } catch { Write-Warning "evaluate_ats_policy.py failed: $($_)" }
+
+  # Overall accuracy snapshot (all games) to track baseline improvements
+  Write-Section '6a.post.g) Evaluate overall OU/ATS accuracy (all games)'
+  try {
+    $evalAll = (& $VenvPython scripts/evaluate_vs_odds.py --use-closing) | Out-String
+    $metricsDir = Join-Path $OutDir 'metrics'
+    New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+    $overallPath = Join-Path $metricsDir 'accuracy_vs_odds_overall.json'
+    $evalAll.Trim() | Out-File -FilePath $overallPath -Encoding UTF8
+    Write-Host "[metrics] Wrote $overallPath"
+  } catch { Write-Warning "evaluate_vs_odds (overall) failed: $($_)" }
 
   # Now regenerate team-level historical features with any newly completed games merged by daily-run
   Write-Section '6b) Refresh team-level historical features post-ingestion'
@@ -920,6 +991,12 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       if (Test-Path $accDiagJson) { $toStage += $accDiagJson }
       $accDiagCsv = Join-Path $OutDir 'diagnostics\accuracy_missing_by_date.csv'
       if (Test-Path $accDiagCsv) { $toStage += $accDiagCsv }
+
+      # OU policy tuning + evaluation artifacts
+      $ouPol = Join-Path $OutDir 'metrics\ou_selection_policy.json'
+      if (Test-Path $ouPol) { $toStage += $ouPol }
+      $ouEval = Join-Path $OutDir 'metrics\ou_selection_eval.json'
+      if (Test-Path $ouEval) { $toStage += $ouEval }
 
       # Daily update status JSON for observability on Render
       $statusJson = Join-Path $OutDir ("logs\daily_update_status_" + $todayIso + ".json")

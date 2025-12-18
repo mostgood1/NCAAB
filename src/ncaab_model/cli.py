@@ -5072,8 +5072,8 @@ def produce_picks(
     preds_path: Path = typer.Argument(..., help="Predictions CSV with full + half projections (pred_total, pred_margin, pred_total_1h, pred_margin_1h, etc.)"),
     odds_merged_path: Path = typer.Argument(..., help="Merged odds file (games_with_last.csv or games_with_closing.csv) containing market, period, spreads/totals/moneylines"),
     out: Path = typer.Option(settings.outputs_dir / "picks_raw.csv", help="Output CSV with per-market picks and edges"),
-    total_threshold: float = typer.Option(1.5, help="Min |pred_total - line_total| for Over/Under pick"),
-    spread_threshold: float = typer.Option(1.0, help="Min |pred_margin - implied_margin| for spread pick"),
+    total_threshold: float = typer.Option(1.5, help="Min |pred_total - line_total| for Over/Under pick (overridden by thresholds_vs_odds.json if present)"),
+    spread_threshold: float = typer.Option(1.0, help="Min |pred_margin - implied_margin| for spread pick (overridden by thresholds_vs_odds.json if present)"),
     moneyline_margin_scale: float = typer.Option(7.0, help="Scale converting margin to win prob via logistic"),
     moneyline_edge_pct: float = typer.Option(2.0, help="Min % edge (fair vs book implied prob) for moneyline pick"),
 ):
@@ -5089,12 +5089,80 @@ def produce_picks(
     odds = pd.read_csv(odds_merged_path)
     preds["game_id"] = preds.get("game_id").astype(str)
     odds["game_id"] = odds.get("game_id").astype(str)
+
+    # Optionally override thresholds using tuned values if available
+    try:
+        thr_path = settings.outputs_dir / 'metrics' / 'thresholds_vs_odds.json'
+        if thr_path.exists():
+            import json as _json_thr
+            payload = _json_thr.loads(thr_path.read_text(encoding='utf-8'))
+            ou_tau = payload.get('ou', {}).get('tau')
+            ats_tau = payload.get('ats', {}).get('tau')
+            if isinstance(ou_tau, (int, float)) and ou_tau is not None:
+                total_threshold = float(ou_tau)
+            if isinstance(ats_tau, (int, float)) and ats_tau is not None:
+                spread_threshold = float(ats_tau)
+            print(f"[green]Applied tuned thresholds[/green] OU={total_threshold} ATS={spread_threshold} from {thr_path}")
+    except Exception as _thr_e:
+        print(f"[yellow]Threshold override skipped:[/yellow] {_thr_e}")
+
+    # Optional OU selection policy (>= target accuracy) gates
+    ou_policy = None
+    try:
+        pol_path = settings.outputs_dir / 'metrics' / 'ou_selection_policy.json'
+        if pol_path.exists():
+            import json as _json_pol
+            pol = _json_pol.loads(pol_path.read_text(encoding='utf-8'))
+            sel = pol.get('selected') or {}
+            if sel:
+                ou_policy = {
+                    'tau': float(sel.get('tau', total_threshold)),
+                    'sigma_max': float(sel.get('sigma_max', 0.0)),
+                    'pmin': float(sel.get('pmin', 0.0)),
+                }
+                # Override OU tau with policy tau
+                total_threshold = ou_policy['tau']
+                print(f"[green]Applied OU selection policy[/green] tau={ou_policy['tau']} sigma_max={ou_policy['sigma_max']} pmin={ou_policy['pmin']}")
+    except Exception as _pol_e:
+        print(f"[yellow]OU policy load skipped:[/yellow] {_pol_e}")
+
+    # Optional ATS selection policy (>= target accuracy) gates
+    ats_policy = None
+    try:
+        pol_path_ats = settings.outputs_dir / 'metrics' / 'ats_selection_policy.json'
+        if pol_path_ats.exists():
+            import json as _json_pol_ats
+            pol2 = _json_pol_ats.loads(pol_path_ats.read_text(encoding='utf-8'))
+            sel2 = pol2.get('selected') or {}
+            if sel2:
+                ats_policy = {
+                    'tau': float(sel2.get('tau', spread_threshold)),
+                    'sigma_max': float(sel2.get('sigma_max', 0.0)),
+                    'pmin': float(sel2.get('pmin', 0.0)),
+                }
+                spread_threshold = ats_policy['tau']
+                print(f"[green]Applied ATS selection policy[/green] tau={ats_policy['tau']} sigma_max={ats_policy['sigma_max']} pmin={ats_policy['pmin']}")
+    except Exception as _pol2_e:
+        print(f"[yellow]ATS policy load skipped:[/yellow] {_pol2_e}")
     # Build long-form predictions per period
     rows: list[dict] = []
     for _, r in preds.iterrows():
         gid = str(r.get("game_id"))
         base = {"game_id": gid, "date": r.get("date"), "home_team": r.get("home_team"), "away_team": r.get("away_team")}
-        rows.append({**base, "period": "full_game", "model_total": r.get("pred_total"), "model_margin": r.get("pred_margin")})
+        # Prefer market-aware blended predictions when available for full game
+        mt_full = r.get("pred_total_market_blend") if "pred_total_market_blend" in preds.columns else r.get("pred_total")
+        mm_full = r.get("pred_margin_market_blend") if "pred_margin_market_blend" in preds.columns else r.get("pred_margin")
+        rows.append({**base,
+                 "period": "full_game",
+                 "model_total": mt_full,
+                 "model_margin": mm_full,
+                 # propagate mismatch flags for guardrails if present
+                 "flag_market_total_mismatch": r.get("flag_market_total_mismatch") if "flag_market_total_mismatch" in preds.columns else False,
+                 "flag_market_margin_mismatch": r.get("flag_market_margin_mismatch") if "flag_market_margin_mismatch" in preds.columns else False,
+                 # propagate sigma and probability signals for policy gating if available
+                 "sigma_total_emp": r.get("sigma_total_emp") if "sigma_total_emp" in preds.columns else (r.get("sigma_total_adj") if "sigma_total_adj" in preds.columns else np.nan),
+                 "p_over_display": r.get("p_over_display") if "p_over_display" in preds.columns else (r.get("p_over_emp") if "p_over_emp" in preds.columns else np.nan),
+                })
         if pd.notna(r.get("pred_total_1h")):
             rows.append({**base, "period": "1h", "model_total": r.get("pred_total_1h"), "model_margin": r.get("pred_margin_1h")})
         if pd.notna(r.get("pred_total_2h")):
@@ -5119,30 +5187,72 @@ def produce_picks(
         gid = r.get("game_id"); period = r.get("period"); book = r.get("book")
         home = r.get("home_team") or r.get("home_team_name"); away = r.get("away_team") or r.get("away_team_name")
         m_total = r.get("model_total"); m_margin = r.get("model_margin")
+        # Guardrails: skip picks on mismatches when flags present (only meaningful for full_game)
+        flag_t = bool(r.get("flag_market_total_mismatch")) if "flag_market_total_mismatch" in r.index else False
+        flag_m = bool(r.get("flag_market_margin_mismatch")) if "flag_market_margin_mismatch" in r.index else False
         # Totals
         line_total = r.get("total")
         if pd.notna(m_total) and pd.notna(line_total):
-            edge_t = float(m_total) - float(line_total)
-            if edge_t > total_threshold:
-                out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Over","edge": edge_t,
-                                 "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
-            elif edge_t < -total_threshold:
-                out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Under","edge": abs(edge_t),
-                                 "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
+            if period == "full_game" and (flag_t or flag_m):
+                # skip totals pick when mismatches detected
+                pass
+            else:
+                edge_t = float(m_total) - float(line_total)
+                # OU selection policy gates (only full-game totals)
+                allow_over = True; allow_under = True
+                if ou_policy and period == "full_game":
+                    # Sigma gate
+                    sig = r.get("sigma_total_emp") if "sigma_total_emp" in r.index else (r.get("sigma_total_adj") if "sigma_total_adj" in r.index else np.nan)
+                    if ou_policy['sigma_max'] > 0 and pd.notna(sig):
+                        allow_over = allow_over and (float(sig) <= ou_policy['sigma_max'])
+                        allow_under = allow_under and (float(sig) <= ou_policy['sigma_max'])
+                    # Probability gate
+                    p_over = r.get("p_over_display") if "p_over_display" in r.index else (r.get("p_over_emp") if "p_over_emp" in r.index else np.nan)
+                    if ou_policy['pmin'] > 0 and pd.notna(p_over):
+                        try:
+                            p_over = float(p_over)
+                            allow_over = allow_over and (p_over >= ou_policy['pmin'])
+                            allow_under = allow_under and (p_over <= (1.0 - ou_policy['pmin']))
+                        except Exception:
+                            pass
+                if edge_t > total_threshold and allow_over:
+                    out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Over","edge": edge_t,
+                                     "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
+                elif edge_t < -total_threshold and allow_under:
+                    out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Under","edge": abs(edge_t),
+                                     "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
         # Spreads (home side)
         home_spread = r.get("home_spread")
         if pd.notna(m_margin) and pd.notna(home_spread):
             try:
                 implied = -float(home_spread)
                 edge_s = float(m_margin) - implied
-                if edge_s > spread_threshold:
-                    out_rows.append({"game_id": gid,"period": period,"market": "spreads","book": book,
-                                     "pick": f"{home} {home_spread:+}","edge": edge_s,"line_value": home_spread,
-                                     "predicted_value": m_margin,"home_team": home,"away_team": away})
-                elif edge_s < -spread_threshold:
-                    out_rows.append({"game_id": gid,"period": period,"market": "spreads","book": book,
-                                     "pick": f"{away} {(-home_spread):+}","edge": abs(edge_s),"line_value": home_spread,
-                                     "predicted_value": m_margin,"home_team": home,"away_team": away})
+                if not (period == "full_game" and flag_m):
+                    # ATS selection policy gates (only full-game spreads)
+                    allow_home = True; allow_away = True
+                    if ats_policy and period == "full_game":
+                        # Sigma gate (margin)
+                        sigm = r.get("sigma_margin_emp") if "sigma_margin_emp" in r.index else (r.get("sigma_margin_adj") if "sigma_margin_adj" in r.index else np.nan)
+                        if ats_policy['sigma_max'] > 0 and pd.notna(sigm):
+                            allow_home = allow_home and (float(sigm) <= ats_policy['sigma_max'])
+                            allow_away = allow_away and (float(sigm) <= ats_policy['sigma_max'])
+                        # Probability gate (home cover probability)
+                        p_cover = r.get("p_cover_display") if "p_cover_display" in r.index else (r.get("p_home_cover_emp") if "p_home_cover_emp" in r.index else (r.get("p_home_cover") if "p_home_cover" in r.index else np.nan))
+                        if ats_policy['pmin'] > 0 and pd.notna(p_cover):
+                            try:
+                                p_cover = float(p_cover)
+                                allow_home = allow_home and (p_cover >= ats_policy['pmin'])
+                                allow_away = allow_away and (p_cover <= (1.0 - ats_policy['pmin']))
+                            except Exception:
+                                pass
+                    if edge_s > spread_threshold and allow_home:
+                        out_rows.append({"game_id": gid,"period": period,"market": "spreads","book": book,
+                                         "pick": f"{home} {home_spread:+}","edge": edge_s,"line_value": home_spread,
+                                         "predicted_value": m_margin,"home_team": home,"away_team": away})
+                    elif edge_s < -spread_threshold and allow_away:
+                        out_rows.append({"game_id": gid,"period": period,"market": "spreads","book": book,
+                                         "pick": f"{away} {(-home_spread):+}","edge": abs(edge_s),"line_value": home_spread,
+                                         "predicted_value": m_margin,"home_team": home,"away_team": away})
             except Exception: pass
         # Moneyline
         ml_home = r.get("moneyline_home"); ml_away = r.get("moneyline_away")

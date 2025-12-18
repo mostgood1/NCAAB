@@ -1172,3 +1172,32 @@ Invoke-RestMethod http://localhost:5050/api/display_prediction_dates
 Compare `hash` across environments (local vs deployment); a mismatch indicates differing persistence inputs. Re-fetch or trigger the index route to rehydrate. Instrumentation key: `pipeline_stats['display_persist_path']` plus the API hash value.
 
 ---
+## Provisional Thresholds (OU & ATS) — 2025-12-18
+
+These settings are temporary to surface some edges while we uplift features and calibration to reach 57.5% overall and ≥75% accuracy for surfaced edges.
+
+- Overall vs closing snapshot: OU≈0.5595 (353 games, 45 dates); ATS≈0.5112 (372 games).
+- Surfaced-edge policies (tuned over 90 days, min-coverage 30):
+  - OU policy: τ=10.0, σ_max=0.0, pmin=0.0 → n=2, acc=0.50.
+  - ATS policy: τ=6.0, σ_max=0.0, pmin=0.0 → n=3, acc≈0.667 (pushes=0).
+- Pre-selection edge filters applied by picks generator:
+  - Totals edge threshold (absolute): 18.5
+  - Spreads edge threshold (absolute): 11.0
+- Selection gates and guardrails:
+  - `outputs/metrics/ou_selection_policy.json` and `outputs/metrics/ats_selection_policy.json` are loaded by the `produce_picks` CLI to enforce τ/σ/pmin gates.
+  - Market mismatch guardrails remain active for both totals and spreads.
+
+Rationale: strict gates currently yield very low coverage at ≥75% accuracy; these provisional thresholds allow the UI to surface a small set of edges while model/calibration uplift is in progress. We expect to relax τ or introduce probabilistic gates (σ/pmin) after feature and calibration improvements, guided by closing-based evaluations.
+
+Re-run tuning/evaluation (closing-based):
+
+```powershell
+python scripts/tune_ou_selection.py --window-days 90 --target-accuracy 0.75 --min-coverage 30 --use-closing
+python scripts/evaluate_ou_policy.py --window-days 90 --use-closing
+python scripts/tune_ats_selection.py --window-days 90 --target-accuracy 0.75 --min-coverage 30 --use-closing
+python scripts/evaluate_ats_policy.py --window-days 90 --use-closing
+```
+
+Notes:
+- Metrics JSONs live under `outputs/metrics/` and may be ignored by git according to repo rules; keep locally or adjust allowlist if you want them versioned.
+- The Flask `/api/recommendations` endpoint reads `outputs/picks_raw.csv` and sorts by absolute edge to populate the top-of-page edges strip.

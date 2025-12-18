@@ -17525,8 +17525,73 @@ def finals():
 
 @app.route("/api/recommendations")
 def api_recommendations():
-    picks = _load_picks()
-    rows = picks.to_dict(orient="records") if not picks.empty else []
+    # Return a JSON-safe, client-compatible recommendations payload.
+    # Prefer expanded multi-market picks_raw.csv; fallback to clean picks.
+    try:
+        raw_path = OUT / 'picks_raw.csv'
+        picks = pd.read_csv(raw_path) if raw_path.exists() else _load_picks()
+    except Exception:
+        picks = pd.DataFrame()
+    rows: list[dict] = []
+    if not picks.empty:
+        try:
+            # Prefer most recent rows and strongest edges first
+            df = picks.copy()
+            if "edge" in df.columns:
+                df["_abs_edge"] = pd.to_numeric(df["edge"], errors="coerce").abs()
+            elif "abs_edge" in df.columns:
+                df["_abs_edge"] = pd.to_numeric(df["abs_edge"], errors="coerce").abs()
+            else:
+                df["_abs_edge"] = 0.0
+            if "date" in df.columns:
+                # best effort date ordering
+                try:
+                    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                except Exception:
+                    pass
+            # Sort by date asc (if present), then strongest edge desc
+            sort_cols = (["date"] if "date" in df.columns else []) + ["_abs_edge"]
+            sort_asc = ([True] if "date" in df.columns else []) + [False]
+            df = df.sort_values(sort_cols, ascending=sort_asc)
+            # Project client-expected fields and ensure JSON-serializable values
+            def _coerce_num(v):
+                try:
+                    fv = float(v)
+                    if np.isfinite(fv):
+                        return fv
+                    return None
+                except Exception:
+                    return None
+            def _coerce_str(v):
+                return None if v is None else str(v)
+            for r in df.to_dict(orient="records"):
+                item = dict(r)
+                # Provide client-expected keys
+                item["selection"] = item.get("selection") or item.get("pick")
+                item["line"] = item.get("line") if ("line" in item) else item.get("line_value")
+                # Normalize numerics
+                if "edge" in item:
+                    item["edge"] = _coerce_num(item["edge"])
+                if "abs_edge" in item:
+                    item["abs_edge"] = _coerce_num(item["abs_edge"])
+                if "line" in item:
+                    item["line"] = _coerce_num(item["line"]) if not isinstance(item["line"], str) else item["line"]
+                if "line_value" in item:
+                    item["line_value"] = _coerce_num(item["line_value"])
+                # Normalize text fields used in the strip
+                item["market"] = _coerce_str(item.get("market"))
+                item["selection"] = _coerce_str(item.get("selection"))
+                # Datetime fields: coerce to ISO strings where present
+                for k in ("start_time_iso", "start_time_display", "display_time_str"):
+                    v = item.get(k)
+                    if v is not None:
+                        try:
+                            item[k] = pd.to_datetime(v, errors="coerce").isoformat()
+                        except Exception:
+                            item[k] = str(v)
+                rows.append(item)
+        except Exception:
+            rows = []
     return jsonify({"rows": len(rows), "data": rows})
 
 @app.route("/api/midnight_drift_diagnostic")
