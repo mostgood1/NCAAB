@@ -895,6 +895,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $predDisplay) { $toStage += $predDisplay }
   $predEnriched = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
   if (Test-Path $predEnriched) { $toStage += $predEnriched }
+  # Archive copy of today's display snapshot for lightweight historical browsing
+  $predDisplayArchive = Join-Path $OutDir ("archive\" + $todayIso + "\predictions_display_" + $todayIso + ".csv")
+  if (Test-Path $predDisplayArchive) { $toStage += $predDisplayArchive }
 
   # ROI backtest generation and staging
   Write-Section '10b) ROI backtest (28 days)'
@@ -928,6 +931,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
           if (
             $p -like "*predictions_display_*.csv" -or 
             $p -like "*predictions_unified_enriched_*.csv" -or 
+            $p -like "*outputs\\archive\\*predictions_display_*.csv" -or 
             $p -like "*outputs\\metrics\\*.json" -or 
             $p -like "*outputs\\diagnostics\\*"
           ) {
