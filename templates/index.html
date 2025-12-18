@@ -115,6 +115,14 @@
         <button type="button" id="btnExportStatus" class="pill">Export Status</button>
       </div>
     {% endif %}
+    <div class="card mb8" id="recommendedBar" aria-label="Recommended Edges" role="region">
+      <div class="flex-row-wrap m4v8">
+        <div class="title-sm">Recommended Edges</div>
+        <div id="recommendedList" class="wrap" aria-live="polite">Loading…</div>
+        <div class="spacer"></div>
+        <a href="/recommendations" class="pill">View All</a>
+      </div>
+    </div>
     <div class="card mb8" id="filtersBar" aria-label="Quick Filters" role="region">
       <div class="flex-row-wrap m4v8">
         <label class="pill"><span>Edges ≥</span>
@@ -215,6 +223,49 @@
             try{ localStorage.setItem('highContrast', document.documentElement.classList.contains('high-contrast') ? '1':'0'); }catch(e){}
           });
           try{ if(localStorage.getItem('highContrast')==='1'){ document.documentElement.classList.add('high-contrast'); } }catch(e){}
+        }
+        // Recommendations strip
+        const recommendedList = document.getElementById('recommendedList');
+        function renderRecommended(picks){
+          if(!recommendedList) return;
+          recommendedList.innerHTML = '';
+          const top = Array.isArray(picks)? picks.slice(0, 10): [];
+          if(!top.length){
+            const empty = document.createElement('div');
+            empty.className = 'muted';
+            empty.textContent = 'No picks available';
+            recommendedList.appendChild(empty);
+            return;
+          }
+          top.forEach(function(r){
+            const pill = document.createElement('a');
+            pill.className = 'pill';
+            const mkt = (r.market||'').toString();
+            const sel = (r.selection||'').toString();
+            const edgeNum = (typeof r.edge === 'number') ? r.edge : (typeof r.abs_edge === 'number' ? r.abs_edge : NaN);
+            const edge = (!isNaN(edgeNum)) ? edgeNum.toFixed(1) : (r.edge||r.abs_edge||'');
+            const line = (r.line!==undefined && r.line!==null) ? (' @ '+r.line) : '';
+            pill.title = 'Recommended '+mkt+' • '+sel+' • Edge '+edge;
+            pill.textContent = sel+' • '+mkt+' • '+edge+line;
+            pill.href = '/picks-raw?market=' + encodeURIComponent(mkt);
+            recommendedList.appendChild(pill);
+          });
+        }
+        async function fetchRecommended(){
+          try{
+            const r = await fetch('/api/recommendations');
+            const j = await r.json();
+            const data = (j && Array.isArray(j.data)) ? j.data : [];
+            data.sort(function(a,b){
+              const av = Math.abs(parseFloat(a.edge||a.abs_edge||'NaN'));
+              const bv = Math.abs(parseFloat(b.edge||b.abs_edge||'NaN'));
+              if(isNaN(av) && isNaN(bv)) return 0;
+              if(isNaN(av)) return 1;
+              if(isNaN(bv)) return -1;
+              return bv - av;
+            });
+            renderRecommended(data);
+          }catch(e){ if(recommendedList){ recommendedList.textContent = 'Failed to load'; } }
         }
         function renderStatus(data){
           const el = document.getElementById('statusStrip');
@@ -446,6 +497,7 @@
         }
         // Wire sort buttons
         document.addEventListener('DOMContentLoaded', function(){
+          try{ fetchRecommended(); setInterval(fetchRecommended, 60000); }catch(e){}
           var btnE = document.getElementById('sortByEdge');
           var btnC = document.getElementById('sortByConf');
           var btnD = document.getElementById('sortByFairDelta');
