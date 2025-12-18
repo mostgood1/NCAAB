@@ -15,8 +15,8 @@ __pycache__/
 /outputs/*
 !outputs/.gitkeep
 # Keep only minimal UI snapshots and archives for Render parity
-!outputs/predictions_display_*-*.csv
-!outputs/predictions_unified_enriched_*-*.csv
+outputs/predictions_display_*-*.csv
+outputs/predictions_unified_enriched_*-*.csv
 !outputs/archive/*/predictions_display_*-*.csv
 # Allow status and diagnostics via forced staging in the daily script; .gitignore will still ignore by default
 # (daily_update.ps1 uses force-add for outputs/metrics and outputs/diagnostics)
