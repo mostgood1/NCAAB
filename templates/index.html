@@ -331,21 +331,16 @@
             renderStatus(j);
             window.__lastStatusPayload = j;
             // Adjust polling cadence based on server timestamp proximity
-            try {
-              const ts = j && j.server_timestamp ? Date.parse(j.server_timestamp) : null;
-              if(ts){
-                const now = Date.now();
-                const skewMs = Math.abs(now - ts);
-                // If skew is high or finalize suggested, poll faster
-                const base = (j.finalize_suggested || (j.finalize && j.finalize.ready)) ? 15000 : 30000;
-                const fast = (skewMs > 120000) ? 15000 : base;
-                if(timer){ clearInterval(timer); }
-                      notifySuccess('Providers loaded ('+j.length+')');
-                timer = setInterval(poll, fast);
-              }
-                      notifyWarn('No providers reported');
-            } catch(e){}
-                  } catch(e){ if(modalList) modalList.textContent='Error loading providers'; reportFetchError('Providers', e); }
+            const ts = j && j.server_timestamp ? Date.parse(j.server_timestamp) : null;
+            const base = (j.finalize_suggested || (j.finalize && j.finalize.ready)) ? 15000 : 30000;
+            const fast = (ts && Math.abs(Date.now() - ts) > 120000) ? 15000 : base;
+            if(timer){ clearInterval(timer); }
+            timer = setInterval(poll, fast);
+          } catch(e){
+            if(modalList) modalList.textContent='Error loading providers';
+            reportFetchError('Status Poll', e);
+          }
+        }
         function sortCards(attr){
           var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
           if(!grid) return;
@@ -498,6 +493,7 @@
         // Wire sort buttons
         document.addEventListener('DOMContentLoaded', function(){
           try{ fetchRecommended(); setInterval(fetchRecommended, 60000); }catch(e){}
+          try{ poll(); }catch(e){}
           var btnE = document.getElementById('sortByEdge');
           var btnC = document.getElementById('sortByConf');
           var btnD = document.getElementById('sortByFairDelta');
