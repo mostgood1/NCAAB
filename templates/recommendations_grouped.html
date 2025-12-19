@@ -15,6 +15,9 @@
     .header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
     .matchup{font-weight:600}
     .time{color:var(--muted);font-size:12px}
+    .brand{display:flex;align-items:center;gap:8px}
+    .logo{width:22px;height:22px;object-fit:contain}
+    .game .header{border-radius:8px;padding:8px}
     table{width:100%;border-collapse:collapse}
     th,td{border-bottom:1px solid var(--pill-br);padding:6px 6px;font-size:13px}
     th{color:var(--muted);text-align:left}
@@ -22,6 +25,13 @@
     .pill.OU{background:#12324e;border-color:#1d4d75}
     .pill.ATS{background:#1f3f2a;border-color:#2b5a3a}
     .pill.ML{background:#3c2742;border-color:#5a3b63}
+    .chip{display:inline-block;border-radius:12px;padding:2px 8px;font-size:12px;line-height:1;border:1px solid transparent}
+    .chip.over{background:#12324e22;border-color:#1d4d75;color:#bfe2ff}
+    .chip.under{background:#5e2a0a22;border-color:#a55c21;color:#ffd8ad}
+    .chip.home{background:#1f3f2a22;border-color:#2b5a3a;color:#bfeecb}
+    .chip.away{background:#3c274222;border-color:#5a3b63;color:#e6c8f0}
+    tbody tr:nth-child(odd){background:#0d1427}
+    td.num{ text-align:right }
     a{color:var(--accent)}
   </style>
 </head>
@@ -40,8 +50,14 @@
     {% else %}
       {% for g in games %}
         <div class="game">
-            <div class="header">
-              <div class="matchup">{{ g.matchup }}</div>
+            <div class="header" style="background: linear-gradient(90deg, {{ g.home_color or '#152042' }}, {{ g.away_color or '#2a3a63' }});">
+              <div class="matchup brand">
+                {% if g.home_logo %}<img class="logo" src="{{ g.home_logo }}" alt="{{ g.home|e }} logo" />{% endif %}
+                <span style="color: {{ g.home_text or '#f6f8ff' }};">{{ g.home }}</span>
+                <span style="color: var(--muted);">vs</span>
+                <span style="color: {{ g.away_text or '#f6f8ff' }};">{{ g.away }}</span>
+                {% if g.away_logo %}<img class="logo" src="{{ g.away_logo }}" alt="{{ g.away|e }} logo" />{% endif %}
+              </div>
               <div class="time">
                 <span class="time-pill" title="Site display time">
                     {{ g.time_ampm }} {{ g.tz }}
@@ -49,7 +65,7 @@
                 <span class="date-text">{{ g.date }}</span>
               </div>
               <div style="flex:1"></div>
-              <a class="pill" href="/picks-raw?date={{ g.date|e }}" title="View all rows for this date">View All Books</a>
+              <a class="pill" href="/picks-raw?date={{ g.date|e }}&home={{ g.home|e }}&away={{ g.away|e }}" title="View all rows for this matchup">View All Books</a>
             </div>
           <table>
             <thead>
@@ -67,10 +83,23 @@
               <tr>
                 <td><span class="pill {{ it.code|e }}" title="{{ it.market }}">{{ it.type }}</span></td>
                 <td>{{ it.book or '' }}</td>
-                <td>{{ it.bet_label or it.bet or '' }}</td>
-                <td>{{ '%.1f' % it.line if (it.line is defined and it.line is not none) else '' }}</td>
-                <td>{{ it.price if (it.price is defined and it.price is not none) else '' }}</td>
-                <td><span class="pill">{{ '%.1f' % it.edge if (it.edge is defined and it.edge is not none) else '' }}</span></td>
+                <td>
+                  {% if (it.code or '')|upper == 'OU' and (it.bet_label or it.bet) %}
+                    {%- set bl = (it.bet_label or it.bet)|string -%}
+                    {%- set bl_low = (bl|lower) -%}
+                    <span class="chip {{ 'over' if (bl_low.startswith('over')) else 'under' }}">{{ bl }}</span>
+                  {% elif (it.code or '')|upper == 'ATS' and (it.bet_label or it.bet) %}
+                    {%- set bl = (it.bet_label or it.bet)|string -%}
+                    {%- set bl_low = (bl|lower) -%}
+                    {%- set is_home = ('home' in bl_low) or (bl_low.startswith((g.home or '')|lower)) -%}
+                    <span class="chip {{ 'home' if is_home else 'away' }}">{{ bl }}</span>
+                  {% else %}
+                    {{ it.bet_label or it.bet or '' }}
+                  {% endif %}
+                </td>
+                <td class="num">{{ '%.1f' % it.line if (it.line is defined and it.line is not none) else '' }}</td>
+                <td class="num">{{ it.price if (it.price is defined and it.price is not none) else '' }}</td>
+                <td class="num"><span class="pill">{{ '%.1f' % it.edge if (it.edge is defined and it.edge is not none) else '' }}</span></td>
               </tr>
               {% endfor %}
             </tbody>

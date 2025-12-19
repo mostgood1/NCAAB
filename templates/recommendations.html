@@ -20,6 +20,14 @@
     .rec-header .spacer{flex:1}
     .pill.time-local{background:#12324e;border-color:#1d4d75;color:#f6f8ff;}
     .pill.time-local.rollover{background:#53257c;border-color:#6d36a5;color:#fff;}
+    .chip{display:inline-block;border-radius:12px;padding:3px 8px;font-size:12px;line-height:1;border:1px solid transparent}
+    .chip.over{background:#0d2233;color:#9ec5ff;border-color:#1e3a5c}
+    .chip.under{background:#331f0d;color:#ffd09e;border-color:#5c3a1e}
+    .chip.home{background:#0d3317;color:#a6e3b1;border-color:#1e5c34}
+    .chip.away{background:#2b0d33;color:#e3a6d6;border-color:#5c1e69}
+    .center{text-align:center}
+    .teamCell{display:inline-flex;align-items:center;gap:8px}
+    .teamLogo{width:18px;height:18px;border-radius:2px;object-fit:contain}
   </style>
 </head>
 <body>
@@ -67,7 +75,21 @@
           <tr tabindex="0">
             <td>{{ disp_date }}</td>
             <td><span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-rollover="{{ '1' if is_rollover else '0' }}">{{ loc_time }}{% if tz_abbr %} {{ tz_abbr }}{% endif %}</span></td>
-            <td><strong>{{ (r.home_team if (r.home_team is defined and r.home_team) else (r.home_team_name if (r.home_team_name is defined and r.home_team_name) else '')) }}</strong> vs {{ (r.away_team if (r.away_team is defined and r.away_team) else (r.away_team_name if (r.away_team_name is defined and r.away_team_name) else '')) }}</td>
+            <td>
+              <div class="teamCell">
+                {% set home_name = (r.home_team if (r.home_team is defined and r.home_team) else (r.home_team_name if (r.home_team_name is defined and r.home_team_name) else '')) %}
+                {% if r.home_logo is defined and r.home_logo %}
+                  <img class="teamLogo" src="{{ r.home_logo }}" alt="{{ home_name }}" />
+                {% endif %}
+                <strong style="{% if r.home_text is defined and r.home_text %}color: {{ r.home_text }}{% endif %}">{{ home_name }}</strong>
+                <span>vs</span>
+                {% set away_name = (r.away_team if (r.away_team is defined and r.away_team) else (r.away_team_name if (r.away_team_name is defined and r.away_team_name) else '')) %}
+                {% if r.away_logo is defined and r.away_logo %}
+                  <img class="teamLogo" src="{{ r.away_logo }}" alt="{{ away_name }}" />
+                {% endif %}
+                <span style="{% if r.away_text is defined and r.away_text %}color: {{ r.away_text }}{% endif %}">{{ away_name }}</span>
+              </div>
+            </td>
             <td>{{ r.book if (r.book is defined and r.book is not none) else '' }}</td>
             <td>{{ r.bet_label if (r.bet_label is defined and r.bet_label) else (r.bet if (r.bet is defined and r.bet is not none) else '') }}</td>
             <td>{{ '%.1f' % r.line if (r.line is defined and r.line is not none) else '' }}</td>
@@ -75,7 +97,22 @@
             <td>{{ '%.1f' % r.pred_total if (r.pred_total is defined and r.pred_total is not none) else '' }}</td>
             <td>{{ '%.1f' % r.proj_home if (r.proj_home is defined and r.proj_home is not none) else '' }}</td>
             <td>{{ '%.1f' % r.proj_away if (r.proj_away is defined and r.proj_away is not none) else '' }}</td>
-            <td><span class="pill">{{ '%.1f' % r.edge if (r.edge is defined and r.edge is not none) else '' }}</span></td>
+            <td>
+              {% set edge_val = ('%.1f' % r.edge) if (r.edge is defined and r.edge is not none) else '' %}
+              {% set bet_txt = (r.bet_label if (r.bet_label is defined and r.bet_label) else (r.bet if (r.bet is defined and r.bet is not none) else '')) %}
+              {% set bet_low = bet_txt|lower %}
+              {% if 'total' in bet_low or bet_low.startswith('over') or bet_low.startswith('under') or bet_low.startswith('o ') or bet_low.startswith('u ') %}
+                {% set dir = 'over' if ('over' in bet_low or bet_low.startswith('o')) else 'under' %}
+                <span class="chip {{ dir }}">{{ bet_txt }}</span>
+                <span class="pill" style="margin-left:6px">{{ edge_val }}</span>
+              {% elif 'spread' in bet_low or 'cover' in bet_low or 'ats' in bet_low %}
+                {% set is_home = ('home' in bet_low) %}
+                <span class="chip {{ 'home' if is_home else 'away' }}">{{ bet_txt }}</span>
+                <span class="pill" style="margin-left:6px">{{ edge_val }}</span>
+              {% else %}
+                <span class="pill">{{ edge_val }}</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

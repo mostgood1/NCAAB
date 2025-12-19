@@ -13,6 +13,9 @@
     th { background: #f5f5f5; text-align: left; }
     .meta { margin-top: 8px; color: #666; }
     .grid { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+    .teamCell { display: inline-flex; align-items: center; gap: 8px; }
+    .teamLogo { width: 18px; height: 18px; border-radius: 2px; object-fit: contain; }
+    tbody tr { border-left: 4px solid #ddd; border-right: 4px solid #ddd; }
   </style>
 </head>
 <body>
@@ -69,10 +72,31 @@
       tbody.innerHTML = '';
       rows.forEach(r => {
         const tr = document.createElement('tr');
+        if (r.home_color) tr.style.borderLeftColor = r.home_color;
+        if (r.away_color) tr.style.borderRightColor = r.away_color;
         const cols = ['game_id','home_team','away_team','pick','market','edge','stake','kelly','confidence','date'];
         cols.forEach(c => {
           const td = document.createElement('td');
-          td.textContent = r[c] ?? '';
+          if (c === 'home_team' || c === 'away_team') {
+            const cell = document.createElement('div');
+            cell.className = 'teamCell';
+            const logo = (c === 'home_team') ? r.home_logo : r.away_logo;
+            const textColor = (c === 'home_team') ? r.home_text : r.away_text;
+            if (logo) {
+              const img = document.createElement('img');
+              img.className = 'teamLogo';
+              img.src = logo;
+              img.alt = r[c] ?? '';
+              cell.appendChild(img);
+            }
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = r[c] ?? '';
+            if (textColor) nameSpan.style.color = textColor;
+            cell.appendChild(nameSpan);
+            td.appendChild(cell);
+          } else {
+            td.textContent = r[c] ?? '';
+          }
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
