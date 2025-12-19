@@ -96,8 +96,8 @@ def main():
             cnt = np.sum((dates[:i] >= start) & (dates[:i] < dates[i]))
             out.append(1 if cnt >= 2 else 0)
         return pd.Series(out, index=g.index, dtype='Int64')
-        # Avoid future pandas warning by excluding group labels during apply
-        three4 = tlog.groupby('team', observed=False).apply(three_in_four, include_groups=False).reset_index(level=0, drop=True)
+    # Avoid future pandas warning by excluding group labels during apply
+    three4 = tlog.groupby('team', observed=False).apply(three_in_four, include_groups=False).reset_index(level=0, drop=True)
     tlog['three_in_four'] = pd.to_numeric(three4, errors='coerce').astype('Int64')
 
     # Rolling form last N
@@ -105,10 +105,10 @@ def main():
     def shifted_roll(g: pd.DataFrame, col: str) -> pd.Series:
         s = pd.to_numeric(g[col], errors='coerce')
         return s.shift(1).rolling(N, min_periods=1).mean()
-        # Exclude grouping columns in apply to prevent deprecation warning
-        pf_roll = tlog.groupby('team', observed=False).apply(lambda g: shifted_roll(g, 'pf'), include_groups=False).reset_index(level=0, drop=True)
-        # Exclude grouping columns in apply to prevent deprecation warning
-        pa_roll = tlog.groupby('team', observed=False).apply(lambda g: shifted_roll(g, 'pa'), include_groups=False).reset_index(level=0, drop=True)
+    # Exclude grouping columns in apply to prevent deprecation warning
+    pf_roll = tlog.groupby('team', observed=False).apply(lambda g: shifted_roll(g, 'pf'), include_groups=False).reset_index(level=0, drop=True)
+    # Exclude grouping columns in apply to prevent deprecation warning
+    pa_roll = tlog.groupby('team', observed=False).apply(lambda g: shifted_roll(g, 'pa'), include_groups=False).reset_index(level=0, drop=True)
     tlog['pf_roll'] = pf_roll.values
     tlog['pa_roll'] = pa_roll.values
     tlog['net_roll'] = tlog['pf_roll'] - tlog['pa_roll']

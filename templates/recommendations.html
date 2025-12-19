@@ -30,6 +30,11 @@
       <a href="/">Cards</a>
       <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
     </div>
+    <div id="recapBar" class="meta" aria-live="polite" role="status" style="margin-bottom:10px;">
+      <span>Recap for <strong id="recapDate">—</strong>:</span>
+      <span id="recapCounts">Loading…</span>
+      <a id="recapLink" class="pill" href="/results-archive" title="Open full recap">Daily Recap</a>
+    </div>
     <div class="meta">{{ total_rows }} rows</div>
     {% if not rows %}
       <div class="meta">No picks generated. Use daily-run or make-picks CLI.</div>
@@ -55,24 +60,22 @@
           {% set disp_date = r.display_date if r.display_date is defined and r.display_date else (r.date if r.date else '') %}
            {% set disp_date = (r.display_date if (r.display_date is defined and r.display_date) else (r.date if (r.date is defined and r.date) else '')) %}
            {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
-           {% set ampm = r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '') %}
-           {% if ampm %}
-             <span class="pill time-local{% if is_rollover %} rollover{% endif %}" title="Time shown in {{ tz or 'local' }}">{{ ampm }}</span>
-           {% endif %}
-          {% set tz_abbr = r.start_tz_abbr_venue if r.start_tz_abbr_venue else (r.start_tz_abbr if r.start_tz_abbr else '') %}
+          {% set ampm = r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '') %}
+          {% set loc_time = ampm %}
+          {% set tz_abbr = (r.start_tz_abbr_venue if (r.start_tz_abbr_venue is defined and r.start_tz_abbr_venue) else (r.start_tz_abbr if (r.start_tz_abbr is defined and r.start_tz_abbr) else '')) %}
           {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
           <tr tabindex="0">
             <td>{{ disp_date }}</td>
             <td><span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-rollover="{{ '1' if is_rollover else '0' }}">{{ loc_time }}{% if tz_abbr %} {{ tz_abbr }}{% endif %}</span></td>
-            <td><strong>{{ r.home_team }}</strong> vs {{ r.away_team }}</td>
-            <td>{{ r.book or '' }}</td>
-            <td>{{ r.bet or '' }}</td>
-            <td>{{ '%.1f' % r.line if r.line is not none else '' }}</td>
-            <td>{{ r.price if r.price is not none else '' }}</td>
-            <td>{{ '%.1f' % r.pred_total if r.pred_total is not none else '' }}</td>
-            <td>{{ '%.1f' % r.proj_home if r.proj_home is not none else '' }}</td>
-            <td>{{ '%.1f' % r.proj_away if r.proj_away is not none else '' }}</td>
-            <td><span class="pill">{{ '%.1f' % r.edge if r.edge is not none else '' }}</span></td>
+            <td><strong>{{ (r.home_team if (r.home_team is defined and r.home_team) else (r.home_team_name if (r.home_team_name is defined and r.home_team_name) else '')) }}</strong> vs {{ (r.away_team if (r.away_team is defined and r.away_team) else (r.away_team_name if (r.away_team_name is defined and r.away_team_name) else '')) }}</td>
+            <td>{{ r.book if (r.book is defined and r.book is not none) else '' }}</td>
+            <td>{{ r.bet_label if (r.bet_label is defined and r.bet_label) else (r.bet if (r.bet is defined and r.bet is not none) else '') }}</td>
+            <td>{{ '%.1f' % r.line if (r.line is defined and r.line is not none) else '' }}</td>
+            <td>{{ r.price if (r.price is defined and r.price is not none) else '' }}</td>
+            <td>{{ '%.1f' % r.pred_total if (r.pred_total is defined and r.pred_total is not none) else '' }}</td>
+            <td>{{ '%.1f' % r.proj_home if (r.proj_home is defined and r.proj_home is not none) else '' }}</td>
+            <td>{{ '%.1f' % r.proj_away if (r.proj_away is defined and r.proj_away is not none) else '' }}</td>
+            <td><span class="pill">{{ '%.1f' % r.edge if (r.edge is defined and r.edge is not none) else '' }}</span></td>
           </tr>
           {% endfor %}
         </tbody>
@@ -91,23 +94,80 @@
       }
     })();
   </script>
-</body>
-      function cleanupTable(){
-        const rows = document.querySelectorAll('table tbody tr');
-        rows.forEach(tr=>{
-          tr.querySelectorAll('td').forEach(td=>{
-            const txt = (td.textContent||'').trim().toLowerCase();
-            if(txt==='nan' || txt==='-' || txt==='—'){
-              td.textContent = '';
-            }
-          });
-          const pill = tr.querySelector('.pill.time-local');
-          if(pill){
-            const disp = pill.getAttribute('data-display');
-            const tz = pill.getAttribute('data-tz');
-            if(disp){ pill.textContent = disp + (tz?(' '+tz):''); }
+  <script>
+    function cleanupTable(){
+      const rows = document.querySelectorAll('table tbody tr');
+      rows.forEach(tr=>{
+        tr.querySelectorAll('td').forEach(td=>{
+          const txt = (td.textContent||'').trim().toLowerCase();
+          if(txt==='nan' || txt==='-' || txt==='—'){
+            td.textContent = '';
+          }
+        });
+        const pill = tr.querySelector('.pill.time-local');
+        if(pill){
+          const disp = pill.getAttribute('data-display');
+          const tz = pill.getAttribute('data-tz');
+          if(disp){ pill.textContent = disp + (tz?(' '+tz):''); }
+        }
+      });
+    }
+    document.addEventListener('DOMContentLoaded', cleanupTable);
+  </script>
+  <script>
+    async function fetchJSON(url){
+      try{ const r = await fetch(url); return await r.json(); } catch(e){ return null; }
+    }
+    function detectDateFromTable(){
+      try{
+        var td = document.querySelector('table tbody tr td');
+        var raw = td ? (td.textContent||'').trim() : '';
+        if(raw) return raw;
+      }catch(e){}
+      return null;
+    }
+    function summarizeResults(rows){
+      var n = Array.isArray(rows)? rows.length : 0;
+      var atsHome=0, atsAway=0, atsPush=0;
+      var ouOver=0, ouUnder=0, ouPush=0;
+      if(n){
+        rows.forEach(function(r){
+          var ats = (r.ats_result||'').toString().toLowerCase();
+          if(ats.includes('home')) atsHome++; else if(ats.includes('away')) atsAway++; else if(ats.includes('push')) atsPush++;
+          var ou = (r.ou_result_full||'').toString().toLowerCase();
+          if(ou){ if(ou.includes('over')) ouOver++; else if(ou.includes('under')) ouUnder++; else if(ou.includes('push')) ouPush++; }
+          else {
+            var overFlag = r.ou_over;
+            if(overFlag===true || overFlag===1 || overFlag==='1') ouOver++;
+            else if(overFlag===false || overFlag===0 || overFlag==='0') ouUnder++;
           }
         });
       }
-      document.addEventListener('DOMContentLoaded', cleanupTable);
+      var parts = [];
+      parts.push('ATS: Home '+atsHome+' / Away '+atsAway+' / Push '+atsPush);
+      parts.push('OU: Over '+ouOver+' / Under '+ouUnder+' / Push '+ouPush);
+      parts.push('Games: '+n);
+      return parts.join(' · ');
+    }
+    async function loadRecap(){
+      var date = detectDateFromTable();
+      if(!date){
+        var now = new Date();
+        var y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
+        date = y+'-'+m+'-'+d;
+      }
+      var dateEl = document.getElementById('recapDate');
+      var countsEl = document.getElementById('recapCounts');
+      var linkEl = document.getElementById('recapLink');
+      if(dateEl) dateEl.textContent = date;
+      if(linkEl) linkEl.href = '/finals?date=' + encodeURIComponent(date);
+      var data = await fetchJSON('/api/results_by_date?date=' + encodeURIComponent(date));
+      if(!data || data.status==='error'){ if(countsEl) countsEl.textContent = 'No results'; return; }
+      var rows = Array.isArray(data.rows)? data.rows : [];
+      var txt = summarizeResults(rows);
+      if(countsEl) countsEl.textContent = txt;
+    }
+    document.addEventListener('DOMContentLoaded', loadRecap);
+  </script>
+</body>
 </html>

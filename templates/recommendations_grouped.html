@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB Betting – Grouped Recommendations</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <style>
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text)}
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    h1{margin:0 0 8px 0;font-size:24px}
+    .meta{color:var(--muted);font-size:12px;margin-bottom:14px}
+    .game{background:var(--card);border:1px solid var(--pill-br);border-radius:10px;margin:12px 0;padding:10px}
+    .header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .matchup{font-weight:600}
+    .time{color:var(--muted);font-size:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--pill-br);padding:6px 6px;font-size:13px}
+    th{color:var(--muted);text-align:left}
+    .pill{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:999px;padding:2px 8px;font-size:12px}
+    .pill.OU{background:#12324e;border-color:#1d4d75}
+    .pill.ATS{background:#1f3f2a;border-color:#2b5a3a}
+    .pill.ML{background:#3c2742;border-color:#5a3b63}
+    a{color:var(--accent)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>NCAAB – Grouped Recommendations</h1>
+      <div style="flex:1"></div>
+      <a href="/">Cards</a>
+      <a href="/recommendations?group=0" class="pill" title="Switch to flat table">Flat View</a>
+      <a href="/results-archive" class="pill" title="Open daily results recap">Daily Recap</a>
+    </div>
+    <div class="meta">{{ total_games }} games</div>
+    {% if not games %}
+      <div class="meta">No picks generated. Use daily-run or make-picks CLI.</div>
+    {% else %}
+      {% for g in games %}
+        <div class="game">
+            <div class="header">
+              <div class="matchup">{{ g.matchup }}</div>
+              <div class="time">
+                <span class="time-pill" title="Site display time">
+                    {{ g.time_ampm }} {{ g.tz }}
+                </span>
+                <span class="date-text">{{ g.date }}</span>
+              </div>
+              <div style="flex:1"></div>
+              <a class="pill" href="/picks-raw?date={{ g.date|e }}" title="View all rows for this date">View All Books</a>
+            </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Book</th>
+                <th>Bet</th>
+                <th>Line</th>
+                <th>Price</th>
+                <th>Edge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for it in g.recs %}
+              <tr>
+                <td><span class="pill {{ it.code|e }}" title="{{ it.market }}">{{ it.type }}</span></td>
+                <td>{{ it.book or '' }}</td>
+                <td>{{ it.bet_label or it.bet or '' }}</td>
+                <td>{{ '%.1f' % it.line if (it.line is defined and it.line is not none) else '' }}</td>
+                <td>{{ it.price if (it.price is defined and it.price is not none) else '' }}</td>
+                <td><span class="pill">{{ '%.1f' % it.edge if (it.edge is defined and it.edge is not none) else '' }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+  <script>
+    (function(){
+      function renderLocal(el){
+        try{
+          var iso = el.getAttribute('data-iso');
+          if(!iso) return;
+          var d = new Date(iso);
+          if(isNaN(d)) return;
+          var y = d.getFullYear();
+          var m = String(d.getMonth()+1).padStart(2,'0');
+          var da = String(d.getDate()).padStart(2,'0');
+          var dateStr = y+'-'+m+'-'+da;
+          var timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          var tzStr = '';
+          try{ tzStr = d.toLocaleTimeString([], { timeZoneName: 'short' }).split(' ').pop() || ''; }catch(e){}
+          el.textContent = (dateStr + ' ' + timeStr + (tzStr?(' '+tzStr):'')).trim();
+        }catch(e){}
+      }
+      function init(){
+        var nodes = document.querySelectorAll('.js-localtime');
+        nodes.forEach(renderLocal);
+      }
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+      else init();
+    })();
+  </script>
+</body>
+</html>

@@ -364,7 +364,6 @@
           }
           requestAnimationFrame(chunk);
           showToast('Sorted by '+attr, 'neutral');
-            }catch(e){ reportFetchError('Status Poll', e); }
         function groupCards(by){
           var grid = document.getElementById('cardsGrid') || document.getElementById('gamesGrid');
           if(!grid) return;

@@ -290,7 +290,8 @@ def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
                     try:
                         clw['date'] = pd.to_datetime(clw['date'], errors='coerce').dt.strftime('%Y-%m-%d')
                     except Exception:
-                        pass
+                        # On any validation/alignment error, skip prediction and let outer fallback handle
+                        raise
                     df = df.merge(clw[['date','home_team','away_team','market_total','spread_home']], on=['date','home_team','away_team'], how='left')
     except Exception:
         pass
@@ -708,33 +709,14 @@ def apply_total_guardrails(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------
 def _ensure_index_row_global(r: dict) -> dict:
     try:
+        # If we already have a proper ISO with offset, keep it
         existing_iso = r.get('start_time_iso')
         if existing_iso and re.search(r'(Z|[+-]\d{2}:?\d{2})$', str(existing_iso)):
             return r
-        for cand_key in ['_start_dt','commence_time','start_time']:
-            val = r.get(cand_key)
-            if not val:
-                continue
-            s = str(val)
-            has_offset = bool(re.search(r'(Z|[+-]\d{2}:?\d{2})$', s))
-            if 'Z' in s:
-                s = s.replace('Z', '+00:00')
-            ts = pd.to_datetime(s, errors='coerce', utc=has_offset)
-            if pd.isna(ts):
-                continue
-            try:
-                if getattr(ts, 'tzinfo', None) is None:
-                    ts = ts.tz_localize('America/Chicago')
-                else:
-                    ts = ts.tz_convert('UTC')
-            except Exception:
-                pass
-            try:
-                ts_utc = ts.tz_convert('UTC') if getattr(ts, 'tzinfo', None) else ts
-            except Exception:
-                ts_utc = ts
-            r['start_time_iso'] = ts_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
-            break
+        # Delegate robust derivation (venue/tz-aware) to `_derive_start_iso`
+        iso = _derive_start_iso(r)
+        if iso:
+            r['start_time_iso'] = iso
     except Exception:
         pass
     return r
@@ -1484,17 +1466,21 @@ def _correct_midnight_drift(row: dict, slate_date: str | None = None) -> dict:
 def _derive_start_iso(row: dict[str, Any]) -> str | None:
     """Derive a tz-aware ISO-UTC string for a game's start time.
 
-    Preference order (most reliable first):
-    1) (`start_time_local`, `start_tz_abbr`) → local with abbr→offset map, then to UTC Z
-    2) `_start_dt` (tz-aware) → UTC Z
-    3) `commence_time` (parse with utc=True) → UTC Z
-    4) `start_time` (naive assumed UTC; accept Z or add +00:00) → UTC Z
+     Preference order (most reliable first):
+     1) (`start_time_local` or `start_time_local_venue`, `{start_tz_abbr|start_tz_abbr_venue}`) → localize via abbr→offset, then to UTC Z
+     2) `_start_dt` (tz-aware) → UTC Z
+     3) `commence_time` (parse with explicit offset or Z) → UTC Z
+     4) `start_time`:
+         - If naive and `venue_tz` exists, localize to `venue_tz`, then to UTC Z
+         - Else if naive and `{start_tz_abbr|start_tz_abbr_venue}` exists, localize via abbr→offset, then to UTC Z
+         - Else treat as UTC (accept Z or normalize to +00:00) → UTC Z
 
     Handles late CT/HST games crossing 00:00 UTC by anchoring to provided local time when available.
     """
     try:
-        loc = row.get('start_time_local')
-        abbr = (row.get('start_tz_abbr') or '').upper()
+        # 1) Venue/local explicit string + abbr
+        loc = row.get('start_time_local') or row.get('start_time_local_venue')
+        abbr = (row.get('start_tz_abbr') or row.get('start_tz_abbr_venue') or '').upper()
         if loc:
             # Expect loc like 'YYYY-MM-DD HH:MM'
             parts = str(loc).split(' ')
@@ -1518,7 +1504,7 @@ def _derive_start_iso(row: dict[str, Any]) -> str | None:
                             return d.strftime('%Y-%m-%dT%H:%M:%SZ')
                     except Exception:
                         pass
-        # Fallbacks
+        # 2) tz-aware start dt already present
         _start = pd.to_datetime(row.get('_start_dt'), errors='coerce')
         if pd.notna(_start):
             try:
@@ -1526,16 +1512,65 @@ def _derive_start_iso(row: dict[str, Any]) -> str | None:
                 return d.strftime('%Y-%m-%dT%H:%M:%SZ')
             except Exception:
                 pass
-        comm = pd.to_datetime(row.get('commence_time'), errors='coerce', utc=True)
+        # 3) commence_time with explicit offset/Z
+        comm_raw = row.get('commence_time')
+        comm = None
+        if comm_raw:
+            try:
+                s = str(comm_raw)
+                # Normalize Z to +00:00 for pandas
+                s = s.replace('Z','+00:00')
+                comm = pd.to_datetime(s, errors='coerce', utc=True)
+            except Exception:
+                comm = pd.to_datetime(comm_raw, errors='coerce', utc=True)
         if pd.notna(comm):
             return comm.strftime('%Y-%m-%dT%H:%M:%SZ')
+        # 4) start_time with potential naive/local semantics
         st = row.get('start_time')
         if st:
-            # Treat as UTC if naive
             try:
-                d = pd.to_datetime(str(st).replace('Z','+00:00'), errors='coerce', utc=True)
-                if pd.notna(d):
-                    return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+                s = str(st)
+                s2 = s.replace('Z','+00:00')
+                d_try = pd.to_datetime(s2, errors='coerce')
+                if pd.notna(d_try):
+                    # If naive and we have venue tz, localize then convert to UTC
+                    venue_tz = row.get('venue_tz') or None
+                    if getattr(d_try, 'tzinfo', None) is None and venue_tz:
+                        try:
+                            d_loc = d_try.tz_localize(ZoneInfo(str(venue_tz)))
+                            d_utc = d_loc.tz_convert('UTC')
+                            return d_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        except Exception:
+                            pass
+                    # Else if naive and we have abbr, localize via offset map
+                    if getattr(d_try, 'tzinfo', None) is None and abbr:
+                        tz_map = {
+                            'UTC': 0, 'Z': 0,
+                            'HST': -10, 'AKST': -9,
+                            'PST': -8, 'PDT': -7,
+                            'MST': -7, 'MDT': -6,
+                            'CST': -6, 'CDT': -5,
+                            'EST': -5, 'EDT': -4,
+                        }
+                        off = tz_map.get(abbr)
+                        if off is not None:
+                            iso_local = d_try.strftime('%Y-%m-%dT%H:%M:%S') + ("Z" if off == 0 else ("+" if off > 0 else "-") + str(abs(off)).rjust(2, '0') + ":00")
+                            d = pd.to_datetime(iso_local, errors='coerce', utc=True)
+                            if pd.notna(d):
+                                return d.strftime('%Y-%m-%dT%H:%M:%SZ')
+                    # Else if naive and no tz hints, assume site schedule timezone (e.g., America/Chicago)
+                    if getattr(d_try, 'tzinfo', None) is None:
+                        try:
+                            tz_name_eff = os.getenv("SCHEDULE_TZ") or os.getenv("DISPLAY_TZ") or "America/Chicago"
+                            d_loc2 = d_try.tz_localize(ZoneInfo(tz_name_eff))
+                            d_utc2 = d_loc2.tz_convert('UTC')
+                            return d_utc2.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        except Exception:
+                            pass
+                    # Else treat as UTC
+                    d_utc2 = pd.to_datetime(s2, errors='coerce', utc=True)
+                    if pd.notna(d_utc2):
+                        return d_utc2.strftime('%Y-%m-%dT%H:%M:%SZ')
             except Exception:
                 pass
     except Exception:
@@ -9363,7 +9398,8 @@ def index():
                                 # Skip prediction entirely on mismatch; fallback handled below
                                 raise RuntimeError('meta_over_feature_mismatch')
                     except Exception:
-                        pass
+                        # On any validation/alignment error, skip prediction and let outer fallback handle
+                        raise
                     po = over_model.predict_proba(Xo) if hasattr(over_model, 'predict_proba') else over_model.predict(Xo)
                     po = po[:,1] if isinstance(po, np.ndarray) and po.ndim==2 and po.shape[1]>1 else po
                     df['p_over_meta'] = pd.Series(po)
@@ -17397,13 +17433,92 @@ def api_time_debug():
 
 @app.route("/recommendations")
 def recommendations():
-    picks = _load_picks()
+    # Prefer expanded multi-market raw picks when available
+    try:
+        raw_path = OUT / "picks_raw.csv"
+        picks = _safe_read_csv(raw_path)
+        if picks.empty:
+            picks = _load_picks()
+    except Exception:
+        picks = _load_picks()
+    # Basic enrichment: backfill team names from odds join columns when base fields missing
+    try:
+        if not picks.empty:
+            if "home_team" not in picks.columns and "home_team_name" in picks.columns:
+                picks["home_team"] = picks["home_team_name"].astype(str)
+            if "away_team" not in picks.columns and "away_team_name" in picks.columns:
+                picks["away_team"] = picks["away_team_name"].astype(str)
+    except Exception:
+        pass
     if not picks.empty and "date" in picks.columns:
         try:
             picks["date"] = pd.to_datetime(picks["date"])
             picks = picks.sort_values(["date", "abs_edge" if "abs_edge" in picks.columns else "edge"], ascending=[True, False])
         except Exception:
             pass
+    # Join unified/model predictions to populate pred_total/pred_margin and projections
+    try:
+        if not picks.empty:
+            # Resolve target date for predictions join
+            dser = picks["date"] if "date" in picks.columns else None
+            date_use = None
+            try:
+                if dser is not None and not pd.to_datetime(dser, errors="coerce").isna().all():
+                    date_use = pd.to_datetime(dser, errors="coerce").dt.strftime("%Y-%m-%d").iloc[0]
+            except Exception:
+                date_use = None
+            preds = _load_model_predictions(str(date_use) if date_use else None)
+            if not preds.empty:
+                # Standardize key columns
+                for c in ("game_id",):
+                    if c in picks.columns: picks[c] = picks[c].astype(str)
+                    if c in preds.columns: preds[c] = preds[c].astype(str)
+                merged = None
+                if ("game_id" in picks.columns) and ("game_id" in preds.columns):
+                    merged = picks.merge(preds[["game_id","pred_total","pred_margin","start_time"]] if set(["pred_total","pred_margin","start_time"]).issubset(preds.columns) else preds[["game_id","pred_total_model","pred_margin_model","start_time"]], on="game_id", how="left")
+                else:
+                    # Fallback join on normalized team names
+                    for df in (picks, preds):
+                        if "home_team" in df.columns: df["home_norm"] = df["home_team"].astype(str).map(lambda x: normalize_name(x))
+                        if "away_team" in df.columns: df["away_norm"] = df["away_team"].astype(str).map(lambda x: normalize_name(x))
+                    if {"home_norm","away_norm"}.issubset(picks.columns) and {"home_norm","away_norm"}.issubset(preds.columns):
+                        keep_cols = [c for c in ["pred_total","pred_margin","pred_total_model","pred_margin_model","start_time","game_id"] if c in preds.columns]
+                        merged = picks.merge(preds[["home_norm","away_norm"] + keep_cols], on=["home_norm","away_norm"], how="left")
+                if merged is not None:
+                    # Prefer display-ready pred_total/pred_margin, else model
+                    if "pred_total" not in merged.columns and "pred_total_model" in merged.columns:
+                        merged["pred_total"] = pd.to_numeric(merged["pred_total_model"], errors="coerce")
+                    if "pred_margin" not in merged.columns and "pred_margin_model" in merged.columns:
+                        merged["pred_margin"] = pd.to_numeric(merged["pred_margin_model"], errors="coerce")
+                    # Compute projections
+                    pt = pd.to_numeric(merged.get("pred_total"), errors="coerce") if "pred_total" in merged.columns else None
+                    pm = pd.to_numeric(merged.get("pred_margin"), errors="coerce") if "pred_margin" in merged.columns else None
+                    if pt is not None:
+                        merged["proj_home"] = ((pt + (pm if pm is not None else 0.0)) / 2.0) if pm is not None else None
+                        merged["proj_away"] = (pt - merged.get("proj_home")) if pm is not None else None
+                    # Promote merged back
+                    picks = merged
+    except Exception:
+        pass
+    # Populate line/price fallbacks for display
+    try:
+        if not picks.empty:
+            def _first_num(row: pd.Series, cols: list[str]) -> float | None:
+                for c in cols:
+                    if c in row and row[c] is not None:
+                        try:
+                            v = float(row[c])
+                            if np.isfinite(v):
+                                return v
+                        except Exception:
+                            continue
+                return None
+            if "line" not in picks.columns:
+                picks["line"] = picks.apply(lambda r: _first_num(r, ["line_value","total","market_total","closing_total","spread","closing_spread_home"]) , axis=1)
+            if "price" not in picks.columns:
+                picks["price"] = picks.apply(lambda r: _first_num(r, ["price","american_odds","odds","decimal_odds"]) , axis=1)
+    except Exception:
+        pass
     # Ensure projected scores columns exist to satisfy template even if margin absent
     if not picks.empty and "pred_total" in picks.columns:
         if "pred_margin" not in picks.columns:
@@ -17419,20 +17534,291 @@ def recommendations():
             picks["proj_home"] = None
             picks["proj_away"] = None
     rows = picks.to_dict(orient="records") if not picks.empty else []
-    # Harden display datetime using robust helper
-    safe_rows: list[dict] = []
+    # Grouping by game (default) or flat table when group=0
+    group_q = (request.args.get("group") or "1").strip().lower() not in ("0","false","no")
+    # Harden display datetime and normalize per-row
+    norm_rows: list[dict] = []
     for _r in rows:
         r = dict(_r)
         if not r.get('start_time_iso'):
             r['start_time_iso'] = _derive_start_iso(r)
-        # Backfill local/display normalization for evening UTC rollover
         r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=str(r.get('date')) if r.get('date') else None)
-        # Enforce canonical Central display using robust helper
         r = _apply_site_display_global(r)
-        safe_rows.append(r)
-    rows = safe_rows
-    return render_template("recommendations.html", rows=rows, total_rows=len(rows))
+        # Normalize type label from market/bet
+        mkt = str(r.get('market') or '').lower()
+        bet = str(r.get('bet') or '').lower()
+        if any(x in mkt for x in ("total","over/under","ou")) or bet in ("over","under"):
+            r['rec_type'] = 'Totals'
+            r['rec_code'] = 'OU'
+        elif any(x in mkt for x in ("spread","ats")) or ('spread' in bet):
+            r['rec_type'] = 'Spread'
+            r['rec_code'] = 'ATS'
+        elif any(x in mkt for x in ("moneyline","ml")) or ('moneyline' in bet or bet.endswith(' ml')):
+            r['rec_type'] = 'Moneyline'
+            r['rec_code'] = 'ML'
+        else:
+            r['rec_type'] = (r.get('market') or 'Other')
+            r['rec_code'] = 'Other'
+        # Compute explicit bet label for clarity in flat view
+        try:
+            code = (r.get('rec_code') or '').upper()
+            line = r.get('line')
+            ln = float(line) if (line is not None and str(line).strip()!='') else None
+            home = r.get('home_team') or r.get('home_team_name') or ''
+            away = r.get('away_team') or r.get('away_team_name') or ''
+            sel_raw = (r.get('selection') or r.get('bet') or '').strip()
+            sel = sel_raw.lower()
+            lbl = None
+            if code == 'OU':
+                if sel in ('over','under'):
+                    lbl = sel.capitalize() + ((' '+('%.1f' % ln)) if ln is not None else '')
+                elif r.get('pred_total') is not None and ln is not None:
+                    try:
+                        pt = float(r.get('pred_total'))
+                        lbl = ('Over ' if pt>ln else 'Under ') + ('%.1f' % ln)
+                    except Exception:
+                        lbl = None
+            elif code == 'ATS':
+                side_team = None
+                if sel:
+                    s_norm = sel.lower()
+                    if 'home' in s_norm or s_norm == normalize_name(str(home)):
+                        side_team = home
+                    elif 'away' in s_norm or s_norm == normalize_name(str(away)):
+                        side_team = away
+                if not side_team:
+                    try:
+                        pm = float(r.get('pred_margin')) if r.get('pred_margin') is not None else None
+                        side_team = home if (pm is not None and pm >= 0) else away
+                    except Exception:
+                        side_team = home or away
+                if ln is not None:
+                    lbl = f"{side_team} {ln:+.1f}"
+                else:
+                    lbl = f"{side_team} Spread"
+            elif code == 'ML':
+                side_team = None
+                if sel:
+                    s_norm = sel.lower()
+                    if 'home' in s_norm or s_norm == normalize_name(str(home)):
+                        side_team = home
+                    elif 'away' in s_norm or s_norm == normalize_name(str(away)):
+                        side_team = away
+                if not side_team:
+                    try:
+                        pm = float(r.get('pred_margin')) if r.get('pred_margin') is not None else None
+                        side_team = home if (pm is not None and pm >= 0) else away
+                    except Exception:
+                        side_team = home or away
+                lbl = f"{side_team} ML"
+            if lbl:
+                r['bet_label'] = lbl
+        except Exception:
+            pass
+        # Build game key
+        gid = r.get('game_id')
+        if gid is None or str(gid).strip() == '':
+            ht = r.get('home_team') or r.get('home_team_name') or ''
+            at = r.get('away_team') or r.get('away_team_name') or ''
+            dstr = str(r.get('date') or '')
+            r['__gkey'] = f"{normalize_name(str(ht))}__{normalize_name(str(at))}__{dstr}"
+        else:
+            r['__gkey'] = str(gid)
+        norm_rows.append(r)
+    if not group_q:
+        return render_template("recommendations.html", rows=norm_rows, total_rows=len(norm_rows))
+    # Build grouped view: best per type for each game
+    from collections import defaultdict
+    games = defaultdict(list)
+    for r in norm_rows:
+        games[r['__gkey']].append(r)
+    grouped_games: list[dict] = []
+    type_order = { 'OU': 0, 'ATS': 1, 'ML': 2, 'Other': 9 }
+    for gkey, items in games.items():
+        # Sort by abs edge desc
+        for it in items:
+            try:
+                it['__abs_edge'] = abs(float(it.get('edge') or it.get('abs_edge') or 0.0))
+            except Exception:
+                it['__abs_edge'] = 0.0
+        # Pick one per type
+        best_by_type: dict[str, dict] = {}
+        for it in sorted(items, key=lambda x: x['__abs_edge'], reverse=True):
+            code = it.get('rec_code') or 'Other'
+            if code not in best_by_type:
+                best_by_type[code] = it
+        # Representative info
+        rep = max(items, key=lambda x: x['__abs_edge']) if items else (items[0] if items else {})
+        matchup = f"{rep.get('home_team') or rep.get('home_team_name') or ''} vs {rep.get('away_team') or rep.get('away_team_name') or ''}"
+        # Date: prefer display_date else coerce to YYYY-MM-DD
+        disp_date_val = rep.get('display_date') or rep.get('date') or ''
+        try:
+            disp_date = pd.to_datetime(disp_date_val, errors='coerce').strftime('%Y-%m-%d') if disp_date_val else ''
+        except Exception:
+            disp_date = str(disp_date_val)
+        # Time: prefer display_time_ampm (time only); fallback parse from start_time_display/display_time_str
+        time_disp_val = rep.get('display_time_ampm')
+        if not time_disp_val:
+            td2 = rep.get('start_time_display') or rep.get('display_time_str') or ''
+            # Extract time component (HH:MM with AM/PM) from fallback if it includes date and/or tz
+            try:
+                s = str(td2)
+                # Split by space and pick token(s) that look like time
+                toks = [t for t in s.split() if ':' in t or t.upper() in ('AM','PM')]
+                if toks:
+                    # keep HH:MM and AM/PM if present
+                    if len(toks) >= 2 and toks[-1].upper() in ('AM','PM'):
+                        time_disp_val = f"{toks[-2]} {toks[-1]}"
+                    else:
+                        time_disp_val = toks[-1]
+                else:
+                    time_disp_val = ''
+            except Exception:
+                time_disp_val = ''
+        time_disp = time_disp_val or ''
+        # Tz: prefer site/display tz abbr (Central) and ensure time doesn't already include a tz
+        tz = rep.get('start_tz_abbr') or rep.get('start_tz_abbr_venue') or ''
+        # Order items OU, ATS, ML, Other
+        ordered = sorted(best_by_type.values(), key=lambda x: (type_order.get(x.get('rec_code') or 'Other', 9), -x['__abs_edge']))
+        # Project compact items
+        def _bet_label(it_row: dict) -> str:
+            try:
+                code = (it_row.get('rec_code') or '').upper()
+                line = it_row.get('line')
+                try:
+                    ln = float(line)
+                except Exception:
+                    ln = None
+                home = it_row.get('home_team') or it_row.get('home_team_name') or ''
+                away = it_row.get('away_team') or it_row.get('away_team_name') or ''
+                sel_raw = (it_row.get('selection') or it_row.get('bet') or '').strip()
+                sel = sel_raw.lower()
+                if code == 'OU':
+                    # Use explicit Over/Under if present, else derive from pred_total vs line
+                    side = None
+                    if sel in ('over','under'):
+                        side = sel.capitalize()
+                    elif it_row.get('pred_total') is not None and ln is not None:
+                        try:
+                            pt = float(it_row.get('pred_total'))
+                            side = 'Over' if pt > ln else 'Under'
+                        except Exception:
+                            side = None
+                    return f"{side or ''} {ln if ln is not None else ''}".strip()
+                elif code == 'ATS':
+                    # Prefer explicit team/side if provided; else use pred_margin sign
+                    side_team = None
+                    if sel:
+                        s_norm = sel.lower()
+                        if 'home' in s_norm or s_norm == normalize_name(str(home)):
+                            side_team = home
+                        elif 'away' in s_norm or s_norm == normalize_name(str(away)):
+                            side_team = away
+                    if not side_team:
+                        try:
+                            pm = float(it_row.get('pred_margin')) if it_row.get('pred_margin') is not None else None
+                            side_team = home if (pm is not None and pm >= 0) else away
+                        except Exception:
+                            side_team = home or away
+                    # Format with signed line if available
+                    if ln is not None:
+                        sign_fmt = f"{ln:+.1f}"
+                        return f"{side_team} {sign_fmt}".strip()
+                    return f"{side_team} Spread".strip()
+                elif code == 'ML':
+                    side_team = None
+                    if sel:
+                        s_norm = sel.lower()
+                        if 'home' in s_norm or s_norm == normalize_name(str(home)):
+                            side_team = home
+                        elif 'away' in s_norm or s_norm == normalize_name(str(away)):
+                            side_team = away
+                    if not side_team:
+                        try:
+                            pm = float(it_row.get('pred_margin')) if it_row.get('pred_margin') is not None else None
+                            side_team = home if (pm is not None and pm >= 0) else away
+                        except Exception:
+                            side_team = home or away
+                    return f"{side_team} ML".strip()
+            except Exception:
+                pass
+            return (it_row.get('bet') or '').strip()
+
+        out_items = []
+        for it in ordered:
+            out_items.append({
+                'type': it.get('rec_type') or it.get('rec_code') or 'Other',
+                'code': it.get('rec_code') or 'Other',
+                'book': it.get('book'),
+                'bet': it.get('bet'),
+                'bet_label': _bet_label(it),
+                'line': it.get('line'),
+                'price': it.get('price'),
+                'edge': it.get('edge') if it.get('edge') is not None else it.get('abs_edge'),
+                'market': it.get('market'),
+            })
+        # Include ISO start for client-side local-time rendering (derive from display fields first)
+        iso_rep = None
+        try:
+            if disp_date and time_disp and tz:
+                # Parse time_disp like 'HH:MM AM' or 'HH:MM'
+                tparts = str(time_disp).split()
+                hm = tparts[0] if tparts else ''
+                ampm = (tparts[1] if len(tparts) > 1 else '').upper()
+                # Normalize to 24h
+                hh, mm = (hm.split(':') + ['0'])[:2]
+                h = int(hh)
+                m = int(mm)
+                if ampm in ('PM','P.M.') and h < 12:
+                    h += 12
+                if ampm in ('AM','A.M.') and h == 12:
+                    h = 0
+                hm24 = f"{str(h).rjust(2,'0')}:{str(m).rjust(2,'0')}"
+                off_map = {
+                    'UTC': 0, 'Z': 0,
+                    'HST': -10, 'AKST': -9,
+                    'PST': -8, 'PDT': -7,
+                    'MST': -7, 'MDT': -6,
+                    'CST': -6, 'CDT': -5,
+                    'EST': -5, 'EDT': -4,
+                }
+                off = off_map.get(str(tz).upper())
+                if off is not None:
+                    iso_local = f"{disp_date}T{hm24}:00" + ("Z" if off == 0 else ("+" if off > 0 else "-") + str(abs(off)).rjust(2,'0') + ":00")
+                    d = pd.to_datetime(iso_local, errors='coerce', utc=True)
+                    if pd.notna(d):
+                        iso_rep = d.strftime('%Y-%m-%dT%H:%M:%SZ')
+        except Exception:
+            iso_rep = None
+        if not iso_rep:
+            iso_rep = _derive_start_iso(rep) or rep.get('start_time_iso')
+        grouped_games.append({
+            'game_key': gkey,
+            'matchup': matchup,
+            'date': disp_date,
+            'time': time_disp,
+            'time_ampm': time_disp,
+            'tz': tz,
+            'start_time_iso': iso_rep,
+            'recs': out_items,
+        })
+    # Sort games by earliest time then strongest top edge
+    def _game_sort_key(g):
+        # Prefer ISO for accurate chronological sort
+        iso = g.get('start_time_iso')
+        if iso:
+            try:
+                d = pd.to_datetime(str(iso).replace('Z','+00:00'), errors='coerce', utc=True)
+                if pd.notna(d):
+                    return (d, 0)
+            except Exception:
+                pass
+        # Fallback to date + time strings
+        t = g.get('time') or ''
+        return (str(g.get('date') or ''), t)
+    grouped_games.sort(key=_game_sort_key)
+    return render_template("recommendations_grouped.html", games=grouped_games, total_games=len(grouped_games))
 
 
 @app.route("/picks-raw")

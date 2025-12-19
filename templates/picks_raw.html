@@ -75,7 +75,8 @@
           <div class="kpi">
             <div class="pill {{ cls }}">Edge: {{ '%.2f' % edge }}</div>
             {% if confidence is not none %}<div class="pill">Confidence: {{ '%.0f' % confidence }}%</div>{% endif %}
-            {% if r.pick %}<div class="pill">Pick: {{ r.pick }}</div>{% endif %}
+            {% set bet_lbl = r.bet_label if (r.bet_label is defined and r.bet_label) else (r.pick if (r.pick is defined and r.pick) else '') %}
+            {% if bet_lbl %}<div class="pill">Pick: {{ bet_lbl }}</div>{% endif %}
             {% if r.line_value is not none %}<div class="pill">Line: {{ r.line_value }}</div>{% endif %}
             {% if r.predicted_value is not none %}<div class="pill">Model: {{ '%.1f' % r.predicted_value }}</div>{% endif %}
             {% if r.fair_price is not none %}<div class="pill">Fair: {{ r.fair_price }}</div>{% endif %}
