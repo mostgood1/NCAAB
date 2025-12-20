@@ -18712,10 +18712,186 @@ def api_picks_raw():
     """
     p = OUT / "picks_raw.csv"
     df = _safe_read_csv(p)
-    if df.empty:
-        return jsonify({"rows": 0, "data": []})
-    # Filter by date if provided
+    # If base picks are missing, try date-scoped fallbacks
     date_q = (request.args.get("date") or "").strip()
+    if df.empty:
+        # 1) Try a date-specific picks file if present
+        if date_q:
+            p_date = OUT / f"picks_raw_{date_q}.csv"
+            df = _safe_read_csv(p_date)
+        # 2) Derive from aligned edges for the date
+        if (df is None) or (isinstance(df, pd.DataFrame) and df.empty):
+            try:
+                if date_q:
+                    epath = OUT / f"align_period_{date_q}_edges.csv"
+                    edges = pd.read_csv(epath, dtype=str, low_memory=False) if epath.exists() else pd.DataFrame()
+                else:
+                    edges = pd.DataFrame()
+                if not edges.empty:
+                    # Coerce numerics used below
+                    for c in [
+                        'edge_total','edge_margin','total','over_price','under_price',
+                        'home_spread','home_spread_price','away_spread','away_spread_price',
+                        'moneyline_home','moneyline_away','pred_total','pred_margin'
+                    ]:
+                        if c in edges.columns:
+                            edges[c] = pd.to_numeric(edges[c], errors='coerce')
+                    # Prefer full-game period
+                    try:
+                        if 'period' in edges.columns:
+                            edges = edges[edges['period'].astype(str).str.lower() == 'full_game']
+                    except Exception:
+                        pass
+                    # Build totals
+                    try:
+                        tot_mask = edges['market'].astype(str).str.lower() == 'totals' if 'market' in edges.columns else pd.Series([False]*len(edges))
+                    except Exception:
+                        tot_mask = pd.Series([False]*len(edges))
+                    tots = edges[tot_mask].copy()
+                    if not tots.empty:
+                        def _tot_side(r: pd.Series) -> str:
+                            try:
+                                pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
+                                ln = float(r.get('total')) if r.get('total') is not None else np.nan
+                                if np.isfinite(pt) and np.isfinite(ln):
+                                    return 'Over' if pt > ln else 'Under'
+                            except Exception:
+                                pass
+                            # Fallback to edge_total sign if available
+                            try:
+                                et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                                if np.isfinite(et):
+                                    return 'Over' if et >= 0 else 'Under'
+                            except Exception:
+                                pass
+                            return 'Over'
+                        tots['bet'] = tots.apply(_tot_side, axis=1)
+                        tots['line'] = tots['total'] if 'total' in tots.columns else None
+                        def _tot_price(r: pd.Series):
+                            try:
+                                return r['over_price'] if str(r.get('bet')).lower() == 'over' else r['under_price']
+                            except Exception:
+                                return None
+                        tots['price'] = tots.apply(_tot_price, axis=1)
+                        tots['edge'] = tots['edge_total'].abs() if 'edge_total' in tots.columns else None
+                        tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'
+                    # Build spreads
+                    try:
+                        spr_mask = edges['market'].astype(str).str.lower() == 'spreads' if 'market' in edges.columns else pd.Series([False]*len(edges))
+                    except Exception:
+                        spr_mask = pd.Series([False]*len(edges))
+                    sprs = edges[spr_mask].copy()
+                    if not sprs.empty:
+                        def _spr_side(r: pd.Series) -> str:
+                            try:
+                                em = float(r.get('edge_margin')) if r.get('edge_margin') is not None else np.nan
+                                if np.isfinite(em):
+                                    return 'home' if em >= 0 else 'away'
+                            except Exception:
+                                pass
+                            return 'home'
+                        sprs['bet'] = sprs.apply(_spr_side, axis=1)
+                        def _spr_line(r: pd.Series):
+                            try:
+                                return r['home_spread'] if str(r.get('bet')).lower() == 'home' else r['away_spread']
+                            except Exception:
+                                return None
+                        def _spr_price(r: pd.Series):
+                            try:
+                                return r['home_spread_price'] if str(r.get('bet')).lower() == 'home' else r['away_spread_price']
+                            except Exception:
+                                return None
+                        sprs['line'] = sprs.apply(_spr_line, axis=1)
+                        sprs['price'] = sprs.apply(_spr_price, axis=1)
+                        sprs['edge'] = sprs['edge_margin'].abs() if 'edge_margin' in sprs.columns else None
+                        sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'
+                    # Build ML
+                    try:
+                        ml_mask = edges['market'].astype(str).str.lower() == 'h2h' if 'market' in edges.columns else pd.Series([False]*len(edges))
+                    except Exception:
+                        ml_mask = pd.Series([False]*len(edges))
+                    mls = edges[ml_mask].copy()
+                    if not mls.empty and {'home_ml_ev','away_ml_ev'}.issubset(mls.columns):
+                        for c in ['home_ml_ev','away_ml_ev']:
+                            mls[c] = pd.to_numeric(mls[c], errors='coerce')
+                        def _ml_side(r: pd.Series) -> str:
+                            hv = float(r.get('home_ml_ev') or 0.0)
+                            av = float(r.get('away_ml_ev') or 0.0)
+                            return 'home' if hv >= av else 'away'
+                        mls['bet'] = mls.apply(_ml_side, axis=1)
+                        mls['line'] = None
+                        def _ml_price(r: pd.Series):
+                            try:
+                                return r['moneyline_home'] if str(r.get('bet')).lower() == 'home' else r['moneyline_away']
+                            except Exception:
+                                return None
+                        mls['price'] = mls.apply(_ml_price, axis=1)
+                        mls['edge'] = mls.apply(lambda r: max(float(r.get('home_ml_ev') or 0.0), float(r.get('away_ml_ev') or 0.0)), axis=1)
+                        mls['rec_type'] = 'Moneyline'; mls['rec_code'] = 'ML'
+                    else:
+                        mls = pd.DataFrame(columns=edges.columns)
+                    picks_fb = pd.concat([tots, sprs, mls], ignore_index=True) if ('tots' in locals() or 'sprs' in locals() or 'mls' in locals()) else pd.DataFrame()
+                    if not picks_fb.empty:
+                        # Only surface positive edges
+                        try:
+                            picks_fb = picks_fb[pd.to_numeric(picks_fb['edge'], errors='coerce') > 0]
+                        except Exception:
+                            pass
+                        # Normalize common keys
+                        if 'game_id' in picks_fb.columns:
+                            picks_fb['game_id'] = picks_fb['game_id'].astype(str)
+                        if 'date_game' in picks_fb.columns and 'date' not in picks_fb.columns:
+                            picks_fb.rename(columns={'date_game':'date'}, inplace=True)
+                        if 'home_team_name' in picks_fb.columns and 'home_team' not in picks_fb.columns:
+                            picks_fb.rename(columns={'home_team_name':'home_team','away_team_name':'away_team'}, inplace=True)
+                        keep_cols = [
+                            'game_id','date','home_team','away_team','book','market','period',
+                            'line','price','edge','pred_total','pred_margin','edge_total','edge_margin',
+                            'home_spread','home_spread_price','away_spread','away_spread_price',
+                            'total','over_price','under_price',
+                            'start_time_iso','start_tz_abbr','start_time','display_date','start_time_local'
+                        ]
+                        df = picks_fb[[c for c in keep_cols if c in picks_fb.columns]].copy()
+            except Exception:
+                df = pd.DataFrame()
+        # 3) Fallback: derive minimal totals picks from display snapshot
+        if (df is None) or (isinstance(df, pd.DataFrame) and df.empty):
+            try:
+                if date_q:
+                    dpath = OUT / f"predictions_display_{date_q}.csv"
+                    ddf = pd.read_csv(dpath) if dpath.exists() else pd.DataFrame()
+                else:
+                    ddf = pd.DataFrame()
+                if not ddf.empty:
+                    # Minimal OU picks using edge_total sign when line missing
+                    def _side(r: pd.Series) -> str:
+                        try:
+                            et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                            if np.isfinite(et):
+                                return 'Over' if et >= 0 else 'Under'
+                        except Exception:
+                            pass
+                        return 'Over'
+                    out = pd.DataFrame()
+                    out['game_id'] = ddf.get('game_id')
+                    out['date'] = date_q
+                    out['home_team'] = ddf.get('home_team')
+                    out['away_team'] = ddf.get('away_team')
+                    out['market'] = 'totals'
+                    out['period'] = 'full_game'
+                    out['bet'] = ddf.apply(_side, axis=1)
+                    out['line'] = None
+                    out['price'] = None
+                    out['edge'] = ddf.get('edge_total')
+                    out['pred_total'] = ddf.get('pred_total')
+                    out['pred_margin'] = ddf.get('pred_margin')
+                    df = out
+            except Exception:
+                df = pd.DataFrame()
+        # If still empty, return no data
+        if df.empty:
+            return jsonify({"rows": 0, "data": []})
+    # Filter by date if provided
     if date_q and "date" in df.columns:
         try:
             df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
