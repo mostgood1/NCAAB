@@ -5126,16 +5126,32 @@ def index():
         try:
             # Resolve date
             date_stable = date_q if date_q else (today_str or dt.datetime.utcnow().strftime('%Y-%m-%d'))
+            # Prefer exact date; if missing, fallback to latest available snapshot and update date_stable
             path = OUT / f'predictions_display_{date_stable}.csv'
+            df_stable = pd.DataFrame()
             if path.exists():
                 try:
                     df_stable = pd.read_csv(path)
                 except Exception:
                     df_stable = pd.DataFrame()
             else:
-                df_stable = getattr(app, 'last_index_df', pd.DataFrame())
-                if not df_stable.empty:
-                    _persist_display(df_stable, date_stable)
+                try:
+                    import re as _re_mod
+                    pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+                    dates = []
+                    for p in OUT.glob('predictions_display_*.csv'):
+                        m = pat.match(p.name)
+                        if m:
+                            dates.append(m.group(1))
+                    if dates:
+                        latest_date = sorted(dates)[-1]
+                        date_stable = latest_date
+                        path = OUT / f'predictions_display_{date_stable}.csv'
+                        df_stable = _safe_read_csv(path)
+                except Exception:
+                    df_stable = getattr(app, 'last_index_df', pd.DataFrame())
+                    if not df_stable.empty:
+                        _persist_display(df_stable, date_stable)
             # Enrich stable frame with odds commence_time for authority alignment
             if isinstance(odds, pd.DataFrame) and not odds.empty and 'game_id' in odds.columns and 'game_id' in df_stable.columns:
                 try:
@@ -5220,7 +5236,8 @@ def index():
                     df_tpl = df_tpl.drop_duplicates(subset=["game_id"], keep="last")
             except Exception:
                 pass
-            raw_rows = [_brand_row(r) for r in df_tpl.to_dict(orient("records"))]
+            # Correct dict conversion for stable rows
+            raw_rows = [_brand_row(r) for r in df_tpl.to_dict(orient="records")]
             rows: list[dict[str, Any]] = [dict(_r) for _r in raw_rows]
             total_rows = len(rows)
             # Minimal coverage summary (totals/spreads/ML presence)
