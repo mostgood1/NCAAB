@@ -209,6 +209,7 @@ try:
                 '/api/persist_display',
                 '/api/accuracy',
                 '/accuracy',
+                '/api/recommendations',
                 '/api/picks_raw',
                 '/api/debug_artifacts',
                 '/api/upload_picks_raw',
@@ -18503,73 +18504,325 @@ def finals():
 
 @app.route("/api/recommendations")
 def api_recommendations():
-    # Return a JSON-safe, client-compatible recommendations payload.
-    # Prefer expanded multi-market picks_raw.csv; fallback to clean picks.
+    """JSON recommendations with robust fallbacks and explicit labels.
+
+    Behavior mirrors /recommendations:
+      - Prefer outputs/picks_raw.csv
+      - Fallback to edges (align_period_<date>_edges.csv) for OU/ATS/ML
+      - Final fallback to display snapshot for minimal OU
+      - Explicit Over/Under, signed spreads, ML labels
+    Optional query: ?date=YYYY-MM-DD to target a specific slate.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    # 1) Base picks_raw
     try:
         raw_path = OUT / 'picks_raw.csv'
         picks = pd.read_csv(raw_path) if raw_path.exists() else _load_picks()
     except Exception:
         picks = pd.DataFrame()
-    rows: list[dict] = []
-    if not picks.empty:
+    # 2) If empty, derive from edges (full_game period)
+    if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
         try:
-            # Prefer most recent rows and strongest edges first
-            df = picks.copy()
-            if "edge" in df.columns:
-                df["_abs_edge"] = pd.to_numeric(df["edge"], errors="coerce").abs()
-            elif "abs_edge" in df.columns:
-                df["_abs_edge"] = pd.to_numeric(df["abs_edge"], errors="coerce").abs()
-            else:
-                df["_abs_edge"] = 0.0
-            if "date" in df.columns:
-                # best effort date ordering
+            sel_file = None
+            if date_q:
+                tgt = OUT / f"align_period_{date_q}_edges.csv"
+                if tgt.exists():
+                    sel_file = str(tgt)
+            if not sel_file:
+                pattern = os.path.join(OUT, "align_period_*_edges.csv")
+                files = sorted(glob.glob(pattern))
+                sel_file = files[-1] if files else None
+            edges = pd.read_csv(sel_file, dtype=str, low_memory=False) if sel_file else pd.DataFrame()
+            if not edges.empty:
+                for c in [
+                    'edge_total','edge_margin','total','over_price','under_price',
+                    'home_spread','home_spread_price','away_spread','away_spread_price',
+                    'moneyline_home','moneyline_away','pred_total','pred_margin'
+                ]:
+                    if c in edges.columns:
+                        edges[c] = pd.to_numeric(edges[c], errors='coerce')
                 try:
-                    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                    if 'period' in edges.columns:
+                        edges = edges[edges['period'].astype(str).str.lower() == 'full_game']
                 except Exception:
                     pass
-            # Sort by date asc (if present), then strongest edge desc
-            sort_cols = (["date"] if "date" in df.columns else []) + ["_abs_edge"]
-            sort_asc = ([True] if "date" in df.columns else []) + [False]
-            df = df.sort_values(sort_cols, ascending=sort_asc)
-            # Project client-expected fields and ensure JSON-serializable values
-            def _coerce_num(v):
-                try:
-                    fv = float(v)
-                    if np.isfinite(fv):
-                        return fv
-                    return None
-                except Exception:
-                    return None
-            def _coerce_str(v):
-                return None if v is None else str(v)
-            for r in df.to_dict(orient="records"):
-                item = dict(r)
-                # Provide client-expected keys
-                item["selection"] = item.get("selection") or item.get("pick")
-                item["line"] = item.get("line") if ("line" in item) else item.get("line_value")
-                # Normalize numerics
-                if "edge" in item:
-                    item["edge"] = _coerce_num(item["edge"])
-                if "abs_edge" in item:
-                    item["abs_edge"] = _coerce_num(item["abs_edge"])
-                if "line" in item:
-                    item["line"] = _coerce_num(item["line"]) if not isinstance(item["line"], str) else item["line"]
-                if "line_value" in item:
-                    item["line_value"] = _coerce_num(item["line_value"])
-                # Normalize text fields used in the strip
-                item["market"] = _coerce_str(item.get("market"))
-                item["selection"] = _coerce_str(item.get("selection"))
-                # Datetime fields: coerce to ISO strings where present
-                for k in ("start_time_iso", "start_time_display", "display_time_str"):
-                    v = item.get(k)
-                    if v is not None:
+                # Build totals/spreads/ml
+                def _totals(df: pd.DataFrame) -> pd.DataFrame:
+                    m = df['market'].astype(str).str.lower() == 'totals' if 'market' in df.columns else pd.Series([False]*len(df))
+                    tots = df[m].copy()
+                    if tots.empty:
+                        return tots
+                    def _tot_side(r: pd.Series) -> str:
                         try:
-                            item[k] = pd.to_datetime(v, errors="coerce").isoformat()
+                            pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
+                            ln = float(r.get('total')) if r.get('total') is not None else np.nan
+                            if np.isfinite(pt) and np.isfinite(ln):
+                                return 'Over' if pt > ln else 'Under'
                         except Exception:
-                            item[k] = str(v)
-                rows.append(item)
+                            pass
+                        try:
+                            et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                            if np.isfinite(et):
+                                return 'Over' if et >= 0 else 'Under'
+                        except Exception:
+                            pass
+                        return 'Over'
+                    tots['bet'] = tots.apply(_tot_side, axis=1)
+                    tots['line'] = tots['total'] if 'total' in tots.columns else None
+                    tots['price'] = tots.apply(lambda r: (r['over_price'] if str(r.get('bet')).lower() == 'over' else r['under_price']), axis=1)
+                    tots['edge'] = tots['edge_total'].abs() if 'edge_total' in tots.columns else None
+                    tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'
+                    return tots
+                def _spreads(df: pd.DataFrame) -> pd.DataFrame:
+                    m = df['market'].astype(str).str.lower() == 'spreads' if 'market' in df.columns else pd.Series([False]*len(df))
+                    sprs = df[m].copy()
+                    if sprs.empty:
+                        return sprs
+                    sprs['bet'] = sprs.apply(lambda r: ('home' if (float(r.get('edge_margin') or 0.0) >= 0) else 'away'), axis=1)
+                    sprs['line'] = sprs.apply(lambda r: (r['home_spread'] if str(r.get('bet')).lower() == 'home' else r['away_spread']), axis=1)
+                    sprs['price'] = sprs.apply(lambda r: (r['home_spread_price'] if str(r.get('bet')).lower() == 'home' else r['away_spread_price']), axis=1)
+                    sprs['edge'] = sprs['edge_margin'].abs() if 'edge_margin' in sprs.columns else None
+                    sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'
+                    return sprs
+                def _moneyline(df: pd.DataFrame) -> pd.DataFrame:
+                    m = df['market'].astype(str).str.lower() == 'h2h' if 'market' in df.columns else pd.Series([False]*len(df))
+                    mls = df[m].copy()
+                    if mls.empty or not {'home_ml_ev','away_ml_ev'}.issubset(mls.columns):
+                        return pd.DataFrame(columns=df.columns)
+                    for c in ['home_ml_ev','away_ml_ev']:
+                        mls[c] = pd.to_numeric(mls[c], errors='coerce')
+                    mls['bet'] = mls.apply(lambda r: ('home' if (float(r.get('home_ml_ev') or 0.0) >= float(r.get('away_ml_ev') or 0.0)) else 'away'), axis=1)
+                    mls['line'] = None
+                    mls['price'] = mls.apply(lambda r: (r['moneyline_home'] if str(r.get('bet')).lower() == 'home' else r['moneyline_away']), axis=1)
+                    mls['edge'] = mls.apply(lambda r: max(float(r.get('home_ml_ev') or 0.0), float(r.get('away_ml_ev') or 0.0)), axis=1)
+                    mls['rec_type'] = 'Moneyline'; mls['rec_code'] = 'ML'
+                    return mls
+                picks_fb = pd.concat([_totals(edges), _spreads(edges), _moneyline(edges)], ignore_index=True)
+                if not picks_fb.empty:
+                    try:
+                        filtered = picks_fb[pd.to_numeric(picks_fb['edge'], errors='coerce') > 0]
+                        picks_fb = filtered if len(filtered) else picks_fb
+                    except Exception:
+                        pass
+                    if 'game_id' in picks_fb.columns:
+                        picks_fb['game_id'] = picks_fb['game_id'].astype(str)
+                    if 'date_game' in picks_fb.columns and 'date' not in picks_fb.columns:
+                        picks_fb.rename(columns={'date_game':'date'}, inplace=True)
+                    if 'home_team_name' in picks_fb.columns and 'home_team' not in picks_fb.columns:
+                        picks_fb.rename(columns={'home_team_name':'home_team','away_team_name':'away_team'}, inplace=True)
+                    keep_cols = [
+                        'game_id','date','home_team','away_team','book','market','period',
+                        'line','price','edge','pred_total','pred_margin','edge_total','edge_margin',
+                        'home_spread','home_spread_price','away_spread','away_spread_price',
+                        'total','over_price','under_price',
+                        'start_time_iso','start_tz_abbr','start_time','display_date','start_time_local'
+                    ]
+                    picks = picks_fb[[c for c in keep_cols if c in picks_fb.columns]].copy()
         except Exception:
-            rows = []
+            picks = pd.DataFrame()
+    # 3) Final fallback: minimal OU from display snapshot
+    if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
+        try:
+            dpath = OUT / f"predictions_display_{date_q}.csv" if date_q else None
+            ddf = pd.read_csv(dpath) if (dpath and dpath.exists()) else pd.DataFrame()
+            if not ddf.empty:
+                def _side(r: pd.Series) -> str:
+                    try:
+                        et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                        if np.isfinite(et):
+                            return 'Over' if et >= 0 else 'Under'
+                    except Exception:
+                        pass
+                    return 'Over'
+                out = pd.DataFrame()
+                out['game_id'] = ddf.get('game_id')
+                out['date'] = date_q
+                out['home_team'] = ddf.get('home_team')
+                out['away_team'] = ddf.get('away_team')
+                out['market'] = 'totals'
+                out['period'] = 'full_game'
+                out['bet'] = ddf.apply(_side, axis=1)
+                out['line'] = None
+                out['price'] = None
+                out['edge'] = ddf.get('edge_total')
+                out['pred_total'] = ddf.get('pred_total')
+                out['pred_margin'] = ddf.get('pred_margin')
+                out['rec_type'] = 'Totals'; out['rec_code'] = 'OU'
+                picks = out
+        except Exception:
+            picks = pd.DataFrame()
+    # If date provided, filter
+    if isinstance(picks, pd.DataFrame) and not picks.empty and date_q and 'date' in picks.columns:
+        try:
+            picks['date'] = pd.to_datetime(picks['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+            picks = picks[picks['date'] == date_q]
+        except Exception:
+            pass
+    # If filtering resulted in no rows, retry display-based OU fallback for the specific date
+    if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
+        try:
+            if date_q:
+                dpath2 = OUT / f"predictions_display_{date_q}.csv"
+                ddf2 = pd.read_csv(dpath2) if dpath2.exists() else pd.DataFrame()
+            else:
+                ddf2 = pd.DataFrame()
+            if not ddf2.empty:
+                def _side2(r: pd.Series) -> str:
+                    try:
+                        et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                        if np.isfinite(et):
+                            return 'Over' if et >= 0 else 'Under'
+                    except Exception:
+                        pass
+                    return 'Over'
+                out2 = pd.DataFrame()
+                out2['game_id'] = ddf2.get('game_id')
+                out2['date'] = date_q
+                # Prefer home_team/home_team_name gracefully
+                out2['home_team'] = ddf2.get('home_team') if 'home_team' in ddf2.columns else ddf2.get('home_team_name')
+                out2['away_team'] = ddf2.get('away_team') if 'away_team' in ddf2.columns else ddf2.get('away_team_name')
+                out2['market'] = 'totals'
+                out2['period'] = 'full_game'
+                out2['bet'] = ddf2.apply(_side2, axis=1)
+                # Try to carry a line if market_total exists
+                out2['line'] = ddf2.get('market_total') if 'market_total' in ddf2.columns else None
+                out2['price'] = None
+                out2['edge'] = ddf2.get('edge_total')
+                out2['pred_total'] = ddf2.get('pred_total')
+                out2['pred_margin'] = ddf2.get('pred_margin')
+                out2['rec_type'] = 'Totals'; out2['rec_code'] = 'OU'
+                picks = out2
+        except Exception:
+            picks = pd.DataFrame()
+    # Compute explicit labels for OU/ATS/ML similar to page
+    def _label(row: dict) -> str:
+        code = str(row.get('rec_code') or '').upper()
+        line = row.get('line')
+        try:
+            ln = float(line) if (line is not None and str(line).strip()!='') else None
+        except Exception:
+            ln = None
+        home = row.get('home_team') or row.get('home_team_name') or ''
+        away = row.get('away_team') or row.get('away_team_name') or ''
+        sel_raw = str(row.get('selection') or row.get('bet') or '').strip().lower()
+        if code == 'OU':
+            side = None
+            if sel_raw.startswith('over') or sel_raw.startswith('under'):
+                side = 'Over' if sel_raw.startswith('over') else 'Under'
+            elif sel_raw.startswith('o') and (len(sel_raw)==1 or sel_raw[1].isspace() or sel_raw[1].isdigit()):
+                side = 'Over'
+            elif sel_raw.startswith('u') and (len(sel_raw)==1 or sel_raw[1].isspace() or sel_raw[1].isdigit()):
+                side = 'Under'
+            if side is None:
+                try:
+                    pt = float(row.get('pred_total')) if row.get('pred_total') is not None else None
+                    if (pt is not None) and (ln is not None):
+                        side = 'Over' if pt > ln else 'Under'
+                except Exception:
+                    side = None
+            if side is None and row.get('edge_total') is not None:
+                try:
+                    et = float(row.get('edge_total'))
+                    side = 'Over' if et >= 0 else 'Under'
+                except Exception:
+                    side = None
+            if side is None and ln is not None:
+                side = 'Over'
+            return (f"{side or ''} {('%.1f' % ln) if ln is not None else ''}" ).strip()
+        if code == 'ATS':
+            side_team = None
+            if sel_raw:
+                if 'home' in sel_raw or sel_raw == normalize_name(str(home)):
+                    side_team = home
+                elif 'away' in sel_raw or sel_raw == normalize_name(str(away)):
+                    side_team = away
+            if not side_team:
+                try:
+                    pm = float(row.get('pred_margin')) if row.get('pred_margin') is not None else None
+                    side_team = home if (pm is not None and pm >= 0) else away
+                except Exception:
+                    side_team = home or away
+            if ln is not None:
+                return f"{side_team} {ln:+.1f}".strip()
+            return f"{side_team} Spread".strip()
+        if code == 'ML':
+            side_team = None
+            if sel_raw:
+                if 'home' in sel_raw or sel_raw == normalize_name(str(home)):
+                    side_team = home
+                elif 'away' in sel_raw or sel_raw == normalize_name(str(away)):
+                    side_team = away
+            if not side_team:
+                try:
+                    pm = float(row.get('pred_margin')) if row.get('pred_margin') is not None else None
+                    side_team = home if (pm is not None and pm >= 0) else away
+                except Exception:
+                    side_team = home or away
+            return f"{side_team} ML".strip()
+        return str(row.get('bet') or '').strip()
+    # Prepare rows with branding
+    rows: list[dict] = []
+    branding = _load_branding_map()
+    if isinstance(picks, pd.DataFrame) and not picks.empty:
+        df = picks.copy()
+        # Compute abs edge for ordering
+        if 'edge' in df.columns:
+            try:
+                df['_abs_edge'] = pd.to_numeric(df['edge'], errors='coerce').abs()
+            except Exception:
+                df['_abs_edge'] = 0.0
+        elif 'abs_edge' in df.columns:
+            try:
+                df['_abs_edge'] = pd.to_numeric(df['abs_edge'], errors='coerce').abs()
+            except Exception:
+                df['_abs_edge'] = 0.0
+        else:
+            df['_abs_edge'] = 0.0
+        # Best-effort sort by date asc, then edge desc
+        sort_cols = ([])
+        sort_asc = ([])
+        if 'date' in df.columns:
+            try:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+                sort_cols.append('date'); sort_asc.append(True)
+            except Exception:
+                pass
+        sort_cols.append('_abs_edge'); sort_asc.append(False)
+        try:
+            df = df.sort_values(sort_cols, ascending=sort_asc)
+        except Exception:
+            pass
+        # Normalize rec_code/rec_type if missing
+        def _infer_type(mkt: str, bet: str) -> tuple[str,str]:
+            m = (mkt or '').lower(); b = (bet or '').lower()
+            if any(x in m for x in ('total','over/under','ou')) or b.startswith('over') or b.startswith('under') or b.startswith('o') or b.startswith('u'):
+                return ('OU','Totals')
+            if any(x in m for x in ('spread','ats')) or ('spread' in b):
+                return ('ATS','Spread')
+            if any(x in m for x in ('moneyline','ml')) or ('moneyline' in b or b.endswith(' ml')):
+                return ('ML','Moneyline')
+            return ('Other', 'Other')
+        for r in df.to_dict(orient='records'):
+            item = dict(r)
+            # Infer types when missing
+            rc = str(item.get('rec_code') or '')
+            rt = str(item.get('rec_type') or '')
+            if not rc or not rt:
+                rc2, rt2 = _infer_type(str(item.get('market') or ''), str(item.get('bet') or ''))
+                item['rec_code'] = rc or rc2
+                item['rec_type'] = rt or rt2
+            # Explicit label
+            item['bet_label'] = _label(item)
+            # Branding
+            for side in ['home','away']:
+                nm = str(item.get(f'{side}_team') or item.get(f'{side}_team_name') or '')
+                key = normalize_name(nm)
+                b = branding.get(key) or {}
+                item[f'{side}_key'] = key
+                item[f'{side}_logo'] = b.get('logo')
+                item[f'{side}_color'] = b.get('primary') or b.get('secondary')
+                item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+            rows.append(item)
     return jsonify({"rows": len(rows), "data": rows})
 
 @app.route("/api/midnight_drift_diagnostic")
