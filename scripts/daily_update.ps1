@@ -947,6 +947,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $alignCsv) { $toStage += $alignCsv }
   $alignEdges = Join-Path $OutDir ("align_period_" + $todayIso + "_edges.csv")
   if (Test-Path $alignEdges) { $toStage += $alignEdges }
+  # Picks raw snapshot for recommendations fallback
+  $picksRaw = Join-Path $OutDir 'picks_raw.csv'
+  if (Test-Path $picksRaw) { $toStage += $picksRaw }
   $stakeBase = Join-Path $OutDir 'stake_sheet_today.csv'
   if (Test-Path $stakeBase) { $toStage += $stakeBase }
   $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
@@ -1013,7 +1016,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
             $p -like "*predictions_unified_enriched_*.csv" -or 
             $p -like "*outputs\\archive\\*predictions_display_*.csv" -or 
             $p -like "*outputs\\metrics\\*.json" -or 
-            $p -like "*outputs\\diagnostics\\*"
+            $p -like "*outputs\\diagnostics\\*" -or 
+            $p -like "*outputs\\picks_raw.csv" -or 
+            $p -like "*outputs\\align_period_*_edges.csv"
           ) {
             git add -f $p
           } else {
