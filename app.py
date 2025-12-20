@@ -209,6 +209,8 @@ try:
                 '/api/persist_display',
                 '/api/accuracy',
                 '/accuracy',
+                '/api/picks_raw',
+                '/api/debug_artifacts',
                 '/api/upload_picks_raw',
                 '/api/upload_predictions_display',
                 '/api/upload_align_edges'
@@ -18832,9 +18834,10 @@ def api_picks_raw():
                         mls = pd.DataFrame(columns=edges.columns)
                     picks_fb = pd.concat([tots, sprs, mls], ignore_index=True) if ('tots' in locals() or 'sprs' in locals() or 'mls' in locals()) else pd.DataFrame()
                     if not picks_fb.empty:
-                        # Only surface positive edges
+                        # Prefer positive-edge rows; if that yields none, fall back to all derived rows
                         try:
-                            picks_fb = picks_fb[pd.to_numeric(picks_fb['edge'], errors='coerce') > 0]
+                            filtered = picks_fb[pd.to_numeric(picks_fb['edge'], errors='coerce') > 0]
+                            picks_fb = filtered if len(filtered) else picks_fb
                         except Exception:
                             pass
                         # Normalize common keys
@@ -19023,6 +19026,58 @@ def api_upload_align_edges():
         return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/debug_artifacts")
+def api_debug_artifacts():
+    """Diagnostics for per-date artifacts and resolved outputs directory.
+
+    Query params:
+    - date: YYYY-MM-DD (optional)
+
+    Returns counts and presence booleans for:
+    - picks_raw.csv
+    - picks_raw_<date>.csv
+    - align_period_<date>_edges.csv
+    - predictions_display_<date>.csv
+    Also echoes the resolved OUT path.
+    """
+    try:
+        date_q = (request.args.get("date") or "").strip()
+    except Exception:
+        date_q = ""
+    out_path = str(OUT)
+    resp = {"ok": True, "OUT": out_path, "date": date_q or None, "artifacts": {}}
+    # Global picks
+    try:
+        p_global = OUT / "picks_raw.csv"
+        dfg = _safe_read_csv(p_global)
+        resp["artifacts"]["picks_raw.csv"] = {"exists": p_global.exists(), "rows": int(len(dfg)) if not dfg.empty else 0, "path": str(p_global)}
+    except Exception as e:
+        resp["artifacts"]["picks_raw.csv"] = {"error": str(e)}
+    # Date-scoped picks
+    if date_q:
+        try:
+            p_date = OUT / f"picks_raw_{date_q}.csv"
+            dfd = _safe_read_csv(p_date)
+            resp["artifacts"][f"picks_raw_{date_q}.csv"] = {"exists": p_date.exists(), "rows": int(len(dfd)) if not dfd.empty else 0, "path": str(p_date)}
+        except Exception as e:
+            resp["artifacts"][f"picks_raw_{date_q}.csv"] = {"error": str(e)}
+        # Edges
+        try:
+            e_date = OUT / f"align_period_{date_q}_edges.csv"
+            dfe = _safe_read_csv(e_date)
+            resp["artifacts"][f"align_period_{date_q}_edges.csv"] = {"exists": e_date.exists(), "rows": int(len(dfe)) if not dfe.empty else 0, "path": str(e_date)}
+        except Exception as e:
+            resp["artifacts"][f"align_period_{date_q}_edges.csv"] = {"error": str(e)}
+        # Display snapshot
+        try:
+            d_date = OUT / f"predictions_display_{date_q}.csv"
+            dfdsp = _safe_read_csv(d_date)
+            resp["artifacts"][f"predictions_display_{date_q}.csv"] = {"exists": d_date.exists(), "rows": int(len(dfdsp)) if not dfdsp.empty else 0, "path": str(d_date)}
+        except Exception as e:
+            resp["artifacts"][f"predictions_display_{date_q}.csv"] = {"error": str(e)}
+    return jsonify(resp)
 
 
 @app.route("/api/accuracy_alt")
