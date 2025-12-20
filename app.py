@@ -20442,6 +20442,69 @@ def api_display_predictions():
                 df = df[[c for c in usecols if c in df.columns]]
         except Exception:
             df = pd.DataFrame()
+        # If snapshot is empty or lacks rows, rebuild from edges and persist to avoid blank cards
+        try:
+            if df.empty or len(df) == 0:
+                ap = OUT / f"align_period_{date_q}_edges.csv"
+                ed = _safe_read_csv(ap)
+                if not ed.empty:
+                    # Remove synthetic placeholders
+                    if 'game_id' in ed.columns:
+                        try:
+                            ed['game_id'] = ed['game_id'].astype(str)
+                            ed = ed[~ed['game_id'].str.startswith('synthetic:')]
+                        except Exception:
+                            pass
+                    # Normalize date and constrain
+                    if 'date' in ed.columns:
+                        try:
+                            ed['date'] = pd.to_datetime(ed['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            ed = ed[ed['date'].astype(str) == str(date_q)]
+                        except Exception:
+                            pass
+                    # Column picks
+                    def _pick_col(df_, opts):
+                        for c in opts:
+                            if c in df_.columns:
+                                return c
+                        return None
+                    hcol = _pick_col(ed, ['home_team','home_team_name','home'])
+                    acol = _pick_col(ed, ['away_team','away_team_name','away'])
+                    tcol = _pick_col(ed, ['pred_total_cal','pred_total'])
+                    mcol = _pick_col(ed, ['pred_margin_cal','pred_margin'])
+                    mtcol = _pick_col(ed, ['market_total','closing_total','total_median'])
+                    stcol = _pick_col(ed, ['start_time','commence_time'])
+                    keep_e = [c for c in ['game_id','date',hcol,acol,tcol,mcol,mtcol,stcol] if c]
+                    if keep_e:
+                        e2 = ed[keep_e].copy()
+                        ren = {}
+                        if hcol and hcol != 'home_team': ren[hcol] = 'home_team'
+                        if acol and acol != 'away_team': ren[acol] = 'away_team'
+                        if tcol and tcol != 'pred_total': ren[tcol] = 'pred_total'
+                        if mcol and mcol != 'pred_margin': ren[mcol] = 'pred_margin'
+                        if mtcol and mtcol != 'market_total': ren[mtcol] = 'market_total'
+                        if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
+                        if ren:
+                            e2 = e2.rename(columns=ren)
+                        # Aggregate per game
+                        if 'game_id' in e2.columns:
+                            def _agg_first(series):
+                                try:
+                                    return series.dropna().iloc[0]
+                                except Exception:
+                                    return series.iloc[0] if len(series) else None
+                            agg_map = {}
+                            for c in ['date','home_team','away_team','pred_total','pred_margin','market_total','start_time']:
+                                if c in e2.columns:
+                                    agg_map[c] = _agg_first
+                            df = e2.groupby('game_id').agg(agg_map).reset_index()
+                            # Persist rebuilt snapshot
+                            try:
+                                df[['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time','date']].to_csv(path, index=False)
+                            except Exception:
+                                pass
+        except Exception:
+            pass
         # Snapshot-first: compute hash and return rows without re-normalizing/persisting
         digest = None
         try:
