@@ -5136,8 +5136,11 @@ def index():
     try:
         import os as _os_mod
         stable_env = str(_os_mod.environ.get("STABLE_DISPLAY","0")).strip().lower() in ("1","true","yes")
+        # Default to stable display when running in snapshot-only/Render mode
+        if SNAPSHOT_ONLY:
+            stable_env = True
     except Exception:
-        stable_env = False
+        stable_env = SNAPSHOT_ONLY
     # Force stable display for rollover-affected dates to ensure consistent times
     force_stable_dates = set([str((dt.datetime.utcnow()).strftime('%Y-%m-%d'))])
     if today_str:
