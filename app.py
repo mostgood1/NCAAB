@@ -4947,11 +4947,42 @@ def index():
     # Snapshot-first: render strictly from persisted predictions_display_<date>.csv
     try:
         from datetime import datetime as _dt
-        target_date = date_q or _dt.utcnow().strftime('%Y-%m-%d')
+        # Resolve target_date with strong preference for latest available display snapshot
+        # 1) Use explicit query date if provided
+        # 2) Use today's snapshot if present
+        # 3) Else, use the most recent predictions_display_<date>.csv in outputs
+        # 4) Fallback to today's UTC date
+        if date_q:
+            target_date = date_q
+        else:
+            today_iso = _dt.utcnow().strftime('%Y-%m-%d')
+            today_path = OUT / f"predictions_display_{today_iso}.csv"
+            if today_path.exists():
+                target_date = today_iso
+            else:
+                try:
+                    import re as _re_mod
+                    pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+                    dates = []
+                    for p in OUT.glob('predictions_display_*.csv'):
+                        m = pat.match(p.name)
+                        if m:
+                            dates.append(m.group(1))
+                    target_date = sorted(dates)[-1] if dates else today_iso
+                except Exception:
+                    target_date = today_iso
         snap_path = OUT / f"predictions_display_{target_date}.csv"
         df_snap = _safe_read_csv(snap_path)
         if not df_snap.empty:
             branding = _load_branding_map()
+            # Constrain to the target_date using display_date/date if present
+            try:
+                if 'display_date' in df_snap.columns:
+                    df_snap = df_snap[df_snap['display_date'].astype(str) == str(target_date)]
+                elif 'date' in df_snap.columns:
+                    df_snap = df_snap[df_snap['date'].astype(str) == str(target_date)]
+            except Exception:
+                pass
             rows = []
             keep = [
                 'game_id','home_team','away_team','pred_total','pred_margin',
