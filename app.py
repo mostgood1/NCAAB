@@ -4938,6 +4938,21 @@ def index():
     # Optional view preference: force-calibrated display precedence even for tiny diffs
     prefer_cal_param = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
     prefer_cal_eff = prefer_cal_param
+    # Strong fallback: if no date provided, prefer the latest predictions_display_<date>.csv in outputs
+    try:
+        if not date_q:
+            import re as _re_mod
+            pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+            _dates = []
+            for _p in OUT.glob('predictions_display_*.csv'):
+                m = pat.match(_p.name)
+                if m:
+                    _dates.append(m.group(1))
+            if _dates:
+                # pick maximum lexicographic ISO date safely
+                date_q = sorted(_dates)[-1]
+    except Exception:
+        pass
     # Compact card mode toggle
     try:
         q_compact = (request.args.get("compact") or "").strip().lower()
