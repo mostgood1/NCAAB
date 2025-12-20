@@ -61,10 +61,8 @@ function Get-CsvRowCount {
     param([string]$Path)
     if (-not (Test-Path -LiteralPath $Path)) { return 0 }
     try {
-        $lines = Get-Content -LiteralPath $Path -ErrorAction Stop
-        if (-not $lines) { return 0 }
-        # assume header present; count data rows
-        return [Math]::Max(0, $lines.Length - 1)
+        $rows = Import-Csv -LiteralPath $Path -ErrorAction Stop
+        return ($rows | Measure-Object).Count
     } catch { return 0 }
 }
 
