@@ -4990,12 +4990,27 @@ def index():
         df_snap = _safe_read_csv(snap_path)
         if not df_snap.empty:
             branding = _load_branding_map()
-            # Constrain to the target_date using display_date/date if present
+            # Constrain to the target_date using normalized dates; if empty after filter, fallback to unfiltered
             try:
+                target_date_norm = str(target_date)
+                filtered = df_snap
                 if 'display_date' in df_snap.columns:
-                    df_snap = df_snap[df_snap['display_date'].astype(str) == str(target_date)]
+                    try:
+                        filtered = df_snap.copy()
+                        filtered['_dd'] = pd.to_datetime(filtered['display_date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                        filtered = filtered[filtered['_dd'] == target_date_norm]
+                        filtered = filtered.drop(columns=['_dd'])
+                    except Exception:
+                        filtered = df_snap[df_snap['display_date'].astype(str).str[:10] == target_date_norm]
                 elif 'date' in df_snap.columns:
-                    df_snap = df_snap[df_snap['date'].astype(str) == str(target_date)]
+                    try:
+                        filtered = df_snap.copy()
+                        filtered['_dd'] = pd.to_datetime(filtered['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                        filtered = filtered[filtered['_dd'] == target_date_norm]
+                        filtered = filtered.drop(columns=['_dd'])
+                    except Exception:
+                        filtered = df_snap[df_snap['date'].astype(str).str[:10] == target_date_norm]
+                df_snap = filtered if not filtered.empty else df_snap
             except Exception:
                 pass
             rows = []
@@ -5208,16 +5223,30 @@ def index():
                 df_stable = _normalize_display(df_stable)
             except Exception:
                 pass
-            # Filter stable display by its own display_date/date columns
+            # Filter stable display by normalized display_date/date
             # instead of re-deriving from UTC.
             try:
                 if isinstance(df_stable, pd.DataFrame) and not df_stable.empty:
-                    target_date = str(date_stable) if date_stable else None
-                    if target_date:
+                    target_date_norm = str(date_stable) if date_stable else None
+                    if target_date_norm:
+                        filt = df_stable
                         if 'display_date' in df_stable.columns:
-                            df_stable = df_stable[df_stable['display_date'].astype(str) == target_date]
+                            try:
+                                filt = df_stable.copy()
+                                filt['_dd'] = pd.to_datetime(filt['display_date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                filt = filt[filt['_dd'] == target_date_norm]
+                                filt = filt.drop(columns=['_dd'])
+                            except Exception:
+                                filt = df_stable[df_stable['display_date'].astype(str).str[:10] == target_date_norm]
                         elif 'date' in df_stable.columns:
-                            df_stable = df_stable[df_stable['date'].astype(str) == target_date]
+                            try:
+                                filt = df_stable.copy()
+                                filt['_dd'] = pd.to_datetime(filt['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                filt = filt[filt['_dd'] == target_date_norm]
+                                filt = filt.drop(columns=['_dd'])
+                            except Exception:
+                                filt = df_stable[df_stable['date'].astype(str).str[:10] == target_date_norm]
+                        df_stable = filt if not filt.empty else df_stable
             except Exception:
                 pipeline_stats['stable_display_filter_error'] = True
             # Build rows for template without mutating time/date fields
