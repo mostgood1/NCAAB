@@ -14674,12 +14674,40 @@ def index():
             pipeline_stats['basis_normalize_error'] = str(_norm_e)[:120]
         disp_path = OUT / f'predictions_display_{persist_date}.csv'
         if cols_keep:
-            df[cols_keep].to_csv(disp_path, index=False)
-            pipeline_stats['display_persist_rows'] = int(len(df))
-            pipeline_stats['display_persist_path'] = str(disp_path)
+            # Safeguard: only persist if candidate has sufficient real rows and won't downgrade an existing snapshot
+            try:
+                candidate = df[cols_keep].copy()
+                # Exclude synthetic placeholders before counting
+                if 'game_id' in candidate.columns:
+                    try:
+                        candidate['game_id'] = candidate['game_id'].astype(str)
+                        candidate = candidate[~candidate['game_id'].str.startswith('synthetic:')]
+                    except Exception:
+                        pass
+                cand_rows = int(len(candidate))
+            except Exception:
+                candidate = df[cols_keep]
+                cand_rows = int(len(candidate)) if hasattr(candidate, '__len__') else 0
+            # Read existing snapshot rows for comparison
+            existing_rows = 0
+            try:
+                if disp_path.exists():
+                    cur = pd.read_csv(disp_path)
+                    existing_rows = int(len(cur))
+            except Exception:
+                existing_rows = 0
+            # Persist only if candidate has at least 20 rows and not fewer than existing
+            if cand_rows >= 20 and cand_rows >= existing_rows:
+                candidate.to_csv(disp_path, index=False)
+                pipeline_stats['display_persist_rows'] = cand_rows
+                pipeline_stats['display_persist_path'] = str(disp_path)
+            else:
+                pipeline_stats['display_persist_skipped'] = True
+                pipeline_stats['display_persist_candidate_rows'] = cand_rows
+                pipeline_stats['display_persist_existing_rows'] = existing_rows
             # Compute and record content hash for alignment diagnostics
             try:
-                hdf = df[cols_keep].copy()
+                hdf = candidate.copy()
                 if 'game_id' in hdf.columns:
                     hdf = hdf.sort_values('game_id')
                 blob = '\n'.join([
