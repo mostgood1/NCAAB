@@ -210,7 +210,8 @@ try:
                 '/api/accuracy',
                 '/accuracy',
                 '/api/upload_picks_raw',
-                '/api/upload_predictions_display'
+                '/api/upload_predictions_display',
+                '/api/upload_align_edges'
             }
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
@@ -18800,6 +18801,44 @@ def api_upload_predictions_display():
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
         # Write to outputs/predictions_display_<date>.csv
         out_path = OUT / f"predictions_display_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/upload_align_edges", methods=["POST"])
+def api_upload_align_edges():
+    """Upload align_period_<date>_edges.csv to outputs for recommendations fallback.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        # Write to outputs/align_period_<date>_edges.csv
+        out_path = OUT / f"align_period_{date_q}_edges.csv"
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_bytes(csv_bytes)
