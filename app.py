@@ -6343,6 +6343,74 @@ def index():
     except Exception:
         pass
 
+    # Align-period edges fallback: build minimal display from align_period_<date>_edges.csv if df still empty
+    try:
+        if df.empty and date_q:
+            ap_path = OUT / f"align_period_{date_q}_edges.csv"
+            if ap_path.exists():
+                ed = _safe_read_csv(ap_path)
+                if not ed.empty:
+                    # Remove synthetic placeholders
+                    if 'game_id' in ed.columns:
+                        try:
+                            ed['game_id'] = ed['game_id'].astype(str)
+                            ed = ed[~ed['game_id'].str.startswith('synthetic:')]
+                        except Exception:
+                            pass
+                    # Normalize date
+                    if 'date' in ed.columns:
+                        try:
+                            ed['date'] = pd.to_datetime(ed['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                        except Exception:
+                            pass
+                    # Choose team columns
+                    def _pick_col(df_, opts):
+                        for c in opts:
+                            if c in df_.columns:
+                                return c
+                        return None
+                    hcol = _pick_col(ed, ['home_team','home_team_name','home'])
+                    acol = _pick_col(ed, ['away_team','away_team_name','away'])
+                    # Choose prediction columns
+                    tcol = _pick_col(ed, ['pred_total_cal','pred_total'])
+                    mcol = _pick_col(ed, ['pred_margin_cal','pred_margin'])
+                    # Choose market columns
+                    mtcol = _pick_col(ed, ['market_total','closing_total','total_median'])
+                    # Choose commence/start time
+                    stcol = _pick_col(ed, ['start_time','commence_time'])
+                    keep = [c for c in ['game_id','date',hcol,acol,tcol,mcol,mtcol,stcol] if c]
+                    if keep:
+                        e2 = ed[keep].copy()
+                        # Rename to standard names
+                        ren = {}
+                        if hcol and hcol != 'home_team': ren[hcol] = 'home_team'
+                        if acol and acol != 'away_team': ren[acol] = 'away_team'
+                        if tcol and tcol != 'pred_total': ren[tcol] = 'pred_total'
+                        if mcol and mcol != 'pred_margin': ren[mcol] = 'pred_margin'
+                        if mtcol and mtcol != 'market_total': ren[mtcol] = 'market_total'
+                        if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
+                        if ren:
+                            e2 = e2.rename(columns=ren)
+                        # Constrain by date if available
+                        if 'date' in e2.columns:
+                            e2 = e2[e2['date'].astype(str) == str(date_q)]
+                        # Aggregate per game_id: pick first non-null values
+                        if 'game_id' in e2.columns:
+                            def _agg_first(series):
+                                try:
+                                    return series.dropna().iloc[0]
+                                except Exception:
+                                    return series.iloc[0] if len(series) else None
+                            agg_map = {}
+                            for c in ['date','home_team','away_team','pred_total','pred_margin','market_total','start_time']:
+                                if c in e2.columns:
+                                    agg_map[c] = _agg_first
+                            df = e2.groupby('game_id').agg(agg_map).reset_index()
+                            results_note = f"Edges-derived slate for {date_q} (snapshot missing)"
+                            coverage_summary = {"full": 0, "partial": 0, "none": 0}
+    except Exception:
+        pass
+
     # Ensure game_id present: if missing attempt deterministic construction (only when teams available)
     if "game_id" not in df.columns:
         home_col = next((c for c in ["home_team","home"] if c in df.columns), None)
