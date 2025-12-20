@@ -5013,6 +5013,12 @@ def index():
                 df_snap = filtered if not filtered.empty else df_snap
             except Exception:
                 pass
+            # Drop synthetic placeholder games (non-real)
+            try:
+                if 'game_id' in df_snap.columns:
+                    df_snap = df_snap[~df_snap['game_id'].astype(str).str.startswith('synthetic:')]
+            except Exception:
+                pass
             rows = []
             keep = [
                 'game_id','home_team','away_team','pred_total','pred_margin',
@@ -5255,6 +5261,12 @@ def index():
                 df_tpl = df_stable.where(pd.notna(df_stable), None)
             except Exception:
                 df_tpl = df_stable
+            # Drop synthetic placeholder games (non-real)
+            try:
+                if 'game_id' in df_tpl.columns:
+                    df_tpl = df_tpl[~df_tpl['game_id'].astype(str).str.startswith('synthetic:')]
+            except Exception:
+                pass
             # Dedupe by game_id to avoid repeated rows from upstream joins
             try:
                 if "game_id" in df_tpl.columns:
