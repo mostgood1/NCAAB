@@ -26,7 +26,10 @@ param(
   [switch]$ForceQuantileRefresh,
   [string]$QuantileRetrainDay = 'Sunday',
   [int]$QuantileMaxAgeDays = 6,
-  [string]$GitCommitMessage
+  [string]$GitCommitMessage,
+  # Render upload integration
+  [switch]$UploadToRender,
+  [switch]$TriggerRenderRedeploy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -1047,6 +1050,25 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       else {
         Write-Host "No whitelisted data artifacts found to stage." -ForegroundColor Yellow
       }
+    }
+
+    # Optional: Upload artifacts to Render and verify recommendations
+    if ($UploadToRender.IsPresent) {
+      Write-Section "11b) Upload artifacts to Render + verify ($todayIso)"
+      try {
+        $uploader = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
+        if (Test-Path $uploader) {
+          $args = @('-Date', $todayIso)
+          if ($TriggerRenderRedeploy.IsPresent) { $args += '-TriggerRedeploy' }
+          powershell.exe -ExecutionPolicy Bypass -File $uploader @args
+        } else {
+          Write-Warning "Uploader script not found at $uploader; skipping Render upload."
+        }
+      } catch {
+        Write-Warning "Render upload step failed: $($_)"
+      }
+    } else {
+      Write-Host 'UploadToRender flag not set; skipping Render upload.' -ForegroundColor Yellow
     }
 
   Write-Section 'DONE'
