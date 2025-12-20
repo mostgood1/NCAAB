@@ -21,12 +21,28 @@ function Upload-File {
         Write-Host "[Skip] Missing file: $FilePath" -ForegroundColor Yellow
         return $null
     }
-    $q = if ($Query.Count -gt 0) { '?' + ($Query.GetEnumerator() | ForEach-Object { "{0}={1}" -f $_.Key, $_.Value } -join '&') } else { '' }
+    $q = if ($Query.Count -gt 0) { '?' + ((($Query.GetEnumerator() | ForEach-Object { "{0}={1}" -f $_.Key, $_.Value }) -join '&')) } else { '' }
     $target = "$Uri$q"
     Write-Step "POST $target with $(Split-Path -Leaf $FilePath)"
     try {
-        $resp = Invoke-RestMethod -Uri $target -Method Post -Form @{ file = Get-Item -LiteralPath $FilePath }
-        return $resp
+        try { Add-Type -AssemblyName System.Net.Http } catch {}
+        $client = New-Object System.Net.Http.HttpClient
+        $content = New-Object System.Net.Http.MultipartFormDataContent
+        $fs = [System.IO.File]::OpenRead($FilePath)
+        $fileContent = New-Object System.Net.Http.StreamContent($fs)
+        $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse('text/csv')
+        $fileName = [System.IO.Path]::GetFileName($FilePath)
+        $content.Add($fileContent, 'file', $fileName)
+        $resp = $client.PostAsync($target, $content).Result
+        $text = $resp.Content.ReadAsStringAsync().Result
+        try { $fs.Dispose() } catch {}
+        try { $client.Dispose() } catch {}
+        if (-not $resp.IsSuccessStatusCode) {
+            Write-Host "[Error] Upload HTTP $($resp.StatusCode): $text" -ForegroundColor Red
+            return $null
+        }
+        # Try JSON parse, else return raw text
+        try { return ($text | ConvertFrom-Json) } catch { return @{ status = 'ok'; raw = $text } }
     } catch {
         Write-Host "[Error] Upload failed: $($_.Exception.Message)" -ForegroundColor Red
         return $null
@@ -41,9 +57,25 @@ $displayPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
 Write-Step "Outputs dir: $OutputsDir"
 
+function Get-CsvRowCount {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return 0 }
+    try {
+        $lines = Get-Content -LiteralPath $Path -ErrorAction Stop
+        if (-not $lines) { return 0 }
+        # assume header present; count data rows
+        return [Math]::Max(0, $lines.Length - 1)
+    } catch { return 0 }
+}
+
 # Upload in preferred order: picks_raw -> edges(date) -> display(date)
-$u1 = Upload-File -Uri "$BaseUrl/api/upload_picks_raw" -FilePath $picksPath
-if ($u1) { Write-Host "[OK] picks_raw uploaded: $($u1.path) rows=$($u1.rows)" -ForegroundColor Green }
+$picksRows = Get-CsvRowCount -Path $picksPath
+if ($picksRows -gt 0) {
+    $u1 = Upload-File -Uri "$BaseUrl/api/upload_picks_raw" -FilePath $picksPath
+    if ($u1) { Write-Host "[OK] picks_raw uploaded: $($u1.path) rows=$($u1.rows)" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] picks_raw.csv has 0 rows; preserving remote non-empty file." -ForegroundColor Yellow
+}
 
 $u2 = Upload-File -Uri "$BaseUrl/api/upload_align_edges" -FilePath $edgesPath -Query @{ date = $Date }
 if ($u2) { Write-Host "[OK] edges uploaded: rows=$($u2.rows)" -ForegroundColor Green }
