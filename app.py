@@ -5051,31 +5051,33 @@ def index():
             safe_rows = rows
             archive_dates = []
             pipeline_stats = {}
-            return render_template(
-                "index.html",
-                rows=safe_rows,
-                total_rows=total_rows,
-                date_val=target_date,
-                top_picks=[],
-                accuracy=accuracy,
-                uniform_note=uniform_note,
-                dynamic_css=dynamic_css,
-                coverage_note=coverage_note,
-                results_note=results_note,
-                show_edges=True,
-                coverage={},
-                archive_dates=archive_dates,
-                show_bootstrap=show_bootstrap,
-                compact_mode=compact_mode,
-                bootstrap_url=bootstrap_url,
-                show_diag=show_diag,
-                diag_url=diag_url,
-                fused_bootstrap_url=fused_bootstrap_url,
-                refresh_odds_url=refresh_odds_url,
-                removed_empty_rows=removed_empty_rows,
-                status=status,
-                pipeline_stats=pipeline_stats,
-            )
+            # Only return snapshot-first render if we have rows; else fall through
+            if total_rows > 0:
+                return render_template(
+                    "index.html",
+                    rows=safe_rows,
+                    total_rows=total_rows,
+                    date_val=target_date,
+                    top_picks=[],
+                    accuracy=accuracy,
+                    uniform_note=uniform_note,
+                    dynamic_css=dynamic_css,
+                    coverage_note=coverage_note,
+                    results_note=results_note,
+                    show_edges=True,
+                    coverage={},
+                    archive_dates=archive_dates,
+                    show_bootstrap=show_bootstrap,
+                    compact_mode=compact_mode,
+                    bootstrap_url=bootstrap_url,
+                    show_diag=show_diag,
+                    diag_url=diag_url,
+                    fused_bootstrap_url=fused_bootstrap_url,
+                    refresh_odds_url=refresh_odds_url,
+                    removed_empty_rows=removed_empty_rows,
+                    status=status,
+                    pipeline_stats=pipeline_stats,
+                )
     except Exception:
         pass
     # Probability calibration enable flag (?cal_probs=1 or env CALIBRATE_PROBS=1)
@@ -5313,30 +5315,34 @@ def index():
                 archive_dates = sorted(set(archive_dates))
             except Exception:
                 archive_dates = []
-            # Early return rendering from stable artifact, include source context for parity checks
-            return render_template(
-                "index.html",
-                rows=rows,
-                total_rows=total_rows,
-                date_val=date_stable,
-                top_picks=[],
-                accuracy=accuracy,
-                uniform_note=None,
-                dynamic_css=None,
-                coverage_note=None,
-                results_note=None,
-                show_edges=True,
-                coverage=coverage_summary,
-                archive_dates=archive_dates,
-                show_bootstrap=False,
-                bootstrap_url=None,
-                show_diag=False,
-                diag_url=None,
-                fused_bootstrap_url=None,
-                refresh_odds_url=None,
-                source_path=str(path),
-                source_rows=total_rows,
-            )
+            # Only return stable artifact render if we have rows; else fall through to general pipeline
+            if total_rows > 0:
+                return render_template(
+                    "index.html",
+                    rows=rows,
+                    total_rows=total_rows,
+                    date_val=date_stable,
+                    top_picks=[],
+                    accuracy=accuracy,
+                    uniform_note=None,
+                    dynamic_css=None,
+                    coverage_note=None,
+                    results_note=None,
+                    show_edges=True,
+                    coverage=coverage_summary,
+                    archive_dates=archive_dates,
+                    show_bootstrap=False,
+                    bootstrap_url=None,
+                    show_diag=False,
+                    diag_url=None,
+                    fused_bootstrap_url=None,
+                    refresh_odds_url=None,
+                    source_path=str(path),
+                    source_rows=total_rows,
+                )
+            else:
+                pipeline_stats['stable_display_rows'] = 0
+                pipeline_stats['stable_fallback_to_general'] = True
         except Exception as _stable_e:
             pipeline_stats['stable_display_error'] = str(_stable_e)[:160]
     team_variance_total: dict[str, float] | None = None
