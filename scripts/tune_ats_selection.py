@@ -63,7 +63,7 @@ def build_frame(days: int) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
-def compute_selection_metrics(df: pd.DataFrame, tau: float, sigma_max: float, pmin: float, use_closing: bool = False) -> dict:
+def compute_selection_metrics(df: pd.DataFrame, tau: float, sigma_max: float, pmin: float, use_closing: bool = False, prob_side: bool = False, prob_threshold: float = 0.5, prob_side_strict: bool = False) -> dict:
     # Market-implied margin is -home_spread
     if use_closing:
         hs = pd.to_numeric(df.get('closing_spread_home'), errors='coerce')
@@ -78,6 +78,12 @@ def compute_selection_metrics(df: pd.DataFrame, tau: float, sigma_max: float, pm
     mismatch = df.get('flag_market_margin_mismatch')
     if mismatch is None:
         mismatch = pd.Series(False, index=df.index)
+    else:
+        try:
+            # Silence FutureWarning by inferring objects before astype
+            mismatch = mismatch.fillna(False).infer_objects(copy=False).astype(bool)
+        except Exception:
+            mismatch = mismatch.fillna(False).map(lambda x: bool(x))
     delta = pred_blend.sub(mkt_margin)
     sel = delta.abs().ge(tau)
     if sigma_max > 0 and sigma.notna().any():
@@ -86,25 +92,49 @@ def compute_selection_metrics(df: pd.DataFrame, tau: float, sigma_max: float, pm
         sel = sel & p_cover.ge(pmin)
     sel = sel & (~mismatch)
 
-    picks = df[sel].copy()
+    # Probability-side gating: require either home or away probability >= threshold
+    if prob_side:
+        p_avail = p_cover.notna()
+        prob_home_ok = p_cover.ge(prob_threshold)
+        prob_away_ok = (1.0 - p_cover).ge(prob_threshold)
+        sel_prob = sel & p_avail & (prob_home_ok | prob_away_ok)
+        if prob_side_strict:
+            sel_final = sel_prob
+        else:
+            sel_delta = sel & (~p_avail)
+            sel_final = sel_prob | sel_delta
+    else:
+        sel_final = sel
+
+    picks = df[sel_final].copy()
     n = len(picks)
     if n == 0:
         return {'n': 0, 'accuracy': None, 'home_count': 0, 'away_count': 0, 'pushes': 0}
     # Actual home cover when actual_margin > -home_spread (push at equality)
     home_cover = actual_margin.gt(-hs)
     push_mask = actual_margin.eq(-hs)
-    pred_home = delta.gt(0)
-    valid_mask = sel & (~push_mask)
+    # Side decision: probability-based only when enabled and available; otherwise delta sign
+    if prob_side:
+        p_avail = p_cover.notna()
+        pred_home = pd.Series(False, index=df.index)
+        # Use probability-based side when available
+        pred_home.loc[p_avail] = p_cover.loc[p_avail].ge(prob_threshold)
+        # Fallback to delta sign when probability unavailable (unless strict)
+        if not prob_side_strict:
+            pred_home.loc[~p_avail] = delta.loc[~p_avail].gt(0)
+    else:
+        pred_home = delta.gt(0)
+    valid_mask = sel_final & (~push_mask)
     if not valid_mask.any():
-        return {'n': int(sel.sum()), 'accuracy': None, 'home_count': int(pred_home[sel].sum()), 'away_count': int(int(sel.sum()) - int(pred_home[sel].sum())), 'pushes': int(push_mask[sel].sum())}
+        return {'n': int(sel_final.sum()), 'accuracy': None, 'home_count': int(pred_home[sel_final].sum()), 'away_count': int(int(sel_final.sum()) - int(pred_home[sel_final].sum())), 'pushes': int(push_mask[sel_final].sum())}
     correct = (home_cover == pred_home)
     acc = float(np.mean(correct[valid_mask])) if valid_mask.any() else None
     return {
-        'n': int(sel.sum()),
+        'n': int(sel_final.sum()),
         'accuracy': acc,
-        'home_count': int(pred_home[sel].sum()),
-        'away_count': int(int(sel.sum()) - int(pred_home[sel].sum())),
-        'pushes': int(push_mask[sel].sum()),
+        'home_count': int(pred_home[sel_final].sum()),
+        'away_count': int(int(sel_final.sum()) - int(pred_home[sel_final].sum())),
+        'pushes': int(push_mask[sel_final].sum()),
     }
 
 
@@ -114,6 +144,9 @@ def main():
     ap.add_argument('--target-accuracy', type=float, default=0.75)
     ap.add_argument('--min-coverage', type=int, default=0)
     ap.add_argument('--use-closing', action='store_true', help='Prefer closing_spread_home for tuning/evaluation when available')
+    ap.add_argument('--use-prob-side', action='store_true', help='Use probability-based side (home if p_home_cover>=threshold) when available')
+    ap.add_argument('--prob-side-threshold', type=float, default=0.55, help='Threshold for probability-based side; e.g., 0.55 means home if p_home_cover>=0.55, away otherwise')
+    ap.add_argument('--prob-side-strict', action='store_true', help='Strict gating: only select rows with probability available and meeting the threshold; no delta fallback when probability missing')
     args = ap.parse_args()
 
     df = build_frame(args.window_days)
@@ -127,7 +160,7 @@ def main():
     for tau in grid_tau:
         for smax in grid_sigma:
             for pmin in grid_pmin:
-                met = compute_selection_metrics(df, tau, smax, pmin, use_closing=args.use_closing)
+                met = compute_selection_metrics(df, tau, smax, pmin, use_closing=args.use_closing, prob_side=args.use_prob_side, prob_threshold=args.prob_side_threshold, prob_side_strict=args.prob_side_strict)
                 evals.append({'tau': tau, 'sigma_max': smax, 'pmin': pmin, **met})
     best = None
     # Selection logic mirrors OU
@@ -166,7 +199,7 @@ def main():
         fb_best_acc = -1.0
         fb_best_cov = -1
         for tau, smax, pmin in fallback_candidates:
-            met = compute_selection_metrics(df, tau, smax, pmin, use_closing=args.use_closing)
+            met = compute_selection_metrics(df, tau, smax, pmin, use_closing=args.use_closing, prob_side=args.use_prob_side, prob_threshold=args.prob_side_threshold, prob_side_strict=args.prob_side_strict)
             if met['n'] > 0 and met['accuracy'] is not None:
                 acc = float(met['accuracy']); cov = int(met['n'])
                 if acc > fb_best_acc or (acc == fb_best_acc and cov > fb_best_cov):
@@ -190,7 +223,7 @@ def main():
         best = fb_best
         if best is None:
             tau_fallback = 8.0
-            met = compute_selection_metrics(df, tau_fallback, 0.0, 0.0, use_closing=args.use_closing)
+            met = compute_selection_metrics(df, tau_fallback, 0.0, 0.0, use_closing=args.use_closing, prob_side=args.use_prob_side, prob_threshold=args.prob_side_threshold, prob_side_strict=args.prob_side_strict)
             best = {
                 'tau': float(tau_fallback),
                 'sigma_max': 0.0,

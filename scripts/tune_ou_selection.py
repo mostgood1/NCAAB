@@ -73,6 +73,11 @@ def compute_selection_metrics(df: pd.DataFrame, tau: float, sigma_max: float, pm
     mismatch = df.get('flag_market_total_mismatch')
     if mismatch is None:
         mismatch = pd.Series(False, index=df.index)
+    else:
+        try:
+            mismatch = mismatch.fillna(False).astype(bool)
+        except Exception:
+            mismatch = mismatch.fillna(False).map(lambda x: bool(x))
     delta = pred_blend.sub(mkt)
     sel = delta.abs().ge(tau)
     if sigma_max > 0 and sigma.notna().any():
