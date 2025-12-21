@@ -18804,6 +18804,93 @@ def api_recommendations():
         picks = pd.read_csv(raw_path) if raw_path.exists() else _load_picks()
     except Exception:
         picks = pd.DataFrame()
+    # If we have base picks_raw but no totals, synthesize gated totals and append
+    try:
+        if isinstance(picks, pd.DataFrame) and not picks.empty and date_q:
+            has_ou = False
+            try:
+                if 'rec_code' in picks.columns:
+                    has_ou = picks['rec_code'].astype(str).str.upper().eq('OU').any()
+                if (not has_ou) and 'market' in picks.columns:
+                    has_ou = picks['market'].astype(str).str.lower().str.contains('total').any()
+            except Exception:
+                has_ou = False
+            if not has_ou:
+                # Try enriched display snapshot for the date and add gated totals
+                dpath3 = OUT / f"predictions_unified_enriched_{date_q}.csv"
+                ddf3 = pd.read_csv(dpath3) if dpath3.exists() else pd.DataFrame()
+                if not ddf3.empty:
+                    try:
+                        # Determine probabilities
+                        def _side3(r: pd.Series) -> str:
+                            try:
+                                p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
+                            except Exception:
+                                p_hi = 0.52
+                            try:
+                                p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
+                            except Exception:
+                                p_lo = 0.48
+                            p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                            if p is not None and str(p).strip()!='':
+                                try:
+                                    pv = float(p)
+                                    if pv >= p_hi:
+                                        return 'Over'
+                                    if pv <= p_lo:
+                                        return 'Under'
+                                except Exception:
+                                    pass
+                            # Fallback to edge_total
+                            try:
+                                et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                                if np.isfinite(et):
+                                    return 'Over' if et >= 0 else 'Under'
+                            except Exception:
+                                pass
+                            return 'Over'
+                        df_keep3 = pd.DataFrame()
+                        try:
+                            try:
+                                p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
+                            except Exception:
+                                p_hi = 0.52
+                            try:
+                                p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
+                            except Exception:
+                                p_lo = 0.48
+                            def _gate3(r: pd.Series) -> bool:
+                                p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                                b = _side3(r)
+                                try:
+                                    if p is not None and str(p).strip()!='':
+                                        pv = float(p)
+                                        return (pv >= p_hi and b=='Over') or (pv <= p_lo and b=='Under')
+                                    return False
+                                except Exception:
+                                    return False
+                            df_keep3 = ddf3[ddf3.apply(_gate3, axis=1)]
+                        except Exception:
+                            df_keep3 = pd.DataFrame()
+                        if not df_keep3.empty:
+                            extra = pd.DataFrame()
+                            extra['game_id'] = df_keep3.get('game_id')
+                            extra['date'] = date_q
+                            extra['home_team'] = df_keep3.get('home_team') if 'home_team' in df_keep3.columns else df_keep3.get('home_team_name')
+                            extra['away_team'] = df_keep3.get('away_team') if 'away_team' in df_keep3.columns else df_keep3.get('away_team_name')
+                            extra['market'] = 'totals'; extra['period'] = 'full_game'
+                            extra['bet'] = df_keep3.apply(_side3, axis=1)
+                            extra['line'] = df_keep3.get('market_total') if 'market_total' in df_keep3.columns else None
+                            extra['price'] = None
+                            extra['edge'] = df_keep3.get('edge_total')
+                            extra['pred_total'] = df_keep3.get('pred_total')
+                            extra['pred_margin'] = df_keep3.get('pred_margin')
+                            extra['rec_type'] = 'Totals'; extra['rec_code'] = 'OU'
+                            picks = pd.concat([picks, extra], ignore_index=True)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
     # 1.a) If base picks are empty, try ATS picks per-date
     if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
         try:
