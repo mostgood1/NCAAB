@@ -231,6 +231,7 @@ import json
 import pandas as pd
 import re
 import io
+from src.ncaab_model.config import settings
 
 def _load_all_daily_results() -> pd.DataFrame:
     try:
@@ -17702,7 +17703,7 @@ def recommendations():
                     tot_mask = pd.Series([False]*len(edges))
                 tots = edges[tot_mask].copy()
                 if not tots.empty:
-                    def _tot_side(r: pd.Series) -> str:
+                    def _tot_side(r: pd.Series) -> str | None:
                         try:
                             pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
                             ln = float(r.get('total')) if r.get('total') is not None else np.nan
@@ -17710,8 +17711,12 @@ def recommendations():
                                 return 'Over' if pt > ln else 'Under'
                         except Exception:
                             pass
-                        return 'Over'  # default
+                        return None  # insufficient info; avoid defaulting to Over
                     tots['bet'] = tots.apply(_tot_side, axis=1)
+                    try:
+                        tots = tots[~tots['bet'].isna()]
+                    except Exception:
+                        pass
                     tots['line'] = tots['total']
                     def _tot_price(r: pd.Series):
                         try:
@@ -17852,7 +17857,7 @@ def recommendations():
                     tot_mask = edges['market'].astype(str).str.lower() == 'totals' if 'market' in edges.columns else pd.Series([False]*len(edges))
                     tots = edges[tot_mask].copy()
                     if not tots.empty:
-                        def _tot_side(r: pd.Series) -> str:
+                        def _tot_side(r: pd.Series) -> str | None:
                             try:
                                 pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
                                 ln = float(r.get('total')) if r.get('total') is not None else np.nan
@@ -17860,8 +17865,12 @@ def recommendations():
                                     return 'Over' if pt > ln else 'Under'
                             except Exception:
                                 pass
-                            return 'Over'
+                            return None
                         tots['bet'] = tots.apply(_tot_side, axis=1)
+                        try:
+                            tots = tots[~tots['bet'].isna()]
+                        except Exception:
+                            pass
                         tots['line'] = tots['total']
                         tots['price'] = tots.apply(lambda r: r['over_price'] if str(r.get('bet')).lower() == 'over' else r['under_price'], axis=1)
                         tots['edge'] = tots['edge_total'].abs() if 'edge_total' in tots.columns else None
@@ -18384,9 +18393,7 @@ def recommendations():
                             side = 'Over' if et >= 0 else 'Under'
                         except Exception:
                             side = None
-                    # As a last resort, avoid numeric-only label: default to Over when line exists
-                    if side is None and ln is not None:
-                        side = 'Over'
+                    # If side cannot be determined, do not force a default
                     if ln is not None:
                         return f"{side or ''} {('%.1f' % ln)}".strip()
                     return f"{side or ''}".strip()
@@ -18495,8 +18502,8 @@ def recommendations():
             })
         # Final label repair: ensure OU rows include Over/Under and propagate into 'bet' if needed
         try:
-            # Load display snapshot for per-game predicted/market totals as a robust fallback
-            pt_map = {}; mt_map = {}
+            # Load display snapshot for per-game predicted/market totals and p_over as robust fallbacks
+            pt_map = {}; mt_map = {}; po_map = {}
             try:
                 if disp_date:
                     import os as _os
@@ -18509,8 +18516,10 @@ def recommendations():
                                 pt_map = dict(zip(_dfd['game_id'], _dfd['pred_total']))
                             if 'market_total' in _dfd.columns:
                                 mt_map = dict(zip(_dfd['game_id'], _dfd['market_total']))
+                            if 'p_over' in _dfd.columns:
+                                po_map = dict(zip(_dfd['game_id'], _dfd['p_over']))
             except Exception:
-                pt_map = {}; mt_map = {}
+                pt_map = {}; mt_map = {}; po_map = {}
             for oi in out_items:
                 codeu = (oi.get('code') or '').upper()
                 if codeu == 'OU':
@@ -18575,15 +18584,62 @@ def recommendations():
                                 side = 'Over' if et >= 0 else 'Under'
                             except Exception:
                                 side = None
-                    # As a last resort, avoid numeric-only label: default to Over when line exists
-                    if side is None and ln_f is not None:
-                        side = 'Over'
+                    # If we cannot determine side, do not force a default
                     if side:
                         new_lbl = f"{side} {('%.1f' % ln_f) if ln_f is not None else ''}".strip()
                         oi['bet_label'] = new_lbl
                         oi['bet'] = new_lbl
         except Exception:
             pass
+        # Apply OU probability gating if thresholds are configured
+        try:
+            hi = settings.p_over_threshold_high
+            lo = settings.p_over_threshold_low
+            if (hi is not None) or (lo is not None):
+                def _ou_keep(it_row: dict) -> bool:
+                    try:
+                        codeu = str(it_row.get('code') or it_row.get('rec_code') or '').upper()
+                        if codeu != 'OU':
+                            return True
+                        gid = str(it_row.get('game_id') or '')
+                        p = None
+                        # Prefer item p_over if present
+                        v = it_row.get('p_over')
+                        if v is not None and str(v).strip()!='':
+                            try:
+                                p = float(v)
+                            except Exception:
+                                p = None
+                        # Fallback to display mapping
+                        if (p is None) and gid and (gid in po_map):
+                            try:
+                                p = float(po_map[gid])
+                            except Exception:
+                                p = None
+                        # As a hard fallback, derive binary over/under from pred_total vs line
+                        if p is None:
+                            ln_f = it_row.get('line') or it_row.get('market_total')
+                            pt_i = it_row.get('pred_total')
+                            try:
+                                if (ln_f is not None) and (pt_i is not None) and str(ln_f).strip()!='' and str(pt_i).strip()!='':
+                                    p = 1.0 if float(pt_i) > float(ln_f) else 0.0
+                            except Exception:
+                                p = None
+                        if p is None:
+                            # If probability unavailable, do not gate out
+                            return True
+                        if (hi is not None) and (p >= float(hi)):
+                            return True
+                        if (lo is not None) and (p <= float(lo)):
+                            return True
+                        # Between thresholds: skip totals recommendation to reduce bias
+                        return False
+                    except Exception:
+                        return True
+                out_items = [it for it in out_items if _ou_keep(it)]
+        except Exception:
+            pass
+
         # Include ISO start for client-side local-time rendering (derive from display fields first)
         iso_rep = None
         try:
