@@ -53,6 +53,7 @@ function Upload-File {
 $picksPath   = Join-Path -Path $OutputsDir -ChildPath 'picks_raw.csv'
 $edgesPath   = Join-Path -Path $OutputsDir -ChildPath ("align_period_{0}_edges.csv" -f $Date)
 $displayPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.csv" -f $Date)
+$resultsPath = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
 
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
 Write-Step "Outputs dir: $OutputsDir"
@@ -81,6 +82,15 @@ if ($u2) { Write-Host "[OK] edges uploaded: rows=$($u2.rows)" -ForegroundColor G
 $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayPath -Query @{ date = $Date }
 if ($u3) { Write-Host "[OK] display uploaded: rows=$($u3.rows)" -ForegroundColor Green }
 
+# Upload daily results if present
+$resRows = Get-CsvRowCount -Path $resultsPath
+if ($resRows -gt 0) {
+    $u4 = Upload-File -Uri "$BaseUrl/api/upload_daily_results" -FilePath $resultsPath -Query @{ date = $Date }
+    if ($u4) { Write-Host "[OK] results uploaded: rows=$($u4.rows)" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] daily results missing or empty for $Date" -ForegroundColor Yellow
+}
+
 # Verify artifacts and recommendations presence
 Write-Step "Verifying debug_artifacts and recommendations"
 $debug = $null
@@ -101,6 +111,16 @@ try {
     }
 } catch {
     Write-Host "[Warn] recommendations check failed: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
+# Verify results archive for the date
+Write-Step "Verifying results archive"
+try {
+    $res = Invoke-RestMethod -Uri "$BaseUrl/api/results?date=$Date" -Method Get
+    $n = if ($res.rows) { ($res.rows | Measure-Object).Count } else { 0 }
+    Write-Host "[Check] results rows=$n (date=$Date)" -ForegroundColor White
+} catch {
+    Write-Host "[Warn] results check failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
 # Optional redeploy trigger via Render deploy hook
