@@ -66,7 +66,12 @@ function Get-CsvRowCount {
     try {
         $rows = Import-Csv -LiteralPath $Path -ErrorAction Stop
         return ($rows | Measure-Object).Count
-    } catch { return 0 }
+    } catch {
+        try {
+            $lines = Get-Content -LiteralPath $Path -ErrorAction Stop
+            if ($lines -and $lines.Count -gt 1) { return ($lines.Count - 1) } else { return 0 }
+        } catch { return 0 }
+    }
 }
 
 # Upload in preferred order: picks_raw -> ATS picks(date) -> edges(date) -> display(date) -> enriched(date)
