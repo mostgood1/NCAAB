@@ -18804,6 +18804,76 @@ def api_recommendations():
         picks = pd.read_csv(raw_path) if raw_path.exists() else _load_picks()
     except Exception:
         picks = pd.DataFrame()
+    # 1.a) If base picks are empty, try ATS picks per-date
+    if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
+        try:
+            if date_q:
+                ats_path = OUT / 'picks' / f'ats_picks_{date_q}.csv'
+                if ats_path.exists():
+                    ats_df = pd.read_csv(ats_path)
+                    if not ats_df.empty:
+                        # Deduplicate columns if any repeated headers
+                        try:
+                            ats_df = ats_df.loc[:, ~ats_df.columns.duplicated()]
+                        except Exception:
+                            pass
+                        # Normalize columns
+                        cols = {c.lower(): c for c in ats_df.columns}
+                        def getc(name: str):
+                            return ats_df[cols[name]] if name in cols else None
+                        # Build picks-like frame for ATS
+                        out = pd.DataFrame()
+                        out['game_id'] = getc('game_id')
+                        out['date'] = date_q
+                        out['home_team'] = getc('home_team')
+                        out['away_team'] = getc('away_team')
+                        # Selection side
+                        side_series = getc('ats_side')
+                        if side_series is not None:
+                            out['bet'] = side_series.astype(str).str.lower()
+                        else:
+                            out['bet'] = 'home'
+                        # Derive line from closing_spread_home (fallback to spread_home)
+                        try:
+                            csh = pd.to_numeric(getc('closing_spread_home'), errors='coerce')
+                        except Exception:
+                            csh = None
+                        try:
+                            sh = pd.to_numeric(getc('spread_home'), errors='coerce')
+                        except Exception:
+                            sh = None
+                        def _line_for_row(idx: int) -> float | None:
+                            try:
+                                ln_home = None
+                                if csh is not None and idx < len(csh):
+                                    ln_home = float(csh.iloc[idx]) if pd.notna(csh.iloc[idx]) else None
+                                if (ln_home is None) and (sh is not None) and idx < len(sh):
+                                    ln_home = float(sh.iloc[idx]) if pd.notna(sh.iloc[idx]) else None
+                                sel = str(out['bet'].iloc[idx]).lower()
+                                if ln_home is None:
+                                    return None
+                                return ln_home if sel == 'home' else (0 - ln_home)
+                            except Exception:
+                                return None
+                        out['line'] = [ _line_for_row(i) for i in range(len(out)) ]
+                        # Price not available; leave None
+                        out['price'] = None
+                        # Edge from delta if present
+                        try:
+                            delt = pd.to_numeric(getc('_delta'), errors='coerce')
+                            out['edge'] = delt.abs()
+                        except Exception:
+                            out['edge'] = None
+                        # Predicted margin
+                        try:
+                            pm = pd.to_numeric(getc('_pred_margin_blend'), errors='coerce')
+                            out['pred_margin'] = pm
+                        except Exception:
+                            out['pred_margin'] = None
+                        out['rec_type'] = 'Spread'; out['rec_code'] = 'ATS'
+                        picks = out
+        except Exception:
+            pass
     # 2) If empty, derive from edges (full_game period)
     if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
         try:
@@ -19613,6 +19683,84 @@ def api_upload_daily_results():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/upload_ats_picks", methods=["POST"])
+def api_upload_ats_picks():
+    """Upload ATS picks CSV for a given date.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/picks/ats_picks_<date>.csv so Render can serve ATS recommendations.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV content
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        # Write to outputs/picks/ats_picks_<date>.csv
+        out_dir = OUT / "picks"
+        out_path = out_dir / f"ats_picks_{date_q}.csv"
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/upload_predictions_enriched", methods=["POST"])
+def api_upload_predictions_enriched():
+    """Upload enriched predictions snapshot for a given date.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/predictions_unified_enriched_<date>.csv for recommendations parity.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        # Write to outputs/predictions_unified_enriched_<date>.csv
+        out_path = OUT / f"predictions_unified_enriched_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/api/debug_artifacts")
 def api_debug_artifacts():
     """Diagnostics for per-date artifacts and resolved outputs directory.
@@ -19623,8 +19771,10 @@ def api_debug_artifacts():
     Returns counts and presence booleans for:
     - picks_raw.csv
     - picks_raw_<date>.csv
+    - picks/ats_picks_<date>.csv
     - align_period_<date>_edges.csv
     - predictions_display_<date>.csv
+    - predictions_unified_enriched_<date>.csv
     Also echoes the resolved OUT path.
     """
     try:
@@ -19655,6 +19805,13 @@ def api_debug_artifacts():
             resp["artifacts"][f"align_period_{date_q}_edges.csv"] = {"exists": e_date.exists(), "rows": int(len(dfe)) if not dfe.empty else 0, "path": str(e_date)}
         except Exception as e:
             resp["artifacts"][f"align_period_{date_q}_edges.csv"] = {"error": str(e)}
+        # ATS picks (per-date)
+        try:
+            ap_date = OUT / "picks" / f"ats_picks_{date_q}.csv"
+            apdf = _safe_read_csv(ap_date)
+            resp["artifacts"][f"picks/ats_picks_{date_q}.csv"] = {"exists": ap_date.exists(), "rows": int(len(apdf)) if not apdf.empty else 0, "path": str(ap_date)}
+        except Exception as e:
+            resp["artifacts"][f"picks/ats_picks_{date_q}.csv"] = {"error": str(e)}
         # Display snapshot
         try:
             d_date = OUT / f"predictions_display_{date_q}.csv"
@@ -19662,6 +19819,13 @@ def api_debug_artifacts():
             resp["artifacts"][f"predictions_display_{date_q}.csv"] = {"exists": d_date.exists(), "rows": int(len(dfdsp)) if not dfdsp.empty else 0, "path": str(d_date)}
         except Exception as e:
             resp["artifacts"][f"predictions_display_{date_q}.csv"] = {"error": str(e)}
+        # Enriched snapshot
+        try:
+            en_date = OUT / f"predictions_unified_enriched_{date_q}.csv"
+            endf = _safe_read_csv(en_date)
+            resp["artifacts"][f"predictions_unified_enriched_{date_q}.csv"] = {"exists": en_date.exists(), "rows": int(len(endf)) if not endf.empty else 0, "path": str(en_date)}
+        except Exception as e:
+            resp["artifacts"][f"predictions_unified_enriched_{date_q}.csv"] = {"error": str(e)}
         # Daily results
         try:
             dr_date = OUT / "daily_results" / f"results_{date_q}.csv"
