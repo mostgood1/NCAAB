@@ -22,12 +22,18 @@ class Settings(BaseSettings):
     # Team mapping (optional): CSV to harmonize team names across providers
     team_map_path: Path | None = None
 
+    # Recommendation gating thresholds (optional; read from env)
+    # Maps to env vars: NCAAB_P_OVER_THRESHOLD_HIGH / NCAAB_P_OVER_THRESHOLD_LOW
+    p_over_threshold_high: float | None = None
+    p_over_threshold_low: float | None = None
+
     # pydantic-settings v2 configuration
     model_config = SettingsConfigDict(
         env_prefix="NCAAB_",
         case_sensitive=False,
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
 
