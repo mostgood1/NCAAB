@@ -40,13 +40,13 @@
     "pred_total_pick",
     "pred_total_sigma_bootstrap"
   ],
-  "rows_total": 2482,
+  "rows_total": 2604,
   "cover": {
     "rows": 492,
     "auc": NaN
   },
   "over": {
-    "rows": 2482,
+    "rows": 2604,
     "auc": NaN
   }
 }

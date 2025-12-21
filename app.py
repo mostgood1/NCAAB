@@ -214,7 +214,8 @@ try:
                 '/api/debug_artifacts',
                 '/api/upload_picks_raw',
                 '/api/upload_predictions_display',
-                '/api/upload_align_edges'
+                '/api/upload_align_edges',
+                '/api/upload_daily_results'
             }
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
@@ -5013,10 +5014,12 @@ def index():
                 df_snap = filtered if not filtered.empty else df_snap
             except Exception:
                 pass
-            # Drop synthetic placeholder games (non-real)
+            # Drop synthetic/odds placeholder games (non-real)
             try:
                 if 'game_id' in df_snap.columns:
-                    df_snap = df_snap[~df_snap['game_id'].astype(str).str.startswith('synthetic:')]
+                    gser = df_snap['game_id'].astype(str)
+                    mask = gser.str.startswith('synthetic:') | gser.str.startswith('odds:')
+                    df_snap = df_snap[~mask]
             except Exception:
                 pass
             rows = []
@@ -5266,10 +5269,12 @@ def index():
                 df_tpl = df_stable.where(pd.notna(df_stable), None)
             except Exception:
                 df_tpl = df_stable
-            # Drop synthetic placeholder games (non-real)
+            # Drop synthetic/odds placeholder games (non-real)
             try:
                 if 'game_id' in df_tpl.columns:
-                    df_tpl = df_tpl[~df_tpl['game_id'].astype(str).str.startswith('synthetic:')]
+                    gser2 = df_tpl['game_id'].astype(str)
+                    mask2 = gser2.str.startswith('synthetic:') | gser2.str.startswith('odds:')
+                    df_tpl = df_tpl[~mask2]
             except Exception:
                 pass
             # Dedupe by game_id to avoid repeated rows from upstream joins
@@ -16278,6 +16283,12 @@ def index():
         safe_rows = sorted(safe_rows, key=lambda r: (_central_ts(r) or pd.NaT))
     except Exception:
         pass
+    # Final filter: remove synthetic/odds placeholder games from general pipeline fall-through
+    try:
+        safe_rows = [r for r in safe_rows if not str(r.get('game_id') or '').startswith('synthetic:') and not str(r.get('game_id') or '').startswith('odds:')]
+        total_rows = len(safe_rows)
+    except Exception:
+        pass
     return render_template(
         "index.html",
         rows=safe_rows,
@@ -18191,6 +18202,11 @@ def recommendations():
                 r['away_text'] = _brand(r.get('away_team') or r.get('away_team_name'), 'text')
         except Exception:
             pass
+        # Filter out synthetic/odds placeholder games to keep recommendations real
+        try:
+            norm_rows = [r for r in norm_rows if not str(r.get('game_id') or '').startswith('synthetic:') and not str(r.get('game_id') or '').startswith('odds:')]
+        except Exception:
+            pass
         return render_template("recommendations.html", rows=norm_rows, total_rows=len(norm_rows))
     # Build grouped view: best per type for each game
     from collections import defaultdict
@@ -18974,6 +18990,14 @@ def api_recommendations():
     branding = _load_branding_map()
     if isinstance(picks, pd.DataFrame) and not picks.empty:
         df = picks.copy()
+        # Drop synthetic/odds placeholder game_id entries to keep payload real
+        try:
+            if 'game_id' in df.columns:
+                df['game_id'] = df['game_id'].astype(str)
+                bad = df['game_id'].str.startswith('synthetic:') | df['game_id'].str.startswith('odds:')
+                df = df[~bad]
+        except Exception:
+            pass
         # Compute abs edge for ordering
         if 'edge' in df.columns:
             try:
@@ -19490,6 +19514,46 @@ def api_upload_align_edges():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/upload_daily_results", methods=["POST"])
+def api_upload_daily_results():
+    """Upload daily results CSV for a given date.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/daily_results/results_<date>.csv so Render can serve recaps.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV content
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        # Write to outputs/daily_results/results_<date>.csv
+        out_dir = OUT / "daily_results"
+        out_path = out_dir / f"results_{date_q}.csv"
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/debug_artifacts")
 def api_debug_artifacts():
     """Diagnostics for per-date artifacts and resolved outputs directory.
@@ -19539,6 +19603,13 @@ def api_debug_artifacts():
             resp["artifacts"][f"predictions_display_{date_q}.csv"] = {"exists": d_date.exists(), "rows": int(len(dfdsp)) if not dfdsp.empty else 0, "path": str(d_date)}
         except Exception as e:
             resp["artifacts"][f"predictions_display_{date_q}.csv"] = {"error": str(e)}
+        # Daily results
+        try:
+            dr_date = OUT / "daily_results" / f"results_{date_q}.csv"
+            drdf = _safe_read_csv(dr_date)
+            resp["artifacts"][f"results_{date_q}.csv"] = {"exists": dr_date.exists(), "rows": int(len(drdf)) if not drdf.empty else 0, "path": str(dr_date)}
+        except Exception as e:
+            resp["artifacts"][f"results_{date_q}.csv"] = {"error": str(e)}
     return jsonify(resp)
 
 
