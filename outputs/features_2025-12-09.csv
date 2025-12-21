@@ -1,0 +1,36 @@
+game_id,date,home_team,away_team,home_off_rating,away_off_rating,home_def_rating,away_def_rating,home_tempo_rating,away_tempo_rating,tempo_rating_sum
+401830127,2025-12-09,UL Monroe Warhawks,Arkansas Baptist Buffaloes,107.0,108.0,100.0,92.0,69.0,70.0,139.0
+401823432,2025-12-09,UMBC Retrievers,Buffalo Bulls,102.0,104.0,94.0,96.0,74.0,74.0,148.0
+401820191,2025-12-09,VMI Keydets,Loyola Maryland Greyhounds,108.0,103.0,99.0,97.0,73.0,71.0,144.0
+401812669,2025-12-09,Holy Cross Crusaders,Regis Pride,104.0,110.0,99.0,99.0,71.0,72.0,143.0
+401823566,2025-12-09,Michigan Wolverines,Villanova Wildcats,102.0,108.0,94.0,92.0,68.0,69.0,137.0
+401812923,2025-12-09,BYU Cougars,Clemson Tigers,105.0,104.0,98.0,96.0,71.0,71.0,142.0
+401827071,2025-12-09,Winthrop Eagles,Toccoa Falls Eagles,106.0,104.0,94.0,96.0,69.0,70.0,139.0
+401824872,2025-12-09,Furman Paladins,Bob Jones Bruins,104.0,103.0,96.0,97.0,73.0,72.0,145.0
+401817513,2025-12-09,Virginia Cavaliers,Maryland Eastern Shore Hawks,109.0,102.0,98.0,98.0,70.0,72.0,142.0
+401829439,2025-12-09,The Citadel Bulldogs,Southern Wesleyan Warriors,108.0,104.0,99.0,96.0,72.0,71.0,143.0
+401829432,2025-12-09,Chattanooga Mocs,Oakwood Ambassadors,107.0,109.0,100.0,100.0,69.0,68.0,137.0
+401828738,2025-12-09,Kentucky Wildcats,North Carolina Central Eagles,106.0,102.0,94.0,94.0,70.0,70.0,140.0
+401827529,2025-12-09,Howard Bison,North Carolina A&T Aggies,107.0,106.0,100.0,94.0,75.0,74.0,149.0
+401826839,2025-12-09,Temple Owls,Georgian Court Lions,102.0,107.0,94.0,93.0,69.0,69.0,138.0
+401823389,2025-12-09,Northern Kentucky Norse,Brescia Bearcats,103.0,108.0,97.0,92.0,75.0,77.0,152.0
+401822670,2025-12-09,Saint Joseph's Hawks,Coppin State Eagles,103.0,104.0,97.0,96.0,70.0,71.0,141.0
+401822395,2025-12-09,Lindenwood Lions,Culver-Stockton Wildcats,104.0,112.0,96.0,97.0,73.0,72.0,145.0
+401822326,2025-12-09,Ball State Cardinals,South Dakota State Jackrabbits,105.0,100.0,95.0,100.0,70.0,68.0,138.0
+401819920,2025-12-09,West Virginia Mountaineers,Little Rock Trojans,110.0,111.0,97.0,98.0,74.0,75.0,149.0
+401818536,2025-12-09,Stony Brook Seawolves,Columbia Lions,105.0,108.0,98.0,92.0,74.0,75.0,149.0
+401817170,2025-12-09,Rhode Island Rams,McNeese Cowboys,104.0,101.0,96.0,95.0,69.0,70.0,139.0
+401809082,2025-12-09,Rider Broncs,Bucknell Bison,108.0,105.0,99.0,95.0,73.0,73.0,146.0
+401825404,2025-12-09,Ohio State Buckeyes,Illinois Fighting Illini,103.0,103.0,97.0,97.0,71.0,71.0,142.0
+401818556,2025-12-09,Providence Friars,Brown Bears,109.0,106.0,98.0,94.0,67.0,67.0,134.0
+401829469,2025-12-09,Omaha Mavericks,Doane Tigers,105.0,101.0,98.0,95.0,75.0,76.0,151.0
+401813280,2025-12-09,DePaul Blue Demons,Morgan State Bears,106.0,107.0,94.0,93.0,74.0,75.0,149.0
+401825403,2025-12-09,Indiana Hoosiers,Penn State Nittany Lions,104.0,112.0,99.0,97.0,70.0,70.0,140.0
+401811111,2025-12-09,Wyoming Cowboys,South Dakota Coyotes,104.0,108.0,96.0,92.0,74.0,75.0,149.0
+401812793,2025-12-09,UConn Huskies,Florida Gators,105.0,103.0,95.0,97.0,72.0,70.0,142.0
+401826741,2025-12-09,Denver Pioneers,Colorado Christian Cougars,100.0,108.0,100.0,92.0,72.0,74.0,146.0
+401824114,2025-12-09,San Diego Toreros,USC Trojans,106.0,105.0,94.0,95.0,73.0,75.0,148.0
+401823811,2025-12-09,Colorado State Rams,Dartmouth Big Green,107.0,102.0,100.0,94.0,70.0,69.0,139.0
+401819820,2025-12-09,Arizona State Sun Devils,Northern Arizona Lumberjacks,105.0,112.0,98.0,97.0,74.0,73.0,147.0
+401823312,2025-12-09,San José State Spartans,Long Beach State Beach,105.0,111.0,98.0,98.0,70.0,71.0,141.0
+401820295,2025-12-09,California Golden Bears,Dominican (CA) Penguins,101.0,100.0,99.0,100.0,70.0,69.0,139.0

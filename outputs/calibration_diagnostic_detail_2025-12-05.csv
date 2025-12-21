@@ -1,0 +1,23 @@
+game_id,home_team,away_team,date,start_time,reason,has_model_total,has_model_margin,has_cal_total,has_cal_margin,basis_total,basis_margin
+401824034,Kentucky Wildcats,Gonzaga Bulldogs,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827112,Bethune-Cookman Wildcats,South Carolina State Bulldogs,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826979,High Point Panthers,NJIT Highlanders,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824891,East Tennessee State Buccaneers,South Alabama Jaguars,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822739,VCU Rams,Samford Bulldogs,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820582,Iona Gaels,Quinnipiac Bobcats,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820213,Lafayette Leopards,Mercyhurst Lakers,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401818554,Brown Bears,Bryant Bulldogs,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813380,Siena Saints,Niagara Purple Eagles,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813353,Saint Peter's Peacocks,Canisius Golden Griffins,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813324,Marist Red Foxes,Mount St. Mary's Mountaineers,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813299,Manhattan Jaspers,Fairfield Stags,2025-12-05,2025-12-06 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812792,UConn Huskies,East Texas A&M Lions,2025-12-05,2025-12-06 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827756,Eastern Michigan Eagles,Cleary University Cougars,2025-12-05,2025-12-06 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826875,Drake Bulldogs,UAB Blazers,2025-12-05,2025-12-06 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823519,VMI Keydets,Christendom Crusaders,2025-12-05,2025-12-06 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819847,Xavier Musketeers,Cincinnati Bearcats,2025-12-05,2025-12-06 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401808732,McNeese Cowboys,Northwestern State Demons,2025-12-05,2025-12-06 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812254,TCU Horned Frogs,Notre Dame Fighting Irish,2025-12-05,2025-12-06 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824113,San José State Spartans,San Diego Toreros,2025-12-05,2025-12-06 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824092,Portland Pilots,Lewis & Clark Pioneers,2025-12-05,2025-12-06 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401831241,Florida A&M Rattlers,Barber Scotia BARBER SCOTIA,2025-12-05,2025-12-05 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal

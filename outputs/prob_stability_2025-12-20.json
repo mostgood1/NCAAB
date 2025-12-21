@@ -1,0 +1,54 @@
+{
+  "date": "2025-12-20",
+  "js_threshold": 0.05,
+  "methods": {
+    "p_over_emp": {
+      "rows_today": 75,
+      "rows_prev": 28,
+      "js_divergence": 0.2717995689821743,
+      "flag_instability": true,
+      "mean_today": 0.36907419353590376,
+      "mean_prev": 0.39030482940736727
+    },
+    "p_over": {
+      "rows_today": 75,
+      "rows_prev": 28,
+      "js_divergence": 0.27014245456649344,
+      "flag_instability": true,
+      "mean_today": 0.37521817270851077,
+      "mean_prev": 0.3920905436684035
+    },
+    "p_home_cover_dist": {
+      "rows_today": 75,
+      "rows_prev": 28,
+      "js_divergence": 0.2558729021393834,
+      "flag_instability": true,
+      "mean_today": 0.6730999257376352,
+      "mean_prev": 0.7386876265060579
+    },
+    "p_over_dist": {
+      "rows_today": 75,
+      "rows_prev": 28,
+      "js_divergence": 0.2717995689821743,
+      "flag_instability": true,
+      "mean_today": 0.36907419353590376,
+      "mean_prev": 0.3903048294073672
+    },
+    "p_over_ensemble": {
+      "rows_today": 75,
+      "rows_prev": 28,
+      "js_divergence": 0.27179956898217433,
+      "flag_instability": true,
+      "mean_today": 0.37214618312220726,
+      "mean_prev": 0.3911976865378853
+    },
+    "p_over_final": {
+      "rows_today": 75,
+      "rows_prev": 28,
+      "js_divergence": 0.27179956898217433,
+      "flag_instability": true,
+      "mean_today": 0.37214618312220726,
+      "mean_prev": 0.3911976865378853
+    }
+  }
+}

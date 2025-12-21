@@ -1,0 +1,15 @@
+﻿{
+    "margin_mean":  5.44,
+    "total_mean":  66.84,
+    "total_var":  22.9453,
+    "margin_min":  -2.8021943718802365,
+    "margin_max":  16.384951908635404,
+    "margin_std":  5.8276,
+    "margin_var":  33.9605,
+    "total_min":  56.920000628903658,
+    "timestamp_utc":  "2025-12-10T20:30:34.2378854Z",
+    "total_max":  75.602531303501024,
+    "rows":  38,
+    "date":  "2025-12-10",
+    "total_std":  4.7901
+}

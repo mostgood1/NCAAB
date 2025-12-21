@@ -1,0 +1,8 @@
+{
+  "totals_bias": 5.167791958512931,
+  "window_days": 7,
+  "n_errors": 58,
+  "n_valid_games": 323,
+  "min_valid_games": 10,
+  "source": "recent-daily-results"
+}

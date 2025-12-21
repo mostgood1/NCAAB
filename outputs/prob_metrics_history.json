@@ -1,0 +1,29 @@
+{
+  "rows_results": 1391,
+  "rows_predictions": 1572,
+  "merged_rows": 1391,
+  "methods": [
+    {
+      "method": "p_over",
+      "outcome": "ou_outcome",
+      "rows": 799,
+      "brier": 0.48425858321652065,
+      "log_loss": 4.461130070106283,
+      "auc": 0.5132523017485763
+    },
+    {
+      "method": "p_home_cover_dist",
+      "outcome": "cover_home_outcome",
+      "rows": 799,
+      "brier": 0.11864892485087718,
+      "log_loss": 0.38611603790678667,
+      "auc": 0.8796626054358013
+    }
+  ],
+  "intervals": {
+    "coverage_90": 0.002156721782890007,
+    "coverage_95": 0.002156721782890007
+  },
+  "reliability_bins_path": "outputs\\prob_reliability_bins.csv",
+  "method_summary_path": "outputs\\prob_method_summary.csv"
+}

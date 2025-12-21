@@ -1,0 +1,78 @@
+{
+  "date": "2025-12-18",
+  "js_threshold": 0.05,
+  "methods": {
+    "p_home_cover_meta": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.6931471805599453,
+      "flag_instability": true,
+      "mean_today": 0.003031588776238041,
+      "mean_prev": 0.7020882390791358
+    },
+    "p_over_meta": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.6185513995174481,
+      "flag_instability": true,
+      "mean_today": 0.00013794503441048894,
+      "mean_prev": 0.4893690540116519
+    },
+    "p_over_emp": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.23548021900707794,
+      "flag_instability": true,
+      "mean_today": 0.38032608869939244,
+      "mean_prev": 0.4893690540116519
+    },
+    "p_over": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.22979453920182055,
+      "flag_instability": true,
+      "mean_today": 0.3832889902767986,
+      "mean_prev": 0.4910639193225348
+    },
+    "p_home_cover_dist": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.2449449934302061,
+      "flag_instability": true,
+      "mean_today": 0.6367677222277537,
+      "mean_prev": 0.7020882390791358
+    },
+    "p_over_dist": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.23548021900707794,
+      "flag_instability": true,
+      "mean_today": 0.38032608869939244,
+      "mean_prev": 0.4893690540116519
+    },
+    "p_over_ensemble": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.23548021900707794,
+      "flag_instability": true,
+      "mean_today": 0.3818075394880955,
+      "mean_prev": 0.4902164866670934
+    },
+    "p_home_cover_final": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.6291862130216861,
+      "flag_instability": true,
+      "mean_today": 0.03496875453266325,
+      "mean_prev": 0.7020882390791358
+    },
+    "p_over_final": {
+      "rows_today": 32,
+      "rows_prev": 59,
+      "js_divergence": 0.6931471805599453,
+      "flag_instability": true,
+      "mean_today": 0.00023759491641731182,
+      "mean_prev": 0.4902164866670934
+    }
+  }
+}

@@ -1,0 +1,49 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401823448,2025-12-07,2025-12-08 02:00:00+00:00,Gonzaga Bulldogs,North Florida Ospreys,109,58,53,28,56,30,,McCarthey Athletic Center,False
+401812265,2025-12-07,2025-12-07 19:00:00+00:00,Alabama Crimson Tide,UTSA Roadrunners,97,55,56,17,41,38,,Coleman Coliseum,False
+401817268,2025-12-07,2025-12-07 22:00:00+00:00,North Carolina Tar Heels,Georgetown Hoyas,81,61,44,39,37,22,,Dean E. Smith Center,False
+401819902,2025-12-07,2025-12-07 20:00:00+00:00,Texas Tech Red Raiders,LSU Tigers,82,58,47,26,35,32,,Dickies Arena,True
+401819885,2025-12-07,2025-12-07 18:00:00+00:00,Kansas Jayhawks,Missouri Tigers,80,60,33,25,47,35,,T-Mobile Center,True
+401826816,2025-12-07,2025-12-07 17:00:00+00:00,Army Black Knights,Gallaudet Bison,111,53,46,27,65,26,,Christl Arena,False
+401820157,2025-12-07,2025-12-07 17:00:00+00:00,Navy Midshipmen,Air Force Falcons,61,56,24,25,37,31,,Alumni Hall (Navy),False
+401829354,2025-12-07,2025-12-07 18:00:00+00:00,Indiana State Sycamores,Southern Indiana Screaming Eagles,77,55,35,27,42,28,,Hulman Center,False
+401826956,2025-12-07,2025-12-07 18:00:00+00:00,St. Thomas-Minnesota Tommies,Weber State Wildcats,88,65,47,23,41,42,,Lee & Penny Anderson Arena,False
+401823192,2025-12-07,2025-12-07 18:00:00+00:00,Merrimack Warriors,Fairfield Stags,74,63,39,30,35,33,,Lawler Arena,False
+401812650,2025-12-07,2025-12-07 18:00:00+00:00,Northeastern Huskies,Central Connecticut Blue Devils,73,56,35,21,38,35,,Cabot Center,False
+401830122,2025-12-07,2025-12-07 19:00:00+00:00,UT Rio Grande Valley Vaqueros,Austin Peay Governors,63,50,31,30,32,20,,UTRGV Fieldhouse,False
+401828644,2025-12-07,2025-12-07 19:00:00+00:00,Davidson Wildcats,Saint Mary's Gaels,61,70,24,27,37,43,,John M. Belk Arena,False
+401824892,2025-12-07,2025-12-07 19:00:00+00:00,East Tennessee State Buccaneers,Tusculum Pioneers,78,62,35,23,43,39,,Freedom Hall (TN),False
+401823726,2025-12-07,2025-12-07 19:00:00+00:00,Sacred Heart Pioneers,Iona Gaels,69,81,32,36,37,45,,William H. Pitt Center,False
+401823490,2025-12-07,2025-12-07 19:00:00+00:00,Mercer Bears,Oglethorpe Stormy Petrels,100,50,57,26,43,24,,Hawkins Arena,False
+401823233,2025-12-07,2025-12-07 19:00:00+00:00,Florida Gulf Coast Eagles,Florida Atlantic Owls,76,81,37,36,39,45,,Alico Arena,False
+401820802,2025-12-07,2025-12-07 19:00:00+00:00,Charlotte 49ers,Utah State Aggies,53,79,30,44,23,35,,Halton Arena,False
+401820583,2025-12-07,2025-12-07 19:00:00+00:00,Quinnipiac Bobcats,Rider Broncs,72,58,38,20,34,38,,M&T Bank Arena,False
+401820214,2025-12-07,2025-12-07 19:00:00+00:00,Mercyhurst Lakers,Bethany (WV) Bison,80,51,45,22,35,29,,Mercyhurst Athletic Center,False
+401818305,2025-12-07,2025-12-07 19:00:00+00:00,Yale Bulldogs,UIC Flames,80,66,35,32,45,34,,John J. Lee Amphitheater,False
+401813381,2025-12-07,2025-12-07 19:00:00+00:00,Saint Peter's Peacocks,Niagara Purple Eagles,71,43,32,19,39,24,,Yanitelli Center,False
+401813354,2025-12-07,2025-12-07 19:00:00+00:00,Siena Saints,Canisius Golden Griffins,74,52,41,23,33,29,,MVP Arena,False
+401813309,2025-12-07,2025-12-07 19:00:00+00:00,Marist Red Foxes,Manhattan Jaspers,80,68,33,33,47,35,,McCann Arena,False
+401812385,2025-12-07,2025-12-07 19:30:00+00:00,Radford Highlanders,Saint Francis Red Flash,89,56,45,32,44,24,,The Dedmon Center,False
+401829449,2025-12-07,2025-12-07 20:00:00+00:00,Stephen F. Austin Lumberjacks,UL Monroe Warhawks,96,76,47,37,49,39,,William R. Johnson Coliseum,False
+401827156,2025-12-07,2025-12-07 20:00:00+00:00,UT Martin Skyhawks,Alabama State Hornets,74,64,30,35,44,29,,Kathleen and Tom Elam Center,False
+401826902,2025-12-07,2025-12-07 20:00:00+00:00,Louisiana Tech Bulldogs,Ecclesia Royals,89,37,40,11,49,26,,Thomas Assembly Center,False
+401817189,2025-12-07,2025-12-07 20:00:00+00:00,Saint Louis Billikens,Central Michigan Chippewas,107,65,52,32,55,33,,Chaifetz Arena,False
+401828298,2025-12-07,2025-12-07 21:00:00+00:00,Campbell Fighting Camels,Virginia-Lynchburg Dragons,149,62,75,21,74,41,,John W. Pope Jr. Convocation Center,False
+401826730,2025-12-07,2025-12-07 21:00:00+00:00,Mississippi State Bulldogs,San Francisco Dons,62,65,22,30,40,35,,Cadence Bank Arena,True
+401824828,2025-12-07,2025-12-07 21:00:00+00:00,UCF Knights,Towson Tigers,86,61,47,27,39,34,,Addition Financial Arena,False
+401823423,2025-12-07,2025-12-07 21:00:00+00:00,Bowling Green Falcons,Aquinas Saints,131,50,71,26,60,24,,Stroh Center,False
+401817471,2025-12-07,2025-12-07 21:00:00+00:00,Stanford Cardinal,UNLV Rebels,74,75,39,38,35,37,,Maples Pavilion,False
+401817448,2025-12-07,2025-12-07 21:00:00+00:00,Pittsburgh Panthers,Hofstra Pride,73,80,23,36,50,44,,Petersen Events Center,False
+401811972,2025-12-07,2025-12-07 21:30:00+00:00,Middle Tennessee Blue Raiders,Belmont Bruins,62,83,31,35,31,48,,Murphy Center,False
+401808934,2025-12-07,2025-12-07 21:30:00+00:00,SE Louisiana Lions,Northwestern State Demons,68,76,29,25,39,51,,University Center,False
+401828312,2025-12-07,2025-12-07 22:00:00+00:00,Jacksonville State Gamecocks,Auburn-Montgomery Senators,66,39,32,23,34,16,,Pete Mathews Coliseum,False
+401824953,2025-12-07,2025-12-07 22:00:00+00:00,Lipscomb Bisons,Alabama A&M Bulldogs,92,58,35,28,57,30,,Allen Arena,False
+401824139,2025-12-07,2025-12-07 22:00:00+00:00,Washington State Cougars,Nevada Wolf Pack,64,78,32,31,32,47,,Beasley Coliseum,False
+401820835,2025-12-07,2025-12-07 22:00:00+00:00,Nebraska Cornhuskers,Creighton Bluejays,71,50,33,19,38,31,,Pinnacle Bank Arena,False
+401817510,2025-12-07,2025-12-07 22:00:00+00:00,Wright State Raiders,Green Bay Phoenix,86,58,40,34,46,24,,Nutter Center,False
+401817460,2025-12-07,2025-12-07 22:00:00+00:00,SMU Mustangs,Texas A&M Aggies,93,80,41,27,36,50,,College Park Center,True
+401827000,2025-12-07,2025-12-07 22:30:00+00:00,Tarleton State Texans,Cameron Aggies,93,63,53,23,40,40,,Wisdom Gym,False
+401812255,2025-12-07,2025-12-07 22:30:00+00:00,North Texas Mean Green,TCU Horned Frogs,55,65,37,31,18,34,,Dickies Arena,True
+401824939,2025-12-07,2025-12-07 23:00:00+00:00,East Texas A&M Lions,Central Arkansas Bears,75,68,32,35,43,33,,The Field House,False
+401829434,2025-12-07,2025-12-08 00:00:00+00:00,Samford Bulldogs,Cornell Big Red,93,90,42,50,51,40,,Pete Hanna Center,False
+401824129,2025-12-07,2025-12-08 01:00:00+00:00,Seattle U Redhawks,UTEP Miners,75,68,37,31,38,37,,Climate Pledge Arena,False

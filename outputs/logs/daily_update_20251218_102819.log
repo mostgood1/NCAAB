@@ -1,0 +1,235 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20251218102819
+Username: CLARKANDADDISON\mostg
+RunAs User: CLARKANDADDISON\mostg
+Configuration Name: 
+Machine: CLARKANDADDISON (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/daily_update.ps1 -Today 2025-12-18 -SkipHeavyQuantiles -SkipVarianceDiag -SkipModelTests
+Process ID: 6700
+PSVersion: 5.1.26100.7462
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.7462
+BuildVersion: 10.0.26100.7462
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+[quantile-gating] day=Thursday targetDay=Sunday ageDays=13.84 runHeavy=False
+
+==== 0) ESPN schedule refresh + TBD patch + parity ====\n
+[schedule_refresh] Using date: 2025-12-18
+
+
+
+
+
+[schedule_refresh] Parity OK: True Placeholders:  Missing:  LocalExtra:
+[schedule_refresh] Done.
+
+==== 0.pre) Fetch today's slate + normalize display times ====\n
+
+
+
+==== 0.pre.b) Canonical start times ====\n
+{'path': 'outputs\\canonical_start_times_2025-12-18.csv', 'rows': 32, 'nonnull__start_dt': 32}
+
+==== 1) Fetch previous day's games (2025-12-17) ====\n
+
+
+==== 2) Fetch odds snapshots for 2025-12-17 and build last/closing lines ====\n
+
+
+
+
+
+
+
+
+==== 3) Build daily results (reconcile vs finals) for 2025-12-17 ====\n
+
+
+==== 3a) Fetch previous day raw scores (no cache) and boxscores ====\n
+
+
+
+==== 3b) Finalize previous day (refresh + fallback + overrides) ====\n
+
+
+==== 4) Update model tuning from recent daily results ====\n
+
+
+==== 5) Retrain baseline models on latest features_all.csv ====\n
+
+[skip] Heavy quantile CV + base quantile retrain (weekly gating)
+
+==== 5b) Generate/refresh team-level historical features (pre-inference) ====\n
+
+features_curr.csv contains rows for 2025-12-18; skipping generation.
+Removing stale artifact -> C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\predictions_model_interval_2025-12-18.csv
+Removing stale artifact -> C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\predictions_model_calibrated_2025-12-18.csv
+Removing stale artifact -> C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\predictions_model_2025-12-18.csv
+
+==== 5d) Run model inference harness (forced refresh) ====\n
+
+
+==== 5e) Calibrate model predictions (forced refresh) ====\n
+
+
+==== 5f) Generate prediction intervals (forced refresh) ====\n
+
+
+
+==== 6i) Rolling backtest (28 days) ====\n
+
+
+==== 6i.a) Normalize odds and enrich backtest (rest/travel/market) ====\n
+
+
+[skip] Segment LGBM quantile retrain (weekly gating)
+
+==== 6j) Quantile selection (28d window, 80% coverage) ====\n
+
+
+==== 6j.ii) Daily quantile retrain + scoring ====\n
+Starting daily quantile + scoring refresh...
+Training residual quantiles (window=45 days)...
+
+Evaluating scoring for 2025-12-18...
+
+Done. Wrote 'outputs/quantile_model.json' and 'outputs/scoring_2025-12-18.json'.
+Inference variance summary -> C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\variance\inference_variance_2025-12-18.json
+
+==== 6) Fetch today's schedule, odds, and run predictions/picks ====\n
+
+
+==== 6a.pre) Ensure full game & prediction coverage (force-fill) ====\n
+
+
+
+==== 6a.post) Normalize start fields and persist _start_dt ====\n
+{'date': '2025-12-18', 'out': 'outputs/predictions_unified_enriched_2025-12-18.csv', 'normalized_rows': 32, 'nan__start_dt': 0}
+
+==== 6a.post.i) Persist display snapshot for today if missing ====\n
+Display snapshot already present -> C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\predictions_display_2025-12-18.csv
+
+
+==== 6a.post.ii) Safeguard: remove No Market (Unposted) games ====\n
+
+
+==== 6a.post.b) Enrich meta probabilities (aligned) ====\n
+
+
+==== 6a.post.c) Inject sigma and adjusted Kelly ====\n
+
+
+==== 6b) Refresh team-level historical features post-ingestion ====\n
+
+SkipModelTests flag set; skipping pytest integrity checks.
+
+==== 6c) Train/refresh model-first total & margin predictors (LightGBM/XGBoost) ====\n
+
+
+SkipVarianceDiag flag set; skipping prediction variance diagnostics.
+
+==== 6e) Train meta probability models (cover/over) ====\n
+
+
+
+
+==== 6f) Probability distribution stability (JS divergence) ====\n
+
+
+==== 6g) Auto-refresh probability calibration (ECE/drift/age) ====\n
+
+
+==== 6g.i) Meta probability reliability + calibration ====\n
+
+
+
+==== 6h) Explain meta models (feature contributions) ====\n
+
+
+==== 6a) Restore full games_with_last.csv (historical) after daily-run ====\n
+
+
+==== 7) Filter merged last odds to today's slate ====\n
+
+
+==== 7b) Align predictions to period and compute edges ====\n
+
+
+==== 8) Generate baseline stake sheet (edge-based Kelly) ====\n
+
+
+==== 9) Generate calibrated distributional stake sheet (if distributional columns present) ====\n
+
+
+==== 9a) Annotate stake sheets with quantiles (q10/q50/q90) ====\n
+
+
+==== 10) Compare baseline vs calibrated stake sheets ====\n
+
+
+==== 11) Commit and push updated data files ====\n
+
+==== 10b) ROI backtest (28 days) ====\n
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==== DONE ====\n
+Completed in 00:02:27.0370132
+Wrote status summary -> C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\logs\daily_update_status_2025-12-18.json
+**********************
+Windows PowerShell transcript end
+End time: 20251218103046
+**********************

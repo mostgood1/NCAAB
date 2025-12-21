@@ -1,0 +1,38 @@
+{
+  "date": "2025-11-29",
+  "js_threshold": 0.05,
+  "methods": {
+    "p_home_cover_dist": {
+      "rows_today": 56,
+      "rows_prev": 51,
+      "js_divergence": 0.20857975951912688,
+      "flag_instability": true,
+      "mean_today": 0.6843853060990648,
+      "mean_prev": 0.6033350371139145
+    },
+    "p_over_dist": {
+      "rows_today": 56,
+      "rows_prev": 51,
+      "js_divergence": 0.32192475170199353,
+      "flag_instability": true,
+      "mean_today": 0.38960967882009934,
+      "mean_prev": 0.49471129995151986
+    },
+    "p_home_cover_final": {
+      "rows_today": 56,
+      "rows_prev": 51,
+      "js_divergence": 0.20857975951912688,
+      "flag_instability": true,
+      "mean_today": 0.6843853060990648,
+      "mean_prev": 0.6033350371139145
+    },
+    "p_over_final": {
+      "rows_today": 56,
+      "rows_prev": 51,
+      "js_divergence": 0.6931471805599452,
+      "flag_instability": true,
+      "mean_today": 0.38960967882009934,
+      "mean_prev": 0.06118088049004739
+    }
+  }
+}

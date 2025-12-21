@@ -1,0 +1,11 @@
+{
+  "date": "2025-11-15",
+  "generated_at": "2025-12-05T15:22:20.020199",
+  "rows": 82,
+  "totals_residual_mean": -11.806150296839272,
+  "totals_residual_std": 24.798894035988187,
+  "margin_residual_mean": -5.330967500442412,
+  "margin_residual_std": 20.012386502167775,
+  "total_corr": -0.06740265306326099,
+  "margin_corr": 0.17894383003762068
+}

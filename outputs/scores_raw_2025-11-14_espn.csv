@@ -1,0 +1,51 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401817231,2025-11-14,2025-11-15 00:00:00+00:00,Duke Blue Devils,Indiana State Sycamores,100,62,51,32,49,30,,Cameron Indoor Stadium,False
+401813759,2025-11-14,2025-11-15 03:00:00+00:00,UCLA Bruins,Arizona Wildcats,65,69,25,28,40,41,,Intuit Dome,True
+401812252,2025-11-14,2025-11-15 02:00:00+00:00,TCU Horned Frogs,Michigan Wolverines,63,67,35,33,28,34,,Schollmaier Arena,False
+401822356,2025-11-14,2025-11-15 00:00:00+00:00,Kentucky Wildcats,Eastern Illinois Panthers,99,53,47,19,52,34,,Rupp Arena,False
+401819900,2025-11-14,2025-11-15 01:00:00+00:00,Texas Tech Red Raiders,Milwaukee Panthers,80,63,41,36,39,27,,United Supermarkets Arena,False
+401827180,2025-11-14,2025-11-15 02:00:00+00:00,Illinois Fighting Illini,Colgate Raiders,84,65,41,30,43,35,,State Farm Center,False
+401817265,2025-11-14,2025-11-15 02:00:00+00:00,North Carolina Tar Heels,North Carolina Central Eagles,97,53,39,24,58,29,,Dean E. Smith Center,False
+401819815,2025-11-14,2025-11-15 04:00:00+00:00,Arizona State Sun Devils,Gonzaga Bulldogs,65,77,32,45,33,32,,Desert Financial Arena,False
+401826786,2025-11-14,2025-11-15 01:00:00+00:00,Arkansas Razorbacks,Samford Bulldogs,79,75,45,35,34,40,,Bud Walton Arena,False
+401820832,2025-11-14,2025-11-15 01:00:00+00:00,Creighton Bluejays,Maryland Eastern Shore Hawks,84,45,37,23,47,22,,CHI Health Center Omaha,False
+401822760,2025-11-14,2025-11-14 16:00:00+00:00,Coppin State Eagles,Central Michigan Chippewas,59,82,29,41,30,41,,McArthur Center,True
+401829445,2025-11-14,2025-11-14 18:00:00+00:00,Northwestern State Demons,Ecclesia Royals,95,75,50,32,45,43,,Prather Coliseum,False
+401829489,2025-11-14,2025-11-14 23:00:00+00:00,Georgia Southern Eagles,Johnson C Smith Golden Bulls,98,79,42,41,56,38,,Jack and Ruth Ann Hill Convocation Center,False
+401820151,2025-11-14,2025-11-14 23:00:00+00:00,Navy Midshipmen,Washington College (MD) Shoremen,97,64,48,30,49,34,,Alumni Hall (Navy),False
+401827433,2025-11-14,2025-11-14 23:30:00+00:00,Rutgers Scarlet Knights,Lehigh Mountain Hawks,84,72,41,34,43,38,,Jersey Mike’s Arena,False
+401823376,2025-11-14,2025-11-14 23:30:00+00:00,Eastern Michigan Eagles,IU Indianapolis Jaguars,83,90,38,49,45,41,,Gervin GameAbove Center,False
+401820840,2025-11-14,2025-11-14 23:30:00+00:00,Charleston Southern Buccaneers,Lindenwood Lions,77,83,41,28,36,55,,Event Center,True
+401829444,2025-11-14,2025-11-15 00:00:00+00:00,McNeese Cowboys,Louisiana Ragin' Cajuns,88,62,37,16,51,46,,Townsley Law Arena,False
+401828308,2025-11-14,2025-11-15 00:00:00+00:00,Jacksonville State Gamecocks,Coastal Carolina Chanticleers,74,67,36,31,38,36,,Pete Mathews Coliseum,False
+401827498,2025-11-14,2025-11-15 00:00:00+00:00,Towson Tigers,Norfolk State Spartans,51,41,22,26,29,15,,SECU Arena,False
+401827450,2025-11-14,2025-11-15 00:00:00+00:00,Charleston Cougars,South Carolina State Bulldogs,88,61,50,37,38,24,,TD Arena,False
+401827153,2025-11-14,2025-11-15 00:00:00+00:00,Alabama State Hornets,Virginia-Lynchburg Dragons,124,68,63,29,61,39,,Dunn-Oliver Acadome,False
+401825383,2025-11-14,2025-11-15 00:00:00+00:00,West Georgia Wolves,The Citadel Bulldogs,100,92,47,39,53,53,,The Coliseum,False
+401822350,2025-11-14,2025-11-15 00:00:00+00:00,Fairfield Stags,Stonehill Skyhawks,73,71,30,27,35,38,,Leo D. Mahoney Arena,False
+401822168,2025-11-14,2025-11-15 00:00:00+00:00,Iona Gaels,Fordham Rams,76,71,36,33,40,38,,Hynes Athletics Center,False
+401820543,2025-11-14,2025-11-15 00:00:00+00:00,Northern Iowa Panthers,Furman Paladins,70,54,36,24,34,30,,McLeod Center,False
+401817166,2025-11-14,2025-11-15 00:00:00+00:00,Rhode Island Rams,UAlbany Great Danes,80,61,38,30,42,31,,Thomas M. Ryan Center,False
+401809076,2025-11-14,2025-11-15 00:00:00+00:00,Bucknell Bison,Hofstra Pride,77,83,41,34,36,49,,Sojka Pavilion,False
+401828906,2025-11-14,2025-11-15 00:30:00+00:00,Drake Bulldogs,SIU Edwardsville Cougars,59,61,30,36,29,25,,Knapp Center,False
+401826852,2025-11-14,2025-11-15 00:30:00+00:00,UAB Blazers,High Point Panthers,91,74,35,38,56,36,,Bartow Arena,False
+401823552,2025-11-14,2025-11-15 00:30:00+00:00,Ole Miss Rebels,Cal State Bakersfield Roadrunners,82,60,38,28,44,32,,C. M. Tad Smith Coliseum,False
+401813255,2025-11-14,2025-11-15 00:30:00+00:00,USC Trojans,Illinois State Redbirds,87,67,40,26,47,41,,Intuit Dome,True
+401808893,2025-11-14,2025-11-15 00:30:00+00:00,Tulane Green Wave,New Orleans Privateers,63,85,31,42,32,43,,Devlin Fieldhouse,False
+401826806,2025-11-14,2025-11-15 01:00:00+00:00,Rice Owls,East Texas A&M Lions,71,64,26,25,45,39,,Tudor Fieldhouse,False
+401824826,2025-11-14,2025-11-15 01:00:00+00:00,Texas A&M Aggies,UCF Knights,74,86,30,30,44,56,,Reed Arena,False
+401823560,2025-11-14,2025-11-15 01:00:00+00:00,Iowa Hawkeyes,Xavier Musketeers,81,62,45,29,36,33,,Carver-Hawkeye Arena,False
+401818550,2025-11-14,2025-11-15 01:15:00+00:00,Brown Bears,Hampton Pirates,63,72,27,30,36,42,,Pizzitola Sports Center,False
+401825571,2025-11-14,2025-11-15 01:30:00+00:00,DePaul Blue Demons,Northwestern Wildcats,79,81,44,42,35,39,,Wintrust Arena,False
+401828289,2025-11-14,2025-11-15 02:00:00+00:00,Montana Grizzlies,Cal Poly Mustangs,90,82,37,26,53,56,,Dahlberg Arena,False
+401826713,2025-11-14,2025-11-15 02:00:00+00:00,Georgia Bulldogs,Georgia Tech Yellow Jackets,92,87,46,45,46,42,,Stegeman Coliseum,False
+401826087,2025-11-14,2025-11-15 02:00:00+00:00,UC Davis Aggies,Sacramento State Hornets,77,73,34,36,43,37,,University Credit Union Center,False
+401823524,2025-11-14,2025-11-15 02:00:00+00:00,Stephen F. Austin Lumberjacks,Abilene Christian Wildcats,76,66,35,33,41,33,,William R. Johnson Coliseum,False
+401819862,2025-11-14,2025-11-15 02:00:00+00:00,Colorado Buffaloes,Providence Friars,97,88,39,38,58,50,,CU Events Center,False
+401819825,2025-11-14,2025-11-15 02:00:00+00:00,Baylor Bears,Tarleton State Texans,94,81,55,42,39,39,,Foster Pavilion,False
+401830342,2025-11-14,2025-11-15 02:30:00+00:00,Mississippi Valley State Delta Devils,Utah Tech Trailblazers,75,81,32,36,33,29,,Stan Sheriff Center,True
+401828277,2025-11-14,2025-11-15 03:00:00+00:00,Saint Mary's Gaels,North Texas Mean Green,80,49,47,17,33,32,,University Credit Union Pavilion,False
+401824040,2025-11-14,2025-11-15 03:00:00+00:00,Loyola Marymount Lions,Troy Trojans,74,63,27,25,47,38,,Gersten Pavilion,False
+401823532,2025-11-14,2025-11-15 03:30:00+00:00,California Baptist Lancers,Western Illinois Leathernecks,69,59,32,28,37,31,,Dale E. and Sarah Ann Fowler Events Center,False
+401824136,2025-11-14,2025-11-15 04:00:00+00:00,Washington State Cougars,Washington Huskies,69,81,30,44,39,37,,Beasley Coliseum,False
+401824897,2025-11-14,2025-11-15 04:59:00+00:00,Hawai'i Rainbow Warriors,Manhattan Jaspers,86,56,38,24,48,32,,Stan Sheriff Center,False

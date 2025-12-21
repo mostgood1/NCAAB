@@ -1,0 +1,46 @@
+game_id,home_team,away_team,date,start_time,reason,has_model_total,has_model_margin,has_cal_total,has_cal_margin,basis_total,basis_margin
+401827516,Drexel Dragons,Howard Bison,2025-12-16,2025-12-16 16:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817236,Duke Blue Devils,Lipscomb Bisons,2025-12-16,2025-12-16 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828471,Liberty Flames,Midway University Eagles,2025-12-16,2025-12-16 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827064,South Carolina State Bulldogs,South Carolina Upstate Spartans,2025-12-16,2025-12-16 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823728,UMass Lowell River Hawks,Sacred Heart Pioneers,2025-12-16,2025-12-16 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812670,Holy Cross Crusaders,Dartmouth Big Green,2025-12-16,2025-12-16 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823472,Michigan State Spartans,Toledo Rockets,2025-12-16,2025-12-16 23:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830423,UNC Asheville Bulldogs,Kentucky Christian Knights,2025-12-16,2025-12-16 23:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823379,IU Indianapolis Jaguars,Miami (OH)-Middletown ThunderHawks,2025-12-16,2025-12-16 23:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817248,Tennessee Volunteers,Louisville Cardinals,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822869,St. John's Red Storm,DePaul Blue Demons,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830199,Evansville Purple Aces,Belmont Bruins,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829050,Ohio Bobcats,Ohio Wesleyan Battling Bishops,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827530,UNC Greensboro Spartans,North Carolina A&T Aggies,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827001,Mississippi Valley State Delta Devils,Tarleton State Texans,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826980,High Point Panthers,Mary Baldwin Fighting Squirrels,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826781,Oklahoma Sooners,Kansas City Roos,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823853,Delaware Blue Hens,Rider Broncs,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823413,Wright State Raiders,Miami (OH) RedHawks,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822346,Bowling Green Falcons,Chicago State Cougars,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813443,Dayton Flyers,Florida State Seminoles,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813356,Rhode Island Rams,Canisius Golden Griffins,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812925,Clemson Tigers,South Carolina Gamecocks,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401809422,Miami Hurricanes,Florida International Panthers,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401808976,Lamar Cardinals,UT Rio Grande Valley Vaqueros,2025-12-16,2025-12-17 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813326,Georgia Tech Yellow Jackets,Marist Red Foxes,2025-12-16,2025-12-17 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812362,Mississippi State Bulldogs,Long Island University Sharks,2025-12-16,2025-12-17 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401806344,Morehead State Eagles,Little Rock Trojans,2025-12-16,2025-12-17 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817270,North Carolina Tar Heels,East Tennessee State Buccaneers,2025-12-16,2025-12-17 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819903,Texas Tech Red Raiders,Northern Colorado Bears,2025-12-16,2025-12-17 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829470,Omaha Mavericks,York College Nebraska Panthers,2025-12-16,2025-12-17 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826858,Texas Longhorns,Le Moyne Dolphins,2025-12-16,2025-12-17 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823467,Northern Illinois Huskies,East-West University Phantoms,2025-12-16,2025-12-17 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823329,Missouri State Bears,Oral Roberts Golden Eagles,2025-12-16,2025-12-17 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822338,Northwestern Wildcats,Valparaiso Beacons,2025-12-16,2025-12-17 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822868,UConn Huskies,Butler Bulldogs,2025-12-16,2025-12-17 01:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823529,Arizona Wildcats,Abilene Christian Wildcats,2025-12-16,2025-12-17 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819839,BYU Cougars,Pacific Tigers,2025-12-16,2025-12-17 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823497,Arkansas Razorbacks,Queens University Royals,2025-12-16,2025-12-17 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819886,Kansas Jayhawks,Towson Tigers,2025-12-16,2025-12-17 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826743,Denver Pioneers,Colorado-Colorado Springs Mountain Lions,2025-12-16,2025-12-17 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826046,UC Riverside Highlanders,Stanton Elks,2025-12-16,2025-12-17 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401825582,Cal Poly Mustangs,Montana State Bobcats,2025-12-16,2025-12-17 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823537,California Baptist Lancers,Southern Jaguars,2025-12-16,2025-12-17 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824044,Loyola Marymount Lions,UC San Diego Tritons,2025-12-16,2025-12-17 04:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal

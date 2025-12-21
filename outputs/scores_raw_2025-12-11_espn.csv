@@ -1,0 +1,14 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401819878,2025-12-11,2025-12-12 01:00:00+00:00,Iowa State Cyclones,Iowa Hawkeyes,66,62,25,33,41,29,,Hilton Coliseum,False
+401817511,2025-12-11,2025-12-11 23:30:00+00:00,IU Indianapolis Jaguars,Green Bay Phoenix,75,85,36,33,39,52,,The Jungle,False
+401831530,2025-12-11,2025-12-12 00:00:00+00:00,Wagner Seahawks,Bloomfield Deacons,95,93,42,48,43,37,,Spiro Sports Center,False
+401829492,2025-12-11,2025-12-12 00:00:00+00:00,Georgia Southern Eagles,Coastal Georgia Mariner,100,58,49,27,51,31,,Jack and Ruth Ann Hill Convocation Center,False
+401823347,2025-12-11,2025-12-12 00:00:00+00:00,Jacksonville Dolphins,Trinity College of Jacksonville Eagles,122,49,64,19,58,30,,Swisher Gymnasium,False
+401820813,2025-12-11,2025-12-12 00:00:00+00:00,East Carolina Pirates,App State Mountaineers,54,67,17,33,37,34,,Minges Coliseum,False
+401817524,2025-12-11,2025-12-12 00:00:00+00:00,Virginia Tech Hokies,Western Carolina Catamounts,96,74,53,34,43,40,,Cassell Coliseum,False
+401823872,2025-12-11,2025-12-12 00:30:00+00:00,UT Rio Grande Valley Vaqueros,UT Arlington Mavericks,50,58,27,24,23,34,,UTRGV Fieldhouse,False
+401829479,2025-12-11,2025-12-12 01:00:00+00:00,St. Thomas-Minnesota Tommies,Saint John's (MN) Johnnies,80,56,35,31,45,25,,Lee & Penny Anderson Arena,False
+401827157,2025-12-11,2025-12-12 01:00:00+00:00,Missouri Tigers,Alabama State Hornets,85,77,52,39,33,38,,Mizzou Arena,False
+401826742,2025-12-11,2025-12-12 02:00:00+00:00,Denver Pioneers,Alaska Anchorage Seawolves,97,61,45,31,52,30,,Hamilton Gymnasium,False
+401817480,2025-12-11,2025-12-12 02:00:00+00:00,Syracuse Orange,Saint Joseph's Hawks,71,63,34,30,37,33,,JMA Wireless Dome,False
+401823738,2025-12-11,2025-12-12 02:30:00+00:00,Cal State Bakersfield Roadrunners,North Dakota State Bison,69,80,30,40,39,40,,Icardo Center,False

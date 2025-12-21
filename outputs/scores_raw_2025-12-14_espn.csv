@@ -1,0 +1,33 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401819879,2025-12-14,2025-12-14 18:00:00+00:00,Iowa State Cyclones,Eastern Illinois Panthers,78,53,44,28,34,25,,Hilton Coliseum,False
+401817525,2025-12-14,2025-12-14 17:00:00+00:00,Virginia Tech Hokies,Maryland Eastern Shore Hawks,82,53,38,29,44,24,,Cassell Coliseum,False
+401812386,2025-12-14,2025-12-14 17:00:00+00:00,Temple Owls,Saint Francis Red Flash,95,67,47,24,48,43,,Liacouras Center,False
+401827008,2025-12-14,2025-12-14 18:00:00+00:00,Minnesota Golden Gophers,Texas Southern Tigers,89,53,45,25,44,28,,Williams Arena,False
+401820814,2025-12-14,2025-12-14 18:00:00+00:00,East Carolina Pirates,Buffalo Bulls,73,70,28,47,45,23,,Minges Coliseum,False
+401832162,2025-12-14,2025-12-14 19:00:00+00:00,Bradley Braves,North Central College Cardinals,86,53,46,29,40,24,,Carver Arena,False
+401829344,2025-12-14,2025-12-14 19:00:00+00:00,SIU Edwardsville Cougars,Eureka Red Devils,97,54,42,19,55,35,,First Community Arena,False
+401827487,2025-12-14,2025-12-14 19:00:00+00:00,Cleveland State Vikings,Oakland City Mighty Oaks,96,52,45,22,51,30,,Wolstein Center,False
+401827113,2025-12-14,2025-12-14 19:00:00+00:00,Missouri Tigers,Bethune-Cookman Wildcats,82,60,39,25,43,35,,Mizzou Arena,False
+401826769,2025-12-14,2025-12-14 19:00:00+00:00,Vermont Catamounts,Merrimack Warriors,66,59,30,21,36,38,,Patrick Gymnasium,False
+401826737,2025-12-14,2025-12-14 19:00:00+00:00,App State Mountaineers,High Point Panthers,86,78,34,33,37,38,,Tarlton Complex,True
+401823313,2025-12-14,2025-12-14 19:00:00+00:00,Fairfield Stags,Monmouth Hawks,73,65,32,35,41,30,,Leo D. Mahoney Arena,False
+401823005,2025-12-14,2025-12-14 19:00:00+00:00,Youngstown State Penguins,Thiel Tomcats,103,52,46,22,57,30,,Beeghly Center,False
+401822327,2025-12-14,2025-12-14 19:00:00+00:00,Campbell Fighting Camels,Ball State Cardinals,69,64,30,30,39,34,,John W. Pope Jr. Convocation Center,False
+401822314,2025-12-14,2025-12-14 19:00:00+00:00,Milwaukee Panthers,Indiana State Sycamores,68,70,39,36,29,34,,UW-Milwaukee Panther Arena,False
+401822764,2025-12-14,2025-12-14 19:30:00+00:00,Radford Highlanders,Coppin State Eagles,107,77,43,41,64,36,,The Dedmon Center,False
+401829351,2025-12-14,2025-12-14 20:00:00+00:00,Southeast Missouri State Redhawks,St. Xavier  (IL) Cougars,88,65,46,22,42,43,,Show Me Center,False
+401826876,2025-12-14,2025-12-14 20:00:00+00:00,UAB Blazers,Troy Trojans,85,86,39,35,46,51,,Bartow Arena,False
+401823812,2025-12-14,2025-12-14 20:00:00+00:00,Colorado State Rams,Northern New Mexico Eagles,104,54,60,26,44,28,,Moby Arena,False
+401823650,2025-12-14,2025-12-14 20:00:00+00:00,Iowa Hawkeyes,Western Michigan Broncos,91,51,52,16,39,35,,Carver-Hawkeye Arena,False
+401823234,2025-12-14,2025-12-14 21:00:00+00:00,New Mexico Lobos,Florida Gulf Coast Eagles,75,59,28,25,47,34,,The Pit,False
+401820803,2025-12-14,2025-12-14 21:00:00+00:00,Charleston Cougars,Charlotte 49ers,74,67,39,33,35,34,,TD Arena,False
+401823570,2025-12-14,2025-12-14 22:00:00+00:00,Idaho Vandals,Evergreen State Geoducks,109,55,56,17,53,38,,ICCU Arena,False
+401823018,2025-12-14,2025-12-14 22:00:00+00:00,Portland Pilots,Kent State Golden Flashes,88,78,39,36,49,42,,Chiles Center,False
+401817535,2025-12-14,2025-12-14 22:00:00+00:00,Wake Forest Demon Deacons,Queens University Royals,111,73,57,39,54,34,,LJVM Coliseum,False
+401817512,2025-12-14,2025-12-14 22:00:00+00:00,Purdue Fort Wayne Mastodons,Detroit Mercy Titans,81,77,40,33,41,44,,Memorial Coliseum (IN),False
+401817161,2025-12-14,2025-12-14 22:00:00+00:00,Loyola Chicago Ramblers,Chicago State Cougars,75,84,28,35,47,49,,Gentile Arena,False
+401829394,2025-12-14,2025-12-14 22:30:00+00:00,UT Martin Skyhawks,Champion Christian Tigers,96,52,48,34,48,18,,Kathleen and Tom Elam Center,False
+401828279,2025-12-14,2025-12-14 22:30:00+00:00,South Alabama Jaguars,North Texas Mean Green,57,58,26,30,31,28,,Mitchell Center,False
+401823819,2025-12-14,2025-12-14 23:00:00+00:00,Boise State Broncos,Saint Mary's Gaels,68,67,37,32,31,35,,Mountain America Center,True
+401823348,2025-12-14,2025-12-15 00:00:00+00:00,Texas A&M Aggies,Jacksonville Dolphins,112,75,51,26,61,49,,Reed Arena,False
+401824140,2025-12-14,2025-12-15 00:30:00+00:00,USC Trojans,Washington State Cougars,68,61,33,26,35,35,,Galen Center,False

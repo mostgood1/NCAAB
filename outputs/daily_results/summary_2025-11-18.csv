@@ -1,0 +1,2 @@
+date,n_games,n_with_pred,mae_model_total,mae_closing_total,beat_rate_vs_closing,n_picks,n_wins,n_losses,n_pushes,mae_model_total_1h,mae_model_total_2h,ats_cover_rate_full,ats_cover_rate_1h,brier_ml,logloss_ml,picks_raw_n,picks_raw_win_rate,picks_raw_totals_n,picks_raw_totals_win_rate,picks_raw_spreads_n,picks_raw_spreads_win_rate,picks_raw_moneyline_n,picks_raw_moneyline_win_rate
+2025-11-18,68,68,20.59086451810949,,,0,0,0,0,9.799290976804846,12.356031286576215,0.7205882352941176,0.7352941176470589,0.1324638510696112,0.42042792321570466,0,,0,,0,,0,

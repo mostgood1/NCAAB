@@ -1,0 +1,1136 @@
+game_id,season,date,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+400918290,2016,2016-11-11,Villanova Wildcats,Lafayette Leopards,88,48,49.0,17.0,39.0,31.0,False,Finneran Pavilion
+400918291,2016,2016-11-11,Xavier Musketeers,Lehigh Mountain Hawks,84,81,48.0,43.0,36.0,38.0,False,Cintas Center
+400915217,2016,2016-11-11,UNC Greensboro Spartans,Virginia Cavaliers,51,76,17.0,42.0,34.0,34.0,False,First Horizon Coliseum
+400915215,2016,2016-11-11,Louisville Cardinals,Evansville Purple Aces,78,47,43.0,27.0,35.0,20.0,False,KFC Yum! Center
+400915705,2016,2016-11-11,Gonzaga Bulldogs,Utah Valley Wolverines,92,69,45.0,32.0,47.0,37.0,False,McCarthey Athletic Center
+400915182,2016,2016-11-11,Purdue Boilermakers,McNeese Cowboys,109,65,47.0,32.0,62.0,33.0,False,Mackey Arena
+400915485,2016,2016-11-11,UCLA Bruins,Pacific Tigers,119,80,63.0,39.0,56.0,41.0,False,Pauley Pavilion
+400915704,2016,2016-11-11,Saint Mary's Gaels,Nevada Wolf Pack,81,63,42.0,29.0,39.0,34.0,False,University Credit Union Pavilion
+400916467,2016,2016-11-11,UConn Huskies,Wagner Seahawks,58,67,35.0,38.0,23.0,29.0,False,Gampel Pavilion
+400915212,2016,2016-11-11,Syracuse Orange,Colgate Raiders,83,55,49.0,25.0,34.0,30.0,False,JMA Wireless Dome
+400916117,2016,2016-11-11,West Virginia Mountaineers,Mount St. Mary's Mountaineers,87,59,43.0,24.0,44.0,35.0,False,WVU Coliseum
+400917464,2016,2016-11-11,Creighton Bluejays,Kansas City Roos,89,82,55.0,34.0,34.0,48.0,False,CHI Health Center Omaha
+400918430,2016,2016-11-11,Rhode Island Rams,Dartmouth Big Green,84,61,39.0,26.0,45.0,35.0,False,Thomas M. Ryan Center
+400916122,2016,2016-11-11,Iowa State Cyclones,Savannah State Tigers,113,71,59.0,38.0,54.0,33.0,False,Hilton Coliseum
+400915018,2016,2016-11-11,Maryland Terrapins,American University Eagles,62,56,31.0,25.0,31.0,31.0,False,XFINITY Center
+400919426,2016,2016-11-12,Marshall Thundering Herd,North Carolina Central Eagles,81,69,35.0,32.0,46.0,37.0,False,Cam Henderson Center
+400918844,2016,2016-11-12,Georgetown Hoyas,South Carolina Upstate Spartans,105,60,68.0,35.0,37.0,25.0,False,Capital One Arena
+400918155,2016,2016-11-12,Northern Iowa Panthers,Coe Kohawks,74,37,45.0,18.0,29.0,19.0,False,McLeod Center
+400915223,2016,2016-11-12,Notre Dame Fighting Irish,Bryant Bulldogs,89,64,43.0,31.0,46.0,33.0,False,Purcell Pavilion
+400918517,2016,2016-11-12,Green Bay Phoenix,Northland Lumberjacks,84,49,37.0,32.0,47.0,17.0,False,Resch Center
+400917386,2016,2016-11-12,Quinnipiac Bobcats,Vermont Catamounts,70,94,25.0,43.0,45.0,51.0,False,M&T Bank Arena
+400915221,2016,2016-11-12,Florida State Seminoles,Charleston Southern Buccaneers,88,67,38.0,32.0,50.0,35.0,False,Tucker Center
+400922272,2016,2016-11-12,William & Mary Tribe,Bridgewater College (VA) Eagles,96,44,55.0,22.0,41.0,22.0,False,Kaplan Arena
+400917002,2016,2016-11-12,Ohio Bobcats,Southern Jaguars,77,67,42.0,38.0,35.0,29.0,False,Convocation Center (OH)
+400910703,2016,2016-11-12,LSU Tigers,Wofford Terriers,91,69,39.0,43.0,52.0,26.0,False,Pete Maravich Assembly Center
+400922168,2016,2016-11-12,Sam Houston Bearkats,LeTourneau Yellow Jackets,104,57,51.0,25.0,53.0,32.0,False,Bernard G. Johnson Coliseum
+400919820,2016,2016-11-12,Boise State Broncos,Northwest University Eagles,85,46,43.0,20.0,42.0,26.0,False,ExtraMile Arena
+400922402,2016,2016-11-12,Little Rock Trojans,Central Baptist College Mustangs,97,65,51.0,28.0,46.0,37.0,False,Jack Stephens Center
+400918468,2016,2016-11-12,St. Bonaventure Bonnies,Saint Francis Red Flash,92,82,51.0,39.0,41.0,43.0,False,Reilly Center
+400916662,2016,2016-11-12,Winthrop Eagles,Ferrum Panthers,66,47,30.0,22.0,36.0,25.0,False,Winthrop Coliseum
+400925707,2016,2016-11-12,Chicago State Cougars,Illinois Tech Scarlet Hawks,97,89,55.0,44.0,42.0,45.0,False,Jones Convocation Center
+400921981,2016,2016-11-12,San José State Spartans,West Coast Baptist Eagles,109,70,61.0,35.0,48.0,35.0,False,Provident Credit Union Event Center
+400917869,2016,2016-11-12,UC Santa Barbara Gauchos,Omaha Mavericks,60,74,30.0,34.0,30.0,40.0,False,The Thunderdome
+400917001,2016,2016-11-12,Cleveland State Vikings,Kent State Golden Flashes,74,79,21.0,34.0,45.0,32.0,True,Beeghly Center
+400915222,2016,2016-11-12,Duke Blue Devils,Grand Canyon Lopes,96,61,46.0,29.0,50.0,32.0,False,Cameron Indoor Stadium
+400918376,2016,2016-11-12,George Mason Patriots,Towson Tigers,61,67,31.0,30.0,30.0,37.0,False,EagleBank Arena
+400917003,2016,2016-11-12,Saint Joseph's Hawks,Toledo Rockets,77,76,40.0,41.0,37.0,35.0,False,Michael J. Hagan '85 Arena
+400916661,2016,2016-11-12,High Point Panthers,Averett Cougars,74,41,33.0,21.0,41.0,20.0,False,Millis Athletic and Convocation Center
+400915490,2016,2016-11-12,Utah Utes,Northwest Nazarene Nw Nazarene,81,37,36.0,20.0,45.0,17.0,False,Jon M. Huntsman Center
+400916272,2016,2016-11-12,Butler Bulldogs,Northern Colorado Bears,89,52,41.0,31.0,48.0,21.0,False,Hinkle Fieldhouse
+400924185,2016,2016-11-12,Valparaiso Beacons,Trinity Christian (IL) Trolls,89,75,36.0,45.0,53.0,30.0,False,Athletics-Recreation Center
+400919532,2016,2016-11-12,Western Kentucky Hilltoppers,Alabama State Hornets,79,66,34.0,17.0,45.0,49.0,False,E.A. Diddle Arena
+400915900,2016,2016-11-12,Davidson Wildcats,App State Mountaineers,86,74,33.0,37.0,53.0,37.0,False,John M. Belk Arena
+400917000,2016,2016-11-12,Youngstown State Penguins,Akron Zips,90,82,36.0,41.0,54.0,41.0,False,Beeghly Center
+400915901,2016,2016-11-12,UT Arlington Mavericks,Texas Southern Tigers,89,82,45.0,38.0,44.0,44.0,False,College Park Center
+400919517,2016,2016-11-12,UTEP Miners,Louisiana Christian Wildcats,88,54,45.0,29.0,43.0,25.0,False,Don Haskins Center
+400917870,2016,2016-11-12,Denver Pioneers,Jacksonville Dolphins,84,92,47.0,48.0,37.0,44.0,False,Magness Arena
+400915712,2016,2016-11-12,Santa Clara Broncos,UC Davis Aggies,58,63,27.0,24.0,31.0,39.0,False,Leavey Center
+400917465,2016,2016-11-12,Cal State Bakersfield Roadrunners,San Diego Christian Hawks,96,54,46.0,32.0,50.0,22.0,False,Icardo Center
+400916273,2016,2016-11-12,Idaho Vandals,Corban College Warriors,90,67,39.0,32.0,51.0,35.0,False,Cowan Spectrum
+400916274,2016,2016-11-12,Northern Arizona Lumberjacks,Tennessee State Tigers,65,69,30.0,28.0,35.0,41.0,True,Leavey Center
+400915495,2016,2016-11-13,UCLA Bruins,Cal State Northridge Matadors,102,87,40.0,42.0,62.0,45.0,False,Pauley Pavilion
+400917005,2016,2016-11-14,Xavier Musketeers,Buffalo Bulls,86,53,44.0,25.0,42.0,28.0,False,Cintas Center
+400915229,2016,2016-11-14,Louisville Cardinals,William & Mary Tribe,91,58,44.0,31.0,47.0,27.0,False,KFC Yum! Center
+400919921,2016,2016-11-14,Gonzaga Bulldogs,San Diego State Aztecs,69,48,36.0,21.0,33.0,27.0,False,McCarthey Athletic Center
+400916128,2016,2016-11-14,West Virginia Mountaineers,Mississippi Valley State Delta Devils,107,66,64.0,28.0,43.0,38.0,False,WVU Coliseum
+400916127,2016,2016-11-14,Iowa State Cyclones,Mount St. Mary's Mountaineers,73,55,39.0,22.0,34.0,33.0,False,Hilton Coliseum
+400915497,2016,2016-11-15,Baylor Bears,Oregon Ducks,66,49,33.0,23.0,33.0,26.0,False,Ferrell Center
+400915499,2016,2016-11-15,Arizona Wildcats,Cal State Bakersfield Roadrunners,78,66,44.0,26.0,34.0,40.0,False,McKale Memorial Center
+400915722,2016,2016-11-16,Saint Mary's Gaels,Prairie View A&M Panthers,110,72,54.0,37.0,56.0,35.0,False,University Credit Union Pavilion
+400915503,2016,2016-11-16,California Golden Bears,UC Irvine Anteaters,75,65,23.0,31.0,39.0,31.0,False,Haas Pavilion
+400915506,2016,2016-11-17,Oregon Ducks,Valparaiso Beacons,76,54,37.0,30.0,39.0,24.0,False,Matthew Knight Arena
+400914923,2016,2016-11-17,Wisconsin Badgers,Chicago State Cougars,69,51,32.0,24.0,37.0,27.0,False,Kohl Center
+400915509,2016,2016-11-17,UCLA Bruins,San Diego Toreros,88,68,41.0,33.0,47.0,35.0,False,Pauley Pavilion
+400915245,2016,2016-11-18,Hawai'i Rainbow Warriors,North Carolina Tar Heels,68,83,27.0,35.0,41.0,48.0,False,Stan Sheriff Center
+400915063,2016,2016-11-18,Michigan State Spartans,Mississippi Valley State Delta Devils,100,53,48.0,23.0,52.0,30.0,False,Breslin Center
+400915727,2016,2016-11-18,Gonzaga Bulldogs,Bryant Bulldogs,109,70,50.0,38.0,59.0,32.0,False,McCarthey Athletic Center
+400915730,2016,2016-11-19,Dayton Flyers,Saint Mary's Gaels,57,61,26.0,39.0,31.0,22.0,False,UD Arena
+400915252,2016,2016-11-20,Virginia Cavaliers,Yale Bulldogs,62,38,28.0,21.0,34.0,17.0,False,John Paul Jones Arena
+400915515,2016,2016-11-20,UCLA Bruins,Long Beach State Beach,114,77,56.0,37.0,58.0,40.0,False,Pauley Pavilion
+400916138,2016,2016-11-20,Iowa State Cyclones,The Citadel Bulldogs,130,63,62.0,22.0,68.0,41.0,False,Hilton Coliseum
+400916858,2016,2016-11-21,Vermont Catamounts,Wofford Terriers,60,59,30.0,31.0,30.0,28.0,True,Hertz Arena
+400926591,2016,2016-11-21,Montana Grizzlies,Oral Roberts Golden Eagles,68,47,38.0,24.0,30.0,23.0,True,UVI Sports & Fitness Center
+400915922,2016,2016-11-21,Eastern Illinois Panthers,Troy Trojans,71,67,38.0,33.0,33.0,34.0,False,Groniger Arena
+400918251,2016,2016-11-21,Hofstra Pride,Bradley Braves,92,90,43.0,46.0,49.0,44.0,True,Hertz Arena
+400910794,2016,2016-11-21,Wisconsin Badgers,Tennessee Volunteers,74,62,40.0,32.0,34.0,30.0,True,Lahaina Civic Center
+400926590,2016,2016-11-21,Washington State Cougars,Loyola Chicago Ramblers,79,88,30.0,38.0,49.0,50.0,True,UVI Sports & Fitness Center
+400918682,2016,2016-11-21,LIU Brooklyn Liu Brooklyn,Maine Black Bears,71,66,37.0,28.0,34.0,38.0,True,Case Gym
+400917023,2016,2016-11-21,Ball State Cardinals,Coppin State Eagles,79,77,40.0,29.0,39.0,48.0,True,MGM Grand Garden Arena
+400917475,2016,2016-11-21,Green Bay Phoenix,Kansas City Roos,95,77,43.0,34.0,52.0,43.0,True,Stroh Center
+400915516,2016,2016-11-21,Oregon Ducks,Georgetown Hoyas,61,65,21.0,38.0,40.0,27.0,True,Lahaina Civic Center
+400917024,2016,2016-11-21,Kent State Golden Flashes,South Dakota Coyotes,77,80,44.0,42.0,33.0,38.0,True,Hertz Arena
+400926682,2016,2016-11-21,NC State Wolfpack,Saint Joseph's Hawks,73,63,34.0,30.0,39.0,33.0,True,UVI Sports & Fitness Center
+400925708,2016,2016-11-21,Arkansas-Pine Bluff Golden Lions,Blue Mountain Toppers,74,77,22.0,17.0,28.0,33.0,False,H.O. Clemmons Arena
+400916683,2016,2016-11-21,Liberty Flames,UMass Lowell River Hawks,84,77,32.0,36.0,52.0,41.0,False,Vines Convocation Center
+400916140,2016,2016-11-21,TCU Horned Frogs,Illinois State Redbirds,80,71,31.0,36.0,49.0,35.0,False,Schollmaier Arena
+400915928,2016,2016-11-21,Coastal Carolina Chanticleers,Southern Utah Thunderbirds,83,68,39.0,30.0,44.0,38.0,True,MGM Grand Garden Arena
+400915923,2016,2016-11-21,St. Bonaventure Bonnies,Little Rock Trojans,65,68,28.0,38.0,37.0,30.0,True,H-E-B Center at Cedar Park
+400919142,2016,2016-11-21,Providence Friars,St. Francis Brooklyn Terriers,64,48,38.0,16.0,26.0,32.0,False,Amica Mutual Pavilion
+400915924,2016,2016-11-21,Seattle U Redhawks,UL Monroe Warhawks,81,75,32.0,31.0,32.0,33.0,True,Reese Court
+400923001,2016,2016-11-21,Savannah State Tigers,Fort Valley State Wildcats,118,101,58.0,51.0,60.0,50.0,False,Tiger Arena
+400919764,2016,2016-11-21,James Madison Dukes,Texas Southern Tigers,56,67,26.0,35.0,30.0,32.0,False,JMU Convocation Center
+400919427,2016,2016-11-21,Marshall Thundering Herd,Jackson State Tigers,71,61,34.0,35.0,37.0,26.0,False,Cam Henderson Center
+400918593,2016,2016-11-21,Wright State Raiders,Ohio Dominican Panthers,109,54,49.0,28.0,60.0,26.0,False,Nutter Center
+400917487,2016,2016-11-21,Quinnipiac Bobcats,Columbia Lions,78,86,30.0,48.0,48.0,38.0,False,M&T Bank Arena
+400917486,2016,2016-11-21,Canisius Golden Griffins,UT Martin Skyhawks,69,72,36.0,32.0,33.0,40.0,False,Koessler Athletic Center
+400917025,2016,2016-11-21,Bowling Green Falcons,Murray State Racers,78,77,41.0,34.0,37.0,43.0,False,Stroh Center
+400916684,2016,2016-11-21,Campbell Fighting Camels,Samford Bulldogs,53,66,18.0,29.0,35.0,37.0,False,John W. Pope Jr. Convocation Center
+400915254,2016,2016-11-21,Colorado Buffaloes,Notre Dame Fighting Irish,83,89,35.0,50.0,48.0,39.0,True,Barclays Center
+400915149,2016,2016-11-21,Ohio State Buckeyes,Western Carolina Catamounts,66,38,32.0,18.0,34.0,20.0,False,Value City Arena
+400910659,2016,2016-11-21,Georgia Bulldogs,George Washington Revolutionaries,81,73,35.0,36.0,46.0,37.0,True,T-Mobile Center
+400910635,2016,2016-11-21,Florida Gators,Belmont Bruins,78,61,38.0,26.0,40.0,35.0,True,Benchmark International Arena
+400916494,2016,2016-11-21,Houston Cougars,George Mason Patriots,93,56,48.0,26.0,45.0,30.0,True,Hertz Arena
+400922179,2016,2016-11-21,SE Louisiana Lions,Xavier (LA) Gold Nuggets,89,72,41.0,33.0,48.0,39.0,False,University Center
+400922084,2016,2016-11-21,Incarnate Word Cardinals,Howard Payne Yellow Jackets,91,61,41.0,28.0,50.0,33.0,False,McDermott Center
+400919499,2016,2016-11-21,Southern Miss Golden Eagles,Alabama A&M Bulldogs,63,55,38.0,27.0,25.0,28.0,False,Reed Green Coliseum
+400918134,2016,2016-11-21,Southern Illinois Salukis,Mount St. Mary's Mountaineers,73,63,35.0,36.0,38.0,27.0,False,Banterra Center
+400916292,2016,2016-11-21,Rice Owls,Montana State Bobcats,83,78,34.0,43.0,49.0,35.0,False,Tudor Fieldhouse
+400915927,2016,2016-11-21,Louisiana Ragin' Cajuns,Delaware State Hornets,83,82,42.0,36.0,41.0,46.0,False,Cajundome
+400915926,2016,2016-11-21,Texas State Bobcats,Texas A&M-Corpus Christi Islanders,69,73,28.0,26.0,41.0,47.0,False,Strahan Arena at the University Events Center
+400915925,2016,2016-11-21,UT Arlington Mavericks,St. Francis (IL) Fighting Saints,88,67,47.0,27.0,41.0,40.0,False,College Park Center
+400914950,2016,2016-11-21,Illinois Fighting Illini,Winthrop Eagles,80,84,38.0,34.0,32.0,36.0,False,State Farm Center
+400926681,2016,2016-11-21,Creighton Bluejays,Ole Miss Rebels,86,77,40.0,46.0,46.0,31.0,True,UVI Sports & Fitness Center
+400919645,2016,2016-11-21,Butler Bulldogs,Norfolk State Spartans,91,55,50.0,24.0,41.0,31.0,False,Hinkle Fieldhouse
+400915735,2016,2016-11-21,Central Michigan Chippewas,Pepperdine Waves,88,77,40.0,37.0,48.0,40.0,True,H-E-B Center at Cedar Park
+400916294,2016,2016-11-21,Sacramento State Hornets,UC Davis Aggies,72,81,34.0,36.0,38.0,45.0,True,Golden 1 Center
+400916141,2016,2016-11-21,UConn Huskies,Oklahoma State Cowboys,90,98,26.0,40.0,64.0,58.0,True,Lahaina Civic Center
+400915517,2016,2016-11-21,Arizona Wildcats,Northern Colorado Bears,71,55,30.0,31.0,41.0,24.0,False,McKale Memorial Center
+400910821,2016,2016-11-21,Vanderbilt Commodores,Bucknell Bison,72,75,38.0,40.0,34.0,35.0,False,Memorial Gymnasium (TN)
+400916291,2016,2016-11-21,Eastern Washington Eagles,Bryant Bulldogs,81,77,44.0,35.0,37.0,42.0,False,Reese Court
+400916142,2016,2016-11-21,Kansas Jayhawks,UAB Blazers,83,63,39.0,30.0,44.0,33.0,True,T-Mobile Center
+400915734,2016,2016-11-21,Saint Louis Billikens,BYU Cougars,62,92,33.0,40.0,29.0,52.0,True,MGM Grand Garden Arena
+400911023,2016,2016-11-21,Northwestern Wildcats,Texas Longhorns,77,58,34.0,26.0,43.0,32.0,True,Barclays Center
+400916293,2016,2016-11-21,Idaho Vandals,South Dakota State Jackrabbits,96,89,38.0,38.0,40.0,40.0,False,Cowan Spectrum
+400915736,2016,2016-11-21,Santa Clara Broncos,Sacred Heart Pioneers,84,74,41.0,38.0,43.0,36.0,False,Leavey Center
+400915518,2016,2016-11-21,California Golden Bears,San Diego State Aztecs,65,77,25.0,42.0,40.0,35.0,True,Golden 1 Center
+400915255,2016,2016-11-21,Chaminade Silverswords,North Carolina Tar Heels,61,104,34.0,50.0,27.0,54.0,False,Lahaina Civic Center
+400910543,2016,2016-11-21,Alabama Crimson Tide,Valparaiso Beacons,60,68,31.0,34.0,29.0,34.0,True,MGM Grand Garden Arena
+400915739,2016,2016-11-22,Saint Mary's Gaels,San José State Spartans,81,64,43.0,40.0,38.0,24.0,False,University Credit Union Pavilion
+400926748,2016,2016-11-24,Michigan State Spartans,Baylor Bears,58,73,33.0,30.0,25.0,43.0,True,Imperial Arena
+400916145,2016,2016-11-24,Iowa State Cyclones,Indiana State Sycamores,73,71,41.0,40.0,32.0,31.0,True,HP Field House
+400915264,2016,2016-11-24,Florida State Seminoles,Temple Owls,86,89,41.0,31.0,45.0,58.0,True,Barclays Center
+400926749,2016,2016-11-24,Wichita State Shockers,Louisville Cardinals,52,62,17.0,33.0,35.0,29.0,True,Imperial Arena
+400910809,2016,2016-11-24,Cal State Northridge Matadors,Texas A&M Aggies,73,95,28.0,53.0,45.0,42.0,True,Titan Gym
+400918990,2016,2016-11-24,Norfolk State Spartans,Bucknell Bison,58,84,24.0,41.0,34.0,43.0,True,Orleans Arena
+400915265,2016,2016-11-24,Miami Hurricanes,Stanford Cardinal,67,53,23.0,27.0,44.0,26.0,True,HP Field House
+400914951,2016,2016-11-24,West Virginia Mountaineers,Illinois Fighting Illini,89,57,48.0,29.0,41.0,28.0,True,Barclays Center
+400910761,2016,2016-11-24,Ole Miss Rebels,Montana Grizzlies,86,81,41.0,29.0,45.0,52.0,False,The Sandy and John Black Pavilion at Ole Miss
+400915743,2016,2016-11-24,Quinnipiac Bobcats,Gonzaga Bulldogs,62,82,29.0,37.0,33.0,45.0,True,HP Field House
+400926754,2016,2016-11-24,St. John's Red Storm,VCU Rams,69,75,41.0,39.0,28.0,36.0,True,Imperial Arena
+400910822,2016,2016-11-24,Butler Bulldogs,Vanderbilt Commodores,76,66,41.0,34.0,35.0,32.0,True,Orleans Arena
+400910636,2016,2016-11-24,Florida Gators,Seton Hall Pirates,81,76,39.0,40.0,42.0,36.0,True,HP Field House
+400926755,2016,2016-11-24,LSU Tigers,Old Dominion Monarchs,66,60,23.0,25.0,43.0,35.0,True,Imperial Arena
+400917494,2016,2016-11-24,Iona Gaels,Drake Bulldogs,64,53,25.0,30.0,39.0,23.0,True,Alaska Airlines Center
+400915523,2016,2016-11-24,Arizona Wildcats,Santa Clara Broncos,69,61,37.0,34.0,32.0,27.0,True,Orleans Arena
+400915524,2016,2016-11-24,UCLA Bruins,Portland Pilots,99,77,45.0,37.0,54.0,40.0,True,Titan Gym
+400915273,2016,2016-11-26,Duke Blue Devils,App State Mountaineers,93,58,55.0,34.0,38.0,24.0,False,Cameron Indoor Stadium
+400918156,2016,2016-11-26,Xavier Musketeers,Northern Iowa Panthers,64,42,35.0,12.0,29.0,30.0,False,Cintas Center
+400918995,2016,2016-11-26,Creighton Bluejays,Loyola Maryland Greyhounds,82,52,30.0,25.0,52.0,27.0,False,CHI Health Center Omaha
+400915045,2016,2016-11-26,Michigan Wolverines,Mount St. Mary's Mountaineers,64,47,33.0,16.0,31.0,31.0,False,Crisler Center
+400915749,2016,2016-11-27,Saint Mary's Gaels,UAB Blazers,76,63,43.0,27.0,33.0,36.0,True,Orleans Arena
+400914924,2016,2016-11-27,Wisconsin Badgers,Prairie View A&M Panthers,95,50,47.0,27.0,48.0,23.0,False,Kohl Center
+400915535,2016,2016-11-28,Oregon Ducks,Boise State Broncos,68,63,29.0,32.0,39.0,31.0,False,Matthew Knight Arena
+400919331,2016,2016-11-29,Pennsylvania Quakers,Villanova Wildcats,57,82,25.0,44.0,32.0,38.0,False,The Palestra
+400916152,2016,2016-11-29,Kansas Jayhawks,Long Beach State Beach,91,61,48.0,25.0,43.0,36.0,False,Allen Fieldhouse
+400917894,2016,2016-11-29,Xavier Musketeers,North Dakota State Bison,85,55,43.0,22.0,42.0,33.0,False,Cintas Center
+400918432,2016,2016-11-29,Valparaiso Beacons,Rhode Island Rams,65,62,31.0,30.0,34.0,32.0,False,Athletics-Recreation Center
+400916156,2016,2016-11-30,Baylor Bears,Sam Houston Bearkats,79,45,34.0,17.0,45.0,28.0,False,Ferrell Center
+400915542,2016,2016-11-30,UCLA Bruins,UC Riverside Highlanders,98,56,42.0,27.0,56.0,29.0,False,Pauley Pavilion
+400915541,2016,2016-11-30,Stanford Cardinal,Saint Mary's Gaels,51,66,30.0,26.0,21.0,40.0,False,Maples Pavilion
+400915537,2016,2016-11-30,Arizona Wildcats,Texas Southern Tigers,85,63,45.0,26.0,40.0,37.0,False,McKale Memorial Center
+400925361,2016,2016-11-30,Oregon Ducks,Western Oregon Wolves,93,54,48.0,20.0,45.0,34.0,False,Matthew Knight Arena
+400916157,2016,2016-12-01,Iowa State Cyclones,Cincinnati Bearcats,54,55,24.0,25.0,26.0,25.0,False,Hilton Coliseum
+400910781,2016,2016-12-01,South Carolina Gamecocks,Vermont Catamounts,68,50,43.0,32.0,25.0,18.0,False,Colonial Life Arena
+400910637,2016,2016-12-01,North Florida Ospreys,Florida Gators,60,91,25.0,45.0,35.0,46.0,False,UNF Arena
+400915123,2016,2016-12-02,Indiana Hoosiers,SIU Edwardsville Cougars,83,60,43.0,21.0,40.0,39.0,False,Simon Skjodt Assembly Hall
+400910686,2016,2016-12-03,Kentucky Wildcats,UCLA Bruins,92,97,45.0,49.0,47.0,48.0,False,Rupp Arena
+400915544,2016,2016-12-03,Kansas Jayhawks,Stanford Cardinal,89,74,43.0,35.0,46.0,39.0,False,Allen Fieldhouse
+400915281,2016,2016-12-03,Duke Blue Devils,Maine Black Bears,94,55,46.0,32.0,48.0,23.0,False,Cameron Indoor Stadium
+400915280,2016,2016-12-03,Virginia Cavaliers,West Virginia Mountaineers,57,66,25.0,24.0,32.0,42.0,False,John Paul Jones Arena
+400917055,2016,2016-12-03,Creighton Bluejays,Akron Zips,82,70,37.0,30.0,45.0,40.0,False,CHI Health Center Omaha
+400915282,2016,2016-12-03,Grand Canyon Lopes,Louisville Cardinals,70,79,37.0,36.0,33.0,43.0,False,Global Credit Union Arena
+400915188,2016,2016-12-03,Purdue Boilermakers,Morehead State Eagles,90,56,47.0,25.0,43.0,31.0,False,Mackey Arena
+400914926,2016,2016-12-03,Wisconsin Badgers,Oklahoma Sooners,90,70,37.0,40.0,53.0,30.0,False,Kohl Center
+400919651,2016,2016-12-03,Butler Bulldogs,Central Arkansas Bears,82,58,40.0,28.0,42.0,30.0,False,Hinkle Fieldhouse
+400918433,2016,2016-12-03,Providence Friars,Rhode Island Rams,63,60,29.0,35.0,34.0,25.0,False,Amica Mutual Pavilion
+400915277,2016,2016-12-03,Syracuse Orange,North Florida Ospreys,77,71,34.0,23.0,43.0,48.0,False,JMA Wireless Dome
+400923002,2016,2016-12-03,Oregon Ducks,Savannah State Tigers,128,59,58.0,35.0,70.0,24.0,False,Matthew Knight Arena
+400915284,2016,2016-12-04,North Carolina Tar Heels,Radford Highlanders,95,50,51.0,27.0,44.0,23.0,False,Dean E. Smith Center
+400915124,2016,2016-12-04,Indiana Hoosiers,Southeast Missouri State Redhawks,83,55,39.0,26.0,44.0,29.0,False,Simon Skjodt Assembly Hall
+400910782,2016,2016-12-04,South Carolina Gamecocks,Florida International Panthers,70,54,36.0,22.0,34.0,32.0,False,Colonial Life Arena
+400916161,2016,2016-12-05,Iowa State Cyclones,Omaha Mavericks,91,47,48.0,22.0,43.0,25.0,False,Hilton Coliseum
+400918399,2016,2016-12-06,La Salle Explorers,Villanova Wildcats,79,89,36.0,40.0,43.0,49.0,False,Tom Gola Arena
+400916162,2016,2016-12-06,Kansas Jayhawks,Kansas City Roos,105,62,51.0,35.0,54.0,27.0,False,Allen Fieldhouse
+400915290,2016,2016-12-06,Virginia Cavaliers,East Carolina Pirates,76,53,42.0,20.0,34.0,33.0,False,John Paul Jones Arena
+400915553,2016,2016-12-06,Arizona Wildcats,UC Irvine Anteaters,79,57,39.0,23.0,40.0,34.0,False,McKale Memorial Center
+400910687,2016,2016-12-07,Kentucky Wildcats,Valparaiso Beacons,87,63,45.0,24.0,42.0,39.0,False,Rupp Arena
+400915298,2016,2016-12-07,North Carolina Tar Heels,Davidson Wildcats,83,74,42.0,32.0,41.0,42.0,False,Dean E. Smith Center
+400915554,2016,2016-12-07,Gonzaga Bulldogs,Washington Huskies,98,71,47.0,22.0,51.0,49.0,False,McCarthey Athletic Center
+400915107,2016,2016-12-07,Nebraska Cornhuskers,Creighton Bluejays,62,77,30.0,31.0,32.0,46.0,False,Pinnacle Bank Arena
+400915295,2016,2016-12-07,Louisville Cardinals,Southern Illinois Salukis,74,51,37.0,26.0,37.0,25.0,False,KFC Yum! Center
+400915555,2016,2016-12-07,Colorado Buffaloes,Xavier Musketeers,68,66,28.0,31.0,40.0,35.0,False,CU Events Center
+400916164,2016,2016-12-07,West Virginia Mountaineers,Western Carolina Catamounts,90,37,46.0,12.0,44.0,25.0,True,Charleston Coliseum
+400918211,2016,2016-12-07,Indiana State Sycamores,Butler Bulldogs,72,71,32.0,28.0,40.0,43.0,False,Hulman Center
+400914927,2016,2016-12-07,Wisconsin Badgers,Idaho State Bengals,78,44,35.0,16.0,43.0,28.0,False,Kohl Center
+400915769,2016,2016-12-08,Saint Mary's Gaels,UT Arlington Mavericks,51,65,23.0,36.0,28.0,29.0,False,University Credit Union Pavilion
+400916724,2016,2016-12-09,Creighton Bluejays,Longwood Lancers,113,58,62.0,25.0,51.0,33.0,False,CHI Health Center Omaha
+400915560,2016,2016-12-10,UCLA Bruins,Michigan Wolverines,102,84,50.0,50.0,52.0,34.0,False,Pauley Pavilion
+400915108,2016,2016-12-10,Kansas Jayhawks,Nebraska Cornhuskers,89,72,54.0,34.0,35.0,38.0,False,Allen Fieldhouse
+400915774,2016,2016-12-10,Gonzaga Bulldogs,Akron Zips,61,43,23.0,17.0,38.0,26.0,False,McCarthey Athletic Center
+400915125,2016,2016-12-10,Indiana Hoosiers,Houston Christian Huskies,103,61,42.0,27.0,61.0,34.0,False,Simon Skjodt Assembly Hall
+400915306,2016,2016-12-10,Louisville Cardinals,Texas Southern Tigers,102,71,46.0,32.0,56.0,39.0,False,KFC Yum! Center
+400915558,2016,2016-12-10,Xavier Musketeers,Utah Utes,77,69,40.0,29.0,37.0,40.0,False,Cintas Center
+400916168,2016,2016-12-10,West Virginia Mountaineers,VMI Keydets,90,55,38.0,25.0,52.0,30.0,False,WVU Coliseum
+400916531,2016,2016-12-10,Butler Bulldogs,Cincinnati Bearcats,75,65,35.0,35.0,40.0,30.0,False,Hinkle Fieldhouse
+400914928,2016,2016-12-10,Marquette Golden Eagles,Wisconsin Badgers,84,93,40.0,35.0,44.0,58.0,False,BMO Harris Bradley Center
+400915190,2016,2016-12-10,Purdue Boilermakers,Cleveland State Vikings,77,53,41.0,20.0,36.0,33.0,False,Mackey Arena
+400910747,2016,2016-12-10,Missouri Tigers,Arizona Wildcats,60,79,36.0,41.0,24.0,38.0,False,Mizzou Arena
+400910797,2016,2016-12-11,North Carolina Tar Heels,Tennessee Volunteers,73,71,36.0,44.0,37.0,27.0,False,Dean E. Smith Center
+400915777,2016,2016-12-11,Saint Mary's Gaels,UC Irvine Anteaters,84,53,38.0,25.0,46.0,28.0,False,University Credit Union Pavilion
+400910639,2016,2016-12-11,Florida State Seminoles,Florida Gators,83,78,36.0,34.0,47.0,44.0,False,Tucker Center
+400910546,2016,2016-12-11,Oregon Ducks,Alabama Crimson Tide,65,56,31.0,23.0,34.0,33.0,False,Matthew Knight Arena
+400910611,2016,2016-12-12,Boston College Eagles,Auburn Tigers,72,71,43.0,39.0,29.0,32.0,True,Madison Square Garden
+400919013,2016,2016-12-12,Lehigh Mountain Hawks,Saint Francis Red Flash,100,67,45.0,36.0,55.0,31.0,False,Stabler Arena
+400917908,2016,2016-12-12,IU Indianapolis Jaguars,Urbana Blue Knights,109,67,58.0,35.0,51.0,32.0,False,Corteva Coliseum
+400917532,2016,2016-12-12,Canisius Golden Griffins,UAlbany Great Danes,77,64,32.0,27.0,45.0,37.0,False,Koessler Athletic Center
+400916728,2016,2016-12-12,George Mason Patriots,Longwood Lancers,97,60,50.0,30.0,47.0,30.0,False,EagleBank Arena
+400916533,2016,2016-12-12,South Florida Bulls,Bethune-Cookman Wildcats,79,73,31.0,44.0,35.0,22.0,False,Yuengling Center
+400916532,2016,2016-12-12,UCF Knights,Pennsylvania Quakers,49,58,24.0,28.0,25.0,30.0,False,Addition Financial Arena
+400915028,2016,2016-12-12,Maryland Terrapins,Jacksonville State Gamecocks,92,66,42.0,29.0,50.0,37.0,False,XFINITY Center
+400922181,2016,2016-12-12,SE Louisiana Lions,Florida A&M Rattlers,108,69,48.0,32.0,60.0,37.0,False,University Center
+400918019,2016,2016-12-12,UT Rio Grande Valley Vaqueros,North Florida Ospreys,98,84,50.0,29.0,48.0,55.0,False,UTRGV Fieldhouse
+400917735,2016,2016-12-12,Murray State Racers,Bethel (TN) Wildcats,103,65,43.0,28.0,60.0,37.0,False,CFSB Center
+400915979,2016,2016-12-12,UL Monroe Warhawks,Blue Mountain Toppers,72,41,29.0,26.0,43.0,15.0,False,Fant-Ewing Coliseum
+400910783,2016,2016-12-12,Seton Hall Pirates,South Carolina Gamecocks,67,64,27.0,34.0,40.0,30.0,True,Madison Square Garden
+400919924,2016,2016-12-12,San Diego State Aztecs,Alabama State Hornets,73,41,42.0,22.0,31.0,19.0,False,Viejas Arena
+400918018,2016,2016-12-12,Seattle U Redhawks,Arkansas-Pine Bluff Golden Lions,63,58,30.0,26.0,33.0,32.0,False,Redhawk Center
+400916534,2016,2016-12-13,Villanova Wildcats,Temple Owls,78,57,29.0,16.0,49.0,41.0,False,Finneran Pavilion
+400915566,2016,2016-12-13,Oregon Ducks,Montana Grizzlies,81,67,38.0,34.0,43.0,33.0,False,Matthew Knight Arena
+400916536,2016,2016-12-13,Cincinnati Bearcats,Texas Southern Tigers,96,58,37.0,23.0,59.0,35.0,False,Fifth Third Arena
+400915567,2016,2016-12-14,UCLA Bruins,UC Santa Barbara Gauchos,102,62,54.0,30.0,48.0,32.0,False,Pauley Pavilion
+400916172,2016,2016-12-14,Baylor Bears,Southern Jaguars,89,59,52.0,26.0,37.0,33.0,False,Ferrell Center
+400914929,2016,2016-12-14,Wisconsin Badgers,Green Bay Phoenix,73,59,31.0,21.0,42.0,38.0,False,Kohl Center
+400915568,2016,2016-12-14,Arizona Wildcats,Grand Canyon Lopes,64,54,32.0,25.0,32.0,29.0,False,McKale Memorial Center
+400915779,2016,2016-12-14,Saint Mary's Gaels,Western Kentucky Hilltoppers,73,51,38.0,24.0,35.0,27.0,False,University Credit Union Pavilion
+400919488,2016,2016-12-15,Rice Owls,St. Edward's Hilltoppers,93,64,49.0,28.0,44.0,36.0,False,Tudor Fieldhouse
+400918021,2016,2016-12-15,Cal State Bakersfield Roadrunners,Bethesda University Flames,105,78,60.0,36.0,45.0,42.0,False,Icardo Center
+400918834,2016,2016-12-15,North Florida Ospreys,Thomas (GA) Night Hawks,110,80,42.0,45.0,68.0,35.0,False,UNF Arena
+400916889,2016,2016-12-15,Wofford Terriers,Austin Peay Governors,96,77,55.0,31.0,41.0,46.0,False,Benjamin Johnson Arena
+400916539,2016,2016-12-15,George Washington Revolutionaries,UCF Knights,74,59,30.0,22.0,44.0,37.0,False,Charles E. Smith Center
+400916538,2016,2016-12-15,East Carolina Pirates,Charleston Cougars,35,53,13.0,23.0,22.0,30.0,False,Minges Coliseum
+400915986,2016,2016-12-15,Florida International Panthers,Georgia Southern Eagles,68,75,35.0,35.0,33.0,40.0,False,Ocean Bank Convocation Center
+400915309,2016,2016-12-15,NC State Wolfpack,App State Mountaineers,97,64,48.0,28.0,49.0,36.0,False,Lenovo Center
+400910799,2016,2016-12-15,Tennessee Volunteers,Lipscomb Bisons,92,77,49.0,58.0,43.0,19.0,False,Food City Center
+400920401,2016,2016-12-15,Coppin State Eagles,Goldey-Beacom Lightning,89,83,31.0,43.0,47.0,35.0,False,Physical Education Complex
+400917911,2016,2016-12-15,Kansas City Roos,Omaha Mavericks,75,80,35.0,32.0,40.0,48.0,False,Municipal Auditorium (MO)
+400922383,2016,2016-12-15,Jackson State Tigers,Blue Mountain Toppers,49,57,20.0,23.0,29.0,34.0,False,Lee E. Williams Athletics and Assembly Center
+400910765,2016,2016-12-15,Ole Miss Rebels,Murray State Racers,78,73,43.0,31.0,35.0,42.0,False,The Sandy and John Black Pavilion at Ole Miss
+400910547,2016,2016-12-15,Alabama Crimson Tide,South Carolina Upstate Spartans,78,61,39.0,26.0,39.0,35.0,False,Coleman Coliseum
+400910612,2016,2016-12-15,Auburn Tigers,Coastal Carolina Chanticleers,117,72,56.0,27.0,61.0,45.0,False,Neville Arena
+400918022,2016,2016-12-15,Seattle U Redhawks,Mississippi Valley State Delta Devils,82,67,51.0,23.0,31.0,44.0,False,Redhawk Center
+400915780,2016,2016-12-15,Pacific Tigers,North Carolina A&T Aggies,66,57,28.0,23.0,38.0,34.0,False,Alex G. Spanos Center
+400920447,2016,2016-12-16,Howard Bison,Shenandoah Hornets,77,66,37.0,34.0,40.0,32.0,False,Burr Gymnasium
+400924203,2016,2016-12-16,Liberty Flames,Clarks Summit Defenders,81,33,32.0,21.0,49.0,12.0,False,Vines Convocation Center
+400922273,2016,2016-12-16,William & Mary Tribe,Milligan Buffaloes,113,59,68.0,23.0,45.0,36.0,False,Kaplan Arena
+400917536,2016,2016-12-16,Rider Broncs,Drexel Dragons,90,82,41.0,45.0,49.0,37.0,False,Alumni Gymnasium (Rider)
+400916890,2016,2016-12-16,Furman Paladins,South Carolina State Bulldogs,67,69,32.0,37.0,35.0,32.0,False,Timmons Arena
+400916734,2016,2016-12-16,High Point Panthers,NC Wesleyan Battling Bishops,79,61,35.0,29.0,44.0,32.0,False,Millis Athletic and Convocation Center
+400916733,2016,2016-12-16,Gardner-Webb Runnin' Bulldogs,Warren Wilson Owls,95,45,54.0,18.0,41.0,27.0,False,Paul Porter Arena
+400915310,2016,2016-12-16,Miami Hurricanes,Florida Atlantic Owls,76,56,39.0,24.0,37.0,32.0,False,Watsco Center
+400918023,2016,2016-12-16,UT Rio Grande Valley Vaqueros,Lamar Cardinals,95,81,38.0,38.0,57.0,43.0,False,UTRGV Fieldhouse
+400915988,2016,2016-12-16,Bradley Braves,UT Arlington Mavericks,51,56,24.0,31.0,27.0,25.0,False,Carver Arena
+400915987,2016,2016-12-16,Central Arkansas Bears,Arkansas State Red Wolves,77,89,39.0,44.0,38.0,45.0,False,Farris Center
+400916340,2016,2016-12-16,Idaho State Bengals,Montana Tech Orediggers,76,46,39.0,25.0,37.0,21.0,False,ICCU Dome
+400915989,2016,2016-12-16,South Alabama Jaguars,Samford Bulldogs,79,82,33.0,36.0,46.0,46.0,False,Mitchell Center
+400915781,2016,2016-12-16,Portland Pilots,South Dakota Coyotes,85,82,36.0,33.0,49.0,49.0,False,Moda Center
+400916339,2016,2016-12-16,North Dakota Fighting Hawks,North Dakota State Bison,70,87,33.0,38.0,37.0,49.0,False,Betty Engelstad Sioux Center
+400915569,2016,2016-12-16,Stanford Cardinal,Cal State East Bay Pioneers,79,55,46.0,26.0,33.0,29.0,False,Maples Pavilion
+400918907,2016,2016-12-16,Cal State Northridge Matadors,Bethesda University Flames,95,100,43.0,48.0,52.0,52.0,False,Premier America Credit Union Arena
+400915782,2016,2016-12-16,San Francisco Dons,Portland State Vikings,78,82,47.0,37.0,31.0,45.0,False,The Sobrato Center
+400915570,2016,2016-12-16,Oregon State Beavers,Long Beach State Beach,67,71,29.0,25.0,38.0,46.0,False,Moda Center
+400917913,2016,2016-12-17,Creighton Bluejays,Oral Roberts Golden Eagles,66,65,45.0,38.0,21.0,27.0,False,CHI Health Center Omaha
+400916177,2016,2016-12-17,West Virginia Mountaineers,Kansas City Roos,112,67,56.0,24.0,56.0,43.0,False,WVU Coliseum
+400915313,2016,2016-12-17,Virginia Cavaliers,Robert Morris Colonials,79,39,32.0,18.0,47.0,21.0,False,John Paul Jones Arena
+400910784,2016,2016-12-17,South Florida Bulls,South Carolina Gamecocks,66,77,37.0,31.0,29.0,46.0,False,Yuengling Center
+400915577,2016,2016-12-17,Oregon Ducks,UNLV Rebels,83,63,37.0,33.0,46.0,30.0,True,Moda Center
+400916540,2016,2016-12-17,Cincinnati Bearcats,Fairleigh Dickinson Knights,119,68,65.0,26.0,54.0,42.0,False,Fifth Third Arena
+400916184,2016,2016-12-18,Baylor Bears,John Brown Golden Eagles,107,53,53.0,28.0,54.0,25.0,False,Ferrell Center
+400910800,2016,2016-12-18,Tennessee Volunteers,Gonzaga Bulldogs,76,86,29.0,43.0,47.0,43.0,True,Bridgestone Arena
+400915324,2016,2016-12-19,Duke Blue Devils,Tennessee State Tigers,65,55,27.0,23.0,38.0,32.0,False,Cameron Indoor Stadium
+400915192,2016,2016-12-19,Purdue Boilermakers,Western Illinois Leathernecks,82,50,44.0,28.0,38.0,22.0,False,Mackey Arena
+400915127,2016,2016-12-19,Indiana Hoosiers,Delaware State Hornets,103,56,54.0,30.0,49.0,26.0,False,Simon Skjodt Assembly Hall
+400915321,2016,2016-12-19,Florida State Seminoles,Samford Bulldogs,76,68,31.0,27.0,45.0,41.0,False,Tucker Center
+400915323,2016,2016-12-19,Notre Dame Fighting Irish,Colgate Raiders,77,62,36.0,20.0,41.0,42.0,False,Purcell Pavilion
+400915584,2016,2016-12-20,Arizona State Sun Devils,Creighton Bluejays,85,96,40.0,45.0,45.0,51.0,False,Desert Financial Arena
+400916185,2016,2016-12-20,West Virginia Mountaineers,Radford Highlanders,84,57,53.0,22.0,31.0,35.0,False,WVU Coliseum
+400916353,2016,2016-12-20,Xavier Musketeers,Eastern Washington Eagles,85,56,46.0,30.0,39.0,26.0,False,Cintas Center
+400915583,2016,2016-12-20,Arizona Wildcats,New Mexico Lobos,77,46,37.0,16.0,40.0,30.0,False,McKale Memorial Center
+400915792,2016,2016-12-20,Saint Mary's Gaels,Texas A&M-Corpus Christi Islanders,67,46,33.0,18.0,34.0,28.0,False,University Credit Union Pavilion
+400915585,2016,2016-12-20,Oregon Ducks,Fresno State Bulldogs,75,63,39.0,25.0,36.0,38.0,False,Matthew Knight Arena
+400919018,2016,2016-12-21,Villanova Wildcats,American University Eagles,90,48,40.0,29.0,50.0,19.0,False,Finneran Pavilion
+400915589,2016,2016-12-21,UCLA Bruins,Western Michigan Broncos,82,68,45.0,33.0,37.0,35.0,False,Pauley Pavilion
+400916187,2016,2016-12-21,Baylor Bears,Texas Southern Tigers,89,63,40.0,26.0,49.0,37.0,False,Ferrell Center
+400915326,2016,2016-12-21,Elon Phoenix,Duke Blue Devils,61,72,35.0,34.0,26.0,38.0,True,First Horizon Coliseum
+400910690,2016,2016-12-21,Louisville Cardinals,Kentucky Wildcats,73,70,39.0,40.0,34.0,30.0,False,KFC Yum! Center
+400915794,2016,2016-12-21,Gonzaga Bulldogs,South Dakota Coyotes,102,65,52.0,25.0,50.0,40.0,False,McCarthey Athletic Center
+400915328,2016,2016-12-21,North Carolina Tar Heels,Northern Iowa Panthers,85,42,33.0,26.0,52.0,16.0,False,Dean E. Smith Center
+400915329,2016,2016-12-21,California Golden Bears,Virginia Cavaliers,52,56,22.0,22.0,30.0,34.0,False,Haas Pavilion
+400918762,2016,2016-12-21,Butler Bulldogs,Vermont Catamounts,81,69,40.0,30.0,41.0,39.0,False,Hinkle Fieldhouse
+400915193,2016,2016-12-21,Purdue Boilermakers,Norfolk State Spartans,91,45,53.0,25.0,38.0,20.0,False,Mackey Arena
+400910785,2016,2016-12-21,South Carolina Gamecocks,Clemson Tigers,60,62,25.0,29.0,35.0,33.0,False,Colonial Life Arena
+400916192,2016,2016-12-22,UNLV Rebels,Kansas Jayhawks,53,71,20.0,42.0,33.0,29.0,False,Thomas & Mack Center
+400914974,2016,2016-12-22,Indiana Hoosiers,Austin Peay Governors,97,62,48.0,31.0,49.0,31.0,False,Simon Skjodt Assembly Hall
+400915799,2016,2016-12-22,Saint Mary's Gaels,South Carolina State Bulldogs,74,47,31.0,23.0,43.0,24.0,False,University Credit Union Pavilion
+400916552,2016,2016-12-22,Cincinnati Bearcats,Marshall Thundering Herd,93,91,38.0,50.0,42.0,30.0,False,Fifth Third Arena
+400916193,2016,2016-12-23,West Virginia Mountaineers,Northern Kentucky Norse,92,61,36.0,29.0,56.0,32.0,False,WVU Coliseum
+400914930,2016,2016-12-23,Wisconsin Badgers,Florida A&M Rattlers,90,37,43.0,22.0,47.0,15.0,False,Kohl Center
+400926723,2016,2016-12-25,Utah Utes,Stephen F. Austin Lumberjacks,74,66,32.0,26.0,42.0,40.0,True,Stan Sheriff Center
+400926722,2016,2016-12-25,Hawai'i Rainbow Warriors,Southern Miss Golden Eagles,60,46,32.0,22.0,28.0,24.0,False,Stan Sheriff Center
+400926720,2016,2016-12-25,Illinois State Redbirds,Tulsa Golden Hurricane,68,56,37.0,21.0,31.0,35.0,True,Stan Sheriff Center
+400926719,2016,2016-12-25,San Francisco Dons,San Diego State Aztecs,48,62,28.0,32.0,20.0,30.0,True,Stan Sheriff Center
+400915803,2016,2016-12-26,Loyola Marymount Lions,Morgan State Bears,70,49,32.0,22.0,38.0,27.0,False,Gersten Pavilion
+400915139,2016,2016-12-27,Penn State Nittany Lions,Northwestern Wildcats,77,87,32.0,51.0,45.0,36.0,False,Bryce Jordan Center
+400914957,2016,2016-12-27,Maryland Terrapins,Illinois Fighting Illini,84,59,39.0,23.0,45.0,36.0,False,XFINITY Center
+400918477,2016,2016-12-27,VCU Rams,Howard Bison,85,51,48.0,22.0,37.0,29.0,False,Siegel Center
+400915336,2016,2016-12-27,Syracuse Orange,Cornell Big Red,80,56,42.0,25.0,38.0,31.0,False,JMA Wireless Dome
+400914931,2016,2016-12-27,Wisconsin Badgers,Rutgers Scarlet Knights,72,52,33.0,18.0,39.0,34.0,False,Kohl Center
+400911028,2016,2016-12-27,Texas Longhorns,Kent State Golden Flashes,58,63,29.0,25.0,29.0,38.0,False,Frank Erwin Center
+400910786,2016,2016-12-27,South Carolina Gamecocks,Lander Senators,90,62,53.0,16.0,37.0,46.0,False,Colonial Life Arena
+400917762,2016,2016-12-27,Tennessee State Tigers,Covenant Fighting Scots,81,50,47.0,24.0,34.0,26.0,False,Gentry Center
+400918034,2016,2016-12-27,New Mexico State Aggies,E. New Mexico Greyhounds,84,50,45.0,28.0,39.0,22.0,False,Pan American Center
+400916557,2016,2016-12-27,Memphis Tigers,SMU Mustangs,54,58,29.0,32.0,25.0,26.0,False,FedExForum
+400915072,2016,2016-12-27,Minnesota Golden Gophers,Michigan State Spartans,74,75,39.0,26.0,27.0,40.0,False,Williams Arena
+400918033,2016,2016-12-27,UC Santa Barbara Gauchos,Cal State Bakersfield Roadrunners,62,60,15.0,28.0,41.0,28.0,False,The Thunderdome
+400919656,2016,2016-12-28,Villanova Wildcats,DePaul Blue Demons,68,65,32.0,24.0,36.0,41.0,False,Finneran Pavilion
+400915596,2016,2016-12-28,Oregon Ducks,UCLA Bruins,89,87,52.0,47.0,37.0,40.0,False,Matthew Knight Arena
+400915344,2016,2016-12-28,Louisville Cardinals,Virginia Cavaliers,53,61,21.0,36.0,32.0,25.0,False,KFC Yum! Center
+400915346,2016,2016-12-28,North Carolina Tar Heels,Monmouth Hawks,102,74,50.0,41.0,52.0,33.0,False,Dean E. Smith Center
+400919658,2016,2016-12-28,Creighton Bluejays,Seton Hall Pirates,89,75,50.0,37.0,39.0,38.0,False,CHI Health Center Omaha
+400914975,2016,2016-12-28,Indiana Hoosiers,Nebraska Cornhuskers,83,87,36.0,33.0,47.0,54.0,False,Simon Skjodt Assembly Hall
+400919657,2016,2016-12-28,Xavier Musketeers,Providence Friars,82,56,37.0,25.0,45.0,31.0,False,Cintas Center
+400915343,2016,2016-12-28,Florida State Seminoles,Wake Forest Demon Deacons,88,72,39.0,40.0,49.0,32.0,False,Tucker Center
+400915597,2016,2016-12-28,Oregon State Beavers,USC Trojans,63,70,17.0,34.0,46.0,36.0,False,Gill Coliseum
+400916560,2016,2016-12-28,Temple Owls,Cincinnati Bearcats,50,56,26.0,26.0,24.0,30.0,False,Liacouras Center
+400915345,2016,2016-12-28,Notre Dame Fighting Irish,Saint Peter's Peacocks,63,55,33.0,23.0,30.0,32.0,False,Purcell Pavilion
+400919660,2016,2016-12-29,St. John's Red Storm,Butler Bulldogs,76,73,38.0,38.0,38.0,35.0,False,Carnesecca Arena
+400915808,2016,2016-12-29,Loyola Marymount Lions,Saint Mary's Gaels,60,72,25.0,34.0,35.0,38.0,False,Gersten Pavilion
+400910587,2016,2016-12-29,Arkansas Razorbacks,Florida Gators,72,81,35.0,44.0,37.0,37.0,False,Bud Walton Arena
+400915600,2016,2016-12-30,Oregon State Beavers,UCLA Bruins,63,76,26.0,34.0,37.0,42.0,False,Gill Coliseum
+400916196,2016,2016-12-30,Oklahoma Sooners,Baylor Bears,50,76,17.0,36.0,33.0,40.0,False,Lloyd Noble Center
+400916194,2016,2016-12-30,Oklahoma State Cowboys,West Virginia Mountaineers,75,92,28.0,41.0,47.0,51.0,False,Gallagher-Iba Arena
+400915601,2016,2016-12-30,California Golden Bears,Arizona Wildcats,62,67,32.0,26.0,30.0,41.0,False,Haas Pavilion
+400915599,2016,2016-12-30,Oregon Ducks,USC Trojans,84,61,38.0,29.0,46.0,32.0,False,Matthew Knight Arena
+400919662,2016,2016-12-31,Creighton Bluejays,Villanova Wildcats,70,80,41.0,42.0,29.0,38.0,False,CHI Health Center Omaha
+400915347,2016,2016-12-31,Virginia Tech Hokies,Duke Blue Devils,89,75,47.0,31.0,42.0,44.0,False,Cassell Coliseum
+400914976,2016,2016-12-31,Indiana Hoosiers,Louisville Cardinals,62,77,27.0,39.0,35.0,38.0,True,Gainbridge Fieldhouse
+400915811,2016,2016-12-31,Pacific Tigers,Gonzaga Bulldogs,61,81,34.0,29.0,27.0,52.0,False,Alex G. Spanos Center
+400915350,2016,2016-12-31,Georgia Tech Yellow Jackets,North Carolina Tar Heels,75,63,29.0,32.0,46.0,31.0,False,McCamish Pavilion
+400915351,2016,2016-12-31,Virginia Cavaliers,Florida State Seminoles,58,60,30.0,23.0,28.0,37.0,False,John Paul Jones Arena
+400915812,2016,2016-12-31,Saint Mary's Gaels,San Diego Toreros,72,60,33.0,25.0,39.0,35.0,False,University Credit Union Pavilion
+400915349,2016,2016-12-31,Pittsburgh Panthers,Notre Dame Fighting Irish,77,78,36.0,34.0,32.0,34.0,False,Petersen Events Center
+400915094,2017,2017-01-01,Purdue Boilermakers,Minnesota Golden Gophers,82,91,35.0,38.0,38.0,35.0,False,Mackey Arena
+400915603,2017,2017-01-01,Stanford Cardinal,Arizona Wildcats,52,91,30.0,49.0,22.0,42.0,False,Maples Pavilion
+400916566,2017,2017-01-01,Cincinnati Bearcats,Tulane Green Wave,92,56,39.0,27.0,53.0,29.0,False,Fifth Third Arena
+400918727,2017,2017-01-02,New Hampshire Wildcats,Wheelock College Wheelock,95,50,48.0,23.0,47.0,27.0,False,Lundholm Gymnasium
+400919047,2017,2017-01-02,Colgate Raiders,American University Eagles,64,67,21.0,28.0,37.0,30.0,False,Cotterell Court
+400919046,2017,2017-01-02,Boston University Terriers,Lehigh Mountain Hawks,75,61,38.0,29.0,37.0,32.0,False,Case Gym
+400918689,2017,2017-01-02,Maine Black Bears,Columbia Lions,73,98,39.0,49.0,34.0,49.0,False,Cross Insurance Center
+400917561,2017,2017-01-02,Canisius Golden Griffins,Siena Saints,82,79,46.0,39.0,36.0,40.0,False,Koessler Athletic Center
+400922088,2017,2017-01-02,SE Louisiana Lions,Incarnate Word Cardinals,74,63,39.0,25.0,35.0,38.0,False,University Center
+400919634,2017,2017-01-02,Hofstra Pride,William & Mary Tribe,93,95,50.0,44.0,36.0,42.0,False,David S. Mack Sports and Exhibition Complex
+400919603,2017,2017-01-02,Drexel Dragons,Northeastern Huskies,70,75,26.0,25.0,35.0,36.0,False,Daskalakis Athletic Center
+400919460,2017,2017-01-02,Old Dominion Monarchs,North Texas Mean Green,55,48,23.0,17.0,32.0,31.0,False,Chartway Arena
+400920481,2017,2017-01-02,Maryland Eastern Shore Hawks,Valley Forge Patriots,90,65,54.0,35.0,36.0,30.0,False,Hytche Center
+400919564,2017,2017-01-02,Delaware Blue Hens,Charleston Cougars,56,65,26.0,20.0,30.0,45.0,False,Bob Carpenter Center
+400919766,2017,2017-01-02,James Madison Dukes,Towson Tigers,64,44,29.0,18.0,35.0,26.0,False,JMU Convocation Center
+400919620,2017,2017-01-02,UNC Wilmington Seahawks,Elon Phoenix,79,63,34.0,26.0,45.0,37.0,False,Trask Coliseum
+400919389,2017,2017-01-02,Florida International Panthers,Western Kentucky Hilltoppers,66,69,30.0,32.0,36.0,37.0,False,Ocean Bank Convocation Center
+400919369,2017,2017-01-02,Florida Atlantic Owls,Marshall Thundering Herd,72,89,34.0,43.0,38.0,46.0,False,Eleanor R. Baldwin Arena
+400919348,2017,2017-01-02,Charlotte 49ers,Rice Owls,70,89,33.0,38.0,37.0,51.0,False,Halton Arena
+400919050,2017,2017-01-02,Bucknell Bison,Army Black Knights,84,76,41.0,29.0,43.0,47.0,False,Sojka Pavilion
+400918862,2017,2017-01-02,Stetson Hatters,Ave Maria Gyrenes,95,72,56.0,34.0,39.0,38.0,False,Edmunds Center
+400918836,2017,2017-01-02,North Florida Ospreys,Palm Beach Atlantic Sailfish,102,67,47.0,38.0,55.0,29.0,False,UNF Arena
+400918763,2017,2017-01-02,Vermont Catamounts,Harvard Crimson,82,71,36.0,33.0,46.0,38.0,False,Patrick Gymnasium
+400918665,2017,2017-01-02,Yale Bulldogs,Hartford Hawks,88,72,30.0,27.0,58.0,45.0,False,John J. Lee Amphitheater
+400918612,2017,2017-01-02,UAlbany Great Danes,Cornell Big Red,69,59,34.0,26.0,35.0,33.0,False,Broadview Center
+400917776,2017,2017-01-02,Tennessee State Tigers,Kennesaw State Owls,73,76,34.0,42.0,39.0,34.0,False,Gentry Center
+400917565,2017,2017-01-02,Fairfield Stags,Iona Gaels,93,87,45.0,36.0,48.0,51.0,False,Total Mortgage Arena
+400917564,2017,2017-01-02,Marist Red Foxes,Manhattan Jaspers,90,88,33.0,31.0,41.0,43.0,False,McCann Arena
+400917563,2017,2017-01-02,Saint Peter's Peacocks,Monmouth Hawks,71,61,27.0,19.0,44.0,42.0,False,Yanitelli Center
+400917562,2017,2017-01-02,Niagara Purple Eagles,Quinnipiac Bobcats,78,81,41.0,37.0,37.0,44.0,False,Gallagher Center
+400916913,2017,2017-01-02,Wofford Terriers,The Citadel Bulldogs,103,104,37.0,46.0,54.0,45.0,False,Benjamin Johnson Arena
+400916912,2017,2017-01-02,UNC Greensboro Spartans,Chattanooga Mocs,73,68,32.0,38.0,41.0,30.0,False,First Horizon Coliseum
+400916911,2017,2017-01-02,Furman Paladins,Mercer Bears,71,69,30.0,32.0,41.0,37.0,False,Timmons Arena
+400916910,2017,2017-01-02,Western Carolina Catamounts,Samford Bulldogs,65,70,25.0,33.0,40.0,37.0,False,Ramsey Center
+400919048,2017,2017-01-02,Holy Cross Crusaders,Navy Midshipmen,51,50,19.0,22.0,32.0,28.0,False,Hart Center
+400919049,2017,2017-01-02,Loyola Maryland Greyhounds,Lafayette Leopards,69,78,29.0,39.0,40.0,39.0,False,Reitz Arena
+400918045,2017,2017-01-02,Kansas City Roos,South Carolina Upstate Spartans,75,84,40.0,27.0,35.0,57.0,False,Municipal Auditorium (MO)
+400922196,2017,2017-01-02,Alcorn State Braves,Texas Southern Tigers,65,67,35.0,39.0,30.0,28.0,False,Davey L. Whitney Complex
+400916018,2017,2017-01-02,Texas State Bobcats,Coastal Carolina Chanticleers,53,60,27.0,24.0,26.0,36.0,False,Strahan Arena at the University Events Center
+400916017,2017,2017-01-02,UT Arlington Mavericks,App State Mountaineers,84,69,37.0,33.0,47.0,36.0,False,College Park Center
+400916016,2017,2017-01-02,Arkansas State Red Wolves,UL Monroe Warhawks,76,45,32.0,26.0,44.0,19.0,False,First National Bank Arena
+400916019,2017,2017-01-02,South Alabama Jaguars,Troy Trojans,76,75,32.0,29.0,44.0,46.0,False,Mitchell Center
+400922385,2017,2017-01-02,Alabama A&M Bulldogs,Jackson State Tigers,51,63,21.0,27.0,30.0,36.0,False,T.M. Elmore Gymnasium
+400922257,2017,2017-01-02,Southern Jaguars,Prairie View A&M Panthers,59,57,28.0,29.0,31.0,28.0,False,F.G. Clark Activity Center
+400922234,2017,2017-01-02,Alabama State Hornets,Grambling Tigers,73,69,32.0,38.0,41.0,31.0,False,Dunn-Oliver Acadome
+400922215,2017,2017-01-02,Arkansas-Pine Bluff Golden Lions,Mississippi Valley State Delta Devils,105,91,41.0,44.0,64.0,47.0,False,H.O. Clemmons Arena
+400922125,2017,2017-01-02,McNeese Cowboys,Stephen F. Austin Lumberjacks,69,54,27.0,25.0,42.0,29.0,False,Burton Coliseum
+400922139,2017,2017-01-02,Nicholls Colonels,Texas A&M-Corpus Christi Islanders,68,64,31.0,28.0,37.0,36.0,False,David R. Stopher Gymnasium
+400922028,2017,2017-01-02,Central Arkansas Bears,Lamar Cardinals,75,78,40.0,43.0,35.0,35.0,False,Farris Center
+400918046,2017,2017-01-02,Utah Valley Wolverines,Antelope Valley,102,63,57.0,34.0,45.0,29.0,False,UCCU Center
+400916015,2017,2017-01-02,Little Rock Trojans,Louisiana Ragin' Cajuns,52,69,22.0,44.0,30.0,25.0,False,Jack Stephens Center
+400916199,2017,2017-01-03,Kansas Jayhawks,Kansas State Wildcats,90,88,52.0,42.0,38.0,46.0,False,Allen Fieldhouse
+400910692,2017,2017-01-03,Kentucky Wildcats,Texas A&M Aggies,100,58,50.0,27.0,50.0,31.0,False,Rupp Arena
+400916200,2017,2017-01-03,Texas Tech Red Raiders,West Virginia Mountaineers,77,76,34.0,37.0,33.0,30.0,False,United Supermarkets Arena
+400914932,2017,2017-01-03,Indiana Hoosiers,Wisconsin Badgers,68,75,37.0,38.0,31.0,37.0,False,Simon Skjodt Assembly Hall
+400915354,2017,2017-01-03,Clemson Tigers,North Carolina Tar Heels,86,89,43.0,38.0,34.0,39.0,False,Littlejohn Coliseum
+400910642,2017,2017-01-03,Florida Gators,Ole Miss Rebels,70,63,35.0,21.0,35.0,42.0,False,Stephen C. O'Connell Center
+400919666,2017,2017-01-04,Butler Bulldogs,Villanova Wildcats,66,58,27.0,31.0,39.0,27.0,False,Hinkle Fieldhouse
+400916201,2017,2017-01-04,Baylor Bears,Iowa State Cyclones,65,63,37.0,36.0,28.0,27.0,False,Ferrell Center
+400915356,2017,2017-01-04,Duke Blue Devils,Georgia Tech Yellow Jackets,110,57,61.0,30.0,49.0,27.0,False,Cameron Indoor Stadium
+400915359,2017,2017-01-04,Notre Dame Fighting Irish,Louisville Cardinals,77,70,42.0,37.0,35.0,33.0,False,Purcell Pavilion
+400919668,2017,2017-01-04,St. John's Red Storm,Creighton Bluejays,72,85,26.0,44.0,46.0,41.0,False,Carnesecca Arena
+400915360,2017,2017-01-04,Pittsburgh Panthers,Virginia Cavaliers,88,76,35.0,32.0,35.0,38.0,False,Petersen Events Center
+400915606,2017,2017-01-04,Washington Huskies,Oregon Ducks,61,83,33.0,42.0,28.0,41.0,False,Alaska Airlines Arena
+400915358,2017,2017-01-04,NC State Wolfpack,Virginia Tech Hokies,104,78,55.0,30.0,49.0,48.0,False,Lenovo Center
+400915608,2017,2017-01-05,UCLA Bruins,California Golden Bears,81,71,44.0,24.0,37.0,47.0,False,Pauley Pavilion
+400915817,2017,2017-01-05,San Francisco Dons,Gonzaga Bulldogs,80,95,36.0,46.0,44.0,49.0,False,The Sobrato Center
+400915610,2017,2017-01-05,Arizona Wildcats,Utah Utes,66,56,35.0,27.0,31.0,29.0,False,McKale Memorial Center
+400915816,2017,2017-01-05,Saint Mary's Gaels,BYU Cougars,81,68,44.0,36.0,37.0,32.0,False,University Credit Union Pavilion
+400915159,2017,2017-01-05,Ohio State Buckeyes,Purdue Boilermakers,75,76,39.0,43.0,36.0,33.0,False,Value City Arena
+400915611,2017,2017-01-05,USC Trojans,Stanford Cardinal,72,56,36.0,28.0,36.0,28.0,False,Galen Center
+400917114,2017,2017-01-06,Akron Zips,Western Michigan Broncos,66,59,32.0,32.0,34.0,27.0,False,James A. Rhodes Arena
+400918304,2017,2017-01-06,Dayton Flyers,Rhode Island Rams,67,64,25.0,27.0,42.0,37.0,False,UD Arena
+400917570,2017,2017-01-06,Marist Red Foxes,Rider Broncs,62,73,32.0,34.0,30.0,39.0,False,McCann Arena
+400917569,2017,2017-01-06,Monmouth Hawks,Iona Gaels,92,74,54.0,41.0,38.0,33.0,False,OceanFirst Bank Center
+400918520,2017,2017-01-06,Green Bay Phoenix,Milwaukee Panthers,80,74,33.0,30.0,47.0,44.0,False,Resch Center
+400918503,2017,2017-01-06,UIC Flames,Detroit Mercy Titans,78,64,40.0,25.0,38.0,39.0,False,Credit Union 1 Arena
+400919552,2017,2017-01-06,Ohio Bobcats,Kent State Golden Flashes,85,67,45.0,28.0,40.0,39.0,False,Convocation Center (OH)
+400918583,2017,2017-01-06,Valparaiso Beacons,Oakland Golden Grizzlies,66,78,34.0,38.0,32.0,40.0,False,Athletics-Recreation Center
+400919673,2017,2017-01-07,Villanova Wildcats,Marquette Golden Eagles,93,81,44.0,33.0,49.0,48.0,False,Xfinity Mobile Arena
+400916204,2017,2017-01-07,Baylor Bears,Oklahoma State Cowboys,61,57,25.0,30.0,36.0,27.0,False,Ferrell Center
+400916205,2017,2017-01-07,Kansas Jayhawks,Texas Tech Red Raiders,85,68,37.0,27.0,48.0,41.0,False,Allen Fieldhouse
+400916202,2017,2017-01-07,West Virginia Mountaineers,TCU Horned Frogs,82,70,39.0,28.0,43.0,42.0,False,WVU Coliseum
+400915362,2017,2017-01-07,Duke Blue Devils,Boston College Eagles,93,82,53.0,34.0,40.0,48.0,False,Cameron Indoor Stadium
+400915364,2017,2017-01-07,Georgia Tech Yellow Jackets,Louisville Cardinals,50,65,18.0,27.0,32.0,38.0,False,McCamish Pavilion
+400919671,2017,2017-01-07,Providence Friars,Creighton Bluejays,64,78,33.0,39.0,31.0,39.0,False,Amica Mutual Pavilion
+400915363,2017,2017-01-07,Florida State Seminoles,Virginia Tech Hokies,93,78,48.0,37.0,45.0,41.0,False,Tucker Center
+400915614,2017,2017-01-07,Washington State Cougars,Oregon Ducks,66,85,37.0,37.0,29.0,48.0,False,Beasley Coliseum
+400919672,2017,2017-01-07,Xavier Musketeers,St. John's Red Storm,97,82,54.0,39.0,43.0,43.0,False,Cintas Center
+400915615,2017,2017-01-07,Arizona Wildcats,Colorado Buffaloes,82,73,39.0,27.0,43.0,46.0,False,McKale Memorial Center
+400919669,2017,2017-01-07,Georgetown Hoyas,Butler Bulldogs,76,85,32.0,31.0,36.0,37.0,False,Capital One Arena
+400915823,2017,2017-01-07,San Francisco Dons,Saint Mary's Gaels,52,63,28.0,26.0,24.0,37.0,False,The Sobrato Center
+400916573,2017,2017-01-07,Houston Cougars,Cincinnati Bearcats,58,67,25.0,30.0,33.0,37.0,False,Fertitta Center
+400915365,2017,2017-01-07,Notre Dame Fighting Irish,Clemson Tigers,75,70,33.0,40.0,42.0,30.0,False,Purcell Pavilion
+400910643,2017,2017-01-07,Florida Gators,Tennessee Volunteers,83,70,32.0,33.0,51.0,37.0,False,Stephen C. O'Connell Center
+400914959,2017,2017-01-07,Indiana Hoosiers,Illinois Fighting Illini,96,80,48.0,29.0,48.0,51.0,False,Simon Skjodt Assembly Hall
+400915820,2017,2017-01-07,Portland Pilots,Gonzaga Bulldogs,0,0,,,,,False,Chiles Center
+400915366,2017,2017-01-07,North Carolina Tar Heels,NC State Wolfpack,0,0,,,,,False,Dean E. Smith Center
+400915616,2017,2017-01-08,UCLA Bruins,Stanford Cardinal,89,75,48.0,30.0,41.0,45.0,False,Pauley Pavilion
+400915367,2017,2017-01-08,Virginia Cavaliers,Wake Forest Demon Deacons,79,62,28.0,29.0,51.0,33.0,False,John Paul Jones Arena
+400914933,2017,2017-01-08,Purdue Boilermakers,Wisconsin Badgers,66,55,29.0,23.0,37.0,32.0,False,Mackey Arena
+400933455,2017,2017-01-08,North Carolina Tar Heels,NC State Wolfpack,107,56,56.0,23.0,51.0,33.0,False,Dean E. Smith Center
+400915617,2017,2017-01-08,USC Trojans,California Golden Bears,73,74,36.0,36.0,37.0,38.0,False,Galen Center
+400920483,2017,2017-01-09,North Carolina A&T Aggies,Maryland Eastern Shore Hawks,88,99,39.0,54.0,49.0,45.0,False,Corbett Sports Center
+400919674,2017,2017-01-09,Georgetown Hoyas,St. John's Red Storm,83,55,44.0,37.0,39.0,18.0,False,Capital One Arena
+400920438,2017,2017-01-09,Hampton Pirates,Savannah State Tigers,84,80,41.0,34.0,43.0,46.0,False,Convocation Center (VA)
+400917939,2017,2017-01-09,Purdue Fort Wayne Mastodons,Olivet Comets,115,60,52.0,24.0,63.0,36.0,False,Hilliard Gates Sports Center
+400917576,2017,2017-01-09,Saint Peter's Peacocks,Quinnipiac Bobcats,58,54,30.0,24.0,28.0,30.0,False,Yanitelli Center
+400916029,2017,2017-01-09,Georgia Southern Eagles,South Alabama Jaguars,84,79,31.0,30.0,37.0,38.0,False,Hanner Fieldhouse
+400916028,2017,2017-01-09,App State Mountaineers,Arkansas State Red Wolves,70,57,30.0,32.0,40.0,25.0,False,Holmes Convocation Center
+400916027,2017,2017-01-09,Coastal Carolina Chanticleers,Little Rock Trojans,66,63,38.0,27.0,28.0,36.0,False,The HTC Center
+400916026,2017,2017-01-09,Georgia State Panthers,Troy Trojans,77,80,39.0,45.0,38.0,35.0,False,Georgia State Sports Arena
+400920366,2017,2017-01-09,Bethune-Cookman Wildcats,Coppin State Eagles,73,76,30.0,35.0,43.0,41.0,False,ICI Center
+400922387,2017,2017-01-09,Jackson State Tigers,Southern Jaguars,65,61,34.0,29.0,31.0,32.0,False,Lee E. Williams Athletics and Assembly Center
+400922248,2017,2017-01-09,Mississippi Valley State Delta Devils,Alabama State Hornets,73,70,28.0,30.0,45.0,40.0,False,R.W. Harrison HPER Complex
+400922217,2017,2017-01-09,Arkansas-Pine Bluff Golden Lions,Alabama A&M Bulldogs,81,65,37.0,34.0,44.0,31.0,False,H.O. Clemmons Arena
+400922199,2017,2017-01-09,Grambling Tigers,Alcorn State Braves,67,62,30.0,27.0,37.0,35.0,False,Fredrick C. Hobdy Assembly Center
+400920420,2017,2017-01-09,North Carolina Central Eagles,Delaware State Hornets,0,0,,,,,False,McDougald-McLendon Arena
+400920523,2017,2017-01-09,Norfolk State Spartans,South Carolina State Bulldogs,0,0,,,,,False,Joseph G. Echols Hall
+400916206,2017,2017-01-10,West Virginia Mountaineers,Baylor Bears,89,68,39.0,32.0,50.0,36.0,False,WVU Coliseum
+400916207,2017,2017-01-10,Oklahoma Sooners,Kansas Jayhawks,70,81,36.0,27.0,34.0,54.0,False,Lloyd Noble Center
+400919675,2017,2017-01-10,Villanova Wildcats,Xavier Musketeers,79,54,34.0,28.0,45.0,26.0,False,Finneran Pavilion
+400910693,2017,2017-01-10,Vanderbilt Commodores,Kentucky Wildcats,81,87,41.0,45.0,40.0,42.0,False,Memorial Gymnasium (TN)
+400915369,2017,2017-01-10,Florida State Seminoles,Duke Blue Devils,88,72,41.0,37.0,47.0,35.0,False,Tucker Center
+400910553,2017,2017-01-10,Alabama Crimson Tide,Florida Gators,67,80,31.0,38.0,36.0,42.0,False,Coleman Coliseum
+400916208,2017,2017-01-10,Texas Tech Red Raiders,Kansas State Wildcats,66,65,28.0,31.0,38.0,34.0,False,United Supermarkets Arena
+400919678,2017,2017-01-11,Creighton Bluejays,Butler Bulldogs,75,64,47.0,27.0,28.0,37.0,False,CHI Health Center Omaha
+400915371,2017,2017-01-11,Wake Forest Demon Deacons,North Carolina Tar Heels,87,93,34.0,49.0,53.0,44.0,False,LJVM Coliseum
+400915370,2017,2017-01-11,Louisville Cardinals,Pittsburgh Panthers,85,80,47.0,26.0,38.0,54.0,False,KFC Yum! Center
+400915076,2017,2017-01-11,Michigan State Spartans,Minnesota Golden Gophers,65,47,39.0,17.0,26.0,30.0,False,Breslin Center
+400915622,2017,2017-01-12,Colorado Buffaloes,UCLA Bruins,89,104,45.0,51.0,44.0,53.0,False,CU Events Center
+400915826,2017,2017-01-12,Gonzaga Bulldogs,Loyola Marymount Lions,93,55,46.0,35.0,47.0,20.0,False,McCarthey Athletic Center
+400915620,2017,2017-01-12,Arizona Wildcats,Arizona State Sun Devils,91,75,45.0,25.0,46.0,50.0,False,McKale Memorial Center
+400915008,2017,2017-01-12,Iowa Hawkeyes,Purdue Boilermakers,83,78,38.0,47.0,45.0,31.0,False,Carver-Hawkeye Arena
+400914934,2017,2017-01-12,Wisconsin Badgers,Ohio State Buckeyes,89,66,45.0,27.0,44.0,39.0,False,Kohl Center
+400915374,2017,2017-01-12,Miami Hurricanes,Notre Dame Fighting Irish,62,67,28.0,28.0,34.0,39.0,False,Watsco Center
+400915828,2017,2017-01-12,Portland Pilots,Saint Mary's Gaels,33,74,9.0,37.0,24.0,37.0,False,Chiles Center
+400916580,2017,2017-01-12,Cincinnati Bearcats,SMU Mustangs,66,64,34.0,27.0,32.0,37.0,False,Fifth Third Arena
+400915619,2017,2017-01-12,Utah Utes,USC Trojans,86,64,44.0,31.0,42.0,33.0,False,Jon M. Huntsman Center
+400918755,2017,2017-01-13,Vermont Catamounts,UMBC Retrievers,81,72,44.0,36.0,37.0,36.0,False,Patrick Gymnasium
+400918505,2017,2017-01-13,Oakland Golden Grizzlies,Detroit Mercy Titans,88,93,51.0,42.0,37.0,51.0,False,OU Credit Union O'rena
+400917125,2017,2017-01-13,Central Michigan Chippewas,Toledo Rockets,96,88,45.0,35.0,51.0,53.0,False,McGuirk Arena
+400919334,2017,2017-01-13,Pennsylvania Quakers,Yale Bulldogs,60,68,32.0,34.0,28.0,34.0,False,The Palestra
+400919264,2017,2017-01-13,Princeton Tigers,Brown Bears,97,66,46.0,29.0,51.0,37.0,False,Jadwin Gymnasium
+400917580,2017,2017-01-13,Manhattan Jaspers,Rider Broncs,76,73,32.0,34.0,44.0,39.0,False,Draddy Gymnasium
+400916211,2017,2017-01-14,Kansas State Wildcats,Baylor Bears,68,77,30.0,31.0,38.0,46.0,False,Bramlage Coliseum
+400916210,2017,2017-01-14,Kansas Jayhawks,Oklahoma State Cowboys,87,80,36.0,40.0,51.0,40.0,False,Allen Fieldhouse
+400919680,2017,2017-01-14,St. John's Red Storm,Villanova Wildcats,57,70,29.0,35.0,28.0,35.0,False,Madison Square Garden
+400915624,2017,2017-01-14,Utah Utes,UCLA Bruins,82,83,40.0,42.0,42.0,41.0,False,Jon M. Huntsman Center
+400915833,2017,2017-01-14,Gonzaga Bulldogs,Saint Mary's Gaels,79,56,43.0,34.0,36.0,22.0,False,McCarthey Athletic Center
+400910620,2017,2017-01-14,Kentucky Wildcats,Auburn Tigers,92,72,51.0,39.0,41.0,33.0,False,Rupp Arena
+400915376,2017,2017-01-14,Louisville Cardinals,Duke Blue Devils,78,69,34.0,30.0,44.0,39.0,False,KFC Yum! Center
+400919683,2017,2017-01-14,Creighton Bluejays,Truman State Bulldogs,101,69,45.0,34.0,56.0,35.0,False,CHI Health Center Omaha
+400915378,2017,2017-01-14,North Carolina Tar Heels,Florida State Seminoles,96,83,50.0,41.0,46.0,42.0,False,Dean E. Smith Center
+400911033,2017,2017-01-14,Texas Longhorns,West Virginia Mountaineers,72,74,34.0,39.0,38.0,35.0,False,Frank Erwin Center
+400919681,2017,2017-01-14,Butler Bulldogs,Xavier Musketeers,83,78,25.0,31.0,58.0,47.0,False,Hinkle Fieldhouse
+400915626,2017,2017-01-14,Oregon Ducks,Oregon State Beavers,85,43,41.0,13.0,44.0,30.0,False,Matthew Knight Arena
+400915375,2017,2017-01-14,Clemson Tigers,Virginia Cavaliers,73,77,36.0,36.0,37.0,41.0,False,Littlejohn Coliseum
+400915379,2017,2017-01-14,Virginia Tech Hokies,Notre Dame Fighting Irish,71,76,31.0,39.0,40.0,37.0,False,Cassell Coliseum
+400910644,2017,2017-01-14,Florida Gators,Georgia Bulldogs,80,76,32.0,33.0,35.0,34.0,False,Stephen C. O'Connell Center
+400915097,2017,2017-01-14,Penn State Nittany Lions,Minnesota Golden Gophers,52,50,22.0,32.0,30.0,18.0,False,Bryce Jordan Center
+400916585,2017,2017-01-15,East Carolina Pirates,Cincinnati Bearcats,46,55,23.0,31.0,23.0,24.0,False,Minges Coliseum
+400919687,2017,2017-01-16,Villanova Wildcats,Seton Hall Pirates,76,46,36.0,23.0,40.0,23.0,False,Finneran Pavilion
+400916214,2017,2017-01-16,Iowa State Cyclones,Kansas Jayhawks,72,76,37.0,43.0,35.0,33.0,False,Hilton Coliseum
+400915382,2017,2017-01-16,North Carolina Tar Heels,Syracuse Orange,85,68,42.0,30.0,43.0,38.0,False,Dean E. Smith Center
+400919684,2017,2017-01-16,Butler Bulldogs,Marquette Golden Eagles,88,80,25.0,41.0,63.0,39.0,False,Hinkle Fieldhouse
+400911034,2017,2017-01-17,Baylor Bears,Texas Longhorns,74,64,38.0,31.0,36.0,33.0,False,Ferrell Center
+400914962,2017,2017-01-17,Purdue Boilermakers,Illinois Fighting Illini,91,68,44.0,30.0,47.0,38.0,False,Mackey Arena
+400916216,2017,2017-01-18,West Virginia Mountaineers,Oklahoma Sooners,87,89,34.0,37.0,43.0,40.0,False,WVU Coliseum
+400915384,2017,2017-01-18,Florida State Seminoles,Notre Dame Fighting Irish,83,80,39.0,33.0,44.0,47.0,False,Tucker Center
+400910645,2017,2017-01-18,South Carolina Gamecocks,Florida Gators,57,53,21.0,28.0,36.0,25.0,False,Colonial Life Arena
+400916589,2017,2017-01-18,Cincinnati Bearcats,Temple Owls,81,74,26.0,28.0,55.0,46.0,False,Fifth Third Arena
+400915633,2017,2017-01-19,UCLA Bruins,Arizona State Sun Devils,102,80,54.0,39.0,48.0,41.0,False,Pauley Pavilion
+400915388,2017,2017-01-19,Louisville Cardinals,Clemson Tigers,92,60,41.0,31.0,51.0,29.0,False,KFC Yum! Center
+400915631,2017,2017-01-19,USC Trojans,Arizona Wildcats,66,73,19.0,29.0,47.0,44.0,False,Galen Center
+400915836,2017,2017-01-19,Saint Mary's Gaels,Pacific Tigers,62,50,33.0,25.0,29.0,25.0,False,University Credit Union Pavilion
+400915010,2017,2017-01-19,Iowa Hawkeyes,Maryland Terrapins,76,84,32.0,41.0,44.0,43.0,False,Carver-Hawkeye Arena
+400917133,2017,2017-01-20,Akron Zips,Eastern Michigan Eagles,70,63,38.0,28.0,32.0,35.0,False,James A. Rhodes Arena
+400918571,2017,2017-01-20,Northern Kentucky Norse,Oakland Golden Grizzlies,70,79,42.0,38.0,28.0,41.0,False,Truist Arena
+400918507,2017,2017-01-20,Wright State Raiders,Detroit Mercy Titans,106,88,60.0,38.0,46.0,50.0,False,Nutter Center
+400917594,2017,2017-01-20,Quinnipiac Bobcats,Canisius Golden Griffins,95,90,47.0,32.0,48.0,58.0,False,M&T Bank Arena
+400917593,2017,2017-01-20,Monmouth Hawks,Manhattan Jaspers,82,71,33.0,34.0,49.0,37.0,False,OceanFirst Bank Center
+400917592,2017,2017-01-20,Iona Gaels,Fairfield Stags,96,89,47.0,35.0,49.0,54.0,False,Hynes Athletics Center
+400919266,2017,2017-01-20,Brown Bears,Yale Bulldogs,74,75,40.0,28.0,34.0,47.0,False,Pizzitola Sports Center
+400918524,2017,2017-01-20,Green Bay Phoenix,Youngstown State Penguins,89,92,45.0,43.0,44.0,49.0,False,Resch Center
+400918487,2017,2017-01-20,Milwaukee Panthers,Cleveland State Vikings,63,62,24.0,34.0,39.0,28.0,False,UW-Milwaukee Panther Arena
+400919689,2017,2017-01-21,Villanova Wildcats,Providence Friars,78,68,35.0,31.0,43.0,37.0,False,Xfinity Mobile Arena
+400911035,2017,2017-01-21,Kansas Jayhawks,Texas Longhorns,79,67,41.0,33.0,38.0,34.0,False,Allen Fieldhouse
+400915635,2017,2017-01-21,UCLA Bruins,Arizona Wildcats,85,96,37.0,48.0,48.0,48.0,False,Pauley Pavilion
+400915840,2017,2017-01-21,Gonzaga Bulldogs,Portland Pilots,73,52,34.0,23.0,39.0,29.0,False,McCarthey Athletic Center
+400910695,2017,2017-01-21,Kentucky Wildcats,South Carolina Gamecocks,85,69,47.0,38.0,38.0,31.0,False,Rupp Arena
+400916221,2017,2017-01-21,TCU Horned Frogs,Baylor Bears,53,62,28.0,26.0,25.0,36.0,False,Schollmaier Arena
+400919691,2017,2017-01-21,Creighton Bluejays,Marquette Golden Eagles,94,102,40.0,50.0,54.0,52.0,False,CHI Health Center Omaha
+400916220,2017,2017-01-21,Kansas State Wildcats,West Virginia Mountaineers,79,75,36.0,38.0,43.0,37.0,False,Bramlage Coliseum
+400915389,2017,2017-01-21,Boston College Eagles,North Carolina Tar Heels,82,90,33.0,34.0,49.0,56.0,False,Conte Forum
+400915391,2017,2017-01-21,Florida State Seminoles,Louisville Cardinals,73,68,41.0,35.0,32.0,33.0,False,Tucker Center
+400915636,2017,2017-01-21,Oregon Ducks,Stanford Cardinal,69,52,40.0,22.0,29.0,30.0,False,Matthew Knight Arena
+400919690,2017,2017-01-21,DePaul Blue Demons,Butler Bulldogs,69,70,33.0,31.0,26.0,28.0,False,Allstate Arena
+400915390,2017,2017-01-21,Notre Dame Fighting Irish,Syracuse Orange,84,66,41.0,32.0,43.0,34.0,False,Purcell Pavilion
+400915393,2017,2017-01-21,Virginia Cavaliers,Georgia Tech Yellow Jackets,62,49,35.0,28.0,27.0,21.0,False,John Paul Jones Arena
+400914936,2017,2017-01-21,Minnesota Golden Gophers,Wisconsin Badgers,76,78,34.0,32.0,33.0,35.0,False,Williams Arena
+400915394,2017,2017-01-21,Duke Blue Devils,Miami Hurricanes,70,58,25.0,36.0,45.0,22.0,False,Cameron Indoor Stadium
+400910646,2017,2017-01-21,Florida Gators,Vanderbilt Commodores,66,68,32.0,27.0,34.0,41.0,False,Stephen C. O'Connell Center
+400916593,2017,2017-01-21,Tulane Green Wave,Cincinnati Bearcats,61,78,22.0,38.0,39.0,40.0,False,Devlin Fieldhouse
+400915177,2017,2017-01-21,Purdue Boilermakers,Penn State Nittany Lions,77,52,41.0,23.0,36.0,29.0,False,Mackey Arena
+400915842,2017,2017-01-21,Saint Mary's Gaels,Pepperdine Waves,85,65,47.0,33.0,38.0,32.0,False,University Credit Union Pavilion
+400919692,2017,2017-01-22,Seton Hall Pirates,St. John's Red Storm,86,73,46.0,26.0,40.0,47.0,False,Prudential Center
+400918711,2017,2017-01-22,UMass Lowell River Hawks,UMBC Retrievers,86,102,48.0,45.0,38.0,57.0,False,Kennedy Family Athletic Complex
+400918671,2017,2017-01-22,Hartford Hawks,New Hampshire Wildcats,56,81,20.0,43.0,36.0,38.0,False,Chase Arena
+400918541,2017,2017-01-22,Milwaukee Panthers,Youngstown State Penguins,94,85,35.0,36.0,40.0,39.0,False,UW-Milwaukee Panther Arena
+400918508,2017,2017-01-22,Northern Kentucky Norse,Detroit Mercy Titans,101,87,41.0,36.0,60.0,51.0,False,Truist Arena
+400918387,2017,2017-01-22,Richmond Spiders,George Mason Patriots,77,82,34.0,49.0,43.0,33.0,False,Robins Center
+400915141,2017,2017-01-22,Ohio State Buckeyes,Northwestern Wildcats,72,74,31.0,36.0,41.0,38.0,False,Value City Arena
+400919693,2017,2017-01-22,Xavier Musketeers,Georgetown Hoyas,86,75,34.0,33.0,52.0,42.0,False,Cintas Center
+400918648,2017,2017-01-22,Binghamton Bearcats,Stony Brook Seawolves,71,67,28.0,26.0,43.0,41.0,False,Events Center (Binghamton)
+400918618,2017,2017-01-22,UAlbany Great Danes,Maine Black Bears,81,63,33.0,22.0,48.0,41.0,False,Broadview Center
+400918584,2017,2017-01-22,Wright State Raiders,Oakland Golden Grizzlies,88,67,42.0,30.0,46.0,37.0,False,Nutter Center
+400918404,2017,2017-01-22,VCU Rams,La Salle Explorers,90,52,42.0,16.0,48.0,36.0,False,Siegel Center
+400918308,2017,2017-01-22,Dayton Flyers,Saint Louis Billikens,67,46,31.0,18.0,36.0,28.0,False,UD Arena
+400917598,2017,2017-01-22,Monmouth Hawks,Fairfield Stags,91,49,50.0,24.0,41.0,25.0,False,OceanFirst Bank Center
+400917597,2017,2017-01-22,Manhattan Jaspers,Siena Saints,68,81,33.0,39.0,35.0,42.0,False,Draddy Gymnasium
+400916940,2017,2017-01-22,East Tennessee State Buccaneers,Wofford Terriers,79,72,41.0,37.0,38.0,35.0,False,Freedom Hall (TN)
+400918557,2017,2017-01-22,Valparaiso Beacons,UIC Flames,96,65,50.0,26.0,46.0,39.0,False,Athletics-Recreation Center
+400916595,2017,2017-01-22,Memphis Tigers,UCF Knights,70,65,33.0,30.0,37.0,35.0,False,FedExForum
+400916596,2017,2017-01-22,UConn Huskies,East Carolina Pirates,72,65,38.0,28.0,34.0,37.0,False,PeoplesBank Arena
+400915395,2017,2017-01-22,Clemson Tigers,Virginia Tech Hokies,81,82,40.0,41.0,41.0,41.0,False,Littlejohn Coliseum
+400915639,2017,2017-01-22,USC Trojans,Arizona State Sun Devils,82,79,45.0,38.0,37.0,41.0,False,Galen Center
+400933945,2017,2017-01-23,Portland Pilots,Gonzaga Bulldogs,64,83,23.0,38.0,41.0,45.0,False,Chiles Center
+400915396,2017,2017-01-23,Duke Blue Devils,NC State Wolfpack,82,84,44.0,38.0,38.0,46.0,False,Cameron Indoor Stadium
+400916223,2017,2017-01-24,West Virginia Mountaineers,Kansas Jayhawks,85,69,38.0,35.0,47.0,34.0,False,WVU Coliseum
+400910696,2017,2017-01-24,Tennessee Volunteers,Kentucky Wildcats,82,80,39.0,34.0,43.0,46.0,False,Food City Center
+400915398,2017,2017-01-24,Notre Dame Fighting Irish,Virginia Cavaliers,54,71,26.0,27.0,28.0,44.0,False,Purcell Pavilion
+400915397,2017,2017-01-24,Pittsburgh Panthers,Louisville Cardinals,51,106,18.0,51.0,33.0,55.0,False,Petersen Events Center
+400914937,2017,2017-01-24,Wisconsin Badgers,Penn State Nittany Lions,82,55,36.0,33.0,46.0,22.0,False,Kohl Center
+400915078,2017,2017-01-24,Michigan State Spartans,Purdue Boilermakers,73,84,39.0,39.0,34.0,45.0,False,Breslin Center
+400915032,2017,2017-01-24,Maryland Terrapins,Rutgers Scarlet Knights,67,55,34.0,29.0,33.0,26.0,False,XFINITY Center
+400910622,2017,2017-01-24,South Carolina Gamecocks,Auburn Tigers,98,69,48.0,27.0,50.0,42.0,False,Colonial Life Arena
+400916225,2017,2017-01-25,Baylor Bears,Texas Tech Red Raiders,65,61,32.0,31.0,33.0,30.0,False,Ferrell Center
+400915400,2017,2017-01-25,Georgia Tech Yellow Jackets,Florida State Seminoles,78,56,41.0,15.0,37.0,41.0,False,McCamish Pavilion
+400915640,2017,2017-01-25,USC Trojans,UCLA Bruins,84,76,50.0,38.0,34.0,38.0,False,Galen Center
+400919697,2017,2017-01-25,Seton Hall Pirates,Butler Bulldogs,54,61,19.0,26.0,35.0,35.0,False,Prudential Center
+400919696,2017,2017-01-25,Georgetown Hoyas,Creighton Bluejays,71,51,39.0,27.0,32.0,24.0,False,Capital One Arena
+400910647,2017,2017-01-25,LSU Tigers,Florida Gators,71,106,33.0,58.0,38.0,48.0,False,Pete Maravich Assembly Center
+400915844,2017,2017-01-26,Gonzaga Bulldogs,San Diego Toreros,79,43,37.0,23.0,42.0,20.0,False,McCarthey Athletic Center
+400915643,2017,2017-01-26,Arizona Wildcats,Washington State Cougars,79,62,39.0,33.0,40.0,29.0,False,McKale Memorial Center
+400915402,2017,2017-01-26,North Carolina Tar Heels,Virginia Tech Hokies,91,72,44.0,33.0,47.0,39.0,False,Dean E. Smith Center
+400915644,2017,2017-01-26,Utah Utes,Oregon Ducks,67,73,31.0,33.0,36.0,40.0,False,Jon M. Huntsman Center
+400916602,2017,2017-01-26,Cincinnati Bearcats,Xavier Musketeers,86,78,36.0,44.0,50.0,34.0,False,Fifth Third Arena
+400915847,2017,2017-01-26,Saint Mary's Gaels,San Francisco Dons,66,46,30.0,30.0,36.0,16.0,False,University Credit Union Pavilion
+400919301,2017,2017-01-27,Cornell Big Red,Harvard Crimson,71,77,40.0,33.0,31.0,44.0,False,Newman Arena
+400919286,2017,2017-01-27,Columbia Lions,Dartmouth Big Green,66,54,32.0,19.0,34.0,35.0,False,Levien Gymnasium
+400918509,2017,2017-01-27,Detroit Mercy Titans,Milwaukee Panthers,69,73,27.0,31.0,34.0,30.0,False,Calihan Hall
+400917605,2017,2017-01-27,Siena Saints,Iona Gaels,66,77,34.0,44.0,32.0,33.0,False,MVP Arena
+400917604,2017,2017-01-27,Monmouth Hawks,Quinnipiac Bobcats,95,76,49.0,42.0,46.0,34.0,False,OceanFirst Bank Center
+400919267,2017,2017-01-27,Yale Bulldogs,Brown Bears,85,75,39.0,40.0,46.0,35.0,False,John J. Lee Amphitheater
+400918590,2017,2017-01-27,Valparaiso Beacons,Wright State Raiders,70,55,38.0,23.0,32.0,32.0,False,Athletics-Recreation Center
+400918558,2017,2017-01-27,UIC Flames,Northern Kentucky Norse,62,79,30.0,39.0,32.0,40.0,False,Credit Union 1 Arena
+400918526,2017,2017-01-27,Oakland Golden Grizzlies,Green Bay Phoenix,72,80,28.0,40.0,44.0,40.0,False,OU Credit Union O'rena
+400918309,2017,2017-01-27,VCU Rams,Dayton Flyers,73,68,31.0,33.0,42.0,35.0,False,Siegel Center
+400916407,2017,2017-01-27,Weber State Wildcats,Idaho State Bengals,96,74,45.0,36.0,51.0,38.0,False,Dee Events Center
+400915853,2017,2017-01-28,Pepperdine Waves,Gonzaga Bulldogs,49,96,21.0,43.0,28.0,53.0,False,Firestone Fieldhouse
+400915405,2017,2017-01-28,Syracuse Orange,Florida State Seminoles,82,72,44.0,26.0,38.0,46.0,False,JMA Wireless Dome
+400915646,2017,2017-01-28,Colorado Buffaloes,Oregon Ducks,74,65,35.0,34.0,39.0,31.0,False,CU Events Center
+400919700,2017,2017-01-28,Butler Bulldogs,Georgetown Hoyas,81,85,41.0,40.0,40.0,45.0,False,Hinkle Fieldhouse
+400915403,2017,2017-01-28,Georgia Tech Yellow Jackets,Notre Dame Fighting Irish,62,60,35.0,31.0,27.0,29.0,False,McCamish Pavilion
+400914938,2017,2017-01-28,Rutgers Scarlet Knights,Wisconsin Badgers,54,61,25.0,20.0,20.0,25.0,True,Madison Square Garden
+400919699,2017,2017-01-28,Creighton Bluejays,DePaul Blue Demons,83,66,44.0,29.0,39.0,37.0,False,CHI Health Center Omaha
+400915407,2017,2017-01-28,Wake Forest Demon Deacons,Duke Blue Devils,83,85,42.0,32.0,41.0,53.0,False,LJVM Coliseum
+400915852,2017,2017-01-28,Santa Clara Broncos,Saint Mary's Gaels,59,72,30.0,35.0,29.0,37.0,False,Leavey Center
+400915033,2017,2017-01-28,Minnesota Golden Gophers,Maryland Terrapins,78,85,33.0,26.0,45.0,59.0,False,Williams Arena
+400915408,2017,2017-01-29,Villanova Wildcats,Virginia Cavaliers,61,59,22.0,31.0,39.0,28.0,False,Xfinity Mobile Arena
+400915648,2017,2017-01-29,Arizona Wildcats,Washington Huskies,77,66,31.0,33.0,46.0,33.0,False,McKale Memorial Center
+400915409,2017,2017-01-29,Louisville Cardinals,NC State Wolfpack,85,60,45.0,33.0,40.0,27.0,False,KFC Yum! Center
+400916607,2017,2017-01-29,Cincinnati Bearcats,South Florida Bulls,94,53,49.0,25.0,45.0,28.0,False,Fifth Third Arena
+400915115,2017,2017-01-29,Nebraska Cornhuskers,Purdue Boilermakers,83,80,39.0,33.0,44.0,47.0,False,Pinnacle Bank Arena
+400919701,2017,2017-01-29,St. John's Red Storm,Xavier Musketeers,77,82,25.0,32.0,52.0,50.0,False,Madison Square Garden
+400915411,2017,2017-01-30,Notre Dame Fighting Irish,Duke Blue Devils,74,84,25.0,37.0,49.0,47.0,False,Purcell Pavilion
+400916227,2017,2017-01-31,Iowa State Cyclones,West Virginia Mountaineers,72,85,40.0,44.0,32.0,41.0,False,Hilton Coliseum
+400910673,2017,2017-01-31,Kentucky Wildcats,Georgia Bulldogs,90,81,29.0,29.0,47.0,47.0,False,Rupp Arena
+400914939,2017,2017-01-31,Illinois Fighting Illini,Wisconsin Badgers,43,57,20.0,33.0,23.0,24.0,False,State Farm Center
+400915412,2017,2017-01-31,North Carolina Tar Heels,Pittsburgh Panthers,80,78,42.0,36.0,38.0,42.0,False,Dean E. Smith Center
+400919702,2017,2017-01-31,Butler Bulldogs,Creighton Bluejays,67,76,33.0,37.0,34.0,39.0,False,Hinkle Fieldhouse
+400915034,2017,2017-01-31,Ohio State Buckeyes,Maryland Terrapins,71,77,36.0,42.0,35.0,35.0,False,Value City Arena
+400916229,2017,2017-02-01,Kansas Jayhawks,Baylor Bears,73,68,28.0,34.0,45.0,34.0,False,Allen Fieldhouse
+400919704,2017,2017-02-01,Providence Friars,Villanova Wildcats,57,66,29.0,32.0,28.0,34.0,False,Amica Mutual Pavilion
+400915417,2017,2017-02-01,Virginia Cavaliers,Virginia Tech Hokies,71,48,35.0,21.0,36.0,27.0,False,John Paul Jones Arena
+400915650,2017,2017-02-01,Washington State Cougars,UCLA Bruins,79,95,34.0,44.0,45.0,51.0,False,Beasley Coliseum
+400916610,2017,2017-02-01,Tulsa Golden Hurricane,Cincinnati Bearcats,55,57,30.0,30.0,25.0,27.0,False,Reynolds Center
+400915416,2017,2017-02-01,Miami Hurricanes,Florida State Seminoles,57,75,34.0,31.0,23.0,44.0,False,Watsco Center
+400915142,2017,2017-02-01,Purdue Boilermakers,Northwestern Wildcats,80,59,45.0,23.0,35.0,36.0,False,Mackey Arena
+400915857,2017,2017-02-02,BYU Cougars,Gonzaga Bulldogs,75,85,26.0,42.0,49.0,43.0,False,Marriott Center
+400915652,2017,2017-02-02,Oregon State Beavers,Arizona Wildcats,54,71,29.0,27.0,25.0,44.0,False,Gill Coliseum
+400915654,2017,2017-02-02,Oregon Ducks,Arizona State Sun Devils,71,70,25.0,28.0,46.0,42.0,False,Matthew Knight Arena
+400915858,2017,2017-02-02,Pacific Tigers,Saint Mary's Gaels,70,74,34.0,41.0,36.0,33.0,False,Alex G. Spanos Center
+400910649,2017,2017-02-02,Florida Gators,Missouri Tigers,93,54,48.0,20.0,45.0,34.0,False,Stephen C. O'Connell Center
+400917158,2017,2017-02-03,Central Michigan Chippewas,Western Michigan Broncos,86,82,40.0,53.0,46.0,29.0,False,McGuirk Arena
+400919325,2017,2017-02-03,Harvard Crimson,Pennsylvania Quakers,69,59,34.0,37.0,35.0,22.0,False,Lavietes Pavilion
+400919315,2017,2017-02-03,Dartmouth Big Green,Princeton Tigers,64,69,33.0,32.0,31.0,37.0,False,Leede Arena
+400919288,2017,2017-02-03,Columbia Lions,Yale Bulldogs,78,87,40.0,38.0,38.0,49.0,False,Levien Gymnasium
+400919268,2017,2017-02-03,Cornell Big Red,Brown Bears,70,81,26.0,35.0,44.0,46.0,False,Newman Arena
+400918274,2017,2017-02-03,Davidson Wildcats,Rhode Island Rams,59,70,33.0,34.0,26.0,36.0,False,John M. Belk Arena
+400917616,2017,2017-02-03,Monmouth Hawks,Saint Peter's Peacocks,71,70,29.0,29.0,31.0,31.0,False,OceanFirst Bank Center
+400917615,2017,2017-02-03,Rider Broncs,Iona Gaels,76,95,31.0,45.0,45.0,50.0,False,Alumni Gymnasium (Rider)
+400917155,2017,2017-02-03,Ball State Cardinals,Buffalo Bulls,69,96,38.0,44.0,31.0,52.0,False,Worthen Arena
+400915863,2017,2017-02-04,Gonzaga Bulldogs,Santa Clara Broncos,90,55,37.0,23.0,53.0,32.0,False,McCarthey Athletic Center
+400916231,2017,2017-02-04,Baylor Bears,Kansas State Wildcats,54,56,22.0,37.0,32.0,19.0,False,Ferrell Center
+400916230,2017,2017-02-04,Kansas Jayhawks,Iowa State Cyclones,89,92,52.0,38.0,30.0,44.0,False,Allen Fieldhouse
+400919710,2017,2017-02-04,Villanova Wildcats,St. John's Red Storm,92,79,46.0,28.0,46.0,51.0,False,Xfinity Mobile Arena
+400915658,2017,2017-02-04,Oregon Ducks,Arizona Wildcats,85,58,38.0,18.0,47.0,40.0,False,Matthew Knight Arena
+400915420,2017,2017-02-04,Boston College Eagles,Louisville Cardinals,67,90,30.0,39.0,37.0,51.0,False,Conte Forum
+400916232,2017,2017-02-04,West Virginia Mountaineers,Oklahoma State Cowboys,75,82,44.0,40.0,31.0,42.0,False,WVU Coliseum
+400910650,2017,2017-02-04,Florida Gators,Kentucky Wildcats,88,66,34.0,26.0,54.0,40.0,False,Stephen C. O'Connell Center
+400915418,2017,2017-02-04,Syracuse Orange,Virginia Cavaliers,66,62,22.0,34.0,44.0,28.0,False,JMA Wireless Dome
+400915660,2017,2017-02-04,Washington Huskies,UCLA Bruins,66,107,34.0,52.0,32.0,55.0,False,Alaska Airlines Arena
+400916616,2017,2017-02-04,Cincinnati Bearcats,UConn Huskies,82,68,34.0,26.0,48.0,42.0,False,Fifth Third Arena
+400915035,2017,2017-02-04,Maryland Terrapins,Purdue Boilermakers,72,73,36.0,34.0,36.0,39.0,False,XFINITY Center
+400915860,2017,2017-02-04,San Diego Toreros,Saint Mary's Gaels,27,71,9.0,32.0,18.0,39.0,False,Jenny Craig Pavilion
+400910674,2017,2017-02-04,South Carolina Gamecocks,Georgia Bulldogs,77,75,38.0,38.0,39.0,37.0,False,Colonial Life Arena
+400915419,2017,2017-02-04,Duke Blue Devils,Pittsburgh Panthers,72,64,28.0,28.0,44.0,36.0,False,Cameron Indoor Stadium
+400919709,2017,2017-02-04,Creighton Bluejays,Xavier Musketeers,80,82,43.0,34.0,37.0,48.0,False,CHI Health Center Omaha
+400915423,2017,2017-02-04,North Carolina Tar Heels,Notre Dame Fighting Irish,0,0,,,,,False,Dean E. Smith Center
+400914940,2017,2017-02-05,Wisconsin Badgers,Indiana Hoosiers,65,60,27.0,24.0,38.0,36.0,False,Kohl Center
+400941113,2017,2017-02-05,North Carolina Tar Heels,Notre Dame Fighting Irish,83,76,42.0,34.0,41.0,42.0,False,First Horizon Coliseum
+400915424,2017,2017-02-05,Florida State Seminoles,Clemson Tigers,109,61,51.0,25.0,58.0,36.0,False,Tucker Center
+400916234,2017,2017-02-06,Kansas State Wildcats,Kansas Jayhawks,71,74,35.0,37.0,36.0,37.0,False,Bramlage Coliseum
+400915425,2017,2017-02-06,Virginia Cavaliers,Louisville Cardinals,71,55,32.0,34.0,39.0,21.0,False,John Paul Jones Arena
+400919711,2017,2017-02-07,Villanova Wildcats,Georgetown Hoyas,75,64,43.0,28.0,32.0,36.0,False,Finneran Pavilion
+400910698,2017,2017-02-07,Kentucky Wildcats,LSU Tigers,92,85,43.0,27.0,49.0,58.0,False,Rupp Arena
+400910651,2017,2017-02-07,Georgia Bulldogs,Florida Gators,60,72,33.0,35.0,27.0,37.0,False,Stegeman Coliseum
+400910561,2017,2017-02-07,South Carolina Gamecocks,Alabama Crimson Tide,86,90,16.0,32.0,41.0,25.0,False,Colonial Life Arena
+400915036,2017,2017-02-07,Penn State Nittany Lions,Maryland Terrapins,70,64,35.0,29.0,35.0,35.0,False,Bryce Jordan Center
+400919712,2017,2017-02-07,Marquette Golden Eagles,Butler Bulldogs,65,68,33.0,40.0,32.0,28.0,False,BMO Harris Bradley Center
+400916236,2017,2017-02-08,Oklahoma State Cowboys,Baylor Bears,69,72,30.0,34.0,39.0,38.0,False,Gallagher-Iba Arena
+400915663,2017,2017-02-08,Arizona Wildcats,Stanford Cardinal,74,67,35.0,32.0,39.0,35.0,False,McKale Memorial Center
+400916621,2017,2017-02-08,Cincinnati Bearcats,UCF Knights,60,50,34.0,28.0,26.0,22.0,False,Fifth Third Arena
+400916237,2017,2017-02-08,Oklahoma Sooners,West Virginia Mountaineers,50,61,25.0,27.0,25.0,34.0,False,Lloyd Noble Center
+400915428,2017,2017-02-08,Florida State Seminoles,NC State Wolfpack,95,71,45.0,30.0,50.0,41.0,False,Tucker Center
+400919713,2017,2017-02-08,Xavier Musketeers,DePaul Blue Demons,72,61,41.0,34.0,31.0,27.0,False,Cintas Center
+400915864,2017,2017-02-09,Loyola Marymount Lions,Gonzaga Bulldogs,60,90,28.0,50.0,32.0,40.0,False,Gersten Pavilion
+400915666,2017,2017-02-09,UCLA Bruins,Oregon Ducks,82,79,39.0,48.0,43.0,31.0,False,Pauley Pavilion
+400915431,2017,2017-02-09,Duke Blue Devils,North Carolina Tar Heels,86,78,40.0,39.0,46.0,39.0,False,Cameron Indoor Stadium
+400914984,2017,2017-02-09,Indiana Hoosiers,Purdue Boilermakers,64,69,36.0,32.0,28.0,37.0,False,Simon Skjodt Assembly Hall
+400915866,2017,2017-02-09,Saint Mary's Gaels,Portland Pilots,51,41,22.0,22.0,29.0,19.0,False,University Credit Union Pavilion
+400916622,2017,2017-02-09,Temple Owls,SMU Mustangs,50,66,18.0,28.0,32.0,38.0,False,Liacouras Center
+400917169,2017,2017-02-10,Ball State Cardinals,Ohio Bobcats,77,79,30.0,49.0,47.0,30.0,False,Worthen Arena
+400919317,2017,2017-02-10,Yale Bulldogs,Dartmouth Big Green,73,64,40.0,30.0,33.0,34.0,False,John J. Lee Amphitheater
+400919304,2017,2017-02-10,Princeton Tigers,Cornell Big Red,69,60,36.0,26.0,33.0,34.0,False,Jadwin Gymnasium
+400919289,2017,2017-02-10,Pennsylvania Quakers,Columbia Lions,70,62,37.0,28.0,33.0,34.0,False,The Palestra
+400919270,2017,2017-02-10,Brown Bears,Harvard Crimson,74,87,35.0,32.0,39.0,55.0,False,Pizzitola Sports Center
+400918512,2017,2017-02-10,Detroit Mercy Titans,Oakland Golden Grizzlies,80,89,34.0,52.0,46.0,37.0,False,Calihan Hall
+400918313,2017,2017-02-10,Rhode Island Rams,Dayton Flyers,74,75,36.0,30.0,38.0,45.0,False,Thomas M. Ryan Center
+400917165,2017,2017-02-10,Eastern Michigan Eagles,Akron Zips,76,87,34.0,35.0,42.0,52.0,False,Gervin GameAbove Center
+400917626,2017,2017-02-10,Canisius Golden Griffins,Niagara Purple Eagles,81,94,36.0,39.0,45.0,55.0,False,Koessler Athletic Center
+400917627,2017,2017-02-10,Manhattan Jaspers,Monmouth Hawks,58,62,29.0,27.0,29.0,35.0,False,Draddy Gymnasium
+400915873,2017,2017-02-11,Saint Mary's Gaels,Gonzaga Bulldogs,64,74,31.0,40.0,33.0,34.0,False,University Credit Union Pavilion
+400919718,2017,2017-02-11,Xavier Musketeers,Villanova Wildcats,57,73,23.0,35.0,34.0,38.0,False,Cintas Center
+400916240,2017,2017-02-11,Texas Tech Red Raiders,Kansas Jayhawks,79,80,35.0,42.0,44.0,38.0,False,United Supermarkets Arena
+400915437,2017,2017-02-11,Louisville Cardinals,Miami Hurricanes,71,66,26.0,33.0,45.0,33.0,False,KFC Yum! Center
+400915671,2017,2017-02-11,USC Trojans,Oregon Ducks,70,81,33.0,35.0,37.0,46.0,False,Galen Center
+400915668,2017,2017-02-11,Arizona Wildcats,California Golden Bears,62,57,34.0,25.0,28.0,32.0,False,McKale Memorial Center
+400916238,2017,2017-02-11,West Virginia Mountaineers,Kansas State Wildcats,85,66,34.0,34.0,51.0,32.0,False,WVU Coliseum
+400915435,2017,2017-02-11,Notre Dame Fighting Irish,Florida State Seminoles,84,72,40.0,31.0,44.0,41.0,False,Purcell Pavilion
+400910652,2017,2017-02-11,Florida Gators,Texas A&M Aggies,71,62,29.0,27.0,42.0,35.0,False,Stephen C. O'Connell Center
+400915434,2017,2017-02-11,Duke Blue Devils,Clemson Tigers,64,62,29.0,18.0,35.0,44.0,False,Cameron Indoor Stadium
+400910737,2017,2017-02-11,Mississippi State Bulldogs,South Carolina Gamecocks,73,77,36.0,36.0,37.0,41.0,False,Humphrey Coliseum
+400915037,2017,2017-02-11,Maryland Terrapins,Ohio State Buckeyes,86,77,45.0,31.0,41.0,46.0,False,XFINITY Center
+400919717,2017,2017-02-11,DePaul Blue Demons,Creighton Bluejays,58,93,26.0,39.0,32.0,54.0,False,Allstate Arena
+400914942,2017,2017-02-12,Wisconsin Badgers,Northwestern Wildcats,59,66,22.0,31.0,37.0,35.0,False,Kohl Center
+400915672,2017,2017-02-12,UCLA Bruins,Oregon State Beavers,78,60,32.0,27.0,46.0,33.0,False,Pauley Pavilion
+400916626,2017,2017-02-12,SMU Mustangs,Cincinnati Bearcats,60,51,28.0,28.0,32.0,23.0,False,Moody Coliseum (Dallas)
+400915438,2017,2017-02-12,Virginia Tech Hokies,Virginia Cavaliers,80,78,23.0,37.0,40.0,26.0,False,Cassell Coliseum
+400919720,2017,2017-02-13,DePaul Blue Demons,Villanova Wildcats,62,75,18.0,39.0,44.0,36.0,False,Allstate Arena
+400916242,2017,2017-02-13,Texas Tech Red Raiders,Baylor Bears,84,78,32.0,36.0,52.0,42.0,False,United Supermarkets Arena
+400910699,2017,2017-02-14,Kentucky Wildcats,Tennessee Volunteers,83,58,47.0,32.0,36.0,26.0,False,Rupp Arena
+400910627,2017,2017-02-14,Auburn Tigers,Florida Gators,95,114,50.0,50.0,45.0,64.0,False,Neville Arena
+400915194,2017,2017-02-14,Purdue Boilermakers,Rutgers Scarlet Knights,74,55,33.0,26.0,41.0,29.0,False,Mackey Arena
+400915440,2017,2017-02-14,Boston College Eagles,Notre Dame Fighting Irish,76,84,49.0,39.0,27.0,45.0,False,Conte Forum
+400915444,2017,2017-02-15,NC State Wolfpack,North Carolina Tar Heels,73,97,37.0,51.0,36.0,46.0,False,Lenovo Center
+400916630,2017,2017-02-15,South Florida Bulls,Cincinnati Bearcats,54,68,22.0,30.0,32.0,38.0,False,Yuengling Center
+400916631,2017,2017-02-15,SMU Mustangs,Tulane Green Wave,80,75,27.0,42.0,53.0,33.0,False,Moody Coliseum (Dallas)
+400919722,2017,2017-02-15,Seton Hall Pirates,Creighton Bluejays,87,81,41.0,40.0,46.0,41.0,False,Prudential Center
+400910599,2017,2017-02-15,South Carolina Gamecocks,Arkansas Razorbacks,76,83,32.0,39.0,44.0,44.0,False,Colonial Life Arena
+400915038,2017,2017-02-15,Northwestern Wildcats,Maryland Terrapins,64,74,22.0,32.0,42.0,42.0,False,Welsh-Ryan Arena
+400919723,2017,2017-02-15,Butler Bulldogs,St. John's Red Storm,110,86,54.0,35.0,56.0,51.0,False,Hinkle Fieldhouse
+400915874,2017,2017-02-16,Gonzaga Bulldogs,San Francisco Dons,96,61,42.0,35.0,54.0,26.0,False,McCarthey Athletic Center
+400914943,2017,2017-02-16,Michigan Wolverines,Wisconsin Badgers,64,58,30.0,31.0,34.0,27.0,False,Crisler Center
+400915876,2017,2017-02-16,Saint Mary's Gaels,Loyola Marymount Lions,81,48,46.0,25.0,35.0,23.0,False,University Credit Union Pavilion
+400919306,2017,2017-02-17,Dartmouth Big Green,Cornell Big Red,65,69,30.0,31.0,35.0,38.0,False,Leede Arena
+400919291,2017,2017-02-17,Harvard Crimson,Columbia Lions,78,72,46.0,30.0,32.0,42.0,False,Lavietes Pavilion
+400918586,2017,2017-02-17,Oakland Golden Grizzlies,Valparaiso Beacons,82,71,34.0,27.0,48.0,44.0,False,OU Credit Union O'rena
+400918513,2017,2017-02-17,Detroit Mercy Titans,UIC Flames,69,74,34.0,35.0,35.0,39.0,False,Calihan Hall
+400917640,2017,2017-02-17,Marist Red Foxes,Iona Gaels,88,95,46.0,48.0,42.0,47.0,False,McCann Arena
+400917639,2017,2017-02-17,Rider Broncs,Canisius Golden Griffins,77,85,37.0,41.0,40.0,44.0,False,Alumni Gymnasium (Rider)
+400917179,2017,2017-02-17,Akron Zips,Kent State Golden Flashes,67,70,36.0,31.0,31.0,39.0,False,James A. Rhodes Arena
+400919341,2017,2017-02-17,Yale Bulldogs,Princeton Tigers,52,71,29.0,38.0,23.0,33.0,False,John J. Lee Amphitheater
+400919272,2017,2017-02-17,Brown Bears,Pennsylvania Quakers,72,96,27.0,52.0,45.0,44.0,False,Pizzitola Sports Center
+400916088,2017,2017-02-17,Arkansas State Red Wolves,Little Rock Trojans,67,58,33.0,26.0,34.0,32.0,False,First National Bank Arena
+400918452,2017,2017-02-17,Richmond Spiders,VCU Rams,73,84,35.0,36.0,38.0,48.0,False,Robins Center
+400917638,2017,2017-02-17,Quinnipiac Bobcats,Fairfield Stags,86,89,30.0,42.0,48.0,36.0,False,M&T Bank Arena
+400916439,2017,2017-02-17,Eastern Washington Eagles,Idaho Vandals,77,67,32.0,29.0,45.0,38.0,False,Reese Court
+400915678,2017,2017-02-17,Stanford Cardinal,California Golden Bears,73,68,38.0,34.0,35.0,34.0,False,Maples Pavilion
+400915879,2017,2017-02-18,Gonzaga Bulldogs,Pacific Tigers,82,61,43.0,30.0,39.0,31.0,False,McCarthey Athletic Center
+400919724,2017,2017-02-18,Seton Hall Pirates,Villanova Wildcats,70,92,31.0,42.0,39.0,50.0,False,Prudential Center
+400916246,2017,2017-02-18,Baylor Bears,Kansas Jayhawks,65,67,35.0,29.0,30.0,38.0,False,Ferrell Center
+400915681,2017,2017-02-18,Washington Huskies,Arizona Wildcats,68,76,42.0,42.0,26.0,34.0,False,Alaska Airlines Arena
+400915682,2017,2017-02-18,UCLA Bruins,USC Trojans,102,70,46.0,34.0,56.0,36.0,False,Pauley Pavilion
+400915679,2017,2017-02-18,Oregon Ducks,Colorado Buffaloes,101,73,45.0,32.0,56.0,41.0,False,Matthew Knight Arena
+400915449,2017,2017-02-18,Louisville Cardinals,Virginia Tech Hokies,94,90,43.0,44.0,51.0,46.0,False,KFC Yum! Center
+400916247,2017,2017-02-18,West Virginia Mountaineers,Texas Tech Red Raiders,83,74,31.0,33.0,33.0,31.0,False,WVU Coliseum
+400915451,2017,2017-02-18,North Carolina Tar Heels,Virginia Cavaliers,65,41,34.0,22.0,31.0,19.0,False,Dean E. Smith Center
+400915448,2017,2017-02-18,Duke Blue Devils,Wake Forest Demon Deacons,99,94,47.0,47.0,52.0,47.0,False,Cameron Indoor Stadium
+400910677,2017,2017-02-18,Georgia Bulldogs,Kentucky Wildcats,77,82,31.0,33.0,46.0,49.0,False,Stegeman Coliseum
+400910653,2017,2017-02-18,Mississippi State Bulldogs,Florida Gators,52,57,24.0,32.0,28.0,25.0,False,Humphrey Coliseum
+400915450,2017,2017-02-18,Pittsburgh Panthers,Florida State Seminoles,80,66,41.0,37.0,39.0,29.0,False,Petersen Events Center
+400916633,2017,2017-02-18,Cincinnati Bearcats,Tulsa Golden Hurricane,80,60,38.0,32.0,42.0,28.0,False,Fifth Third Arena
+400916636,2017,2017-02-18,Houston Cougars,SMU Mustangs,66,76,30.0,26.0,36.0,50.0,False,Fertitta Center
+400910790,2017,2017-02-18,Vanderbilt Commodores,South Carolina Gamecocks,71,62,27.0,30.0,44.0,32.0,False,Memorial Gymnasium (TN)
+400915883,2017,2017-02-18,BYU Cougars,Saint Mary's Gaels,57,70,30.0,41.0,27.0,29.0,False,Marriott Center
+400915447,2017,2017-02-18,NC State Wolfpack,Notre Dame Fighting Irish,72,81,28.0,41.0,44.0,40.0,False,Lenovo Center
+400914944,2017,2017-02-19,Wisconsin Badgers,Maryland Terrapins,71,60,27.0,33.0,44.0,27.0,False,Kohl Center
+400919727,2017,2017-02-19,Creighton Bluejays,Georgetown Hoyas,87,70,41.0,33.0,46.0,37.0,False,CHI Health Center Omaha
+400919726,2017,2017-02-19,Butler Bulldogs,DePaul Blue Demons,82,66,36.0,27.0,46.0,39.0,False,Hinkle Fieldhouse
+400911043,2017,2017-02-20,West Virginia Mountaineers,Texas Longhorns,77,62,46.0,32.0,31.0,30.0,False,WVU Coliseum
+400915453,2017,2017-02-20,Virginia Cavaliers,Miami Hurricanes,48,54,19.0,20.0,24.0,23.0,False,John Paul Jones Arena
+400915454,2017,2017-02-20,Florida State Seminoles,Boston College Eagles,104,72,55.0,31.0,49.0,41.0,False,Tucker Center
+400916251,2017,2017-02-21,Baylor Bears,Oklahoma Sooners,60,54,36.0,26.0,24.0,28.0,False,Ferrell Center
+400910700,2017,2017-02-21,Missouri Tigers,Kentucky Wildcats,62,72,30.0,31.0,32.0,41.0,False,Mizzou Arena
+400910654,2017,2017-02-21,Florida Gators,South Carolina Gamecocks,81,66,35.0,33.0,46.0,33.0,False,Stephen C. O'Connell Center
+400915179,2017,2017-02-21,Penn State Nittany Lions,Purdue Boilermakers,70,74,33.0,29.0,31.0,35.0,False,Bryce Jordan Center
+400918130,2017,2017-02-21,Wichita State Shockers,Evansville Purple Aces,109,83,48.0,32.0,61.0,51.0,False,Charles Koch Arena
+400919731,2017,2017-02-22,Villanova Wildcats,Butler Bulldogs,66,74,29.0,28.0,37.0,46.0,False,Finneran Pavilion
+400916252,2017,2017-02-22,Kansas Jayhawks,TCU Horned Frogs,87,68,40.0,39.0,47.0,29.0,False,Allen Fieldhouse
+400915459,2017,2017-02-22,North Carolina Tar Heels,Louisville Cardinals,74,63,33.0,30.0,41.0,33.0,False,Dean E. Smith Center
+400915457,2017,2017-02-22,Syracuse Orange,Duke Blue Devils,78,75,25.0,33.0,53.0,42.0,False,JMA Wireless Dome
+400919732,2017,2017-02-22,Creighton Bluejays,Providence Friars,66,68,36.0,29.0,30.0,39.0,False,CHI Health Center Omaha
+400915039,2017,2017-02-22,Maryland Terrapins,Minnesota Golden Gophers,75,89,35.0,34.0,40.0,55.0,False,XFINITY Center
+400915884,2017,2017-02-23,San Diego Toreros,Gonzaga Bulldogs,38,96,16.0,44.0,22.0,52.0,False,Jenny Craig Pavilion
+400915687,2017,2017-02-23,Arizona Wildcats,USC Trojans,90,77,44.0,39.0,46.0,38.0,False,McKale Memorial Center
+400915686,2017,2017-02-23,Arizona State Sun Devils,UCLA Bruins,75,87,36.0,45.0,39.0,42.0,False,Desert Financial Arena
+400916641,2017,2017-02-23,Cincinnati Bearcats,Memphis Tigers,87,74,51.0,32.0,36.0,42.0,False,Fifth Third Arena
+400914945,2017,2017-02-23,Ohio State Buckeyes,Wisconsin Badgers,83,73,44.0,31.0,39.0,42.0,False,Value City Arena
+400915887,2017,2017-02-23,Pepperdine Waves,Saint Mary's Gaels,49,78,21.0,37.0,28.0,41.0,False,Firestone Fieldhouse
+400943826,2017,2017-02-24,Toledo Rockets,Central Michigan Chippewas,87,66,40.0,20.0,47.0,46.0,False,Savage Arena
+400919328,2017,2017-02-24,Harvard Crimson,Yale Bulldogs,77,64,31.0,34.0,46.0,30.0,False,Lavietes Pavilion
+400919308,2017,2017-02-24,Cornell Big Red,Pennsylvania Quakers,66,69,28.0,36.0,38.0,33.0,False,Newman Arena
+400919293,2017,2017-02-24,Columbia Lions,Princeton Tigers,45,64,22.0,27.0,23.0,37.0,False,Levien Gymnasium
+400919274,2017,2017-02-24,Dartmouth Big Green,Brown Bears,75,80,27.0,38.0,48.0,42.0,False,Leede Arena
+400918533,2017,2017-02-24,Green Bay Phoenix,Oakland Golden Grizzlies,72,85,39.0,35.0,33.0,50.0,False,Resch Center
+400917652,2017,2017-02-24,Monmouth Hawks,Siena Saints,77,73,42.0,35.0,35.0,38.0,False,OceanFirst Bank Center
+400917650,2017,2017-02-24,Canisius Golden Griffins,Fairfield Stags,55,58,36.0,31.0,19.0,27.0,False,Koessler Athletic Center
+400917649,2017,2017-02-24,Niagara Purple Eagles,Saint Peter's Peacocks,53,66,21.0,34.0,32.0,32.0,False,Gallagher Center
+400918592,2017,2017-02-24,Wright State Raiders,Valparaiso Beacons,74,84,42.0,34.0,32.0,50.0,False,Nutter Center
+400918562,2017,2017-02-24,Northern Kentucky Norse,UIC Flames,90,82,36.0,37.0,54.0,45.0,False,Truist Arena
+400943827,2017,2017-02-24,Buffalo Bulls,Akron Zips,83,89,33.0,38.0,50.0,51.0,False,Alumni Arena
+400918515,2017,2017-02-24,Milwaukee Panthers,Detroit Mercy Titans,74,81,33.0,31.0,41.0,50.0,False,UW-Milwaukee Panther Arena
+400918280,2017,2017-02-24,Davidson Wildcats,Dayton Flyers,82,89,45.0,46.0,29.0,28.0,False,John M. Belk Arena
+400917651,2017,2017-02-24,Iona Gaels,Manhattan Jaspers,72,51,42.0,27.0,30.0,24.0,False,Hynes Athletics Center
+400915689,2017,2017-02-24,California Golden Bears,Oregon State Beavers,76,46,39.0,26.0,37.0,20.0,False,Haas Pavilion
+400915890,2017,2017-02-25,Gonzaga Bulldogs,BYU Cougars,71,79,41.0,35.0,30.0,44.0,False,McCarthey Athletic Center
+400919735,2017,2017-02-25,Villanova Wildcats,Creighton Bluejays,79,63,33.0,33.0,46.0,30.0,False,Finneran Pavilion
+400911044,2017,2017-02-25,Texas Longhorns,Kansas Jayhawks,67,77,31.0,40.0,36.0,37.0,False,Frank Erwin Center
+400915690,2017,2017-02-25,Arizona Wildcats,UCLA Bruins,72,77,43.0,39.0,29.0,38.0,False,McKale Memorial Center
+400915691,2017,2017-02-25,Stanford Cardinal,Oregon Ducks,73,75,37.0,43.0,36.0,32.0,False,Maples Pavilion
+400915461,2017,2017-02-25,Pittsburgh Panthers,North Carolina Tar Heels,67,85,28.0,40.0,39.0,45.0,False,Petersen Events Center
+400915463,2017,2017-02-25,Miami Hurricanes,Duke Blue Devils,55,50,22.0,21.0,33.0,29.0,False,Watsco Center
+400910655,2017,2017-02-25,Kentucky Wildcats,Florida Gators,76,66,28.0,28.0,48.0,38.0,False,Rupp Arena
+400916254,2017,2017-02-25,TCU Horned Frogs,West Virginia Mountaineers,60,61,30.0,27.0,30.0,34.0,False,Schollmaier Arena
+400915059,2017,2017-02-25,Michigan Wolverines,Purdue Boilermakers,82,70,45.0,30.0,37.0,40.0,False,Crisler Center
+400916643,2017,2017-02-25,UConn Huskies,SMU Mustangs,61,69,30.0,41.0,31.0,28.0,False,PeoplesBank Arena
+400915464,2017,2017-02-25,NC State Wolfpack,Virginia Cavaliers,55,70,21.0,35.0,34.0,35.0,False,Lenovo Center
+400915460,2017,2017-02-25,Clemson Tigers,Florida State Seminoles,74,76,37.0,38.0,37.0,38.0,False,Littlejohn Coliseum
+400915893,2017,2017-02-25,Saint Mary's Gaels,Santa Clara Broncos,70,56,41.0,29.0,29.0,27.0,False,University Credit Union Pavilion
+400915016,2017,2017-02-25,Maryland Terrapins,Iowa Hawkeyes,69,83,40.0,47.0,29.0,36.0,False,XFINITY Center
+400918131,2017,2017-02-25,Missouri State Bears,Wichita State Shockers,67,86,32.0,39.0,35.0,47.0,False,Great Southern Bank Arena
+400915465,2017,2017-02-26,Louisville Cardinals,Syracuse Orange,88,68,41.0,25.0,47.0,43.0,False,KFC Yum! Center
+400916645,2017,2017-02-26,UCF Knights,Cincinnati Bearcats,53,49,30.0,27.0,23.0,22.0,False,Addition Financial Arena
+400914946,2017,2017-02-26,Michigan State Spartans,Wisconsin Badgers,84,74,38.0,37.0,46.0,37.0,False,Breslin Center
+400915466,2017,2017-02-26,Notre Dame Fighting Irish,Georgia Tech Yellow Jackets,64,60,34.0,28.0,30.0,32.0,False,Purcell Pavilion
+400919737,2017,2017-02-26,Xavier Musketeers,Butler Bulldogs,79,88,37.0,38.0,42.0,50.0,False,Cintas Center
+400916259,2017,2017-02-27,Kansas Jayhawks,Oklahoma Sooners,73,63,28.0,28.0,45.0,35.0,False,Allen Fieldhouse
+400916258,2017,2017-02-27,Baylor Bears,West Virginia Mountaineers,71,62,28.0,30.0,43.0,32.0,False,Ferrell Center
+400915468,2017,2017-02-27,Virginia Tech Hokies,Miami Hurricanes,66,61,27.0,26.0,39.0,35.0,False,Cassell Coliseum
+400910701,2017,2017-02-28,Kentucky Wildcats,Vanderbilt Commodores,73,67,24.0,30.0,49.0,37.0,False,Rupp Arena
+400915469,2017,2017-02-28,Duke Blue Devils,Florida State Seminoles,75,70,34.0,23.0,41.0,47.0,False,Cameron Indoor Stadium
+400914990,2017,2017-02-28,Purdue Boilermakers,Indiana Hoosiers,86,75,40.0,32.0,46.0,43.0,False,Mackey Arena
+400916260,2017,2017-02-28,Iowa State Cyclones,Oklahoma State Cowboys,86,83,40.0,39.0,46.0,44.0,False,Hilton Coliseum
+400915695,2017,2017-03-01,UCLA Bruins,Washington Huskies,98,66,49.0,28.0,49.0,38.0,False,Pauley Pavilion
+400915473,2017,2017-03-01,Wake Forest Demon Deacons,Louisville Cardinals,88,81,42.0,43.0,46.0,38.0,False,LJVM Coliseum
+400910603,2017,2017-03-01,Florida Gators,Arkansas Razorbacks,78,65,41.0,28.0,37.0,37.0,False,Stephen C. O'Connell Center
+400915472,2017,2017-03-01,Notre Dame Fighting Irish,Boston College Eagles,82,66,36.0,28.0,46.0,38.0,False,Purcell Pavilion
+400916651,2017,2017-03-02,SMU Mustangs,Tulsa Golden Hurricane,93,70,47.0,28.0,46.0,42.0,False,Moody Coliseum (Dallas)
+400916650,2017,2017-03-02,Cincinnati Bearcats,Houston Cougars,65,47,37.0,20.0,28.0,27.0,False,Fifth Third Arena
+400914947,2017,2017-03-02,Wisconsin Badgers,Iowa Hawkeyes,57,59,25.0,32.0,32.0,27.0,False,Kohl Center
+400916262,2017,2017-03-03,West Virginia Mountaineers,Iowa State Cyclones,87,76,43.0,42.0,44.0,34.0,False,WVU Coliseum
+400916265,2017,2017-03-04,Oklahoma State Cowboys,Kansas Jayhawks,85,90,40.0,43.0,45.0,47.0,False,Gallagher-Iba Arena
+400919742,2017,2017-03-04,Georgetown Hoyas,Villanova Wildcats,55,81,28.0,38.0,27.0,43.0,False,Capital One Arena
+400915703,2017,2017-03-04,UCLA Bruins,Washington State Cougars,77,68,35.0,34.0,42.0,34.0,False,Pauley Pavilion
+400915479,2017,2017-03-04,North Carolina Tar Heels,Duke Blue Devils,90,83,48.0,46.0,42.0,37.0,False,Dean E. Smith Center
+400915701,2017,2017-03-04,Oregon State Beavers,Oregon Ducks,59,80,24.0,32.0,35.0,48.0,False,Gill Coliseum
+400915700,2017,2017-03-04,Arizona State Sun Devils,Arizona Wildcats,60,73,29.0,30.0,31.0,43.0,False,Desert Financial Arena
+400915475,2017,2017-03-04,Louisville Cardinals,Notre Dame Fighting Irish,71,64,30.0,27.0,41.0,37.0,False,KFC Yum! Center
+400910702,2017,2017-03-04,Texas A&M Aggies,Kentucky Wildcats,63,71,28.0,32.0,35.0,39.0,False,Reed Arena
+400911046,2017,2017-03-04,Texas Longhorns,Baylor Bears,64,75,29.0,40.0,35.0,35.0,False,Frank Erwin Center
+400910656,2017,2017-03-04,Vanderbilt Commodores,Florida Gators,73,71,31.0,40.0,42.0,31.0,False,Memorial Gymnasium (TN)
+400919745,2017,2017-03-04,Butler Bulldogs,Seton Hall Pirates,64,70,38.0,35.0,26.0,35.0,False,Hinkle Fieldhouse
+400916653,2017,2017-03-04,SMU Mustangs,Memphis Tigers,103,62,48.0,24.0,55.0,38.0,False,Moody Coliseum (Dallas)
+400915476,2017,2017-03-04,Florida State Seminoles,Miami Hurricanes,66,57,37.0,34.0,29.0,23.0,False,Tucker Center
+400915474,2017,2017-03-04,Virginia Cavaliers,Pittsburgh Panthers,67,42,32.0,15.0,35.0,27.0,False,John Paul Jones Arena
+400915145,2017,2017-03-05,Northwestern Wildcats,Purdue Boilermakers,65,69,37.0,37.0,28.0,32.0,False,Welsh-Ryan Arena
+400916654,2017,2017-03-05,UConn Huskies,Cincinnati Bearcats,47,67,23.0,33.0,24.0,34.0,False,Gampel Pavilion
+400914948,2017,2017-03-05,Wisconsin Badgers,Minnesota Golden Gophers,66,49,27.0,29.0,39.0,20.0,False,Kohl Center
+400945394,2017,2017-03-06,Maryland Eastern Shore Hawks,North Carolina A&T Aggies,75,65,34.0,38.0,41.0,27.0,True,Norfolk Scope Arena
+400945730,2017,2017-03-06,Northern Kentucky Norse,Youngstown State Penguins,84,74,42.0,27.0,42.0,47.0,True,Joe Louis Arena
+400945728,2017,2017-03-06,South Dakota Coyotes,South Dakota State Jackrabbits,71,74,44.0,33.0,27.0,41.0,True,Denny Sanford Premier Center
+400945727,2017,2017-03-06,UNC Greensboro Spartans,East Tennessee State Buccaneers,74,79,38.0,31.0,36.0,48.0,True,Harrah's Cherokee Center
+400945702,2017,2017-03-06,UNC Wilmington Seahawks,Charleston Cougars,78,69,31.0,25.0,47.0,44.0,True,North Charleston Coliseum
+400945449,2017,2017-03-06,Kent State Golden Flashes,Central Michigan Chippewas,116,106,40.0,53.0,51.0,38.0,False,M.A.C. Center
+400945446,2017,2017-03-06,Eastern Michigan Eagles,Northern Illinois Huskies,72,69,33.0,29.0,39.0,40.0,False,Gervin GameAbove Center
+400945393,2017,2017-03-06,Coppin State Eagles,Howard Bison,73,79,22.0,33.0,51.0,46.0,True,Norfolk Scope Arena
+400945191,2017,2017-03-06,Vermont Catamounts,New Hampshire Wildcats,74,41,37.0,20.0,37.0,21.0,False,Patrick Gymnasium
+400945447,2017,2017-03-06,Western Michigan Broncos,Miami (OH) RedHawks,65,61,28.0,35.0,37.0,26.0,False,University Arena (MI)
+400945192,2017,2017-03-06,Stony Brook Seawolves,UAlbany Great Danes,56,63,24.0,32.0,32.0,31.0,False,Island FCU Arena
+400945448,2017,2017-03-06,Toledo Rockets,Bowling Green Falcons,77,62,32.0,28.0,45.0,34.0,False,Savage Arena
+400945704,2017,2017-03-06,Iona Gaels,Siena Saints,87,86,35.0,37.0,38.0,36.0,True,MVP Arena
+400945623,2017,2017-03-06,Gonzaga Bulldogs,Santa Clara Broncos,77,68,37.0,29.0,40.0,39.0,True,Orleans Arena
+400945782,2017,2017-03-06,Omaha Mavericks,IU Indianapolis Jaguars,90,62,42.0,18.0,48.0,44.0,True,Denny Sanford Premier Center
+400945726,2017,2017-03-06,UIC Flames,Milwaukee Panthers,68,74,30.0,34.0,38.0,40.0,True,Joe Louis Arena
+400945646,2017,2017-03-06,Saint Mary's Gaels,BYU Cougars,81,50,36.0,20.0,45.0,30.0,True,Orleans Arena
+400945577,2017,2017-03-07,Clemson Tigers,NC State Wolfpack,75,61,39.0,28.0,36.0,33.0,True,Barclays Center
+400945578,2017,2017-03-07,Wake Forest Demon Deacons,Boston College Eagles,92,78,44.0,38.0,48.0,40.0,True,Barclays Center
+400945391,2017,2017-03-07,Delaware State Hornets,Bethune-Cookman Wildcats,62,69,29.0,27.0,33.0,42.0,True,Norfolk Scope Arena
+400945489,2017,2017-03-07,Portland State Vikings,Northern Arizona Lumberjacks,80,67,33.0,28.0,47.0,39.0,True,Reno Events Center
+400945392,2017,2017-03-07,South Carolina State Bulldogs,Florida A&M Rattlers,82,78,34.0,30.0,37.0,41.0,True,Norfolk Scope Arena
+400945867,2017,2017-03-07,Northern Kentucky Norse,Milwaukee Panthers,59,53,31.0,28.0,28.0,25.0,True,Joe Louis Arena
+400945579,2017,2017-03-07,Georgia Tech Yellow Jackets,Pittsburgh Panthers,59,61,26.0,29.0,33.0,32.0,True,Barclays Center
+400945509,2017,2017-03-07,Mount St. Mary's Mountaineers,Saint Francis Red Flash,71,61,23.0,31.0,48.0,30.0,False,Knott Arena
+400945495,2017,2017-03-07,Alcorn State Braves,Mississippi Valley State Delta Devils,63,60,38.0,29.0,25.0,31.0,False,Davey L. Whitney Complex
+400945496,2017,2017-03-07,Southern Jaguars,Jackson State Tigers,69,63,25.0,34.0,44.0,29.0,False,F.G. Clark Activity Center
+400945493,2017,2017-03-07,Texas Southern Tigers,Alabama State Hornets,87,72,38.0,31.0,49.0,41.0,False,H&PE Arena
+400945490,2017,2017-03-07,Sacramento State Hornets,Idaho State Bengals,91,76,41.0,43.0,50.0,33.0,True,Reno Events Center
+400945870,2017,2017-03-07,Gonzaga Bulldogs,Saint Mary's Gaels,74,56,39.0,18.0,35.0,38.0,True,Orleans Arena
+400945868,2017,2017-03-07,Omaha Mavericks,South Dakota State Jackrabbits,77,79,31.0,37.0,46.0,42.0,True,Denny Sanford Premier Center
+400945494,2017,2017-03-07,Prairie View A&M Panthers,Grambling Tigers,77,81,35.0,39.0,42.0,42.0,False,William Nicks Building
+400945491,2017,2017-03-07,Montana State Bobcats,Southern Utah Thunderbirds,105,109,42.0,29.0,36.0,49.0,True,Reno Events Center
+400945580,2017,2017-03-08,Syracuse Orange,Miami Hurricanes,57,62,28.0,36.0,29.0,26.0,True,Barclays Center
+400945617,2017,2017-03-08,Western Kentucky Hilltoppers,UTSA Roadrunners,52,56,20.0,23.0,32.0,33.0,True,Legacy Arena at BJCC
+400945610,2017,2017-03-08,Coastal Carolina Chanticleers,South Alabama Jaguars,80,67,44.0,32.0,36.0,35.0,True,Lakefront Arena
+400945502,2017,2017-03-08,Utah State Aggies,San José State Spartans,90,64,31.0,31.0,59.0,33.0,True,Thomas & Mack Center
+400945789,2017,2017-03-08,Duke Blue Devils,Clemson Tigers,79,72,33.0,33.0,46.0,39.0,True,Barclays Center
+400945618,2017,2017-03-08,Rice Owls,Southern Miss Golden Eagles,86,75,37.0,35.0,49.0,40.0,True,Legacy Arena at BJCC
+400945611,2017,2017-03-08,Arkansas State Red Wolves,UL Monroe Warhawks,70,73,37.0,28.0,23.0,32.0,True,Lakefront Arena
+400945497,2017,2017-03-08,Arizona State Sun Devils,Stanford Cardinal,98,88,50.0,42.0,31.0,39.0,True,T-Mobile Arena
+400945733,2017,2017-03-08,Nebraska Cornhuskers,Penn State Nittany Lions,67,76,33.0,38.0,27.0,22.0,True,Capital One Arena
+400945503,2017,2017-03-08,Wyoming Cowboys,Air Force Falcons,68,83,27.0,48.0,41.0,35.0,True,Thomas & Mack Center
+400945498,2017,2017-03-08,California Golden Bears,Oregon State Beavers,67,62,32.0,29.0,35.0,33.0,True,T-Mobile Arena
+400946035,2017,2017-03-08,North Carolina Central Eagles,Bethune-Cookman Wildcats,95,60,50.0,32.0,45.0,28.0,True,Norfolk Scope Arena
+400945621,2017,2017-03-08,Sam Houston Bearkats,Central Arkansas Bears,77,69,49.0,35.0,28.0,34.0,True,Leonard E. Merrell Center
+400945612,2017,2017-03-08,Louisiana Ragin' Cajuns,Little Rock Trojans,78,71,30.0,31.0,48.0,40.0,True,Lakefront Arena
+400945584,2017,2017-03-08,Massachusetts Minutemen,Saint Joseph's Hawks,70,63,31.0,24.0,39.0,39.0,True,PPG Paints Arena
+400945619,2017,2017-03-08,UAB Blazers,Charlotte 49ers,74,73,29.0,25.0,45.0,48.0,True,Legacy Arena at BJCC
+400945791,2017,2017-03-08,Virginia Tech Hokies,Wake Forest Demon Deacons,99,90,37.0,44.0,62.0,46.0,True,Barclays Center
+400945734,2017,2017-03-08,Ohio State Buckeyes,Rutgers Scarlet Knights,57,66,32.0,29.0,25.0,37.0,True,Capital One Arena
+400945590,2017,2017-03-08,Mississippi State Bulldogs,LSU Tigers,79,52,37.0,25.0,42.0,27.0,True,Bridgestone Arena
+400945526,2017,2017-03-08,TCU Horned Frogs,Oklahoma Sooners,82,63,44.0,31.0,38.0,32.0,True,T-Mobile Center
+400945520,2017,2017-03-08,St. John's Red Storm,Georgetown Hoyas,74,73,38.0,34.0,36.0,39.0,True,Madison Square Garden
+400945504,2017,2017-03-08,San Diego State Aztecs,UNLV Rebels,62,52,14.0,32.0,36.0,18.0,False,Thomas & Mack Center
+400945694,2017,2017-03-08,Bucknell Bison,Lehigh Mountain Hawks,81,65,35.0,34.0,46.0,31.0,False,Sojka Pavilion
+400946041,2017,2017-03-08,Norfolk State Spartans,South Carolina State Bulldogs,93,88,47.0,36.0,38.0,49.0,True,Norfolk Scope Arena
+400945622,2017,2017-03-08,Lamar Cardinals,SE Louisiana Lions,77,65,34.0,30.0,43.0,35.0,True,Leonard E. Merrell Center
+400945613,2017,2017-03-08,Troy Trojans,App State Mountaineers,84,64,37.0,30.0,47.0,34.0,True,Lakefront Arena
+400945585,2017,2017-03-08,Saint Louis Billikens,Duquesne Dukes,72,71,32.0,42.0,40.0,29.0,True,PPG Paints Arena
+400945620,2017,2017-03-08,Marshall Thundering Herd,Florida Atlantic Owls,89,74,52.0,29.0,37.0,45.0,True,Legacy Arena at BJCC
+400945603,2017,2017-03-08,Auburn Tigers,Missouri Tigers,83,86,35.0,36.0,43.0,42.0,True,Bridgestone Arena
+400945499,2017,2017-03-08,Colorado Buffaloes,Washington State Cougars,73,63,27.0,41.0,46.0,22.0,True,T-Mobile Arena
+400945527,2017,2017-03-08,Texas Tech Red Raiders,Texas Longhorns,52,61,26.0,20.0,26.0,41.0,True,T-Mobile Center
+400945790,2017,2017-03-08,Virginia Cavaliers,Pittsburgh Panthers,75,63,34.0,23.0,41.0,40.0,True,Barclays Center
+400945521,2017,2017-03-08,Xavier Musketeers,DePaul Blue Demons,75,64,30.0,31.0,45.0,33.0,True,Madison Square Garden
+400945500,2017,2017-03-08,USC Trojans,Washington Huskies,78,73,37.0,39.0,41.0,34.0,True,T-Mobile Arena
+400946110,2017,2017-03-09,Villanova Wildcats,St. John's Red Storm,108,67,52.0,26.0,56.0,41.0,True,Madison Square Garden
+400945845,2017,2017-03-09,Akron Zips,Eastern Michigan Eagles,79,62,30.0,27.0,49.0,35.0,True,Rocket Arena
+400945792,2017,2017-03-09,North Carolina Tar Heels,Miami Hurricanes,78,53,34.0,29.0,44.0,24.0,True,Barclays Center
+400945586,2017,2017-03-09,La Salle Explorers,Davidson Wildcats,73,82,34.0,49.0,39.0,33.0,True,PPG Paints Arena
+400945735,2017,2017-03-09,Michigan Wolverines,Illinois Fighting Illini,75,55,40.0,29.0,35.0,26.0,True,Capital One Arena
+400946072,2017,2017-03-09,Middle Tennessee Blue Raiders,UTSA Roadrunners,86,70,41.0,31.0,45.0,39.0,True,Legacy Arena at BJCC
+400945528,2017,2017-03-09,Iowa State Cyclones,Oklahoma State Cowboys,92,83,39.0,36.0,53.0,47.0,True,T-Mobile Center
+400945591,2017,2017-03-09,Georgia Bulldogs,Tennessee Volunteers,59,57,26.0,27.0,33.0,30.0,True,Bridgestone Arena
+400946095,2017,2017-03-09,St. Bonaventure Bonnies,Massachusetts Minutemen,73,60,44.0,26.0,29.0,34.0,True,PPG Paints Arena
+400945522,2017,2017-03-09,Marquette Golden Eagles,Seton Hall Pirates,76,82,35.0,35.0,41.0,47.0,True,Madison Square Garden
+400945793,2017,2017-03-09,Louisville Cardinals,Duke Blue Devils,77,81,37.0,39.0,40.0,42.0,True,Barclays Center
+400945852,2017,2017-03-09,Ball State Cardinals,Western Michigan Broncos,66,63,38.0,33.0,28.0,30.0,True,Rocket Arena
+400945798,2017,2017-03-09,Michigan State Spartans,Penn State Nittany Lions,78,51,45.0,27.0,33.0,24.0,True,Capital One Arena
+400946090,2017,2017-03-09,UTEP Miners,Rice Owls,86,76,49.0,29.0,37.0,47.0,True,Legacy Arena at BJCC
+400946086,2017,2017-03-09,Nevada Wolf Pack,Utah State Aggies,83,69,45.0,28.0,38.0,41.0,True,Thomas & Mack Center
+400945804,2017,2017-03-09,Oregon Ducks,Arizona State Sun Devils,80,57,34.0,31.0,46.0,26.0,True,T-Mobile Arena
+400945629,2017,2017-03-09,UC Davis Aggies,Cal Poly Mustangs,66,55,26.0,21.0,40.0,34.0,True,Honda Center
+400946037,2017,2017-03-09,North Dakota Fighting Hawks,Portland State Vikings,95,72,49.0,35.0,46.0,37.0,True,Reno Events Center
+400945796,2017,2017-03-09,Kansas Jayhawks,TCU Horned Frogs,82,85,42.0,43.0,40.0,42.0,True,T-Mobile Center
+400945808,2017,2017-03-09,Alabama Crimson Tide,Mississippi State Bulldogs,75,55,34.0,22.0,41.0,33.0,True,Bridgestone Arena
+400945706,2017,2017-03-09,Temple Owls,East Carolina Pirates,69,80,29.0,36.0,40.0,44.0,True,PeoplesBank Arena
+400945626,2017,2017-03-09,Utah Valley Wolverines,Seattle U Redhawks,65,53,32.0,30.0,33.0,23.0,True,Orleans Arena
+400945805,2017,2017-03-09,Utah Utes,California Golden Bears,75,78,30.0,30.0,45.0,48.0,True,T-Mobile Arena
+400945630,2017,2017-03-09,Cal State Fullerton Titans,Cal State Northridge Matadors,81,68,37.0,41.0,44.0,27.0,True,Honda Center
+400945505,2017,2017-03-09,Fresno State Bulldogs,New Mexico Lobos,65,60,36.0,35.0,29.0,25.0,True,Thomas & Mack Center
+400945492,2017,2017-03-09,Idaho Vandals,Montana Grizzlies,81,77,41.0,34.0,40.0,43.0,True,Reno Events Center
+400946096,2017,2017-03-09,Houston Christian Huskies,Sam Houston Bearkats,59,63,26.0,28.0,33.0,35.0,True,Leonard E. Merrell Center
+400945866,2017,2017-03-09,Morgan State Bears,Howard Bison,65,68,32.0,40.0,33.0,28.0,True,Norfolk Scope Arena
+400945707,2017,2017-03-09,Tulsa Golden Hurricane,Tulane Green Wave,66,60,26.0,23.0,40.0,37.0,True,PeoplesBank Arena
+400945587,2017,2017-03-09,George Mason Patriots,Fordham Rams,82,71,35.0,30.0,30.0,35.0,True,PPG Paints Arena
+400946107,2017,2017-03-09,Louisiana Tech Bulldogs,UAB Blazers,69,57,31.0,18.0,38.0,39.0,True,Legacy Arena at BJCC
+400945853,2017,2017-03-09,Ohio Bobcats,Toledo Rockets,67,66,29.0,37.0,38.0,29.0,True,Rocket Arena
+400945736,2017,2017-03-09,Iowa Hawkeyes,Indiana Hoosiers,73,95,40.0,43.0,33.0,52.0,True,Capital One Arena
+400946121,2017,2017-03-09,Butler Bulldogs,Xavier Musketeers,57,62,30.0,26.0,27.0,36.0,True,Madison Square Garden
+400945797,2017,2017-03-09,West Virginia Mountaineers,Texas Longhorns,63,53,39.0,30.0,24.0,23.0,True,T-Mobile Center
+400945795,2017,2017-03-09,Florida State Seminoles,Virginia Tech Hokies,74,68,33.0,35.0,41.0,33.0,True,Barclays Center
+400945592,2017,2017-03-09,Vanderbilt Commodores,Texas A&M Aggies,66,41,23.0,20.0,43.0,21.0,True,Bridgestone Arena
+400945627,2017,2017-03-09,New Mexico State Aggies,Chicago State Cougars,67,53,28.0,25.0,39.0,28.0,True,Orleans Arena
+400945843,2017,2017-03-09,Hampton Pirates,Maryland Eastern Shore Hawks,66,68,31.0,40.0,35.0,28.0,True,Norfolk Scope Arena
+400946116,2017,2017-03-09,Stephen F. Austin Lumberjacks,Lamar Cardinals,75,59,39.0,25.0,36.0,34.0,True,Leonard E. Merrell Center
+400946043,2017,2017-03-09,Eastern Washington Eagles,Sacramento State Hornets,89,70,40.0,27.0,49.0,43.0,True,Reno Events Center
+400945708,2017,2017-03-09,UConn Huskies,South Florida Bulls,77,66,42.0,29.0,35.0,37.0,False,PeoplesBank Arena
+400946114,2017,2017-03-09,George Washington Revolutionaries,Saint Louis Billikens,53,46,13.0,25.0,40.0,21.0,True,PPG Paints Arena
+400945799,2017,2017-03-09,Northwestern Wildcats,Rutgers Scarlet Knights,83,61,42.0,24.0,41.0,37.0,True,Capital One Arena
+400946115,2017,2017-03-09,Old Dominion Monarchs,Marshall Thundering Herd,63,64,29.0,27.0,34.0,37.0,True,Legacy Arena at BJCC
+400946093,2017,2017-03-09,Colorado State Rams,Air Force Falcons,81,55,39.0,26.0,42.0,29.0,True,Thomas & Mack Center
+400945846,2017,2017-03-09,Buffalo Bulls,Kent State Golden Flashes,65,68,32.0,39.0,33.0,29.0,True,Rocket Arena
+400945809,2017,2017-03-09,Ole Miss Rebels,Missouri Tigers,86,74,46.0,36.0,40.0,38.0,True,Bridgestone Arena
+400945807,2017,2017-03-09,Arizona Wildcats,Colorado Buffaloes,92,78,38.0,37.0,54.0,41.0,True,T-Mobile Arena
+400945794,2017,2017-03-09,Notre Dame Fighting Irish,Virginia Cavaliers,71,58,32.0,26.0,39.0,32.0,True,Barclays Center
+400945631,2017,2017-03-09,UC Irvine Anteaters,UC Riverside Highlanders,76,67,38.0,28.0,38.0,39.0,True,Honda Center
+400945523,2017,2017-03-09,Providence Friars,Creighton Bluejays,58,70,30.0,27.0,28.0,43.0,True,Madison Square Garden
+400945529,2017,2017-03-09,Baylor Bears,Kansas State Wildcats,64,70,25.0,25.0,39.0,45.0,True,T-Mobile Center
+400945628,2017,2017-03-09,Kansas City Roos,UT Rio Grande Valley Vaqueros,82,78,38.0,38.0,29.0,29.0,True,Orleans Arena
+400946068,2017,2017-03-09,Weber State Wildcats,Southern Utah Thunderbirds,90,70,44.0,38.0,46.0,32.0,True,Reno Events Center
+400946111,2017,2017-03-09,Boise State Broncos,San Diego State Aztecs,68,87,37.0,42.0,31.0,45.0,True,Thomas & Mack Center
+400945806,2017,2017-03-09,UCLA Bruins,USC Trojans,76,74,38.0,35.0,38.0,39.0,True,T-Mobile Arena
+400945632,2017,2017-03-09,Long Beach State Beach,Hawai'i Rainbow Warriors,73,62,33.0,35.0,40.0,27.0,True,Honda Center
+400946138,2017,2017-03-10,Dayton Flyers,Davidson Wildcats,67,73,25.0,37.0,42.0,36.0,True,PPG Paints Arena
+400945800,2017,2017-03-10,Purdue Boilermakers,Michigan Wolverines,70,74,37.0,38.0,29.0,28.0,True,Capital One Arena
+400945786,2017,2017-03-10,SMU Mustangs,East Carolina Pirates,81,77,43.0,21.0,38.0,56.0,True,PeoplesBank Arena
+400946169,2017,2017-03-10,Middle Tennessee Blue Raiders,UTEP Miners,82,56,37.0,23.0,45.0,33.0,True,Legacy Arena at BJCC
+400946071,2017,2017-03-10,UT Arlington Mavericks,Coastal Carolina Chanticleers,74,51,29.0,27.0,45.0,24.0,True,Lakefront Arena
+400945810,2017,2017-03-10,Kentucky Wildcats,Georgia Bulldogs,71,60,32.0,25.0,39.0,35.0,True,Bridgestone Arena
+400945709,2017,2017-03-10,UCF Knights,Memphis Tigers,84,54,43.0,26.0,41.0,28.0,True,PeoplesBank Arena
+400946167,2017,2017-03-10,Rhode Island Rams,St. Bonaventure Bonnies,74,63,32.0,26.0,42.0,37.0,True,PPG Paints Arena
+400945801,2017,2017-03-10,Minnesota Golden Gophers,Michigan State Spartans,63,58,28.0,26.0,35.0,32.0,True,Capital One Arena
+400946190,2017,2017-03-10,Louisiana Tech Bulldogs,Marshall Thundering Herd,77,93,41.0,49.0,36.0,44.0,True,Legacy Arena at BJCC
+400946091,2017,2017-03-10,Texas State Bobcats,UL Monroe Warhawks,63,51,30.0,20.0,33.0,31.0,True,Lakefront Arena
+400946044,2017,2017-03-10,Texas Southern Tigers,Grambling Tigers,62,57,29.0,19.0,33.0,38.0,True,Toyota Center (Houston)
+400945811,2017,2017-03-10,South Carolina Gamecocks,Alabama Crimson Tide,53,64,22.0,23.0,31.0,41.0,True,Bridgestone Arena
+400946147,2017,2017-03-10,Akron Zips,Ball State Cardinals,74,70,39.0,30.0,35.0,40.0,True,Rocket Arena
+400946187,2017,2017-03-10,North Carolina Central Eagles,Maryland Eastern Shore Hawks,77,49,38.0,21.0,39.0,28.0,True,Norfolk Scope Arena
+400946180,2017,2017-03-10,VCU Rams,George Mason Patriots,71,60,32.0,32.0,39.0,28.0,True,PPG Paints Arena
+400946177,2017,2017-03-10,New Orleans Privateers,Sam Houston Bearkats,75,63,39.0,25.0,36.0,38.0,True,Leonard E. Merrell Center
+400946097,2017,2017-03-10,Georgia State Panthers,Louisiana Ragin' Cajuns,86,76,35.0,26.0,51.0,50.0,True,Lakefront Arena
+400946136,2017,2017-03-10,Villanova Wildcats,Seton Hall Pirates,55,53,20.0,27.0,35.0,26.0,True,Madison Square Garden
+400945803,2017,2017-03-10,Wisconsin Badgers,Indiana Hoosiers,70,60,33.0,27.0,37.0,33.0,True,Capital One Arena
+400946168,2017,2017-03-10,Iowa State Cyclones,TCU Horned Frogs,84,63,44.0,27.0,40.0,36.0,True,T-Mobile Center
+400946137,2017,2017-03-10,North Carolina Tar Heels,Duke Blue Devils,83,93,49.0,42.0,34.0,51.0,True,Barclays Center
+400945813,2017,2017-03-10,Florida Gators,Vanderbilt Commodores,62,72,28.0,33.0,30.0,25.0,True,Bridgestone Arena
+400945788,2017,2017-03-10,Cincinnati Bearcats,Tulsa Golden Hurricane,80,61,40.0,25.0,40.0,36.0,True,PeoplesBank Arena
+400946191,2017,2017-03-10,Ohio Bobcats,Kent State Golden Flashes,66,68,34.0,32.0,32.0,36.0,True,Rocket Arena
+400946188,2017,2017-03-10,Texas A&M-Corpus Christi Islanders,Stephen F. Austin Lumberjacks,77,69,42.0,29.0,35.0,40.0,True,Leonard E. Merrell Center
+400946186,2017,2017-03-10,Richmond Spiders,George Washington Revolutionaries,70,67,34.0,34.0,36.0,33.0,True,PPG Paints Arena
+400946117,2017,2017-03-10,Georgia Southern Eagles,Troy Trojans,70,90,26.0,44.0,44.0,46.0,True,Lakefront Arena
+400946175,2017,2017-03-10,North Dakota Fighting Hawks,Idaho Vandals,69,64,37.0,31.0,32.0,33.0,True,Reno Events Center
+400946179,2017,2017-03-10,Norfolk State Spartans,Howard Bison,68,53,28.0,30.0,40.0,23.0,True,Norfolk Scope Arena
+400945802,2017,2017-03-10,Maryland Terrapins,Northwestern Wildcats,64,72,36.0,34.0,28.0,38.0,True,Capital One Arena
+400946193,2017,2017-03-10,Creighton Bluejays,Xavier Musketeers,75,72,31.0,37.0,44.0,35.0,True,Madison Square Garden
+400946174,2017,2017-03-10,Cal State Bakersfield Roadrunners,Utah Valley Wolverines,81,80,26.0,24.0,26.0,28.0,True,Orleans Arena
+400946166,2017,2017-03-10,Oregon Ducks,California Golden Bears,73,65,36.0,33.0,37.0,32.0,True,T-Mobile Arena
+400945787,2017,2017-03-10,Houston Cougars,UConn Huskies,65,74,26.0,35.0,39.0,39.0,True,PeoplesBank Arena
+400946181,2017,2017-03-10,West Virginia Mountaineers,Kansas State Wildcats,51,50,16.0,25.0,35.0,25.0,True,T-Mobile Center
+400946198,2017,2017-03-10,UC Irvine Anteaters,Long Beach State Beach,62,57,31.0,25.0,31.0,32.0,True,Honda Center
+400946045,2017,2017-03-10,Alcorn State Braves,Southern Jaguars,81,59,43.0,33.0,38.0,26.0,True,Toyota Center (Houston)
+400945812,2017,2017-03-10,Arkansas Razorbacks,Ole Miss Rebels,73,72,40.0,40.0,33.0,32.0,True,Bridgestone Arena
+400946183,2017,2017-03-10,Florida State Seminoles,Notre Dame Fighting Irish,73,77,26.0,42.0,47.0,35.0,True,Barclays Center
+400946176,2017,2017-03-10,Nevada Wolf Pack,Fresno State Bulldogs,83,72,21.0,32.0,62.0,40.0,True,Thomas & Mack Center
+400946196,2017,2017-03-10,Eastern Washington Eagles,Weber State Wildcats,72,80,34.0,34.0,38.0,46.0,True,Reno Events Center
+400946195,2017,2017-03-10,New Mexico State Aggies,Kansas City Roos,78,60,41.0,29.0,37.0,31.0,True,Orleans Arena
+400946192,2017,2017-03-10,Arizona Wildcats,UCLA Bruins,86,75,41.0,35.0,45.0,40.0,True,T-Mobile Arena
+400946199,2017,2017-03-10,UC Davis Aggies,Cal State Fullerton Titans,66,64,24.0,18.0,31.0,37.0,True,Honda Center
+400946197,2017,2017-03-10,Colorado State Rams,San Diego State Aztecs,71,63,30.0,36.0,41.0,27.0,True,Thomas & Mack Center
+400945851,2017,2017-03-11,Vermont Catamounts,UAlbany Great Danes,56,53,27.0,27.0,29.0,26.0,False,Patrick Gymnasium
+400946254,2017,2017-03-11,UT Arlington Mavericks,Texas State Bobcats,62,83,32.0,41.0,30.0,42.0,True,Lakefront Arena
+400946255,2017,2017-03-11,Minnesota Golden Gophers,Michigan Wolverines,77,84,36.0,47.0,41.0,37.0,True,Capital One Arena
+400946253,2017,2017-03-11,Rhode Island Rams,Davidson Wildcats,84,60,46.0,34.0,38.0,26.0,True,PPG Paints Arena
+400946216,2017,2017-03-11,North Carolina Central Eagles,Norfolk State Spartans,67,59,35.0,38.0,32.0,21.0,True,Norfolk Scope Arena
+400946209,2017,2017-03-11,Kentucky Wildcats,Alabama Crimson Tide,79,74,33.0,32.0,46.0,42.0,True,Bridgestone Arena
+400945695,2017,2017-03-11,Princeton Tigers,Pennsylvania Quakers,72,64,30.0,33.0,29.0,26.0,True,The Palestra
+400946251,2017,2017-03-11,SMU Mustangs,UCF Knights,70,59,26.0,23.0,44.0,36.0,True,PeoplesBank Arena
+400946224,2017,2017-03-11,Georgia State Panthers,Troy Trojans,63,74,37.0,28.0,26.0,46.0,True,Lakefront Arena
+400946215,2017,2017-03-11,VCU Rams,Richmond Spiders,87,77,36.0,31.0,35.0,40.0,True,PPG Paints Arena
+400946218,2017,2017-03-11,Wisconsin Badgers,Northwestern Wildcats,76,48,38.0,21.0,38.0,27.0,True,Capital One Arena
+400946268,2017,2017-03-11,Arkansas Razorbacks,Vanderbilt Commodores,76,62,35.0,31.0,41.0,31.0,True,Bridgestone Arena
+400945696,2017,2017-03-11,Harvard Crimson,Yale Bulldogs,71,73,30.0,38.0,41.0,35.0,True,The Palestra
+400946220,2017,2017-03-11,Cincinnati Bearcats,UConn Huskies,81,71,41.0,29.0,40.0,42.0,True,PeoplesBank Arena
+400946219,2017,2017-03-11,Villanova Wildcats,Creighton Bluejays,74,60,36.0,22.0,38.0,38.0,True,Madison Square Garden
+400946279,2017,2017-03-11,Nevada Wolf Pack,Colorado State Rams,79,71,44.0,32.0,35.0,39.0,True,Thomas & Mack Center
+400946266,2017,2017-03-11,West Virginia Mountaineers,Iowa State Cyclones,74,80,29.0,35.0,45.0,45.0,True,T-Mobile Center
+400946210,2017,2017-03-11,Texas Southern Tigers,Alcorn State Braves,53,50,26.0,21.0,27.0,29.0,True,Toyota Center (Houston)
+400946212,2017,2017-03-11,Akron Zips,Kent State Golden Flashes,65,70,24.0,27.0,41.0,43.0,True,Rocket Arena
+400946249,2017,2017-03-11,Middle Tennessee Blue Raiders,Marshall Thundering Herd,83,72,40.0,32.0,43.0,40.0,True,Legacy Arena at BJCC
+400946223,2017,2017-03-11,North Dakota Fighting Hawks,Weber State Wildcats,93,89,46.0,42.0,35.0,39.0,True,Reno Events Center
+400946221,2017,2017-03-11,Notre Dame Fighting Irish,Duke Blue Devils,69,75,34.0,38.0,35.0,37.0,True,Barclays Center
+400946217,2017,2017-03-11,New Orleans Privateers,Texas A&M-Corpus Christi Islanders,68,65,26.0,33.0,34.0,27.0,True,Leonard E. Merrell Center
+400946277,2017,2017-03-11,Cal State Bakersfield Roadrunners,New Mexico State Aggies,60,70,29.0,20.0,31.0,50.0,True,Orleans Arena
+400946267,2017,2017-03-11,Oregon Ducks,Arizona Wildcats,80,83,29.0,35.0,51.0,48.0,True,T-Mobile Arena
+400946270,2017,2017-03-11,UC Irvine Anteaters,UC Davis Aggies,47,50,16.0,24.0,31.0,26.0,True,Honda Center
+400946307,2017,2017-03-12,Princeton Tigers,Yale Bulldogs,71,59,31.0,29.0,40.0,30.0,True,The Palestra
+400946285,2017,2017-03-12,VCU Rams,Rhode Island Rams,63,70,27.0,40.0,36.0,30.0,True,PPG Paints Arena
+400946306,2017,2017-03-12,Kentucky Wildcats,Arkansas Razorbacks,82,65,42.0,30.0,40.0,35.0,True,Bridgestone Arena
+400946313,2017,2017-03-12,Texas State Bobcats,Troy Trojans,53,59,21.0,27.0,32.0,32.0,True,Lakefront Arena
+400946284,2017,2017-03-12,Wisconsin Badgers,Michigan Wolverines,56,71,32.0,33.0,24.0,38.0,True,Capital One Arena
+400946312,2017,2017-03-12,SMU Mustangs,Cincinnati Bearcats,71,56,32.0,23.0,39.0,33.0,True,PeoplesBank Arena
+400946464,2017,2017-03-13,Liberty Flames,Norfolk State Spartans,73,64,33.0,22.0,40.0,42.0,False,Vines Convocation Center
+400946486,2017,2017-03-14,Campbell Fighting Camels,Houston Christian Huskies,98,79,47.0,30.0,51.0,49.0,False,John W. Pope Jr. Convocation Center
+400946465,2017,2017-03-14,Jacksonville Dolphins,Saint Francis Red Flash,76,78,40.0,34.0,36.0,44.0,False,Swisher Gymnasium
+400946487,2017,2017-03-14,Samford Bulldogs,Canisius Golden Griffins,78,74,33.0,34.0,45.0,40.0,False,Pete Hanna Center
+400946456,2017,2017-03-14,Syracuse Orange,UNC Greensboro Spartans,0,0,,,,,False,JMA Wireless Dome
+400946445,2017,2017-03-15,UC Davis Aggies,North Carolina Central Eagles,67,63,31.0,34.0,36.0,29.0,True,UD Arena
+400946443,2017,2017-03-15,Providence Friars,USC Trojans,71,75,44.0,29.0,27.0,46.0,True,UD Arena
+400946440,2017,2017-03-16,Notre Dame Fighting Irish,Princeton Tigers,60,58,36.0,30.0,24.0,28.0,True,KeyBank Center
+400946428,2017,2017-03-16,Virginia Cavaliers,UNC Wilmington Seahawks,76,71,30.0,29.0,46.0,42.0,True,Kia Center
+400946446,2017,2017-03-16,Butler Bulldogs,Winthrop Eagles,76,64,41.0,27.0,35.0,37.0,True,BMO Harris Bradley Center
+400946449,2017,2017-03-16,Gonzaga Bulldogs,South Dakota State Jackrabbits,66,46,26.0,22.0,40.0,24.0,True,Delta Center
+400946450,2017,2017-03-16,West Virginia Mountaineers,Bucknell Bison,86,80,42.0,33.0,44.0,47.0,True,KeyBank Center
+400946418,2017,2017-03-16,Florida Gators,East Tennessee State Buccaneers,80,65,33.0,32.0,47.0,33.0,True,Kia Center
+400946436,2017,2017-03-16,Minnesota Golden Gophers,Middle Tennessee Blue Raiders,72,81,31.0,37.0,41.0,44.0,True,BMO Harris Bradley Center
+400946439,2017,2017-03-16,Northwestern Wildcats,Vanderbilt Commodores,68,66,34.0,27.0,34.0,39.0,True,Delta Center
+400946452,2017,2017-03-16,Maryland Terrapins,Xavier Musketeers,65,76,36.0,35.0,29.0,41.0,True,Kia Center
+400946417,2017,2017-03-16,Villanova Wildcats,Mount St. Mary's Mountaineers,76,56,30.0,29.0,46.0,27.0,True,KeyBank Center
+400946441,2017,2017-03-16,Saint Mary's Gaels,VCU Rams,85,77,46.0,31.0,39.0,46.0,True,Delta Center
+400946422,2017,2017-03-16,Purdue Boilermakers,Vermont Catamounts,80,70,37.0,36.0,43.0,34.0,True,BMO Harris Bradley Center
+400946442,2017,2017-03-16,Florida State Seminoles,Florida Gulf Coast Eagles,86,80,40.0,36.0,46.0,44.0,True,Kia Center
+400946427,2017,2017-03-16,Wisconsin Badgers,Virginia Tech Hokies,84,74,34.0,30.0,50.0,44.0,True,KeyBank Center
+400946432,2017,2017-03-16,Iowa State Cyclones,Nevada Wolf Pack,84,73,40.0,27.0,44.0,46.0,True,BMO Harris Bradley Center
+400946451,2017,2017-03-16,Arizona Wildcats,North Dakota Fighting Hawks,100,82,53.0,37.0,47.0,45.0,True,Delta Center
+400946433,2017,2017-03-17,Michigan Wolverines,Oklahoma State Cowboys,92,91,41.0,40.0,51.0,51.0,True,Gainbridge Fieldhouse
+400946430,2017,2017-03-17,Baylor Bears,New Mexico State Aggies,91,73,38.0,40.0,53.0,33.0,True,BOK Center
+400946435,2017,2017-03-17,Arkansas Razorbacks,Seton Hall Pirates,77,71,37.0,37.0,40.0,34.0,True,Bon Secours Wellness Arena
+400946434,2017,2017-03-17,Oregon Ducks,Iona Gaels,93,77,55.0,37.0,38.0,40.0,True,Golden 1 Center
+400946423,2017,2017-03-17,Louisville Cardinals,Jacksonville State Gamecocks,78,63,38.0,31.0,40.0,32.0,True,Gainbridge Fieldhouse
+400946420,2017,2017-03-17,SMU Mustangs,USC Trojans,65,66,38.0,30.0,27.0,36.0,True,BOK Center
+400946425,2017,2017-03-17,North Carolina Tar Heels,Texas Southern Tigers,103,64,52.0,27.0,51.0,37.0,True,Bon Secours Wellness Arena
+400946424,2017,2017-03-17,Creighton Bluejays,Rhode Island Rams,72,84,26.0,33.0,46.0,51.0,True,Golden 1 Center
+400946421,2017,2017-03-17,Kansas Jayhawks,UC Davis Aggies,100,62,50.0,28.0,50.0,34.0,True,BOK Center
+400946437,2017,2017-03-17,Dayton Flyers,Wichita State Shockers,58,64,29.0,27.0,29.0,37.0,True,Gainbridge Fieldhouse
+400946419,2017,2017-03-17,Duke Blue Devils,Troy Trojans,87,65,52.0,38.0,35.0,27.0,True,Bon Secours Wellness Arena
+400946448,2017,2017-03-17,Cincinnati Bearcats,Kansas State Wildcats,75,61,39.0,28.0,36.0,33.0,True,Golden 1 Center
+400946431,2017,2017-03-17,Miami Hurricanes,Michigan State Spartans,58,78,27.0,38.0,31.0,40.0,True,BOK Center
+400946429,2017,2017-03-17,South Carolina Gamecocks,Marquette Golden Eagles,93,73,39.0,40.0,54.0,33.0,True,Bon Secours Wellness Arena
+400946447,2017,2017-03-17,Kentucky Wildcats,Northern Kentucky Norse,79,70,38.0,24.0,41.0,46.0,True,Gainbridge Fieldhouse
+400946438,2017,2017-03-17,UCLA Bruins,Kent State Golden Flashes,97,80,47.0,39.0,50.0,41.0,True,Golden 1 Center
+400947006,2017,2017-03-18,West Virginia Mountaineers,Notre Dame Fighting Irish,83,71,42.0,35.0,41.0,36.0,True,KeyBank Center
+400947025,2017,2017-03-18,Villanova Wildcats,Wisconsin Badgers,62,65,27.0,31.0,35.0,34.0,True,KeyBank Center
+400947027,2017,2017-03-18,Gonzaga Bulldogs,Northwestern Wildcats,79,73,38.0,20.0,41.0,53.0,True,Delta Center
+400947046,2017,2017-03-18,Florida State Seminoles,Xavier Musketeers,66,91,34.0,44.0,32.0,47.0,True,Kia Center
+400947026,2017,2017-03-18,Butler Bulldogs,Middle Tennessee Blue Raiders,74,65,36.0,31.0,38.0,34.0,True,BMO Harris Bradley Center
+400947049,2017,2017-03-18,Arizona Wildcats,Saint Mary's Gaels,69,60,29.0,30.0,40.0,30.0,True,Delta Center
+400947000,2017,2017-03-18,Florida Gators,Virginia Cavaliers,65,39,31.0,17.0,34.0,22.0,True,Kia Center
+400947047,2017,2017-03-18,Purdue Boilermakers,Iowa State Cyclones,80,76,44.0,31.0,36.0,45.0,True,BMO Harris Bradley Center
+400947182,2017,2017-03-19,Louisville Cardinals,Michigan Wolverines,69,73,36.0,28.0,33.0,45.0,True,Gainbridge Fieldhouse
+400947227,2017,2017-03-19,Kentucky Wildcats,Wichita State Shockers,65,62,26.0,24.0,39.0,38.0,True,Gainbridge Fieldhouse
+400947223,2017,2017-03-19,Kansas Jayhawks,Michigan State Spartans,90,70,40.0,35.0,50.0,35.0,True,BOK Center
+400947185,2017,2017-03-19,North Carolina Tar Heels,Arkansas Razorbacks,72,65,38.0,33.0,34.0,32.0,True,Bon Secours Wellness Arena
+400947206,2017,2017-03-19,Oregon Ducks,Rhode Island Rams,75,72,38.0,46.0,37.0,26.0,True,Golden 1 Center
+400947183,2017,2017-03-19,Baylor Bears,USC Trojans,82,78,36.0,31.0,46.0,47.0,True,BOK Center
+400947225,2017,2017-03-19,Duke Blue Devils,South Carolina Gamecocks,81,88,30.0,23.0,51.0,65.0,True,Bon Secours Wellness Arena
+400947226,2017,2017-03-19,UCLA Bruins,Cincinnati Bearcats,79,67,30.0,33.0,49.0,34.0,True,Golden 1 Center
+400947325,2017,2017-03-23,Oregon Ducks,Michigan Wolverines,69,68,35.0,33.0,34.0,35.0,True,T-Mobile Center
+400947270,2017,2017-03-23,Gonzaga Bulldogs,West Virginia Mountaineers,61,58,30.0,30.0,31.0,28.0,True,SAP Center at San Jose
+400947321,2017,2017-03-23,Kansas Jayhawks,Purdue Boilermakers,98,66,47.0,40.0,51.0,26.0,True,T-Mobile Center
+400947273,2017,2017-03-23,Arizona Wildcats,Xavier Musketeers,71,73,37.0,35.0,34.0,38.0,True,SAP Center at San Jose
+400947324,2017,2017-03-24,North Carolina Tar Heels,Butler Bulldogs,92,80,52.0,36.0,40.0,44.0,True,FedExForum
+400947327,2017,2017-03-24,Baylor Bears,South Carolina Gamecocks,50,70,22.0,37.0,28.0,33.0,True,Madison Square Garden
+400947330,2017,2017-03-24,Kentucky Wildcats,UCLA Bruins,86,75,36.0,33.0,50.0,42.0,True,FedExForum
+400947266,2017,2017-03-24,Florida Gators,Wisconsin Badgers,84,83,34.0,32.0,38.0,40.0,True,Madison Square Garden
+400948652,2017,2017-03-25,Gonzaga Bulldogs,Xavier Musketeers,83,59,49.0,39.0,34.0,20.0,True,SAP Center at San Jose
+400948650,2017,2017-03-25,Kansas Jayhawks,Oregon Ducks,60,74,33.0,44.0,27.0,30.0,True,T-Mobile Center
+400948729,2017,2017-03-26,Florida Gators,South Carolina Gamecocks,70,77,40.0,33.0,30.0,44.0,True,Madison Square Garden
+400948726,2017,2017-03-26,North Carolina Tar Heels,Kentucky Wildcats,75,73,38.0,33.0,37.0,40.0,True,FedExForum
+400948847,2017,2017-04-01,Gonzaga Bulldogs,South Carolina Gamecocks,77,73,45.0,36.0,32.0,37.0,True,State Farm Stadium
+400948853,2017,2017-04-01,North Carolina Tar Heels,Oregon Ducks,77,76,39.0,36.0,38.0,40.0,True,State Farm Stadium
+400949246,2017,2017-04-03,North Carolina Tar Heels,Gonzaga Bulldogs,71,65,32.0,35.0,39.0,30.0,True,State Farm Stadium

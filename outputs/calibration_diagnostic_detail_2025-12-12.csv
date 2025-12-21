@@ -1,0 +1,14 @@
+game_id,home_team,away_team,date,start_time,reason,has_model_total,has_model_margin,has_cal_total,has_cal_margin,basis_total,basis_margin
+401826056,UMBC Retrievers,Army Black Knights,2025-12-12,2025-12-12 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830119,UNC Greensboro Spartans,William Peace Pacers,2025-12-12,2025-12-13 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826971,Gardner-Webb Runnin' Bulldogs,Brevard Tornados,2025-12-12,2025-12-13 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823496,Queens University Royals,South Carolina State Bulldogs,2025-12-12,2025-12-13 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823328,Xavier Musketeers,Missouri State Bears,2025-12-12,2025-12-13 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823042,North Carolina A&T Aggies,Maryland Eastern Shore Hawks,2025-12-12,2025-12-13 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822353,Stonehill Skyhawks,Vermont State - Johnson Badgers,2025-12-12,2025-12-13 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812794,UConn Huskies,Texas Longhorns,2025-12-12,2025-12-13 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829476,South Dakota State Jackrabbits,Dakota Wesleyan Tigers,2025-12-12,2025-12-13 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824893,Austin Peay Governors,East Tennessee State Buccaneers,2025-12-12,2025-12-13 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820489,Texas A&M-Corpus Christi Islanders,Dallas Christian Crusaders,2025-12-12,2025-12-13 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401808702,McNeese Cowboys,East Texas A&M Lions,2025-12-12,2025-12-13 01:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823506,Eastern Washington Eagles,California Baptist Lancers,2025-12-12,2025-12-13 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal

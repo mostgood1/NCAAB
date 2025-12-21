@@ -1,0 +1,54 @@
+{
+  "date": "2025-12-02",
+  "generated_at": "2025-12-05T15:23:12.921330",
+  "stake_mode": "flat",
+  "kelly_fraction": 0.5,
+  "bankroll_start": 1000.0,
+  "edge_calc_warning": "failed_edge_derivation",
+  "totals_closing": {
+    "n_games": 0,
+    "n_books_rows": 0,
+    "n_bets": 0,
+    "n_resolved": 0,
+    "win_rate": null,
+    "pnl_units": 0.0,
+    "roi": null,
+    "avg_edge": null
+  },
+  "spread_closing": {
+    "n_games": 58,
+    "n_books_rows": 336,
+    "n_bets": 0,
+    "n_resolved": 0,
+    "win_rate": null,
+    "pnl_units": 0.0,
+    "roi": null,
+    "avg_edge": null
+  },
+  "moneyline_closing": {
+    "n_games": 58,
+    "n_books_rows": 336,
+    "n_bets": 0,
+    "n_resolved": 0,
+    "win_rate": null,
+    "pnl_units": 0.0,
+    "roi": null,
+    "avg_edge": null
+  },
+  "bets_detail": {
+    "totals": [
+      {
+        "game_id": "401826753",
+        "edge_total": -3.463733374023434,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401827278",
+        "edge_total": -9.936000000000009,
+        "stake": 1.0
+      }
+    ],
+    "spread": [],
+    "moneyline": []
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "date": "2025-12-19",
+  "models": {
+    "cover": {
+      "n_rows": 28,
+      "features_used": [
+        "p_home_cover_emp",
+        "p_home_cover",
+        "p_home_cover_dist",
+        "p_home_cover_ensemble"
+      ],
+      "intercept": -0.29803994306112735,
+      "top_abs_contributions": [
+        [
+          "p_home_cover",
+          0.15529752970192393
+        ],
+        [
+          "p_home_cover_dist",
+          0.1268012182087287
+        ],
+        [
+          "p_home_cover_ensemble",
+          0.11244727481969108
+        ],
+        [
+          "p_home_cover_emp",
+          0.0034664533090822693
+        ]
+      ],
+      "mean_abs_contribution": {
+        "p_home_cover_emp": 0.0034664533090822693,
+        "p_home_cover": 0.15529752970192393,
+        "p_home_cover_dist": 0.1268012182087287,
+        "p_home_cover_ensemble": 0.11244727481969108
+      },
+      "mean_signed_contribution": {
+        "p_home_cover_emp": -0.0034664533090822693,
+        "p_home_cover": -0.15529752970192393,
+        "p_home_cover_dist": -0.1268012182087287,
+        "p_home_cover_ensemble": -0.11244727481969108
+      }
+    },
+    "over": {
+      "n_rows": 28,
+      "features_used": [
+        "p_over_emp",
+        "p_over",
+        "p_over_dist",
+        "p_over_ensemble"
+      ],
+      "intercept": -0.6491770191366515,
+      "top_abs_contributions": [
+        [
+          "p_over_ensemble",
+          0.07692238075509947
+        ],
+        [
+          "p_over",
+          0.029585841735642496
+        ],
+        [
+          "p_over_dist",
+          0.009314350215921653
+        ],
+        [
+          "p_over_emp",
+          0.0004172332116360649
+        ]
+      ],
+      "mean_abs_contribution": {
+        "p_over_emp": 0.0004172332116360649,
+        "p_over": 0.029585841735642496,
+        "p_over_dist": 0.009314350215921653,
+        "p_over_ensemble": 0.07692238075509947
+      },
+      "mean_signed_contribution": {
+        "p_over_emp": 0.0004172332116360649,
+        "p_over": -0.029585841735642496,
+        "p_over_dist": -0.009314350215921653,
+        "p_over_ensemble": -0.07692238075509947
+      }
+    }
+  }
+}

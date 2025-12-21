@@ -1,0 +1,17 @@
+{
+  "date": "2025-12-17",
+  "window_days": 30,
+  "rows_used": 0,
+  "rmse_total": 12.0,
+  "rmse_margin": 10.0,
+  "conformal_scale_total": null,
+  "conformal_scale_margin": null,
+  "point_total_column": "pred_total_calibrated",
+  "point_margin_column": "pred_margin_calibrated",
+  "z_values": {
+    "75": 1.150349,
+    "90": 1.644854,
+    "95": 1.959964
+  },
+  "timestamp_utc": "2025-12-18T19:15:02.045067"
+}

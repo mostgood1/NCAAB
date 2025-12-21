@@ -1,0 +1,34 @@
+{
+  "regression_total": {
+    "n": 399,
+    "mae": 37.261765495840315,
+    "rmse": 55.60443762277312,
+    "bias": 19.854034930690116
+  },
+  "regression_margin": {
+    "n": 206,
+    "mae": 15.95006024920324,
+    "rmse": 20.10687497760316,
+    "bias": 2.915041219444859
+  },
+  "probabilities": {
+    "over": {
+      "n": 229,
+      "brier": 0.29504048782867526,
+      "log_loss": 1.006497323124991,
+      "prob_column_used": "p_over_dist",
+      "ece_mean_abs_gap": 0.35575796827460515
+    },
+    "cover": {
+      "n": 70,
+      "brier": 0.41486577893032334,
+      "log_loss": 1.9818198786680175,
+      "prob_column_used": "p_home_cover_dist",
+      "ece_mean_abs_gap": 0.26353975881401415
+    }
+  },
+  "date_range": {
+    "min": "2025-11-22",
+    "max": "2025-12-04"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "generated_at": "2025-12-05T15:23:19.834627",
+  "n_rows": 0,
+  "best_K": 0.115,
+  "best_avg_log_loss": null,
+  "grid": {
+    "start": 0.05,
+    "end": 0.35,
+    "step": 0.01
+  },
+  "fallback_default": true,
+  "carried_forward": true,
+  "source_rows": 0
+}

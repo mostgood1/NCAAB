@@ -1,0 +1,35 @@
+game_id,date,home_team,away_team,pred_total_mu,pred_total_sigma
+401812600,2025-11-09,Harvard Crimson,New Hampshire Wildcats,36.11062,46.38417
+401828296,2025-11-09,Campbell Fighting Camels,Western Michigan Broncos,40.12085,48.94506
+401826732,2025-11-09,App State Mountaineers,North Carolina Central Eagles,36.054047,45.78138
+401823022,2025-11-09,Marquette Golden Eagles,Indiana Hoosiers,29.218452,44.416252
+401822758,2025-11-09,James Madison Dukes,Coppin State Eagles,47.487366,55.212265
+401812574,2025-11-09,American University Eagles,Pennsylvania Quakers,34.292053,43.13626
+401828576,2025-11-09,Georgia Bulldogs,Morehead State Eagles,42.295998,51.365578
+401823485,2025-11-09,Mercer Bears,Lipscomb Bisons,37.222248,47.644573
+401823417,2025-11-09,Bowling Green Falcons,Le Moyne Dolphins,40.3618,48.349854
+401823393,2025-11-09,Purdue Fort Wayne Mastodons,Dominican (IL) Dominican,37.00917,46.650726
+401823256,2025-11-09,North Dakota Fighting Hawks,Cal State Northridge Matadors,39.96367,48.423706
+401820542,2025-11-09,Northern Iowa Panthers,South Dakota State Jackrabbits,35.697525,46.238792
+401818548,2025-11-09,Brown Bears,Vermont Catamounts,31.292282,42.280136
+401813320,2025-11-09,Dartmouth Big Green,Marist Red Foxes,38.324776,46.686935
+401813287,2025-11-09,Oklahoma State Cowboys,Texas A&M Aggies,27.663498,42.292274
+401813254,2025-11-09,Illinois State Redbirds,Cornell Big Red,36.74345,45.474297
+401811103,2025-11-09,South Dakota Coyotes,Ozark Christian Ambassadors,37.00078,46.653862
+401826896,2025-11-09,Louisiana Tech Bulldogs,Lyon Scots,36.822456,46.720398
+401825577,2025-11-09,Montana State Bobcats,Denver Pioneers,43.554474,51.05706
+401819916,2025-11-09,West Virginia Mountaineers,Lehigh Mountain Hawks,34.79264,47.47776
+401819814,2025-11-09,Arizona State Sun Devils,Utah Tech Trailblazers,39.553978,49.64023
+401828912,2025-11-09,Evansville Purple Aces,Oakland City Mighty Oaks,38.420124,46.124275
+401823515,2025-11-09,Missouri Tigers,VMI Keydets,35.67552,47.14834
+401828276,2025-11-09,Loyola Chicago Ramblers,North Texas Mean Green,34.918076,46.71789
+401824089,2025-11-09,Portland Pilots,UC Davis Aggies,38.17318,47.31836
+401823555,2025-11-09,San Diego State Aztecs,Idaho State Bengals,35.251167,47.30667
+401827088,2025-11-09,Howard Bison,Grambling Tigers,43.9503,50.317818
+401826772,2025-11-09,Liberty Flames,Florida Atlantic Owls,30.622025,43.43338
+401823858,2025-11-09,USC Trojans,Manhattan Jaspers,46.807068,55.140198
+401823808,2025-11-09,Colorado State Rams,Omaha Mavericks,43.95704,51.88202
+401827257,2025-11-09,South Carolina Gamecocks,Southern Miss Golden Eagles,41.22075,51.040333
+401829390,2025-11-09,UT Martin Skyhawks,Kentucky Christian Knights,37.195778,46.5811
+401819824,2025-11-09,Baylor Bears,Washington Huskies,36.983574,50.773666
+401824896,2025-11-09,Hawai'i Rainbow Warriors,East Texas A&M Lions,39.395782,47.90406

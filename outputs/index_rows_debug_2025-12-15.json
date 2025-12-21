@@ -1,0 +1,74 @@
+{
+  "row_count": 16,
+  "date": "2025-12-15",
+  "basis_counts": {
+    "cal": 16
+  },
+  "suppressed_shell_rows": null,
+  "sample": [
+    {
+      "game_id": "401829435",
+      "pred_total": 141.245,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 143.45675659179688,
+      "spread_home": -5.41868257522583
+    },
+    {
+      "game_id": "401827134",
+      "pred_total": 142.4996,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 138.60272216796875,
+      "spread_home": 2.151019096374512
+    },
+    {
+      "game_id": "401826972",
+      "pred_total": 141.8162,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 143.4033203125,
+      "spread_home": 3.65315580368042
+    },
+    {
+      "game_id": "401808703",
+      "pred_total": 140.3236,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 140.77835083007812,
+      "spread_home": -5.889914512634277
+    },
+    {
+      "game_id": "401825208",
+      "pred_total": 141.0512,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 141.47344970703125,
+      "spread_home": -2.3257956504821777
+    },
+    {
+      "game_id": "401813382",
+      "pred_total": 140.4596,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 145.27525329589844,
+      "spread_home": -21.63126564025879
+    },
+    {
+      "game_id": "401823365",
+      "pred_total": 142.7308,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 141.85373168945313,
+      "spread_home": -5.518301963806152
+    },
+    {
+      "game_id": "401823439",
+      "pred_total": 141.959,
+      "pred_margin": 9.364734403234195,
+      "pred_total_basis": "clamp",
+      "market_total": 136.3690643310547,
+      "spread_home": 17.4630184173584
+    }
+  ]
+}

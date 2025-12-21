@@ -1,0 +1,69 @@
+game_id,home_team,away_team,date,start_time,reason,has_model_total,has_model_margin,has_cal_total,has_cal_margin,basis_total,basis_margin
+401828545,Eastern Kentucky Colonels,Wofford Terriers,2025-11-29,2025-11-29 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823446,North Florida Ospreys,Trinity College of Jacksonville Eagles,2025-11-29,2025-11-29 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823725,Penn State Nittany Lions,Sacred Heart Pioneers,2025-11-29,2025-11-29 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813352,Canisius Golden Griffins,Buffalo Bulls,2025-11-29,2025-11-29 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826886,Arizona Wildcats,Norfolk State Spartans,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827111,Indiana Hoosiers,Bethune-Cookman Wildcats,2025-11-29,2025-11-29 17:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820155,Navy Midshipmen,SE Louisiana Lions,2025-11-29,2025-11-29 17:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401831275,UMass Lowell River Hawks,Emerson Lions,2025-11-29,2025-11-29 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826900,Louisiana Tech Bulldogs,Alcorn State Braves,2025-11-29,2025-11-29 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823861,Army Black Knights,Manhattan Jaspers,2025-11-29,2025-11-29 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823518,UCF Knights,VMI Keydets,2025-11-29,2025-11-29 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823388,Northern Kentucky Norse,Boston University Terriers,2025-11-29,2025-11-29 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820626,Longwood Lancers,Maine Black Bears,2025-11-29,2025-11-29 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813379,Niagara Purple Eagles,Detroit Mercy Titans,2025-11-29,2025-11-29 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401831276,Saint Peter's Peacocks,Dartmouth Big Green,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401831225,Texas State Bobcats,Lehigh Mountain Hawks,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829389,Tennessee State Tigers,Tennessee Wesleyan Bulldogs,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828736,North Carolina Central Eagles,Carolina University Bruins,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828478,Green Bay Phoenix,Haskell Jayhawks,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828334,Georgia Southern Eagles,Houston Christian Huskies,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827062,Nebraska Cornhuskers,South Carolina Upstate Spartans,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827015,Northwestern State Demons,Southern Jaguars,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826905,Hofstra Pride,Merrimack Warriors,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826833,Georgia Bulldogs,Tennessee Tech Golden Eagles,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826752,High Point Panthers,Western Carolina Catamounts,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826702,George Mason Patriots,James Madison Dukes,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826055,UMBC Retrievers,Delaware State Hornets,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824862,Le Moyne Dolphins,Monmouth Hawks,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823545,Stetson Hatters,Southern Utah Thunderbirds,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823378,IU Indianapolis Jaguars,Morehead State Eagles,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401818533,Columbia Lions,Sarah Lawrence Gryphons,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812607,Harvard Crimson,Bryant Bulldogs,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812383,Saint Francis Red Flash,Franciscan University Barons,2025-11-29,2025-11-29 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826072,Radford Highlanders,Notre Dame (MD) Gators,2025-11-29,2025-11-29 19:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824951,Southeast Missouri State Redhawks,Lipscomb Bisons,2025-11-29,2025-11-29 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823870,UT Arlington Mavericks,Stephen F. Austin Lumberjacks,2025-11-29,2025-11-29 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823593,UNC Wilmington Seahawks,Gardner-Webb Runnin' Bulldogs,2025-11-29,2025-11-29 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822334,Valparaiso Beacons,Western Michigan Broncos,2025-11-29,2025-11-29 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830884,Drake Bulldogs,Georgia Tech Yellow Jackets,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829353,Southern Indiana Screaming Eagles,Kentucky State Thorobreds,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827069,Winthrop Eagles,South Carolina State Bulldogs,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826934,Weber State Wildcats,Kansas City Roos,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401825579,Utah State Aggies,Montana State Bobcats,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824890,East Tennessee State Buccaneers,Central Arkansas Bears,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824853,Maryland Eastern Shore Hawks,Gwynedd-Mercy Griffins,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823488,Elon Phoenix,Mercer Bears,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822836,American University Eagles,Siena Saints,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813402,Mount St. Mary's Mountaineers,Howard Bison,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401811108,South Dakota Coyotes,Air Force Falcons,2025-11-29,2025-11-29 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401831226,UC Santa Barbara Gauchos,Seattle U Redhawks,2025-11-29,2025-11-29 21:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822323,Lafayette Leopards,Ball State Cardinals,2025-11-29,2025-11-29 21:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812579,Pennsylvania Quakers,La Salle Explorers,2025-11-29,2025-11-29 21:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829403,Colgate Raiders,SUNY-Oneonta Red Dragons,2025-11-29,2025-11-29 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824027,Utah Tech Trailblazers,UC Riverside Highlanders,2025-11-29,2025-11-29 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823174,Cal State Fullerton Titans,Pepperdine Waves,2025-11-29,2025-11-29 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830885,LSU Tigers,DePaul Blue Demons,2025-11-29,2025-11-30 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830412,Cal Poly Mustangs,Redlands Bulldogs,2025-11-29,2025-11-30 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828513,Lamar Cardinals,Our Lady Of The Lake Saints,2025-11-29,2025-11-30 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401825188,Southern Illinois Salukis,Little Rock Trojans,2025-11-29,2025-11-30 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823015,Kent State Golden Flashes,Penn State-Shenango Nittany Lions,2025-11-29,2025-11-30 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820600,Akron Zips,Milwaukee Panthers,2025-11-29,2025-11-30 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828270,UAlbany Great Danes,Fordham Rams,2025-11-29,2025-11-30 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829478,St. Thomas-Minnesota Tommies,Lawrence University Vikings,2025-11-29,2025-11-30 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829468,Omaha Mavericks,Mid-America Christian Evangels,2025-11-29,2025-11-30 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826920,Northern Colorado Bears,Regis (CO) REGIS UNIVERSITY,2025-11-29,2025-11-30 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824065,Pacific Tigers,Sacramento State Hornets,2025-11-29,2025-11-30 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823536,Oregon State Beavers,California Baptist Lancers,2025-11-29,2025-11-30 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823218,Northern Illinois Huskies,Bellarmine Knights,2025-11-29,2025-11-29 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal

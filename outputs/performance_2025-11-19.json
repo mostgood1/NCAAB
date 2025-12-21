@@ -1,0 +1,23 @@
+{
+  "date": "2025-11-19",
+  "total_mean": null,
+  "margin_mean": null,
+  "total_corr": -0.002139396817107075,
+  "margin_corr": 0.25795677879760587,
+  "predictability_score": 0.0,
+  "residual_std": 22.878224900955978,
+  "recalibration_needed": false,
+  "crps_total_mean": -13.517014128395793,
+  "model_health": "degraded",
+  "predictability_score_trailing_7": null,
+  "predictability_score_trailing_14": null,
+  "residual_std_trailing_7": null,
+  "residual_std_trailing_14": null,
+  "crps_total_trailing_7": null,
+  "crps_total_trailing_14": null,
+  "total_mean_trailing_7": null,
+  "total_mean_trailing_14": null,
+  "total_corr_trailing_7": null,
+  "total_corr_trailing_14": null,
+  "generated_at": "2025-11-21T00:11:26.884565Z"
+}

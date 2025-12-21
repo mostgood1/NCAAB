@@ -1,0 +1,14 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401812794,2025-12-12,2025-12-13 01:00:00+00:00,UConn Huskies,Texas Longhorns,71,63,43,34,28,29,,PeoplesBank Arena,False
+401826056,2025-12-12,2025-12-12 23:00:00+00:00,UMBC Retrievers,Army Black Knights,60,63,30,36,30,27,,Chesapeake Employers Insurance Arena,False
+401830119,2025-12-12,2025-12-13 00:00:00+00:00,UNC Greensboro Spartans,William Peace Pacers,90,62,39,37,51,25,,Bodford Arena,False
+401826971,2025-12-12,2025-12-13 00:00:00+00:00,Gardner-Webb Runnin' Bulldogs,Brevard Tornados,77,63,32,24,45,39,,Paul Porter Arena,False
+401823496,2025-12-12,2025-12-13 00:00:00+00:00,Queens University Royals,South Carolina State Bulldogs,102,78,49,26,53,52,,Curry Arena,False
+401823328,2025-12-12,2025-12-13 00:00:00+00:00,Xavier Musketeers,Missouri State Bears,75,57,31,28,44,29,,Cintas Center,False
+401823042,2025-12-12,2025-12-13 00:00:00+00:00,North Carolina A&T Aggies,Maryland Eastern Shore Hawks,82,79,33,37,49,42,,Corbett Sports Center,False
+401822353,2025-12-12,2025-12-13 00:00:00+00:00,Stonehill Skyhawks,Vermont State - Johnson Badgers,101,60,48,22,53,38,,Merkert Gymnasium,False
+401829476,2025-12-12,2025-12-13 01:00:00+00:00,South Dakota State Jackrabbits,Dakota Wesleyan Tigers,94,62,42,30,52,32,,First Bank & Trust Arena,False
+401824893,2025-12-12,2025-12-13 01:00:00+00:00,Austin Peay Governors,East Tennessee State Buccaneers,76,75,43,34,33,41,,F&M Bank Arena,False
+401820489,2025-12-12,2025-12-13 01:00:00+00:00,Texas A&M-Corpus Christi Islanders,Dallas Christian Crusaders,108,55,55,25,53,30,,American Bank Center,False
+401808702,2025-12-12,2025-12-13 01:30:00+00:00,McNeese Cowboys,East Texas A&M Lions,102,66,59,29,43,37,,Townsley Law Arena,False
+401823506,2025-12-12,2025-12-13 02:00:00+00:00,Eastern Washington Eagles,California Baptist Lancers,83,88,41,47,42,41,,Reese Court,False

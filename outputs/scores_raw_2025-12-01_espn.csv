@@ -1,0 +1,20 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401837346,2025-12-01,2025-12-01 17:00:00+00:00,Chicago State Cougars,St. Xavier  (IL) Cougars,85,62,47.0,34.0,38.0,28.0,,Jones Convocation Center,False
+401827016,2025-12-01,2025-12-01 17:00:00+00:00,Southern Jaguars,Louisiana Christian Wildcats,101,48,59.0,15.0,42.0,33.0,,F.G. Clark Activity Center,False
+401823565,2025-12-01,2025-12-01 23:30:00+00:00,Villanova Wildcats,Temple Owls,74,56,29.0,28.0,45.0,28.0,,Finneran Pavilion,False
+401823470,2025-12-01,2025-12-01 23:30:00+00:00,Toledo Rockets,Central State (OH) Marauders,102,58,46.0,21.0,56.0,37.0,,Savage Arena,False
+401827523,2025-12-01,2025-12-02 00:00:00+00:00,Hampton Pirates,Apprentice School Builders,94,58,47.0,25.0,47.0,33.0,,Convocation Center (VA),False
+401825387,2025-12-01,2025-12-02 00:00:00+00:00,Troy Trojans,West Georgia Wolves,89,93,28.0,27.0,37.0,38.0,,Trojan Arena,False
+401824308,2025-12-01,2025-12-02 00:00:00+00:00,Delaware Blue Hens,Iona Gaels,66,89,33.0,39.0,33.0,50.0,,Bob Carpenter Center,False
+401823437,2025-12-01,2025-12-02 00:00:00+00:00,Jacksonville State Gamecocks,North Alabama Lions,66,73,34.0,26.0,32.0,47.0,,Pete Mathews Coliseum,False
+401819846,2025-12-01,2025-12-02 00:00:00+00:00,Cincinnati Bearcats,Tarleton State Texans,76,58,31.0,29.0,45.0,29.0,,Fifth Third Arena,False
+401812384,2025-12-01,2025-12-02 00:00:00+00:00,Xavier Musketeers,Saint Francis Red Flash,96,74,44.0,33.0,52.0,41.0,,Cintas Center,False
+401822998,2025-12-01,2025-12-02 00:30:00+00:00,Middle Tennessee Blue Raiders,UAB Blazers,76,61,32.0,33.0,44.0,28.0,,Murphy Center,False
+401808731,2025-12-01,2025-12-02 00:30:00+00:00,Incarnate Word Cardinals,McNeese Cowboys,71,67,34.0,32.0,37.0,35.0,,McDermott Center,False
+401820546,2025-12-01,2025-12-02 01:00:00+00:00,Northern Iowa Panthers,Coe Kohawks,99,34,46.0,18.0,53.0,16.0,,McLeod Center,False
+401819893,2025-12-01,2025-12-02 01:00:00+00:00,Kansas State Wildcats,Bowling Green Falcons,66,82,35.0,49.0,31.0,33.0,,Bramlage Coliseum,False
+401823546,2025-12-01,2025-12-02 01:30:00+00:00,Southern Utah Thunderbirds,West Coast Baptist Eagles,124,59,61.0,26.0,63.0,33.0,,America First Events Center,False
+401830319,2025-12-01,2025-12-02 02:00:00+00:00,New Mexico Lobos,New Mexico Highlands Cowboys,97,47,44.0,21.0,53.0,26.0,,The Pit,False
+401819866,2025-12-01,2025-12-02 02:00:00+00:00,Colorado Buffaloes,California Baptist Lancers,78,70,32.0,34.0,46.0,36.0,,CU Events Center,False
+401817470,2025-12-01,2025-12-02 03:00:00+00:00,Stanford Cardinal,Portland Pilots,94,72,51.0,31.0,43.0,41.0,,Maples Pavilion,False
+401822368,2025-12-01,2025-12-02 01:00:00+00:00,Eastern Illinois Panthers,Blackburn Beavers,0,0,,,,,,Groniger Arena,False

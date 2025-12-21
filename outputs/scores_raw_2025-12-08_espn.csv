@@ -1,0 +1,8 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401828342,2025-12-08,2025-12-08 17:00:00+00:00,Kennesaw State Owls,Southern Wesleyan Warriors,121,66,65,22,56,44,,KSU Convocation Center,False
+401812581,2025-12-08,2025-12-08 23:00:00+00:00,Pennsylvania Quakers,Lafayette Leopards,74,72,41,33,33,39,,The Palestra,False
+401820846,2025-12-08,2025-12-09 00:00:00+00:00,Charleston Southern Buccaneers,South Carolina State Bulldogs,84,44,33,20,51,24,,Buccaneer Fieldhouse,False
+401827090,2025-12-08,2025-12-09 01:00:00+00:00,Southern Miss Golden Eagles,Grambling Tigers,68,60,29,31,39,29,,Reed Green Coliseum,False
+401827017,2025-12-08,2025-12-09 01:00:00+00:00,Texas Longhorns,Southern Jaguars,95,69,46,27,49,42,,Moody Center,False
+401819895,2025-12-08,2025-12-09 01:00:00+00:00,Kansas State Wildcats,Mississippi Valley State Delta Devils,108,49,55,21,53,28,,Bramlage Coliseum,False
+401808900,2025-12-08,2025-12-09 01:00:00+00:00,New Orleans Privateers,Incarnate Word Cardinals,84,83,38,26,46,57,,Lakefront Arena,False

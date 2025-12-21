@@ -1,0 +1,36 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401823566,2025-12-09,2025-12-09 23:30:00+00:00,Michigan Wolverines,Villanova Wildcats,89,61,53,23,36,38,,Crisler Center,False
+401812793,2025-12-09,2025-12-10 02:31:00+00:00,UConn Huskies,Florida Gators,77,73,39,32,38,41,,Madison Square Garden,True
+401812923,2025-12-09,2025-12-09 23:30:00+00:00,BYU Cougars,Clemson Tigers,67,64,22,43,45,21,,Madison Square Garden,True
+401825404,2025-12-09,2025-12-10 00:30:00+00:00,Ohio State Buckeyes,Illinois Fighting Illini,80,88,42,48,38,40,,Value City Arena,False
+401817513,2025-12-09,2025-12-10 00:00:00+00:00,Virginia Cavaliers,Maryland Eastern Shore Hawks,84,60,46,32,38,28,,John Paul Jones Arena,False
+401830127,2025-12-09,2025-12-09 18:00:00+00:00,UL Monroe Warhawks,Arkansas Baptist Buffaloes,79,69,32,24,47,45,,Fant-Ewing Coliseum,False
+401823432,2025-12-09,2025-12-09 22:00:00+00:00,UMBC Retrievers,Buffalo Bulls,79,83,43,39,36,44,,Chesapeake Employers Insurance Arena,False
+401820191,2025-12-09,2025-12-09 23:00:00+00:00,VMI Keydets,Loyola Maryland Greyhounds,86,70,51,32,35,38,,Cameron Hall,False
+401812669,2025-12-09,2025-12-09 23:00:00+00:00,Holy Cross Crusaders,Regis Pride,69,47,26,15,43,32,,Hart Center,False
+401827071,2025-12-09,2025-12-09 23:30:00+00:00,Winthrop Eagles,Toccoa Falls Eagles,111,62,48,34,63,28,,Winthrop Coliseum,False
+401824872,2025-12-09,2025-12-09 23:30:00+00:00,Furman Paladins,Bob Jones Bruins,105,57,47,30,58,27,,Timmons Arena,False
+401829439,2025-12-09,2025-12-10 00:00:00+00:00,The Citadel Bulldogs,Southern Wesleyan Warriors,98,73,54,40,44,33,,McAlister Field House,False
+401829432,2025-12-09,2025-12-10 00:00:00+00:00,Chattanooga Mocs,Oakwood Ambassadors,103,46,58,20,45,26,,McKenzie Arena,False
+401828738,2025-12-09,2025-12-10 00:00:00+00:00,Kentucky Wildcats,North Carolina Central Eagles,103,67,52,31,51,36,,Rupp Arena,False
+401827529,2025-12-09,2025-12-10 00:00:00+00:00,Howard Bison,North Carolina A&T Aggies,73,69,41,30,32,39,,Cameron Indoor Stadium,True
+401826839,2025-12-09,2025-12-10 00:00:00+00:00,Temple Owls,Georgian Court Lions,103,57,43,24,60,33,,Liacouras Center,False
+401823389,2025-12-09,2025-12-10 00:00:00+00:00,Northern Kentucky Norse,Brescia Bearcats,92,53,50,21,42,32,,Truist Arena,False
+401822670,2025-12-09,2025-12-10 00:00:00+00:00,Saint Joseph's Hawks,Coppin State Eagles,87,65,43,26,44,39,,Michael J. Hagan '85 Arena,False
+401822395,2025-12-09,2025-12-10 00:00:00+00:00,Lindenwood Lions,Culver-Stockton Wildcats,110,44,60,19,50,25,,Hyland Arena,False
+401822326,2025-12-09,2025-12-10 00:00:00+00:00,Ball State Cardinals,South Dakota State Jackrabbits,64,68,40,39,24,29,,Worthen Arena,False
+401819920,2025-12-09,2025-12-10 00:00:00+00:00,West Virginia Mountaineers,Little Rock Trojans,90,58,47,23,43,35,,WVU Coliseum,False
+401818536,2025-12-09,2025-12-10 00:00:00+00:00,Stony Brook Seawolves,Columbia Lions,77,73,30,17,35,48,,Stony Brook Arena,False
+401817170,2025-12-09,2025-12-10 00:00:00+00:00,Rhode Island Rams,McNeese Cowboys,64,66,37,37,27,29,,Thomas M. Ryan Center,False
+401809082,2025-12-09,2025-12-10 00:00:00+00:00,Rider Broncs,Bucknell Bison,38,51,16,26,22,25,,Alumni Gymnasium (Rider),False
+401818556,2025-12-09,2025-12-10 00:30:00+00:00,Providence Friars,Brown Bears,86,79,42,37,44,42,,Amica Mutual Pavilion,False
+401829469,2025-12-09,2025-12-10 01:00:00+00:00,Omaha Mavericks,Doane Tigers,79,70,46,33,33,37,,Baxter Arena,False
+401813280,2025-12-09,2025-12-10 01:00:00+00:00,DePaul Blue Demons,Morgan State Bears,92,49,46,15,46,34,,Wintrust Arena,False
+401825403,2025-12-09,2025-12-10 01:30:00+00:00,Indiana Hoosiers,Penn State Nittany Lions,113,72,58,26,55,46,,Simon Skjodt Assembly Hall,False
+401811111,2025-12-09,2025-12-10 01:30:00+00:00,Wyoming Cowboys,South Dakota Coyotes,106,79,48,32,58,47,,Arena-Auditorium,False
+401826741,2025-12-09,2025-12-10 02:00:00+00:00,Denver Pioneers,Colorado Christian Cougars,95,59,46,29,49,30,,Hamilton Gymnasium,False
+401824114,2025-12-09,2025-12-10 02:00:00+00:00,San Diego Toreros,USC Trojans,81,94,38,38,43,56,,Jenny Craig Pavilion,False
+401823811,2025-12-09,2025-12-10 02:00:00+00:00,Colorado State Rams,Dartmouth Big Green,76,55,33,24,43,31,,Moby Arena,False
+401819820,2025-12-09,2025-12-10 02:00:00+00:00,Arizona State Sun Devils,Northern Arizona Lumberjacks,73,48,35,26,38,22,,Desert Financial Arena,False
+401823312,2025-12-09,2025-12-10 03:00:00+00:00,San José State Spartans,Long Beach State Beach,89,83,39,39,38,38,,Provident Credit Union Event Center,False
+401820295,2025-12-09,2025-12-10 03:00:00+00:00,California Golden Bears,Dominican (CA) Penguins,93,71,28,31,65,40,,Haas Pavilion,False

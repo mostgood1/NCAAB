@@ -1,0 +1,79 @@
+pair_key,home_team,away_team,our_start_iso,our_start_dt,sched_commence_time,sched_start_time,sched_dt,diff_minutes
+airforce::pacific,Air Force Falcons,Pacific Tigers,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+akron::bucknell,Akron Zips,Bucknell Bison,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+alabamaaandm::tennesseestate,Alabama A&M Bulldogs,Tennessee State Tigers,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+alabamacrimson::clemson,Alabama Crimson Tide,Clemson Tigers,2025-12-04T00:15:00Z,2025-12-04 00:15:00+00:00,,2025-12-04 00:15:00+00:00,2025-12-04 00:15:00+00:00,0.0
+alcornstate::iowastate,Iowa State Cyclones,Alcorn State Braves,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+american::drexel,American University Eagles,Drexel Dragons,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+appstate::virginialynchburg,App State Mountaineers,Virginia-Lynchburg Dragons,2025-12-03T23:30:00Z,2025-12-03 23:30:00+00:00,,2025-12-03 23:30:00+00:00,2025-12-03 23:30:00+00:00,0.0
+arkansas::louisville,Arkansas Razorbacks,Louisville Cardinals,2025-12-04T00:15:00Z,2025-12-04 00:15:00+00:00,,2025-12-04 00:15:00+00:00,2025-12-04 00:15:00+00:00,0.0
+arkansaspinebluffgolden::uicflames,UIC Flames,Arkansas-Pine Bluff Golden Lions,2025-12-03T17:00:00Z,2025-12-03 17:00:00+00:00,,2025-12-03 17:00:00+00:00,2025-12-03 17:00:00+00:00,0.0
+auburn::ncstate,Auburn Tigers,NC State Wolfpack,2025-12-04T07:25:00Z,2025-12-04 07:25:00+00:00,,2025-12-04 02:25:00+00:00,2025-12-04 02:25:00+00:00,300.0
+austinpeay::kentstategoldenflashes,Kent State Golden Flashes,Austin Peay Governors,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+ballstate::evansville,Evansville Purple Aces,Ball State Cardinals,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+bellarmine::midway,Bellarmine Knights,Midway University Eagles,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+belmont::richmond,Belmont Bruins,Richmond Spiders,2025-12-04T00:30:00Z,2025-12-04 00:30:00+00:00,,2025-12-04 00:30:00+00:00,2025-12-04 00:30:00+00:00,0.0
+bloomsburg::stbonaventurebonnies,St. Bonaventure Bonnies,Bloomsburg Huskies,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+boston::vermontstatejohnsonbadgers,Boston University Terriers,Vermont State - Johnson Badgers,2025-12-03T23:00:00Z,2025-12-03 23:00:00+00:00,,2025-12-03 23:00:00+00:00,2025-12-03 23:00:00+00:00,0.0
+bostoncollege::louisianastate,Boston College Eagles,LSU Tigers,2025-12-04T00:15:00Z,2025-12-04 00:15:00+00:00,,2025-12-04 00:15:00+00:00,2025-12-04 00:15:00+00:00,0.0
+brandeisjudges::yale,Yale Bulldogs,Brandeis Judges,2025-12-04T00:30:00Z,2025-12-04 00:30:00+00:00,,2025-12-04 00:30:00+00:00,2025-12-04 00:30:00+00:00,0.0
+byu::californiabaptist,BYU Cougars,California Baptist Lancers,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+centralarkansas::littlerocktrojans,Central Arkansas Bears,Little Rock Trojans,2025-12-04T00:30:00Z,2025-12-04 00:30:00+00:00,,2025-12-04 00:30:00+00:00,2025-12-04 00:30:00+00:00,0.0
+centralconnecticutbluedevils::setonhall,Seton Hall Pirates,Central Connecticut Blue Devils,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+clevelandstate::northernkentucky,Northern Kentucky Norse,Cleveland State Vikings,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+coastalcarolinachanticleers::uscupstate,South Carolina Upstate Spartans,Coastal Carolina Chanticleers,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+columbia::hofstrapride,Columbia Lions,Hofstra Pride,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+coppinstate::westvirginia,West Virginia Mountaineers,Coppin State Eagles,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+cornellbigred::towson,Towson Tigers,Cornell Big Red,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+dartmouthbiggreen::newhampshire,Dartmouth Big Green,New Hampshire Wildcats,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+delawarestate::navymidshipmen,Delaware State Hornets,Navy Midshipmen,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+denver::easternwashington,Denver Pioneers,Eastern Washington Eagles,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+detroitmercy::iuindianapolis,Detroit Mercy Titans,IU Indianapolis Jaguars,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+easternkentuckycolonels::illinoisstate,Illinois State Redbirds,Eastern Kentucky Colonels,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+elonphoenix::furmanpaladins,Elon Phoenix,Furman Paladins,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+floridagulfcoast::floridainternational,Florida International Panthers,Florida Gulf Coast Eagles,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+gardnerwebbrunnin::queensroyals,Queens University Royals,Gardner-Webb Runnin' Bulldogs,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+georgetownhoyas::umbcretrievers,Georgetown Hoyas,UMBC Retrievers,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+georgiasouthern::louisianatech,Georgia Southern Eagles,Louisiana Tech Bulldogs,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+georgiatechyellowjackets::mississippistate,Georgia Tech Yellow Jackets,Mississippi State Bulldogs,2025-12-04T07:15:00Z,2025-12-04 07:15:00+00:00,,2025-12-04 02:15:00+00:00,2025-12-04 02:15:00+00:00,300.0
+hampton::loyolamaryland,Hampton Pirates,Loyola Maryland Greyhounds,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+harvardcrimson::massachusetts,Massachusetts Minutemen,Harvard Crimson,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+highpoint::southernillinoissalukis,High Point Panthers,Southern Illinois Salukis,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+holycrosscrusaders::northeastern,Holy Cross Crusaders,Northeastern Huskies,2025-12-03T23:00:00Z,2025-12-03 23:00:00+00:00,,2025-12-03 23:00:00+00:00,2025-12-03 23:00:00+00:00,0.0
+howardpayneyellowjackets::tarletonstate,Tarleton State Texans,Howard Payne Yellow Jackets,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+idahostate::kansascityroos,Kansas City Roos,Idaho State Bengals,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+idahovandals::northdakotafighting,Idaho Vandals,North Dakota Fighting Hawks,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+indiana::minnesotagolden,Minnesota Golden Gophers,Indiana Hoosiers,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+jamesmadison::northcarolinacentral,James Madison Dukes,North Carolina Central Eagles,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+lamar::louisiana,Lamar Cardinals,Louisiana Ragin' Cajuns,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+lipscomb::tennesseetechgolden,Lipscomb Bisons,Tennessee Tech Golden Eagles,2025-12-03T17:00:00Z,2025-12-03 17:00:00+00:00,,2025-12-03 17:00:00+00:00,2025-12-03 17:00:00+00:00,0.0
+longwood::pfeiffer,Longwood Lancers,Pfeiffer Falcons,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+maine::ohio,Ohio Bobcats,Maine Black Bears,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+marshallthunderingherd::uncwilmingtonseahawks,UNC Wilmington Seahawks,Marshall Thundering Herd,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+memphis::neworleans,Memphis Tigers,New Orleans Privateers,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+mississippivalleystatedeltadevils::ulmonroewarhawks,UL Monroe Warhawks,Mississippi Valley State Delta Devils,2025-12-04T00:30:00Z,2025-12-04 00:30:00+00:00,,2025-12-04 00:30:00+00:00,2025-12-04 00:30:00+00:00,0.0
+monmouth::princeton,Monmouth Hawks,Princeton Tigers,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+montanagrizzlies::northdakotastate,Montana Grizzlies,North Dakota State Bison,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+montanastate::stthomasminnesotatommies,Montana State Bobcats,St. Thomas-Minnesota Tommies,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+mountstatemarys::sacredheart,Mount St. Mary's Mountaineers,Sacred Heart Pioneers,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+northalabama::sanfrancisco,San Francisco Dons,North Alabama Lions,2025-12-04T08:00:00Z,2025-12-04 08:00:00+00:00,,2025-12-04 03:00:00+00:00,2025-12-04 03:00:00+00:00,300.0
+northernarizonalumberjacks::southdakotastate,Northern Arizona Lumberjacks,South Dakota State Jackrabbits,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+northerncolorado::omaha,Omaha Mavericks,Northern Colorado Bears,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+northwestern::wisconsinbadgers,Wisconsin Badgers,Northwestern Wildcats,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+oaklandgoldengrizzlies::purduefortwaynemastodons,Oakland Golden Grizzlies,Purdue Fort Wayne Mastodons,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+oralrobertsgolden::weberstate,Weber State Wildcats,Oral Roberts Golden Eagles,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+oregonstatebeavers::vermontcatamounts,Oregon State Beavers,Vermont Catamounts,2025-12-04T07:30:00Z,2025-12-04 07:30:00+00:00,,2025-12-04 02:30:00+00:00,2025-12-04 02:30:00+00:00,300.0
+pennstateshenangonittany::stfrancisredflash,Saint Francis Red Flash,Penn State-Shenango Nittany Lions,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+portlandstate::southdakotacoyotes,South Dakota Coyotes,Portland State Vikings,2025-12-04T06:00:00Z,2025-12-04 06:00:00+00:00,,2025-12-04 01:00:00+00:00,2025-12-04 01:00:00+00:00,300.0
+presbyterianbluehose::wofford,Wofford Terriers,Presbyterian Blue Hose,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+pugetsoundloggers::seattleu,Seattle U Redhawks,Puget Sound Loggers,2025-12-04T08:00:00Z,2025-12-04 08:00:00+00:00,,2025-12-04 03:00:00+00:00,2025-12-04 03:00:00+00:00,300.0
+radford::southernmissgolden,Radford Highlanders,Southern Miss Golden Eagles,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+rice::texasstate,Rice Owls,Texas State Bobcats,2025-12-04T07:00:00Z,2025-12-04 07:00:00+00:00,,2025-12-04 02:00:00+00:00,2025-12-04 02:00:00+00:00,300.0
+sandiegostate::utahvalleywolverines,San Diego State Aztecs,Utah Valley Wolverines,2025-12-04T08:00:00Z,2025-12-04 08:00:00+00:00,,2025-12-04 03:00:00+00:00,2025-12-04 03:00:00+00:00,300.0
+santaclara::utahtechtrailblazers,Santa Clara Broncos,Utah Tech Trailblazers,2025-12-04T08:00:00Z,2025-12-04 08:00:00+00:00,,2025-12-04 03:00:00+00:00,2025-12-04 03:00:00+00:00,300.0
+smu::vanderbilt,Vanderbilt Commodores,SMU Mustangs,2025-12-04T07:15:00Z,2025-12-04 07:15:00+00:00,,2025-12-04 02:15:00+00:00,2025-12-04 02:15:00+00:00,300.0
+southernindianascreaming::westernmichigan,Western Michigan Broncos,Southern Indiana Screaming Eagles,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+stephenfaustinlumberjacks::utriograndevalley,Stephen F. Austin Lumberjacks,UT Rio Grande Valley Vaqueros,2025-12-04T00:00:00Z,2025-12-04 00:00:00+00:00,,2025-12-04 00:00:00+00:00,2025-12-04 00:00:00+00:00,0.0
+texas::virginiacavaliers,Texas Longhorns,Virginia Cavaliers,2025-12-04T07:15:00Z,2025-12-04 07:15:00+00:00,,2025-12-04 02:15:00+00:00,2025-12-04 02:15:00+00:00,300.0
+ucla::washington,Washington Huskies,UCLA Bruins,2025-12-04T09:00:00Z,2025-12-04 09:00:00+00:00,,2025-12-04 04:00:00+00:00,2025-12-04 04:00:00+00:00,300.0
+wrightstateraiders::youngstownstate,Youngstown State Penguins,Wright State Raiders,2025-12-03T23:30:00Z,2025-12-03 23:30:00+00:00,,2025-12-03 23:30:00+00:00,2025-12-03 23:30:00+00:00,0.0

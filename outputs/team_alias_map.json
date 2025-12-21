@@ -1,0 +1,2200 @@
+{
+  "Abilene Christian Wildcats": {
+    "normalized": "abilene christian wildcats",
+    "variants": [
+      "Abilene Christian Wildcats"
+    ],
+    "count": 1
+  },
+  "Adrian Bulldogs": {
+    "normalized": "adrian bulldogs",
+    "variants": [
+      "Adrian Bulldogs"
+    ],
+    "count": 1
+  },
+  "Air Force Falcons": {
+    "normalized": "air force falcons",
+    "variants": [
+      "Air Force Falcons"
+    ],
+    "count": 4
+  },
+  "Alabama State Hornets": {
+    "normalized": "alabama st hornets",
+    "variants": [
+      "Alabama State Hornets"
+    ],
+    "count": 4
+  },
+  "Alcorn State Braves": {
+    "normalized": "alcorn st braves",
+    "variants": [
+      "Alcorn State Braves"
+    ],
+    "count": 1
+  },
+  "American University Eagles": {
+    "normalized": "american eagles",
+    "variants": [
+      "American University Eagles"
+    ],
+    "count": 1
+  },
+  "App State Mountaineers": {
+    "normalized": "app st mountaineers",
+    "variants": [
+      "App State Mountaineers"
+    ],
+    "count": 4
+  },
+  "Arkansas-Pine Bluff Golden Lions": {
+    "normalized": "arkansas pine bluff golden lions",
+    "variants": [
+      "Arkansas-Pine Bluff Golden Lions"
+    ],
+    "count": 1
+  },
+  "Army Black Knights": {
+    "normalized": "army black knights",
+    "variants": [
+      "Army Black Knights"
+    ],
+    "count": 4
+  },
+  "Ball State Cardinals": {
+    "normalized": "ball st cardinals",
+    "variants": [
+      "Ball State Cardinals"
+    ],
+    "count": 1
+  },
+  "Baylor Bears": {
+    "normalized": "baylor bears",
+    "variants": [
+      "Baylor Bears"
+    ],
+    "count": 2
+  },
+  "Bellarmine Knights": {
+    "normalized": "bellarmine knights",
+    "variants": [
+      "Bellarmine Knights"
+    ],
+    "count": 2
+  },
+  "Belmont Bruins": {
+    "normalized": "belmont bruins",
+    "variants": [
+      "Belmont Bruins"
+    ],
+    "count": 1
+  },
+  "Bethune-Cookman Wildcats": {
+    "normalized": "bethune cookman wildcats",
+    "variants": [
+      "Bethune-Cookman Wildcats"
+    ],
+    "count": 2
+  },
+  "Binghamton Bearcats": {
+    "normalized": "binghamton bearcats",
+    "variants": [
+      "Binghamton Bearcats"
+    ],
+    "count": 2
+  },
+  "Boise State Broncos": {
+    "normalized": "boise st broncos",
+    "variants": [
+      "Boise State Broncos"
+    ],
+    "count": 2
+  },
+  "Boston College Eagles": {
+    "normalized": "boston college eagles",
+    "variants": [
+      "Boston College Eagles"
+    ],
+    "count": 4
+  },
+  "Boston University Terriers": {
+    "normalized": "boston terriers",
+    "variants": [
+      "Boston University Terriers"
+    ],
+    "count": 2
+  },
+  "Bowling Green Falcons": {
+    "normalized": "bowling green falcons",
+    "variants": [
+      "Bowling Green Falcons"
+    ],
+    "count": 4
+  },
+  "Bradley Braves": {
+    "normalized": "bradley braves",
+    "variants": [
+      "Bradley Braves"
+    ],
+    "count": 2
+  },
+  "Brescia Bearcats": {
+    "normalized": "brescia bearcats",
+    "variants": [
+      "Brescia Bearcats"
+    ],
+    "count": 1
+  },
+  "Brown Bears": {
+    "normalized": "brown bears",
+    "variants": [
+      "Brown Bears"
+    ],
+    "count": 4
+  },
+  "Bryant Bulldogs": {
+    "normalized": "bryant bulldogs",
+    "variants": [
+      "Bryant Bulldogs"
+    ],
+    "count": 4
+  },
+  "Bucknell Bison": {
+    "normalized": "bucknell bison",
+    "variants": [
+      "Bucknell Bison"
+    ],
+    "count": 4
+  },
+  "Buffalo Bulls": {
+    "normalized": "buffalo bulls",
+    "variants": [
+      "Buffalo Bulls"
+    ],
+    "count": 4
+  },
+  "Butler Bulldogs": {
+    "normalized": "butler bulldogs",
+    "variants": [
+      "Butler Bulldogs"
+    ],
+    "count": 1
+  },
+  "Cal State Bakersfield Roadrunners": {
+    "normalized": "cal st bakersfield roadrunners",
+    "variants": [
+      "Cal State Bakersfield Roadrunners"
+    ],
+    "count": 2
+  },
+  "Cal State Fullerton Titans": {
+    "normalized": "cal st fullerton titans",
+    "variants": [
+      "Cal State Fullerton Titans"
+    ],
+    "count": 2
+  },
+  "Cal State Northridge Matadors": {
+    "normalized": "cal st northridge matadors",
+    "variants": [
+      "Cal State Northridge Matadors"
+    ],
+    "count": 3
+  },
+  "California Baptist Lancers": {
+    "normalized": "california baptist lancers",
+    "variants": [
+      "California Baptist Lancers"
+    ],
+    "count": 1
+  },
+  "Campbell Fighting Camels": {
+    "normalized": "campbell fighting camels",
+    "variants": [
+      "Campbell Fighting Camels"
+    ],
+    "count": 1
+  },
+  "Canisius Golden Griffins": {
+    "normalized": "canisius golden griffins",
+    "variants": [
+      "Canisius Golden Griffins"
+    ],
+    "count": 1
+  },
+  "Central Arkansas Bears": {
+    "normalized": "central arkansas bears",
+    "variants": [
+      "Central Arkansas Bears"
+    ],
+    "count": 2
+  },
+  "Central Connecticut Blue Devils": {
+    "normalized": "central connecticut blue devils",
+    "variants": [
+      "Central Connecticut Blue Devils"
+    ],
+    "count": 1
+  },
+  "Central Michigan Chippewas": {
+    "normalized": "central michigan chippewas",
+    "variants": [
+      "Central Michigan Chippewas"
+    ],
+    "count": 2
+  },
+  "Central State (OH) Marauders": {
+    "normalized": "central st (oh) marauders",
+    "variants": [
+      "Central State (OH) Marauders"
+    ],
+    "count": 3
+  },
+  "Charleston Cougars": {
+    "normalized": "charleston cougars",
+    "variants": [
+      "Charleston Cougars"
+    ],
+    "count": 2
+  },
+  "Charleston Southern Buccaneers": {
+    "normalized": "charleston southern buccaneers",
+    "variants": [
+      "Charleston Southern Buccaneers"
+    ],
+    "count": 1
+  },
+  "Charlotte 49ers": {
+    "normalized": "charlotte 49ers",
+    "variants": [
+      "Charlotte 49ers"
+    ],
+    "count": 1
+  },
+  "Chattanooga Mocs": {
+    "normalized": "chattanooga mocs",
+    "variants": [
+      "Chattanooga Mocs"
+    ],
+    "count": 1
+  },
+  "Chicago State Cougars": {
+    "normalized": "chicago st cougars",
+    "variants": [
+      "Chicago State Cougars"
+    ],
+    "count": 1
+  },
+  "Cincinnati Bearcats": {
+    "normalized": "cincinnati bearcats",
+    "variants": [
+      "Cincinnati Bearcats"
+    ],
+    "count": 4
+  },
+  "Clemson Tigers": {
+    "normalized": "clemson tigers",
+    "variants": [
+      "Clemson Tigers"
+    ],
+    "count": 1
+  },
+  "Cleveland State Vikings": {
+    "normalized": "cleveland st vikings",
+    "variants": [
+      "Cleveland State Vikings"
+    ],
+    "count": 2
+  },
+  "Coastal Carolina Chanticleers": {
+    "normalized": "coastal carolina chanticleers",
+    "variants": [
+      "Coastal Carolina Chanticleers"
+    ],
+    "count": 2
+  },
+  "College Of Biblical Studies Ambassadors": {
+    "normalized": "college of biblical studies ambassadors",
+    "variants": [
+      "College Of Biblical Studies Ambassadors"
+    ],
+    "count": 3
+  },
+  "Colorado State Rams": {
+    "normalized": "colorado st rams",
+    "variants": [
+      "Colorado State Rams"
+    ],
+    "count": 3
+  },
+  "Columbia International Rams": {
+    "normalized": "columbia international rams",
+    "variants": [
+      "Columbia International Rams"
+    ],
+    "count": 3
+  },
+  "Columbia Lions": {
+    "normalized": "columbia lions",
+    "variants": [
+      "Columbia Lions"
+    ],
+    "count": 4
+  },
+  "Coppin State Eagles": {
+    "normalized": "coppin st eagles",
+    "variants": [
+      "Coppin State Eagles"
+    ],
+    "count": 2
+  },
+  "Cornell Big Red": {
+    "normalized": "cornell big red",
+    "variants": [
+      "Cornell Big Red"
+    ],
+    "count": 3
+  },
+  "Creighton Bluejays": {
+    "normalized": "creighton bluejays",
+    "variants": [
+      "Creighton Bluejays"
+    ],
+    "count": 2
+  },
+  "Dayton Flyers": {
+    "normalized": "dayton flyers",
+    "variants": [
+      "Dayton Flyers"
+    ],
+    "count": 1
+  },
+  "Delaware Blue Hens": {
+    "normalized": "delaware blue hens",
+    "variants": [
+      "Delaware Blue Hens"
+    ],
+    "count": 2
+  },
+  "Delaware State Hornets": {
+    "normalized": "delaware st hornets",
+    "variants": [
+      "Delaware State Hornets"
+    ],
+    "count": 4
+  },
+  "Denver Pioneers": {
+    "normalized": "denver pioneers",
+    "variants": [
+      "Denver Pioneers"
+    ],
+    "count": 3
+  },
+  "DePaul Blue Demons": {
+    "normalized": "depaul blue demons",
+    "variants": [
+      "DePaul Blue Demons"
+    ],
+    "count": 1
+  },
+  "Detroit Mercy Titans": {
+    "normalized": "detroit mercy titans",
+    "variants": [
+      "Detroit Mercy Titans"
+    ],
+    "count": 1
+  },
+  "Dominican (IL) Dominican": {
+    "normalized": "dominican (il) dominican",
+    "variants": [
+      "Dominican (IL) Dominican"
+    ],
+    "count": 1
+  },
+  "Drexel Dragons": {
+    "normalized": "drexel dragons",
+    "variants": [
+      "Drexel Dragons"
+    ],
+    "count": 2
+  },
+  "Duke Blue Devils": {
+    "normalized": "duke blue devils",
+    "variants": [
+      "Duke Blue Devils"
+    ],
+    "count": 1
+  },
+  "Duquesne Dukes": {
+    "normalized": "duquesne dukes",
+    "variants": [
+      "Duquesne Dukes"
+    ],
+    "count": 4
+  },
+  "East Carolina Pirates": {
+    "normalized": "east carolina pirates",
+    "variants": [
+      "East Carolina Pirates"
+    ],
+    "count": 1
+  },
+  "East Tennessee State Buccaneers": {
+    "normalized": "east tennessee st buccaneers",
+    "variants": [
+      "East Tennessee State Buccaneers"
+    ],
+    "count": 1
+  },
+  "East Texas A&M Lions": {
+    "normalized": "east texas a and m lions",
+    "variants": [
+      "East Texas A&M Lions"
+    ],
+    "count": 2
+  },
+  "Eastern Illinois Panthers": {
+    "normalized": "eastern illinois panthers",
+    "variants": [
+      "Eastern Illinois Panthers"
+    ],
+    "count": 1
+  },
+  "Eastern Kentucky Colonels": {
+    "normalized": "eastern kentucky colonels",
+    "variants": [
+      "Eastern Kentucky Colonels"
+    ],
+    "count": 2
+  },
+  "Eastern Michigan Eagles": {
+    "normalized": "eastern michigan eagles",
+    "variants": [
+      "Eastern Michigan Eagles"
+    ],
+    "count": 4
+  },
+  "Eastern Washington Eagles": {
+    "normalized": "eastern washington eagles",
+    "variants": [
+      "Eastern Washington Eagles"
+    ],
+    "count": 1
+  },
+  "Elon Phoenix": {
+    "normalized": "elon phoenix",
+    "variants": [
+      "Elon Phoenix"
+    ],
+    "count": 1
+  },
+  "Evansville Purple Aces": {
+    "normalized": "evansville purple aces",
+    "variants": [
+      "Evansville Purple Aces"
+    ],
+    "count": 1
+  },
+  "Fairfield Stags": {
+    "normalized": "fairfield stags",
+    "variants": [
+      "Fairfield Stags"
+    ],
+    "count": 4
+  },
+  "Fairleigh Dickinson Knights": {
+    "normalized": "fairleigh dickinson knights",
+    "variants": [
+      "Fairleigh Dickinson Knights"
+    ],
+    "count": 4
+  },
+  "Florida Atlantic Owls": {
+    "normalized": "florida atlantic owls",
+    "variants": [
+      "Florida Atlantic Owls"
+    ],
+    "count": 1
+  },
+  "Florida Gulf Coast Eagles": {
+    "normalized": "florida gulf coast eagles",
+    "variants": [
+      "Florida Gulf Coast Eagles"
+    ],
+    "count": 5
+  },
+  "Florida International Panthers": {
+    "normalized": "florida international panthers",
+    "variants": [
+      "Florida International Panthers"
+    ],
+    "count": 4
+  },
+  "Florida State Seminoles": {
+    "normalized": "florida st seminoles",
+    "variants": [
+      "Florida State Seminoles"
+    ],
+    "count": 1
+  },
+  "Fresno State Bulldogs": {
+    "normalized": "fresno st bulldogs",
+    "variants": [
+      "Fresno State Bulldogs"
+    ],
+    "count": 3
+  },
+  "Furman Paladins": {
+    "normalized": "furman paladins",
+    "variants": [
+      "Furman Paladins"
+    ],
+    "count": 1
+  },
+  "Gardner-Webb Runnin' Bulldogs": {
+    "normalized": "gardner webb runnin' bulldogs",
+    "variants": [
+      "Gardner-Webb Runnin' Bulldogs"
+    ],
+    "count": 4
+  },
+  "George Mason Patriots": {
+    "normalized": "george mason patriots",
+    "variants": [
+      "George Mason Patriots"
+    ],
+    "count": 2
+  },
+  "George Washington Revolutionaries": {
+    "normalized": "george washington revolutionaries",
+    "variants": [
+      "George Washington Revolutionaries"
+    ],
+    "count": 3
+  },
+  "Georgetown Hoyas": {
+    "normalized": "georgetown hoyas",
+    "variants": [
+      "Georgetown Hoyas"
+    ],
+    "count": 1
+  },
+  "Georgia Bulldogs": {
+    "normalized": "georgia bulldogs",
+    "variants": [
+      "Georgia Bulldogs"
+    ],
+    "count": 1
+  },
+  "Georgia Southern Eagles": {
+    "normalized": "georgia southern eagles",
+    "variants": [
+      "Georgia Southern Eagles"
+    ],
+    "count": 1
+  },
+  "Georgia State Panthers": {
+    "normalized": "georgia st panthers",
+    "variants": [
+      "Georgia State Panthers"
+    ],
+    "count": 4
+  },
+  "Georgia Tech Yellow Jackets": {
+    "normalized": "georgia tech yellow jackets",
+    "variants": [
+      "Georgia Tech Yellow Jackets"
+    ],
+    "count": 1
+  },
+  "Grambling Tigers": {
+    "normalized": "grambling tigers",
+    "variants": [
+      "Grambling Tigers"
+    ],
+    "count": 1
+  },
+  "Green Bay Phoenix": {
+    "normalized": "green bay phoenix",
+    "variants": [
+      "Green Bay Phoenix"
+    ],
+    "count": 2
+  },
+  "Hampton Pirates": {
+    "normalized": "hampton pirates",
+    "variants": [
+      "Hampton Pirates"
+    ],
+    "count": 1
+  },
+  "Harvard Crimson": {
+    "normalized": "harvard crimson",
+    "variants": [
+      "Harvard Crimson"
+    ],
+    "count": 4
+  },
+  "High Point Panthers": {
+    "normalized": "high point panthers",
+    "variants": [
+      "High Point Panthers"
+    ],
+    "count": 1
+  },
+  "Holy Cross Crusaders": {
+    "normalized": "holy cross crusaders",
+    "variants": [
+      "Holy Cross Crusaders"
+    ],
+    "count": 4
+  },
+  "Houston Christian Huskies": {
+    "normalized": "houston christian huskies",
+    "variants": [
+      "Houston Christian Huskies"
+    ],
+    "count": 4
+  },
+  "Houston Cougars": {
+    "normalized": "houston cougars",
+    "variants": [
+      "Houston Cougars"
+    ],
+    "count": 2
+  },
+  "Howard Bison": {
+    "normalized": "howard bison",
+    "variants": [
+      "Howard Bison"
+    ],
+    "count": 5
+  },
+  "Howard Payne Yellow Jackets": {
+    "normalized": "howard payne yellow jackets",
+    "variants": [
+      "Howard Payne Yellow Jackets"
+    ],
+    "count": 1
+  },
+  "Idaho State Bengals": {
+    "normalized": "idaho st bengals",
+    "variants": [
+      "Idaho State Bengals"
+    ],
+    "count": 3
+  },
+  "Idaho Vandals": {
+    "normalized": "idaho vandals",
+    "variants": [
+      "Idaho Vandals"
+    ],
+    "count": 3
+  },
+  "Illinois Fighting Illini": {
+    "normalized": "illinois fighting illini",
+    "variants": [
+      "Illinois Fighting Illini"
+    ],
+    "count": 1
+  },
+  "Illinois State Redbirds": {
+    "normalized": "illinois st redbirds",
+    "variants": [
+      "Illinois State Redbirds"
+    ],
+    "count": 1
+  },
+  "Incarnate Word Cardinals": {
+    "normalized": "incarnate word cardinals",
+    "variants": [
+      "Incarnate Word Cardinals"
+    ],
+    "count": 4
+  },
+  "Indiana State Sycamores": {
+    "normalized": "indiana st sycamores",
+    "variants": [
+      "Indiana State Sycamores"
+    ],
+    "count": 4
+  },
+  "Iona Gaels": {
+    "normalized": "iona gaels",
+    "variants": [
+      "Iona Gaels"
+    ],
+    "count": 2
+  },
+  "Iowa State Cyclones": {
+    "normalized": "iowa st cyclones",
+    "variants": [
+      "Iowa State Cyclones"
+    ],
+    "count": 2
+  },
+  "IU Indianapolis Jaguars": {
+    "normalized": "iu indianapolis jaguars",
+    "variants": [
+      "IU Indianapolis Jaguars"
+    ],
+    "count": 1
+  },
+  "Jacksonville Dolphins": {
+    "normalized": "jacksonville dolphins",
+    "variants": [
+      "Jacksonville Dolphins"
+    ],
+    "count": 2
+  },
+  "Jacksonville State Gamecocks": {
+    "normalized": "jacksonville st gamecocks",
+    "variants": [
+      "Jacksonville State Gamecocks"
+    ],
+    "count": 3
+  },
+  "James Madison Dukes": {
+    "normalized": "james madison dukes",
+    "variants": [
+      "James Madison Dukes"
+    ],
+    "count": 2
+  },
+  "Kansas City Roos": {
+    "normalized": "kansas city roos",
+    "variants": [
+      "Kansas City Roos"
+    ],
+    "count": 1
+  },
+  "Kansas Jayhawks": {
+    "normalized": "kansas jayhawks",
+    "variants": [
+      "Kansas Jayhawks"
+    ],
+    "count": 2
+  },
+  "Kennesaw State Owls": {
+    "normalized": "kennesaw st owls",
+    "variants": [
+      "Kennesaw State Owls"
+    ],
+    "count": 5
+  },
+  "Kent State Golden Flashes": {
+    "normalized": "kent st golden flashes",
+    "variants": [
+      "Kent State Golden Flashes"
+    ],
+    "count": 1
+  },
+  "Kentucky Wildcats": {
+    "normalized": "kentucky wildcats",
+    "variants": [
+      "Kentucky Wildcats"
+    ],
+    "count": 3
+  },
+  "La Salle Explorers": {
+    "normalized": "la salle explorers",
+    "variants": [
+      "La Salle Explorers"
+    ],
+    "count": 1
+  },
+  "Lamar Cardinals": {
+    "normalized": "lamar cardinals",
+    "variants": [
+      "Lamar Cardinals"
+    ],
+    "count": 2
+  },
+  "Lancasater Bible College Chargers": {
+    "normalized": "lancasater bible college chargers",
+    "variants": [
+      "Lancasater Bible College Chargers"
+    ],
+    "count": 1
+  },
+  "Le Moyne Dolphins": {
+    "normalized": "le moyne dolphins",
+    "variants": [
+      "Le Moyne Dolphins"
+    ],
+    "count": 1
+  },
+  "Lehigh Mountain Hawks": {
+    "normalized": "lehigh mountain hawks",
+    "variants": [
+      "Lehigh Mountain Hawks"
+    ],
+    "count": 1
+  },
+  "Liberty Flames": {
+    "normalized": "liberty flames",
+    "variants": [
+      "Liberty Flames"
+    ],
+    "count": 2
+  },
+  "Lindenwood Lions": {
+    "normalized": "lindenwood lions",
+    "variants": [
+      "Lindenwood Lions"
+    ],
+    "count": 1
+  },
+  "Lipscomb Bisons": {
+    "normalized": "lipscomb bisons",
+    "variants": [
+      "Lipscomb Bisons"
+    ],
+    "count": 4
+  },
+  "Long Beach State Beach": {
+    "normalized": "long beach st beach",
+    "variants": [
+      "Long Beach State Beach"
+    ],
+    "count": 3
+  },
+  "Long Island University Sharks": {
+    "normalized": "long island sharks",
+    "variants": [
+      "Long Island University Sharks"
+    ],
+    "count": 1
+  },
+  "Longwood Lancers": {
+    "normalized": "longwood lancers",
+    "variants": [
+      "Longwood Lancers"
+    ],
+    "count": 1
+  },
+  "Louisiana Tech Bulldogs": {
+    "normalized": "louisiana tech bulldogs",
+    "variants": [
+      "Louisiana Tech Bulldogs"
+    ],
+    "count": 3
+  },
+  "Louisville Cardinals": {
+    "normalized": "louisville cardinals",
+    "variants": [
+      "Louisville Cardinals"
+    ],
+    "count": 4
+  },
+  "Loyola Chicago Ramblers": {
+    "normalized": "loyola chicago ramblers",
+    "variants": [
+      "Loyola Chicago Ramblers"
+    ],
+    "count": 1
+  },
+  "Loyola Maryland Greyhounds": {
+    "normalized": "loyola maryland greyhounds",
+    "variants": [
+      "Loyola Maryland Greyhounds"
+    ],
+    "count": 1
+  },
+  "Loyola Marymount Lions": {
+    "normalized": "loyola marymount lions",
+    "variants": [
+      "Loyola Marymount Lions"
+    ],
+    "count": 1
+  },
+  "Maine Black Bears": {
+    "normalized": "maine black bears",
+    "variants": [
+      "Maine Black Bears"
+    ],
+    "count": 1
+  },
+  "Manhattan Jaspers": {
+    "normalized": "manhattan jaspers",
+    "variants": [
+      "Manhattan Jaspers"
+    ],
+    "count": 3
+  },
+  "Marist Red Foxes": {
+    "normalized": "marist red foxes",
+    "variants": [
+      "Marist Red Foxes"
+    ],
+    "count": 1
+  },
+  "Marquette Golden Eagles": {
+    "normalized": "marquette golden eagles",
+    "variants": [
+      "Marquette Golden Eagles"
+    ],
+    "count": 1
+  },
+  "Marshall Thundering Herd": {
+    "normalized": "marshall thundering herd",
+    "variants": [
+      "Marshall Thundering Herd"
+    ],
+    "count": 4
+  },
+  "Maryland Eastern Shore Hawks": {
+    "normalized": "maryland eastern shore hawks",
+    "variants": [
+      "Maryland Eastern Shore Hawks"
+    ],
+    "count": 2
+  },
+  "Marywood Pacers": {
+    "normalized": "marywood pacers",
+    "variants": [
+      "Marywood Pacers"
+    ],
+    "count": 1
+  },
+  "Massachusetts Minutemen": {
+    "normalized": "massachusetts minutemen",
+    "variants": [
+      "Massachusetts Minutemen"
+    ],
+    "count": 2
+  },
+  "McNeese Cowboys": {
+    "normalized": "mcneese cowboys",
+    "variants": [
+      "McNeese Cowboys"
+    ],
+    "count": 3
+  },
+  "Memphis Tigers": {
+    "normalized": "memphis tigers",
+    "variants": [
+      "Memphis Tigers"
+    ],
+    "count": 3
+  },
+  "Mercer Bears": {
+    "normalized": "mercer bears",
+    "variants": [
+      "Mercer Bears"
+    ],
+    "count": 4
+  },
+  "Mercy Mavericks": {
+    "normalized": "mercy mavericks",
+    "variants": [
+      "Mercy Mavericks"
+    ],
+    "count": 3
+  },
+  "Mercyhurst Lakers": {
+    "normalized": "mercyhurst lakers",
+    "variants": [
+      "Mercyhurst Lakers"
+    ],
+    "count": 1
+  },
+  "Miami (OH) RedHawks": {
+    "normalized": "miami (oh) redhawks",
+    "variants": [
+      "Miami (OH) RedHawks"
+    ],
+    "count": 4
+  },
+  "Miami Hurricanes": {
+    "normalized": "miami hurricanes",
+    "variants": [
+      "Miami Hurricanes"
+    ],
+    "count": 1
+  },
+  "Michigan State Spartans": {
+    "normalized": "michigan st spartans",
+    "variants": [
+      "Michigan State Spartans"
+    ],
+    "count": 1
+  },
+  "Middle Tennessee Blue Raiders": {
+    "normalized": "middle tennessee blue raiders",
+    "variants": [
+      "Middle Tennessee Blue Raiders"
+    ],
+    "count": 3
+  },
+  "Milwaukee Panthers": {
+    "normalized": "milwaukee panthers",
+    "variants": [
+      "Milwaukee Panthers"
+    ],
+    "count": 2
+  },
+  "Minnesota Golden Gophers": {
+    "normalized": "minnesota golden gophers",
+    "variants": [
+      "Minnesota Golden Gophers"
+    ],
+    "count": 1
+  },
+  "Misericordia Cougars": {
+    "normalized": "misericordia cougars",
+    "variants": [
+      "Misericordia Cougars"
+    ],
+    "count": 3
+  },
+  "Mississippi State Bulldogs": {
+    "normalized": "mississippi st bulldogs",
+    "variants": [
+      "Mississippi State Bulldogs"
+    ],
+    "count": 1
+  },
+  "Mississippi Valley State Delta Devils": {
+    "normalized": "mississippi valley st delta devils",
+    "variants": [
+      "Mississippi Valley State Delta Devils"
+    ],
+    "count": 1
+  },
+  "Missouri State Bears": {
+    "normalized": "missouri st bears",
+    "variants": [
+      "Missouri State Bears"
+    ],
+    "count": 1
+  },
+  "Monmouth Hawks": {
+    "normalized": "monmouth hawks",
+    "variants": [
+      "Monmouth Hawks"
+    ],
+    "count": 1
+  },
+  "Montana Grizzlies": {
+    "normalized": "montana grizzlies",
+    "variants": [
+      "Montana Grizzlies"
+    ],
+    "count": 1
+  },
+  "Morehead State Eagles": {
+    "normalized": "morehead st eagles",
+    "variants": [
+      "Morehead State Eagles"
+    ],
+    "count": 1
+  },
+  "Morgan State Bears": {
+    "normalized": "morgan st bears",
+    "variants": [
+      "Morgan State Bears"
+    ],
+    "count": 1
+  },
+  "Mount St. Mary's Mountaineers": {
+    "normalized": "mount st. mary's mountaineers",
+    "variants": [
+      "Mount St. Mary's Mountaineers"
+    ],
+    "count": 2
+  },
+  "Murray State Racers": {
+    "normalized": "murray st racers",
+    "variants": [
+      "Murray State Racers"
+    ],
+    "count": 3
+  },
+  "Navy Midshipmen": {
+    "normalized": "navy midshipmen",
+    "variants": [
+      "Navy Midshipmen"
+    ],
+    "count": 4
+  },
+  "NC State Wolfpack": {
+    "normalized": "nc st wolfpack",
+    "variants": [
+      "NC State Wolfpack"
+    ],
+    "count": 2
+  },
+  "Nevada Wolf Pack": {
+    "normalized": "nevada wolf pack",
+    "variants": [
+      "Nevada Wolf Pack"
+    ],
+    "count": 1
+  },
+  "New Hampshire Wildcats": {
+    "normalized": "new hampshire wildcats",
+    "variants": [
+      "New Hampshire Wildcats"
+    ],
+    "count": 3
+  },
+  "New Haven Chargers": {
+    "normalized": "new haven chargers",
+    "variants": [
+      "New Haven Chargers"
+    ],
+    "count": 2
+  },
+  "New Mexico Lobos": {
+    "normalized": "new mexico lobos",
+    "variants": [
+      "New Mexico Lobos"
+    ],
+    "count": 3
+  },
+  "New Mexico State Aggies": {
+    "normalized": "new mexico st aggies",
+    "variants": [
+      "New Mexico State Aggies"
+    ],
+    "count": 3
+  },
+  "New Orleans Privateers": {
+    "normalized": "new orleans privateers",
+    "variants": [
+      "New Orleans Privateers"
+    ],
+    "count": 4
+  },
+  "Niagara Purple Eagles": {
+    "normalized": "niagara purple eagles",
+    "variants": [
+      "Niagara Purple Eagles"
+    ],
+    "count": 1
+  },
+  "Nicholls Colonels": {
+    "normalized": "nicholls colonels",
+    "variants": [
+      "Nicholls Colonels"
+    ],
+    "count": 1
+  },
+  "NJIT Highlanders": {
+    "normalized": "njit highlanders",
+    "variants": [
+      "NJIT Highlanders"
+    ],
+    "count": 5
+  },
+  "Norfolk State Spartans": {
+    "normalized": "norfolk st spartans",
+    "variants": [
+      "Norfolk State Spartans"
+    ],
+    "count": 2
+  },
+  "North Alabama Lions": {
+    "normalized": "north alabama lions",
+    "variants": [
+      "North Alabama Lions"
+    ],
+    "count": 2
+  },
+  "North Carolina Central Eagles": {
+    "normalized": "north carolina central eagles",
+    "variants": [
+      "North Carolina Central Eagles"
+    ],
+    "count": 2
+  },
+  "North Carolina Tar Heels": {
+    "normalized": "north carolina tar heels",
+    "variants": [
+      "North Carolina Tar Heels"
+    ],
+    "count": 1
+  },
+  "North Dakota Fighting Hawks": {
+    "normalized": "north dakota fighting hawks",
+    "variants": [
+      "North Dakota Fighting Hawks"
+    ],
+    "count": 2
+  },
+  "North Dakota State Bison": {
+    "normalized": "north dakota st bison",
+    "variants": [
+      "North Dakota State Bison"
+    ],
+    "count": 3
+  },
+  "North Florida Ospreys": {
+    "normalized": "north florida ospreys",
+    "variants": [
+      "North Florida Ospreys"
+    ],
+    "count": 1
+  },
+  "Northeastern Huskies": {
+    "normalized": "northeastern huskies",
+    "variants": [
+      "Northeastern Huskies"
+    ],
+    "count": 1
+  },
+  "Northern Arizona Lumberjacks": {
+    "normalized": "northern arizona lumberjacks",
+    "variants": [
+      "Northern Arizona Lumberjacks"
+    ],
+    "count": 3
+  },
+  "Northern Colorado Bears": {
+    "normalized": "northern colorado bears",
+    "variants": [
+      "Northern Colorado Bears"
+    ],
+    "count": 4
+  },
+  "Northern Iowa Panthers": {
+    "normalized": "northern iowa panthers",
+    "variants": [
+      "Northern Iowa Panthers"
+    ],
+    "count": 1
+  },
+  "Northern Kentucky Norse": {
+    "normalized": "northern kentucky norse",
+    "variants": [
+      "Northern Kentucky Norse"
+    ],
+    "count": 4
+  },
+  "Northwestern Wildcats": {
+    "normalized": "northwestern wildcats",
+    "variants": [
+      "Northwestern Wildcats"
+    ],
+    "count": 1
+  },
+  "Notre Dame (MD) Gators": {
+    "normalized": "notre dame (md) gators",
+    "variants": [
+      "Notre Dame (MD) Gators"
+    ],
+    "count": 1
+  },
+  "Notre Dame Fighting Irish": {
+    "normalized": "notre dame fighting irish",
+    "variants": [
+      "Notre Dame Fighting Irish"
+    ],
+    "count": 2
+  },
+  "Oakland Golden Grizzlies": {
+    "normalized": "oakland golden grizzlies",
+    "variants": [
+      "Oakland Golden Grizzlies"
+    ],
+    "count": 1
+  },
+  "Ohio Bobcats": {
+    "normalized": "ohio bobcats",
+    "variants": [
+      "Ohio Bobcats"
+    ],
+    "count": 2
+  },
+  "Ohio State Buckeyes": {
+    "normalized": "ohio st buckeyes",
+    "variants": [
+      "Ohio State Buckeyes"
+    ],
+    "count": 1
+  },
+  "Oklahoma Sooners": {
+    "normalized": "oklahoma sooners",
+    "variants": [
+      "Oklahoma Sooners"
+    ],
+    "count": 1
+  },
+  "Oklahoma State Cowboys": {
+    "normalized": "oklahoma st cowboys",
+    "variants": [
+      "Oklahoma State Cowboys"
+    ],
+    "count": 1
+  },
+  "Old Dominion Monarchs": {
+    "normalized": "old dominion monarchs",
+    "variants": [
+      "Old Dominion Monarchs"
+    ],
+    "count": 2
+  },
+  "Omaha Mavericks": {
+    "normalized": "omaha mavericks",
+    "variants": [
+      "Omaha Mavericks"
+    ],
+    "count": 4
+  },
+  "Oral Roberts Golden Eagles": {
+    "normalized": "oral roberts golden eagles",
+    "variants": [
+      "Oral Roberts Golden Eagles"
+    ],
+    "count": 5
+  },
+  "Oregon State Beavers": {
+    "normalized": "oregon st beavers",
+    "variants": [
+      "Oregon State Beavers"
+    ],
+    "count": 2
+  },
+  "Pacific Tigers": {
+    "normalized": "pacific tigers",
+    "variants": [
+      "Pacific Tigers"
+    ],
+    "count": 2
+  },
+  "Penn State Nittany Lions": {
+    "normalized": "penn st nittany lions",
+    "variants": [
+      "Penn State Nittany Lions"
+    ],
+    "count": 2
+  },
+  "Pepperdine Waves": {
+    "normalized": "pepperdine waves",
+    "variants": [
+      "Pepperdine Waves"
+    ],
+    "count": 3
+  },
+  "Piedmont Lions": {
+    "normalized": "piedmont lions",
+    "variants": [
+      "Piedmont Lions"
+    ],
+    "count": 1
+  },
+  "Pittsburgh Panthers": {
+    "normalized": "pittsburgh panthers",
+    "variants": [
+      "Pittsburgh Panthers"
+    ],
+    "count": 1
+  },
+  "Portland Pilots": {
+    "normalized": "portland pilots",
+    "variants": [
+      "Portland Pilots"
+    ],
+    "count": 4
+  },
+  "Prairie View A&M Panthers": {
+    "normalized": "prairie view a and m panthers",
+    "variants": [
+      "Prairie View A&M Panthers"
+    ],
+    "count": 2
+  },
+  "Presbyterian Blue Hose": {
+    "normalized": "presbyterian blue hose",
+    "variants": [
+      "Presbyterian Blue Hose"
+    ],
+    "count": 3
+  },
+  "Princeton Tigers": {
+    "normalized": "princeton tigers",
+    "variants": [
+      "Princeton Tigers"
+    ],
+    "count": 2
+  },
+  "Providence Friars": {
+    "normalized": "providence friars",
+    "variants": [
+      "Providence Friars"
+    ],
+    "count": 1
+  },
+  "Purdue Fort Wayne Mastodons": {
+    "normalized": "purdue fort wayne mastodons",
+    "variants": [
+      "Purdue Fort Wayne Mastodons"
+    ],
+    "count": 1
+  },
+  "Queens University Royals": {
+    "normalized": "queens royals",
+    "variants": [
+      "Queens University Royals"
+    ],
+    "count": 1
+  },
+  "Quinnipiac Bobcats": {
+    "normalized": "quinnipiac bobcats",
+    "variants": [
+      "Quinnipiac Bobcats"
+    ],
+    "count": 2
+  },
+  "Rhode Island Rams": {
+    "normalized": "rhode island rams",
+    "variants": [
+      "Rhode Island Rams"
+    ],
+    "count": 2
+  },
+  "Rice Owls": {
+    "normalized": "rice owls",
+    "variants": [
+      "Rice Owls"
+    ],
+    "count": 5
+  },
+  "Richmond Spiders": {
+    "normalized": "richmond spiders",
+    "variants": [
+      "Richmond Spiders"
+    ],
+    "count": 1
+  },
+  "Rider Broncs": {
+    "normalized": "rider broncs",
+    "variants": [
+      "Rider Broncs"
+    ],
+    "count": 1
+  },
+  "Robert Morris Colonials": {
+    "normalized": "robert morris colonials",
+    "variants": [
+      "Robert Morris Colonials"
+    ],
+    "count": 4
+  },
+  "Rutgers-Camden Scarlet Raptors": {
+    "normalized": "rutgers camden scarlet raptors",
+    "variants": [
+      "Rutgers-Camden Scarlet Raptors"
+    ],
+    "count": 1
+  },
+  "Rutgers Scarlet Knights": {
+    "normalized": "rutgers scarlet knights",
+    "variants": [
+      "Rutgers Scarlet Knights"
+    ],
+    "count": 2
+  },
+  "Sacred Heart Pioneers": {
+    "normalized": "sacred heart pioneers",
+    "variants": [
+      "Sacred Heart Pioneers"
+    ],
+    "count": 1
+  },
+  "Saint Francis Red Flash": {
+    "normalized": "saint francis red flash",
+    "variants": [
+      "Saint Francis Red Flash"
+    ],
+    "count": 1
+  },
+  "Saint Joseph's Hawks": {
+    "normalized": "saint joseph's hawks",
+    "variants": [
+      "Saint Joseph's Hawks"
+    ],
+    "count": 1
+  },
+  "Saint Mary's Gaels": {
+    "normalized": "saint mary's gaels",
+    "variants": [
+      "Saint Mary's Gaels"
+    ],
+    "count": 3
+  },
+  "Saint Peter's Peacocks": {
+    "normalized": "saint peter's peacocks",
+    "variants": [
+      "Saint Peter's Peacocks"
+    ],
+    "count": 1
+  },
+  "Salve Regina Seahawks": {
+    "normalized": "salve regina seahawks",
+    "variants": [
+      "Salve Regina Seahawks"
+    ],
+    "count": 1
+  },
+  "Sam Houston Bearkats": {
+    "normalized": "sam houston bearkats",
+    "variants": [
+      "Sam Houston Bearkats"
+    ],
+    "count": 4
+  },
+  "Samford Bulldogs": {
+    "normalized": "samford bulldogs",
+    "variants": [
+      "Samford Bulldogs"
+    ],
+    "count": 4
+  },
+  "San Diego Toreros": {
+    "normalized": "san diego toreros",
+    "variants": [
+      "San Diego Toreros"
+    ],
+    "count": 1
+  },
+  "San Francisco Dons": {
+    "normalized": "san francisco dons",
+    "variants": [
+      "San Francisco Dons"
+    ],
+    "count": 1
+  },
+  "San Jos\u00e9 State Spartans": {
+    "normalized": "san jos\u00e9 st spartans",
+    "variants": [
+      "San Jos\u00e9 State Spartans"
+    ],
+    "count": 1
+  },
+  "Schreiner Mountaineers": {
+    "normalized": "schreiner mountaineers",
+    "variants": [
+      "Schreiner Mountaineers"
+    ],
+    "count": 1
+  },
+  "SE Louisiana Lions": {
+    "normalized": "se louisiana lions",
+    "variants": [
+      "SE Louisiana Lions"
+    ],
+    "count": 3
+  },
+  "Seton Hall Pirates": {
+    "normalized": "seton hall pirates",
+    "variants": [
+      "Seton Hall Pirates"
+    ],
+    "count": 2
+  },
+  "Shaw Bears": {
+    "normalized": "shaw bears",
+    "variants": [
+      "Shaw Bears"
+    ],
+    "count": 1
+  },
+  "Siena Saints": {
+    "normalized": "siena saints",
+    "variants": [
+      "Siena Saints"
+    ],
+    "count": 1
+  },
+  "SIU Edwardsville Cougars": {
+    "normalized": "siu edwardsville cougars",
+    "variants": [
+      "SIU Edwardsville Cougars"
+    ],
+    "count": 1
+  },
+  "South Carolina Gamecocks": {
+    "normalized": "south carolina gamecocks",
+    "variants": [
+      "South Carolina Gamecocks"
+    ],
+    "count": 1
+  },
+  "South Carolina State Bulldogs": {
+    "normalized": "south carolina st bulldogs",
+    "variants": [
+      "South Carolina State Bulldogs"
+    ],
+    "count": 1
+  },
+  "South Carolina Upstate Spartans": {
+    "normalized": "south carolina upstate spartans",
+    "variants": [
+      "South Carolina Upstate Spartans"
+    ],
+    "count": 1
+  },
+  "South Dakota Coyotes": {
+    "normalized": "south dakota coyotes",
+    "variants": [
+      "South Dakota Coyotes"
+    ],
+    "count": 1
+  },
+  "South Dakota State Jackrabbits": {
+    "normalized": "south dakota st jackrabbits",
+    "variants": [
+      "South Dakota State Jackrabbits"
+    ],
+    "count": 4
+  },
+  "South Florida Bulls": {
+    "normalized": "south florida bulls",
+    "variants": [
+      "South Florida Bulls"
+    ],
+    "count": 3
+  },
+  "Southeast Missouri State Redhawks": {
+    "normalized": "southeast missouri st redhawks",
+    "variants": [
+      "Southeast Missouri State Redhawks"
+    ],
+    "count": 3
+  },
+  "Southern Illinois Salukis": {
+    "normalized": "southern illinois salukis",
+    "variants": [
+      "Southern Illinois Salukis"
+    ],
+    "count": 5
+  },
+  "Southern Indiana Screaming Eagles": {
+    "normalized": "southern indiana screaming eagles",
+    "variants": [
+      "Southern Indiana Screaming Eagles"
+    ],
+    "count": 4
+  },
+  "Southern Miss Golden Eagles": {
+    "normalized": "southern miss golden eagles",
+    "variants": [
+      "Southern Miss Golden Eagles"
+    ],
+    "count": 1
+  },
+  "St. Bonaventure Bonnies": {
+    "normalized": "st. bonaventure bonnies",
+    "variants": [
+      "St. Bonaventure Bonnies"
+    ],
+    "count": 1
+  },
+  "St. John's Red Storm": {
+    "normalized": "st. john's red storm",
+    "variants": [
+      "St. John's Red Storm"
+    ],
+    "count": 2
+  },
+  "St. Mary's (MD) Seahawks": {
+    "normalized": "st. mary's (md) seahawks",
+    "variants": [
+      "St. Mary's (MD) Seahawks"
+    ],
+    "count": 3
+  },
+  "St. Thomas-Minnesota Tommies": {
+    "normalized": "st. thomas minnesota tommies",
+    "variants": [
+      "St. Thomas-Minnesota Tommies"
+    ],
+    "count": 2
+  },
+  "Stetson Hatters": {
+    "normalized": "stetson hatters",
+    "variants": [
+      "Stetson Hatters"
+    ],
+    "count": 2
+  },
+  "Stonehill Skyhawks": {
+    "normalized": "stonehill skyhawks",
+    "variants": [
+      "Stonehill Skyhawks"
+    ],
+    "count": 3
+  },
+  "Stony Brook Seawolves": {
+    "normalized": "stony brook seawolves",
+    "variants": [
+      "Stony Brook Seawolves"
+    ],
+    "count": 2
+  },
+  "Syracuse Orange": {
+    "normalized": "syracuse orange",
+    "variants": [
+      "Syracuse Orange"
+    ],
+    "count": 2
+  },
+  "Temple Owls": {
+    "normalized": "temple owls",
+    "variants": [
+      "Temple Owls"
+    ],
+    "count": 2
+  },
+  "Tennessee Southern Firehawks": {
+    "normalized": "tennessee southern firehawks",
+    "variants": [
+      "Tennessee Southern Firehawks"
+    ],
+    "count": 1
+  },
+  "Tennessee State Tigers": {
+    "normalized": "tennessee st tigers",
+    "variants": [
+      "Tennessee State Tigers"
+    ],
+    "count": 1
+  },
+  "Tennessee Tech Golden Eagles": {
+    "normalized": "tennessee tech golden eagles",
+    "variants": [
+      "Tennessee Tech Golden Eagles"
+    ],
+    "count": 3
+  },
+  "Tennessee Volunteers": {
+    "normalized": "tennessee volunteers",
+    "variants": [
+      "Tennessee Volunteers"
+    ],
+    "count": 2
+  },
+  "Texas A&M-Corpus Christi Islanders": {
+    "normalized": "texas a and m corpus christi islanders",
+    "variants": [
+      "Texas A&M-Corpus Christi Islanders"
+    ],
+    "count": 1
+  },
+  "Texas Lutheran Bulldogs": {
+    "normalized": "texas lutheran bulldogs",
+    "variants": [
+      "Texas Lutheran Bulldogs"
+    ],
+    "count": 4
+  },
+  "Texas Southern Tigers": {
+    "normalized": "texas southern tigers",
+    "variants": [
+      "Texas Southern Tigers"
+    ],
+    "count": 3
+  },
+  "Texas State Bobcats": {
+    "normalized": "texas st bobcats",
+    "variants": [
+      "Texas State Bobcats"
+    ],
+    "count": 1
+  },
+  "Texas Tech Red Raiders": {
+    "normalized": "texas tech red raiders",
+    "variants": [
+      "Texas Tech Red Raiders"
+    ],
+    "count": 3
+  },
+  "The Citadel Bulldogs": {
+    "normalized": "the citadel bulldogs",
+    "variants": [
+      "The Citadel Bulldogs"
+    ],
+    "count": 4
+  },
+  "Toledo Rockets": {
+    "normalized": "toledo rockets",
+    "variants": [
+      "Toledo Rockets"
+    ],
+    "count": 1
+  },
+  "Towson Tigers": {
+    "normalized": "towson tigers",
+    "variants": [
+      "Towson Tigers"
+    ],
+    "count": 2
+  },
+  "Troy Trojans": {
+    "normalized": "troy trojans",
+    "variants": [
+      "Troy Trojans"
+    ],
+    "count": 1
+  },
+  "Tulane Green Wave": {
+    "normalized": "tulane green wave",
+    "variants": [
+      "Tulane Green Wave"
+    ],
+    "count": 1
+  },
+  "Tulsa Golden Hurricane": {
+    "normalized": "tulsa golden hurricane",
+    "variants": [
+      "Tulsa Golden Hurricane"
+    ],
+    "count": 1
+  },
+  "UAB Blazers": {
+    "normalized": "uab blazers",
+    "variants": [
+      "UAB Blazers"
+    ],
+    "count": 2
+  },
+  "UC Irvine Anteaters": {
+    "normalized": "uc irvine anteaters",
+    "variants": [
+      "UC Irvine Anteaters"
+    ],
+    "count": 3
+  },
+  "UC Riverside Highlanders": {
+    "normalized": "uc riverside highlanders",
+    "variants": [
+      "UC Riverside Highlanders"
+    ],
+    "count": 1
+  },
+  "UC San Diego Tritons": {
+    "normalized": "uc san diego tritons",
+    "variants": [
+      "UC San Diego Tritons"
+    ],
+    "count": 2
+  },
+  "UC Santa Barbara Gauchos": {
+    "normalized": "uc santa barbara gauchos",
+    "variants": [
+      "UC Santa Barbara Gauchos"
+    ],
+    "count": 1
+  },
+  "UCF Knights": {
+    "normalized": "ucf knights",
+    "variants": [
+      "UCF Knights"
+    ],
+    "count": 1
+  },
+  "UConn Huskies": {
+    "normalized": "uconn huskies",
+    "variants": [
+      "UConn Huskies"
+    ],
+    "count": 1
+  },
+  "UIC Flames": {
+    "normalized": "uic flames",
+    "variants": [
+      "UIC Flames"
+    ],
+    "count": 4
+  },
+  "UL Monroe Warhawks": {
+    "normalized": "ul monroe warhawks",
+    "variants": [
+      "UL Monroe Warhawks"
+    ],
+    "count": 2
+  },
+  "UMass Lowell River Hawks": {
+    "normalized": "umass lowell river hawks",
+    "variants": [
+      "UMass Lowell River Hawks"
+    ],
+    "count": 4
+  },
+  "UMBC Retrievers": {
+    "normalized": "umbc retrievers",
+    "variants": [
+      "UMBC Retrievers"
+    ],
+    "count": 1
+  },
+  "UNC Asheville Bulldogs": {
+    "normalized": "unc asheville bulldogs",
+    "variants": [
+      "UNC Asheville Bulldogs"
+    ],
+    "count": 1
+  },
+  "UNC Greensboro Spartans": {
+    "normalized": "unc greensboro spartans",
+    "variants": [
+      "UNC Greensboro Spartans"
+    ],
+    "count": 5
+  },
+  "UNC Wilmington Seahawks": {
+    "normalized": "unc wilmington seahawks",
+    "variants": [
+      "UNC Wilmington Seahawks"
+    ],
+    "count": 3
+  },
+  "USC Trojans": {
+    "normalized": "usc trojans",
+    "variants": [
+      "USC Trojans"
+    ],
+    "count": 2
+  },
+  "UT Martin Skyhawks": {
+    "normalized": "ut martin skyhawks",
+    "variants": [
+      "UT Martin Skyhawks"
+    ],
+    "count": 3
+  },
+  "UT Rio Grande Valley Vaqueros": {
+    "normalized": "ut rio grande valley vaqueros",
+    "variants": [
+      "UT Rio Grande Valley Vaqueros"
+    ],
+    "count": 1
+  },
+  "Utah Valley Wolverines": {
+    "normalized": "utah valley wolverines",
+    "variants": [
+      "Utah Valley Wolverines"
+    ],
+    "count": 4
+  },
+  "UTEP Miners": {
+    "normalized": "utep miners",
+    "variants": [
+      "UTEP Miners"
+    ],
+    "count": 2
+  },
+  "Valparaiso Beacons": {
+    "normalized": "valparaiso beacons",
+    "variants": [
+      "Valparaiso Beacons"
+    ],
+    "count": 3
+  },
+  "Vanderbilt Commodores": {
+    "normalized": "vanderbilt commodores",
+    "variants": [
+      "Vanderbilt Commodores"
+    ],
+    "count": 3
+  },
+  "VCU Rams": {
+    "normalized": "vcu rams",
+    "variants": [
+      "VCU Rams"
+    ],
+    "count": 4
+  },
+  "Vermont Catamounts": {
+    "normalized": "vermont catamounts",
+    "variants": [
+      "Vermont Catamounts"
+    ],
+    "count": 2
+  },
+  "Vermont State - Lyndon Hornets": {
+    "normalized": "vermont st lyndon hornets",
+    "variants": [
+      "Vermont State - Lyndon Hornets"
+    ],
+    "count": 1
+  },
+  "Villanova Wildcats": {
+    "normalized": "villanova wildcats",
+    "variants": [
+      "Villanova Wildcats"
+    ],
+    "count": 1
+  },
+  "Virginia Cavaliers": {
+    "normalized": "virginia cavaliers",
+    "variants": [
+      "Virginia Cavaliers"
+    ],
+    "count": 1
+  },
+  "Virginia-Lynchburg Dragons": {
+    "normalized": "virginia lynchburg dragons",
+    "variants": [
+      "Virginia-Lynchburg Dragons"
+    ],
+    "count": 1
+  },
+  "Virginia St Trojans": {
+    "normalized": "virginia st trojans",
+    "variants": [
+      "Virginia St Trojans"
+    ],
+    "count": 3
+  },
+  "Virginia Tech Hokies": {
+    "normalized": "virginia tech hokies",
+    "variants": [
+      "Virginia Tech Hokies"
+    ],
+    "count": 3
+  },
+  "VMI Keydets": {
+    "normalized": "vmi keydets",
+    "variants": [
+      "VMI Keydets"
+    ],
+    "count": 5
+  },
+  "Wagner Seahawks": {
+    "normalized": "wagner seahawks",
+    "variants": [
+      "Wagner Seahawks"
+    ],
+    "count": 4
+  },
+  "Wake Forest Demon Deacons": {
+    "normalized": "wake forest demon deacons",
+    "variants": [
+      "Wake Forest Demon Deacons"
+    ],
+    "count": 1
+  },
+  "Washington College (MD) Shoremen": {
+    "normalized": "washington college (md) shoremen",
+    "variants": [
+      "Washington College (MD) Shoremen"
+    ],
+    "count": 1
+  },
+  "Waynesburg Yellow Jackets": {
+    "normalized": "waynesburg yellow jackets",
+    "variants": [
+      "Waynesburg Yellow Jackets"
+    ],
+    "count": 1
+  },
+  "West Georgia Wolves": {
+    "normalized": "west georgia wolves",
+    "variants": [
+      "West Georgia Wolves"
+    ],
+    "count": 1
+  },
+  "West Virginia Mountaineers": {
+    "normalized": "west virginia mountaineers",
+    "variants": [
+      "West Virginia Mountaineers"
+    ],
+    "count": 1
+  },
+  "Western Carolina Catamounts": {
+    "normalized": "western carolina catamounts",
+    "variants": [
+      "Western Carolina Catamounts"
+    ],
+    "count": 1
+  },
+  "Western Illinois Leathernecks": {
+    "normalized": "western illinois leathernecks",
+    "variants": [
+      "Western Illinois Leathernecks"
+    ],
+    "count": 1
+  },
+  "Western Kentucky Hilltoppers": {
+    "normalized": "western kentucky hilltoppers",
+    "variants": [
+      "Western Kentucky Hilltoppers"
+    ],
+    "count": 3
+  },
+  "Western Michigan Broncos": {
+    "normalized": "western michigan broncos",
+    "variants": [
+      "Western Michigan Broncos"
+    ],
+    "count": 1
+  },
+  "Wichita State Shockers": {
+    "normalized": "wichita st shockers",
+    "variants": [
+      "Wichita State Shockers"
+    ],
+    "count": 4
+  },
+  "William & Mary Tribe": {
+    "normalized": "william and mary tribe",
+    "variants": [
+      "William & Mary Tribe"
+    ],
+    "count": 2
+  },
+  "Wofford Terriers": {
+    "normalized": "wofford terriers",
+    "variants": [
+      "Wofford Terriers"
+    ],
+    "count": 3
+  },
+  "Worcester State Lancers": {
+    "normalized": "worcester st lancers",
+    "variants": [
+      "Worcester State Lancers"
+    ],
+    "count": 3
+  },
+  "Wright State Raiders": {
+    "normalized": "wright st raiders",
+    "variants": [
+      "Wright State Raiders"
+    ],
+    "count": 1
+  },
+  "Wyoming Cowboys": {
+    "normalized": "wyoming cowboys",
+    "variants": [
+      "Wyoming Cowboys"
+    ],
+    "count": 4
+  },
+  "Xavier Musketeers": {
+    "normalized": "xavier musketeers",
+    "variants": [
+      "Xavier Musketeers"
+    ],
+    "count": 1
+  },
+  "Yale Bulldogs": {
+    "normalized": "yale bulldogs",
+    "variants": [
+      "Yale Bulldogs"
+    ],
+    "count": 1
+  },
+  "Youngstown State Penguins": {
+    "normalized": "youngstown st penguins",
+    "variants": [
+      "Youngstown State Penguins"
+    ],
+    "count": 2
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "rows": 58,
+  "w_market_total": 0.8,
+  "w_market_margin": 0.7,
+  "thr_total": 20.0,
+  "thr_margin": 8.0,
+  "mismatch_total_rows": 51,
+  "mismatch_margin_rows": 22,
+  "date": "2025-11-28",
+  "timestamp_utc": "2025-12-18T21:53:11.975926Z",
+  "path": "outputs\\predictions_unified_enriched_2025-11-28.csv"
+}

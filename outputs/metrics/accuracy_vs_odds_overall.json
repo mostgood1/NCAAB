@@ -1,0 +1,326 @@
+﻿{
+  "overall": {
+    "dates": 47,
+    "ou_total": 391,
+    "ats_total": 410,
+    "ou_accuracy_mean": 0.5558119190539244,
+    "ats_accuracy_mean": 0.5127467715350061,
+    "use_closing": true
+  },
+  "daily": [
+    {
+      "date": "2025-11-03",
+      "status": "missing"
+    },
+    {
+      "date": "2025-11-04",
+      "status": "missing"
+    },
+    {
+      "date": "2025-11-05",
+      "status": "missing"
+    },
+    {
+      "date": "2025-11-06",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-07",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-08",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-09",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-10",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-11",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-12",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-13",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-14",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-15",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-16",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-17",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-18",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-19",
+      "n_ou": 0,
+      "n_ats": 19,
+      "ou_accuracy": null,
+      "ats_accuracy": 0.7368421052631579
+    },
+    {
+      "date": "2025-11-20",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-21",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-22",
+      "n_ou": 1,
+      "n_ats": 1,
+      "ou_accuracy": 1.0,
+      "ats_accuracy": 0.0
+    },
+    {
+      "date": "2025-11-23",
+      "n_ou": 26,
+      "n_ats": 26,
+      "ou_accuracy": 0.5384615384615384,
+      "ats_accuracy": 0.5
+    },
+    {
+      "date": "2025-11-24",
+      "n_ou": 29,
+      "n_ats": 29,
+      "ou_accuracy": 0.6206896551724138,
+      "ats_accuracy": 0.6551724137931034
+    },
+    {
+      "date": "2025-11-25",
+      "n_ou": 33,
+      "n_ats": 33,
+      "ou_accuracy": 0.6666666666666666,
+      "ats_accuracy": 0.6060606060606061
+    },
+    {
+      "date": "2025-11-26",
+      "n_ou": 20,
+      "n_ats": 20,
+      "ou_accuracy": 0.6,
+      "ats_accuracy": 0.5
+    },
+    {
+      "date": "2025-11-27",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-11-28",
+      "n_ou": 40,
+      "n_ats": 40,
+      "ou_accuracy": 0.625,
+      "ats_accuracy": 0.675
+    },
+    {
+      "date": "2025-11-29",
+      "n_ou": 36,
+      "n_ats": 36,
+      "ou_accuracy": 0.4444444444444444,
+      "ats_accuracy": 0.5833333333333334
+    },
+    {
+      "date": "2025-11-30",
+      "n_ou": 23,
+      "n_ats": 23,
+      "ou_accuracy": 0.5652173913043478,
+      "ats_accuracy": 0.43478260869565216
+    },
+    {
+      "date": "2025-12-01",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-12-02",
+      "n_ou": 2,
+      "n_ats": 2,
+      "ou_accuracy": 0.5,
+      "ats_accuracy": 1.0
+    },
+    {
+      "date": "2025-12-03",
+      "n_ou": 9,
+      "n_ats": 9,
+      "ou_accuracy": 0.4444444444444444,
+      "ats_accuracy": 0.7777777777777778
+    },
+    {
+      "date": "2025-12-04",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-12-05",
+      "n_ou": 17,
+      "n_ats": 17,
+      "ou_accuracy": 0.5294117647058824,
+      "ats_accuracy": 0.47058823529411764
+    },
+    {
+      "date": "2025-12-06",
+      "n_ou": 2,
+      "n_ats": 2,
+      "ou_accuracy": 0.5,
+      "ats_accuracy": 0.0
+    },
+    {
+      "date": "2025-12-07",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-12-08",
+      "n_ou": 4,
+      "n_ats": 4,
+      "ou_accuracy": 0.5,
+      "ats_accuracy": 0.25
+    },
+    {
+      "date": "2025-12-09",
+      "n_ou": 20,
+      "n_ats": 20,
+      "ou_accuracy": 0.4,
+      "ats_accuracy": 0.4
+    },
+    {
+      "date": "2025-12-10",
+      "status": "missing"
+    },
+    {
+      "date": "2025-12-11",
+      "n_ou": 6,
+      "n_ats": 6,
+      "ou_accuracy": 0.5,
+      "ats_accuracy": 0.5
+    },
+    {
+      "date": "2025-12-12",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-12-13",
+      "n_ou": 85,
+      "n_ats": 85,
+      "ou_accuracy": 0.5176470588235295,
+      "ats_accuracy": 0.6
+    },
+    {
+      "date": "2025-12-14",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-12-15",
+      "status": "missing"
+    },
+    {
+      "date": "2025-12-16",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-12-17",
+      "n_ou": 0,
+      "n_ats": 0,
+      "ou_accuracy": null,
+      "ats_accuracy": null
+    },
+    {
+      "date": "2025-12-18",
+      "n_ou": 19,
+      "n_ats": 19,
+      "ou_accuracy": 0.5263157894736842,
+      "ats_accuracy": 0.5263157894736842
+    },
+    {
+      "date": "2025-12-19",
+      "n_ou": 19,
+      "n_ats": 19,
+      "ou_accuracy": 0.5263157894736842,
+      "ats_accuracy": 0.5263157894736842
+    }
+  ]
+}

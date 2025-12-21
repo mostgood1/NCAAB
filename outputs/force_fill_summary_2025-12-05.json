@@ -1,0 +1,11 @@
+{
+  "date": "2025-12-05",
+  "rows": 22,
+  "missing_pred_total": 0,
+  "missing_pred_margin": 0,
+  "added_games": 0,
+  "added_game_ids": [],
+  "coverage_status_counts": {
+    "full": 22
+  }
+}

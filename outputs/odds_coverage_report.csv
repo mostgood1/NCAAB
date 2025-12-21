@@ -1,0 +1,70 @@
+game_id,date,home_team,away_team,home_slug,away_slug,covered,n_books
+401808891,2025-11-08 00:00:00,New Orleans Privateers,Southern-New Orleans Knights,neworleansprivateers,southernneworleansknights,False,0
+401811966,2025-11-08 00:00:00,Belmont Bruins,Tennessee State Tigers,belmontbruins,tennesseestatetigers,False,0
+401812261,2025-11-08 00:00:00,St. John's Red Storm,Alabama Crimson Tide,stjohnsredstorm,alabamacrimsontide,False,0
+401812283,2025-11-08 00:00:00,Saint Peter's Peacocks,Fairleigh Dickinson Knights,stpeterspeacocks,fairleighdickinsonknights,False,0
+401812660,2025-11-08 00:00:00,BYU Cougars,Holy Cross Crusaders,byucougars,holycrosscrusaders,True,1
+401813347,2025-11-08 00:00:00,St. Bonaventure Bonnies,Canisius Golden Griffins,stbonaventurebonnies,canisiusgoldengriffins,True,7
+401813374,2025-11-08 00:00:00,Binghamton Bearcats,Niagara Purple Eagles,binghamtonbearcats,niagarapurpleeagles,False,0
+401813435,2025-11-08 00:00:00,Dayton Flyers,UMBC Retrievers,daytonflyers,umbcretrievers,False,0
+401817142,2025-11-08 00:00:00,George Washington Revolutionaries,South Florida Bulls,georgewashingtonrevolutionaries,southfloridabulls,False,0
+401817173,2025-11-08 00:00:00,Richmond Spiders,East Carolina Pirates,richmondspiders,eastcarolinapirates,True,10
+401817229,2025-11-08 00:00:00,Duke Blue Devils,Western Carolina Catamounts,dukebluedevils,westerncarolinacatamounts,False,0
+401817465,2025-11-08 00:00:00,Stanford Cardinal,Montana Grizzlies,stanfordcardinal,montanagrizzlies,True,7
+401817477,2025-11-08 00:00:00,Syracuse Orange,Delaware State Hornets,syracuseorange,delawarestatehornets,False,0
+401817518,2025-11-08 00:00:00,Virginia Tech Hokies,Providence Friars,virginiatechhokies,providencefriars,True,9
+401819861,2025-11-08 00:00:00,Colorado Buffaloes,Eastern Washington Eagles,coloradobuffaloes,easternwashingtoneagles,True,7
+401819889,2025-11-08 00:00:00,Kansas State Wildcats,Bellarmine Knights,kansasstatewildcats,bellarmineknights,False,0
+401819906,2025-11-08 00:00:00,Utah Utes,Weber State Wildcats,utahutes,weberstatewildcats,True,1
+401820210,2025-11-08 00:00:00,Mercyhurst Lakers,Penn State-New Kensington Lions,mercyhurstlakers,pennstatenewkensingtonlions,False,0
+401820396,2025-11-08 00:00:00,UNLV Rebels,Chattanooga Mocs,unlvrebels,chattanoogamocs,True,1
+401820485,2025-11-08 00:00:00,Tarleton State Texans,Texas A&M-Corpus Christi Islanders,tarletonstatetexans,texasaandmcorpuschristiislanders,False,0
+401820550,2025-11-08 00:00:00,Air Force Falcons,Austin Peay Governors,airforcefalcons,austinpeaygovernors,True,7
+401820596,2025-11-08 00:00:00,Akron Zips,Princeton Tigers,akronzips,princetontigers,False,0
+401820622,2025-11-08 00:00:00,Stony Brook Seawolves,Maine Black Bears,stonybrookseawolves,maineblackbears,True,9
+401820823,2025-11-08 00:00:00,Butler Bulldogs,IU Indianapolis Jaguars,butlerbulldogs,iuindianapolisjaguars,False,0
+401822177,2025-11-08 00:00:00,La Salle Explorers,Monmouth Hawks,lasalleexplorers,monmouthhawks,True,7
+401822309,2025-11-08 00:00:00,Wofford Terriers,Milwaukee Panthers,woffordterriers,milwaukeepanthers,False,0
+401822667,2025-11-08 00:00:00,Saint Joseph's Hawks,Drexel Dragons,stjosephshawks,drexeldragons,False,0
+401822729,2025-11-08 00:00:00,Wyoming Cowboys,Cal State Fullerton Titans,wyomingcowboys,calstatefullertontitans,True,5
+401822994,2025-11-08 00:00:00,Middle Tennessee Blue Raiders,Webster Gorloks,middletennesseeblueraiders,webstergorloks,False,0
+401823037,2025-11-08 00:00:00,Maryland Eastern Shore Hawks,Cheyney (PA) Wolves,marylandeasternshorehawks,cheyneypawolves,False,0
+401823188,2025-11-08 00:00:00,NJIT Highlanders,Fairfield Stags,njithighlanders,fairfieldstags,False,0
+401823305,2025-11-08 00:00:00,Fresno State Bulldogs,Long Beach State Beach,fresnostatebulldogs,longbeachstatebeach,False,0
+401823322,2025-11-08 00:00:00,Missouri State Bears,Northwestern Oklahoma State Rangers,missouristatebears,northwesternoklahomastaterangers,False,0
+401823382,2025-11-08 00:00:00,Tennessee Volunteers,Northern Kentucky Norse,tennesseevolunteers,northernkentuckynorse,True,7
+401823451,2025-11-08 00:00:00,Villanova Wildcats,Queens University Royals,villanovawildcats,queensroyals,True,1
+401823455,2025-11-08 00:00:00,Bradley Braves,Central Michigan Chippewas,bradleybraves,centralmichiganchippewas,True,1
+401823469,2025-11-08 00:00:00,Toledo Rockets,Marshall Thundering Herd,toledorockets,marshallthunderingherd,False,0
+401823539,2025-11-08 00:00:00,Southern Utah Thunderbirds,UT Rio Grande Valley Vaqueros,southernutahthunderbirds,utriograndevalleyvaqueros,True,1
+401823814,2025-11-08 00:00:00,Boise State Broncos,Utah Valley Wolverines,boisestatebroncos,utahvalleywolverines,True,7
+401823865,2025-11-08 00:00:00,New Mexico Lobos,UT Arlington Mavericks,newmexicolobos,utarlingtonmavericks,True,5
+401824032,2025-11-08 00:00:00,Gonzaga Bulldogs,Oklahoma Sooners,gonzagabulldogs,oklahomasooners,True,1
+401824038,2025-11-08 00:00:00,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,loyolamarymountlions,arkansaspinebluffgoldenlions,True,1
+401824062,2025-11-08 00:00:00,Nevada Wolf Pack,Pacific Tigers,nevadawolfpack,pacifictigers,True,1
+401824126,2025-11-08 00:00:00,Seattle U Redhawks,Cal Poly Mustangs,seattleuredhawks,calpolymustangs,False,0
+401824810,2025-11-08 00:00:00,Houston Cougars,Towson Tigers,houstoncougars,towsontigers,True,7
+401824824,2025-11-08 00:00:00,UCF Knights,Vanderbilt Commodores,ucfknights,vanderbiltcommodores,True,7
+401824854,2025-11-08 00:00:00,Central Arkansas Bears,Champion Christian Tigers,centralarkansasbears,championchristiantigers,False,0
+401824885,2025-11-08 00:00:00,Presbyterian Blue Hose,East Tennessee State Buccaneers,presbyterianbluehose,easttennesseestatebuccaneers,True,9
+401826725,2025-11-08 00:00:00,Memphis Tigers,San Francisco Dons,memphistigers,sanfranciscodons,True,7
+401826771,2025-11-08 00:00:00,Charleston Cougars,Florida Atlantic Owls,charlestoncougars,floridaatlanticowls,True,9
+401826785,2025-11-08 00:00:00,Michigan State Spartans,Arkansas Razorbacks,michiganstatespartans,arkansasrazorbacks,False,0
+401826793,2025-11-08 00:00:00,St. Thomas-Minnesota Tommies,Army Black Knights,stthomasminnesotatommies,armyblackknights,False,0
+401826843,2025-11-08 00:00:00,Tulane Green Wave,Texas State Bobcats,tulanegreenwave,texasstatebobcats,False,0
+401826880,2025-11-08 00:00:00,Wichita State Shockers,Prairie View A&M Panthers,wichitastateshockers,prairieviewaandmpanthers,False,0
+401826907,2025-11-08 00:00:00,UC San Diego Tritons,Houston Christian Huskies,ucsandiegotritons,houstonchristianhuskies,True,1
+401826977,2025-11-08 00:00:00,High Point Panthers,Averett Cougars,highpointpanthers,averettcougars,False,0
+401827059,2025-11-08 00:00:00,South Carolina Upstate Spartans,Southern Virginia Knights,southcarolinaupstatespartans,southernvirginiaknights,False,0
+401827233,2025-11-08 00:00:00,Minnesota Golden Gophers,Alcorn State Braves,minnesotagoldengophers,alcornstatebraves,False,0
+401827237,2025-11-08 00:00:00,Nebraska Cornhuskers,Florida International Panthers,nebraskacornhuskers,floridainternationalpanthers,False,0
+401827277,2025-11-08 00:00:00,New Haven Chargers,Penn State Nittany Lions,newhavenchargers,pennstatenittanylions,False,0
+401827504,2025-11-08 00:00:00,Norfolk State Spartans,William & Mary Tribe,norfolkstatespartans,williamandmarytribe,True,7
+401827518,2025-11-08 00:00:00,UNC Greensboro Spartans,Elon Phoenix,uncgreensborospartans,elonphoenix,True,7
+401827757,2025-11-08 00:00:00,Massachusetts Minutemen,UAlbany Great Danes,massachusettsminutemen,ualbanygreatdanes,True,9
+401828336,2025-11-08 00:00:00,Florida A&M Rattlers,Kennesaw State Owls,floridaaandmrattlers,kennesawstateowls,False,0
+401828526,2025-11-08 00:00:00,Oral Roberts Golden Eagles,John Brown Golden Eagles,oralrobertsgoldeneagles,johnbrowngoldeneagles,False,0
+401829324,2025-11-08 00:00:00,UC Santa Barbara Gauchos,San José State Spartans,ucsantabarbaragauchos,sanjosestatespartans,True,7
+401829412,2025-11-08 00:00:00,Texas Longhorns,Lafayette Leopards,texaslonghorns,lafayetteleopards,True,7
+401829488,2025-11-08 00:00:00,Georgia Southern Eagles,UNC Asheville Bulldogs,georgiasoutherneagles,uncashevillebulldogs,True,7
+401831377,2025-11-08 00:00:00,South Alabama Jaguars,Spring Hill Badgers,southalabamajaguars,springhillbadgers,False,0

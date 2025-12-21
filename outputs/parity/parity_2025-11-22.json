@@ -1,0 +1,42 @@
+{
+  "date": "2025-11-22",
+  "local_rows": 45,
+  "remote_rows": 45,
+  "intersection_rows": 45,
+  "missing_local": 0,
+  "missing_remote": 0,
+  "numeric_columns_compared": [
+    "pred_total",
+    "pred_margin",
+    "pred_total_blend",
+    "pred_margin_blend",
+    "pred_total_seg",
+    "pred_margin_seg",
+    "blend_weight",
+    "seg_n_rows"
+  ],
+  "tolerance": 1e-06,
+  "max_abs_diff": {
+    "pred_total": 0.0,
+    "pred_margin": 0.0,
+    "pred_total_blend": 0.0,
+    "pred_margin_blend": 0.0,
+    "pred_total_seg": 0.0,
+    "pred_margin_seg": 0.0,
+    "blend_weight": 0.0,
+    "seg_n_rows": 0.0
+  },
+  "mean_abs_diff": {
+    "pred_total": 0.0,
+    "pred_margin": 0.0,
+    "pred_total_blend": 0.0,
+    "pred_margin_blend": 0.0,
+    "pred_total_seg": 0.0,
+    "pred_margin_seg": 0.0,
+    "blend_weight": 0.0,
+    "seg_n_rows": 0.0
+  },
+  "diff_rows": 0,
+  "status": "parity_ok",
+  "exit_code": 0
+}

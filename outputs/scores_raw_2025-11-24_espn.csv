@@ -1,0 +1,63 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401826740,2025-11-24,2025-11-25 03:30:00+00:00,Arizona Wildcats,Denver Pioneers,103,73,56,28,47,45,,McKale Memorial Center,False
+401817481,2025-11-24,2025-11-24 23:00:00+00:00,Houston Cougars,Syracuse Orange,78,74,37,34,30,33,,MGM Grand Garden Arena,True
+401817244,2025-11-24,2025-11-25 00:00:00+00:00,Louisville Cardinals,Eastern Michigan Eagles,87,46,33,17,54,29,,KFC Yum! Center,False
+401823764,2025-11-24,2025-11-25 03:30:00+00:00,Michigan Wolverines,San Diego State Aztecs,94,54,45,33,49,21,,Michelob ULTRA Arena,True
+401812263,2025-11-24,2025-11-25 02:30:00+00:00,Alabama Crimson Tide,Gonzaga Bulldogs,85,95,42,45,43,50,,MGM Grand Garden Arena,True
+401827181,2025-11-24,2025-11-25 01:00:00+00:00,Illinois Fighting Illini,UT Rio Grande Valley Vaqueros,87,73,42,31,45,42,,State Farm Center,False
+401819874,2025-11-24,2025-11-24 21:30:00+00:00,St. John's Red Storm,Iowa State Cyclones,82,83,45,43,37,40,,Michelob ULTRA Arena,True
+401827435,2025-11-24,2025-11-24 18:00:00+00:00,Tennessee Volunteers,Rutgers Scarlet Knights,85,60,56,30,29,30,,MGM Grand Garden Arena,True
+401823478,2025-11-24,2025-11-25 01:00:00+00:00,Oregon Ducks,Auburn Tigers,73,84,37,37,36,47,,Michelob ULTRA Arena,True
+401817256,2025-11-24,2025-11-24 19:30:00+00:00,NC State Wolfpack,Seton Hall Pirates,74,85,33,35,41,50,,Lahaina Civic Center,True
+401829680,2025-11-24,2025-11-24 16:00:00+00:00,Troy Trojans,Toledo Rockets,68,75,36,30,32,45,,Alico Arena,True
+401809312,2025-11-24,2025-11-24 16:00:00+00:00,Towson Tigers,Rhode Island Rams,62,55,25,21,37,34,,State Farm Field House,True
+401824064,2025-11-24,2025-11-24 16:30:00+00:00,Pacific Tigers,Stony Brook Seawolves,86,58,35,20,51,38,,Ocean Center,True
+401823420,2025-11-24,2025-11-24 17:00:00+00:00,Bowling Green Falcons,Bucknell Bison,71,66,35,24,36,42,,Suncoast Credit Union Arena,True
+401812287,2025-11-24,2025-11-24 17:00:00+00:00,Fairleigh Dickinson Knights,East Texas A&M Lions,65,70,38,24,27,46,,Bogota Savings Bank Center,False
+401831211,2025-11-24,2025-11-24 17:30:00+00:00,Oregon State Beavers,Massachusetts Minutemen,65,73,31,34,34,39,,UVI Sports & Fitness Center,True
+401829681,2025-11-24,2025-11-24 18:30:00+00:00,Belmont Bruins,Saint Francis Red Flash,94,57,36,28,58,29,,Alico Arena,True
+401827731,2025-11-24,2025-11-24 18:30:00+00:00,Southern Illinois Salukis,UAB Blazers,73,81,35,36,38,45,,John Hurst Adams Gymnasium,True
+401809393,2025-11-24,2025-11-24 18:30:00+00:00,Vermont Catamounts,Liberty Flames,73,79,32,40,41,39,,State Farm Field House,True
+401823344,2025-11-24,2025-11-24 19:00:00+00:00,Bethune-Cookman Wildcats,Jacksonville Dolphins,64,69,30,30,34,39,,Ocean Center,True
+401819826,2025-11-24,2025-11-24 19:00:00+00:00,Baylor Bears,Creighton Bluejays,81,74,44,36,37,38,,Michelob ULTRA Arena,True
+401823430,2025-11-24,2025-11-24 19:30:00+00:00,Buffalo Bulls,VMI Keydets,78,70,31,33,47,37,,Suncoast Credit Union Arena,True
+401831210,2025-11-24,2025-11-24 20:00:00+00:00,Iona Gaels,Green Bay Phoenix,75,80,36,33,39,47,,UVI Sports & Fitness Center,True
+401826045,2025-11-24,2025-11-24 20:00:00+00:00,UC Riverside Highlanders,Grambling Tigers,83,74,30,36,53,38,,SRC Arena,False
+401817436,2025-11-24,2025-11-24 20:30:00+00:00,Kansas Jayhawks,Notre Dame Fighting Irish,71,61,39,32,32,29,,MGM Grand Garden Arena,True
+401827506,2025-11-24,2025-11-24 21:00:00+00:00,UTEP Miners,William & Mary Tribe,63,74,23,35,40,39,,John Hurst Adams Gymnasium,True
+401826872,2025-11-24,2025-11-24 21:00:00+00:00,Lamar Cardinals,Oakland Golden Grizzlies,68,83,31,34,37,49,,Dahlberg Arena,True
+401828338,2025-11-24,2025-11-24 21:30:00+00:00,Kennesaw State Owls,Rice Owls,89,84,40,41,43,42,,Alico Arena,True
+401809394,2025-11-24,2025-11-24 21:30:00+00:00,UC San Diego Tritons,Temple Owls,91,76,47,36,44,40,,State Farm Field House,True
+401823818,2025-11-24,2025-11-24 22:00:00+00:00,Boise State Broncos,USC Trojans,67,70,32,34,35,36,,Lahaina Civic Center,True
+401817146,2025-11-24,2025-11-24 22:00:00+00:00,Middle Tennessee Blue Raiders,George Washington Revolutionaries,79,92,41,49,38,43,,John Gray Gymnasium,True
+401831209,2025-11-24,2025-11-24 22:30:00+00:00,Evansville Purple Aces,Charleston Cougars,59,78,29,40,30,38,,UVI Sports & Fitness Center,True
+401826701,2025-11-24,2025-11-24 23:00:00+00:00,Ohio Bobcats,George Mason Patriots,69,92,33,52,36,40,,Ocean Center,True
+401826054,2025-11-24,2025-11-24 23:00:00+00:00,UMBC Retrievers,Notre Dame (MD) Gators,102,52,48,29,54,23,,Chesapeake Employers Insurance Arena,False
+401812665,2025-11-24,2025-11-24 23:00:00+00:00,Holy Cross Crusaders,Siena Saints,69,73,39,39,30,34,,Hart Center,False
+401829490,2025-11-24,2025-11-24 23:30:00+00:00,Youngstown State Penguins,Georgia Southern Eagles,67,61,32,30,35,31,,John Hurst Adams Gymnasium,True
+401826734,2025-11-24,2025-11-24 23:30:00+00:00,App State Mountaineers,Elon Phoenix,53,88,23,44,30,44,,Holmes Convocation Center,False
+401829045,2025-11-24,2025-11-25 00:00:00+00:00,Florida International Panthers,James Madison Dukes,72,80,45,41,27,39,,Ocean Bank Convocation Center,False
+401828672,2025-11-24,2025-11-25 00:00:00+00:00,American University Eagles,Marywood Pacers,113,53,54,28,59,25,,Bender Arena,False
+401827214,2025-11-24,2025-11-25 00:00:00+00:00,Texas State Bobcats,Texas Lutheran Bulldogs,93,41,51,27,42,14,,Strahan Arena at the University Events Center,False
+401823386,2025-11-24,2025-11-25 00:00:00+00:00,Northern Kentucky Norse,Eastern Kentucky Colonels,82,71,33,35,49,36,,Truist Arena,False
+401823216,2025-11-24,2025-11-25 00:00:00+00:00,The Citadel Bulldogs,Bellarmine Knights,58,70,31,35,27,35,,McAlister Field House,False
+401822393,2025-11-24,2025-11-25 00:00:00+00:00,Lindenwood Lions,Kansas City Roos,80,67,42,35,38,32,,Hyland Arena,False
+401819844,2025-11-24,2025-11-25 00:00:00+00:00,Cincinnati Bearcats,NJIT Highlanders,94,67,42,28,52,39,,Fifth Third Arena,False
+401812647,2025-11-24,2025-11-25 00:00:00+00:00,Central Connecticut Blue Devils,Sacred Heart Pioneers,108,106,54,51,39,42,,Detrick Gymnasium,False
+401809395,2025-11-24,2025-11-25 00:00:00+00:00,Bradley Braves,Princeton Tigers,88,64,40,34,48,30,,State Farm Field House,True
+401823229,2025-11-24,2025-11-25 00:30:00+00:00,Florida Gulf Coast Eagles,Oral Roberts Golden Eagles,93,88,41,39,52,49,,Alico Arena,False
+401808896,2025-11-24,2025-11-25 00:30:00+00:00,Mississippi State Bulldogs,New Orleans Privateers,81,78,28,34,40,34,,Humphrey Coliseum,False
+401808729,2025-11-24,2025-11-25 00:30:00+00:00,McNeese Cowboys,Murray State Racers,73,60,40,17,33,43,,John Gray Gymnasium,True
+401831208,2025-11-24,2025-11-25 01:00:00+00:00,Akron Zips,Yale Bulldogs,94,97,37,46,57,51,,UVI Sports & Fitness Center,True
+401828310,2025-11-24,2025-11-25 01:00:00+00:00,Arkansas State Red Wolves,Jacksonville State Gamecocks,74,63,38,32,36,31,,First National Bank Arena,False
+401825590,2025-11-24,2025-11-25 01:00:00+00:00,Northern Arizona Lumberjacks,Cal Poly Mustangs,93,87,52,46,41,41,,J. Lawrence Walkup Skydome,False
+401817458,2025-11-24,2025-11-25 01:00:00+00:00,SMU Mustangs,Radford Highlanders,89,72,46,38,43,34,,Moody Coliseum (Dallas),False
+401812357,2025-11-24,2025-11-25 01:00:00+00:00,Missouri State Bears,Long Island University Sharks,61,75,40,35,21,40,,Great Southern Bank Arena,False
+401824042,2025-11-24,2025-11-25 01:30:00+00:00,Loyola Marymount Lions,Florida Atlantic Owls,65,76,34,41,31,35,,Ocean Center,True
+401830410,2025-11-24,2025-11-25 02:00:00+00:00,UC Santa Barbara Gauchos,Nobel Knights,84,49,42,19,42,30,,The Thunderdome,False
+401830347,2025-11-24,2025-11-25 02:00:00+00:00,Abilene Christian Wildcats,UTSA Roadrunners,61,50,39,26,22,24,,John Hurst Adams Gymnasium,True
+401826089,2025-11-24,2025-11-25 02:00:00+00:00,UC Davis Aggies,Louisiana Ragin' Cajuns,77,56,33,26,44,30,,University Credit Union Center,False
+401824137,2025-11-24,2025-11-25 02:00:00+00:00,Chaminade Silverswords,Washington State Cougars,85,90,52,41,33,49,,Lahaina Civic Center,False
+401819818,2025-11-24,2025-11-25 04:43:00+00:00,Texas Longhorns,Arizona State Sun Devils,86,87,34,39,52,48,,Lahaina Civic Center,True
+401824899,2025-11-24,2025-11-25 04:59:00+00:00,Hawai'i Rainbow Warriors,Hawai'i Pacific Sea Warriors,88,76,38,33,50,43,,Stan Sheriff Center,False
+401820400,2025-11-24,2025-11-25 04:59:00+00:00,Maryland Terrapins,UNLV Rebels,74,67,27,30,47,37,,MGM Grand Garden Arena,True

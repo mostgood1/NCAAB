@@ -1,0 +1,8 @@
+game_id,date,home_team,away_team,home_off_rating,away_off_rating,home_def_rating,away_def_rating,home_tempo_rating,away_tempo_rating,tempo_rating_sum
+401828342,2025-12-08,Kennesaw State Owls,Southern Wesleyan Warriors,109.0,104.0,98.0,96.0,72.0,73.0,145.0
+401812581,2025-12-08,Pennsylvania Quakers,Lafayette Leopards,105.0,104.0,98.0,96.0,68.0,68.0,136.0
+401820846,2025-12-08,Charleston Southern Buccaneers,South Carolina State Bulldogs,100.0,105.0,100.0,95.0,70.0,72.0,142.0
+401827090,2025-12-08,Southern Miss Golden Eagles,Grambling Tigers,110.0,106.0,97.0,94.0,70.0,69.0,139.0
+401827017,2025-12-08,Texas Longhorns,Southern Jaguars,107.0,103.0,100.0,97.0,74.0,73.0,147.0
+401819895,2025-12-08,Kansas State Wildcats,Mississippi Valley State Delta Devils,104.0,100.0,96.0,100.0,74.0,73.0,147.0
+401808900,2025-12-08,New Orleans Privateers,Incarnate Word Cardinals,110.0,107.0,97.0,93.0,72.0,72.0,144.0

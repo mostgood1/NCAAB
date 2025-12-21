@@ -1,0 +1,18 @@
+{
+  "date": "2025-11-28",
+  "n_games": 58,
+  "n_with_pred": 58,
+  "mae_model_total": 11.274443001582705,
+  "mae_closing_total": null,
+  "beat_rate_vs_closing": null,
+  "n_picks": 0,
+  "n_wins": 0,
+  "n_losses": 0,
+  "n_pushes": 0,
+  "mae_model_total_1h": 7.848685968333278,
+  "mae_model_total_2h": 8.5726028152992,
+  "ats_cover_rate_full": 0.603448275862069,
+  "ats_cover_rate_1h": 0.6724137931034483,
+  "brier_ml": 0.22755599303535537,
+  "logloss_ml": 0.683118667323045
+}

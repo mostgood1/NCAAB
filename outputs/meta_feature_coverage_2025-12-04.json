@@ -1,0 +1,12 @@
+{
+  "date": "2025-12-04",
+  "rows": 11,
+  "missing_cover_features": [
+    "kelly_fraction_total_adj",
+    "pred_margin_sigma"
+  ],
+  "missing_over_features": [
+    "pred_total_sigma"
+  ],
+  "present_columns_count": 119
+}

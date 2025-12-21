@@ -1,0 +1,74 @@
+{
+  "row_count": 35,
+  "date": "2025-12-14",
+  "basis_counts": {
+    "cal": 35
+  },
+  "suppressed_shell_rows": null,
+  "sample": [
+    {
+      "game_id": "401817525",
+      "pred_total": 139.9836,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 138.75,
+      "spread_home": -28.0
+    },
+    {
+      "game_id": "401820814",
+      "pred_total": 142.996,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 146.75,
+      "spread_home": 0.0
+    },
+    {
+      "game_id": "401819879",
+      "pred_total": 141.1056,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 144.5,
+      "spread_home": -43.5
+    },
+    {
+      "game_id": "401827008",
+      "pred_total": 142.8974,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 143.5,
+      "spread_home": -19.5
+    },
+    {
+      "game_id": "401826737",
+      "pred_total": 142.792,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 142.59738159179688,
+      "spread_home": -2.4872446060180664
+    },
+    {
+      "game_id": "401832162",
+      "pred_total": 141.6326,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 142.499267578125,
+      "spread_home": -3.925497531890869
+    },
+    {
+      "game_id": "401822327",
+      "pred_total": 141.1294,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 144.5,
+      "spread_home": -7.5
+    },
+    {
+      "game_id": "401827487",
+      "pred_total": 142.0644,
+      "pred_margin": 9.361599762960738,
+      "pred_total_basis": "clamp",
+      "market_total": 142.4249267578125,
+      "spread_home": -3.8095879554748535
+    }
+  ]
+}

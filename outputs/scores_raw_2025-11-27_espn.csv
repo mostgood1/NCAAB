@@ -1,0 +1,21 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401817234,2025-11-27,2025-11-28 01:00:00+00:00,Arkansas Razorbacks,Duke Blue Devils,71,80,35,41,36,39,,United Center,True
+401809419,2025-11-27,2025-11-27 22:00:00+00:00,Miami Hurricanes,BYU Cougars,62,72,33,29,29,43,,State Farm Field House,True
+401809047,2025-11-27,2025-11-27 20:00:00+00:00,Florida Gators,TCU Horned Frogs,80,84,44,39,36,45,,Jenny Craig Pavilion,True
+401817267,2025-11-27,2025-11-27 21:30:00+00:00,North Carolina Tar Heels,Michigan State Spartans,58,74,28,33,30,41,,Suncoast Credit Union Arena,True
+401830752,2025-11-27,2025-11-27 17:00:00+00:00,Vanderbilt Commodores,VCU Rams,89,74,43,41,46,33,,Imperial Arena,True
+401809397,2025-11-27,2025-11-27 16:00:00+00:00,Furman Paladins,Richmond Spiders,73,72,43,38,30,34,,State Farm Field House,True
+401817199,2025-11-27,2025-11-27 17:00:00+00:00,East Carolina Pirates,St. Bonaventure Bonnies,58,67,29,28,29,39,,Suncoast Credit Union Arena,True
+401809398,2025-11-27,2025-11-27 18:30:00+00:00,Illinois State Redbirds,Charlotte 49ers,79,69,43,34,36,35,,State Farm Field House,True
+401831221,2025-11-27,2025-11-27 19:00:00+00:00,Creighton Bluejays,Oregon Ducks,76,66,44,29,32,37,,Michelob ULTRA Arena,True
+401819865,2025-11-27,2025-11-27 19:00:00+00:00,Colorado Buffaloes,San Francisco Dons,79,69,35,37,44,32,,Acrisure Arena,True
+401830753,2025-11-27,2025-11-27 19:30:00+00:00,Virginia Tech Hokies,Saint Mary's Gaels,66,77,20,31,46,46,,Imperial Arena,True
+401831222,2025-11-27,2025-11-27 21:30:00+00:00,Rutgers Scarlet Knights,UNLV Rebels,80,65,33,39,47,26,,Michelob ULTRA Arena,True
+401827268,2025-11-27,2025-11-27 21:30:00+00:00,Washington Huskies,Nevada Wolf Pack,83,66,34,28,49,38,,Acrisure Arena,True
+401830875,2025-11-27,2025-11-27 22:30:00+00:00,Western Kentucky Hilltoppers,South Florida Bulls,91,97,50,40,34,44,,Imperial Arena,True
+401826890,2025-11-27,2025-11-27 23:00:00+00:00,Wisconsin Badgers,Providence Friars,104,83,51,32,53,51,,Jenny Craig Pavilion,True
+401817187,2025-11-27,2025-11-28 00:00:00+00:00,Saint Louis Billikens,Santa Clara Broncos,71,70,31,35,40,35,,Acrisure Arena,True
+401809396,2025-11-27,2025-11-28 00:30:00+00:00,Dayton Flyers,Georgetown Hoyas,84,79,40,31,29,38,,State Farm Field House,True
+401830754,2025-11-27,2025-11-28 01:31:00+00:00,Colorado State Rams,Wichita State Shockers,76,70,47,30,29,40,,Imperial Arena,True
+401817469,2025-11-27,2025-11-28 02:30:00+00:00,Minnesota Golden Gophers,Stanford Cardinal,68,72,34,31,34,41,,Acrisure Arena,True
+401812276,2025-11-27,2025-11-28 03:51:00+00:00,Northwestern Wildcats,Oklahoma State Cowboys,81,86,40,39,41,47,,United Center,False

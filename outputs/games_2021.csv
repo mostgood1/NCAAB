@@ -1,0 +1,1156 @@
+game_id,season,date,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401371246,2021,2021-11-09,Gonzaga Bulldogs,Utah Tech Trailblazers,97,63,40.0,25.0,57.0,38.0,False,McCarthey Athletic Center
+401373878,2021,2021-11-09,UCLA Bruins,Cal State Bakersfield Roadrunners,95,58,47.0,19.0,48.0,39.0,False,Pauley Pavilion
+401372031,2021,2021-11-09,Villanova Wildcats,Mount St. Mary's Mountaineers,91,51,45.0,21.0,46.0,30.0,False,Finneran Pavilion
+401371567,2021,2021-11-09,Texas Longhorns,Houston Christian Huskies,92,48,43.0,27.0,49.0,21.0,False,Frank Erwin Center
+401369133,2021,2021-11-09,Purdue Boilermakers,Bellarmine Knights,96,67,50.0,37.0,46.0,30.0,False,Mackey Arena
+401372110,2021,2021-11-09,Illinois Fighting Illini,Jackson State Tigers,71,47,30.0,17.0,41.0,30.0,False,State Farm Center
+401371914,2021,2021-11-09,Memphis Tigers,Tennessee Tech Golden Eagles,89,65,52.0,41.0,37.0,24.0,False,FedExForum
+401373388,2021,2021-11-09,Oregon Ducks,Texas Southern Tigers,83,66,36.0,26.0,47.0,40.0,False,Matthew Knight Arena
+401371819,2021,2021-11-09,Alabama Crimson Tide,Louisiana Tech Bulldogs,93,64,48.0,31.0,45.0,33.0,False,Coleman Coliseum
+401371811,2021,2021-11-09,Houston Cougars,Hofstra Pride,83,75,31.0,37.0,38.0,32.0,False,Fertitta Center
+401371824,2021,2021-11-09,Arkansas Razorbacks,Mercer Bears,74,61,28.0,36.0,46.0,25.0,False,Bud Walton Arena
+401364993,2021,2021-11-09,Ohio State Buckeyes,Akron Zips,67,66,36.0,28.0,31.0,38.0,False,Value City Arena
+401371892,2021,2021-11-09,Tennessee Volunteers,UT Martin Skyhawks,90,62,43.0,35.0,47.0,27.0,False,Food City Center
+401369943,2021,2021-11-09,North Carolina Tar Heels,Loyola Maryland Greyhounds,83,67,45.0,31.0,38.0,36.0,False,Dean E. Smith Center
+401365207,2021,2021-11-09,Maryland Terrapins,Quinnipiac Bobcats,83,69,41.0,25.0,42.0,44.0,False,XFINITY Center
+401371832,2021,2021-11-09,Auburn Tigers,Morehead State Eagles,77,54,44.0,24.0,33.0,30.0,False,Neville Arena
+401365208,2021,2021-11-09,St. Bonaventure Bonnies,Siena Saints,75,47,36.0,32.0,39.0,15.0,False,Reilly Center
+401372026,2021,2021-11-09,UConn Huskies,Central Connecticut Blue Devils,99,48,52.0,23.0,47.0,25.0,False,Gampel Pavilion
+401370036,2021,2021-11-09,Virginia Cavaliers,Navy Midshipmen,58,66,35.0,42.0,23.0,24.0,False,John Paul Jones Arena
+401364997,2021,2021-11-10,Michigan Wolverines,Buffalo Bulls,88,76,51.0,36.0,37.0,40.0,False,Crisler Center
+401369870,2021,2021-11-10,Florida State Seminoles,Pennsylvania Quakers,105,70,51.0,39.0,54.0,31.0,False,Tucker Center
+401371575,2021,2021-11-11,Maryland Terrapins,George Washington Revolutionaries,71,64,29.0,30.0,42.0,34.0,False,XFINITY Center
+401372032,2021,2021-11-12,UCLA Bruins,Villanova Wildcats,86,77,32.0,30.0,35.0,37.0,False,Pauley Pavilion
+401372250,2021,2021-11-12,Kansas Jayhawks,Tarleton State Texans,88,62,39.0,31.0,49.0,31.0,False,Allen Fieldhouse
+401372164,2021,2021-11-12,Purdue Boilermakers,Indiana State Sycamores,92,67,51.0,30.0,41.0,37.0,False,Mackey Arena
+401371979,2021,2021-11-12,Baylor Bears,Incarnate Word Cardinals,87,60,40.0,28.0,47.0,32.0,False,Ferrell Center
+401372111,2021,2021-11-12,Illinois Fighting Illini,Arkansas State Red Wolves,92,53,48.0,26.0,44.0,27.0,False,State Farm Center
+401371920,2021,2021-11-12,Oregon Ducks,SMU Mustangs,86,63,50.0,35.0,36.0,28.0,False,Matthew Knight Arena
+401371744,2021,2021-11-12,Alabama Crimson Tide,South Dakota State Jackrabbits,104,88,41.0,38.0,63.0,50.0,False,Coleman Coliseum
+401371812,2021,2021-11-12,Houston Cougars,Rice Owls,79,46,44.0,15.0,35.0,31.0,False,Fertitta Center
+401365212,2021,2021-11-12,Ohio State Buckeyes,Niagara Purple Eagles,84,74,42.0,41.0,42.0,33.0,False,Value City Arena
+401369944,2021,2021-11-12,North Carolina Tar Heels,Brown Bears,94,87,47.0,50.0,47.0,37.0,False,Dean E. Smith Center
+401371833,2021,2021-11-12,Auburn Tigers,UL Monroe Warhawks,93,65,37.0,39.0,56.0,26.0,False,Neville Arena
+401370037,2021,2021-11-12,Virginia Cavaliers,Radford Highlanders,73,52,41.0,21.0,32.0,31.0,False,John Paul Jones Arena
+401371253,2021,2021-11-13,Gonzaga Bulldogs,Texas Longhorns,86,74,47.0,27.0,39.0,47.0,False,McCarthey Athletic Center
+401371915,2021,2021-11-13,Memphis Tigers,North Carolina Central Eagles,90,51,38.0,23.0,52.0,28.0,False,FedExForum
+401371825,2021,2021-11-13,Arkansas Razorbacks,Gardner-Webb Runnin' Bulldogs,86,69,42.0,26.0,44.0,43.0,False,Bud Walton Arena
+401370795,2021,2021-11-13,UConn Huskies,Coppin State Eagles,89,54,46.0,28.0,43.0,26.0,False,PeoplesBank Arena
+401371893,2021,2021-11-14,Tennessee Volunteers,East Tennessee State Buccaneers,94,62,46.0,23.0,48.0,39.0,False,Food City Center
+401369871,2021,2021-11-14,Florida Gators,Florida State Seminoles,71,55,28.0,30.0,43.0,25.0,False,Stephen C. O'Connell Center
+401365222,2021,2021-11-14,St. Bonaventure Bonnies,Canisius Golden Griffins,69,60,26.0,31.0,43.0,29.0,False,Reilly Center
+401371256,2021,2021-11-15,Gonzaga Bulldogs,Alcorn State Braves,84,57,45.0,21.0,39.0,36.0,False,McCarthey Athletic Center
+401373629,2021,2021-11-15,UCLA Bruins,Long Beach State Beach,100,79,48.0,45.0,52.0,34.0,False,Pauley Pavilion
+401371978,2021,2021-11-15,Baylor Bears,Nicholls Colonels,89,60,48.0,28.0,41.0,32.0,False,Ferrell Center
+401365009,2021,2021-11-15,Ohio State Buckeyes,Bowling Green Falcons,89,58,41.0,18.0,48.0,40.0,False,Value City Arena
+401372033,2021,2021-11-16,Villanova Wildcats,Howard Bison,100,81,52.0,44.0,48.0,37.0,False,Finneran Pavilion
+401372165,2021,2021-11-16,Purdue Boilermakers,Wright State Raiders,96,52,51.0,17.0,45.0,35.0,False,Mackey Arena
+401369853,2021,2021-11-16,Duke Blue Devils,Gardner-Webb Runnin' Bulldogs,92,52,47.0,27.0,45.0,25.0,False,Cameron Indoor Stadium
+401371777,2021,2021-11-16,Memphis Tigers,Saint Louis Billikens,90,74,42.0,27.0,48.0,47.0,False,FedExForum
+401371820,2021,2021-11-16,Alabama Crimson Tide,South Alabama Jaguars,73,68,31.0,34.0,42.0,34.0,False,Coleman Coliseum
+401370038,2021,2021-11-16,Houston Cougars,Virginia Cavaliers,67,47,36.0,23.0,31.0,24.0,False,Fertitta Center
+401369945,2021,2021-11-16,Charleston Cougars,North Carolina Tar Heels,83,94,42.0,36.0,41.0,58.0,False,TD Arena
+401369155,2021,2021-11-17,UCLA Bruins,North Florida Ospreys,98,63,55.0,33.0,43.0,30.0,False,Pauley Pavilion
+401369153,2021,2021-11-17,Baylor Bears,Central Arkansas Bears,92,47,43.0,20.0,49.0,27.0,False,Ferrell Center
+401371826,2021,2021-11-17,Arkansas Razorbacks,Northern Iowa Panthers,93,80,40.0,38.0,53.0,42.0,False,Bud Walton Arena
+401371088,2021,2021-11-17,Maryland Terrapins,George Mason Patriots,66,71,31.0,32.0,35.0,39.0,False,XFINITY Center
+401372027,2021,2021-11-17,UConn Huskies,Long Island University Sharks,93,40,38.0,22.0,55.0,18.0,False,Gampel Pavilion
+401370985,2021,2021-11-18,Kansas Jayhawks,Stony Brook Seawolves,88,59,38.0,32.0,50.0,27.0,False,Allen Fieldhouse
+401371840,2021,2021-11-18,Florida Gators,Milwaukee Panthers,81,45,33.0,22.0,48.0,23.0,False,Stephen C. O'Connell Center
+401369854,2021,2021-11-19,Duke Blue Devils,Lafayette Leopards,88,55,35.0,27.0,53.0,28.0,False,Cameron Indoor Stadium
+401371916,2021,2021-11-19,Memphis Tigers,Western Kentucky Hilltoppers,74,62,38.0,38.0,36.0,24.0,False,FedExForum
+401371821,2021,2021-11-19,Alabama Crimson Tide,Oakland Golden Grizzlies,86,59,38.0,26.0,48.0,33.0,False,Coleman Coliseum
+401372178,2021,2021-11-19,Maryland Terrapins,Hofstra Pride,69,67,34.0,31.0,35.0,36.0,False,XFINITY Center
+401371834,2021,2021-11-19,South Florida Bulls,Auburn Tigers,52,58,33.0,26.0,19.0,32.0,False,Benchmark International Arena
+401371980,2021,2021-11-20,Baylor Bears,Stanford Cardinal,86,48,34.0,28.0,52.0,20.0,False,Ferrell Center
+401370947,2021,2021-11-20,UConn Huskies,Binghamton Bearcats,87,63,37.0,22.0,50.0,41.0,False,PeoplesBank Arena
+401377057,2021,2021-11-21,Elon Phoenix,Temple Owls,58,75,33.0,26.0,25.0,49.0,True,TD Arena
+401377030,2021,2021-11-21,Weber State Wildcats,Green Bay Phoenix,68,58,39.0,30.0,29.0,28.0,True,McArthur Center
+401376536,2021,2021-11-21,Holy Cross Crusaders,Bryant Bulldogs,62,78,25.0,39.0,37.0,39.0,True,Ocean Center
+401372038,2021,2021-11-21,Xavier Musketeers,Norfolk State Spartans,88,48,45.0,16.0,43.0,32.0,False,Cintas Center
+401365019,2021,2021-11-21,Northern Illinois Huskies,Boston University Terriers,58,76,22.0,32.0,36.0,44.0,True,UNF Arena
+401377043,2021,2021-11-21,Old Dominion Monarchs,Pennsylvania Quakers,63,71,25.0,31.0,38.0,40.0,True,The HTC Center
+401377064,2021,2021-11-21,Purdue Boilermakers,Villanova Wildcats,80,74,31.0,33.0,49.0,41.0,True,Mohegan Sun Arena
+401377055,2021,2021-11-21,Ole Miss Rebels,Boise State Broncos,50,60,27.0,21.0,23.0,39.0,True,TD Arena
+401371758,2021,2021-11-21,SIU Edwardsville Cougars,St. Thomas-Minnesota Tommies,73,86,34.0,50.0,39.0,36.0,True,Beeghly Center
+401376532,2021,2021-11-21,High Point Panthers,Georgia State Panthers,66,74,30.0,36.0,29.0,23.0,False,Qubein Center
+401365601,2021,2021-11-21,North Dakota Fighting Hawks,UT Martin Skyhawks,72,77,33.0,35.0,39.0,42.0,True,Eleanor R. Baldwin Arena
+401377032,2021,2021-11-21,Massachusetts Minutemen,Ball State Cardinals,86,89,41.0,47.0,45.0,42.0,True,McArthur Center
+401376535,2021,2021-11-21,Bethune-Cookman Wildcats,Air Force Falcons,65,73,41.0,39.0,24.0,34.0,True,Ocean Center
+401371378,2021,2021-11-21,Sam Houston Bearkats,Little Rock Trojans,77,59,36.0,21.0,41.0,38.0,True,UNF Arena
+401377045,2021,2021-11-21,Oklahoma Sooners,Utah State Aggies,70,73,30.0,32.0,40.0,41.0,True,The HTC Center
+401374292,2021,2021-11-21,South Dakota Coyotes,Tennessee State Tigers,83,66,42.0,38.0,41.0,28.0,False,Sanford Coyote Sports Center
+401373772,2021,2021-11-21,Oregon State Beavers,Princeton Tigers,80,81,39.0,41.0,41.0,40.0,False,Gill Coliseum
+401373090,2021,2021-11-21,Furman Paladins,Navy Midshipmen,66,77,31.0,38.0,35.0,39.0,False,Timmons Arena
+401372822,2021,2021-11-21,UAB Blazers,Alabama A&M Bulldogs,86,41,30.0,20.0,56.0,21.0,False,Bartow Arena
+401371867,2021,2021-11-21,Mississippi State Bulldogs,Morehead State Eagles,66,46,29.0,28.0,37.0,18.0,False,Humphrey Coliseum
+401371379,2021,2021-11-21,Southern Miss Golden Eagles,Lamar Cardinals,82,75,33.0,36.0,49.0,39.0,False,Reed Green Coliseum
+401377065,2021,2021-11-21,North Carolina Tar Heels,Tennessee Volunteers,72,89,32.0,39.0,40.0,50.0,True,Mohegan Sun Arena
+401365241,2021,2021-11-21,Youngstown State Penguins,Niagara Purple Eagles,53,58,20.0,27.0,33.0,31.0,False,Beeghly Center
+401388953,2021,2021-11-21,UTSA Roadrunners,Texas A&M-Corpus Christi Islanders,58,77,29.0,40.0,29.0,37.0,False,UTSA Convocation Center
+401372973,2021,2021-11-21,Longwood Lancers,Western Carolina Catamounts,53,64,27.0,29.0,26.0,35.0,False,Willett Hall
+401372727,2021,2021-11-21,Marshall Thundering Herd,Jackson State Tigers,80,66,38.0,37.0,42.0,29.0,False,Cam Henderson Center
+401372148,2021,2021-11-21,Nebraska Cornhuskers,Southern Jaguars,82,59,39.0,22.0,43.0,37.0,False,Pinnacle Bank Arena
+401370021,2021,2021-11-21,Virginia Tech Hokies,Merrimack Warriors,72,43,34.0,18.0,38.0,25.0,False,Cassell Coliseum
+401365602,2021,2021-11-21,Denver Pioneers,Houston Christian Huskies,74,61,34.0,35.0,40.0,26.0,False,Hamilton Gymnasium
+401389071,2021,2021-11-21,William & Mary Tribe,Howard Bison,76,82,45.0,44.0,31.0,38.0,True,Qubein Center
+401377054,2021,2021-11-21,West Virginia Mountaineers,Clemson Tigers,66,59,35.0,34.0,31.0,25.0,True,TD Arena
+401376534,2021,2021-11-21,Rhode Island Rams,Boston College Eagles,71,65,34.0,24.0,37.0,41.0,True,Ocean Center
+401373853,2021,2021-11-21,Wofford Terriers,Georgia Southern Eagles,70,52,29.0,24.0,41.0,28.0,False,Jerry Richardson Indoor Stadium
+401373761,2021,2021-11-21,Florida International Panthers,UNC Greensboro Spartans,74,71,36.0,37.0,29.0,28.0,True,McArthur Center
+401369873,2021,2021-11-21,Loyola Marymount Lions,Florida State Seminoles,45,73,17.0,32.0,28.0,41.0,True,UNF Arena
+401376740,2021,2021-11-21,Creighton Bluejays,Colorado State Rams,81,95,36.0,42.0,45.0,53.0,True,UVI Sports & Fitness Center
+401385572,2021,2021-11-21,Florida Gulf Coast Eagles,Eckerd Tritons,99,59,47.0,27.0,52.0,32.0,False,Alico Arena
+401377040,2021,2021-11-21,East Carolina Pirates,Davidson Wildcats,67,76,45.0,34.0,22.0,42.0,True,The HTC Center
+401371986,2021,2021-11-21,Iowa State Cyclones,Grambling Tigers,82,47,49.0,25.0,33.0,22.0,False,Hilton Coliseum
+401370095,2021,2021-11-21,NC State Wolfpack,Texas Southern Tigers,65,57,28.0,31.0,37.0,26.0,False,Lenovo Center
+401377053,2021,2021-11-21,Marquette Golden Eagles,St. Bonaventure Bonnies,54,70,25.0,33.0,29.0,37.0,True,TD Arena
+401376533,2021,2021-11-21,Tulsa Golden Hurricane,Utah Utes,58,72,24.0,33.0,34.0,39.0,True,Ocean Center
+401372115,2021,2021-11-21,Indiana Hoosiers,Louisiana Ragin' Cajuns,76,44,37.0,14.0,39.0,30.0,False,Simon Skjodt Assembly Hall
+401376741,2021,2021-11-21,Southern Illinois Salukis,Northeastern Huskies,47,59,20.0,20.0,27.0,39.0,True,UVI Sports & Fitness Center
+401371766,2021,2021-11-21,SMU Mustangs,Missouri Tigers,75,80,29.0,18.0,33.0,44.0,True,UNF Arena
+401370075,2021,2021-11-21,Miami Hurricanes,Florida A&M Rattlers,86,59,42.0,21.0,44.0,38.0,False,Watsco Center
+401377042,2021,2021-11-21,Indiana State Sycamores,New Mexico State Aggies,66,80,31.0,41.0,35.0,39.0,True,The HTC Center
+401377059,2021,2021-11-21,Arizona Wildcats,Michigan Wolverines,80,62,37.0,29.0,43.0,33.0,True,T-Mobile Arena
+401371380,2021,2021-11-21,California Baptist Lancers,Northern Colorado Bears,74,70,33.0,32.0,41.0,38.0,False,Dale E. and Sarah Ann Fowler Events Center
+401377061,2021,2021-11-21,UNLV Rebels,Wichita State Shockers,73,74,39.0,31.0,34.0,43.0,True,T-Mobile Arena
+401369855,2021,2021-11-22,Duke Blue Devils,The Citadel Bulldogs,107,81,52.0,42.0,55.0,39.0,False,Cameron Indoor Stadium
+401370937,2021,2021-11-22,Kentucky Wildcats,UAlbany Great Danes,86,61,37.0,28.0,49.0,33.0,False,Rupp Arena
+401371382,2021,2021-11-22,USC Trojans,Utah Tech Trailblazers,98,71,47.0,36.0,51.0,35.0,False,Galen Center
+401376732,2021,2021-11-23,Evansville Purple Aces,Vermont Catamounts,49,58,23.0,24.0,26.0,34.0,True,Hertz Arena
+401372554,2021,2021-11-23,Chattanooga Mocs,Covenant Fighting Scots,100,39,48.0,16.0,52.0,23.0,False,McKenzie Arena
+401376634,2021,2021-11-23,James Madison Dukes,Wright State Raiders,78,76,36.0,46.0,42.0,30.0,True,Moe Kent Family Field House
+401371118,2021,2021-11-23,Yale Bulldogs,Southern Utah Thunderbirds,85,88,39.0,33.0,34.0,40.0,True,Suncoast Credit Union Arena
+401365245,2021,2021-11-23,Rider Broncs,Middle Tennessee Blue Raiders,54,60,33.0,24.0,21.0,36.0,True,Hard Rock Hotel Riviera Maya
+401376733,2021,2021-11-23,Akron Zips,App State Mountaineers,45,57,21.0,22.0,24.0,35.0,True,Hertz Arena
+401371106,2021,2021-11-23,Towson Tigers,Pennsylvania Quakers,76,61,34.0,23.0,42.0,38.0,False,SECU Arena
+401376722,2021,2021-11-23,Butler Bulldogs,Texas A&M Aggies,50,57,21.0,33.0,29.0,24.0,True,Michelob ULTRA Arena
+401376652,2021,2021-11-23,Charlotte 49ers,Drexel Dragons,55,67,28.0,31.0,27.0,36.0,True,Baha Mar Convention Center
+401376635,2021,2021-11-23,Murray State Racers,Long Beach State Beach,80,43,43.0,16.0,37.0,27.0,True,Moe Kent Family Field House
+401365027,2021,2021-11-23,Bowling Green Falcons,Milwaukee Panthers,82,68,37.0,36.0,45.0,32.0,True,Suncoast Credit Union Arena
+401373253,2021,2021-11-23,Mercer Bears,Bucknell Bison,78,68,37.0,32.0,41.0,36.0,True,Hard Rock Hotel Riviera Maya
+401365246,2021,2021-11-23,New Hampshire Wildcats,Quinnipiac Bobcats,84,69,42.0,28.0,42.0,41.0,False,Lundholm Gymnasium
+401377086,2021,2021-11-23,Northwestern Wildcats,Georgia Bulldogs,78,62,43.0,23.0,35.0,39.0,True,Prudential Center
+401376730,2021,2021-11-23,Rice Owls,Oakland Golden Grizzlies,73,76,29.0,34.0,44.0,42.0,True,Hertz Arena
+401376724,2021,2021-11-23,Houston Cougars,Wisconsin Badgers,63,65,20.0,40.0,43.0,25.0,True,Michelob ULTRA Arena
+401369164,2021,2021-11-23,Liberty Flames,Bethune-Cookman Wildcats,59,51,34.0,29.0,25.0,22.0,True,Ocean Center
+401376653,2021,2021-11-23,Toledo Rockets,Tulane Green Wave,68,67,42.0,32.0,26.0,35.0,True,Baha Mar Convention Center
+401376636,2021,2021-11-23,Kent State Golden Flashes,George Washington Revolutionaries,77,69,33.0,26.0,44.0,43.0,True,Moe Kent Family Field House
+401365028,2021,2021-11-23,Buffalo Bulls,Stephen F. Austin Lumberjacks,78,79,28.0,38.0,50.0,41.0,True,Hard Rock Hotel Riviera Maya
+401385595,2021,2021-11-23,Miami (OH) RedHawks,Defiance Yellow Jackets,99,47,45.0,20.0,54.0,27.0,False,Millett Hall
+401384959,2021,2021-11-23,George Mason Patriots,Nevada Wolf Pack,69,88,31.0,36.0,38.0,52.0,True,Sanford Pentagon
+401381700,2021,2021-11-23,Norfolk State Spartans,Regent Royals,95,20,42.0,8.0,53.0,12.0,False,Joseph G. Echols Hall
+401381650,2021,2021-11-23,Merrimack Warriors,Hartford Hawks,75,60,37.0,26.0,38.0,34.0,False,Hammel Court
+401380986,2021,2021-11-23,North Carolina Central Eagles,Warren Wilson Owls,110,32,61.0,17.0,49.0,15.0,False,McDougald-McLendon Arena
+401377084,2021,2021-11-23,Kansas State Wildcats,Illinois Fighting Illini,64,72,31.0,34.0,33.0,38.0,True,T-Mobile Center
+401373465,2021,2021-11-23,Tennessee Tech Golden Eagles,Lipscomb Bisons,88,77,36.0,41.0,52.0,36.0,False,Hooper Eblen Center
+401373023,2021,2021-11-23,IU Indianapolis Jaguars,Spalding Pelicans,61,41,33.0,10.0,28.0,31.0,False,Corteva Coliseum
+401373002,2021,2021-11-23,South Carolina State Bulldogs,South Carolina Upstate Spartans,78,82,32.0,35.0,46.0,47.0,False,Smith-Hammond-Middleton Memorial Center
+401372915,2021,2021-11-23,UMBC Retrievers,American University Eagles,98,67,45.0,31.0,53.0,36.0,False,Chesapeake Employers Insurance Arena
+401372728,2021,2021-11-23,Marshall Thundering Herd,Louisiana Ragin' Cajuns,93,79,42.0,47.0,51.0,32.0,False,Cam Henderson Center
+401372523,2021,2021-11-23,Maine Black Bears,Central Connecticut Blue Devils,56,64,21.0,31.0,35.0,33.0,False,Cross Insurance Center
+401372116,2021,2021-11-23,Indiana Hoosiers,Jackson State Tigers,70,35,34.0,17.0,36.0,18.0,False,Simon Skjodt Assembly Hall
+401372015,2021,2021-11-23,St. John's Red Storm,St. Francis Brooklyn Terriers,76,70,38.0,40.0,38.0,30.0,False,Carnesecca Arena
+401371886,2021,2021-11-23,South Carolina Gamecocks,Wofford Terriers,85,74,42.0,38.0,43.0,36.0,False,Colonial Life Arena
+401371052,2021,2021-11-23,Lehigh Mountain Hawks,Columbia Lions,79,72,41.0,31.0,38.0,41.0,False,Stabler Arena
+401369946,2021,2021-11-23,North Carolina Tar Heels,UNC Asheville Bulldogs,72,53,37.0,24.0,35.0,29.0,False,Dean E. Smith Center
+401369165,2021,2021-11-23,Florida Gulf Coast Eagles,Rhode Island Rams,67,66,25.0,36.0,42.0,30.0,False,Alico Arena
+401365244,2021,2021-11-23,Saint Peter's Peacocks,Long Island University Sharks,64,62,30.0,27.0,34.0,35.0,False,Yanitelli Center
+401365029,2021,2021-11-23,Bellarmine Knights,Central Michigan Chippewas,76,69,39.0,32.0,37.0,37.0,True,T-Mobile Arena
+401377087,2021,2021-11-23,Providence Friars,Virginia Cavaliers,40,58,15.0,30.0,25.0,28.0,True,Prudential Center
+401376731,2021,2021-11-23,Fordham Rams,Delaware Blue Hens,71,81,29.0,39.0,42.0,42.0,True,Hertz Arena
+401380971,2021,2021-11-23,Southern Jaguars,Ecclesia Royals,109,53,45.0,31.0,64.0,22.0,False,F.G. Clark Activity Center
+401376725,2021,2021-11-23,Saint Mary's Gaels,Oregon Ducks,62,50,23.0,15.0,39.0,35.0,True,Michelob ULTRA Arena
+401376654,2021,2021-11-23,Valparaiso Beacons,Coastal Carolina Chanticleers,61,64,30.0,26.0,31.0,38.0,True,Baha Mar Convention Center
+401376641,2021,2021-11-23,East Tennessee State Buccaneers,Missouri State Bears,77,76,45.0,43.0,32.0,33.0,True,Moe Kent Family Field House
+401374300,2021,2021-11-23,South Dakota Coyotes,Presentation College Saints,99,58,50.0,23.0,49.0,35.0,False,Sanford Coyote Sports Center
+401371738,2021,2021-11-23,Oral Roberts Golden Eagles,Rogers State Hillcats,91,31,36.0,14.0,55.0,17.0,False,Mabee Center
+401371385,2021,2021-11-23,UT Rio Grande Valley Vaqueros,Cal State Fullerton Titans,72,67,28.0,31.0,44.0,36.0,True,J. Lawrence Walkup Skydome
+401369166,2021,2021-11-23,Wake Forest Demon Deacons,Kennesaw State Owls,92,61,45.0,32.0,47.0,29.0,False,LJVM Coliseum
+401365604,2021,2021-11-23,Texas Tech Red Raiders,Omaha Mavericks,96,40,43.0,20.0,53.0,20.0,False,United Supermarkets Arena
+401371779,2021,2021-11-23,Saint Louis Billikens,Illinois State Redbirds,82,76,34.0,33.0,48.0,43.0,True,Hard Rock Hotel Riviera Maya
+401385591,2021,2021-11-23,North Alabama Lions,Oakwood Ambassadors,105,50,46.0,26.0,59.0,24.0,False,Flowers Hall
+401372149,2021,2021-11-23,Nebraska Cornhuskers,Tennessee State Tigers,79,73,38.0,41.0,41.0,32.0,False,Pinnacle Bank Arena
+401377085,2021,2021-11-23,Arkansas Razorbacks,Cincinnati Bearcats,73,67,26.0,30.0,47.0,37.0,True,T-Mobile Center
+401371749,2021,2021-11-23,South Dakota State Jackrabbits,Washington Huskies,76,87,32.0,42.0,44.0,45.0,True,Sanford Pentagon
+401378831,2021,2021-11-23,Seattle U Redhawks,Pacific Lutheran Lutes,89,40,39.0,22.0,50.0,18.0,False,Redhawk Center
+401372981,2021,2021-11-23,Stanford Cardinal,North Carolina A&T Aggies,79,65,35.0,26.0,44.0,39.0,False,Maples Pavilion
+401372477,2021,2021-11-23,San José State Spartans,Northern Colorado Bears,75,74,33.0,37.0,42.0,37.0,False,Provident Credit Union Event Center
+401371267,2021,2021-11-23,UCLA Bruins,Gonzaga Bulldogs,63,83,25.0,45.0,38.0,38.0,True,T-Mobile Arena
+401371200,2021,2021-11-23,Portland State Vikings,Portland Pilots,54,69,20.0,37.0,34.0,32.0,False,Viking Pavilion
+401376723,2021,2021-11-23,Chaminade Silverswords,Notre Dame Fighting Irish,64,90,38.0,41.0,26.0,49.0,True,Michelob ULTRA Arena
+401372606,2021,2021-11-23,Sacramento State Hornets,UC Davis Aggies,75,63,41.0,23.0,34.0,40.0,False,Golden 1 Center
+401371268,2021,2021-11-24,BYU Cougars,Texas Southern Tigers,81,64,43.0,30.0,38.0,34.0,False,Marriott Center
+401372134,2021,2021-11-24,Michigan Wolverines,Tarleton State Texans,65,54,31.0,22.0,34.0,32.0,False,Crisler Center
+401382752,2021,2021-11-25,Michigan State Spartans,UConn Huskies,64,60,32.0,24.0,32.0,36.0,True,Imperial Arena
+401370076,2021,2021-11-25,Miami Hurricanes,Dayton Flyers,60,76,25.0,36.0,35.0,40.0,True,HP Field House
+401374298,2021,2021-11-25,San Diego Toreros,South Alabama Jaguars,67,68,38.0,31.0,29.0,37.0,True,Orleans Arena
+401371701,2021,2021-11-25,New Orleans Privateers,Presbyterian Blue Hose,66,68,29.0,32.0,37.0,36.0,False,Lakefront Arena
+401389430,2021,2021-11-25,Loyola Chicago Ramblers,Auburn Tigers,53,62,32.0,34.0,21.0,28.0,True,Imperial Arena
+401370152,2021,2021-11-25,Kansas Jayhawks,North Texas Mean Green,71,59,35.0,27.0,36.0,32.0,True,HP Field House
+401373041,2021,2021-11-25,Hawai'i Rainbow Warriors,UIC Flames,88,80,43.0,34.0,45.0,46.0,True,Orleans Arena
+401369169,2021,2021-11-25,Central Arkansas Bears,VMI Keydets,67,73,32.0,35.0,35.0,38.0,True,Lakefront Arena
+401389450,2021,2021-11-25,VCU Rams,Baylor Bears,61,69,27.0,29.0,34.0,40.0,True,Imperial Arena
+401365250,2021,2021-11-25,Iona Gaels,Alabama Crimson Tide,72,68,29.0,33.0,43.0,35.0,True,HP Field House
+401372806,2021,2021-11-25,Southern Miss Golden Eagles,UC San Diego Tritons,56,55,21.0,30.0,35.0,25.0,True,Dahlberg Arena
+401372406,2021,2021-11-25,New Mexico Lobos,UAB Blazers,73,86,37.0,42.0,36.0,44.0,True,Orleans Arena
+401369826,2021,2021-11-25,Maryland Terrapins,Richmond Spiders,86,80,32.0,41.0,54.0,39.0,True,Baha Mar Convention Center
+401389451,2021,2021-11-25,Syracuse Orange,Arizona State Sun Devils,92,84,48.0,30.0,44.0,54.0,True,Imperial Arena
+401370153,2021,2021-11-25,Drake Bulldogs,Belmont Bruins,69,74,33.0,40.0,36.0,34.0,True,HP Field House
+401371771,2021,2021-11-25,Saint Joseph's Hawks,USC Trojans,55,70,26.0,38.0,29.0,32.0,True,Anaheim Convention Center
+401371170,2021,2021-11-25,Towson Tigers,San Francisco Dons,61,71,30.0,39.0,31.0,32.0,True,Orleans Arena
+401369827,2021,2021-11-25,Louisville Cardinals,Mississippi State Bulldogs,72,58,41.0,25.0,31.0,33.0,True,Baha Mar Convention Center
+401371994,2021,2021-11-25,San Diego State Aztecs,Georgetown Hoyas,73,56,40.0,32.0,33.0,24.0,True,Anaheim Convention Center
+401372230,2021,2021-11-25,Montana Grizzlies,UNC Wilmington Seahawks,0,0,,,,,False,Dahlberg Arena
+401365606,2021,2021-11-26,Purdue Boilermakers,Omaha Mavericks,97,40,52.0,17.0,45.0,23.0,False,Mackey Arena
+401369170,2021,2021-11-26,Kentucky Wildcats,North Florida Ospreys,86,52,37.0,23.0,49.0,29.0,False,Rupp Arena
+401371390,2021,2021-11-26,Illinois Fighting Illini,UT Rio Grande Valley Vaqueros,94,85,39.0,37.0,55.0,48.0,False,State Farm Center
+401371894,2021,2021-11-26,Tennessee Volunteers,Tennessee Tech Golden Eagles,80,69,34.0,35.0,46.0,34.0,False,Food City Center
+401372482,2021,2021-11-27,UNLV Rebels,UCLA Bruins,51,73,22.0,37.0,29.0,36.0,False,Thomas & Mack Center
+401371783,2021,2021-11-27,St. Bonaventure Bonnies,Northern Iowa Panthers,80,90,34.0,47.0,46.0,43.0,False,Reilly Center
+401372607,2021,2021-11-27,Arizona Wildcats,Sacramento State Hornets,105,59,47.0,22.0,58.0,37.0,False,McKale Memorial Center
+401371273,2021,2021-11-27,Utah Utes,BYU Cougars,64,75,29.0,27.0,35.0,48.0,False,Jon M. Huntsman Center
+401365747,2021,2021-11-28,La Salle Explorers,Villanova Wildcats,46,72,17.0,42.0,29.0,30.0,True,The Palestra
+401371107,2021,2021-11-28,Arkansas Razorbacks,Pennsylvania Quakers,76,60,37.0,26.0,39.0,34.0,False,Bud Walton Arena
+401372021,2021,2021-11-28,Seton Hall Pirates,Bethune-Cookman Wildcats,84,70,33.0,34.0,51.0,36.0,False,Prudential Center
+401371842,2021,2021-11-28,Florida Gators,Troy Trojans,84,45,49.0,20.0,35.0,25.0,False,Stephen C. O'Connell Center
+401371274,2021,2021-11-29,Gonzaga Bulldogs,Tarleton State Texans,64,55,26.0,25.0,38.0,30.0,False,McCarthey Athletic Center
+401365038,2021,2021-11-29,Kentucky Wildcats,Central Michigan Chippewas,85,57,51.0,25.0,34.0,32.0,False,Rupp Arena
+401371895,2021,2021-11-30,Tennessee Volunteers,Presbyterian Blue Hose,86,44,45.0,21.0,41.0,23.0,False,Food City Center
+401371612,2021,2021-11-30,Houston Cougars,Northwestern State Demons,99,58,60.0,25.0,39.0,33.0,False,Fertitta Center
+401372028,2021,2021-11-30,UConn Huskies,Maryland Eastern Shore Hawks,72,63,39.0,31.0,33.0,32.0,False,PeoplesBank Arena
+401370902,2021,2021-12-01,UCLA Bruins,Colorado Buffaloes,73,61,39.0,23.0,34.0,38.0,False,Pauley Pavilion
+401371108,2021,2021-12-01,Pennsylvania Quakers,Villanova Wildcats,56,71,21.0,33.0,35.0,38.0,False,The Palestra
+401369178,2021,2021-12-01,Arkansas Razorbacks,Central Arkansas Bears,97,60,41.0,35.0,56.0,25.0,False,Bud Walton Arena
+401371843,2021,2021-12-01,Oklahoma Sooners,Florida Gators,74,67,37.0,36.0,37.0,31.0,False,Lloyd Noble Center
+401371849,2021,2021-12-01,Georgia Bulldogs,Memphis Tigers,82,79,32.0,34.0,50.0,45.0,False,Stegeman Coliseum
+401371987,2021,2021-12-01,Iowa State Cyclones,Arkansas-Pine Bluff Golden Lions,83,64,38.0,22.0,45.0,42.0,False,Hilton Coliseum
+401370903,2021,2021-12-01,USC Trojans,Utah Utes,93,73,48.0,28.0,45.0,45.0,False,Galen Center
+401371835,2021,2021-12-01,Auburn Tigers,UCF Knights,85,68,39.0,36.0,46.0,32.0,False,Neville Arena
+401372022,2021,2021-12-01,Seton Hall Pirates,Wagner Seahawks,85,63,35.0,33.0,50.0,30.0,False,Prudential Center
+401370906,2021,2021-12-02,Arizona Wildcats,Washington Huskies,0,0,,,,,False,McKale Memorial Center
+401364342,2021,2021-12-03,Purdue Boilermakers,Iowa Hawkeyes,77,70,39.0,26.0,38.0,44.0,False,Mackey Arena
+401371404,2021,2021-12-03,Texas Longhorns,UT Rio Grande Valley Vaqueros,88,58,46.0,41.0,42.0,17.0,False,Frank Erwin Center
+401371813,2021,2021-12-03,Houston Cougars,Bryant Bulldogs,111,44,52.0,21.0,59.0,23.0,False,Fertitta Center
+401371981,2021,2021-12-04,Baylor Bears,Arkansas-Pine Bluff Golden Lions,99,54,44.0,21.0,55.0,33.0,False,Ferrell Center
+401371772,2021,2021-12-04,Villanova Wildcats,Saint Joseph's Hawks,81,52,34.0,22.0,47.0,30.0,False,Finneran Pavilion
+401371827,2021,2021-12-04,Arkansas Razorbacks,Little Rock Trojans,93,78,49.0,34.0,44.0,44.0,False,Bud Walton Arena
+401371283,2021,2021-12-04,Missouri State Bears,BYU Cougars,68,74,27.0,35.0,41.0,39.0,False,Great Southern Bank Arena
+401371896,2021,2021-12-04,Colorado Buffaloes,Tennessee Volunteers,54,69,24.0,34.0,30.0,35.0,False,CU Events Center
+401372029,2021,2021-12-04,UConn Huskies,Grambling Tigers,88,59,47.0,30.0,41.0,29.0,False,Gampel Pavilion
+401371880,2021,2021-12-04,Ole Miss Rebels,Memphis Tigers,67,63,30.0,26.0,37.0,37.0,False,The Sandy and John Black Pavilion at Ole Miss
+401370907,2021,2021-12-04,Washington State Cougars,USC Trojans,61,63,32.0,30.0,29.0,33.0,False,Beasley Coliseum
+401371120,2021,2021-12-04,Auburn Tigers,Yale Bulldogs,86,64,47.0,30.0,39.0,34.0,False,Neville Arena
+401365047,2021,2021-12-04,Michigan State Spartans,Toledo Rockets,81,68,43.0,23.0,38.0,45.0,False,Breslin Center
+401372004,2021,2021-12-04,Wisconsin Badgers,Marquette Golden Eagles,89,76,34.0,31.0,55.0,45.0,False,Kohl Center
+401372135,2021,2021-12-04,Michigan Wolverines,San Diego State Aztecs,72,58,36.0,34.0,36.0,24.0,False,Crisler Center
+401372023,2021,2021-12-04,Seton Hall Pirates,Alliance University Warriors,113,67,48.0,34.0,65.0,33.0,False,Walsh Gymnasium
+401370908,2021,2021-12-05,Oregon State Beavers,Arizona Wildcats,65,90,36.0,44.0,29.0,46.0,False,Gill Coliseum
+401370931,2021,2021-12-05,Washington Huskies,UCLA Bruins,0,0,,,,,False,Alaska Airlines Arena
+401371814,2021,2021-12-06,Houston Cougars,Alcorn State Braves,77,45,39.0,19.0,38.0,26.0,False,Fertitta Center
+401371844,2021,2021-12-06,Florida Gators,Texas Southern Tigers,54,69,25.0,35.0,29.0,34.0,False,Stephen C. O'Connell Center
+401372006,2021,2021-12-07,Kansas Jayhawks,UTEP Miners,78,52,42.0,21.0,36.0,31.0,False,T-Mobile Center
+401371855,2021,2021-12-07,Kentucky Wildcats,Southern Jaguars,76,64,38.0,34.0,38.0,30.0,False,Rupp Arena
+401371828,2021,2021-12-07,Arkansas Razorbacks,Charlotte 49ers,86,66,41.0,31.0,45.0,35.0,False,Bud Walton Arena
+401373883,2021,2021-12-07,USC Trojans,Eastern Kentucky Colonels,80,68,41.0,25.0,39.0,43.0,False,Galen Center
+401372550,2021,2021-12-08,Arizona Wildcats,Wyoming Cowboys,94,65,53.0,22.0,41.0,43.0,False,McKale Memorial Center
+401364350,2021,2021-12-08,Minnesota Golden Gophers,Michigan State Spartans,67,75,24.0,37.0,43.0,38.0,False,Williams Arena
+401369193,2021,2021-12-08,Florida Gators,North Florida Ospreys,85,55,41.0,23.0,44.0,32.0,False,Stephen C. O'Connell Center
+401372157,2021,2021-12-08,Ohio State Buckeyes,Towson Tigers,85,74,33.0,32.0,52.0,42.0,False,Value City Arena
+401364349,2021,2021-12-08,Wisconsin Badgers,Indiana Hoosiers,64,59,25.0,42.0,39.0,17.0,False,Kohl Center
+401371286,2021,2021-12-08,BYU Cougars,Utah State Aggies,82,71,45.0,33.0,37.0,38.0,False,Marriott Center
+401364351,2021,2021-12-09,Rutgers Scarlet Knights,Purdue Boilermakers,70,68,36.0,35.0,34.0,33.0,False,Jersey Mike’s Arena
+401371287,2021,2021-12-09,Gonzaga Bulldogs,Merrimack Warriors,80,55,42.0,31.0,38.0,24.0,False,McCarthey Athletic Center
+401372126,2021,2021-12-09,Iowa State Cyclones,Iowa Hawkeyes,73,53,38.0,26.0,35.0,27.0,False,Hilton Coliseum
+401372510,2021,2021-12-10,Montana Grizzlies,Yellowstone Christian College Centurions,104,43,59.0,24.0,45.0,19.0,False,Dahlberg Arena
+401373425,2021,2021-12-10,Furman Paladins,App State Mountaineers,73,65,40.0,36.0,33.0,29.0,False,Timmons Arena
+401373024,2021,2021-12-10,Tennessee State Tigers,IU Indianapolis Jaguars,70,44,33.0,17.0,37.0,27.0,False,Gentry Center
+401372195,2021,2021-12-10,Delaware Blue Hens,Moravian Greyhounds,94,55,51.0,24.0,43.0,31.0,False,Bob Carpenter Center
+401371065,2021,2021-12-10,Brown Bears,Vermont Catamounts,65,70,23.0,29.0,42.0,41.0,False,Pizzitola Sports Center
+401370971,2021,2021-12-10,NJIT Highlanders,Army Black Knights,49,66,23.0,30.0,26.0,36.0,False,Joel & Diane Bloom Wellness and Events Center
+401370157,2021,2021-12-10,South Carolina State Bulldogs,High Point Panthers,67,66,35.0,30.0,32.0,36.0,True,Rock Hill Sports & Event Center
+401369195,2021,2021-12-10,Bellarmine Knights,Midway University Eagles,89,39,45.0,17.0,44.0,22.0,False,Freedom Hall (KY)
+401372249,2021,2021-12-10,Kansas City Roos,Green Bay Phoenix,64,55,22.0,19.0,42.0,36.0,False,Swinney Center
+401371917,2021,2021-12-10,Memphis Tigers,Murray State Racers,72,74,40.0,26.0,32.0,48.0,False,FedExForum
+401371912,2021,2021-12-10,Vanderbilt Commodores,Loyola Chicago Ramblers,58,69,27.0,30.0,31.0,39.0,False,Memorial Gymnasium (TN)
+401370127,2021,2021-12-10,Louisville Cardinals,DePaul Blue Demons,55,62,29.0,26.0,26.0,36.0,False,KFC Yum! Center
+401365623,2021,2021-12-10,North Dakota State Bison,Cal State Northridge Matadors,68,54,32.0,25.0,36.0,29.0,False,Scheels Center
+401372377,2021,2021-12-10,Boise State Broncos,Prairie View A&M Panthers,97,60,36.0,23.0,61.0,37.0,False,ExtraMile Arena
+401373028,2021,2021-12-10,Colorado Buffaloes,Milwaukee Panthers,65,54,28.0,24.0,37.0,30.0,False,CU Events Center
+401372005,2021,2021-12-11,Marquette Golden Eagles,UCLA Bruins,56,67,21.0,35.0,35.0,32.0,False,Fiserv Forum
+401371875,2021,2021-12-11,Kansas Jayhawks,Missouri Tigers,102,65,49.0,27.0,53.0,38.0,False,Allen Fieldhouse
+401371815,2021,2021-12-11,Alabama Crimson Tide,Houston Cougars,83,82,44.0,41.0,39.0,41.0,False,Coleman Coliseum
+401369965,2021,2021-12-11,Notre Dame Fighting Irish,Kentucky Wildcats,66,62,28.0,30.0,38.0,32.0,False,Purcell Pavilion
+401372112,2021,2021-12-11,Illinois Fighting Illini,Arizona Wildcats,79,83,42.0,38.0,37.0,45.0,False,State Farm Center
+401371829,2021,2021-12-11,Oklahoma Sooners,Arkansas Razorbacks,88,66,39.0,33.0,49.0,33.0,True,BOK Center
+401371898,2021,2021-12-11,Tennessee Volunteers,UNC Greensboro Spartans,76,36,33.0,15.0,43.0,21.0,False,Food City Center
+401364353,2021,2021-12-11,Michigan State Spartans,Penn State Nittany Lions,80,64,42.0,29.0,38.0,35.0,False,Breslin Center
+401364354,2021,2021-12-11,Ohio State Buckeyes,Wisconsin Badgers,73,55,34.0,29.0,39.0,26.0,False,Value City Arena
+401371288,2021,2021-12-11,Creighton Bluejays,BYU Cougars,83,71,48.0,30.0,35.0,41.0,True,Sanford Pentagon
+401373640,2021,2021-12-12,USC Trojans,Long Beach State Beach,73,62,38.0,38.0,35.0,24.0,False,Galen Center
+401371988,2021,2021-12-12,Iowa State Cyclones,Jackson State Tigers,47,37,28.0,20.0,19.0,17.0,False,Hilton Coliseum
+401371292,2021,2021-12-12,Gonzaga Bulldogs,Washington Huskies,0,0,,,,,False,McCarthey Athletic Center
+401365064,2021,2021-12-13,Chicago State Cougars,Northern Illinois Huskies,59,70,27.0,23.0,32.0,47.0,False,Jones Convocation Center
+401372916,2021,2021-12-13,Princeton Tigers,UMBC Retrievers,89,77,43.0,39.0,46.0,38.0,False,Jadwin Gymnasium
+401373811,2021,2021-12-13,App State Mountaineers,Erskine Flying Fleet,69,44,30.0,17.0,39.0,27.0,False,Holmes Convocation Center
+401385922,2021,2021-12-13,Stetson Hatters,Johnson University Florida Suns,104,58,52.0,22.0,52.0,36.0,False,Edmunds Center
+401378796,2021,2021-12-13,Nicholls Colonels,Blue Mountain Toppers,87,69,39.0,35.0,48.0,34.0,False,David R. Stopher Gymnasium
+401372545,2021,2021-12-13,Long Island University Sharks,Merchant Marine Academy Mariners,106,48,61.0,27.0,45.0,21.0,False,Steinberg Wellness Center
+401371581,2021,2021-12-13,George Washington Revolutionaries,Radford Highlanders,67,58,27.0,22.0,40.0,36.0,False,Charles E. Smith Center
+401370981,2021,2021-12-13,New Hampshire Wildcats,Keene St Owls,92,54,42.0,31.0,50.0,23.0,False,Lundholm Gymnasium
+401369203,2021,2021-12-13,Liberty Flames,Carver College Cougars,95,36,48.0,21.0,47.0,15.0,False,Liberty Arena (VA)
+401369202,2021,2021-12-13,Jacksonville State Gamecocks,LaGrange Panthers,110,80,42.0,40.0,68.0,40.0,False,Pete Mathews Coliseum
+401372245,2021,2021-12-13,Oklahoma State Cowboys,Cleveland State Vikings,98,93,46.0,45.0,38.0,39.0,False,Gallagher-Iba Arena
+401371717,2021,2021-12-13,Milwaukee Panthers,Rhode Island Rams,58,82,21.0,34.0,37.0,48.0,False,UW-Milwaukee Panther Arena
+401371061,2021,2021-12-13,Columbia Lions,Sacred Heart Pioneers,69,79,33.0,32.0,36.0,47.0,False,Levien Gymnasium
+401369915,2021,2021-12-13,Boston College Eagles,UAlbany Great Danes,57,61,26.0,35.0,31.0,26.0,False,Conte Forum
+401365627,2021,2021-12-13,North Dakota State Bison,Indiana State Sycamores,77,70,34.0,43.0,43.0,27.0,False,Scheels Center
+401392308,2021,2021-12-13,Montana Grizzlies,Nelson Lions,118,49,64.0,24.0,54.0,25.0,False,Dahlberg Arena
+401371206,2021,2021-12-13,Portland Pilots,Cal Poly Mustangs,78,77,37.0,37.0,41.0,40.0,False,Chiles Center
+401369857,2021,2021-12-14,Duke Blue Devils,South Carolina State Bulldogs,103,62,60.0,27.0,43.0,35.0,False,Cameron Indoor Stadium
+401371822,2021,2021-12-14,Memphis Tigers,Alabama Crimson Tide,92,78,37.0,32.0,55.0,46.0,False,FedExForum
+401371837,2021,2021-12-14,Auburn Tigers,North Alabama Lions,70,44,32.0,27.0,38.0,17.0,False,Neville Arena
+401371816,2021,2021-12-14,Houston Cougars,Louisiana Ragin' Cajuns,71,56,41.0,23.0,30.0,33.0,False,Fertitta Center
+401372311,2021,2021-12-14,Texas Longhorns,Arkansas-Pine Bluff Golden Lions,63,31,34.0,16.0,29.0,15.0,False,Frank Erwin Center
+401371899,2021,2021-12-14,Tennessee Volunteers,South Carolina Upstate Spartans,96,52,51.0,24.0,45.0,28.0,False,Food City Center
+401371625,2021,2021-12-14,LSU Tigers,Northwestern State Demons,89,49,41.0,15.0,48.0,34.0,False,Pete Maravich Assembly Center
+401372316,2021,2021-12-14,Texas Tech Red Raiders,Arkansas State Red Wolves,75,62,45.0,28.0,30.0,34.0,False,United Supermarkets Arena
+401372590,2021,2021-12-15,Arizona Wildcats,Northern Colorado Bears,101,76,52.0,42.0,49.0,34.0,False,McKale Memorial Center
+401373643,2021,2021-12-15,USC Trojans,UC Irvine Anteaters,66,61,28.0,36.0,38.0,25.0,False,Galen Center
+401372041,2021,2021-12-15,Xavier Musketeers,Morehead State Eagles,86,63,47.0,19.0,39.0,44.0,False,Cintas Center
+401373879,2021,2021-12-15,UCLA Bruins,Alabama State Hornets,0,0,,,,,False,Pauley Pavilion
+401369858,2021,2021-12-16,Duke Blue Devils,App State Mountaineers,92,67,50.0,37.0,42.0,30.0,False,Cameron Indoor Stadium
+401373511,2021,2021-12-17,Creighton Bluejays,Villanova Wildcats,79,59,39.0,30.0,40.0,29.0,False,CHI Health Center Omaha
+401371982,2021,2021-12-18,Oregon Ducks,Baylor Bears,70,78,39.0,35.0,31.0,43.0,False,Matthew Knight Arena
+401393747,2021,2021-12-18,Duke Blue Devils,Elon Phoenix,87,56,44.0,26.0,43.0,30.0,False,Cameron Indoor Stadium
+401369209,2021,2021-12-18,Alabama Crimson Tide,Jacksonville State Gamecocks,65,59,29.0,28.0,36.0,31.0,False,Coleman Coliseum
+401372251,2021,2021-12-18,Kansas Jayhawks,Stephen F. Austin Lumberjacks,80,72,38.0,31.0,42.0,41.0,False,Allen Fieldhouse
+401371430,2021,2021-12-18,Arizona Wildcats,California Baptist Lancers,84,60,40.0,33.0,44.0,27.0,False,McKale Memorial Center
+401365753,2021,2021-12-18,Saint Louis Billikens,Auburn Tigers,70,74,27.0,35.0,43.0,39.0,False,Chaifetz Arena
+401371817,2021,2021-12-18,Houston Cougars,Oklahoma State Cowboys,72,61,35.0,30.0,37.0,31.0,True,Dickies Arena
+401371862,2021,2021-12-18,Louisiana Tech Bulldogs,LSU Tigers,57,66,35.0,27.0,22.0,39.0,True,Brookshire Grocery Arena
+401373512,2021,2021-12-18,UConn Huskies,Providence Friars,53,57,22.0,31.0,31.0,26.0,False,PeoplesBank Arena
+401373513,2021,2021-12-18,Xavier Musketeers,Marquette Golden Eagles,80,71,38.0,36.0,42.0,35.0,False,Cintas Center
+401371830,2021,2021-12-18,Arkansas Razorbacks,Hofstra Pride,81,89,32.0,40.0,49.0,49.0,True,Simmons Bank Arena
+401371900,2021,2021-12-18,Memphis Tigers,Tennessee Volunteers,0,0,,,,,True,Bridgestone Arena
+401371939,2021,2021-12-18,Tulsa Golden Hurricane,Colorado State Rams,0,0,,,,,True,Dickies Arena
+401371989,2021,2021-12-19,Iowa State Cyclones,SE Louisiana Lions,77,54,25.0,17.0,52.0,37.0,False,Hilton Coliseum
+401371983,2021,2021-12-20,Baylor Bears,Alcorn State Braves,94,57,50.0,31.0,44.0,26.0,False,Ferrell Center
+401372166,2021,2021-12-20,Purdue Boilermakers,Incarnate Word Cardinals,79,59,45.0,27.0,34.0,32.0,False,Mackey Arena
+401371299,2021,2021-12-20,Gonzaga Bulldogs,Northern Arizona Lumberjacks,95,49,48.0,30.0,47.0,19.0,False,McCarthey Athletic Center
+401373514,2021,2021-12-20,Seton Hall Pirates,St. John's Red Storm,0,0,,,,,False,Prudential Center
+401371435,2021,2021-12-21,Iowa State Cyclones,Chicago State Cougars,79,48,34.0,23.0,45.0,25.0,False,Hilton Coliseum
+401395130,2021,2021-12-21,Alabama Crimson Tide,Davidson Wildcats,78,79,35.0,41.0,43.0,38.0,True,Legacy Arena at BJCC
+401372139,2021,2021-12-21,Oakland Golden Grizzlies,Michigan State Spartans,78,90,35.0,44.0,43.0,46.0,True,Little Caesars Arena
+401373516,2021,2021-12-21,Villanova Wildcats,Xavier Musketeers,71,58,30.0,38.0,41.0,20.0,False,Finneran Pavilion
+401372252,2021,2021-12-21,Colorado Buffaloes,Kansas Jayhawks,0,0,,,,,False,CU Events Center
+401373884,2021,2021-12-21,Oklahoma State Cowboys,USC Trojans,0,0,,,,,True,Paycom Center
+401369860,2021,2021-12-22,Duke Blue Devils,Virginia Tech Hokies,76,65,32.0,36.0,44.0,29.0,False,Cameron Indoor Stadium
+401371901,2021,2021-12-22,Tennessee Volunteers,Arizona Wildcats,77,73,34.0,21.0,43.0,52.0,False,Food City Center
+401371838,2021,2021-12-22,Auburn Tigers,Murray State Racers,71,58,37.0,27.0,34.0,31.0,False,Neville Arena
+401371818,2021,2021-12-22,Houston Cougars,Texas State Bobcats,80,47,45.0,22.0,35.0,25.0,False,Fertitta Center
+401396269,2021,2021-12-22,Texas Longhorns,Alabama State Hornets,68,48,29.0,25.0,39.0,23.0,False,Frank Erwin Center
+401371863,2021,2021-12-22,LSU Tigers,Lipscomb Bisons,95,60,48.0,24.0,47.0,36.0,False,Pete Maravich Assembly Center
+401396290,2021,2021-12-22,Kentucky Wildcats,Western Kentucky Hilltoppers,95,60,37.0,28.0,58.0,32.0,False,Rupp Arena
+401372317,2021,2021-12-22,Texas Tech Red Raiders,Eastern Washington Eagles,78,46,50.0,27.0,28.0,19.0,False,United Supermarkets Arena
+401373880,2021,2021-12-22,UCLA Bruins,Cal Poly Mustangs,0,0,,,,,False,Pauley Pavilion
+401373518,2021,2021-12-22,Providence Friars,Georgetown Hoyas,0,0,,,,,False,Amica Mutual Pavilion
+401373520,2021,2021-12-23,DePaul Blue Demons,Seton Hall Pirates,0,0,,,,,False,Wintrust Arena
+401396710,2021,2021-12-23,Wisconsin Badgers,George Mason Patriots,0,0,,,,,False,Kohl Center
+401376687,2021,2021-12-25,South Florida Bulls,Wyoming Cowboys,57,77,33.0,33.0,24.0,44.0,True,Stan Sheriff Center
+401376690,2021,2021-12-25,BYU Cougars,Liberty Flames,80,75,32.0,33.0,48.0,42.0,True,Stan Sheriff Center
+401376689,2021,2021-12-25,Hawai'i Rainbow Warriors,Northern Iowa Panthers,0,0,,,,,False,Stan Sheriff Center
+401376691,2021,2021-12-25,Vanderbilt Commodores,Stanford Cardinal,0,0,,,,,True,Stan Sheriff Center
+401397437,2021,2021-12-27,Syracuse Orange,Brown Bears,93,62,38.0,32.0,55.0,30.0,False,JMA Wireless Dome
+401393885,2021,2021-12-27,Texas A&M Aggies,Dallas Christian Crusaders,102,52,54.0,18.0,48.0,34.0,False,Reed Arena
+401378594,2021,2021-12-27,Morgan State Bears,Penn State - Wilkes-Barre Mountain Lions,0,0,,,,,False,Hill Field House
+401371634,2021,2021-12-28,Baylor Bears,Northwestern State Demons,104,68,58.0,30.0,46.0,38.0,False,Ferrell Center
+401371304,2021,2021-12-28,Gonzaga Bulldogs,North Alabama Lions,93,63,47.0,25.0,46.0,38.0,False,McCarthey Athletic Center
+401373861,2021,2021-12-28,Texas Longhorns,Incarnate Word Cardinals,78,33,39.0,14.0,39.0,19.0,False,Frank Erwin Center
+401372318,2021,2021-12-28,Texas Tech Red Raiders,Alabama State Hornets,75,53,42.0,27.0,33.0,26.0,False,United Supermarkets Arena
+401377691,2021,2021-12-28,Houston Cougars,Cincinnati Bearcats,0,0,,,,,False,Fertitta Center
+401371635,2021,2021-12-28,Ohio State Buckeyes,New Orleans Privateers,0,0,,,,,False,Value City Arena
+401364709,2021,2021-12-28,New Mexico Lobos,Colorado State Rams,0,0,,,,,False,The Pit
+401373521,2021,2021-12-28,Xavier Musketeers,UConn Huskies,0,0,,,,,False,Cintas Center
+401372167,2021,2021-12-29,Purdue Boilermakers,Nicholls Colonels,104,90,55.0,36.0,49.0,54.0,False,Mackey Arena
+401398463,2021,2021-12-29,Kansas Jayhawks,Nevada Wolf Pack,88,61,39.0,27.0,49.0,34.0,False,Allen Fieldhouse
+401372140,2021,2021-12-29,Michigan State Spartans,High Point Panthers,81,68,34.0,35.0,47.0,33.0,False,Breslin Center
+401364842,2021,2021-12-29,Auburn Tigers,LSU Tigers,70,55,32.0,21.0,38.0,34.0,False,Neville Arena
+401364841,2021,2021-12-29,Alabama Crimson Tide,Tennessee Volunteers,73,68,33.0,33.0,40.0,35.0,False,Coleman Coliseum
+401373524,2021,2021-12-29,Providence Friars,Seton Hall Pirates,70,65,36.0,27.0,34.0,38.0,False,Amica Mutual Pavilion
+401364839,2021,2021-12-29,Kentucky Wildcats,Missouri Tigers,83,56,44.0,27.0,39.0,29.0,False,Rupp Arena
+401372176,2021,2021-12-29,Wisconsin Badgers,Illinois State Redbirds,89,85,46.0,36.0,43.0,49.0,False,Kohl Center
+401369933,2021,2021-12-29,Clemson Tigers,Duke Blue Devils,0,0,,,,,False,Littlejohn Coliseum
+401372035,2021,2021-12-29,Villanova Wildcats,Temple Owls,0,0,,,,,False,Finneran Pavilion
+401371213,2021,2021-12-30,San Diego Toreros,Gonzaga Bulldogs,0,0,,,,,False,Jenny Craig Pavilion
+401377369,2021,2021-12-30,UCLA Bruins,Arizona Wildcats,0,0,,,,,False,Pauley Pavilion
+401377391,2021,2021-12-30,USC Trojans,Arizona State Sun Devils,0,0,,,,,False,Galen Center
+401371857,2021,2021-12-31,Kentucky Wildcats,High Point Panthers,92,48,43.0,25.0,49.0,23.0,False,Rupp Arena
+401368352,2022,2022-01-01,Iowa State Cyclones,Baylor Bears,72,77,33.0,41.0,39.0,36.0,False,Hilton Coliseum
+401398910,2022,2022-01-01,Kansas Jayhawks,George Mason Patriots,76,67,48.0,37.0,28.0,30.0,False,Allen Fieldhouse
+401373527,2022,2022-01-01,Seton Hall Pirates,Villanova Wildcats,67,73,28.0,31.0,39.0,42.0,False,Prudential Center
+401368356,2022,2022-01-01,Texas Longhorns,West Virginia Mountaineers,74,59,39.0,20.0,35.0,39.0,False,Frank Erwin Center
+401373529,2022,2022-01-01,DePaul Blue Demons,Providence Friars,53,70,17.0,42.0,36.0,28.0,False,Wintrust Arena
+401369968,2022,2022-01-01,Notre Dame Fighting Irish,Duke Blue Devils,0,0,,,,,False,Purcell Pavilion
+401371306,2022,2022-01-01,Loyola Marymount Lions,Gonzaga Bulldogs,0,0,,,,,False,Gersten Pavilion
+401377392,2022,2022-01-01,UCLA Bruins,Arizona State Sun Devils,0,0,,,,,False,Pauley Pavilion
+401368355,2022,2022-01-01,Texas Tech Red Raiders,Oklahoma State Cowboys,0,0,,,,,False,United Supermarkets Arena
+401364357,2022,2022-01-02,Northwestern Wildcats,Michigan State Spartans,67,73,33.0,26.0,34.0,47.0,False,Welsh-Ryan Arena
+401377699,2022,2022-01-02,Temple Owls,Houston Cougars,61,66,29.0,40.0,32.0,26.0,False,Liacouras Center
+401364358,2022,2022-01-02,Nebraska Cornhuskers,Ohio State Buckeyes,79,87,32.0,34.0,40.0,38.0,False,Pinnacle Bank Arena
+401377395,2022,2022-01-02,USC Trojans,Arizona Wildcats,0,0,,,,,False,Galen Center
+401364360,2022,2022-01-03,Purdue Boilermakers,Wisconsin Badgers,69,74,24.0,29.0,45.0,45.0,False,Mackey Arena
+401390830,2022,2022-01-03,Arizona Wildcats,Washington Huskies,95,79,49.0,41.0,46.0,38.0,False,McKale Memorial Center
+401368358,2022,2022-01-04,Baylor Bears,Oklahoma Sooners,84,74,45.0,36.0,39.0,38.0,False,Ferrell Center
+401369861,2022,2022-01-04,Duke Blue Devils,Georgia Tech Yellow Jackets,69,57,35.0,23.0,34.0,34.0,False,Cameron Indoor Stadium
+401368359,2022,2022-01-04,Oklahoma State Cowboys,Kansas Jayhawks,63,74,29.0,29.0,34.0,45.0,False,Gallagher-Iba Arena
+401364845,2022,2022-01-04,South Carolina Gamecocks,Auburn Tigers,66,81,29.0,44.0,37.0,37.0,False,Colonial Life Arena
+401368360,2022,2022-01-04,Kansas State Wildcats,Texas Longhorns,57,70,35.0,29.0,22.0,41.0,False,Bramlage Coliseum
+401364844,2022,2022-01-04,LSU Tigers,Kentucky Wildcats,65,60,35.0,30.0,30.0,30.0,False,Pete Maravich Assembly Center
+401373533,2022,2022-01-04,Marquette Golden Eagles,Providence Friars,88,56,42.0,22.0,46.0,34.0,False,Fiserv Forum
+401364722,2022,2022-01-04,Colorado State Rams,Air Force Falcons,67,59,33.0,28.0,34.0,31.0,False,Moby Arena
+401373531,2022,2022-01-04,Butler Bulldogs,Seton Hall Pirates,56,71,26.0,34.0,30.0,37.0,False,Hinkle Fieldhouse
+401373532,2022,2022-01-04,Georgetown Hoyas,Xavier Musketeers,0,0,,,,,False,Capital One Arena
+401364362,2022,2022-01-05,Michigan State Spartans,Nebraska Cornhuskers,79,67,38.0,34.0,41.0,33.0,False,Breslin Center
+401368361,2022,2022-01-05,Iowa State Cyclones,Texas Tech Red Raiders,51,47,30.0,19.0,21.0,28.0,False,Hilton Coliseum
+401377702,2022,2022-01-05,South Florida Bulls,Houston Cougars,66,83,37.0,40.0,29.0,43.0,False,Yuengling Center
+401364848,2022,2022-01-05,Florida Gators,Alabama Crimson Tide,70,83,39.0,36.0,31.0,47.0,False,Stephen C. O'Connell Center
+401364849,2022,2022-01-05,Tennessee Volunteers,Ole Miss Rebels,66,60,19.0,21.0,32.0,30.0,False,Food City Center
+401373535,2022,2022-01-05,Villanova Wildcats,Creighton Bluejays,75,41,36.0,22.0,39.0,19.0,False,Finneran Pavilion
+401400990,2022,2022-01-05,UCLA Bruins,Arizona State Sun Devils,0,0,,,,,False,Pauley Pavilion
+401402090,2022,2022-01-06,UCLA Bruins,Long Beach State Beach,96,78,45.0,29.0,51.0,49.0,False,Pauley Pavilion
+401377400,2022,2022-01-06,California Golden Bears,USC Trojans,63,77,31.0,36.0,32.0,41.0,False,Haas Pavilion
+401364366,2022,2022-01-06,Indiana Hoosiers,Ohio State Buckeyes,67,51,33.0,30.0,34.0,21.0,False,Simon Skjodt Assembly Hall
+401364364,2022,2022-01-06,Wisconsin Badgers,Iowa Hawkeyes,87,78,45.0,32.0,42.0,46.0,False,Kohl Center
+401373536,2022,2022-01-07,Butler Bulldogs,Xavier Musketeers,72,87,31.0,42.0,41.0,45.0,False,Hinkle Fieldhouse
+401364724,2022,2022-01-07,Boise State Broncos,Colorado State Rams,0,0,,,,,False,ExtraMile Arena
+401368362,2022,2022-01-08,TCU Horned Frogs,Baylor Bears,64,76,37.0,31.0,27.0,45.0,False,Schollmaier Arena
+401369862,2022,2022-01-08,Duke Blue Devils,Miami Hurricanes,74,76,32.0,32.0,42.0,44.0,False,Cameron Indoor Stadium
+401364369,2022,2022-01-08,Penn State Nittany Lions,Purdue Boilermakers,67,74,30.0,35.0,37.0,39.0,False,Bryce Jordan Center
+401371309,2022,2022-01-08,Gonzaga Bulldogs,Pepperdine Waves,117,83,63.0,41.0,54.0,42.0,False,McCarthey Athletic Center
+401377403,2022,2022-01-08,California Golden Bears,UCLA Bruins,52,60,25.0,31.0,27.0,29.0,False,Haas Pavilion
+401364855,2022,2022-01-08,Auburn Tigers,Florida Gators,85,73,39.0,30.0,46.0,43.0,False,Neville Arena
+401368363,2022,2022-01-08,Oklahoma Sooners,Iowa State Cyclones,79,66,32.0,36.0,47.0,30.0,False,Lloyd Noble Center
+401377706,2022,2022-01-08,Houston Cougars,Wichita State Shockers,76,66,36.0,31.0,40.0,35.0,False,Fertitta Center
+401368366,2022,2022-01-08,Oklahoma State Cowboys,Texas Longhorns,64,51,30.0,28.0,34.0,23.0,False,Gallagher-Iba Arena
+401364852,2022,2022-01-08,Missouri Tigers,Alabama Crimson Tide,92,86,40.0,43.0,52.0,43.0,False,Mizzou Arena
+401373539,2022,2022-01-08,Providence Friars,St. John's Red Storm,83,73,35.0,38.0,48.0,35.0,False,Amica Mutual Pavilion
+401364853,2022,2022-01-08,Kentucky Wildcats,Georgia Bulldogs,92,77,40.0,37.0,52.0,40.0,False,Rupp Arena
+401364856,2022,2022-01-08,LSU Tigers,Tennessee Volunteers,79,67,42.0,35.0,37.0,32.0,False,Pete Maravich Assembly Center
+401373538,2022,2022-01-08,DePaul Blue Demons,Villanova Wildcats,64,79,37.0,32.0,27.0,47.0,False,Wintrust Arena
+401364723,2022,2022-01-08,San Diego State Aztecs,Colorado State Rams,79,49,36.0,32.0,43.0,17.0,False,Viejas Arena
+401373540,2022,2022-01-08,Seton Hall Pirates,UConn Huskies,90,87,37.0,41.0,40.0,36.0,False,Prudential Center
+401377404,2022,2022-01-08,Stanford Cardinal,USC Trojans,0,0,,,,,False,Maples Pavilion
+401377401,2022,2022-01-08,Arizona State Sun Devils,Arizona Wildcats,0,0,,,,,False,Desert Financial Arena
+401364367,2022,2022-01-08,Michigan Wolverines,Michigan State Spartans,0,0,,,,,False,Crisler Center
+401364371,2022,2022-01-09,Ohio State Buckeyes,Northwestern Wildcats,95,87,51.0,39.0,44.0,48.0,False,Value City Arena
+401364372,2022,2022-01-09,Maryland Terrapins,Wisconsin Badgers,69,70,26.0,33.0,43.0,37.0,False,XFINITY Center
+401370702,2022,2022-01-10,Winthrop Eagles,Campbell Fighting Camels,74,72,35.0,35.0,39.0,37.0,False,Winthrop Coliseum
+401402060,2022,2022-01-10,UNC Greensboro Spartans,Wofford Terriers,58,54,18.0,28.0,40.0,26.0,False,First Horizon Coliseum
+401381716,2022,2022-01-10,Colgate Raiders,Army Black Knights,76,57,30.0,27.0,46.0,30.0,False,Cotterell Court
+401378596,2022,2022-01-10,South Carolina State Bulldogs,Morgan State Bears,81,88,30.0,40.0,49.0,39.0,False,Smith-Hammond-Middleton Memorial Center
+401402041,2022,2022-01-10,East Tennessee State Buccaneers,Western Carolina Catamounts,87,69,42.0,25.0,45.0,44.0,False,Freedom Hall (TN)
+401381743,2022,2022-01-10,Loyola Maryland Greyhounds,Bucknell Bison,71,67,35.0,32.0,36.0,35.0,False,Reitz Arena
+401376560,2022,2022-01-10,Lehigh Mountain Hawks,Holy Cross Crusaders,77,69,35.0,26.0,42.0,43.0,False,Stabler Arena
+401373339,2022,2022-01-10,American University Eagles,Boston University Terriers,53,79,29.0,42.0,24.0,37.0,False,Bender Arena
+401373095,2022,2022-01-10,Lafayette Leopards,Navy Midshipmen,55,69,28.0,38.0,27.0,31.0,False,Kirby Sports Center
+401368260,2022,2022-01-10,IU Indianapolis Jaguars,UIC Flames,65,67,28.0,29.0,37.0,38.0,False,Corteva Coliseum
+401380976,2022,2022-01-10,Bethune-Cookman Wildcats,Southern Jaguars,59,69,38.0,36.0,21.0,33.0,False,Moore Gymnasium (FL)
+401373140,2022,2022-01-10,Florida A&M Rattlers,Grambling Tigers,75,66,42.0,30.0,33.0,36.0,False,Al Lawson Center
+401402039,2022,2022-01-10,Kansas City Roos,Omaha Mavericks,64,61,33.0,30.0,31.0,31.0,False,Swinney Center
+401402029,2022,2022-01-10,North Dakota Fighting Hawks,South Dakota Coyotes,68,75,28.0,39.0,40.0,36.0,False,Betty Engelstad Sioux Center
+401378653,2022,2022-01-10,Alabama A&M Bulldogs,Jackson State Tigers,60,58,29.0,25.0,31.0,33.0,False,T.M. Elmore Gymnasium
+401382731,2022,2022-01-10,Texas Southern Tigers,Mississippi Valley State Delta Devils,95,58,54.0,25.0,41.0,33.0,False,H&PE Arena
+401373177,2022,2022-01-10,Prairie View A&M Panthers,Arkansas-Pine Bluff Golden Lions,75,58,37.0,27.0,38.0,31.0,False,William Nicks Building
+401373117,2022,2022-01-10,Alabama State Hornets,Alcorn State Braves,60,70,21.0,25.0,39.0,45.0,False,Dunn-Oliver Acadome
+401365654,2022,2022-01-10,Denver Pioneers,North Dakota State Bison,69,87,23.0,44.0,46.0,43.0,False,Hamilton Gymnasium
+401403250,2022,2022-01-10,Oregon State Beavers,Oregon Ducks,76,78,36.0,40.0,40.0,38.0,False,Gill Coliseum
+401371216,2022,2022-01-10,Pepperdine Waves,San Diego Toreros,62,72,27.0,34.0,35.0,38.0,False,Firestone Fieldhouse
+401368261,2022,2022-01-10,Northern Kentucky Norse,Wright State Raiders,0,0,,,,,False,Truist Arena
+401373776,2022,2022-01-10,North Carolina Central Eagles,Coppin State Eagles,0,0,,,,,False,McDougald-McLendon Arena
+401373073,2022,2022-01-10,Howard Bison,Maryland Eastern Shore Hawks,0,0,,,,,False,Burr Gymnasium
+401372578,2022,2022-01-10,Northern Arizona Lumberjacks,Sacramento State Hornets,0,0,,,,,False,J. Lawrence Walkup Skydome
+401372595,2022,2022-01-10,Portland State Vikings,Northern Colorado Bears,0,0,,,,,False,Viking Pavilion
+401368367,2022,2022-01-11,Baylor Bears,Texas Tech Red Raiders,62,65,31.0,26.0,31.0,39.0,False,Ferrell Center
+401364861,2022,2022-01-11,Alabama Crimson Tide,Auburn Tigers,77,81,35.0,40.0,42.0,41.0,False,Coleman Coliseum
+401402814,2022,2022-01-11,Stanford Cardinal,USC Trojans,75,69,32.0,33.0,43.0,36.0,False,Maples Pavilion
+401368368,2022,2022-01-11,Kansas Jayhawks,Iowa State Cyclones,62,61,31.0,33.0,31.0,28.0,False,Allen Fieldhouse
+401364859,2022,2022-01-11,Vanderbilt Commodores,Kentucky Wildcats,66,78,28.0,41.0,38.0,37.0,False,Memorial Gymnasium (TN)
+401368369,2022,2022-01-11,Texas Longhorns,Oklahoma Sooners,66,52,33.0,21.0,33.0,31.0,False,Frank Erwin Center
+401364858,2022,2022-01-11,Tennessee Volunteers,South Carolina Gamecocks,66,46,30.0,24.0,36.0,22.0,False,Food City Center
+401364373,2022,2022-01-11,Nebraska Cornhuskers,Illinois Fighting Illini,71,81,34.0,31.0,37.0,50.0,False,Pinnacle Bank Arena
+401364374,2022,2022-01-11,Michigan Wolverines,Purdue Boilermakers,0,0,,,,,False,Crisler Center
+401373541,2022,2022-01-11,Creighton Bluejays,Providence Friars,0,0,,,,,False,CHI Health Center Omaha
+401370066,2022,2022-01-12,Wake Forest Demon Deacons,Duke Blue Devils,64,76,29.0,35.0,35.0,41.0,False,LJVM Coliseum
+401364377,2022,2022-01-12,Michigan State Spartans,Minnesota Golden Gophers,71,69,34.0,31.0,37.0,38.0,False,Breslin Center
+401364862,2022,2022-01-12,Florida Gators,LSU Tigers,58,64,30.0,38.0,28.0,26.0,False,Stephen C. O'Connell Center
+401373544,2022,2022-01-12,Xavier Musketeers,Villanova Wildcats,60,64,27.0,38.0,33.0,26.0,False,Cintas Center
+401371311,2022,2022-01-13,Gonzaga Bulldogs,BYU Cougars,110,84,61.0,49.0,49.0,35.0,False,McCarthey Athletic Center
+401377410,2022,2022-01-13,UCLA Bruins,Oregon Ducks,81,84,35.0,30.0,38.0,43.0,False,Pauley Pavilion
+401377412,2022,2022-01-13,USC Trojans,Oregon State Beavers,81,71,37.0,42.0,44.0,29.0,False,Galen Center
+401377411,2022,2022-01-13,Arizona Wildcats,Colorado Buffaloes,76,55,32.0,28.0,44.0,27.0,False,McKale Memorial Center
+401364379,2022,2022-01-13,Wisconsin Badgers,Ohio State Buckeyes,78,68,40.0,27.0,38.0,41.0,False,Kohl Center
+401398458,2022,2022-01-13,Texas Tech Red Raiders,Oklahoma State Cowboys,78,57,42.0,27.0,36.0,30.0,False,United Supermarkets Arena
+401398907,2022,2022-01-13,DePaul Blue Demons,Seton Hall Pirates,96,92,52.0,35.0,44.0,57.0,False,Wintrust Arena
+401364381,2022,2022-01-14,Purdue Boilermakers,Nebraska Cornhuskers,92,65,48.0,33.0,44.0,32.0,False,Mackey Arena
+401364380,2022,2022-01-14,Illinois Fighting Illini,Michigan Wolverines,68,53,26.0,22.0,42.0,31.0,False,State Farm Center
+401368373,2022,2022-01-15,Baylor Bears,Oklahoma State Cowboys,54,61,22.0,34.0,32.0,27.0,False,Ferrell Center
+401371149,2022,2022-01-15,Santa Clara Broncos,Gonzaga Bulldogs,83,115,41.0,60.0,42.0,55.0,False,Leavey Center
+401377417,2022,2022-01-15,UCLA Bruins,Oregon State Beavers,81,65,43.0,35.0,38.0,30.0,False,Pauley Pavilion
+401364868,2022,2022-01-15,Ole Miss Rebels,Auburn Tigers,71,80,44.0,38.0,27.0,42.0,False,The Sandy and John Black Pavilion at Ole Miss
+401377418,2022,2022-01-15,USC Trojans,Oregon Ducks,69,79,29.0,45.0,40.0,34.0,False,Galen Center
+401377415,2022,2022-01-15,Arizona Wildcats,Utah Utes,82,64,34.0,31.0,48.0,33.0,False,McKale Memorial Center
+401369863,2022,2022-01-15,Duke Blue Devils,NC State Wolfpack,88,73,45.0,36.0,43.0,37.0,False,Cameron Indoor Stadium
+401368372,2022,2022-01-15,Kansas Jayhawks,West Virginia Mountaineers,85,59,33.0,31.0,52.0,28.0,False,Allen Fieldhouse
+401364382,2022,2022-01-15,Michigan State Spartans,Northwestern Wildcats,62,64,33.0,38.0,29.0,26.0,False,Breslin Center
+401377716,2022,2022-01-15,Tulsa Golden Hurricane,Houston Cougars,64,66,21.0,38.0,43.0,28.0,False,Reynolds Center
+401364869,2022,2022-01-15,LSU Tigers,Arkansas Razorbacks,58,65,33.0,31.0,25.0,34.0,False,Pete Maravich Assembly Center
+401368374,2022,2022-01-15,Iowa State Cyclones,Texas Longhorns,79,70,38.0,31.0,41.0,39.0,False,Hilton Coliseum
+401373546,2022,2022-01-15,Xavier Musketeers,Creighton Bluejays,80,73,29.0,34.0,51.0,39.0,False,Cintas Center
+401364871,2022,2022-01-15,Kentucky Wildcats,Tennessee Volunteers,107,79,52.0,38.0,55.0,41.0,False,Rupp Arena
+401368375,2022,2022-01-15,Kansas State Wildcats,Texas Tech Red Raiders,62,51,26.0,28.0,36.0,23.0,False,Bramlage Coliseum
+401373548,2022,2022-01-15,Marquette Golden Eagles,Seton Hall Pirates,73,72,44.0,41.0,29.0,31.0,False,Fiserv Forum
+401364867,2022,2022-01-15,Mississippi State Bulldogs,Alabama Crimson Tide,78,76,37.0,41.0,41.0,35.0,False,Humphrey Coliseum
+401373547,2022,2022-01-15,Providence Friars,UConn Huskies,0,0,,,,,False,Amica Mutual Pavilion
+401373550,2022,2022-01-16,Villanova Wildcats,Butler Bulldogs,82,42,39.0,23.0,43.0,19.0,False,Xfinity Mobile Arena
+401364385,2022,2022-01-16,Ohio State Buckeyes,Penn State Nittany Lions,61,56,27.0,22.0,34.0,34.0,False,Value City Arena
+401364387,2022,2022-01-17,Illinois Fighting Illini,Purdue Boilermakers,88,96,26.0,37.0,43.0,32.0,False,State Farm Center
+401368378,2022,2022-01-18,West Virginia Mountaineers,Baylor Bears,68,77,33.0,37.0,35.0,40.0,False,WVU Coliseum
+401369882,2022,2022-01-18,Florida State Seminoles,Duke Blue Devils,79,78,33.0,38.0,34.0,29.0,False,Tucker Center
+401368377,2022,2022-01-18,Oklahoma Sooners,Kansas Jayhawks,64,67,32.0,34.0,32.0,33.0,False,Lloyd Noble Center
+401364389,2022,2022-01-18,Northwestern Wildcats,Wisconsin Badgers,76,82,35.0,41.0,41.0,41.0,False,Welsh-Ryan Arena
+401377720,2022,2022-01-18,Houston Cougars,South Florida Bulls,74,55,38.0,18.0,36.0,37.0,False,Fertitta Center
+401368380,2022,2022-01-18,Texas Tech Red Raiders,Iowa State Cyclones,72,60,26.0,23.0,46.0,37.0,False,United Supermarkets Arena
+401403743,2022,2022-01-18,Ohio State Buckeyes,IU Indianapolis Jaguars,83,37,37.0,24.0,46.0,13.0,False,Value City Arena
+401367362,2022,2022-01-18,Evansville Purple Aces,Loyola Chicago Ramblers,48,77,24.0,30.0,24.0,47.0,False,Ford Center
+401368379,2022,2022-01-18,Texas Longhorns,Kansas State Wildcats,65,66,35.0,31.0,30.0,35.0,False,Frank Erwin Center
+401364874,2022,2022-01-18,Vanderbilt Commodores,Tennessee Volunteers,60,68,32.0,33.0,28.0,35.0,False,Memorial Gymnasium (TN)
+401402410,2022,2022-01-18,UConn Huskies,Butler Bulldogs,76,59,39.0,24.0,37.0,35.0,False,PeoplesBank Arena
+401373551,2022,2022-01-18,Seton Hall Pirates,Providence Friars,0,0,,,,,False,Prudential Center
+401364878,2022,2022-01-19,Auburn Tigers,Georgia Bulldogs,83,60,52.0,27.0,31.0,33.0,False,Neville Arena
+401373554,2022,2022-01-19,Villanova Wildcats,Marquette Golden Eagles,54,57,29.0,30.0,25.0,27.0,False,Finneran Pavilion
+401364877,2022,2022-01-19,Texas A&M Aggies,Kentucky Wildcats,58,64,35.0,30.0,23.0,34.0,False,Reed Arena
+401364876,2022,2022-01-19,Alabama Crimson Tide,LSU Tigers,70,67,33.0,32.0,37.0,35.0,False,Coleman Coliseum
+401373553,2022,2022-01-19,DePaul Blue Demons,Xavier Musketeers,67,68,36.0,34.0,31.0,34.0,False,Wintrust Arena
+401406558,2022,2022-01-20,Gonzaga Bulldogs,San Francisco Dons,78,62,36.0,33.0,42.0,29.0,False,McCarthey Athletic Center
+401377422,2022,2022-01-20,Stanford Cardinal,Arizona Wildcats,57,85,31.0,42.0,26.0,43.0,False,Maples Pavilion
+401364392,2022,2022-01-20,Indiana Hoosiers,Purdue Boilermakers,68,65,37.0,28.0,31.0,37.0,False,Simon Skjodt Assembly Hall
+401377423,2022,2022-01-20,Utah Utes,UCLA Bruins,58,63,32.0,31.0,26.0,32.0,False,Jon M. Huntsman Center
+401377420,2022,2022-01-20,Colorado Buffaloes,USC Trojans,58,61,25.0,25.0,33.0,36.0,False,CU Events Center
+401400491,2022,2022-01-20,Providence Friars,Georgetown Hoyas,83,75,37.0,34.0,46.0,41.0,False,Amica Mutual Pavilion
+401373555,2022,2022-01-20,Butler Bulldogs,UConn Huskies,56,75,28.0,24.0,28.0,51.0,False,Hinkle Fieldhouse
+401364394,2022,2022-01-21,Wisconsin Badgers,Michigan State Spartans,74,86,26.0,42.0,48.0,44.0,False,Kohl Center
+401364393,2022,2022-01-21,Maryland Terrapins,Illinois Fighting Illini,81,65,37.0,35.0,44.0,30.0,False,XFINITY Center
+401364884,2022,2022-01-22,Auburn Tigers,Kentucky Wildcats,80,71,29.0,33.0,51.0,38.0,False,Neville Arena
+401368383,2022,2022-01-22,Oklahoma Sooners,Baylor Bears,51,65,21.0,25.0,30.0,40.0,False,Lloyd Noble Center
+401369864,2022,2022-01-22,Duke Blue Devils,Syracuse Orange,79,59,36.0,22.0,43.0,37.0,False,Cameron Indoor Stadium
+401368382,2022,2022-01-22,Kansas State Wildcats,Kansas Jayhawks,75,78,50.0,34.0,25.0,44.0,False,Bramlage Coliseum
+401377427,2022,2022-01-22,Colorado Buffaloes,UCLA Bruins,65,71,28.0,43.0,37.0,28.0,False,CU Events Center
+401377727,2022,2022-01-22,Houston Cougars,East Carolina Pirates,79,36,44.0,14.0,35.0,22.0,False,Fertitta Center
+401373557,2022,2022-01-22,Georgetown Hoyas,Villanova Wildcats,74,85,40.0,37.0,34.0,48.0,False,Capital One Arena
+401364885,2022,2022-01-22,Tennessee Volunteers,LSU Tigers,64,50,29.0,24.0,35.0,26.0,False,Food City Center
+401368384,2022,2022-01-22,Iowa State Cyclones,TCU Horned Frogs,44,59,23.0,34.0,21.0,25.0,False,Hilton Coliseum
+401377425,2022,2022-01-22,Utah Utes,USC Trojans,67,79,30.0,35.0,37.0,44.0,False,Jon M. Huntsman Center
+401368386,2022,2022-01-22,Texas Tech Red Raiders,West Virginia Mountaineers,78,65,36.0,34.0,42.0,31.0,False,United Supermarkets Arena
+401367367,2022,2022-01-22,Loyola Chicago Ramblers,Missouri State Bears,69,79,33.0,35.0,36.0,44.0,False,Gentile Arena
+401368385,2022,2022-01-22,Texas Longhorns,Oklahoma State Cowboys,56,51,25.0,27.0,31.0,24.0,False,Frank Erwin Center
+401364395,2022,2022-01-22,Ohio State Buckeyes,Nebraska Cornhuskers,0,0,,,,,False,Value City Arena
+401377429,2022,2022-01-23,California Golden Bears,Arizona Wildcats,71,96,27.0,48.0,44.0,48.0,False,Haas Pavilion
+401364399,2022,2022-01-23,Purdue Boilermakers,Northwestern Wildcats,80,60,40.0,28.0,40.0,32.0,False,Mackey Arena
+401373560,2022,2022-01-23,Marquette Golden Eagles,Xavier Musketeers,75,64,33.0,29.0,42.0,35.0,False,Fiserv Forum
+401373559,2022,2022-01-23,Providence Friars,Butler Bulldogs,69,62,39.0,33.0,30.0,29.0,False,Amica Mutual Pavilion
+401368387,2022,2022-01-24,Kansas Jayhawks,Texas Tech Red Raiders,94,91,36.0,30.0,39.0,45.0,False,Allen Fieldhouse
+401405169,2022,2022-01-24,USC Trojans,Arizona State Sun Devils,78,56,31.0,24.0,47.0,32.0,False,Galen Center
+401364887,2022,2022-01-25,Missouri Tigers,Auburn Tigers,54,55,31.0,31.0,23.0,24.0,False,Mizzou Arena
+401405170,2022,2022-01-25,UCLA Bruins,Arizona Wildcats,75,59,40.0,29.0,35.0,30.0,False,Pauley Pavilion
+401368388,2022,2022-01-25,Baylor Bears,Kansas State Wildcats,74,49,39.0,21.0,35.0,28.0,False,Ferrell Center
+401369865,2022,2022-01-25,Duke Blue Devils,Clemson Tigers,71,69,36.0,36.0,35.0,33.0,False,Cameron Indoor Stadium
+401364401,2022,2022-01-25,Illinois Fighting Illini,Michigan State Spartans,56,55,34.0,20.0,22.0,35.0,False,State Farm Center
+401364888,2022,2022-01-25,Kentucky Wildcats,Mississippi State Bulldogs,82,74,37.0,24.0,35.0,48.0,False,Rupp Arena
+401373561,2022,2022-01-25,Villanova Wildcats,DePaul Blue Demons,67,43,35.0,22.0,32.0,21.0,False,Finneran Pavilion
+401373562,2022,2022-01-25,UConn Huskies,Georgetown Hoyas,96,73,52.0,40.0,44.0,33.0,False,Gampel Pavilion
+401373565,2022,2022-01-26,Xavier Musketeers,Providence Friars,62,65,29.0,35.0,33.0,30.0,False,Cintas Center
+401364889,2022,2022-01-26,Tennessee Volunteers,Florida Gators,78,71,34.0,42.0,44.0,29.0,False,Food City Center
+401364892,2022,2022-01-26,LSU Tigers,Texas A&M Aggies,70,64,34.0,31.0,36.0,33.0,False,Pete Maravich Assembly Center
+401373563,2022,2022-01-26,Seton Hall Pirates,Marquette Golden Eagles,63,73,21.0,38.0,42.0,35.0,False,Prudential Center
+401368390,2022,2022-01-26,Oklahoma State Cowboys,Iowa State Cyclones,81,84,35.0,34.0,35.0,36.0,False,Gallagher-Iba Arena
+401365805,2022,2022-01-26,Davidson Wildcats,VCU Rams,68,70,29.0,37.0,39.0,33.0,False,John M. Belk Arena
+401371314,2022,2022-01-27,Gonzaga Bulldogs,Loyola Marymount Lions,89,55,36.0,19.0,53.0,36.0,False,McCarthey Athletic Center
+401364406,2022,2022-01-27,Iowa Hawkeyes,Purdue Boilermakers,73,83,33.0,48.0,40.0,35.0,False,Carver-Hawkeye Arena
+401377432,2022,2022-01-27,UCLA Bruins,California Golden Bears,81,57,43.0,29.0,38.0,28.0,False,Pauley Pavilion
+401364402,2022,2022-01-27,Nebraska Cornhuskers,Wisconsin Badgers,65,73,31.0,39.0,34.0,34.0,False,Pinnacle Bank Arena
+401377433,2022,2022-01-27,USC Trojans,Stanford Cardinal,61,64,34.0,28.0,27.0,36.0,False,Galen Center
+401364405,2022,2022-01-27,Minnesota Golden Gophers,Ohio State Buckeyes,64,75,30.0,32.0,34.0,43.0,False,Williams Arena
+401381721,2022,2022-01-28,Boston University Terriers,Colgate Raiders,76,72,40.0,32.0,36.0,40.0,False,Case Gym
+401376565,2022,2022-01-28,Holy Cross Crusaders,Lehigh Mountain Hawks,67,65,29.0,34.0,38.0,31.0,False,Hart Center
+401369747,2022,2022-01-28,Harvard Crimson,Pennsylvania Quakers,74,78,38.0,45.0,36.0,33.0,False,Lavietes Pavilion
+401369671,2022,2022-01-28,New Hampshire Wildcats,Stony Brook Seawolves,69,76,24.0,40.0,45.0,36.0,False,Lundholm Gymnasium
+401365351,2022,2022-01-28,Monmouth Hawks,Canisius Golden Griffins,72,67,41.0,39.0,31.0,28.0,False,OceanFirst Bank Center
+401364756,2022,2022-01-28,Air Force Falcons,Wyoming Cowboys,61,63,30.0,33.0,31.0,30.0,False,Clune Arena
+401368291,2022,2022-01-28,Northern Kentucky Norse,Purdue Fort Wayne Mastodons,59,49,28.0,31.0,31.0,18.0,False,Truist Arena
+401365810,2022,2022-01-28,Dayton Flyers,Rhode Island Rams,53,51,29.0,25.0,24.0,26.0,False,UD Arena
+401365350,2022,2022-01-28,Rider Broncs,Fairfield Stags,65,76,24.0,34.0,41.0,42.0,False,Alumni Gymnasium (Rider)
+401365349,2022,2022-01-28,Saint Peter's Peacocks,Manhattan Jaspers,77,51,45.0,26.0,32.0,25.0,False,Yanitelli Center
+401365348,2022,2022-01-28,Siena Saints,Niagara Purple Eagles,60,56,24.0,26.0,36.0,30.0,False,MVP Arena
+401365137,2022,2022-01-28,Buffalo Bulls,Ohio Bobcats,53,74,20.0,37.0,33.0,37.0,False,Alumni Arena
+401365134,2022,2022-01-28,Toledo Rockets,Akron Zips,84,76,46.0,37.0,38.0,39.0,False,Savage Arena
+401365352,2022,2022-01-28,Quinnipiac Bobcats,Marist Red Foxes,94,87,56.0,35.0,38.0,52.0,False,M&T Bank Arena
+401368290,2022,2022-01-28,Wright State Raiders,Cleveland State Vikings,67,71,33.0,30.0,34.0,41.0,False,Nutter Center
+401364757,2022,2022-01-28,Colorado State Rams,UNLV Rebels,74,88,25.0,43.0,49.0,45.0,False,Moby Arena
+401364754,2022,2022-01-28,New Mexico Lobos,San José State Spartans,86,70,43.0,32.0,43.0,38.0,False,The Pit
+401364755,2022,2022-01-28,Fresno State Bulldogs,Boise State Broncos,63,68,25.0,29.0,28.0,24.0,False,Save Mart Center
+401371229,2022,2022-01-29,Gonzaga Bulldogs,Portland Pilots,104,72,48.0,28.0,56.0,44.0,False,McCarthey Athletic Center
+401377435,2022,2022-01-29,Arizona Wildcats,Arizona State Sun Devils,67,56,32.0,32.0,35.0,24.0,False,McKale Memorial Center
+401377738,2022,2022-01-29,UCF Knights,Houston Cougars,49,63,23.0,34.0,26.0,29.0,False,Addition Financial Arena
+401377438,2022,2022-01-29,UCLA Bruins,Stanford Cardinal,66,43,37.0,18.0,29.0,25.0,False,Pauley Pavilion
+401370117,2022,2022-01-29,Louisville Cardinals,Duke Blue Devils,65,74,35.0,40.0,30.0,34.0,False,KFC Yum! Center
+401364409,2022,2022-01-29,Michigan State Spartans,Michigan Wolverines,83,67,39.0,35.0,44.0,32.0,False,Breslin Center
+401373570,2022,2022-01-29,Villanova Wildcats,St. John's Red Storm,73,62,40.0,26.0,33.0,36.0,False,Finneran Pavilion
+401377437,2022,2022-01-29,USC Trojans,California Golden Bears,79,72,41.0,35.0,38.0,37.0,False,Galen Center
+401373569,2022,2022-01-29,DePaul Blue Demons,UConn Huskies,50,57,29.0,28.0,21.0,29.0,False,Wintrust Arena
+401373568,2022,2022-01-29,Creighton Bluejays,Xavier Musketeers,64,74,36.0,19.0,28.0,55.0,False,CHI Health Center Omaha
+401364407,2022,2022-01-29,Northwestern Wildcats,Illinois Fighting Illini,56,59,19.0,24.0,37.0,35.0,False,Welsh-Ryan Arena
+401365811,2022,2022-01-29,Davidson Wildcats,La Salle Explorers,77,69,37.0,30.0,40.0,39.0,False,John M. Belk Arena
+401364412,2022,2022-01-30,Purdue Boilermakers,Ohio State Buckeyes,81,78,39.0,30.0,42.0,48.0,False,Mackey Arena
+401364411,2022,2022-01-30,Wisconsin Badgers,Minnesota Golden Gophers,66,60,32.0,25.0,34.0,35.0,False,Kohl Center
+401373567,2022,2022-01-30,Providence Friars,Marquette Golden Eagles,65,63,23.0,29.0,42.0,34.0,False,Amica Mutual Pavilion
+401368392,2022,2022-01-31,Baylor Bears,West Virginia Mountaineers,81,77,31.0,39.0,50.0,38.0,False,Ferrell Center
+401403746,2022,2022-01-31,Notre Dame Fighting Irish,Duke Blue Devils,43,57,14.0,27.0,29.0,30.0,False,Purcell Pavilion
+401364905,2022,2022-02-01,Auburn Tigers,Alabama Crimson Tide,100,81,51.0,37.0,49.0,44.0,False,Neville Arena
+401368394,2022,2022-02-01,Iowa State Cyclones,Kansas Jayhawks,61,70,24.0,30.0,37.0,40.0,False,Hilton Coliseum
+401364414,2022,2022-02-01,Maryland Terrapins,Michigan State Spartans,63,65,25.0,35.0,38.0,30.0,False,XFINITY Center
+401368395,2022,2022-02-01,Texas Tech Red Raiders,Texas Longhorns,77,64,43.0,29.0,34.0,35.0,False,United Supermarkets Arena
+401373573,2022,2022-02-01,St. John's Red Storm,Providence Friars,82,86,32.0,40.0,50.0,46.0,False,Carnesecca Arena
+401373571,2022,2022-02-01,UConn Huskies,Creighton Bluejays,55,59,22.0,32.0,33.0,27.0,False,PeoplesBank Arena
+401364904,2022,2022-02-01,Tennessee Volunteers,Texas A&M Aggies,90,80,43.0,35.0,47.0,45.0,False,Food City Center
+401364906,2022,2022-02-01,LSU Tigers,Ole Miss Rebels,72,76,32.0,45.0,40.0,31.0,False,Pete Maravich Assembly Center
+401364417,2022,2022-02-02,Minnesota Golden Gophers,Purdue Boilermakers,73,88,36.0,51.0,37.0,37.0,False,Williams Arena
+401364908,2022,2022-02-02,Kentucky Wildcats,Vanderbilt Commodores,77,70,41.0,31.0,36.0,39.0,False,Rupp Arena
+401377742,2022,2022-02-02,Houston Cougars,Tulane Green Wave,73,62,41.0,30.0,32.0,32.0,False,Fertitta Center
+401364418,2022,2022-02-02,Illinois Fighting Illini,Wisconsin Badgers,80,67,42.0,38.0,38.0,29.0,False,State Farm Center
+401373574,2022,2022-02-02,Marquette Golden Eagles,Villanova Wildcats,83,73,46.0,32.0,37.0,41.0,False,Fiserv Forum
+401373575,2022,2022-02-02,Xavier Musketeers,Butler Bulldogs,68,66,29.0,26.0,39.0,40.0,False,Cintas Center
+401408370,2022,2022-02-03,San Diego Toreros,Gonzaga Bulldogs,62,92,24.0,38.0,38.0,54.0,False,Jenny Craig Pavilion
+401377441,2022,2022-02-03,Arizona Wildcats,UCLA Bruins,76,66,42.0,30.0,34.0,36.0,False,McKale Memorial Center
+401377442,2022,2022-02-03,Arizona State Sun Devils,USC Trojans,53,58,24.0,26.0,29.0,32.0,False,Desert Financial Arena
+401364419,2022,2022-02-03,Ohio State Buckeyes,Iowa Hawkeyes,0,0,,,,,False,Value City Arena
+401369749,2022,2022-02-04,Yale Bulldogs,Dartmouth Big Green,72,69,41.0,32.0,31.0,37.0,False,John J. Lee Amphitheater
+401365823,2022,2022-02-04,Richmond Spiders,St. Bonaventure Bonnies,71,61,38.0,31.0,33.0,30.0,False,Robins Center
+401365552,2022,2022-02-04,VMI Keydets,Western Carolina Catamounts,76,69,36.0,41.0,40.0,28.0,False,Cameron Hall
+401409399,2022,2022-02-04,Akron Zips,Miami (OH) RedHawks,66,55,30.0,27.0,36.0,28.0,False,James A. Rhodes Arena
+401412352,2022,2022-02-04,Northern Kentucky Norse,Oakland Golden Grizzlies,87,78,26.0,38.0,44.0,32.0,False,Truist Arena
+401412351,2022,2022-02-04,Wright State Raiders,Detroit Mercy Titans,90,59,42.0,25.0,48.0,34.0,False,Nutter Center
+401373576,2022,2022-02-04,Seton Hall Pirates,Creighton Bluejays,74,55,37.0,16.0,37.0,39.0,False,Prudential Center
+401369752,2022,2022-02-04,Cornell Big Red,Princeton Tigers,88,83,46.0,40.0,42.0,43.0,False,Newman Arena
+401369751,2022,2022-02-04,Columbia Lions,Pennsylvania Quakers,66,81,27.0,35.0,39.0,46.0,False,Levien Gymnasium
+401369750,2022,2022-02-04,Brown Bears,Harvard Crimson,50,65,8.0,29.0,42.0,36.0,False,Pizzitola Sports Center
+401368303,2022,2022-02-04,Purdue Fort Wayne Mastodons,Milwaukee Panthers,70,60,24.0,28.0,46.0,32.0,False,Memorial Coliseum (IN)
+401368302,2022,2022-02-04,Cleveland State Vikings,Green Bay Phoenix,85,69,44.0,33.0,41.0,36.0,False,Wolstein Center
+401365362,2022,2022-02-04,Saint Peter's Peacocks,Quinnipiac Bobcats,83,74,32.0,35.0,51.0,39.0,False,Yanitelli Center
+401365361,2022,2022-02-04,Siena Saints,Rider Broncs,60,74,27.0,34.0,33.0,40.0,False,MVP Arena
+401365360,2022,2022-02-04,Canisius Golden Griffins,Iona Gaels,62,70,21.0,40.0,41.0,30.0,False,Koessler Athletic Center
+401365359,2022,2022-02-04,Niagara Purple Eagles,Manhattan Jaspers,80,74,37.0,35.0,33.0,35.0,False,Gallagher Center
+401365358,2022,2022-02-04,Monmouth Hawks,Fairfield Stags,59,56,26.0,21.0,33.0,35.0,False,OceanFirst Bank Center
+401365148,2022,2022-02-04,Ball State Cardinals,Toledo Rockets,93,83,51.0,45.0,42.0,38.0,False,Worthen Arena
+401364767,2022,2022-02-04,Colorado State Rams,San Diego State Aztecs,58,57,23.0,18.0,35.0,39.0,False,Moby Arena
+401364763,2022,2022-02-04,Fresno State Bulldogs,Nevada Wolf Pack,73,56,33.0,24.0,40.0,32.0,False,Save Mart Center
+401364910,2022,2022-02-05,Georgia Bulldogs,Auburn Tigers,72,74,30.0,42.0,42.0,32.0,False,Stegeman Coliseum
+401371317,2022,2022-02-05,BYU Cougars,Gonzaga Bulldogs,57,90,23.0,47.0,34.0,43.0,False,Marriott Center
+401377450,2022,2022-02-05,Arizona State Sun Devils,UCLA Bruins,87,84,34.0,32.0,28.0,30.0,False,Desert Financial Arena
+401364421,2022,2022-02-05,Purdue Boilermakers,Michigan Wolverines,82,76,39.0,33.0,43.0,43.0,False,Mackey Arena
+401364914,2022,2022-02-05,Alabama Crimson Tide,Kentucky Wildcats,55,66,27.0,33.0,28.0,33.0,False,Coleman Coliseum
+401377448,2022,2022-02-05,Arizona Wildcats,USC Trojans,72,63,29.0,28.0,43.0,35.0,False,McKale Memorial Center
+401368398,2022,2022-02-05,Kansas Jayhawks,Baylor Bears,83,59,39.0,21.0,44.0,38.0,False,Allen Fieldhouse
+401369957,2022,2022-02-05,North Carolina Tar Heels,Duke Blue Devils,67,87,28.0,39.0,39.0,48.0,False,Dean E. Smith Center
+401364424,2022,2022-02-05,Wisconsin Badgers,Penn State Nittany Lions,51,49,18.0,13.0,33.0,36.0,False,Kohl Center
+401373577,2022,2022-02-05,Villanova Wildcats,UConn Huskies,85,74,40.0,29.0,45.0,45.0,False,Xfinity Mobile Arena
+401364422,2022,2022-02-05,Rutgers Scarlet Knights,Michigan State Spartans,84,63,40.0,38.0,44.0,25.0,False,Jersey Mike’s Arena
+401368401,2022,2022-02-05,West Virginia Mountaineers,Texas Tech Red Raiders,53,60,32.0,26.0,21.0,34.0,False,WVU Coliseum
+401364420,2022,2022-02-05,Indiana Hoosiers,Illinois Fighting Illini,57,74,36.0,34.0,21.0,40.0,False,Simon Skjodt Assembly Hall
+401368397,2022,2022-02-05,Texas Longhorns,Iowa State Cyclones,63,41,25.0,23.0,38.0,18.0,False,Frank Erwin Center
+401373579,2022,2022-02-05,Xavier Musketeers,DePaul Blue Demons,65,69,27.0,34.0,38.0,35.0,False,Cintas Center
+401364911,2022,2022-02-05,South Carolina Gamecocks,Tennessee Volunteers,57,81,29.0,33.0,28.0,48.0,False,Colonial Life Arena
+401364913,2022,2022-02-05,Vanderbilt Commodores,LSU Tigers,75,66,43.0,25.0,32.0,41.0,False,Memorial Gymnasium (TN)
+401377749,2022,2022-02-06,Cincinnati Bearcats,Houston Cougars,58,80,31.0,42.0,27.0,38.0,False,Fifth Third Arena
+401373580,2022,2022-02-06,Georgetown Hoyas,Providence Friars,52,71,30.0,27.0,22.0,44.0,False,Capital One Arena
+401364425,2022,2022-02-06,Ohio State Buckeyes,Maryland Terrapins,82,67,42.0,29.0,40.0,38.0,False,Value City Arena
+401408904,2022,2022-02-07,Arizona State Sun Devils,Arizona Wildcats,79,91,36.0,40.0,43.0,51.0,False,Desert Financial Arena
+401369866,2022,2022-02-07,Duke Blue Devils,Virginia Cavaliers,68,69,29.0,34.0,39.0,35.0,False,Cameron Indoor Stadium
+401368402,2022,2022-02-07,Texas Longhorns,Kansas Jayhawks,79,76,40.0,35.0,39.0,41.0,False,Frank Erwin Center
+401364917,2022,2022-02-08,Arkansas Razorbacks,Auburn Tigers,80,76,28.0,25.0,38.0,41.0,False,Bud Walton Arena
+401364432,2022,2022-02-08,Purdue Boilermakers,Illinois Fighting Illini,84,68,36.0,38.0,48.0,30.0,False,Mackey Arena
+401364918,2022,2022-02-08,South Carolina Gamecocks,Kentucky Wildcats,76,86,34.0,39.0,42.0,47.0,False,Colonial Life Arena
+401408897,2022,2022-02-08,Stanford Cardinal,UCLA Bruins,70,79,31.0,41.0,39.0,38.0,False,Maples Pavilion
+401364429,2022,2022-02-08,Michigan State Spartans,Wisconsin Badgers,62,70,23.0,29.0,39.0,41.0,False,Breslin Center
+401373582,2022,2022-02-08,UConn Huskies,Marquette Golden Eagles,80,72,46.0,36.0,34.0,36.0,False,PeoplesBank Arena
+401411670,2022,2022-02-08,USC Trojans,Pacific Tigers,74,68,22.0,30.0,52.0,38.0,False,Galen Center
+401402453,2022,2022-02-08,Santa Clara Broncos,Saint Mary's Gaels,77,72,35.0,34.0,42.0,38.0,False,Leavey Center
+401377754,2022,2022-02-09,SMU Mustangs,Houston Cougars,85,83,40.0,51.0,45.0,32.0,False,Moody Coliseum (Dallas)
+401368406,2022,2022-02-09,Oklahoma Sooners,Texas Tech Red Raiders,70,55,25.0,30.0,45.0,25.0,False,Lloyd Noble Center
+401368405,2022,2022-02-09,Kansas State Wildcats,Baylor Bears,60,75,34.0,34.0,26.0,41.0,False,Bramlage Coliseum
+401364431,2022,2022-02-09,Rutgers Scarlet Knights,Ohio State Buckeyes,66,64,32.0,31.0,34.0,33.0,False,Jersey Mike’s Arena
+401364922,2022,2022-02-09,Mississippi State Bulldogs,Tennessee Volunteers,63,72,33.0,35.0,30.0,37.0,False,Humphrey Coliseum
+401373584,2022,2022-02-09,Seton Hall Pirates,Xavier Musketeers,73,71,37.0,27.0,36.0,44.0,False,Prudential Center
+401371319,2022,2022-02-10,Gonzaga Bulldogs,Pacific Tigers,89,51,46.0,28.0,43.0,23.0,False,McCarthey Athletic Center
+401409769,2022,2022-02-10,Michigan Wolverines,Purdue Boilermakers,82,58,38.0,29.0,44.0,29.0,False,Crisler Center
+401377455,2022,2022-02-10,Washington State Cougars,Arizona Wildcats,60,72,20.0,33.0,40.0,39.0,False,Beasley Coliseum
+401408050,2022,2022-02-10,Clemson Tigers,Duke Blue Devils,64,82,27.0,38.0,37.0,44.0,False,Littlejohn Coliseum
+401371234,2022,2022-02-10,Saint Mary's Gaels,San Diego Toreros,86,57,42.0,21.0,44.0,36.0,False,University Credit Union Pavilion
+401376554,2022,2022-02-10,Tennessee State Tigers,Murray State Racers,62,73,36.0,29.0,26.0,44.0,False,Gentry Center
+401402002,2022,2022-02-11,Xavier Musketeers,UConn Huskies,74,68,34.0,31.0,40.0,37.0,False,Cintas Center
+401364925,2022,2022-02-12,Auburn Tigers,Texas A&M Aggies,75,58,33.0,18.0,42.0,40.0,False,Neville Arena
+401371235,2022,2022-02-12,Gonzaga Bulldogs,Saint Mary's Gaels,74,58,36.0,23.0,38.0,35.0,False,McCarthey Athletic Center
+401377458,2022,2022-02-12,Washington Huskies,Arizona Wildcats,68,92,36.0,45.0,32.0,47.0,False,Alaska Airlines Arena
+401364929,2022,2022-02-12,Kentucky Wildcats,Florida Gators,78,57,33.0,28.0,45.0,29.0,False,Rupp Arena
+401377757,2022,2022-02-12,Houston Cougars,Memphis Tigers,59,69,31.0,28.0,28.0,41.0,False,Fertitta Center
+401369922,2022,2022-02-12,Boston College Eagles,Duke Blue Devils,61,72,28.0,37.0,33.0,35.0,False,Conte Forum
+401368408,2022,2022-02-12,Kansas Jayhawks,Oklahoma Sooners,71,69,31.0,34.0,40.0,35.0,False,Allen Fieldhouse
+401368409,2022,2022-02-12,Texas Tech Red Raiders,TCU Horned Frogs,82,69,37.0,40.0,45.0,29.0,False,United Supermarkets Arena
+401373589,2022,2022-02-12,Providence Friars,DePaul Blue Demons,76,73,24.0,28.0,36.0,32.0,False,Amica Mutual Pavilion
+401377460,2022,2022-02-12,USC Trojans,UCLA Bruins,67,64,33.0,31.0,34.0,33.0,False,Galen Center
+401364437,2022,2022-02-12,Wisconsin Badgers,Rutgers Scarlet Knights,65,73,35.0,38.0,30.0,35.0,False,Kohl Center
+401373587,2022,2022-02-12,Villanova Wildcats,Seton Hall Pirates,73,67,29.0,32.0,44.0,35.0,False,Xfinity Mobile Arena
+401364435,2022,2022-02-12,Michigan Wolverines,Ohio State Buckeyes,57,68,30.0,33.0,27.0,35.0,False,Crisler Center
+401364434,2022,2022-02-12,Michigan State Spartans,Indiana Hoosiers,76,61,37.0,30.0,39.0,31.0,False,Breslin Center
+401373588,2022,2022-02-12,Butler Bulldogs,Marquette Golden Eagles,85,79,42.0,27.0,43.0,52.0,False,Hinkle Fieldhouse
+401364926,2022,2022-02-12,Tennessee Volunteers,Vanderbilt Commodores,73,64,44.0,32.0,29.0,32.0,False,Food City Center
+401373249,2022,2022-02-12,Morehead State Eagles,Murray State Racers,53,57,28.0,24.0,25.0,33.0,False,Ellis T. Johnson Arena
+401364438,2022,2022-02-13,Purdue Boilermakers,Maryland Terrapins,62,61,26.0,23.0,36.0,38.0,False,Mackey Arena
+401364440,2022,2022-02-13,Illinois Fighting Illini,Northwestern Wildcats,73,66,44.0,30.0,29.0,36.0,False,State Farm Center
+401373590,2022,2022-02-13,St. John's Red Storm,UConn Huskies,60,63,29.0,30.0,31.0,33.0,False,Madison Square Garden
+401368412,2022,2022-02-14,Kansas Jayhawks,Oklahoma State Cowboys,76,62,38.0,28.0,38.0,34.0,False,Allen Fieldhouse
+401364934,2022,2022-02-15,Tennessee Volunteers,Kentucky Wildcats,76,63,46.0,32.0,30.0,31.0,False,Food City Center
+401373591,2022,2022-02-15,Providence Friars,Villanova Wildcats,84,89,39.0,46.0,45.0,43.0,False,Amica Mutual Pavilion
+401369867,2022,2022-02-15,Duke Blue Devils,Wake Forest Demon Deacons,76,74,42.0,33.0,34.0,41.0,False,Cameron Indoor Stadium
+401364443,2022,2022-02-15,Indiana Hoosiers,Wisconsin Badgers,69,74,31.0,32.0,38.0,42.0,False,Simon Skjodt Assembly Hall
+401364442,2022,2022-02-15,Ohio State Buckeyes,Minnesota Golden Gophers,70,45,23.0,25.0,47.0,20.0,False,Value City Arena
+401364441,2022,2022-02-15,Penn State Nittany Lions,Michigan State Spartans,62,58,24.0,24.0,38.0,34.0,False,Bryce Jordan Center
+401368415,2022,2022-02-15,Oklahoma Sooners,Texas Longhorns,78,80,29.0,31.0,37.0,35.0,False,Lloyd Noble Center
+401364779,2022,2022-02-15,New Mexico Lobos,Wyoming Cowboys,75,66,30.0,33.0,45.0,33.0,False,The Pit
+401364933,2022,2022-02-15,Missouri Tigers,Arkansas Razorbacks,57,76,27.0,46.0,30.0,30.0,False,Mizzou Arena
+401371316,2022,2022-02-16,Pepperdine Waves,Gonzaga Bulldogs,66,86,29.0,45.0,37.0,41.0,False,Firestone Fieldhouse
+401364937,2022,2022-02-16,Auburn Tigers,Vanderbilt Commodores,94,80,42.0,38.0,52.0,42.0,False,Neville Arena
+401364445,2022,2022-02-16,Northwestern Wildcats,Purdue Boilermakers,64,70,28.0,32.0,36.0,38.0,False,Welsh-Ryan Arena
+401368416,2022,2022-02-16,Texas Tech Red Raiders,Baylor Bears,83,73,32.0,39.0,51.0,34.0,False,United Supermarkets Arena
+401364444,2022,2022-02-16,Rutgers Scarlet Knights,Illinois Fighting Illini,70,59,33.0,24.0,37.0,35.0,False,Jersey Mike’s Arena
+401373593,2022,2022-02-16,UConn Huskies,Seton Hall Pirates,70,65,28.0,27.0,42.0,38.0,False,Gampel Pavilion
+401364935,2022,2022-02-16,Alabama Crimson Tide,Mississippi State Bulldogs,80,75,34.0,30.0,46.0,45.0,False,Coleman Coliseum
+401377463,2022,2022-02-17,Arizona Wildcats,Oregon State Beavers,83,69,44.0,42.0,39.0,27.0,False,McKale Memorial Center
+401377467,2022,2022-02-17,UCLA Bruins,Washington State Cougars,76,56,39.0,29.0,37.0,27.0,False,Pauley Pavilion
+401377762,2022,2022-02-17,Houston Cougars,UCF Knights,70,52,31.0,25.0,39.0,27.0,False,Fertitta Center
+401377468,2022,2022-02-17,USC Trojans,Washington Huskies,79,69,42.0,25.0,37.0,44.0,False,Galen Center
+401373209,2022,2022-02-17,Murray State Racers,Austin Peay Governors,91,56,49.0,23.0,42.0,33.0,False,CFSB Center
+401402003,2022,2022-02-18,St. John's Red Storm,Butler Bulldogs,91,57,46.0,30.0,45.0,27.0,False,Carnesecca Arena
+401369764,2022,2022-02-18,Brown Bears,Princeton Tigers,50,69,24.0,34.0,26.0,35.0,False,Pizzitola Sports Center
+401369763,2022,2022-02-18,Yale Bulldogs,Pennsylvania Quakers,81,72,36.0,32.0,45.0,40.0,False,John J. Lee Amphitheater
+401369762,2022,2022-02-18,Dartmouth Big Green,Cornell Big Red,71,59,22.0,24.0,49.0,35.0,False,Leede Arena
+401369761,2022,2022-02-18,Harvard Crimson,Columbia Lions,62,54,35.0,26.0,27.0,28.0,False,Lavietes Pavilion
+401368332,2022,2022-02-18,Detroit Mercy Titans,Northern Kentucky Norse,60,52,20.0,20.0,40.0,32.0,False,Calihan Hall
+401365846,2022,2022-02-18,VCU Rams,Richmond Spiders,77,57,28.0,28.0,49.0,29.0,False,Siegel Center
+401365381,2022,2022-02-18,Siena Saints,Marist Red Foxes,53,62,34.0,27.0,19.0,35.0,False,MVP Arena
+401365380,2022,2022-02-18,Fairfield Stags,Saint Peter's Peacocks,59,70,29.0,36.0,30.0,34.0,False,Total Mortgage Arena
+401365379,2022,2022-02-18,Monmouth Hawks,Rider Broncs,60,58,27.0,29.0,33.0,29.0,False,OceanFirst Bank Center
+401365169,2022,2022-02-18,Kent State Golden Flashes,Ohio Bobcats,75,52,45.0,15.0,30.0,37.0,False,M.A.C. Center
+401368331,2022,2022-02-18,Green Bay Phoenix,Purdue Fort Wayne Mastodons,55,74,23.0,33.0,32.0,41.0,False,Kress Center
+401368330,2022,2022-02-18,Milwaukee Panthers,Cleveland State Vikings,61,78,25.0,42.0,36.0,36.0,False,UW-Milwaukee Panther Arena
+401368333,2022,2022-02-18,Oakland Golden Grizzlies,Wright State Raiders,74,78,35.0,34.0,39.0,44.0,False,OU Credit Union O'rena
+401364447,2022,2022-02-18,Nebraska Cornhuskers,Maryland Terrapins,74,90,40.0,42.0,34.0,48.0,False,Pinnacle Bank Arena
+401364942,2022,2022-02-18,Mississippi State Bulldogs,Missouri Tigers,68,49,34.0,23.0,34.0,26.0,False,Humphrey Coliseum
+401371157,2022,2022-02-19,Gonzaga Bulldogs,Santa Clara Broncos,81,69,41.0,31.0,40.0,38.0,False,McCarthey Athletic Center
+401364944,2022,2022-02-19,Florida Gators,Auburn Tigers,63,62,22.0,21.0,41.0,41.0,False,Stephen C. O'Connell Center
+401377471,2022,2022-02-19,Arizona Wildcats,Oregon Ducks,84,81,45.0,47.0,39.0,34.0,False,McKale Memorial Center
+401364938,2022,2022-02-19,Kentucky Wildcats,Alabama Crimson Tide,90,81,47.0,46.0,43.0,35.0,False,Rupp Arena
+401368420,2022,2022-02-19,West Virginia Mountaineers,Kansas Jayhawks,58,71,27.0,33.0,31.0,38.0,False,WVU Coliseum
+401368418,2022,2022-02-19,Baylor Bears,TCU Horned Frogs,72,62,33.0,23.0,39.0,39.0,False,Ferrell Center
+401373598,2022,2022-02-19,Villanova Wildcats,Georgetown Hoyas,74,66,32.0,22.0,42.0,44.0,False,Finneran Pavilion
+401368421,2022,2022-02-19,Texas Longhorns,Texas Tech Red Raiders,55,61,28.0,28.0,27.0,33.0,False,Frank Erwin Center
+401364448,2022,2022-02-19,Michigan State Spartans,Illinois Fighting Illini,74,79,22.0,34.0,52.0,45.0,False,Breslin Center
+401377473,2022,2022-02-19,UCLA Bruins,Washington Huskies,76,50,37.0,25.0,39.0,25.0,False,Pauley Pavilion
+401364943,2022,2022-02-19,Arkansas Razorbacks,Tennessee Volunteers,58,48,24.0,23.0,34.0,25.0,False,Bud Walton Arena
+401414550,2022,2022-02-19,Ohio State Buckeyes,Iowa Hawkeyes,62,75,38.0,39.0,24.0,36.0,False,Value City Arena
+401373294,2022,2022-02-19,UT Martin Skyhawks,Murray State Racers,60,62,33.0,27.0,27.0,35.0,False,Skyhawk Arena
+401364783,2022,2022-02-19,Wyoming Cowboys,Air Force Falcons,75,67,30.0,26.0,45.0,41.0,False,Arena-Auditorium
+401373596,2022,2022-02-19,UConn Huskies,Xavier Musketeers,72,61,44.0,27.0,28.0,34.0,False,Gampel Pavilion
+401364452,2022,2022-02-20,Purdue Boilermakers,Rutgers Scarlet Knights,84,72,45.0,36.0,39.0,36.0,False,Mackey Arena
+401373599,2022,2022-02-20,Butler Bulldogs,Providence Friars,70,71,33.0,20.0,31.0,44.0,False,Hinkle Fieldhouse
+401377766,2022,2022-02-20,Wichita State Shockers,Houston Cougars,74,76,24.0,28.0,32.0,28.0,False,Charles Koch Arena
+401364451,2022,2022-02-20,Wisconsin Badgers,Michigan Wolverines,77,63,31.0,31.0,46.0,32.0,False,Kohl Center
+401377474,2022,2022-02-20,USC Trojans,Washington State Cougars,62,60,28.0,32.0,34.0,28.0,False,Galen Center
+401368422,2022,2022-02-21,Oklahoma State Cowboys,Baylor Bears,64,66,36.0,29.0,24.0,31.0,False,Gallagher-Iba Arena
+401413369,2022,2022-02-21,UCLA Bruins,Arizona State Sun Devils,66,52,34.0,21.0,32.0,31.0,False,Pauley Pavilion
+401364449,2022,2022-02-21,Ohio State Buckeyes,Indiana Hoosiers,80,69,33.0,28.0,30.0,35.0,False,Value City Arena
+401368423,2022,2022-02-22,Kansas Jayhawks,Kansas State Wildcats,102,83,53.0,43.0,49.0,40.0,False,Allen Fieldhouse
+401373601,2022,2022-02-22,UConn Huskies,Villanova Wildcats,71,69,33.0,32.0,38.0,37.0,False,PeoplesBank Arena
+401368424,2022,2022-02-22,Texas Tech Red Raiders,Oklahoma Sooners,66,42,29.0,22.0,37.0,20.0,False,United Supermarkets Arena
+401364947,2022,2022-02-22,Missouri Tigers,Tennessee Volunteers,61,80,27.0,36.0,34.0,44.0,False,Mizzou Arena
+401364945,2022,2022-02-22,Florida Gators,Arkansas Razorbacks,74,82,34.0,37.0,40.0,45.0,False,Stephen C. O'Connell Center
+401364948,2022,2022-02-22,Vanderbilt Commodores,Alabama Crimson Tide,72,74,37.0,32.0,35.0,42.0,False,Memorial Gymnasium (TN)
+401364454,2022,2022-02-22,Iowa Hawkeyes,Michigan State Spartans,86,60,46.0,32.0,40.0,28.0,False,Carver-Hawkeye Arena
+401364950,2022,2022-02-23,Auburn Tigers,Ole Miss Rebels,77,64,43.0,31.0,34.0,33.0,False,Neville Arena
+401364951,2022,2022-02-23,Kentucky Wildcats,LSU Tigers,71,66,23.0,31.0,48.0,35.0,False,Rupp Arena
+401370052,2022,2022-02-23,Virginia Cavaliers,Duke Blue Devils,61,65,25.0,30.0,36.0,35.0,False,John Paul Jones Arena
+401373602,2022,2022-02-23,Providence Friars,Xavier Musketeers,99,92,36.0,36.0,34.0,34.0,False,Amica Mutual Pavilion
+401364457,2022,2022-02-23,Minnesota Golden Gophers,Wisconsin Badgers,67,68,36.0,38.0,31.0,30.0,False,Williams Arena
+401377770,2022,2022-02-23,Tulane Green Wave,Houston Cougars,67,81,27.0,32.0,40.0,49.0,False,Devlin Fieldhouse
+401368425,2022,2022-02-23,Texas Longhorns,TCU Horned Frogs,75,66,30.0,35.0,45.0,31.0,False,Frank Erwin Center
+401371189,2022,2022-02-24,San Francisco Dons,Gonzaga Bulldogs,73,89,42.0,52.0,31.0,37.0,False,The Sobrato Center
+401377478,2022,2022-02-24,Utah Utes,Arizona Wildcats,77,97,33.0,53.0,44.0,44.0,False,Jon M. Huntsman Center
+401377476,2022,2022-02-24,Oregon Ducks,UCLA Bruins,68,63,35.0,30.0,33.0,33.0,False,Matthew Knight Arena
+401364459,2022,2022-02-24,Illinois Fighting Illini,Ohio State Buckeyes,83,86,37.0,36.0,46.0,50.0,False,State Farm Center
+401377477,2022,2022-02-24,Oregon State Beavers,USC Trojans,91,94,33.0,40.0,42.0,35.0,False,Gill Coliseum
+401373271,2022,2022-02-24,Murray State Racers,Belmont Bruins,76,43,35.0,17.0,41.0,26.0,False,CFSB Center
+401371242,2022,2022-02-24,San Diego Toreros,Saint Mary's Gaels,46,60,20.0,37.0,26.0,23.0,False,Jenny Craig Pavilion
+401364460,2022,2022-02-25,Nebraska Cornhuskers,Iowa Hawkeyes,78,88,35.0,36.0,43.0,52.0,False,Pinnacle Bank Arena
+401371243,2022,2022-02-26,Saint Mary's Gaels,Gonzaga Bulldogs,67,57,36.0,21.0,31.0,36.0,False,University Credit Union Pavilion
+401377481,2022,2022-02-26,Colorado Buffaloes,Arizona Wildcats,79,63,32.0,37.0,47.0,26.0,False,CU Events Center
+401364957,2022,2022-02-26,Tennessee Volunteers,Auburn Tigers,67,62,25.0,31.0,42.0,31.0,False,Food City Center
+401364462,2022,2022-02-26,Michigan State Spartans,Purdue Boilermakers,68,65,35.0,33.0,33.0,32.0,False,Breslin Center
+401368427,2022,2022-02-26,Baylor Bears,Kansas Jayhawks,80,70,31.0,32.0,49.0,38.0,False,Ferrell Center
+401364953,2022,2022-02-26,Arkansas Razorbacks,Kentucky Wildcats,75,73,34.0,28.0,41.0,45.0,False,Bud Walton Arena
+401370015,2022,2022-02-26,Syracuse Orange,Duke Blue Devils,72,97,34.0,51.0,38.0,46.0,False,JMA Wireless Dome
+401368430,2022,2022-02-26,TCU Horned Frogs,Texas Tech Red Raiders,69,66,33.0,41.0,36.0,25.0,False,Schollmaier Arena
+401373607,2022,2022-02-26,Providence Friars,Creighton Bluejays,72,51,35.0,26.0,37.0,25.0,False,Amica Mutual Pavilion
+401377479,2022,2022-02-26,Oregon State Beavers,UCLA Bruins,55,94,28.0,43.0,27.0,51.0,False,Gill Coliseum
+401364463,2022,2022-02-26,Rutgers Scarlet Knights,Wisconsin Badgers,61,66,24.0,33.0,37.0,33.0,False,Jersey Mike’s Arena
+401377482,2022,2022-02-26,Oregon Ducks,USC Trojans,69,70,32.0,31.0,37.0,39.0,False,Matthew Knight Arena
+401373306,2022,2022-02-26,Southeast Missouri State Redhawks,Murray State Racers,68,70,37.0,32.0,31.0,38.0,False,Show Me Center
+401368429,2022,2022-02-26,West Virginia Mountaineers,Texas Longhorns,81,82,37.0,43.0,44.0,39.0,False,WVU Coliseum
+401364955,2022,2022-02-26,Alabama Crimson Tide,South Carolina Gamecocks,90,71,50.0,27.0,40.0,44.0,False,Coleman Coliseum
+401377776,2022,2022-02-27,Houston Cougars,SMU Mustangs,75,61,37.0,22.0,38.0,39.0,False,Fertitta Center
+401364464,2022,2022-02-27,Michigan Wolverines,Illinois Fighting Illini,85,93,38.0,46.0,47.0,47.0,False,Crisler Center
+401373609,2022,2022-02-27,Georgetown Hoyas,UConn Huskies,77,86,26.0,41.0,51.0,45.0,False,Capital One Arena
+401364466,2022,2022-02-27,Maryland Terrapins,Ohio State Buckeyes,75,60,32.0,28.0,43.0,32.0,False,XFINITY Center
+401368432,2022,2022-02-28,Texas Longhorns,Baylor Bears,61,68,30.0,27.0,31.0,41.0,False,Frank Erwin Center
+401368433,2022,2022-02-28,Texas Tech Red Raiders,Kansas State Wildcats,73,68,39.0,31.0,34.0,37.0,False,United Supermarkets Arena
+401413410,2022,2022-02-28,Washington Huskies,UCLA Bruins,66,77,29.0,25.0,37.0,52.0,False,Alaska Airlines Arena
+401364468,2022,2022-02-28,Iowa Hawkeyes,Northwestern Wildcats,82,61,36.0,17.0,46.0,44.0,False,Carver-Hawkeye Arena
+401413411,2022,2022-03-01,USC Trojans,Arizona Wildcats,71,91,27.0,51.0,44.0,40.0,False,Galen Center
+401369997,2022,2022-03-01,Pittsburgh Panthers,Duke Blue Devils,56,86,19.0,36.0,37.0,50.0,False,Petersen Events Center
+401368434,2022,2022-03-01,TCU Horned Frogs,Kansas Jayhawks,74,64,34.0,35.0,40.0,29.0,False,Schollmaier Arena
+401364960,2022,2022-03-01,Kentucky Wildcats,Ole Miss Rebels,83,72,44.0,35.0,39.0,37.0,False,Rupp Arena
+401364469,2022,2022-03-01,Wisconsin Badgers,Purdue Boilermakers,70,67,33.0,28.0,37.0,39.0,False,Kohl Center
+401373611,2022,2022-03-01,Villanova Wildcats,Providence Friars,76,74,40.0,26.0,36.0,48.0,False,Finneran Pavilion
+401364959,2022,2022-03-01,Georgia Bulldogs,Tennessee Volunteers,68,75,35.0,35.0,33.0,40.0,False,Stegeman Coliseum
+401407948,2022,2022-03-01,Houston Cougars,Cincinnati Bearcats,71,53,38.0,34.0,33.0,19.0,False,Fertitta Center
+401413556,2022,2022-03-01,Ohio State Buckeyes,Nebraska Cornhuskers,70,78,39.0,43.0,31.0,35.0,False,Value City Arena
+401364964,2022,2022-03-02,Mississippi State Bulldogs,Auburn Tigers,68,81,28.0,40.0,33.0,21.0,False,Humphrey Coliseum
+401364965,2022,2022-03-02,Arkansas Razorbacks,LSU Tigers,77,76,35.0,35.0,42.0,41.0,False,Bud Walton Arena
+401373614,2022,2022-03-02,Creighton Bluejays,UConn Huskies,64,62,34.0,24.0,30.0,38.0,False,CHI Health Center Omaha
+401364963,2022,2022-03-02,Alabama Crimson Tide,Texas A&M Aggies,71,87,40.0,37.0,31.0,50.0,False,Coleman Coliseum
+401377485,2022,2022-03-03,Arizona Wildcats,Stanford Cardinal,81,69,37.0,39.0,44.0,30.0,False,McKale Memorial Center
+401412470,2022,2022-03-03,Kansas Jayhawks,TCU Horned Frogs,72,68,35.0,35.0,37.0,33.0,False,Allen Fieldhouse
+401377782,2022,2022-03-03,Houston Cougars,Temple Owls,84,46,33.0,23.0,51.0,23.0,False,Fertitta Center
+401364474,2022,2022-03-03,Illinois Fighting Illini,Penn State Nittany Lions,60,55,29.0,30.0,31.0,25.0,False,State Farm Center
+401364473,2022,2022-03-03,Ohio State Buckeyes,Michigan State Spartans,80,69,43.0,33.0,37.0,36.0,False,Value City Arena
+401364472,2022,2022-03-03,Michigan Wolverines,Iowa Hawkeyes,71,82,30.0,47.0,41.0,35.0,False,Crisler Center
+401405850,2022,2022-03-04,Longwood Lancers,North Carolina A&T Aggies,79,65,35.0,31.0,28.0,32.0,True,Bojangles Coliseum
+401403436,2022,2022-03-04,Northern Iowa Panthers,Illinois State Redbirds,78,65,40.0,30.0,38.0,35.0,True,Enterprise Center
+401405851,2022,2022-03-04,South Carolina Upstate Spartans,Charleston Southern Buccaneers,72,62,34.0,23.0,38.0,39.0,True,Bojangles Coliseum
+401403437,2022,2022-03-04,Loyola Chicago Ramblers,Bradley Braves,66,50,44.0,27.0,22.0,23.0,True,Enterprise Center
+401403323,2022,2022-03-04,East Tennessee State Buccaneers,The Citadel Bulldogs,76,84,38.0,46.0,31.0,23.0,True,Harrah's Cherokee Center
+401405852,2022,2022-03-04,Winthrop Eagles,High Point Panthers,68,51,32.0,17.0,36.0,34.0,True,Bojangles Coliseum
+401365194,2022,2022-03-04,Western Michigan Broncos,Ball State Cardinals,63,64,34.0,34.0,29.0,30.0,False,University Arena (MI)
+401365193,2022,2022-03-04,Kent State Golden Flashes,Buffalo Bulls,70,65,34.0,26.0,36.0,39.0,False,M.A.C. Center
+401365196,2022,2022-03-04,Toledo Rockets,Bowling Green Falcons,96,56,47.0,28.0,49.0,28.0,False,Savage Arena
+401403438,2022,2022-03-04,Missouri State Bears,Valparaiso Beacons,67,58,35.0,28.0,32.0,30.0,True,Enterprise Center
+401365873,2022,2022-03-04,St. Bonaventure Bonnies,Richmond Spiders,72,65,35.0,35.0,37.0,30.0,False,Reilly Center
+401365197,2022,2022-03-04,Miami (OH) RedHawks,Eastern Michigan Eagles,76,63,46.0,29.0,30.0,34.0,False,Millett Hall
+401365195,2022,2022-03-04,Akron Zips,Central Michigan Chippewas,57,56,22.0,25.0,35.0,31.0,False,James A. Rhodes Arena
+401403324,2022,2022-03-04,Mercer Bears,Western Carolina Catamounts,81,53,43.0,25.0,38.0,28.0,True,Harrah's Cherokee Center
+401405880,2022,2022-03-04,Murray State Racers,Southeast Missouri State Redhawks,88,74,51.0,31.0,37.0,43.0,True,Ford Center
+401365198,2022,2022-03-04,Northern Illinois Huskies,Ohio Bobcats,58,57,27.0,21.0,31.0,36.0,False,NIU Convocation Center
+401405853,2022,2022-03-04,Gardner-Webb Runnin' Bulldogs,Campbell Fighting Camels,54,53,23.0,22.0,31.0,31.0,True,Bojangles Coliseum
+401403485,2022,2022-03-04,BYU Cougars,Loyola Marymount Lions,85,60,43.0,28.0,42.0,32.0,True,Orleans Arena
+401403439,2022,2022-03-04,Drake Bulldogs,Southern Illinois Salukis,65,52,28.0,26.0,37.0,26.0,True,Enterprise Center
+401405881,2022,2022-03-04,Belmont Bruins,Morehead State Eagles,51,53,21.0,30.0,30.0,23.0,True,Ford Center
+401378802,2022,2022-03-04,San José State Spartans,Utah State Aggies,52,75,26.0,28.0,26.0,47.0,False,Provident Credit Union Event Center
+401403486,2022,2022-03-04,Portland Pilots,San Diego Toreros,73,55,34.0,29.0,39.0,26.0,True,Orleans Arena
+401377490,2022,2022-03-05,Arizona Wildcats,California Golden Bears,89,61,40.0,31.0,49.0,30.0,False,McKale Memorial Center
+401368437,2022,2022-03-05,Baylor Bears,Iowa State Cyclones,75,68,39.0,29.0,36.0,39.0,False,Ferrell Center
+401369869,2022,2022-03-05,Duke Blue Devils,North Carolina Tar Heels,81,94,41.0,39.0,40.0,55.0,False,Cameron Indoor Stadium
+401364969,2022,2022-03-05,Auburn Tigers,South Carolina Gamecocks,82,71,48.0,31.0,34.0,40.0,False,Neville Arena
+401368438,2022,2022-03-05,Kansas Jayhawks,Texas Longhorns,70,63,35.0,33.0,22.0,24.0,False,Allen Fieldhouse
+401364968,2022,2022-03-05,Florida Gators,Kentucky Wildcats,63,71,26.0,38.0,37.0,33.0,False,Stephen C. O'Connell Center
+401364475,2022,2022-03-05,Purdue Boilermakers,Indiana Hoosiers,69,67,33.0,29.0,36.0,38.0,False,Mackey Arena
+401373616,2022,2022-03-05,Butler Bulldogs,Villanova Wildcats,59,78,24.0,38.0,35.0,40.0,False,Hinkle Fieldhouse
+401368440,2022,2022-03-05,Oklahoma State Cowboys,Texas Tech Red Raiders,52,51,27.0,27.0,25.0,24.0,False,Gallagher-Iba Arena
+401364972,2022,2022-03-05,Tennessee Volunteers,Arkansas Razorbacks,78,74,50.0,29.0,28.0,45.0,False,Food City Center
+401377493,2022,2022-03-05,UCLA Bruins,USC Trojans,75,68,41.0,35.0,34.0,33.0,False,Pauley Pavilion
+401373617,2022,2022-03-05,UConn Huskies,DePaul Blue Demons,75,68,40.0,29.0,35.0,39.0,False,Gampel Pavilion
+401364967,2022,2022-03-05,LSU Tigers,Alabama Crimson Tide,80,77,36.0,38.0,36.0,34.0,False,Pete Maravich Assembly Center
+401364480,2022,2022-03-06,Wisconsin Badgers,Nebraska Cornhuskers,73,74,36.0,40.0,37.0,34.0,False,Kohl Center
+401377787,2022,2022-03-06,Memphis Tigers,Houston Cougars,75,61,49.0,29.0,26.0,32.0,False,FedExForum
+401364476,2022,2022-03-06,Illinois Fighting Illini,Iowa Hawkeyes,74,72,37.0,43.0,37.0,29.0,False,State Farm Center
+401364478,2022,2022-03-06,Ohio State Buckeyes,Michigan Wolverines,69,75,37.0,30.0,32.0,45.0,False,Value City Arena
+401408175,2022,2022-03-07,Towson Tigers,Delaware Blue Hens,56,69,28.0,35.0,28.0,34.0,True,CareFirst Arena
+401408167,2022,2022-03-07,South Dakota State Jackrabbits,South Dakota Coyotes,83,60,55.0,30.0,28.0,30.0,True,Denny Sanford Premier Center
+401405866,2022,2022-03-07,Cleveland State Vikings,Wright State Raiders,67,82,26.0,36.0,41.0,46.0,True,Corteva Coliseum
+401403482,2022,2022-03-07,Georgia State Panthers,Louisiana Ragin' Cajuns,80,71,42.0,33.0,38.0,38.0,True,Pensacola Bay Center
+401403331,2022,2022-03-07,Chattanooga Mocs,Furman Paladins,64,63,16.0,26.0,35.0,25.0,True,Harrah's Cherokee Center
+401408176,2022,2022-03-07,UNC Wilmington Seahawks,Charleston Cougars,60,57,28.0,26.0,32.0,31.0,True,CareFirst Arena
+401403489,2022,2022-03-07,Gonzaga Bulldogs,San Francisco Dons,81,71,47.0,27.0,34.0,44.0,True,Orleans Arena
+401408168,2022,2022-03-07,North Dakota State Bison,Oral Roberts Golden Eagles,92,72,48.0,39.0,44.0,33.0,True,Denny Sanford Premier Center
+401405867,2022,2022-03-07,Purdue Fort Wayne Mastodons,Northern Kentucky Norse,43,57,19.0,25.0,24.0,32.0,True,Corteva Coliseum
+401403490,2022,2022-03-07,Saint Mary's Gaels,Santa Clara Broncos,75,72,39.0,34.0,36.0,38.0,True,Orleans Arena
+401405793,2022,2022-03-08,Pittsburgh Panthers,Boston College Eagles,46,66,22.0,33.0,24.0,33.0,True,Barclays Center
+401405794,2022,2022-03-08,Clemson Tigers,NC State Wolfpack,70,64,29.0,24.0,41.0,40.0,True,Barclays Center
+401403417,2022,2022-03-08,Manhattan Jaspers,Rider Broncs,67,79,36.0,42.0,31.0,37.0,True,Jim Whelan Boardwalk Hall
+401403394,2022,2022-03-08,Bellarmine Knights,Jacksonville Dolphins,77,72,36.0,26.0,41.0,46.0,False,Freedom Hall (KY)
+401411742,2022,2022-03-08,Bryant Bulldogs,Wagner Seahawks,70,43,38.0,12.0,32.0,31.0,False,Chace Athletic Center
+401408177,2022,2022-03-08,UNC Wilmington Seahawks,Delaware Blue Hens,55,59,34.0,30.0,21.0,29.0,True,CareFirst Arena
+401405868,2022,2022-03-08,Northern Kentucky Norse,Wright State Raiders,71,72,39.0,32.0,32.0,40.0,True,Corteva Coliseum
+401405795,2022,2022-03-08,Louisville Cardinals,Georgia Tech Yellow Jackets,84,74,45.0,28.0,39.0,46.0,True,Barclays Center
+401403418,2022,2022-03-08,Fairfield Stags,Canisius Golden Griffins,72,50,31.0,20.0,41.0,30.0,True,Jim Whelan Boardwalk Hall
+401409386,2022,2022-03-08,Florida International Panthers,Marshall Thundering Herd,62,74,29.0,33.0,33.0,41.0,True,Ford Center At The Star
+401409387,2022,2022-03-08,UTSA Roadrunners,Southern Miss Golden Eagles,64,67,30.0,25.0,34.0,42.0,True,Ford Center At The Star
+401408169,2022,2022-03-08,South Dakota State Jackrabbits,North Dakota State Bison,75,69,33.0,28.0,42.0,41.0,True,Denny Sanford Premier Center
+401403491,2022,2022-03-08,Gonzaga Bulldogs,Saint Mary's Gaels,82,69,38.0,28.0,44.0,41.0,True,Orleans Arena
+401403408,2022,2022-03-08,Cal State Northridge Matadors,Cal State Bakersfield Roadrunners,45,58,23.0,24.0,22.0,34.0,True,Lee's Family Forum
+401403332,2022,2022-03-08,California Baptist Lancers,UT Rio Grande Valley Vaqueros,81,80,37.0,32.0,44.0,48.0,True,Michelob ULTRA Arena
+401403419,2022,2022-03-08,Marist Red Foxes,Quinnipiac Bobcats,52,77,25.0,31.0,27.0,46.0,True,Jim Whelan Boardwalk Hall
+401403409,2022,2022-03-08,UC Davis Aggies,Cal Poly Mustangs,63,53,27.0,24.0,36.0,29.0,True,Lee's Family Forum
+401403333,2022,2022-03-08,Utah Valley Wolverines,Chicago State Cougars,69,47,32.0,29.0,37.0,18.0,True,Michelob ULTRA Arena
+401403310,2022,2022-03-09,Sacramento State Hornets,Idaho Vandals,57,54,31.0,22.0,26.0,32.0,True,Idaho Central Arena
+401405796,2022,2022-03-09,Florida State Seminoles,Syracuse Orange,57,96,26.0,49.0,31.0,47.0,True,Barclays Center
+401403371,2022,2022-03-09,La Salle Explorers,Saint Joseph's Hawks,63,56,39.0,27.0,24.0,29.0,True,Capital One Arena
+401409364,2022,2022-03-09,Nevada Wolf Pack,New Mexico Lobos,79,72,34.0,35.0,45.0,37.0,True,Thomas & Mack Center
+401403311,2022,2022-03-09,Portland State Vikings,Idaho State Bengals,66,52,28.0,30.0,38.0,22.0,True,Idaho Central Arena
+401405797,2022,2022-03-09,Wake Forest Demon Deacons,Boston College Eagles,77,82,29.0,30.0,41.0,40.0,True,Barclays Center
+401409374,2022,2022-03-09,Arizona State Sun Devils,Stanford Cardinal,70,71,31.0,27.0,39.0,44.0,True,T-Mobile Arena
+401405897,2022,2022-03-09,Texas Southern Tigers,Jackson State Tigers,54,50,28.0,33.0,26.0,17.0,True,Bartow Arena
+401403372,2022,2022-03-09,Rhode Island Rams,Duquesne Dukes,79,77,37.0,41.0,42.0,36.0,True,Capital One Arena
+401409365,2022,2022-03-09,Utah State Aggies,Air Force Falcons,83,56,38.0,27.0,45.0,29.0,True,Thomas & Mack Center
+401403348,2022,2022-03-09,Xavier Musketeers,Butler Bulldogs,82,89,26.0,26.0,42.0,42.0,True,Madison Square Garden
+401403312,2022,2022-03-09,Eastern Washington Eagles,Northern Arizona Lumberjacks,78,75,37.0,31.0,41.0,44.0,True,Idaho Central Arena
+401409375,2022,2022-03-09,Oregon Ducks,Oregon State Beavers,86,72,43.0,36.0,43.0,36.0,True,T-Mobile Arena
+401408150,2022,2022-03-09,Missouri Tigers,Ole Miss Rebels,72,60,32.0,32.0,40.0,28.0,True,Benchmark International Arena
+401405884,2022,2022-03-09,Houston Christian Huskies,Incarnate Word Cardinals,74,64,38.0,33.0,36.0,31.0,True,Leonard E. Merrell Center
+401403432,2022,2022-03-09,Norfolk State Spartans,Delaware State Hornets,74,66,31.0,30.0,43.0,36.0,True,Norfolk Scope Arena
+401403395,2022,2022-03-09,Northwestern Wildcats,Nebraska Cornhuskers,71,69,25.0,39.0,46.0,30.0,True,Gainbridge Fieldhouse
+401409388,2022,2022-03-09,Charlotte 49ers,Rice Owls,61,73,25.0,32.0,36.0,41.0,True,Ford Center At The Star
+401409389,2022,2022-03-09,Louisiana Tech Bulldogs,Marshall Thundering Herd,77,67,37.0,32.0,40.0,35.0,True,Ford Center At The Star
+401409366,2022,2022-03-09,Fresno State Bulldogs,San José State Spartans,69,67,29.0,26.0,31.0,34.0,True,Thomas & Mack Center
+401405834,2022,2022-03-09,Kansas State Wildcats,West Virginia Mountaineers,67,73,34.0,38.0,33.0,35.0,True,T-Mobile Center
+401405809,2022,2022-03-09,UMBC Retrievers,Hartford Hawks,80,60,33.0,33.0,47.0,27.0,False,Chesapeake Employers Insurance Arena
+401405808,2022,2022-03-09,Vermont Catamounts,Binghamton Bearcats,74,42,39.0,27.0,35.0,15.0,False,Patrick Gymnasium
+401405798,2022,2022-03-09,Virginia Tech Hokies,Clemson Tigers,76,75,43.0,32.0,23.0,34.0,True,Barclays Center
+401403420,2022,2022-03-09,Iona Gaels,Rider Broncs,70,71,30.0,28.0,40.0,43.0,True,Jim Whelan Boardwalk Hall
+401403471,2022,2022-03-09,Colgate Raiders,Navy Midshipmen,74,58,40.0,22.0,34.0,36.0,False,Cotterell Court
+401403349,2022,2022-03-09,St. John's Red Storm,DePaul Blue Demons,92,73,49.0,29.0,43.0,44.0,False,Madison Square Garden
+401408151,2022,2022-03-09,Vanderbilt Commodores,Georgia Bulldogs,86,51,35.0,14.0,51.0,37.0,True,Benchmark International Arena
+401405885,2022,2022-03-09,Northwestern State Demons,McNeese Cowboys,67,80,23.0,43.0,44.0,37.0,True,Leonard E. Merrell Center
+401403433,2022,2022-03-09,Howard Bison,Coppin State Eagles,57,59,24.0,30.0,33.0,29.0,True,Norfolk Scope Arena
+401403396,2022,2022-03-09,Penn State Nittany Lions,Minnesota Golden Gophers,60,51,24.0,28.0,36.0,23.0,True,Gainbridge Fieldhouse
+401409390,2022,2022-03-09,UTEP Miners,Old Dominion Monarchs,74,64,34.0,21.0,40.0,43.0,True,Ford Center At The Star
+401409376,2022,2022-03-09,Washington State Cougars,California Golden Bears,66,59,32.0,20.0,34.0,39.0,True,T-Mobile Arena
+401403334,2022,2022-03-09,Sam Houston Bearkats,California Baptist Lancers,65,35,30.0,17.0,35.0,18.0,True,Orleans Arena
+401409391,2022,2022-03-09,Florida Atlantic Owls,Southern Miss Golden Eagles,86,59,35.0,29.0,51.0,30.0,True,Ford Center At The Star
+401405896,2022,2022-03-09,Alcorn State Braves,Prairie View A&M Panthers,64,63,34.0,39.0,20.0,15.0,True,Bartow Arena
+401403421,2022,2022-03-09,Saint Peter's Peacocks,Fairfield Stags,77,63,44.0,19.0,33.0,44.0,True,Jim Whelan Boardwalk Hall
+401405799,2022,2022-03-09,Virginia Cavaliers,Louisville Cardinals,51,50,20.0,24.0,31.0,26.0,True,Barclays Center
+401403370,2022,2022-03-09,Seton Hall Pirates,Georgetown Hoyas,57,53,24.0,27.0,33.0,26.0,True,Madison Square Garden
+401409377,2022,2022-03-09,Washington Huskies,Utah Utes,82,70,40.0,37.0,42.0,33.0,True,T-Mobile Arena
+401403335,2022,2022-03-09,Abilene Christian Wildcats,Utah Valley Wolverines,82,74,37.0,41.0,45.0,33.0,True,Orleans Arena
+401405872,2022,2022-03-10,Toledo Rockets,Central Michigan Chippewas,72,71,30.0,32.0,42.0,39.0,True,Rocket Arena
+401403398,2022,2022-03-10,Michigan Wolverines,Indiana Hoosiers,69,74,41.0,28.0,28.0,46.0,True,Gainbridge Fieldhouse
+401408152,2022,2022-03-10,Texas A&M Aggies,Florida Gators,83,80,33.0,25.0,37.0,45.0,True,Benchmark International Arena
+401405800,2022,2022-03-10,Duke Blue Devils,Syracuse Orange,88,79,36.0,40.0,52.0,39.0,True,Barclays Center
+401403373,2022,2022-03-10,Fordham Rams,George Mason Patriots,54,49,19.0,22.0,35.0,27.0,True,Capital One Arena
+401403344,2022,2022-03-10,Providence Friars,Butler Bulldogs,65,61,31.0,31.0,34.0,30.0,True,Madison Square Garden
+401405835,2022,2022-03-10,Texas Longhorns,TCU Horned Frogs,60,65,40.0,22.0,20.0,43.0,True,T-Mobile Center
+401405898,2022,2022-03-10,Cincinnati Bearcats,East Carolina Pirates,74,63,40.0,41.0,34.0,22.0,True,Dickies Arena
+401405871,2022,2022-03-10,Akron Zips,Buffalo Bulls,70,68,32.0,32.0,38.0,36.0,True,Rocket Arena
+401403397,2022,2022-03-10,Iowa Hawkeyes,Northwestern Wildcats,112,76,64.0,31.0,48.0,45.0,True,Gainbridge Fieldhouse
+401403313,2022,2022-03-10,Montana State Bobcats,Sacramento State Hornets,83,61,39.0,28.0,44.0,33.0,True,Idaho Central Arena
+401403374,2022,2022-03-10,Saint Louis Billikens,La Salle Explorers,71,51,34.0,16.0,37.0,35.0,True,Capital One Arena
+401405801,2022,2022-03-10,Miami Hurricanes,Boston College Eagles,71,69,34.0,32.0,31.0,33.0,True,Barclays Center
+401403345,2022,2022-03-10,Creighton Bluejays,Marquette Golden Eagles,74,63,29.0,26.0,45.0,37.0,True,Madison Square Garden
+401409378,2022,2022-03-10,Arizona Wildcats,Stanford Cardinal,84,80,40.0,37.0,44.0,43.0,True,T-Mobile Arena
+401409367,2022,2022-03-10,Boise State Broncos,Nevada Wolf Pack,71,69,38.0,33.0,33.0,36.0,True,Thomas & Mack Center
+401405895,2022,2022-03-10,Southern Jaguars,Grambling Tigers,58,60,33.0,30.0,25.0,30.0,True,Bartow Arena
+401403410,2022,2022-03-10,Long Beach State Beach,Cal State Bakersfield Roadrunners,72,61,34.0,31.0,38.0,30.0,True,Lee's Family Forum
+401408153,2022,2022-03-10,LSU Tigers,Missouri Tigers,76,68,39.0,23.0,37.0,45.0,True,Benchmark International Arena
+401405836,2022,2022-03-10,Kansas Jayhawks,West Virginia Mountaineers,87,63,41.0,19.0,46.0,44.0,False,T-Mobile Center
+401405899,2022,2022-03-10,Wichita State Shockers,Tulsa Golden Hurricane,67,73,24.0,34.0,43.0,39.0,True,Dickies Arena
+401405870,2022,2022-03-10,Kent State Golden Flashes,Miami (OH) RedHawks,85,75,41.0,32.0,44.0,43.0,True,Rocket Arena
+401403314,2022,2022-03-10,Weber State Wildcats,Montana Grizzlies,68,56,30.0,25.0,38.0,31.0,True,Idaho Central Arena
+401409379,2022,2022-03-10,Colorado Buffaloes,Oregon Ducks,80,69,36.0,30.0,44.0,39.0,True,T-Mobile Arena
+401409368,2022,2022-03-10,Wyoming Cowboys,UNLV Rebels,59,56,31.0,22.0,28.0,34.0,True,Thomas & Mack Center
+401403411,2022,2022-03-10,UC Irvine Anteaters,UC Santa Barbara Gauchos,69,78,29.0,31.0,40.0,47.0,True,Lee's Family Forum
+401408154,2022,2022-03-10,South Carolina Gamecocks,Mississippi State Bulldogs,51,73,34.0,36.0,17.0,37.0,True,Benchmark International Arena
+401405886,2022,2022-03-10,Texas A&M-Corpus Christi Islanders,Houston Christian Huskies,75,60,39.0,21.0,36.0,39.0,True,Leonard E. Merrell Center
+401403430,2022,2022-03-10,Morgan State Bears,South Carolina State Bulldogs,80,77,40.0,37.0,40.0,40.0,True,Norfolk Scope Arena
+401403376,2022,2022-03-10,George Washington Revolutionaries,Massachusetts Minutemen,88,99,36.0,56.0,52.0,43.0,True,Capital One Arena
+401409395,2022,2022-03-10,North Texas Mean Green,Rice Owls,68,50,35.0,17.0,33.0,33.0,True,Ford Center At The Star
+401405869,2022,2022-03-10,Ohio Bobcats,Ball State Cardinals,77,67,36.0,35.0,41.0,32.0,True,Rocket Arena
+401403399,2022,2022-03-10,Michigan State Spartans,Maryland Terrapins,76,72,43.0,34.0,33.0,38.0,True,Gainbridge Fieldhouse
+401409394,2022,2022-03-10,Western Kentucky Hilltoppers,Louisiana Tech Bulldogs,57,59,33.0,36.0,24.0,23.0,True,Ford Center At The Star
+401405900,2022,2022-03-10,UCF Knights,South Florida Bulls,60,58,29.0,29.0,31.0,29.0,True,Dickies Arena
+401405838,2022,2022-03-10,Baylor Bears,Oklahoma Sooners,67,72,33.0,27.0,34.0,45.0,True,T-Mobile Center
+401405802,2022,2022-03-10,Notre Dame Fighting Irish,Virginia Tech Hokies,80,87,31.0,42.0,49.0,45.0,True,Barclays Center
+401403422,2022,2022-03-10,Siena Saints,Quinnipiac Bobcats,71,77,32.0,40.0,39.0,37.0,True,Jim Whelan Boardwalk Hall
+401403346,2022,2022-03-10,Villanova Wildcats,St. John's Red Storm,66,65,23.0,30.0,43.0,35.0,True,Madison Square Garden
+401403316,2022,2022-03-10,Southern Utah Thunderbirds,Portland State Vikings,65,77,20.0,35.0,45.0,42.0,True,Idaho Central Arena
+401405887,2022,2022-03-10,New Orleans Privateers,McNeese Cowboys,82,78,40.0,38.0,42.0,40.0,True,Leonard E. Merrell Center
+401403375,2022,2022-03-10,Richmond Spiders,Rhode Island Rams,64,59,21.0,35.0,43.0,24.0,True,Capital One Arena
+401408155,2022,2022-03-10,Alabama Crimson Tide,Vanderbilt Commodores,76,82,38.0,28.0,38.0,54.0,True,Benchmark International Arena
+401409393,2022,2022-03-10,Middle Tennessee Blue Raiders,UTEP Miners,66,59,25.0,21.0,27.0,31.0,True,Ford Center At The Star
+401409380,2022,2022-03-10,UCLA Bruins,Washington State Cougars,75,65,40.0,28.0,35.0,37.0,True,T-Mobile Arena
+401409369,2022,2022-03-10,Colorado State Rams,Utah State Aggies,53,51,29.0,25.0,24.0,26.0,True,Thomas & Mack Center
+401403431,2022,2022-03-10,North Carolina Central Eagles,Maryland Eastern Shore Hawks,68,56,30.0,25.0,38.0,31.0,True,Norfolk Scope Arena
+401403412,2022,2022-03-10,Cal State Fullerton Titans,UC Davis Aggies,73,55,37.0,27.0,36.0,28.0,True,Lee's Family Forum
+401403336,2022,2022-03-10,Grand Canyon Lopes,Sam Houston Bearkats,71,66,29.0,30.0,42.0,36.0,True,Orleans Arena
+401403400,2022,2022-03-10,Ohio State Buckeyes,Penn State Nittany Lions,68,71,33.0,24.0,35.0,47.0,True,Gainbridge Fieldhouse
+401409392,2022,2022-03-10,UAB Blazers,Florida Atlantic Owls,80,66,47.0,35.0,33.0,31.0,True,Ford Center At The Star
+401405839,2022,2022-03-10,Texas Tech Red Raiders,Iowa State Cyclones,72,41,39.0,20.0,33.0,21.0,True,T-Mobile Center
+401403423,2022,2022-03-10,Monmouth Hawks,Niagara Purple Eagles,61,58,35.0,35.0,26.0,23.0,True,Jim Whelan Boardwalk Hall
+401405894,2022,2022-03-10,Florida A&M Rattlers,Alabama A&M Bulldogs,56,61,25.0,22.0,31.0,39.0,True,Bartow Arena
+401405803,2022,2022-03-10,North Carolina Tar Heels,Virginia Cavaliers,63,43,33.0,13.0,30.0,30.0,True,Barclays Center
+401403347,2022,2022-03-10,UConn Huskies,Seton Hall Pirates,62,52,29.0,18.0,33.0,34.0,True,Madison Square Garden
+401403315,2022,2022-03-10,Northern Colorado Bears,Eastern Washington Eagles,68,67,42.0,32.0,26.0,35.0,True,Idaho Central Arena
+401409370,2022,2022-03-10,San Diego State Aztecs,Fresno State Bulldogs,53,46,20.0,23.0,33.0,23.0,True,Thomas & Mack Center
+401403413,2022,2022-03-10,Hawai'i Rainbow Warriors,UC Riverside Highlanders,68,67,30.0,31.0,38.0,36.0,True,Lee's Family Forum
+401403337,2022,2022-03-10,Stephen F. Austin Lumberjacks,Abilene Christian Wildcats,62,76,30.0,41.0,32.0,35.0,True,Orleans Arena
+401409381,2022,2022-03-10,USC Trojans,Washington Huskies,65,61,36.0,39.0,29.0,22.0,True,T-Mobile Arena
+401403401,2022,2022-03-11,Illinois Fighting Illini,Indiana Hoosiers,63,65,33.0,31.0,30.0,34.0,True,Gainbridge Fieldhouse
+401408156,2022,2022-03-11,Auburn Tigers,Texas A&M Aggies,62,67,21.0,37.0,41.0,30.0,True,Benchmark International Arena
+401403377,2022,2022-03-11,Davidson Wildcats,Fordham Rams,74,56,40.0,24.0,34.0,32.0,True,Capital One Arena
+401409397,2022,2022-03-11,North Texas Mean Green,Louisiana Tech Bulldogs,36,42,13.0,21.0,23.0,21.0,True,Ford Center At The Star
+401405901,2022,2022-03-11,Houston Cougars,Cincinnati Bearcats,69,56,27.0,32.0,42.0,24.0,True,Dickies Arena
+401408157,2022,2022-03-11,Arkansas Razorbacks,LSU Tigers,79,67,29.0,26.0,50.0,41.0,True,Benchmark International Arena
+401403402,2022,2022-03-11,Rutgers Scarlet Knights,Iowa Hawkeyes,74,84,32.0,41.0,42.0,43.0,True,Gainbridge Fieldhouse
+401403378,2022,2022-03-11,St. Bonaventure Bonnies,Saint Louis Billikens,56,57,22.0,26.0,34.0,31.0,True,Capital One Arena
+401409396,2022,2022-03-11,Middle Tennessee Blue Raiders,UAB Blazers,98,102,31.0,35.0,31.0,27.0,True,Ford Center At The Star
+401405902,2022,2022-03-11,Temple Owls,Tulane Green Wave,60,69,27.0,36.0,33.0,33.0,True,Dickies Arena
+401405893,2022,2022-03-11,Texas Southern Tigers,Grambling Tigers,73,54,35.0,24.0,38.0,30.0,True,Bartow Arena
+401405874,2022,2022-03-11,Toledo Rockets,Akron Zips,62,70,28.0,38.0,34.0,32.0,True,Rocket Arena
+401408158,2022,2022-03-11,Tennessee Volunteers,Mississippi State Bulldogs,72,59,39.0,37.0,33.0,22.0,True,Benchmark International Arena
+401405888,2022,2022-03-11,Nicholls Colonels,Texas A&M-Corpus Christi Islanders,64,71,27.0,38.0,37.0,33.0,True,Leonard E. Merrell Center
+401403428,2022,2022-03-11,Norfolk State Spartans,Morgan State Bears,72,63,28.0,28.0,44.0,35.0,True,Norfolk Scope Arena
+401403424,2022,2022-03-11,Monmouth Hawks,Rider Broncs,72,68,29.0,30.0,43.0,38.0,True,Jim Whelan Boardwalk Hall
+401403380,2022,2022-03-11,Dayton Flyers,Massachusetts Minutemen,75,72,34.0,36.0,41.0,36.0,True,Capital One Arena
+401403403,2022,2022-03-11,Wisconsin Badgers,Michigan State Spartans,63,69,22.0,24.0,41.0,45.0,True,Gainbridge Fieldhouse
+401403342,2022,2022-03-11,Providence Friars,Creighton Bluejays,58,85,27.0,42.0,31.0,43.0,True,Madison Square Garden
+401405903,2022,2022-03-11,SMU Mustangs,Tulsa Golden Hurricane,83,58,40.0,29.0,43.0,29.0,True,Dickies Arena
+401405840,2022,2022-03-11,Kansas Jayhawks,TCU Horned Frogs,75,62,44.0,30.0,31.0,32.0,False,T-Mobile Center
+401405804,2022,2022-03-11,Duke Blue Devils,Miami Hurricanes,80,76,36.0,36.0,44.0,40.0,True,Barclays Center
+401405873,2022,2022-03-11,Kent State Golden Flashes,Ohio Bobcats,67,61,31.0,23.0,36.0,38.0,True,Rocket Arena
+401403317,2022,2022-03-11,Montana State Bobcats,Weber State Wildcats,69,66,31.0,37.0,38.0,29.0,True,Idaho Central Arena
+401403429,2022,2022-03-11,North Carolina Central Eagles,Coppin State Eagles,73,79,33.0,41.0,40.0,38.0,True,Norfolk Scope Arena
+401408159,2022,2022-03-11,Kentucky Wildcats,Vanderbilt Commodores,77,71,37.0,33.0,40.0,38.0,True,Benchmark International Arena
+401405889,2022,2022-03-11,SE Louisiana Lions,New Orleans Privateers,74,65,39.0,32.0,35.0,33.0,True,Leonard E. Merrell Center
+401403425,2022,2022-03-11,Saint Peter's Peacocks,Quinnipiac Bobcats,64,52,30.0,31.0,34.0,21.0,True,Jim Whelan Boardwalk Hall
+401403379,2022,2022-03-11,VCU Rams,Richmond Spiders,64,75,29.0,37.0,35.0,38.0,True,Capital One Arena
+401409382,2022,2022-03-11,Arizona Wildcats,Colorado Buffaloes,82,72,47.0,38.0,35.0,34.0,True,T-Mobile Arena
+401405904,2022,2022-03-11,Memphis Tigers,UCF Knights,85,69,41.0,31.0,44.0,38.0,True,Dickies Arena
+401403414,2022,2022-03-11,Long Beach State Beach,UC Santa Barbara Gauchos,67,64,32.0,37.0,35.0,27.0,True,Lee's Family Forum
+401403404,2022,2022-03-11,Purdue Boilermakers,Penn State Nittany Lions,69,61,35.0,31.0,34.0,30.0,True,Gainbridge Fieldhouse
+401403343,2022,2022-03-11,Villanova Wildcats,UConn Huskies,63,60,33.0,32.0,30.0,28.0,True,Madison Square Garden
+401403338,2022,2022-03-11,New Mexico State Aggies,Grand Canyon Lopes,75,70,46.0,37.0,29.0,33.0,True,Orleans Arena
+401409371,2022,2022-03-11,Boise State Broncos,Wyoming Cowboys,68,61,37.0,23.0,31.0,38.0,True,Thomas & Mack Center
+401405892,2022,2022-03-11,Alcorn State Braves,Alabama A&M Bulldogs,69,64,30.0,37.0,39.0,27.0,True,Bartow Arena
+401405841,2022,2022-03-11,Texas Tech Red Raiders,Oklahoma Sooners,56,55,37.0,26.0,19.0,29.0,True,T-Mobile Center
+401405805,2022,2022-03-11,North Carolina Tar Heels,Virginia Tech Hokies,59,72,26.0,32.0,33.0,40.0,True,Barclays Center
+401403318,2022,2022-03-11,Northern Colorado Bears,Portland State Vikings,86,79,32.0,40.0,54.0,39.0,True,Idaho Central Arena
+401409383,2022,2022-03-11,UCLA Bruins,USC Trojans,69,59,36.0,28.0,33.0,31.0,True,T-Mobile Arena
+401403415,2022,2022-03-11,Cal State Fullerton Titans,Hawai'i Rainbow Warriors,58,46,28.0,21.0,30.0,25.0,True,Lee's Family Forum
+401403339,2022,2022-03-11,Seattle U Redhawks,Abilene Christian Wildcats,76,78,22.0,28.0,54.0,50.0,True,Orleans Arena
+401409372,2022,2022-03-11,Colorado State Rams,San Diego State Aztecs,58,63,26.0,35.0,32.0,28.0,True,Thomas & Mack Center
+401405807,2022,2022-03-12,Vermont Catamounts,UMBC Retrievers,82,43,37.0,20.0,45.0,23.0,False,Patrick Gymnasium
+401403320,2022,2022-03-12,Princeton Tigers,Cornell Big Red,77,73,40.0,35.0,37.0,38.0,True,Lavietes Pavilion
+401408160,2022,2022-03-12,Arkansas Razorbacks,Texas A&M Aggies,64,82,24.0,36.0,40.0,46.0,True,Benchmark International Arena
+401403427,2022,2022-03-12,Norfolk State Spartans,Coppin State Eagles,72,57,24.0,20.0,48.0,37.0,True,Norfolk Scope Arena
+401403405,2022,2022-03-12,Iowa Hawkeyes,Indiana Hoosiers,80,77,32.0,38.0,48.0,39.0,True,Gainbridge Fieldhouse
+401403381,2022,2022-03-12,Davidson Wildcats,Saint Louis Billikens,84,69,44.0,24.0,40.0,45.0,True,Capital One Arena
+401403321,2022,2022-03-12,Yale Bulldogs,Pennsylvania Quakers,67,61,32.0,29.0,35.0,32.0,True,Lavietes Pavilion
+401408161,2022,2022-03-12,Tennessee Volunteers,Kentucky Wildcats,69,62,33.0,22.0,36.0,40.0,True,Benchmark International Arena
+401405905,2022,2022-03-12,Houston Cougars,Tulane Green Wave,86,66,37.0,29.0,49.0,37.0,True,Dickies Arena
+401403382,2022,2022-03-12,Dayton Flyers,Richmond Spiders,64,68,33.0,25.0,31.0,43.0,True,Capital One Arena
+401403406,2022,2022-03-12,Purdue Boilermakers,Michigan State Spartans,75,70,27.0,20.0,48.0,50.0,True,Gainbridge Fieldhouse
+401403426,2022,2022-03-12,Saint Peter's Peacocks,Monmouth Hawks,60,54,29.0,25.0,31.0,29.0,True,Jim Whelan Boardwalk Hall
+401405906,2022,2022-03-12,SMU Mustangs,Memphis Tigers,63,70,26.0,32.0,37.0,38.0,True,Dickies Arena
+401409373,2022,2022-03-12,Boise State Broncos,San Diego State Aztecs,53,52,28.0,25.0,25.0,27.0,True,Thomas & Mack Center
+401405891,2022,2022-03-12,Alcorn State Braves,Texas Southern Tigers,62,87,38.0,42.0,24.0,45.0,True,Bartow Arena
+401405842,2022,2022-03-12,Kansas Jayhawks,Texas Tech Red Raiders,74,65,37.0,36.0,37.0,29.0,False,T-Mobile Center
+401403341,2022,2022-03-12,Villanova Wildcats,Creighton Bluejays,54,48,19.0,18.0,35.0,30.0,True,Madison Square Garden
+401405875,2022,2022-03-12,Kent State Golden Flashes,Akron Zips,55,75,25.0,34.0,30.0,41.0,True,Rocket Arena
+401403319,2022,2022-03-12,Montana State Bobcats,Northern Colorado Bears,87,66,40.0,28.0,47.0,38.0,True,Idaho Central Arena
+401409398,2022,2022-03-12,UAB Blazers,Louisiana Tech Bulldogs,82,73,43.0,33.0,39.0,40.0,True,Ford Center At The Star
+401405806,2022,2022-03-12,Duke Blue Devils,Virginia Tech Hokies,67,82,39.0,42.0,28.0,40.0,True,Barclays Center
+401409384,2022,2022-03-12,Arizona Wildcats,UCLA Bruins,84,76,35.0,40.0,49.0,36.0,True,T-Mobile Arena
+401405890,2022,2022-03-12,SE Louisiana Lions,Texas A&M-Corpus Christi Islanders,65,73,30.0,35.0,35.0,38.0,True,Leonard E. Merrell Center
+401403340,2022,2022-03-12,New Mexico State Aggies,Abilene Christian Wildcats,66,52,30.0,21.0,36.0,31.0,True,Orleans Arena
+401403416,2022,2022-03-12,Long Beach State Beach,Cal State Fullerton Titans,71,72,31.0,32.0,40.0,40.0,True,Lee's Family Forum
+401403322,2022,2022-03-13,Princeton Tigers,Yale Bulldogs,64,66,25.0,32.0,39.0,34.0,True,Lavietes Pavilion
+401408162,2022,2022-03-13,Tennessee Volunteers,Texas A&M Aggies,65,50,29.0,20.0,36.0,30.0,True,Benchmark International Arena
+401403383,2022,2022-03-13,Davidson Wildcats,Richmond Spiders,62,64,26.0,25.0,36.0,39.0,True,Capital One Arena
+401405907,2022,2022-03-13,Houston Cougars,Memphis Tigers,71,53,36.0,24.0,35.0,29.0,True,Dickies Arena
+401403407,2022,2022-03-13,Purdue Boilermakers,Iowa Hawkeyes,66,75,32.0,35.0,34.0,40.0,True,Gainbridge Fieldhouse
+401408572,2022,2022-03-15,Texas Southern Tigers,Texas A&M-Corpus Christi Islanders,76,67,32.0,30.0,44.0,37.0,True,UD Arena
+401408571,2022,2022-03-15,Wyoming Cowboys,Indiana Hoosiers,58,66,25.0,30.0,33.0,36.0,True,UD Arena
+401408573,2022,2022-03-16,Wright State Raiders,Bryant Bulldogs,93,82,44.0,42.0,49.0,40.0,True,UD Arena
+401408570,2022,2022-03-16,Rutgers Scarlet Knights,Notre Dame Fighting Irish,87,89,41.0,36.0,28.0,33.0,True,UD Arena
+401408581,2022,2022-03-17,Colorado State Rams,Michigan Wolverines,63,75,36.0,29.0,27.0,46.0,True,Gainbridge Fieldhouse
+401408576,2022,2022-03-17,Providence Friars,South Dakota State Jackrabbits,66,57,31.0,23.0,35.0,34.0,True,KeyBank Center
+401408588,2022,2022-03-17,Boise State Broncos,Memphis Tigers,53,64,19.0,38.0,34.0,26.0,True,Moda Center
+401408585,2022,2022-03-17,Baylor Bears,Norfolk State Spartans,85,49,43.0,27.0,42.0,22.0,True,Dickies Arena
+401408580,2022,2022-03-17,Tennessee Volunteers,Longwood Lancers,88,56,54.0,29.0,34.0,27.0,True,Gainbridge Fieldhouse
+401408577,2022,2022-03-17,Iowa Hawkeyes,Richmond Spiders,63,67,28.0,29.0,35.0,38.0,True,KeyBank Center
+401408586,2022,2022-03-17,Gonzaga Bulldogs,Georgia State Panthers,93,72,35.0,33.0,58.0,39.0,True,Moda Center
+401408583,2022,2022-03-17,North Carolina Tar Heels,Marquette Golden Eagles,95,63,53.0,25.0,42.0,38.0,True,Dickies Arena
+401408574,2022,2022-03-17,UConn Huskies,New Mexico State Aggies,63,70,22.0,32.0,41.0,38.0,True,KeyBank Center
+401408578,2022,2022-03-17,Kentucky Wildcats,Saint Peter's Peacocks,79,85,37.0,37.0,34.0,34.0,True,Gainbridge Fieldhouse
+401408589,2022,2022-03-17,Saint Mary's Gaels,Indiana Hoosiers,82,53,40.0,28.0,42.0,25.0,True,Moda Center
+401408584,2022,2022-03-17,San Diego State Aztecs,Creighton Bluejays,69,72,37.0,30.0,25.0,32.0,True,Dickies Arena
+401408575,2022,2022-03-17,Arkansas Razorbacks,Vermont Catamounts,75,71,34.0,27.0,41.0,44.0,True,KeyBank Center
+401408587,2022,2022-03-17,UCLA Bruins,Akron Zips,57,53,25.0,26.0,32.0,27.0,True,Moda Center
+401408579,2022,2022-03-17,Murray State Racers,San Francisco Dons,92,87,36.0,37.0,37.0,36.0,True,Gainbridge Fieldhouse
+401408582,2022,2022-03-17,Kansas Jayhawks,Texas Southern Tigers,83,56,47.0,19.0,36.0,37.0,True,Dickies Arena
+401408599,2022,2022-03-18,Ohio State Buckeyes,Loyola Chicago Ramblers,54,41,23.0,18.0,31.0,23.0,True,PPG Paints Arena
+401408591,2022,2022-03-18,Auburn Tigers,Jacksonville State Gamecocks,80,61,39.0,27.0,41.0,34.0,True,Bon Secours Wellness Arena
+401408602,2022,2022-03-18,Texas Tech Red Raiders,Montana State Bobcats,97,62,52.0,25.0,45.0,37.0,True,Viejas Arena
+401408595,2022,2022-03-18,Purdue Boilermakers,Yale Bulldogs,78,56,46.0,33.0,32.0,23.0,True,Fiserv Forum
+401408598,2022,2022-03-18,Villanova Wildcats,Delaware Blue Hens,80,60,35.0,25.0,45.0,35.0,True,PPG Paints Arena
+401408590,2022,2022-03-18,USC Trojans,Miami Hurricanes,66,68,20.0,31.0,46.0,37.0,True,Bon Secours Wellness Arena
+401408605,2022,2022-03-18,Alabama Crimson Tide,Notre Dame Fighting Irish,64,78,36.0,41.0,28.0,37.0,True,Viejas Arena
+401408596,2022,2022-03-18,Texas Longhorns,Virginia Tech Hokies,81,73,34.0,32.0,47.0,41.0,True,Fiserv Forum
+401408600,2022,2022-03-18,Illinois Fighting Illini,Chattanooga Mocs,54,53,29.0,33.0,25.0,20.0,True,PPG Paints Arena
+401408592,2022,2022-03-18,Duke Blue Devils,Cal State Fullerton Titans,78,61,37.0,27.0,41.0,34.0,True,Bon Secours Wellness Arena
+401408604,2022,2022-03-18,Arizona Wildcats,Wright State Raiders,87,70,42.0,31.0,45.0,39.0,True,Viejas Arena
+401408597,2022,2022-03-18,LSU Tigers,Iowa State Cyclones,54,59,19.0,24.0,35.0,35.0,True,Fiserv Forum
+401408593,2022,2022-03-18,Michigan State Spartans,Davidson Wildcats,74,73,32.0,31.0,42.0,42.0,True,Bon Secours Wellness Arena
+401408601,2022,2022-03-18,Houston Cougars,UAB Blazers,82,68,46.0,37.0,36.0,31.0,True,PPG Paints Arena
+401408603,2022,2022-03-18,Seton Hall Pirates,TCU Horned Frogs,42,69,21.0,30.0,21.0,39.0,True,Viejas Arena
+401408594,2022,2022-03-18,Wisconsin Badgers,Colgate Raiders,67,60,28.0,28.0,39.0,32.0,True,Fiserv Forum
+401408610,2022,2022-03-19,Baylor Bears,North Carolina Tar Heels,86,93,29.0,42.0,51.0,38.0,True,Dickies Arena
+401408611,2022,2022-03-19,Kansas Jayhawks,Creighton Bluejays,79,72,39.0,38.0,40.0,34.0,True,Dickies Arena
+401408608,2022,2022-03-19,Tennessee Volunteers,Michigan Wolverines,68,76,37.0,32.0,31.0,44.0,True,Gainbridge Fieldhouse
+401408607,2022,2022-03-19,Providence Friars,Richmond Spiders,79,51,39.0,24.0,40.0,27.0,True,KeyBank Center
+401408612,2022,2022-03-19,UCLA Bruins,Saint Mary's Gaels,72,56,36.0,29.0,36.0,27.0,True,Moda Center
+401408609,2022,2022-03-19,Murray State Racers,Saint Peter's Peacocks,60,70,27.0,32.0,33.0,38.0,True,Gainbridge Fieldhouse
+401408606,2022,2022-03-19,Arkansas Razorbacks,New Mexico State Aggies,53,48,26.0,17.0,27.0,31.0,True,KeyBank Center
+401408613,2022,2022-03-19,Gonzaga Bulldogs,Memphis Tigers,82,78,31.0,41.0,51.0,37.0,True,Moda Center
+401408618,2022,2022-03-20,Illinois Fighting Illini,Houston Cougars,53,68,26.0,30.0,27.0,38.0,True,PPG Paints Arena
+401408619,2022,2022-03-20,Villanova Wildcats,Ohio State Buckeyes,71,61,39.0,28.0,32.0,33.0,True,PPG Paints Arena
+401408614,2022,2022-03-20,Duke Blue Devils,Michigan State Spartans,85,76,39.0,35.0,46.0,41.0,True,Bon Secours Wellness Arena
+401408617,2022,2022-03-20,Wisconsin Badgers,Iowa State Cyclones,49,54,26.0,27.0,23.0,27.0,True,Fiserv Forum
+401408620,2022,2022-03-20,Texas Tech Red Raiders,Notre Dame Fighting Irish,59,53,26.0,25.0,33.0,28.0,True,Viejas Arena
+401408615,2022,2022-03-20,Auburn Tigers,Miami Hurricanes,61,79,32.0,33.0,29.0,46.0,True,Bon Secours Wellness Arena
+401408616,2022,2022-03-20,Purdue Boilermakers,Texas Longhorns,81,71,36.0,30.0,45.0,41.0,True,Fiserv Forum
+401408621,2022,2022-03-20,Arizona Wildcats,TCU Horned Frogs,85,80,39.0,36.0,36.0,39.0,True,Viejas Arena
+401408625,2022,2022-03-24,Gonzaga Bulldogs,Arkansas Razorbacks,68,74,29.0,32.0,39.0,42.0,True,Chase Center
+401408623,2022,2022-03-24,Villanova Wildcats,Michigan Wolverines,63,55,31.0,28.0,32.0,27.0,True,Frost Bank Center
+401408624,2022,2022-03-24,Duke Blue Devils,Texas Tech Red Raiders,78,73,29.0,33.0,49.0,40.0,True,Chase Center
+401408622,2022,2022-03-24,Arizona Wildcats,Houston Cougars,60,72,28.0,34.0,32.0,38.0,True,Frost Bank Center
+401408628,2022,2022-03-25,Purdue Boilermakers,Saint Peter's Peacocks,64,67,33.0,29.0,31.0,38.0,True,Xfinity Mobile Arena
+401408627,2022,2022-03-25,Kansas Jayhawks,Providence Friars,66,61,26.0,17.0,40.0,44.0,True,United Center
+401408629,2022,2022-03-25,UCLA Bruins,North Carolina Tar Heels,66,73,31.0,28.0,35.0,45.0,True,Xfinity Mobile Arena
+401408626,2022,2022-03-25,Miami Hurricanes,Iowa State Cyclones,70,56,32.0,29.0,38.0,27.0,True,United Center
+401408630,2022,2022-03-26,Villanova Wildcats,Houston Cougars,50,44,27.0,20.0,23.0,24.0,True,Frost Bank Center
+401408631,2022,2022-03-26,Duke Blue Devils,Arkansas Razorbacks,78,69,45.0,33.0,33.0,36.0,True,Chase Center
+401408632,2022,2022-03-27,Kansas Jayhawks,Miami Hurricanes,76,50,29.0,35.0,47.0,15.0,True,United Center
+401408633,2022,2022-03-27,North Carolina Tar Heels,Saint Peter's Peacocks,69,49,38.0,19.0,31.0,30.0,True,Xfinity Mobile Arena
+401408634,2022,2022-04-02,Kansas Jayhawks,Villanova Wildcats,81,65,40.0,29.0,41.0,36.0,True,Caesars Superdome
+401408635,2022,2022-04-02,Duke Blue Devils,North Carolina Tar Heels,77,81,37.0,34.0,40.0,47.0,True,Caesars Superdome
+401408636,2022,2022-04-04,Kansas Jayhawks,North Carolina Tar Heels,72,69,25.0,40.0,47.0,29.0,True,Caesars Superdome

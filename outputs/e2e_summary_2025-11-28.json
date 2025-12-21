@@ -1,0 +1,53 @@
+{
+  "date": "2025-11-28",
+  "steps": {
+    "predictions_model": {
+      "exists": true,
+      "rows": 58
+    },
+    "predictions_model_calibrated": {
+      "exists": true,
+      "rows": 58
+    },
+    "predictions_model_interval": {
+      "exists": true,
+      "rows": 58
+    },
+    "predictions_unified_enriched": {
+      "exists": true,
+      "rows": 58
+    },
+    "train_meta_probs": {
+      "returncode": 0,
+      "stdout": "Meta model training complete: {\n  \"cover\": {\n    \"samples\": 177,\n    \"features_used\": [\n      \"p_home_cover_dist\"\n    ],\n    \"n_features\": 1,\n    \"calibrated_features_used\": [],\n    \"legacy_features_present\": [\n      \"p_home_cover_dist\"\n    ],\n    \"brier\": 0.23667434122092162,\n    \"log_loss\": 0.6662893786376216,\n    \"base_rate\": 0.4067796610169492,\n    \"auc\": 0.00016563746453823747,\n    \"ks\": 0.00016563746453823747,\n    \"ece\": 0.026089158822769708\n  },\n  \"over\": {\n    \"samples\": 176,\n    \"features_used\": [\n      \"p_over_dist\"\n    ],\n    \"n_features\": 1,\n    \"calibrated_features_used\": [],\n    \"legacy_features_present\": [\n      \"p_over_dist\"\n    ],\n    \"brier\": 0.2297987356051293,\n    \"log_loss\": 0.6521901566889405,\n    \"base_rate\": 0.35795454545454547,\n    \"auc\": 8.37047212214892e-05,\n    \"ks\": 8.37047212214892e-05,\n    \"ece\": 0.0002077368758607867\n  }\n}\n",
+      "stderr": ""
+    },
+    "explain_meta": {
+      "returncode": 0,
+      "stdout": "Meta explanation artifact written: {\n  \"date\": \"2025-11-28\",\n  \"models\": {\n    \"cover\": {\n      \"n_rows\": 58,\n      \"features_used\": [\n        \"p_home_cover_dist\"\n      ],\n      \"intercept\": -0.30547564013574274,\n      \"top_abs_contributions\": [\n        [\n          \"p_home_cover_dist\",\n          0.07487861201950141\n        ]\n      ],\n      \"mean_abs_contribution\": {\n        \"p_home_cover_dist\": 0.07487861201950141\n      },\n      \"mean_signed_contribution\": {\n        \"p_home_cover_dist\": -0.07487861201950141\n      }\n    },\n    \"over\": {\n      \"n_rows\": 58,\n      \"features_used\": [\n        \"p_over_dist\"\n      ],\n      \"intercept\": -0.510161139665775,\n      \"top_abs_contributions\": [\n        [\n          \"p_over_dist\",\n          0.070081096174561\n        ]\n      ],\n      \"mean_abs_contribution\": {\n        \"p_over_dist\": 0.070081096174561\n      },\n      \"mean_signed_contribution\": {\n        \"p_over_dist\": -0.070081096174561\n      }\n    }\n  }\n}\n",
+      "stderr": ""
+    },
+    "stake_sheet_today": {
+      "exists": true,
+      "rows": 208
+    },
+    "stake_edge_stats": {
+      "count": 208,
+      "mean": 7.032935997660344,
+      "min": 0.5983123779296875,
+      "max": 19.104267120361328
+    },
+    "stake_stake_stats": {
+      "count": 208,
+      "mean": 0.4807692307692309,
+      "min": 0.1603791381718087,
+      "max": 0.4824945285407121
+    },
+    "stake_kelly_stats": {
+      "count": 208,
+      "mean": 0.4820057564106104,
+      "min": 0.0199437459309895,
+      "max": 1.0
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "date": "2025-11-29",
+  "models": {
+    "cover": {
+      "n_rows": 68,
+      "features_used": [
+        "p_home_cover_dist"
+      ],
+      "intercept": -0.3162266193563754,
+      "top_abs_contributions": [
+        [
+          "p_home_cover_dist",
+          0.09471929863336845
+        ]
+      ],
+      "mean_abs_contribution": {
+        "p_home_cover_dist": 0.09471929863336845
+      },
+      "mean_signed_contribution": {
+        "p_home_cover_dist": -0.09471929863336845
+      }
+    },
+    "over": {
+      "n_rows": 68,
+      "features_used": [
+        "p_over_dist"
+      ],
+      "intercept": -0.45701639284862805,
+      "top_abs_contributions": [
+        [
+          "p_over_dist",
+          0.09669545625415632
+        ]
+      ],
+      "mean_abs_contribution": {
+        "p_over_dist": 0.09669545625415632
+      },
+      "mean_signed_contribution": {
+        "p_over_dist": -0.09669545625415632
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401812290,2025-12-04,2025-12-04 21:00:00+00:00,Fairleigh Dickinson Knights,Manor College Blue Jays,86,38,44,21,42,17,,Bogota Savings Bank Center,False
+401828643,2025-12-04,2025-12-05 00:00:00+00:00,Davidson Wildcats,The Citadel Bulldogs,79,63,36,29,43,34,,John M. Belk Arena,False
+401826835,2025-12-04,2025-12-05 00:00:00+00:00,South Florida Bulls,Utah State Aggies,74,61,41,20,33,41,,Yuengling Center,False
+401823852,2025-12-04,2025-12-05 00:00:00+00:00,Merrimack Warriors,Rider Broncs,68,66,37,33,31,33,,Hammel Court,False
+401820845,2025-12-04,2025-12-05 00:00:00+00:00,Charleston Southern Buccaneers,Warren Wilson Owls,124,63,74,24,50,39,,Buccaneer Fieldhouse,False
+401817505,2025-12-04,2025-12-05 00:00:00+00:00,Green Bay Phoenix,Robert Morris Colonials,78,80,33,36,45,44,,Resch Center,False
+401823311,2025-12-04,2025-12-05 02:00:00+00:00,UC Santa Barbara Gauchos,Long Beach State Beach,84,77,31,30,36,37,,The Thunderdome,False
+401823261,2025-12-04,2025-12-05 03:00:00+00:00,Cal State Northridge Matadors,Cal State Bakersfield Roadrunners,87,66,44,32,43,34,,Premier America Credit Union Arena,False
+401809153,2025-12-04,2025-12-05 03:00:00+00:00,Cal State Fullerton Titans,Cal Poly Mustangs,91,94,44,43,47,51,,Titan Gym,False
+401809105,2025-12-04,2025-12-05 03:00:00+00:00,UC Irvine Anteaters,UC Riverside Highlanders,73,60,37,26,36,34,,Bren Events Center,False
+401809123,2025-12-04,2025-12-05 04:59:00+00:00,Hawai'i Rainbow Warriors,UC Davis Aggies,75,69,33,28,42,41,,Stan Sheriff Center,False

@@ -1,0 +1,33 @@
+game_id,date,home_team,away_team,home_pf5,home_pa5,home_tot5,away_pf5,away_pa5,away_tot5,target_total,target_margin,target_1h_total
+401638586,2024-03-21,North Carolina Tar Heels,Wagner Seahawks,,,,,,,152,28,68
+401638583,2024-03-21,Arizona Wildcats,Long Beach State Beach,,,,,,,150,20,76
+401638595,2024-03-21,Iowa State Cyclones,South Dakota State Jackrabbits,,,,,,,147,17,73
+401638587,2024-03-21,Tennessee Volunteers,Saint Peter's Peacocks,,,,,,,132,34,66
+401638589,2024-03-21,Creighton Bluejays,Akron Zips,,,,,,,137,17,73
+401638597,2024-03-21,Illinois Fighting Illini,Morehead State Eagles,,,,,,,154,16,77
+401638593,2024-03-21,Kentucky Wildcats,Oakland Golden Grizzlies,,,,,,,156,-4,73
+401638591,2024-03-21,Kansas Jayhawks,Samford Bulldogs,,,,,,,182,4,86
+401638592,2024-03-21,Gonzaga Bulldogs,McNeese Cowboys,,,,,,,151,21,73
+401638598,2024-03-21,BYU Cougars,Duquesne Dukes,,,,,,,138,-4,68
+401638590,2024-03-21,South Carolina Gamecocks,Oregon Ducks,,,,,,,160,-14,63
+401638594,2024-03-21,Texas Tech Red Raiders,NC State Wolfpack,,,,,,,147,-13,70
+401638584,2024-03-21,Dayton Flyers,Nevada Wolf Pack,,,,,,,123,3,59
+401638588,2024-03-21,Texas Longhorns,Colorado State Rams,,,,,,,100,12,38
+401638596,2024-03-21,Washington State Cougars,Drake Bulldogs,,,,,,,127,5,62
+401638585,2024-03-21,Mississippi State Bulldogs,Michigan State Spartans,,,,,,,120,-18,55
+401638599,2024-03-22,UConn Huskies,Stetson Hatters,,,,,,,143,39,71
+401638601,2024-03-22,Purdue Boilermakers,Grambling Tigers,,,,,,,128,28,63
+401638600,2024-03-22,Houston Cougars,Longwood Lancers,,,,,,,132,40,59
+401638607,2024-03-22,Marquette Golden Eagles,Western Kentucky Hilltoppers,,,,,,,156,18,79
+401638602,2024-03-22,Baylor Bears,Colgate Raiders,,,,,,,159,25,88
+401638612,2024-03-22,Auburn Tigers,Yale Bulldogs,,,,,,,154,-2,75
+401638609,2024-03-22,Duke Blue Devils,Vermont Catamounts,,,,,,,111,17,63
+401638604,2024-03-22,Alabama Crimson Tide,Charleston Cougars,,,,,,,205,13,85
+401638613,2024-03-22,San Diego State Aztecs,UAB Blazers,,,,,,,134,4,64
+401638610,2024-03-22,Wisconsin Badgers,James Madison Dukes,,,,,,,133,-11,53
+401638605,2024-03-22,Saint Mary's Gaels,Grand Canyon Lopes,,,,,,,141,-9,55
+401638603,2024-03-22,Clemson Tigers,New Mexico Lobos,,,,,,,133,21,70
+401638608,2024-03-22,Florida Gators,Colorado Buffaloes,,,,,,,202,-2,90
+401638614,2024-03-22,Florida Atlantic Owls,Northwestern Wildcats,,,,,,,142,-12,39
+401638611,2024-03-22,Nebraska Cornhuskers,Texas A&M Aggies,,,,,,,181,-15,102
+401638606,2024-03-22,Utah State Aggies,TCU Horned Frogs,,,,,,,160,16,80

@@ -1,0 +1,46 @@
+game_id,date,start_time,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,venue,neutral_site
+401812356,2025-11-22,2025-11-22 19:00:00+00:00,Illinois Fighting Illini,Long Island University Sharks,98,58,54,19,44,39,,State Farm Center,False
+401822725,2025-11-22,2025-11-22 17:00:00+00:00,Georgetown Hoyas,Wagner Seahawks,92,75,44,27,48,48,,Capital One Arena,False
+401820152,2025-11-22,2025-11-22 17:00:00+00:00,Navy Midshipmen,NJIT Highlanders,86,70,51,36,35,34,,Alumni Hall (Navy),False
+401828682,2025-11-22,2025-11-22 18:00:00+00:00,New Haven Chargers,Vermont State - Lyndon Hornets,122,51,58,21,64,30,,Jeffery P. Hazell Athletics Center,False
+401823190,2025-11-22,2025-11-22 18:00:00+00:00,Le Moyne Dolphins,Fairfield Stags,83,97,38,56,45,41,,Ted Grant Court,False
+401812605,2025-11-22,2025-11-22 18:30:00+00:00,Boston University Terriers,Harvard Crimson,75,74,32,35,43,39,,Mohegan Sun Arena,True
+401826763,2025-11-22,2025-11-22 19:00:00+00:00,Saint Peter's Peacocks,UMass Lowell River Hawks,68,66,36,31,32,35,,Yanitelli Center,False
+401823025,2025-11-22,2025-11-22 19:00:00+00:00,Marquette Golden Eagles,Central Michigan Chippewas,85,71,41,36,44,35,,Fiserv Forum,False
+401823014,2025-11-22,2025-11-22 19:00:00+00:00,Kent State Golden Flashes,Cleveland State Vikings,91,71,42,25,49,46,,M.A.C. Center,False
+401820486,2025-11-22,2025-11-22 19:00:00+00:00,Texas A&M-Corpus Christi Islanders,Howard Payne Yellow Jackets,122,75,63,43,59,32,,American Bank Center,False
+401813439,2025-11-22,2025-11-22 19:00:00+00:00,Dayton Flyers,North Carolina Central Eagles,74,55,44,20,30,35,,UD Arena,False
+401813291,2025-11-22,2025-11-22 19:00:00+00:00,Oklahoma State Cowboys,Nicholls Colonels,95,81,47,32,48,49,,Gallagher-Iba Arena,False
+401831206,2025-11-22,2025-11-22 20:00:00+00:00,Massachusetts Minutemen,Green Bay Phoenix,75,79,25,33,50,46,,UVI Sports & Fitness Center,True
+401820608,2025-11-22,2025-11-22 20:00:00+00:00,Binghamton Bearcats,Maryland Eastern Shore Hawks,52,63,23,36,29,27,,Koessler Athletic Center,True
+401818792,2025-11-22,2025-11-22 20:00:00+00:00,Eastern Kentucky Colonels,Mercer Bears,83,95,38,53,45,42,,Baptist Health Arena,False
+401823332,2025-11-22,2025-11-22 20:30:00+00:00,Sam Houston Bearkats,Schreiner Mountaineers,105,54,47,23,58,31,,Bernard G. Johnson Coliseum,False
+401826889,2025-11-22,2025-11-22 21:00:00+00:00,Penn State Nittany Lions,Providence Friars,65,77,31,32,34,45,,Mohegan Sun Arena,True
+401823734,2025-11-22,2025-11-22 21:00:00+00:00,Cal State Bakersfield Roadrunners,Mississippi Valley State Delta Devils,86,70,39,22,47,48,,Icardo Center,False
+401813449,2025-11-22,2025-11-22 21:00:00+00:00,Duquesne Dukes,Northeastern Huskies,86,93,38,41,48,52,,LeBron James Arena,True
+401813378,2025-11-22,2025-11-22 21:00:00+00:00,Howard Bison,Niagara Purple Eagles,80,70,29,37,51,33,,Cameron Indoor Stadium,True
+401823435,2025-11-22,2025-11-22 21:30:00+00:00,Chattanooga Mocs,North Alabama Lions,71,57,33,26,38,31,,McKenzie Arena,False
+401830881,2025-11-22,2025-11-22 22:00:00+00:00,UIC Flames,Southern Indiana Screaming Eagles,84,73,37,27,47,46,,Ocean Center,True
+401829391,2025-11-22,2025-11-22 22:00:00+00:00,Prairie View A&M Panthers,UT Martin Skyhawks,68,69,39,28,29,41,,Pensacola Bay Center,True
+401829291,2025-11-22,2025-11-22 22:00:00+00:00,Nevada Wolf Pack,UC Santa Barbara Gauchos,77,64,32,28,45,36,,Lawlor Events Center,False
+401824949,2025-11-22,2025-11-22 22:00:00+00:00,Lipscomb Bisons,Western Carolina Catamounts,83,62,34,23,49,39,,Allen Arena,False
+401823325,2025-11-22,2025-11-22 22:00:00+00:00,Missouri State Bears,UT Rio Grande Valley Vaqueros,74,67,28,30,46,37,,Great Southern Bank Arena,False
+401822181,2025-11-22,2025-11-22 22:00:00+00:00,La Salle Explorers,Lancasater Bible College Chargers,75,46,47,19,28,27,,John Glaser Arena,False
+401831207,2025-11-22,2025-11-22 22:30:00+00:00,Oregon State Beavers,Iona Gaels,84,91,34,30,36,40,,UVI Sports & Fitness Center,True
+401826729,2025-11-22,2025-11-22 22:30:00+00:00,Minnesota Golden Gophers,San Francisco Dons,65,77,27,34,38,43,,Sanford Pentagon,True
+401822732,2025-11-22,2025-11-22 22:30:00+00:00,Cal State Fullerton Titans,St. Thomas-Minnesota Tommies,88,80,33,37,55,43,,Chiles Center,True
+401830880,2025-11-22,2025-11-23 00:00:00+00:00,High Point Panthers,Incarnate Word Cardinals,91,80,46,40,45,40,,Ocean Center,True
+401830125,2025-11-22,2025-11-23 00:00:00+00:00,UL Monroe Warhawks,Morehead State Eagles,80,83,44,38,36,45,,Freedom Hall (TN),True
+401829457,2025-11-22,2025-11-23 00:00:00+00:00,North Dakota Fighting Hawks,Coastal Carolina Chanticleers,58,75,30,41,28,34,,Western Hall,True
+401823517,2025-11-22,2025-11-23 00:00:00+00:00,Stetson Hatters,VMI Keydets,99,80,44,38,55,42,,Edmunds Center,False
+401822321,2025-11-22,2025-11-23 00:00:00+00:00,Indiana State Sycamores,Ball State Cardinals,70,52,27,28,43,24,,Hulman Center,False
+401822312,2025-11-22,2025-11-23 00:00:00+00:00,Wichita State Shockers,Milwaukee Panthers,75,58,28,30,47,28,,Charles Koch Arena,False
+401817176,2025-11-22,2025-11-23 00:00:00+00:00,Richmond Spiders,Gardner-Webb Runnin' Bulldogs,102,67,62,30,40,37,,Robins Center,False
+401822737,2025-11-22,2025-11-23 00:30:00+00:00,VCU Rams,Coppin State Eagles,101,58,54,28,47,30,,Siegel Center,False
+401824090,2025-11-22,2025-11-23 01:00:00+00:00,Portland Pilots,Northern Colorado Bears,80,86,32,35,37,34,,Chiles Center,False
+401823445,2025-11-22,2025-11-23 01:00:00+00:00,Southern Miss Golden Eagles,North Florida Ospreys,92,83,35,46,57,37,,Pensacola Bay Center,True
+401823544,2025-11-22,2025-11-23 01:30:00+00:00,Southern Utah Thunderbirds,Nobel Knights,103,68,38,24,65,44,,America First Events Center,False
+401823869,2025-11-22,2025-11-23 02:00:00+00:00,Weber State Wildcats,UT Arlington Mavericks,73,74,27,33,46,41,,Dee Events Center,False
+401823512,2025-11-22,2025-11-23 02:00:00+00:00,Idaho Vandals,Eastern Oregon Mountaineers,97,68,53,41,44,27,,ICCU Arena,False
+401829505,2025-11-22,2025-11-23 03:30:00+00:00,Saint Mary's Gaels,UC Merced Bobcats,96,42,40,26,56,16,,University Credit Union Pavilion,False
+401820545,2025-11-22,2025-11-23 03:30:00+00:00,UC Irvine Anteaters,Northern Iowa Panthers,69,70,25,35,38,28,,Bren Events Center,False

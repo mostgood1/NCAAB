@@ -1,0 +1,21 @@
+{
+  "date": "2025-12-03",
+  "enriched_path": "outputs\\predictions_unified_enriched_2025-12-03.csv",
+  "cal_path_present": true,
+  "raw_path_present": true,
+  "rows": 78,
+  "before_missing": {
+    "pred_total_model": 31,
+    "pred_margin_model": 31,
+    "pred_total_calibrated": 31,
+    "pred_margin_calibrated": 31
+  },
+  "after_missing": {
+    "pred_total_model": 0,
+    "pred_margin_model": 0,
+    "pred_total_calibrated": 0,
+    "pred_margin_calibrated": 0
+  },
+  "promoted_rows": 312,
+  "timestamp": "2025-12-04T03:17:13.518688Z"
+}

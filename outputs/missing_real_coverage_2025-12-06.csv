@@ -1,0 +1,117 @@
+game_id,home_team,away_team,pred_total,pred_margin,market_total,spread_home
+401823528,Abilene Christian Wildcats,New Mexico State Aggies,,,131.5,3.0
+401820601,Tulane Green Wave,Akron Zips,,,164.0,6.5
+401823041,American University Eagles,Maryland Eastern Shore Hawks,,,130.0,-10.5
+401823480,Arizona Wildcats,Auburn Tigers,,,161.0,-8.5
+401819819,Arizona State Sun Devils,Oklahoma Sooners,,,154.5,6.0
+401826791,Arkansas Razorbacks,Fresno State Bulldogs,,,158.5,-20.25
+401825574,DePaul Blue Demons,Arkansas-Pine Bluff Golden Lions,,,156.5,-24.5
+401825189,Little Rock Trojans,Arkansas State Red Wolves,,,149.5,9.5
+401819829,Memphis Tigers,Baylor Bears,,,157.5,3.0
+401823220,Murray State Racers,Bellarmine Knights,,,159.0,-17.5
+401820610,Binghamton Bearcats,Le Moyne Dolphins,,,146.5,1.5
+401820828,Butler Bulldogs,Boise State Broncos,,,147.5,-5.5
+401824361,New Hampshire Wildcats,Boston University Terriers,,,134.0,5.5
+401817215,Boston College Eagles,New Haven Chargers,,,127.5,-17.5
+401830238,Howard Bison,Bowie State Bulldogs,,,,
+401823422,Bowling Green Falcons,Utah Valley Wolverines,,,145.5,-1.0
+401823465,Bradley Braves,Northern Illinois Huskies,,,144.5,-18.0
+401818555,Brown Bears,Elms College Blazers,,,131.5,-6.5
+401831529,Wagner Seahawks,Bryant Str-Alb Bobcats,,,,
+401809081,Bucknell Bison,UMBC Retrievers,,,144.5,-2.5
+401817202,Buffalo Bulls,St. Bonaventure Bonnies,,,142.5,6.5
+401819911,Utah Utes,California Baptist Lancers,,,145.5,-6.0
+401817225,California Golden Bears,Pacific Tigers,,,145.5,-9.0
+401809154,Cal Poly Mustangs,UC Riverside Highlanders,,,162.5,-5.0
+401809106,UC Irvine Anteaters,Cal State Northridge Matadors,,,142.0,-12.5
+401823737,UC Santa Barbara Gauchos,Cal State Bakersfield Roadrunners,,,146.0,-11.5
+401809139,Hawai'i Rainbow Warriors,Cal State Fullerton Titans,,,163.5,-16.0
+401822336,Valparaiso Beacons,Calumet Crimson Wave,,,,
+401827043,Prairie View A&M Panthers,Champion Christian Tigers,,,,
+401829350,Chattanooga Mocs,Southeast Missouri State Redhawks,,,150.0,-4.5
+401813260,Illinois State Redbirds,Chicago State Cougars,,,145.5,-21.5
+401817507,Cleveland State Vikings,Detroit Mercy Titans,,,160.5,-2.5
+401827070,Winthrop Eagles,Coastal Carolina Chanticleers,,,150.5,-15.0
+401829405,Colgate Raiders,St. John Fisher Cardinals,,,,
+401819867,Colorado State Rams,Colorado Buffaloes,,,148.5,-3.0
+401818535,Columbia Lions,UAlbany Great Danes,,,146.5,-14.0
+401822763,Liberty Flames,Coppin State Eagles,,,143.5,-32.5
+401823761,Wyoming Cowboys,Dartmouth Big Green,,,157.5,-15.75
+401813441,Virginia Cavaliers,Dayton Flyers,,,145.25,-5.5
+401828305,Delaware State Hornets,Delaware Blue Hens,,,129.5,8.0
+401824856,Idaho State Bengals,Denver Pioneers,,,144.5,-7.5
+401831238,La Salle Explorers,Drexel Dragons,,,132.5,0.5
+401817235,Michigan State Spartans,Duke Blue Devils,,,141.5,1.0
+401813452,Duquesne Dukes,Stony Brook Seawolves,,,152.5,-9.5
+401820812,East Carolina Pirates,UNC Greensboro Spartans,,,139.5,-5.5
+401806343,Eastern Illinois Panthers,Lindenwood Lions,,,144.5,5.75
+401828546,Eastern Kentucky Colonels,Indiana University East IU EAST,,,,
+401823505,Eastern Washington Eagles,Kansas City Roos,,,148.5,-9.5
+401827519,Wofford Terriers,Elon Phoenix,,,161.5,-4.25
+401823363,Western Kentucky Hilltoppers,Evansville Purple Aces,,,148.5,-12.0
+401831242,Florida A&M Rattlers,Florida Memorial FLORIDA MEMORIAL,,,,
+401823346,Florida International Panthers,Jacksonville Dolphins,,,144.5,-8.0
+401824813,Houston Cougars,Florida State Seminoles,,,145.0,-15.5
+401812668,Fordham Rams,Holy Cross Crusaders,,,138.5,-10.5
+401812609,Furman Paladins,Harvard Crimson,,,142.5,-6.5
+401826970,Gardner-Webb Runnin' Bulldogs,Georgia Southern Eagles,,,162.5,11.5
+401817523,Virginia Tech Hokies,George Mason Patriots,,,144.5,-3.5
+401817149,George Washington Revolutionaries,William & Mary Tribe,,,173.5,-13.75
+401828341,Kennesaw State Owls,Georgia State Panthers,,,158.5,-13.5
+401824865,Georgia Tech Yellow Jackets,Monmouth Hawks,,,142.5,-9.0
+401813293,Grand Canyon Lopes,Oklahoma State Cowboys,,,153.5,2.5
+401830634,Western Illinois Leathernecks,Hannibal-Lagrange Trojans,,,,
+401808899,New Orleans Privateers,Houston Christian Huskies,,,141.0,-6.5
+401823569,South Dakota State Jackrabbits,Idaho Vandals,,,147.25,-5.5
+401811099,Tennessee Volunteers,Illinois Fighting Illini,,,150.5,-2.0
+401808918,Nicholls Colonels,Incarnate Word Cardinals,,,146.0,1.0
+401817246,Louisville Cardinals,Indiana Hoosiers,,,160.5,4.0
+401825398,Iowa Hawkeyes,Maryland Terrapins,,,134.5,-10.25
+401819877,Purdue Boilermakers,Iowa State Cyclones,,,154.5,-4.5
+401817508,IU Indianapolis Jaguars,Youngstown State Penguins,,,173.75,7.5
+401828722,James Madison Dukes,Norfolk State Spartans,,,138.5,-10.5
+401819894,Kansas State Wildcats,Seton Hall Pirates,,,146.5,-2.5
+401823017,Kent State Golden Flashes,Roberts Wesleyan Redhawks,,,,
+401827211,Troy Trojans,LaGrange Panthers,,,,
+401820488,Lamar Cardinals,Texas A&M-Corpus Christi Islanders,,,134.5,-3.5
+401812360,Lehigh Mountain Hawks,Long Island University Sharks,,,142.5,2.0
+401809085,Long Beach State Beach,UC San Diego Tritons,,,144.0,10.5
+401813279,Morgan State Bears,Longwood Lancers,,,154.0,5.0
+401823595,Louisiana Ragin' Cajuns,UNC Wilmington Seahawks,,,127.0,13.0
+401817160,Loyola Chicago Ramblers,Princeton Tigers,,,137.0,-6.0
+401820629,Miami (OH) RedHawks,Maine Black Bears,,,138.5,-17.5
+401823027,Wisconsin Badgers,Marquette Golden Eagles,,,158.5,-11.5
+401827263,Ohio Bobcats,Marshall Thundering Herd,,,156.75,-3.5
+401826764,Massachusetts Minutemen,UMass Lowell River Hawks,,,156.0,-11.5
+401809420,Miami Hurricanes,Southern Miss Golden Eagles,,,148.0,-19.5
+401825400,Michigan Wolverines,Rutgers Scarlet Knights,,,148.5,-25.0
+401817509,Milwaukee Panthers,Robert Morris Colonials,,,150.5,-4.5
+401826916,St. John's Red Storm,Ole Miss Rebels,,,151.5,-13.0
+401823327,Tulsa Golden Hurricane,Missouri State Bears,,,140.5,-11.5
+401828293,North Dakota Fighting Hawks,Montana Grizzlies,,,157.5,6.0
+401825581,Oral Roberts Golden Eagles,Montana State Bobcats,,,151.0,6.5
+401826944,Presbyterian Blue Hose,Morehead State Eagles,,,132.5,-6.5
+401817257,NC State Wolfpack,UNC Asheville Bulldogs,,,156.5,-29.0
+401824122,New Mexico Lobos,Santa Clara Broncos,,,154.5,1.5
+401827528,North Carolina Central Eagles,North Carolina A&T Aggies,,,143.5,1.5
+401825593,North Dakota State Bison,Northern Arizona Lumberjacks,,,146.0,-10.0
+401811110,Northern Colorado Bears,South Dakota Coyotes,,,163.5,-9.5
+401820547,Northern Iowa Panthers,Wichita State Shockers,,,130.0,-2.5
+401817506,Purdue Fort Wayne Mastodons,Northern Kentucky Norse,,,153.5,-1.0
+401825399,Northwestern Wildcats,Ohio State Buckeyes,,,153.5,-2.5
+401823471,Oakland Golden Grizzlies,Toledo Rockets,,,165.5,-4.5
+401817177,Richmond Spiders,Old Dominion Monarchs,,,153.5,-13.0
+401826924,Portland State Vikings,Omaha Mavericks,,,151.5,-11.0
+401825401,UCLA Bruins,Oregon Ducks,,,144.0,-9.5
+401823547,Oregon State Beavers,Southern Utah Thunderbirds,,,144.25,-11.5
+401831240,Villanova Wildcats,Pennsylvania Quakers,,,148.5,-19.5
+401824073,Pepperdine Waves,Vermont Catamounts,,,144.5,1.5
+401817169,Providence Friars,Rhode Island Rams,,,159.5,-7.5
+401823355,Texas Southern Tigers,Sam Houston Bearkats,,,159.5,6.5
+401829275,SIU Edwardsville Cougars,Western Michigan Broncos,,,142.0,-6.5
+401825207,South Carolina Gamecocks,Stetson Hatters,,,140.5,-22.5
+401831239,Temple Owls,Saint Joseph's Hawks,,,151.5,-2.5
+401825388,West Georgia Wolves,Tennessee Tech Golden Eagles,,,151.5,-3.0
+401825402,USC Trojans,Washington Huskies,,,154.5,-4.5
+401826754,South Carolina Upstate Spartans,Western Carolina Catamounts,,,151.0,1.0
+401817534,West Virginia Mountaineers,Wake Forest Demon Deacons,,,141.5,-1.5

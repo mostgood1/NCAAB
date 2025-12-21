@@ -1,0 +1,50 @@
+segment,key,rows,path
+team,Alabama Crimson Tide,101,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\alabamacrimsontide
+team,Arizona Wildcats,98,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\arizonawildcats
+team,Arkansas Razorbacks,87,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\arkansasrazorbacks
+team,Auburn Tigers,100,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\auburntigers
+team,BYU Cougars,90,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\byucougars
+team,Baylor Bears,86,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\baylorbears
+team,Cincinnati Bearcats,82,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\cincinnatibearcats
+team,Cleveland State Vikings,85,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\clevelandstatevikings
+team,Creighton Bluejays,93,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\creightonbluejays
+team,Duke Blue Devils,106,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\dukebluedevils
+team,Fairfield Stags,84,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\fairfieldstags
+team,Florida Atlantic Owls,87,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\floridaatlanticowls
+team,Florida Gators,93,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\floridagators
+team,Gonzaga Bulldogs,89,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\gonzagabulldogs
+team,Houston Cougars,107,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\houstoncougars
+team,Illinois Fighting Illini,102,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\illinoisfightingillini
+team,Indiana Hoosiers,82,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\indianahoosiers
+team,Iona Gaels,82,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\ionagaels
+team,Iowa Hawkeyes,84,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\iowahawkeyes
+team,Iowa State Cyclones,100,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\iowastatecyclones
+team,Kansas Jayhawks,97,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\kansasjayhawks
+team,Kentucky Wildcats,100,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\kentuckywildcats
+team,Marquette Golden Eagles,97,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\marquettegoldeneagles
+team,Maryland Terrapins,86,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\marylandterrapins
+team,Memphis Tigers,85,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\memphistigers
+team,Michigan State Spartans,98,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\michiganstatespartans
+team,Michigan Wolverines,88,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\michiganwolverines
+team,Mississippi State Bulldogs,80,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\mississippistatebulldogs
+team,Mount St. Mary's Mountaineers,82,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\mountstmarysmountaineers
+team,Nebraska Cornhuskers,80,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\nebraskacornhuskers
+team,North Carolina Tar Heels,95,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\northcarolinatarheels
+team,North Texas Mean Green,82,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\northtexasmeangreen
+team,Oakland Golden Grizzlies,81,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\oaklandgoldengrizzlies
+team,Ohio State Buckeyes,84,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\ohiostatebuckeyes
+team,Purdue Boilermakers,105,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\purdueboilermakers
+team,Purdue Fort Wayne Mastodons,80,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\purduefortwaynemastodons
+team,Quinnipiac Bobcats,80,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\quinnipiacbobcats
+team,Rutgers Scarlet Knights,80,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\rutgersscarletknights
+team,Siena Saints,83,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\sienasaints
+team,St. John's Red Storm,88,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\stjohnsredstorm
+team,Tennessee Volunteers,104,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\tennesseevolunteers
+team,Texas A&M Aggies,83,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\texasamaggies
+team,Texas Longhorns,80,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\texaslonghorns
+team,Texas Tech Red Raiders,95,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\texastechredraiders
+team,UAB Blazers,90,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\uabblazers
+team,UCLA Bruins,84,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\uclabruins
+team,UConn Huskies,101,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\uconnhuskies
+team,Villanova Wildcats,80,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\villanovawildcats
+team,Wisconsin Badgers,97,C:\Users\mostg\OneDrive\Coding\NCAAB\outputs\models\seg_team\wisconsinbadgers

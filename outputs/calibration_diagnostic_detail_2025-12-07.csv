@@ -1,0 +1,49 @@
+game_id,home_team,away_team,date,start_time,reason,has_model_total,has_model_margin,has_cal_total,has_cal_margin,basis_total,basis_margin
+401826816,Army Black Knights,Gallaudet Bison,2025-12-07,2025-12-07 17:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820157,Navy Midshipmen,Air Force Falcons,2025-12-07,2025-12-07 17:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819885,Kansas Jayhawks,Missouri Tigers,2025-12-07,2025-12-07 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829354,Indiana State Sycamores,Southern Indiana Screaming Eagles,2025-12-07,2025-12-07 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826956,St. Thomas-Minnesota Tommies,Weber State Wildcats,2025-12-07,2025-12-07 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823192,Merrimack Warriors,Fairfield Stags,2025-12-07,2025-12-07 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812650,Northeastern Huskies,Central Connecticut Blue Devils,2025-12-07,2025-12-07 18:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812265,Alabama Crimson Tide,UTSA Roadrunners,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830122,UT Rio Grande Valley Vaqueros,Austin Peay Governors,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828644,Davidson Wildcats,Saint Mary's Gaels,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824892,East Tennessee State Buccaneers,Tusculum Pioneers,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823726,Sacred Heart Pioneers,Iona Gaels,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823490,Mercer Bears,Oglethorpe Stormy Petrels,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823233,Florida Gulf Coast Eagles,Florida Atlantic Owls,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820802,Charlotte 49ers,Utah State Aggies,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820583,Quinnipiac Bobcats,Rider Broncs,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820214,Mercyhurst Lakers,Bethany (WV) Bison,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401818305,Yale Bulldogs,UIC Flames,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813381,Saint Peter's Peacocks,Niagara Purple Eagles,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813354,Siena Saints,Canisius Golden Griffins,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401813309,Marist Red Foxes,Manhattan Jaspers,2025-12-07,2025-12-07 19:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812385,Radford Highlanders,Saint Francis Red Flash,2025-12-07,2025-12-07 19:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819902,LSU Tigers,Texas Tech Red Raiders,2025-12-07,2025-12-07 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829449,Stephen F. Austin Lumberjacks,UL Monroe Warhawks,2025-12-07,2025-12-07 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827156,UT Martin Skyhawks,Alabama State Hornets,2025-12-07,2025-12-07 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826902,Louisiana Tech Bulldogs,Ecclesia Royals,2025-12-07,2025-12-07 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817189,Saint Louis Billikens,Central Michigan Chippewas,2025-12-07,2025-12-07 20:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828298,Campbell Fighting Camels,Virginia-Lynchburg Dragons,2025-12-07,2025-12-07 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401826730,Mississippi State Bulldogs,San Francisco Dons,2025-12-07,2025-12-07 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824828,UCF Knights,Towson Tigers,2025-12-07,2025-12-07 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823423,Bowling Green Falcons,Aquinas Saints,2025-12-07,2025-12-07 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817471,Stanford Cardinal,UNLV Rebels,2025-12-07,2025-12-07 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817448,Pittsburgh Panthers,Hofstra Pride,2025-12-07,2025-12-07 21:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401811972,Middle Tennessee Blue Raiders,Belmont Bruins,2025-12-07,2025-12-07 21:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401808934,SE Louisiana Lions,Northwestern State Demons,2025-12-07,2025-12-07 21:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817268,North Carolina Tar Heels,Georgetown Hoyas,2025-12-07,2025-12-07 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401828312,Jacksonville State Gamecocks,Auburn-Montgomery Senators,2025-12-07,2025-12-07 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824953,Lipscomb Bisons,Alabama A&M Bulldogs,2025-12-07,2025-12-07 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824139,Washington State Cougars,Nevada Wolf Pack,2025-12-07,2025-12-07 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820835,Nebraska Cornhuskers,Creighton Bluejays,2025-12-07,2025-12-07 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817510,Wright State Raiders,Green Bay Phoenix,2025-12-07,2025-12-07 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817460,Texas A&M Aggies,SMU Mustangs,2025-12-07,2025-12-07 22:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827000,Tarleton State Texans,Cameron Aggies,2025-12-07,2025-12-07 22:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812255,TCU Horned Frogs,North Texas Mean Green,2025-12-07,2025-12-07 22:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824939,East Texas A&M Lions,Central Arkansas Bears,2025-12-07,2025-12-07 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401829434,Samford Bulldogs,Cornell Big Red,2025-12-07,2025-12-08 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824129,Seattle U Redhawks,UTEP Miners,2025-12-07,2025-12-08 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823448,Gonzaga Bulldogs,North Florida Ospreys,2025-12-07,2025-12-08 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal

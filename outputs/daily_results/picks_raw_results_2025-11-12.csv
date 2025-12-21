@@ -1,0 +1,729 @@
+game_id,home_team,away_team,period,market,book,pick,edge,line_value,predicted_value,fair_price,actual_total,actual_total_1h,actual_total_2h,actual_margin,home_score,away_score,result,pnl_units
+401820605,Georgetown Hoyas,Binghamton Bearcats,2h,moneyline,Fanatics,Binghamton Bearcats ML,93.87922532347106,4500.0,-4.17474365234375,181.55563512033152,0,,,0,0,0,push,0.0
+401820605,Georgetown Hoyas,Binghamton Bearcats,2h,moneyline,FanDuel,Binghamton Bearcats ML,93.13278938730896,4000.0,-4.17474365234375,181.55563512033152,0,,,0,0,0,push,0.0
+401820605,Georgetown Hoyas,Binghamton Bearcats,2h,moneyline,BetMGM,Binghamton Bearcats ML,91.71895190822556,3300.0,-4.17474365234375,181.55563512033152,0,,,0,0,0,push,0.0
+401817254,NC State Wolfpack,UNC Greensboro Spartans,2h,moneyline,BetMGM,UNC Greensboro Spartans ML,89.74153716921148,3300.0,-6.380009174346924,248.7877362468097,0,,,0,0,0,push,0.0
+401822736,VCU Rams,Saint Peter's Peacocks,2h,moneyline,FanDuel,Saint Peter's Peacocks ML,84.52048402152158,2200.0,-6.580840110778809,256.0288675050036,0,,,0,0,0,push,0.0
+401822736,VCU Rams,Saint Peter's Peacocks,2h,moneyline,Fanatics,Saint Peter's Peacocks ML,83.04624440452363,2000.0,-6.580840110778809,256.0288675050036,0,,,0,0,0,push,0.0
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,2h,moneyline,Fanatics,Eastern Kentucky Colonels ML,80.89117031767397,3500.0,-12.399919509887695,587.9178685637373,0,,,0,0,0,push,0.0
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,2h,moneyline,BetMGM,Eastern Kentucky Colonels ML,79.76712151283125,3300.0,-12.399919509887695,587.9178685637373,0,,,0,0,0,push,0.0
+401822736,VCU Rams,Saint Peter's Peacocks,2h,moneyline,BetMGM,Saint Peter's Peacocks ML,79.05712544088213,1600.0,-6.580840110778809,256.0288675050036,0,,,0,0,0,push,0.0
+401822736,VCU Rams,Saint Peter's Peacocks,2h,moneyline,Caesars,Saint Peter's Peacocks ML,78.42249287848463,1550.0,-6.580840110778809,256.0288675050036,0,,,0,0,0,push,0.0
+401826931,Utah State Aggies,Weber State Wildcats,2h,moneyline,FanDuel,Weber State Wildcats ML,75.9031245342132,1600.0,-7.911836624145508,309.6468829183753,0,,,0,0,0,push,0.0
+401826931,Utah State Aggies,Weber State Wildcats,2h,moneyline,BetRivers,Weber State Wildcats ML,74.39706981760155,1500.0,-7.911836624145508,309.6468829183753,0,,,0,0,0,push,0.0
+401822759,South Florida Bulls,Coppin St Eagles,2h,moneyline,BetMGM,Coppin St Eagles ML,73.64194610449498,3300.0,-14.522531509399414,796.1738324471709,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,FanDuel,Montana St Bobcats ML,71.88445938260102,890.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401826931,Utah State Aggies,Weber State Wildcats,2h,moneyline,BetMGM,Weber State Wildcats ML,71.7484908332155,1350.0,-7.911836624145508,309.6468829183753,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,DraftKings,Montana St Bobcats ML,70.70064714607895,850.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,BetOnline.ag,Montana St Bobcats ML,70.26240896236645,836.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,LowVig.ag,Montana St Bobcats ML,70.26240896236645,836.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,BetUS,Montana St Bobcats ML,69.90877274462163,825.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,BetRivers,Montana St Bobcats ML,69.07290532086111,800.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,BetMGM,Montana St Bobcats ML,68.1892740443143,775.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401822311,Indiana Hoosiers,Milwaukee Panthers,2h,moneyline,FanDuel,Milwaukee Panthers ML,67.66556408554062,2500.0,-14.016934394836426,740.6953337759439,0,,,0,0,0,push,0.0
+401817466,Stanford Cardinal,Montana St Bobcats,2h,moneyline,Bovada,Montana St Bobcats ML,67.25366445738236,750.0,-4.049802780151367,178.34385211224998,0,,,0,0,0,push,0.0
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,2h,moneyline,BetMGM,Fairleigh Dickinson Knights ML,65.39364661108678,3300.0,-16.634855270385742,1076.616015223049,0,,,0,0,0,push,0.0
+401822311,Indiana Hoosiers,Milwaukee Panthers,2h,moneyline,Caesars,Milwaukee Panthers ML,63.4480289662633,2200.0,-14.016934394836426,740.6953337759439,0,,,0,0,0,push,0.0
+401826726,San Francisco Dons,Portland St Vikings,2h,moneyline,FanDuel,Portland St Vikings ML,59.96738178536656,630.0,-4.574952125549316,192.2381129668241,0,,,0,0,0,push,0.0
+401822311,Indiana Hoosiers,Milwaukee Panthers,2h,moneyline,BetMGM,Milwaukee Panthers ML,59.9668888678122,2000.0,-14.016934394836426,740.6953337759439,0,,,0,0,0,push,0.0
+401822311,Indiana Hoosiers,Milwaukee Panthers,2h,moneyline,Fanatics,Milwaukee Panthers ML,59.9668888678122,2000.0,-14.016934394836426,740.6953337759439,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,FanDuel,Oral Roberts Golden Eagles ML,59.39163882416332,270.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,Bovada,Oral Roberts Golden Eagles ML,58.26362879150119,260.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,Caesars,Oral Roberts Golden Eagles ML,58.26362879150119,260.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,DraftKings,Oral Roberts Golden Eagles ML,58.26362879150119,260.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,BetUS,Oral Roberts Golden Eagles ML,58.03046470653751,258.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,BetOnline.ag,Oral Roberts Golden Eagles ML,57.79468080039446,256.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,LowVig.ag,Oral Roberts Golden Eagles ML,57.79468080039446,256.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401826726,San Francisco Dons,Portland St Vikings,2h,moneyline,BetOnline.ag,Portland St Vikings ML,57.39969198734342,586.0,-4.574952125549316,192.2381129668241,0,,,0,0,0,push,0.0
+401826726,San Francisco Dons,Portland St Vikings,2h,moneyline,LowVig.ag,Portland St Vikings ML,57.39969198734342,586.0,-4.574952125549316,192.2381129668241,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,Fanatics,Oral Roberts Golden Eagles ML,57.07116104268694,250.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401826726,San Francisco Dons,Portland St Vikings,2h,moneyline,BetUS,Portland St Vikings ML,57.02380691664351,580.0,-4.574952125549316,192.2381129668241,0,,,0,0,0,push,0.0
+401826726,San Francisco Dons,Portland St Vikings,2h,moneyline,BetMGM,Portland St Vikings ML,56.70546474565569,575.0,-4.574952125549316,192.2381129668241,0,,,0,0,0,push,0.0
+401826726,San Francisco Dons,Portland St Vikings,2h,moneyline,DraftKings,Portland St Vikings ML,56.70546474565569,575.0,-4.574952125549316,192.2381129668241,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,BetMGM,Oral Roberts Golden Eagles ML,54.46941322709221,230.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401826726,San Francisco Dons,Portland St Vikings,2h,moneyline,BetRivers,Portland St Vikings ML,54.337794848933726,540.0,-4.574952125549316,192.2381129668241,0,,,0,0,0,push,0.0
+401823809,Colorado St Rams,Cal Poly Mustangs,2h,moneyline,FanDuel,Cal Poly Mustangs ML,54.24592369756922,1280.0,-11.692496299743652,531.4062529735448,0,,,0,0,0,push,0.0
+401823809,Colorado St Rams,Cal Poly Mustangs,2h,moneyline,BetUS,Cal Poly Mustangs ML,53.22916644640409,1250.0,-11.692496299743652,531.4062529735448,0,,,0,0,0,push,0.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,2h,moneyline,BetRivers,Oral Roberts Golden Eagles ML,53.04658239043884,220.0,4.816987037658691,-199.0012669660721,0,,,0,0,0,push,0.0
+401823809,Colorado St Rams,Cal Poly Mustangs,2h,moneyline,BetOnline.ag,Cal Poly Mustangs ML,52.02080144577928,1216.0,-11.692496299743652,531.4062529735448,0,,,0,0,0,push,0.0
+401823809,Colorado St Rams,Cal Poly Mustangs,2h,moneyline,LowVig.ag,Cal Poly Mustangs ML,52.02080144577928,1216.0,-11.692496299743652,531.4062529735448,0,,,0,0,0,push,0.0
+401823809,Colorado St Rams,Cal Poly Mustangs,2h,moneyline,DraftKings,Cal Poly Mustangs ML,51.43028823280424,1200.0,-11.692496299743652,531.4062529735448,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,FanDuel,Northern Kentucky Norse ML,51.162298450661744,270.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,BetUS,Northern Kentucky Norse ML,50.49328884039684,265.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,BetOnline.ag,Northern Kentucky Norse ML,50.2205245915836,263.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,LowVig.ag,Northern Kentucky Norse ML,50.2205245915836,263.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,BetMGM,Northern Kentucky Norse ML,49.8056956298468,260.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,DraftKings,Northern Kentucky Norse ML,49.8056956298468,260.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,Fanatics,Northern Kentucky Norse ML,48.37157264784243,250.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,2h,moneyline,BetRivers,Northern Kentucky Norse ML,46.85308949042602,240.0,1.501065015792847,-123.91651161168691,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,BetRivers,Manhattan Jaspers ML,46.70302626966703,140.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,FanDuel,Manhattan Jaspers ML,46.70302626966703,140.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,DraftKings,Manhattan Jaspers ML,45.79968773186478,136.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,BetMGM,Manhattan Jaspers ML,45.569048105191854,135.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,BetOnline.ag,Manhattan Jaspers ML,45.569048105191854,135.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,Bovada,Manhattan Jaspers ML,45.569048105191854,135.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,LowVig.ag,Manhattan Jaspers ML,45.569048105191854,135.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,2h,moneyline,BetUS,Manhattan Jaspers ML,45.33643719965849,134.0,8.932609558105469,-358.2593859179827,0,,,0,0,0,push,0.0
+401823809,Colorado St Rams,Cal Poly Mustangs,2h,moneyline,BetMGM,Cal Poly Mustangs ML,45.09510843708306,1050.0,-11.692496299743652,531.4062529735448,0,,,0,0,0,push,0.0
+401823809,Colorado St Rams,Cal Poly Mustangs,2h,moneyline,BetRivers,Cal Poly Mustangs ML,42.59943154785956,1000.0,-11.692496299743652,531.4062529735448,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,2h,moneyline,DraftKings,South Dakota St Jackrabbits ML,42.348343809079296,900.0,-10.929326057434082,476.51656190920704,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,2h,moneyline,BetOnline.ag,South Dakota St Jackrabbits ML,40.809387894331934,874.0,-10.929326057434082,476.51656190920704,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,2h,moneyline,LowVig.ag,South Dakota St Jackrabbits ML,40.809387894331934,874.0,-10.929326057434082,476.51656190920704,0,,,0,0,0,push,0.0
+401826992,Longwood Lancers,James Madison Dukes,2h,moneyline,Bovada,James Madison Dukes ML,40.49839289099888,-110.0,13.96880340576172,-735.6198886405813,0,,,0,0,0,push,0.0
+401826992,Longwood Lancers,James Madison Dukes,2h,moneyline,Fanatics,James Madison Dukes ML,40.49839289099888,-110.0,13.96880340576172,-735.6198886405813,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,2h,moneyline,FanDuel,South Dakota St Jackrabbits ML,39.94619146779093,860.0,-10.929326057434082,476.51656190920704,0,,,0,0,0,push,0.0
+401826992,Longwood Lancers,James Madison Dukes,2h,moneyline,BetRivers,James Madison Dukes ML,39.48732055269811,-114.0,13.96880340576172,-735.6198886405813,0,,,0,0,0,push,0.0
+401826992,Longwood Lancers,James Madison Dukes,2h,moneyline,FanDuel,James Madison Dukes ML,39.48732055269811,-114.0,13.96880340576172,-735.6198886405813,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,2h,moneyline,BetMGM,South Dakota St Jackrabbits ML,39.31404611482032,850.0,-10.929326057434082,476.51656190920704,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,2h,moneyline,BetUS,South Dakota St Jackrabbits ML,39.31404611482032,850.0,-10.929326057434082,476.51656190920704,0,,,0,0,0,push,0.0
+401826992,Longwood Lancers,James Madison Dukes,2h,moneyline,BetMGM,James Madison Dukes ML,38.51335178644506,-118.0,13.96880340576172,-735.6198886405813,0,,,0,0,0,push,0.0
+401826992,Longwood Lancers,James Madison Dukes,2h,moneyline,DraftKings,James Madison Dukes ML,38.51335178644506,-118.0,13.96880340576172,-735.6198886405813,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,BetUS,Minnesota Golden Gophers ML,36.69263707921429,255.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,FanDuel,Minnesota Golden Gophers ML,36.69263707921429,255.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,BetOnline.ag,Minnesota Golden Gophers ML,36.15308569068488,252.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,LowVig.ag,Minnesota Golden Gophers ML,36.15308569068488,252.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,Bovada,Minnesota Golden Gophers ML,35.788246180345936,250.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,DraftKings,Minnesota Golden Gophers ML,35.788246180345936,250.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,DraftKings,Saint Joseph's Hawks ML,35.015064781166735,575.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,Fanatics,Minnesota Golden Gophers ML,33.89966518565022,240.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,Bovada,Saint Joseph's Hawks ML,32.515644195826994,550.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,Caesars,Saint Joseph's Hawks ML,32.515644195826994,550.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,Fanatics,Saint Joseph's Hawks ML,32.515644195826994,550.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,BetOnline.ag,Saint Joseph's Hawks ML,32.09778440756586,546.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,LowVig.ag,Saint Joseph's Hawks ML,32.09778440756586,546.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,BetUS,Saint Joseph's Hawks ML,31.992509654709377,545.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,FanDuel,Middle Tennessee Blue Raiders ML,31.90659366490049,106.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,BetMGM,Middle Tennessee Blue Raiders ML,31.574430707168304,105.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,BetOnline.ag,Middle Tennessee Blue Raiders ML,31.574430707168304,105.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,BetUS,Middle Tennessee Blue Raiders ML,31.574430707168304,105.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,DraftKings,Middle Tennessee Blue Raiders ML,31.574430707168304,105.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,Fanatics,Middle Tennessee Blue Raiders ML,31.574430707168304,105.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,LowVig.ag,Middle Tennessee Blue Raiders ML,31.574430707168304,105.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,BetUS,Southern Indiana Screaming Eagles ML,31.57001931034672,210.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,BetOnline.ag,Southern Indiana Screaming Eagles ML,30.901322430643265,207.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,LowVig.ag,Southern Indiana Screaming Eagles ML,30.901322430643265,207.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,BetMGM,Minnesota Golden Gophers ML,30.848880501911,225.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,BetMGM,Saint Joseph's Hawks ML,29.81626996366008,525.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,Bovada,Southern Indiana Screaming Eagles ML,29.28901995402494,200.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,DraftKings,Southern Indiana Screaming Eagles ML,29.28901995402494,200.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,FanDuel,Saint Joseph's Hawks ML,29.25027214078637,520.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,FanDuel,Southern Indiana Screaming Eagles ML,28.814449618145904,198.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,2h,moneyline,BetRivers,Minnesota Golden Gophers ML,28.65360686705104,215.0,-1.547493577003479,124.74113836878924,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,2h,moneyline,BetRivers,South Dakota St Jackrabbits ML,27.935429761349123,700.0,-10.929326057434082,476.51656190920704,0,,,0,0,0,push,0.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,2h,moneyline,BetRivers,Middle Tennessee Blue Raiders ML,27.166244993110872,-108.0,6.366523742675781,-248.3089104760915,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,BetMGM,Southern Indiana Screaming Eagles ML,26.85071029726717,190.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,Fanatics,Southern Indiana Screaming Eagles ML,26.85071029726717,190.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,FanDuel,Siena Saints ML,25.631640668254068,350.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,BetRivers,Idaho Vandals ML,23.902030563814677,-122.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,DraftKings,Siena Saints ML,22.17264721096356,330.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,Fanatics,Siena Saints ML,22.17264721096356,330.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,DraftKings,Idaho Vandals ML,21.73245196264048,-130.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,BetUS,Siena Saints ML,21.257031295798427,325.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,BetOnline.ag,Siena Saints ML,21.07131674696776,324.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,LowVig.ag,Siena Saints ML,21.07131674696776,324.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,BetMGM,Idaho Vandals ML,20.451477363011016,-135.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,BetUS,Idaho Vandals ML,20.451477363011016,-135.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,Bovada,Idaho Vandals ML,20.451477363011016,-135.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,BetMGM,Siena Saints ML,20.31961500170079,320.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,BetOnline.ag,Idaho Vandals ML,19.46528771308709,-139.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,LowVig.ag,Idaho Vandals ML,19.46528771308709,-139.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,2h,moneyline,BetRivers,Southern Indiana Screaming Eagles ML,19.34108740002845,163.0,-0.8016046285629272,112.1329401379252,0,,,0,0,0,push,0.0
+401823510,San Diego Toreros,Idaho Vandals,2h,moneyline,FanDuel,Idaho Vandals ML,19.22387670503279,-140.0,6.686429977416992,-259.9201500038749,0,,,0,0,0,push,0.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,2h,moneyline,BetRivers,Saint Joseph's Hawks ML,17.2361674099765,430.0,-8.538543701171875,338.6483127271245,0,,,0,0,0,push,0.0
+401817195,St. Bonaventure Bonnies,Siena Saints,2h,moneyline,BetRivers,Siena Saints ML,16.335595751785824,300.0,-5.970701217651367,234.6576169928567,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,DraftKings,Fresno St Bulldogs ML,15.929670027476655,120.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,BetMGM,Fresno St Bulldogs ML,15.158382596536066,118.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,BetOnline.ag,Fresno St Bulldogs ML,14.767407401128402,117.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,LowVig.ag,Fresno St Bulldogs ML,14.767407401128402,117.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,FanDuel,Fresno St Bulldogs ML,14.372812065022517,116.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,BetUS,Fresno St Bulldogs ML,13.974546074627272,115.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,Bovada,Fresno St Bulldogs ML,13.974546074627272,115.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401820615,Bryant Bulldogs,Dartmouth Big Green,2h,moneyline,BetMGM,Bryant Bulldogs ML,12.15357071640658,-110.0,2.7298829555511475,-147.69560980315393,0,,,0,0,0,push,0.0
+401820615,Bryant Bulldogs,Dartmouth Big Green,2h,moneyline,Bovada,Bryant Bulldogs ML,10.296352338317936,-115.0,2.7298829555511475,-147.69560980315393,0,,,0,0,0,push,0.0
+401820615,Bryant Bulldogs,Dartmouth Big Green,2h,moneyline,BetRivers,Bryant Bulldogs ML,9.577429095186837,-117.0,2.7298829555511475,-147.69560980315393,0,,,0,0,0,push,0.0
+401827004,Texas Southern Tigers,Samford Bulldogs,2h,moneyline,Bovada,Texas Southern Tigers ML,9.441181029734508,150.0,-1.639805555343628,126.39704742566371,0,,,0,0,0,push,0.0
+401827004,Texas Southern Tigers,Samford Bulldogs,2h,moneyline,Fanatics,Texas Southern Tigers ML,9.441181029734508,150.0,-1.639805555343628,126.39704742566371,0,,,0,0,0,push,0.0
+401820615,Bryant Bulldogs,Dartmouth Big Green,2h,moneyline,FanDuel,Bryant Bulldogs ML,9.222914193184122,-118.0,2.7298829555511475,-147.69560980315393,0,,,0,0,0,push,0.0
+401827004,Texas Southern Tigers,Samford Bulldogs,2h,moneyline,FanDuel,Texas Southern Tigers ML,8.710867973522701,148.0,-1.639805555343628,126.39704742566371,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,BetOnline.ag,Texas State Bobcats ML,8.09408530839906,-135.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,BetUS,Texas State Bobcats ML,8.09408530839906,-135.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,LowVig.ag,Texas State Bobcats ML,8.09408530839906,-135.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,BetRivers,Texas State Bobcats ML,7.805617277351982,-136.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,2h,moneyline,Bovada,Canisius Golden Griffins ML,7.622039630617261,-105.0,1.530839443206787,-124.44471175945122,0,,,0,0,0,push,0.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,2h,moneyline,DraftKings,Canisius Golden Griffins ML,7.622039630617261,-105.0,1.530839443206787,-124.44471175945122,0,,,0,0,0,push,0.0
+401827004,Texas Southern Tigers,Samford Bulldogs,2h,moneyline,BetMGM,Texas Southern Tigers ML,7.593041867076034,145.0,-1.639805555343628,126.39704742566371,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,BetMGM,Texas State Bobcats ML,6.675784155750901,-140.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,Bovada,Texas State Bobcats ML,6.675784155750901,-140.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,2h,moneyline,BetRivers,Fresno St Bulldogs ML,6.15597649372516,-103.0,1.141361951828003,-117.70975527736265,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,DraftKings,Texas State Bobcats ML,6.124873790672688,-142.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401823442,Tennessee Volunteers,North Florida Ospreys,2h,moneyline,BetMGM,North Florida Ospreys ML,5.776059334778615,3300.0,-24.046066284179688,3103.613982617527,0,,,0,0,0,push,0.0
+401827004,Texas Southern Tigers,Samford Bulldogs,2h,moneyline,BetRivers,Texas Southern Tigers ML,5.667896905973448,140.0,-1.639805555343628,126.39704742566371,0,,,0,0,0,push,0.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,2h,moneyline,Fanatics,Canisius Golden Griffins ML,5.527301300245767,-110.0,1.530839443206787,-124.44471175945122,0,,,0,0,0,push,0.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,2h,moneyline,FanDuel,Canisius Golden Griffins ML,4.717072323403971,-112.0,1.530839443206787,-124.44471175945122,0,,,0,0,0,push,0.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,2h,moneyline,FanDuel,Western Michigan Broncos ML,4.257942204926049,142.0,-1.927270650863648,131.69577986407896,0,,,0,0,0,push,0.0
+401827213,Texas State Bobcats,UTSA Roadrunners,2h,moneyline,FanDuel,Texas State Bobcats ML,3.501491099824073,-152.0,3.5776031017303467,-166.71009459431514,0,,,0,0,0,push,0.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,2h,moneyline,BetOnline.ag,Western Michigan Broncos ML,3.460091723300432,140.0,-1.927270650863648,131.69577986407896,0,,,0,0,0,push,0.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,2h,moneyline,Bovada,Western Michigan Broncos ML,3.460091723300432,140.0,-1.927270650863648,131.69577986407896,0,,,0,0,0,push,0.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,2h,moneyline,LowVig.ag,Western Michigan Broncos ML,3.460091723300432,140.0,-1.927270650863648,131.69577986407896,0,,,0,0,0,push,0.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,2h,moneyline,BetUS,Western Michigan Broncos ML,2.648831989882792,138.0,-1.927270650863648,131.69577986407896,0,,,0,0,0,push,0.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,2h,moneyline,BetMGM,Canisius Golden Griffins ML,2.375584913264819,-118.0,1.530839443206787,-124.44471175945122,0,,,0,0,0,push,0.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,2h,moneyline,BetRivers,Nevada Wolf Pack ML,2.283511900724082,-455.0,11.554503440856934,-521.0330808659753,0,,,0,0,0,push,0.0
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,BetMGM,Coppin St Eagles +34.5,24.749350547790527,-34.5,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,BetOnline.ag,Coppin St Eagles +34.5,24.749350547790527,-34.5,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,Bovada,Coppin St Eagles +34.5,24.749350547790527,-34.5,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,DraftKings,Coppin St Eagles +34.5,24.749350547790527,-34.5,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,FanDuel,Coppin St Eagles +34.5,24.749350547790527,-34.5,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,LowVig.ag,Coppin St Eagles +34.5,24.749350547790527,-34.5,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,Fanatics,Coppin St Eagles +34.0,24.249350547790527,-34.0,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,spreads,BetRivers,Coppin St Eagles +32.5,22.749350547790527,-32.5,9.750649452209473,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,Bovada,Eastern Kentucky Colonels +29.0,22.313416957855225,-29.0,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,BetMGM,Eastern Kentucky Colonels +28.5,21.813416957855225,-28.5,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,BetOnline.ag,Eastern Kentucky Colonels +28.5,21.813416957855225,-28.5,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,BetRivers,Eastern Kentucky Colonels +28.5,21.813416957855225,-28.5,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,DraftKings,Eastern Kentucky Colonels +28.5,21.813416957855225,-28.5,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,FanDuel,Eastern Kentucky Colonels +28.5,21.813416957855225,-28.5,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,Fanatics,Eastern Kentucky Colonels +28.5,21.813416957855225,-28.5,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,spreads,LowVig.ag,Eastern Kentucky Colonels +28.5,21.813416957855225,-28.5,6.686583042144775,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,BetOnline.ag,James Madison Dukes -1.0,20.753942489624023,1.0,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,Bovada,James Madison Dukes -1.0,20.753942489624023,1.0,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,Fanatics,James Madison Dukes -1.0,20.753942489624023,1.0,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,LowVig.ag,James Madison Dukes -1.0,20.753942489624023,1.0,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,BetMGM,James Madison Dukes -1.5,20.253942489624023,1.5,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,BetRivers,James Madison Dukes -1.5,20.253942489624023,1.5,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,DraftKings,James Madison Dukes -1.5,20.253942489624023,1.5,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401826992,Longwood Lancers,James Madison Dukes,full_game,spreads,FanDuel,James Madison Dukes -1.5,20.253942489624023,1.5,-21.753942489624023,,0,,,0,0,0,loss,-1.0
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,BetMGM,UNC Greensboro Spartans +32.5,20.15268898010254,-32.5,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,BetRivers,UNC Greensboro Spartans +32.5,20.15268898010254,-32.5,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,BetOnline.ag,UNC Greensboro Spartans +32.0,19.65268898010254,-32.0,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,Bovada,UNC Greensboro Spartans +32.0,19.65268898010254,-32.0,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,Caesars,UNC Greensboro Spartans +32.0,19.65268898010254,-32.0,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,LowVig.ag,UNC Greensboro Spartans +32.0,19.65268898010254,-32.0,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,BetUS,UNC Greensboro Spartans +31.5,19.15268898010254,-31.5,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,DraftKings,UNC Greensboro Spartans +31.5,19.15268898010254,-31.5,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,FanDuel,UNC Greensboro Spartans +31.5,19.15268898010254,-31.5,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,spreads,Fanatics,UNC Greensboro Spartans +31.5,19.15268898010254,-31.5,12.34731101989746,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,Bovada,Binghamton Bearcats +28.0,16.284018516540527,-28.0,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,Fanatics,Binghamton Bearcats +28.0,16.284018516540527,-28.0,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,BetMGM,Binghamton Bearcats +27.5,15.784018516540527,-27.5,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,BetOnline.ag,Binghamton Bearcats +27.5,15.784018516540527,-27.5,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,BetRivers,Binghamton Bearcats +27.5,15.784018516540527,-27.5,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,DraftKings,Binghamton Bearcats +27.5,15.784018516540527,-27.5,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,FanDuel,Binghamton Bearcats +27.5,15.784018516540527,-27.5,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,spreads,LowVig.ag,Binghamton Bearcats +27.5,15.784018516540527,-27.5,11.715981483459473,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,Fanatics,Oral Roberts Golden Eagles +7.0,15.656048774719238,7.0,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,BetMGM,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,BetOnline.ag,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,BetRivers,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,BetUS,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,Bovada,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,Caesars,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,DraftKings,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,FanDuel,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,spreads,LowVig.ag,Oral Roberts Golden Eagles +6.5,15.156048774719238,6.5,8.656048774719238,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,BetMGM,North Florida Ospreys +42.5,13.46725845336914,-42.5,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,BetRivers,North Florida Ospreys +42.5,13.46725845336914,-42.5,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,DraftKings,North Florida Ospreys +42.5,13.46725845336914,-42.5,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,FanDuel,North Florida Ospreys +42.5,13.46725845336914,-42.5,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,Bovada,North Florida Ospreys +42.0,12.96725845336914,-42.0,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,Fanatics,North Florida Ospreys +42.0,12.96725845336914,-42.0,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,BetOnline.ag,North Florida Ospreys +41.5,12.46725845336914,-41.5,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,spreads,LowVig.ag,North Florida Ospreys +41.5,12.46725845336914,-41.5,29.03274154663086,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,BetRivers,Oakland Golden Grizzlies +30.5,10.398681640625,-30.5,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,BetMGM,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,BetOnline.ag,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,BetRivers,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,BetUS,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,Caesars,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,DraftKings,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,FanDuel,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,Fanatics,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,LowVig.ag,Saint Peter's Peacocks +21.5,9.818353652954102,-21.5,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,BetMGM,Oakland Golden Grizzlies +29.5,9.398681640625,-29.5,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,DraftKings,Oakland Golden Grizzlies +29.5,9.398681640625,-29.5,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,FanDuel,Oakland Golden Grizzlies +29.5,9.398681640625,-29.5,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401822736,VCU Rams,Saint Peter's Peacocks,full_game,spreads,Bovada,Saint Peter's Peacocks +21.0,9.318353652954102,-21.0,11.681646347045898,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,BetOnline.ag,Oakland Golden Grizzlies +29.0,8.898681640625,-29.0,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,BetUS,Oakland Golden Grizzlies +29.0,8.898681640625,-29.0,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,Bovada,Oakland Golden Grizzlies +29.0,8.898681640625,-29.0,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,Caesars,Oakland Golden Grizzlies +29.0,8.898681640625,-29.0,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,spreads,LowVig.ag,Oakland Golden Grizzlies +29.0,8.898681640625,-29.0,20.101318359375,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,BetMGM,Weber State Wildcats +22.5,8.333684921264648,-22.5,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,BetOnline.ag,Weber State Wildcats +22.0,7.833684921264648,-22.0,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,BetUS,Weber State Wildcats +22.0,7.833684921264648,-22.0,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,Bovada,Weber State Wildcats +22.0,7.833684921264648,-22.0,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,Caesars,Weber State Wildcats +22.0,7.833684921264648,-22.0,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,LowVig.ag,Weber State Wildcats +22.0,7.833684921264648,-22.0,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,BetOnline.ag,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,BetRivers,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,BetUS,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,Caesars,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,DraftKings,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,FanDuel,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,Fanatics,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,LowVig.ag,Northern Kentucky Norse +7.5,7.828184604644775,-7.5,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,BetRivers,Manhattan Jaspers +4.5,7.539024114608765,4.5,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,BetRivers,Weber State Wildcats +21.5,7.333684921264648,-21.5,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,DraftKings,Weber State Wildcats +21.5,7.333684921264648,-21.5,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,spreads,FanDuel,Weber State Wildcats +21.5,7.333684921264648,-21.5,14.166315078735352,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,spreads,Bovada,Northern Kentucky Norse +7.0,7.328184604644775,-7.0,-0.3281846046447754,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,BetMGM,Manhattan Jaspers +3.5,6.539024114608765,3.5,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,BetUS,Manhattan Jaspers +3.5,6.539024114608765,3.5,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,Bovada,Manhattan Jaspers +3.5,6.539024114608765,3.5,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,Caesars,Manhattan Jaspers +3.5,6.539024114608765,3.5,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,DraftKings,Manhattan Jaspers +3.5,6.539024114608765,3.5,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,FanDuel,Manhattan Jaspers +3.5,6.539024114608765,3.5,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,BetRivers,Nevada Wolf Pack -9.5,6.458982467651367,-9.5,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,BetOnline.ag,Manhattan Jaspers +3.0,6.039024114608765,3.0,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,spreads,LowVig.ag,Manhattan Jaspers +3.0,6.039024114608765,3.0,3.0390241146087646,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,BetOnline.ag,Nevada Wolf Pack -10.0,5.958982467651367,-10.0,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,BetUS,Nevada Wolf Pack -10.0,5.958982467651367,-10.0,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,Bovada,Nevada Wolf Pack -10.0,5.958982467651367,-10.0,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,Caesars,Nevada Wolf Pack -10.0,5.958982467651367,-10.0,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,LowVig.ag,Nevada Wolf Pack -10.0,5.958982467651367,-10.0,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,BetMGM,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,BetOnline.ag,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,BetRivers,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,BetUS,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,Bovada,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,Caesars,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,DraftKings,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,FanDuel,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,spreads,LowVig.ag,Portland St Vikings +12.5,5.948628902435303,-12.5,6.551371097564697,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,BetMGM,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,BetOnline.ag,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,BetRivers,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,BetUS,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,Bovada,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,Caesars,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,DraftKings,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,FanDuel,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,spreads,LowVig.ag,Montana St Bobcats +14.5,5.713271141052246,-14.5,8.786728858947754,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,BetMGM,Nevada Wolf Pack -10.5,5.458982467651367,-10.5,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,DraftKings,Nevada Wolf Pack -10.5,5.458982467651367,-10.5,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,spreads,FanDuel,Nevada Wolf Pack -10.5,5.458982467651367,-10.5,15.958982467651367,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,BetMGM,Idaho Vandals -1.5,4.368946552276611,1.5,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,BetRivers,Idaho Vandals -1.5,4.368946552276611,1.5,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,DraftKings,Idaho Vandals -1.5,4.368946552276611,1.5,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,FanDuel,Idaho Vandals -1.5,4.368946552276611,1.5,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,BetOnline.ag,Virginia Tech Hokies -11.5,4.3383893966674805,-11.5,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,BetRivers,Virginia Tech Hokies -11.5,4.3383893966674805,-11.5,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,BetUS,Virginia Tech Hokies -11.5,4.3383893966674805,-11.5,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,DraftKings,Virginia Tech Hokies -11.5,4.3383893966674805,-11.5,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,FanDuel,Virginia Tech Hokies -11.5,4.3383893966674805,-11.5,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,LowVig.ag,Virginia Tech Hokies -11.5,4.3383893966674805,-11.5,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,BetOnline.ag,Southern Indiana Screaming Eagles +6.0,4.21563732624054,-6.0,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,BetUS,Southern Indiana Screaming Eagles +6.0,4.21563732624054,-6.0,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,Caesars,Southern Indiana Screaming Eagles +6.0,4.21563732624054,-6.0,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,LowVig.ag,Southern Indiana Screaming Eagles +6.0,4.21563732624054,-6.0,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,BetMGM,Fresno St Bulldogs +2.5,4.160368800163269,2.5,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,DraftKings,Fresno St Bulldogs +2.5,4.160368800163269,2.5,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,FanDuel,Fresno St Bulldogs +2.5,4.160368800163269,2.5,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,BetOnline.ag,Idaho Vandals -2.0,3.8689465522766113,2.0,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,BetUS,Idaho Vandals -2.0,3.8689465522766113,2.0,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,Bovada,Idaho Vandals -2.0,3.8689465522766113,2.0,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,Caesars,Idaho Vandals -2.0,3.8689465522766113,2.0,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401823510,San Diego Toreros,Idaho Vandals,full_game,spreads,LowVig.ag,Idaho Vandals -2.0,3.8689465522766113,2.0,-5.868946552276611,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,spreads,DraftKings,Canisius Golden Griffins +1.5,3.860464811325073,1.5,2.360464811325073,,0,,,0,0,0,loss,-1.0
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,Bovada,Virginia Tech Hokies -12.0,3.838389396667481,-12.0,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,Caesars,Virginia Tech Hokies -12.0,3.838389396667481,-12.0,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,spreads,Fanatics,Virginia Tech Hokies -12.0,3.838389396667481,-12.0,15.83838939666748,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,BetMGM,Southern Indiana Screaming Eagles +5.5,3.71563732624054,-5.5,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,BetRivers,Southern Indiana Screaming Eagles +5.5,3.71563732624054,-5.5,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,Bovada,Southern Indiana Screaming Eagles +5.5,3.71563732624054,-5.5,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,DraftKings,Southern Indiana Screaming Eagles +5.5,3.71563732624054,-5.5,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,FanDuel,Southern Indiana Screaming Eagles +5.5,3.71563732624054,-5.5,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,spreads,Fanatics,Southern Indiana Screaming Eagles +5.5,3.71563732624054,-5.5,1.7843626737594604,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,BetOnline.ag,Fresno St Bulldogs +2.0,3.660368800163269,2.0,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,BetUS,Fresno St Bulldogs +2.0,3.660368800163269,2.0,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,Bovada,Fresno St Bulldogs +2.0,3.660368800163269,2.0,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,Caesars,Fresno St Bulldogs +2.0,3.660368800163269,2.0,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,LowVig.ag,Fresno St Bulldogs +2.0,3.660368800163269,2.0,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,BetMGM,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,BetOnline.ag,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,BetRivers,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,BetUS,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,Caesars,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,DraftKings,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,FanDuel,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,Fanatics,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,LowVig.ag,Middle Tennessee Blue Raiders +1.5,3.593282461166382,-1.5,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,BetOnline.ag,Texas State Bobcats -2.0,3.581355571746826,-2.0,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,BetUS,Texas State Bobcats -2.0,3.581355571746826,-2.0,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,Caesars,Texas State Bobcats -2.0,3.581355571746826,-2.0,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,LowVig.ag,Texas State Bobcats -2.0,3.581355571746826,-2.0,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,BetMGM,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,BetOnline.ag,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,BetRivers,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,Bovada,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,DraftKings,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,FanDuel,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,Fanatics,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,spreads,LowVig.ag,South Carolina Gamecocks -15.5,3.5413017272949183,-15.5,19.04130172729492,,0,,,0,0,0,win,0.9090909090909091
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,spreads,Bovada,Canisius Golden Griffins +1.0,3.360464811325073,1.0,2.360464811325073,,0,,,0,0,0,loss,-1.0
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,spreads,BetMGM,Fairleigh Dickinson Knights +31.5,3.32147216796875,-31.5,28.17852783203125,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,spreads,BetOnline.ag,Fairleigh Dickinson Knights +31.5,3.32147216796875,-31.5,28.17852783203125,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,spreads,BetRivers,Fairleigh Dickinson Knights +31.5,3.32147216796875,-31.5,28.17852783203125,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,spreads,DraftKings,Fairleigh Dickinson Knights +31.5,3.32147216796875,-31.5,28.17852783203125,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,spreads,FanDuel,Fairleigh Dickinson Knights +31.5,3.32147216796875,-31.5,28.17852783203125,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,spreads,LowVig.ag,Fairleigh Dickinson Knights +31.5,3.32147216796875,-31.5,28.17852783203125,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,BetOnline.ag,Oregon Ducks -14.0,3.311382293701172,-14.0,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,LowVig.ag,Oregon Ducks -14.0,3.311382293701172,-14.0,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,spreads,BetRivers,Fresno St Bulldogs +1.5,3.160368800163269,1.5,1.660368800163269,,0,,,0,0,0,loss,-1.0
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,spreads,BetMGM,Bryant Bulldogs +1.5,3.114362120628357,1.5,1.614362120628357,,0,,,0,0,0,loss,-1.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,spreads,Bovada,Middle Tennessee Blue Raiders +1.0,3.093282461166382,-1.0,-2.093282461166382,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,BetMGM,Texas State Bobcats -2.5,3.081355571746826,-2.5,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,BetRivers,Texas State Bobcats -2.5,3.081355571746826,-2.5,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,Bovada,Texas State Bobcats -2.5,3.081355571746826,-2.5,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,DraftKings,Texas State Bobcats -2.5,3.081355571746826,-2.5,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,spreads,FanDuel,Texas State Bobcats -2.5,3.081355571746826,-2.5,5.581355571746826,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,spreads,Bovada,Fairleigh Dickinson Knights +31.0,2.82147216796875,-31.0,28.17852783203125,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,BetMGM,Oregon Ducks -14.5,2.811382293701172,-14.5,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,BetRivers,Oregon Ducks -14.5,2.811382293701172,-14.5,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,BetUS,Oregon Ducks -14.5,2.811382293701172,-14.5,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,Caesars,Oregon Ducks -14.5,2.811382293701172,-14.5,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,DraftKings,Oregon Ducks -14.5,2.811382293701172,-14.5,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,FanDuel,Oregon Ducks -14.5,2.811382293701172,-14.5,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,spreads,BetOnline.ag,Canisius Golden Griffins +0.0,2.360464811325073,0.0,2.360464811325073,,0,,,0,0,0,push,0.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,spreads,LowVig.ag,Canisius Golden Griffins +0.0,2.360464811325073,0.0,2.360464811325073,,0,,,0,0,0,push,0.0
+401827265,Oregon Ducks,South Dakota St Jackrabbits,full_game,spreads,Bovada,Oregon Ducks -15.0,2.311382293701172,-15.0,17.311382293701172,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,spreads,BetRivers,Minnesota Golden Gophers +7.5,1.998018264770508,-7.5,5.501981735229492,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,spreads,BetMGM,Milwaukee Panthers +25.5,1.8779525756835935,-25.5,23.622047424316406,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,Bovada,Texas Southern Tigers +4.0,1.856708288192749,4.0,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,Fanatics,Texas Southern Tigers +4.0,1.856708288192749,4.0,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,BetRivers,Western Michigan Broncos +3.5,1.8320612907409668,3.5,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,Bovada,Western Michigan Broncos +3.5,1.8320612907409668,3.5,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,DraftKings,Western Michigan Broncos +3.5,1.8320612907409668,3.5,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,FanDuel,Western Michigan Broncos +3.5,1.8320612907409668,3.5,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,spreads,BetOnline.ag,Bryant Bulldogs +0.0,1.614362120628357,0.0,1.614362120628357,,0,,,0,0,0,push,0.0
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,spreads,LowVig.ag,Bryant Bulldogs +0.0,1.614362120628357,0.0,1.614362120628357,,0,,,0,0,0,push,0.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,spreads,Bovada,Minnesota Golden Gophers +7.0,1.4980182647705078,-7.0,5.501981735229492,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,spreads,Caesars,Minnesota Golden Gophers +7.0,1.4980182647705078,-7.0,5.501981735229492,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,spreads,Fanatics,Minnesota Golden Gophers +7.0,1.4980182647705078,-7.0,5.501981735229492,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,spreads,BetOnline.ag,Milwaukee Panthers +25.0,1.3779525756835938,-25.0,23.622047424316406,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,spreads,BetUS,Milwaukee Panthers +25.0,1.3779525756835938,-25.0,23.622047424316406,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,spreads,LowVig.ag,Milwaukee Panthers +25.0,1.3779525756835938,-25.0,23.622047424316406,,0,,,0,0,0,win,0.9090909090909091
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,spreads,Fanatics,Canisius Golden Griffins -1.0,1.3604648113250728,-1.0,2.360464811325073,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,BetMGM,Texas Southern Tigers +3.5,1.356708288192749,3.5,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,BetOnline.ag,Texas Southern Tigers +3.5,1.356708288192749,3.5,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,BetRivers,Texas Southern Tigers +3.5,1.356708288192749,3.5,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,DraftKings,Texas Southern Tigers +3.5,1.356708288192749,3.5,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,FanDuel,Texas Southern Tigers +3.5,1.356708288192749,3.5,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,spreads,LowVig.ag,Texas Southern Tigers +3.5,1.356708288192749,3.5,-2.143291711807251,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,BetOnline.ag,Western Michigan Broncos +3.0,1.3320612907409668,3.0,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,BetUS,Western Michigan Broncos +3.0,1.3320612907409668,3.0,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,Caesars,Western Michigan Broncos +3.0,1.3320612907409668,3.0,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,Fanatics,Western Michigan Broncos +3.0,1.3320612907409668,3.0,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,spreads,LowVig.ag,Western Michigan Broncos +3.0,1.3320612907409668,3.0,-1.6679387092590332,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,BetMGM,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,BetOnline.ag,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,BetRivers,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,BetUS,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,Bovada,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,Caesars,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,DraftKings,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,FanDuel,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,spreads,LowVig.ag,North Texas Mean Green +1.5,1.2159926891326904,-1.5,0.2840073108673095,,0,,,0,0,0,win,0.9090909090909091
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,spreads,Bovada,Siena Saints +9.0,1.1673212051391602,-9.0,7.83267879486084,,0,,,0,0,0,win,0.9090909090909091
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,spreads,Bovada,Marshall Thundering Herd -9.0,1.1241168975830078,-9.0,10.124116897583008,,0,,,0,0,0,win,0.9090909090909091
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,spreads,Fanatics,Marshall Thundering Herd -9.0,1.1241168975830078,-9.0,10.124116897583008,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,BetMGM,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,BetOnline.ag,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,BetRivers,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,Bovada,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,DraftKings,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,FanDuel,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,Fanatics,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401818549,Boston Univ. Terriers,Brown Bears,full_game,spreads,LowVig.ag,Boston Univ. Terriers -3.5,1.000314712524414,-3.5,4.500314712524414,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,BetOnline.ag,Under,53.0,163.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,BetUS,Under,53.0,163.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,LowVig.ag,Under,53.0,163.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,BetMGM,Under,52.5,162.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,BetRivers,Under,52.5,162.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,Bovada,Under,52.5,162.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,Caesars,Under,52.5,162.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,DraftKings,Under,52.5,162.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,FanDuel,Under,52.5,162.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823394,Western Michigan Broncos,Fort Wayne Mastodons,full_game,totals,Fanatics,Under,52.0,162.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,BetMGM,Under,47.5,157.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,BetRivers,Under,47.5,157.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,Bovada,Under,47.5,157.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,DraftKings,Under,47.5,157.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,FanDuel,Under,47.5,157.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,BetOnline.ag,Under,47.0,157.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,BetUS,Under,47.0,157.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,Caesars,Under,47.0,157.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401830348,Manhattan Jaspers,Utah Tech Trailblazers,full_game,totals,LowVig.ag,Under,47.0,157.0,110.0,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,BetMGM,Under,32.89854431152344,159.5,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,BetRivers,Under,32.89854431152344,159.5,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,FanDuel,Under,32.89854431152344,159.5,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,BetOnline.ag,Under,32.39854431152344,159.0,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,BetUS,Under,32.39854431152344,159.0,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,Caesars,Under,32.39854431152344,159.0,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,LowVig.ag,Under,32.39854431152344,159.0,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,Bovada,Under,31.89854431152344,158.5,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401823510,San Diego Toreros,Idaho Vandals,full_game,totals,DraftKings,Under,31.89854431152344,158.5,126.60145568847656,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,BetRivers,Under,28.5,138.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,BetMGM,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,BetOnline.ag,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,BetUS,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,Bovada,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,Caesars,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,DraftKings,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,FanDuel,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401824811,Houston Cougars,Oakland Golden Grizzlies,full_game,totals,LowVig.ag,Under,27.5,137.5,110.0,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,BetRivers,Under,24.5133056640625,170.5,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,BetOnline.ag,Under,24.0133056640625,170.0,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,Bovada,Under,24.0133056640625,170.0,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,Fanatics,Under,24.0133056640625,170.0,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,LowVig.ag,Under,24.0133056640625,170.0,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,BetRivers,Under,23.61830139160156,165.5,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,BetMGM,Under,23.5133056640625,169.5,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,DraftKings,Under,23.5133056640625,169.5,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401828544,Vanderbilt Commodores,Eastern Kentucky Colonels,full_game,totals,FanDuel,Under,23.5133056640625,169.5,145.9866943359375,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,BetOnline.ag,Under,23.11830139160156,165.0,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,BetUS,Under,23.11830139160156,165.0,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,Fanatics,Under,23.11830139160156,165.0,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,LowVig.ag,Under,23.11830139160156,165.0,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,Bovada,Under,23.09687805175781,171.0,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,BetMGM,Under,22.61830139160156,164.5,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,Bovada,Under,22.61830139160156,164.5,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,Caesars,Under,22.61830139160156,164.5,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,DraftKings,Under,22.61830139160156,164.5,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401811104,South Dakota Coyotes,Southern Indiana Screaming Eagles,full_game,totals,FanDuel,Under,22.61830139160156,164.5,141.88169860839844,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,BetMGM,Under,22.59687805175781,170.5,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,BetRivers,Under,22.59687805175781,170.5,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,DraftKings,Under,22.59687805175781,170.5,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,FanDuel,Under,22.59687805175781,170.5,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,BetOnline.ag,Under,21.59687805175781,169.5,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,Fanatics,Under,21.59687805175781,169.5,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401822759,South Florida Bulls,Coppin St Eagles,full_game,totals,LowVig.ag,Under,21.59687805175781,169.5,147.9031219482422,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,BetRivers,Under,20.234039306640625,167.5,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,FanDuel,Under,20.234039306640625,167.5,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,BetOnline.ag,Under,19.734039306640625,167.0,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,BetUS,Under,19.734039306640625,167.0,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,Bovada,Under,19.734039306640625,167.0,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,Caesars,Under,19.734039306640625,167.0,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,LowVig.ag,Under,19.734039306640625,167.0,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,BetMGM,Under,19.234039306640625,166.5,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401823809,Colorado St Rams,Cal Poly Mustangs,full_game,totals,DraftKings,Under,19.234039306640625,166.5,147.26596069335938,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,BetMGM,Under,16.211517333984375,152.5,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,BetOnline.ag,Under,16.211517333984375,152.5,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,BetRivers,Under,16.211517333984375,152.5,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,DraftKings,Under,16.211517333984375,152.5,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,FanDuel,Under,16.211517333984375,152.5,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,LowVig.ag,Under,16.211517333984375,152.5,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,BetRivers,Under,15.8197021484375,151.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,Fanatics,Under,15.711517333984377,152.0,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,Bovada,Under,15.3197021484375,151.0,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401826992,Longwood Lancers,James Madison Dukes,full_game,totals,Bovada,Under,15.211517333984377,151.5,136.28848266601562,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,BetMGM,Under,14.8197021484375,150.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,BetOnline.ag,Under,14.8197021484375,150.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,BetUS,Under,14.8197021484375,150.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,Caesars,Under,14.8197021484375,150.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,DraftKings,Under,14.8197021484375,150.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,FanDuel,Under,14.8197021484375,150.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401817466,Stanford Cardinal,Montana St Bobcats,full_game,totals,LowVig.ag,Under,14.8197021484375,150.5,135.6802978515625,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,Bovada,Under,13.918060302734377,166.0,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,BetRivers,Under,13.704071044921877,160.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,BetMGM,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,BetOnline.ag,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,BetUS,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,Caesars,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,DraftKings,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,FanDuel,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,Fanatics,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,LowVig.ag,Under,13.418060302734377,165.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,BetMGM,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,BetOnline.ag,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,BetUS,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,Bovada,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,Caesars,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,DraftKings,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,FanDuel,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,Fanatics,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401828282,Oral Roberts Golden Eagles,Tulsa Golden Hurricane,full_game,totals,LowVig.ag,Under,12.704071044921877,159.5,146.79592895507812,,0,,,0,0,0,win,0.9090909090909091
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,BetMGM,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,BetOnline.ag,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,BetRivers,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,BetUS,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,Caesars,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,DraftKings,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,FanDuel,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,LowVig.ag,Over,12.542373657226562,139.5,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,BetRivers,Over,12.486846923828123,130.5,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401822311,Indiana Hoosiers,Milwaukee Panthers,full_game,totals,BetRivers,Under,12.418060302734377,164.5,152.08193969726562,,0,,,0,0,0,win,0.9090909090909091
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,Fanatics,Over,12.042373657226562,140.0,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,Bovada,Over,11.986846923828123,131.0,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,Fanatics,Under,11.979415893554688,154.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,BetMGM,Over,11.538482666015623,154.5,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,BetOnline.ag,Over,11.538482666015623,154.5,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,BetRivers,Over,11.538482666015623,154.5,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,DraftKings,Over,11.538482666015623,154.5,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,FanDuel,Over,11.538482666015623,154.5,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,LowVig.ag,Over,11.538482666015623,154.5,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,BetMGM,Over,11.486846923828123,131.5,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,DraftKings,Over,11.486846923828123,131.5,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,FanDuel,Over,11.486846923828123,131.5,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,Fanatics,Over,11.486846923828123,131.5,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401817195,St. Bonaventure Bonnies,Siena Saints,full_game,totals,Bovada,Over,11.042373657226562,141.0,152.04237365722656,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,Bovada,Over,11.038482666015623,155.0,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401823442,Tennessee Volunteers,North Florida Ospreys,full_game,totals,Fanatics,Over,11.038482666015623,155.0,166.03848266601562,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,BetOnline.ag,Over,10.986846923828123,132.0,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401818549,Boston Univ. Terriers,Brown Bears,full_game,totals,LowVig.ag,Over,10.986846923828123,132.0,142.98684692382812,,0,,,0,0,0,loss,-1.0
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,BetRivers,Under,10.979415893554688,153.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,Bovada,Under,10.979415893554688,153.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,BetMGM,Under,9.979415893554688,152.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,BetOnline.ag,Under,9.979415893554688,152.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,DraftKings,Under,9.979415893554688,152.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,FanDuel,Under,9.979415893554688,152.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401827004,Texas Southern Tigers,Samford Bulldogs,full_game,totals,LowVig.ag,Under,9.979415893554688,152.5,142.5205841064453,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,BetMGM,Under,9.722137451171877,151.5,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,BetOnline.ag,Under,9.722137451171877,151.5,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,Caesars,Under,9.722137451171877,151.5,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,DraftKings,Under,9.722137451171877,151.5,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,LowVig.ag,Under,9.722137451171877,151.5,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,BetRivers,Under,9.40863037109375,160.5,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,BetUS,Under,9.222137451171877,151.0,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,Bovada,Under,9.222137451171877,151.0,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,Bovada,Under,8.90863037109375,160.0,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,BetRivers,Under,8.722137451171875,150.5,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401826908,Fresno St Bulldogs,UC San Diego Tritons,full_game,totals,FanDuel,Under,8.722137451171875,150.5,141.77786254882812,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,BetMGM,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,BetOnline.ag,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,BetRivers,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,BetUS,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,Caesars,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,DraftKings,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,FanDuel,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,LowVig.ag,Under,8.52581787109375,153.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,BetMGM,Under,8.444320678710938,157.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,BetRivers,Under,8.444320678710938,157.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,BetUS,Under,8.444320678710938,157.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,FanDuel,Under,8.444320678710938,157.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,BetMGM,Under,8.40863037109375,159.5,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,DraftKings,Under,8.40863037109375,159.5,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,FanDuel,Under,8.40863037109375,159.5,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,totals,Bovada,Under,8.260665893554688,150.0,141.7393341064453,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,BetMGM,Over,8.12579345703125,147.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,BetOnline.ag,Over,8.12579345703125,147.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,Caesars,Over,8.12579345703125,147.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,DraftKings,Over,8.12579345703125,147.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,LowVig.ag,Over,8.12579345703125,147.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,BetOnline.ag,Under,7.9443206787109375,157.0,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,LowVig.ag,Under,7.9443206787109375,157.0,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,BetOnline.ag,Under,7.90863037109375,159.0,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,BetUS,Under,7.90863037109375,159.0,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,Caesars,Under,7.90863037109375,159.0,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,Fanatics,Under,7.90863037109375,159.0,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401817519,Virginia Tech Hokies,Saint Joseph's Hawks,full_game,totals,LowVig.ag,Under,7.90863037109375,159.0,151.09136962890625,,0,,,0,0,0,win,0.9090909090909091
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,totals,BetMGM,Under,7.760665893554687,149.5,141.7393341064453,,0,,,0,0,0,win,0.9090909090909091
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,totals,BetRivers,Under,7.760665893554687,149.5,141.7393341064453,,0,,,0,0,0,win,0.9090909090909091
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,totals,DraftKings,Under,7.760665893554687,149.5,141.7393341064453,,0,,,0,0,0,win,0.9090909090909091
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,totals,FanDuel,Under,7.760665893554687,149.5,141.7393341064453,,0,,,0,0,0,win,0.9090909090909091
+401826726,San Francisco Dons,Portland St Vikings,full_game,totals,Bovada,Under,7.52581787109375,152.5,144.97418212890625,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,Bovada,Under,7.4443206787109375,156.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,Caesars,Under,7.4443206787109375,156.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,DraftKings,Under,7.4443206787109375,156.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401827234,Missouri Tigers,Minnesota Golden Gophers,full_game,totals,Fanatics,Under,7.4443206787109375,156.5,149.05567932128906,,0,,,0,0,0,win,0.9090909090909091
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,totals,BetOnline.ag,Under,7.260665893554687,149.0,141.7393341064453,,0,,,0,0,0,win,0.9090909090909091
+401820615,Bryant Bulldogs,Dartmouth Big Green,full_game,totals,LowVig.ag,Under,7.260665893554687,149.0,141.7393341064453,,0,,,0,0,0,win,0.9090909090909091
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,BetRivers,Over,7.12579345703125,148.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,BetUS,Over,7.12579345703125,148.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,Bovada,Over,7.12579345703125,148.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401828918,Nevada Wolf Pack,Southern Illinois Salukis,full_game,totals,FanDuel,Over,7.12579345703125,148.5,155.62579345703125,,0,,,0,0,0,loss,-1.0
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,Bovada,Under,6.610031127929688,156.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,BetOnline.ag,Under,6.516357421875,156.0,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,BetUS,Under,6.516357421875,156.0,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,LowVig.ag,Under,6.516357421875,156.0,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,Fanatics,Under,6.110031127929688,156.0,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,BetMGM,Under,6.016357421875,155.5,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,BetRivers,Under,6.016357421875,155.5,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,DraftKings,Under,6.016357421875,155.5,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,FanDuel,Under,6.016357421875,155.5,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,BetMGM,Over,5.786788940429688,136.5,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,DraftKings,Over,5.786788940429688,136.5,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,FanDuel,Over,5.786788940429688,136.5,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,BetMGM,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,BetOnline.ag,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,BetRivers,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,BetUS,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,Caesars,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,DraftKings,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,FanDuel,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401817254,NC State Wolfpack,UNC Greensboro Spartans,full_game,totals,LowVig.ag,Under,5.610031127929688,155.5,149.8899688720703,,0,,,0,0,0,win,0.9090909090909091
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,Caesars,Under,5.516357421875,155.0,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,BetOnline.ag,Over,5.3017578125,144.0,149.3017578125,,0,,,0,0,0,loss,-1.0
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,LowVig.ag,Over,5.3017578125,144.0,149.3017578125,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,BetOnline.ag,Over,5.286788940429688,137.0,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,Bovada,Over,5.286788940429688,137.0,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,Fanatics,Over,5.286788940429688,137.0,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,LowVig.ag,Over,5.286788940429688,137.0,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401826931,Utah State Aggies,Weber State Wildcats,full_game,totals,Bovada,Under,5.016357421875,154.5,149.483642578125,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,BetRivers,Under,4.8653564453125,143.5,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,totals,BetOnline.ag,Under,4.8445587158203125,159.0,154.1554412841797,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,totals,Bovada,Under,4.8445587158203125,159.0,154.1554412841797,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,totals,LowVig.ag,Under,4.8445587158203125,159.0,154.1554412841797,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,BetMGM,Over,4.8017578125,144.5,149.3017578125,,0,,,0,0,0,loss,-1.0
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,DraftKings,Over,4.8017578125,144.5,149.3017578125,,0,,,0,0,0,loss,-1.0
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,FanDuel,Over,4.8017578125,144.5,149.3017578125,,0,,,0,0,0,loss,-1.0
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,totals,BetMGM,Under,4.3445587158203125,158.5,154.1554412841797,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,totals,BetRivers,Under,4.3445587158203125,158.5,154.1554412841797,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,totals,DraftKings,Under,4.3445587158203125,158.5,154.1554412841797,,0,,,0,0,0,win,0.9090909090909091
+401812284,Texas Longhorns,Fairleigh Dickinson Knights,full_game,totals,FanDuel,Under,4.3445587158203125,158.5,154.1554412841797,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,Bovada,Over,4.3017578125,145.0,149.3017578125,,0,,,0,0,0,loss,-1.0
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,Fanatics,Over,4.3017578125,145.0,149.3017578125,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,BetOnline.ag,Over,4.2079620361328125,137.0,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,Bovada,Over,4.2079620361328125,137.0,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,Fanatics,Over,4.2079620361328125,137.0,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,LowVig.ag,Over,4.2079620361328125,137.0,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,BetOnline.ag,Under,3.9399261474609375,148.0,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,BetUS,Under,3.9399261474609375,148.0,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,LowVig.ag,Under,3.9399261474609375,148.0,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,BetMGM,Over,3.871124267578125,134.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,BetOnline.ag,Over,3.871124267578125,134.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,BetUS,Over,3.871124267578125,134.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,Caesars,Over,3.871124267578125,134.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,DraftKings,Over,3.871124267578125,134.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,LowVig.ag,Over,3.871124267578125,134.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401813348,Canisius Golden Griffins,Mercyhurst Lakers,full_game,totals,BetRivers,Over,3.786788940429688,138.5,142.2867889404297,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,BetMGM,Over,3.707962036132813,137.5,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,BetRivers,Over,3.707962036132813,137.5,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,DraftKings,Over,3.707962036132813,137.5,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401826939,South Carolina Gamecocks,Presbyterian Blue Hose,full_game,totals,FanDuel,Over,3.707962036132813,137.5,141.2079620361328,,0,,,0,0,0,loss,-1.0
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,BetMGM,Under,3.439926147460937,147.5,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,BetRivers,Under,3.439926147460937,147.5,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,Bovada,Under,3.439926147460937,147.5,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,Caesars,Under,3.439926147460937,147.5,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,DraftKings,Under,3.439926147460937,147.5,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401827213,Texas State Bobcats,UTSA Roadrunners,full_game,totals,FanDuel,Under,3.439926147460937,147.5,144.06007385253906,,0,,,0,0,0,win,0.9090909090909091
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,Bovada,Over,3.371124267578125,135.0,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,Bovada,Under,3.3653564453125,142.0,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,BetOnline.ag,Over,3.0550994873046875,152.0,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,BetUS,Over,3.0550994873046875,152.0,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,LowVig.ag,Over,3.0550994873046875,152.0,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,BetRivers,Over,2.871124267578125,135.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401824056,Oregon St Beavers,North Texas Mean Green,full_game,totals,FanDuel,Over,2.871124267578125,135.5,138.37112426757812,,0,,,0,0,0,loss,-1.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,BetMGM,Under,2.8653564453125,141.5,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,Caesars,Under,2.8653564453125,141.5,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,DraftKings,Under,2.8653564453125,141.5,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,FanDuel,Under,2.8653564453125,141.5,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,Fanatics,Under,2.8653564453125,141.5,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401820605,Georgetown Hoyas,Binghamton Bearcats,full_game,totals,BetRivers,Over,2.8017578125,146.5,149.3017578125,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,BetMGM,Over,2.5550994873046875,152.5,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,BetRivers,Over,2.5550994873046875,152.5,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,Bovada,Over,2.5550994873046875,152.5,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,Caesars,Over,2.5550994873046875,152.5,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,DraftKings,Over,2.5550994873046875,152.5,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,FanDuel,Over,2.5550994873046875,152.5,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401827262,Marshall Thundering Herd,Elon Phoenix,full_game,totals,Fanatics,Over,2.5550994873046875,152.5,155.0550994873047,,0,,,0,0,0,loss,-1.0
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,BetOnline.ag,Under,2.3653564453125,141.0,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,BetUS,Under,2.3653564453125,141.0,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401822995,Evansville Purple Aces,Middle Tennessee Blue Raiders,full_game,totals,LowVig.ag,Under,2.3653564453125,141.0,138.6346435546875,,0,,,0,0,0,win,0.9090909090909091
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,BetOnline.ag,Over,2.334930419921875,142.0,144.33493041992188,,0,,,0,0,0,loss,-1.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,BetUS,Over,2.334930419921875,142.0,144.33493041992188,,0,,,0,0,0,loss,-1.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,Caesars,Over,2.334930419921875,142.0,144.33493041992188,,0,,,0,0,0,loss,-1.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,LowVig.ag,Over,2.334930419921875,142.0,144.33493041992188,,0,,,0,0,0,loss,-1.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,BetMGM,Over,1.834930419921875,142.5,144.33493041992188,,0,,,0,0,0,loss,-1.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,DraftKings,Over,1.834930419921875,142.5,144.33493041992188,,0,,,0,0,0,loss,-1.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,FanDuel,Over,1.834930419921875,142.5,144.33493041992188,,0,,,0,0,0,loss,-1.0
+401824886,East Tennessee St Buccaneers,Northern Kentucky Norse,full_game,totals,Fanatics,Over,1.834930419921875,142.5,144.33493041992188,,0,,,0,0,0,loss,-1.0

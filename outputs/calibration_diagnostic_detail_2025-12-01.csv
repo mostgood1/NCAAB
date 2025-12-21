@@ -1,0 +1,20 @@
+game_id,home_team,away_team,date,start_time,reason,has_model_total,has_model_margin,has_cal_total,has_cal_margin,basis_total,basis_margin
+401837346,Chicago State Cougars,St. Xavier  (IL) Cougars,2025-12-01,2025-12-01 17:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827016,Southern Jaguars,Louisiana Christian Wildcats,2025-12-01,2025-12-01 17:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823565,Villanova Wildcats,Temple Owls,2025-12-01,2025-12-01 23:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823470,Toledo Rockets,Central State (OH) Marauders,2025-12-01,2025-12-01 23:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827523,Hampton Pirates,Apprentice School Builders,2025-12-01,2025-12-02 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401825387,Troy Trojans,West Georgia Wolves,2025-12-01,2025-12-02 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401824308,Delaware Blue Hens,Iona Gaels,2025-12-01,2025-12-02 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823437,Jacksonville State Gamecocks,North Alabama Lions,2025-12-01,2025-12-02 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819846,Cincinnati Bearcats,Tarleton State Texans,2025-12-01,2025-12-02 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812384,Xavier Musketeers,Saint Francis Red Flash,2025-12-01,2025-12-02 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822998,Middle Tennessee Blue Raiders,UAB Blazers,2025-12-01,2025-12-02 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401808731,Incarnate Word Cardinals,McNeese Cowboys,2025-12-01,2025-12-02 00:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401822368,Eastern Illinois Panthers,Blackburn Beavers,2025-12-01,2025-12-02 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820546,Northern Iowa Panthers,Coe Kohawks,2025-12-01,2025-12-02 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819893,Kansas State Wildcats,Bowling Green Falcons,2025-12-01,2025-12-02 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401823546,Southern Utah Thunderbirds,West Coast Baptist Eagles,2025-12-01,2025-12-02 01:30:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401830319,New Mexico Lobos,New Mexico Highlands Cowboys,2025-12-01,2025-12-02 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819866,Colorado Buffaloes,California Baptist Lancers,2025-12-01,2025-12-02 02:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401817470,Stanford Cardinal,Portland Pilots,2025-12-01,2025-12-02 03:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal

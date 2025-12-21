@@ -1,0 +1,70 @@
+game_id,date,home_team,away_team,home_pf5,home_pa5,home_tot5,away_pf5,away_pa5,away_tot5,home_pf15,home_pa15,home_tot15,away_pf15,away_pa15,away_tot15,target_1h_total,rest_home,rest_away,b2b_home,b2b_away,neutral_site,home_rating_margin,away_rating_margin,rating_margin_diff,target_total,target_margin
+401812261,2025-11-08,St. John's Red Storm,Alabama Crimson Tide,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401827233,2025-11-08,Minnesota Golden Gophers,Alcorn State Braves,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401827059,2025-11-08,South Carolina Upstate Spartans,Southern Virginia Knights,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401820596,2025-11-08,Akron Zips,Princeton Tigers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401828336,2025-11-08,Florida A&M Rattlers,Kennesaw State Owls,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401827277,2025-11-08,New Haven Chargers,Penn State Nittany Lions,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401827237,2025-11-08,Nebraska Cornhuskers,Florida International Panthers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401822667,2025-11-08,Saint Joseph's Hawks,Drexel Dragons,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401817477,2025-11-08,Syracuse Orange,Delaware State Hornets,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401817229,2025-11-08,Duke Blue Devils,Western Carolina Catamounts,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401817142,2025-11-08,George Washington Revolutionaries,South Florida Bulls,,,,,,,,,,,,,,,,False,False,True,,,,0,0
+401826843,2025-11-08,Tulane Green Wave,Texas State Bobcats,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401824854,2025-11-08,Central Arkansas Bears,Champion Christian Tigers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823469,2025-11-08,Toledo Rockets,Marshall Thundering Herd,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823188,2025-11-08,NJIT Highlanders,Fairfield Stags,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401822309,2025-11-08,Wofford Terriers,Milwaukee Panthers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401813435,2025-11-08,Dayton Flyers,UMBC Retrievers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401813374,2025-11-08,Binghamton Bearcats,Niagara Purple Eagles,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401812283,2025-11-08,Saint Peter's Peacocks,Fairleigh Dickinson Knights,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401824810,2025-11-08,Houston Cougars,Towson Tigers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823382,2025-11-08,Tennessee Volunteers,Northern Kentucky Norse,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401829488,2025-11-08,Georgia Southern Eagles,UNC Asheville Bulldogs,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401829412,2025-11-08,Texas Longhorns,Lafayette Leopards,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401826725,2025-11-08,Memphis Tigers,San Francisco Dons,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401820210,2025-11-08,Mercyhurst Lakers,Penn State-New Kensington Lions,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401819861,2025-11-08,Colorado Buffaloes,Eastern Washington Eagles,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401822177,2025-11-08,La Salle Explorers,Monmouth Hawks,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401831377,2025-11-08,South Alabama Jaguars,Spring Hill Badgers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401829324,2025-11-08,UC Santa Barbara Gauchos,San José State Spartans,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401827518,2025-11-08,UNC Greensboro Spartans,Elon Phoenix,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401827504,2025-11-08,Norfolk State Spartans,William & Mary Tribe,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401824824,2025-11-08,UCF Knights,Vanderbilt Commodores,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823865,2025-11-08,New Mexico Lobos,UT Arlington Mavericks,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823814,2025-11-08,Boise State Broncos,Utah Valley Wolverines,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401822729,2025-11-08,Wyoming Cowboys,Cal State Fullerton Titans,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401820550,2025-11-08,Air Force Falcons,Austin Peay Governors,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401817518,2025-11-08,Virginia Tech Hokies,Providence Friars,,,,,,,,,,,,,,,,False,False,True,,,,0,0
+401817465,2025-11-08,Stanford Cardinal,Montana Grizzlies,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401813347,2025-11-08,St. Bonaventure Bonnies,Canisius Golden Griffins,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401808891,2025-11-08,New Orleans Privateers,Southern-New Orleans Knights,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823037,2025-11-08,Maryland Eastern Shore Hawks,Cheyney (PA) Wolves,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401826977,2025-11-08,High Point Panthers,Averett Cougars,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823305,2025-11-08,Fresno State Bulldogs,Long Beach State Beach,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401820823,2025-11-08,Butler Bulldogs,IU Indianapolis Jaguars,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401820622,2025-11-08,Stony Brook Seawolves,Maine Black Bears,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401827757,2025-11-08,Massachusetts Minutemen,UAlbany Great Danes,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401826771,2025-11-08,Charleston Cougars,Florida Atlantic Owls,,,,,,,,,,,,,,,,False,False,True,,,,0,0
+401824885,2025-11-08,Presbyterian Blue Hose,East Tennessee State Buccaneers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401817173,2025-11-08,Richmond Spiders,East Carolina Pirates,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401826785,2025-11-08,Michigan State Spartans,Arkansas Razorbacks,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401826880,2025-11-08,Wichita State Shockers,Prairie View A&M Panthers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823451,2025-11-08,Villanova Wildcats,Queens University Royals,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401820485,2025-11-08,Tarleton State Texans,Texas A&M-Corpus Christi Islanders,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401819906,2025-11-08,Utah Utes,Weber State Wildcats,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401822994,2025-11-08,Middle Tennessee Blue Raiders,Webster Gorloks,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401828526,2025-11-08,Oral Roberts Golden Eagles,John Brown Golden Eagles,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401826793,2025-11-08,St. Thomas-Minnesota Tommies,Army Black Knights,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823455,2025-11-08,Bradley Braves,Central Michigan Chippewas,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823322,2025-11-08,Missouri State Bears,Northwestern Oklahoma State Rangers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401819889,2025-11-08,Kansas State Wildcats,Bellarmine Knights,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401811966,2025-11-08,Belmont Bruins,Tennessee State Tigers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401812660,2025-11-08,BYU Cougars,Holy Cross Crusaders,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401824038,2025-11-08,Loyola Marymount Lions,Arkansas-Pine Bluff Golden Lions,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401820396,2025-11-08,UNLV Rebels,Chattanooga Mocs,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401823539,2025-11-08,Southern Utah Thunderbirds,UT Rio Grande Valley Vaqueros,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401826907,2025-11-08,UC San Diego Tritons,Houston Christian Huskies,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401824126,2025-11-08,Seattle U Redhawks,Cal Poly Mustangs,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401824062,2025-11-08,Nevada Wolf Pack,Pacific Tigers,,,,,,,,,,,,,,,,False,False,False,,,,0,0
+401824032,2025-11-08,Gonzaga Bulldogs,Oklahoma Sooners,,,,,,,,,,,,,,,,False,False,False,,,,0,0

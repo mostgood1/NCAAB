@@ -1,0 +1,363 @@
+team_key,team_name,has_model,rows_available,trained_now
+abilenechristianwildcats,Abilene Christian Wildcats,True,59,False
+airforcefalcons,Air Force Falcons,True,55,False
+akronzips,Akron Zips,True,68,False
+alabamaambulldogs,Alabama A&M Bulldogs,True,62,False
+alabamacrimsontide,Alabama Crimson Tide,True,101,False
+alabamastatehornets,Alabama State Hornets,True,62,False
+alcornstatebraves,Alcorn State Braves,True,60,False
+americanuniversityeagles,American University Eagles,True,70,False
+appstatemountaineers,App State Mountaineers,True,64,False
+arizonastatesundevils,Arizona State Sun Devils,True,72,False
+arizonawildcats,Arizona Wildcats,True,98,False
+arkansaspinebluffgoldenlions,Arkansas-Pine Bluff Golden Lions,True,60,False
+arkansasrazorbacks,Arkansas Razorbacks,True,87,False
+arkansasstateredwolves,Arkansas State Red Wolves,True,71,False
+armyblackknights,Army Black Knights,True,70,False
+auburntigers,Auburn Tigers,True,100,False
+austinpeaygovernors,Austin Peay Governors,True,61,False
+ballstatecardinals,Ball State Cardinals,True,55,False
+baylorbears,Baylor Bears,True,86,False
+bellarmineknights,Bellarmine Knights,True,58,False
+belmontbruins,Belmont Bruins,True,66,False
+bethunecookmanwildcats,Bethune-Cookman Wildcats,True,56,False
+binghamtonbearcats,Binghamton Bearcats,True,61,False
+boisestatebroncos,Boise State Broncos,True,71,False
+bostoncollegeeagles,Boston College Eagles,True,61,False
+bostonuniversityterriers,Boston University Terriers,True,63,False
+bowlinggreenfalcons,Bowling Green Falcons,True,64,False
+bradleybraves,Bradley Braves,True,73,False
+brownbears,Brown Bears,True,59,False
+bryantbulldogs,Bryant Bulldogs,True,63,False
+bucknellbison,Bucknell Bison,True,66,False
+buffalobulls,Buffalo Bulls,True,61,False
+butlerbulldogs,Butler Bulldogs,True,73,False
+byucougars,BYU Cougars,True,90,False
+californiabaptistlancers,California Baptist Lancers,True,58,False
+californiagoldenbears,California Golden Bears,True,60,False
+calpolymustangs,Cal Poly Mustangs,True,64,False
+calstatebakersfieldroadrunners,Cal State Bakersfield Roadrunners,True,64,False
+calstatefullertontitans,Cal State Fullerton Titans,True,64,False
+calstatenorthridgematadors,Cal State Northridge Matadors,True,59,False
+campbellfightingcamels,Campbell Fighting Camels,True,66,False
+canisiusgoldengriffins,Canisius Golden Griffins,True,79,False
+centralarkansasbears,Central Arkansas Bears,True,67,False
+centralconnecticutbluedevils,Central Connecticut Blue Devils,True,62,False
+centralmichiganchippewas,Central Michigan Chippewas,True,60,False
+charlestoncougars,Charleston Cougars,True,70,False
+charlestonsouthernbuccaneers,Charleston Southern Buccaneers,True,62,False
+charlotte49ers,Charlotte 49ers,True,70,False
+chattanoogamocs,Chattanooga Mocs,True,69,False
+chicagostatecougars,Chicago State Cougars,True,74,False
+cincinnatibearcats,Cincinnati Bearcats,True,82,False
+clemsontigers,Clemson Tigers,True,73,False
+clevelandstatevikings,Cleveland State Vikings,True,85,False
+coastalcarolinachanticleers,Coastal Carolina Chanticleers,True,63,False
+colgateraiders,Colgate Raiders,True,69,False
+coloradobuffaloes,Colorado Buffaloes,True,75,False
+coloradostaterams,Colorado State Rams,True,68,False
+columbialions,Columbia Lions,True,54,False
+coppinstateeagles,Coppin State Eagles,True,60,False
+cornellbigred,Cornell Big Red,True,57,False
+creightonbluejays,Creighton Bluejays,True,93,False
+dartmouthbiggreen,Dartmouth Big Green,True,48,False
+davidsonwildcats,Davidson Wildcats,True,57,False
+daytonflyers,Dayton Flyers,True,78,False
+delawarebluehens,Delaware Blue Hens,True,67,False
+delawarestatehornets,Delaware State Hornets,True,60,False
+denverpioneers,Denver Pioneers,True,68,False
+depaulbluedemons,DePaul Blue Demons,True,66,False
+detroitmercytitans,Detroit Mercy Titans,True,65,False
+drakebulldogs,Drake Bulldogs,True,75,False
+drexeldragons,Drexel Dragons,True,64,False
+dukebluedevils,Duke Blue Devils,True,106,False
+duquesnedukes,Duquesne Dukes,True,65,False
+eastcarolinapirates,East Carolina Pirates,True,73,False
+easternillinoispanthers,Eastern Illinois Panthers,True,65,False
+easternkentuckycolonels,Eastern Kentucky Colonels,True,64,False
+easternmichiganeagles,Eastern Michigan Eagles,True,59,False
+easternwashingtoneagles,Eastern Washington Eagles,True,61,False
+easttennesseestatebuccaneers,East Tennessee State Buccaneers,True,65,False
+easttexasamlions,East Texas A&M Lions,True,65,False
+elonphoenix,Elon Phoenix,True,65,False
+evansvillepurpleaces,Evansville Purple Aces,True,73,False
+fairfieldstags,Fairfield Stags,True,84,False
+fairleighdickinsonknights,Fairleigh Dickinson Knights,True,71,False
+floridaamrattlers,Florida A&M Rattlers,True,54,False
+floridaatlanticowls,Florida Atlantic Owls,True,87,False
+floridagators,Florida Gators,True,93,False
+floridagulfcoasteagles,Florida Gulf Coast Eagles,True,67,False
+floridainternationalpanthers,Florida International Panthers,True,64,False
+floridastateseminoles,Florida State Seminoles,True,62,False
+fordhamrams,Fordham Rams,True,65,False
+fresnostatebulldogs,Fresno State Bulldogs,True,62,False
+furmanpaladins,Furman Paladins,True,66,False
+gardnerwebbrunninbulldogs,Gardner-Webb Runnin' Bulldogs,True,63,False
+georgemasonpatriots,George Mason Patriots,True,60,False
+georgetownhoyas,Georgetown Hoyas,True,74,False
+georgewashingtonrevolutionaries,George Washington Revolutionaries,True,66,False
+georgiabulldogs,Georgia Bulldogs,True,75,False
+georgiasoutherneagles,Georgia Southern Eagles,True,64,False
+georgiastatepanthers,Georgia State Panthers,True,61,False
+georgiatechyellowjackets,Georgia Tech Yellow Jackets,True,64,False
+gonzagabulldogs,Gonzaga Bulldogs,True,89,False
+gramblingtigers,Grambling Tigers,True,62,False
+grandcanyonlopes,Grand Canyon Lopes,True,58,False
+greenbayphoenix,Green Bay Phoenix,True,72,False
+hamptonpirates,Hampton Pirates,True,66,False
+harvardcrimson,Harvard Crimson,True,47,False
+hawaiirainbowwarriors,Hawai'i Rainbow Warriors,True,60,False
+highpointpanthers,High Point Panthers,True,67,False
+hofstrapride,Hofstra Pride,True,62,False
+holycrosscrusaders,Holy Cross Crusaders,True,69,False
+houstonchristianhuskies,Houston Christian Huskies,True,58,False
+houstoncougars,Houston Cougars,True,107,False
+howardbison,Howard Bison,True,64,False
+idahostatebengals,Idaho State Bengals,True,62,False
+idahovandals,Idaho Vandals,True,61,False
+illinoisfightingillini,Illinois Fighting Illini,True,102,False
+illinoisstateredbirds,Illinois State Redbirds,True,78,False
+incarnatewordcardinals,Incarnate Word Cardinals,True,64,False
+indianahoosiers,Indiana Hoosiers,True,82,False
+indianastatesycamores,Indiana State Sycamores,True,74,False
+ionagaels,Iona Gaels,True,82,False
+iowahawkeyes,Iowa Hawkeyes,True,84,False
+iowastatecyclones,Iowa State Cyclones,True,100,False
+iuindianapolisjaguars,IU Indianapolis Jaguars,True,71,False
+jacksonstatetigers,Jackson State Tigers,True,59,False
+jacksonvilledolphins,Jacksonville Dolphins,True,65,False
+jacksonvillestategamecocks,Jacksonville State Gamecocks,True,64,False
+jamesmadisondukes,James Madison Dukes,True,72,False
+kansascityroos,Kansas City Roos,True,65,False
+kansasjayhawks,Kansas Jayhawks,True,97,False
+kansasstatewildcats,Kansas State Wildcats,True,79,False
+kennesawstateowls,Kennesaw State Owls,True,63,False
+kentstategoldenflashes,Kent State Golden Flashes,True,74,False
+kentuckywildcats,Kentucky Wildcats,True,100,False
+lafayetteleopards,Lafayette Leopards,True,63,False
+lamarcardinals,Lamar Cardinals,True,65,False
+lasalleexplorers,La Salle Explorers,True,65,False
+lehighmountainhawks,Lehigh Mountain Hawks,True,60,False
+lemoynedolphins,Le Moyne Dolphins,True,67,False
+libertyflames,Liberty Flames,True,60,False
+lipscombbisons,Lipscomb Bisons,True,67,False
+littlerocktrojans,Little Rock Trojans,True,68,False
+longbeachstatebeach,Long Beach State Beach,True,65,False
+longislanduniversitysharks,Long Island University Sharks,True,66,False
+longwoodlancers,Longwood Lancers,True,66,False
+louisianaragincajuns,Louisiana Ragin' Cajuns,True,69,False
+louisianatechbulldogs,Louisiana Tech Bulldogs,True,60,False
+louisvillecardinals,Louisville Cardinals,True,79,False
+loyolachicagoramblers,Loyola Chicago Ramblers,True,71,False
+loyolamarylandgreyhounds,Loyola Maryland Greyhounds,True,61,False
+loyolamarymountlions,Loyola Marymount Lions,True,62,False
+lsutigers,LSU Tigers,True,70,False
+maineblackbears,Maine Black Bears,True,63,False
+manhattanjaspers,Manhattan Jaspers,True,78,False
+maristredfoxes,Marist Red Foxes,True,72,False
+marquettegoldeneagles,Marquette Golden Eagles,True,97,False
+marshallthunderingherd,Marshall Thundering Herd,True,62,False
+marylandeasternshorehawks,Maryland Eastern Shore Hawks,True,63,False
+marylandterrapins,Maryland Terrapins,True,86,False
+massachusettsminutemen,Massachusetts Minutemen,True,57,False
+mcneesecowboys,McNeese Cowboys,True,68,False
+memphistigers,Memphis Tigers,True,85,False
+mercerbears,Mercer Bears,True,63,False
+mercyhurstlakers,Mercyhurst Lakers,True,47,False
+merrimackwarriors,Merrimack Warriors,True,76,False
+miamihurricanes,Miami Hurricanes,True,61,False
+miamiohredhawks,Miami (OH) RedHawks,True,60,False
+michiganstatespartans,Michigan State Spartans,True,98,False
+michiganwolverines,Michigan Wolverines,True,88,False
+middletennesseeblueraiders,Middle Tennessee Blue Raiders,True,63,False
+milwaukeepanthers,Milwaukee Panthers,True,78,False
+minnesotagoldengophers,Minnesota Golden Gophers,True,76,False
+mississippistatebulldogs,Mississippi State Bulldogs,True,80,False
+mississippivalleystatedeltadevils,Mississippi Valley State Delta Devils,True,59,False
+missouristatebears,Missouri State Bears,True,64,False
+missouritigers,Missouri Tigers,True,71,False
+monmouthhawks,Monmouth Hawks,True,66,False
+montanagrizzlies,Montana Grizzlies,True,67,False
+montanastatebobcats,Montana State Bobcats,True,68,False
+moreheadstateeagles,Morehead State Eagles,True,66,False
+morganstatebears,Morgan State Bears,True,59,False
+mountstmarysmountaineers,Mount St. Mary's Mountaineers,True,82,False
+murraystateracers,Murray State Racers,True,70,False
+navymidshipmen,Navy Midshipmen,True,67,False
+ncstatewolfpack,NC State Wolfpack,True,66,False
+nebraskacornhuskers,Nebraska Cornhuskers,True,80,False
+nevadawolfpack,Nevada Wolf Pack,True,69,False
+newhampshirewildcats,New Hampshire Wildcats,True,62,False
+newhavenchargers,New Haven Chargers,True,24,False
+newmexicolobos,New Mexico Lobos,True,71,False
+newmexicostateaggies,New Mexico State Aggies,True,60,False
+neworleansprivateers,New Orleans Privateers,True,66,False
+niagarapurpleeagles,Niagara Purple Eagles,True,77,False
+nichollscolonels,Nicholls Colonels,True,65,False
+njithighlanders,NJIT Highlanders,True,57,False
+norfolkstatespartans,Norfolk State Spartans,True,68,False
+northalabamalions,North Alabama Lions,True,66,False
+northcarolinaataggies,North Carolina A&T Aggies,True,64,False
+northcarolinacentraleagles,North Carolina Central Eagles,True,62,False
+northcarolinatarheels,North Carolina Tar Heels,True,95,False
+northdakotafightinghawks,North Dakota Fighting Hawks,True,65,False
+northdakotastatebison,North Dakota State Bison,True,63,False
+northeasternhuskies,Northeastern Huskies,True,62,False
+northernarizonalumberjacks,Northern Arizona Lumberjacks,True,59,False
+northerncoloradobears,Northern Colorado Bears,True,66,False
+northernillinoishuskies,Northern Illinois Huskies,True,57,False
+northerniowapanthers,Northern Iowa Panthers,True,74,False
+northernkentuckynorse,Northern Kentucky Norse,True,73,False
+northfloridaospreys,North Florida Ospreys,True,65,False
+northtexasmeangreen,North Texas Mean Green,True,82,False
+northwesternstatedemons,Northwestern State Demons,True,60,False
+northwesternwildcats,Northwestern Wildcats,True,77,False
+notredamefightingirish,Notre Dame Fighting Irish,True,65,False
+oaklandgoldengrizzlies,Oakland Golden Grizzlies,True,81,False
+ohiobobcats,Ohio Bobcats,True,62,False
+ohiostatebuckeyes,Ohio State Buckeyes,True,84,False
+oklahomasooners,Oklahoma Sooners,True,70,False
+oklahomastatecowboys,Oklahoma State Cowboys,True,74,False
+olddominionmonarchs,Old Dominion Monarchs,True,66,False
+olemissrebels,Ole Miss Rebels,True,73,False
+omahamavericks,Omaha Mavericks,True,70,False
+oralrobertsgoldeneagles,Oral Roberts Golden Eagles,True,60,False
+oregonducks,Oregon Ducks,True,78,False
+oregonstatebeavers,Oregon State Beavers,True,65,False
+pacifictigers,Pacific Tigers,True,61,False
+pennstatenittanylions,Penn State Nittany Lions,True,69,False
+pennsylvaniaquakers,Pennsylvania Quakers,True,52,False
+pepperdinewaves,Pepperdine Waves,True,67,False
+pittsburghpanthers,Pittsburgh Panthers,True,61,False
+portlandpilots,Portland Pilots,True,69,False
+portlandstatevikings,Portland State Vikings,True,58,False
+prairieviewampanthers,Prairie View A&M Panthers,True,58,False
+presbyterianbluehose,Presbyterian Blue Hose,True,65,False
+princetontigers,Princeton Tigers,True,54,False
+providencefriars,Providence Friars,True,68,False
+purdueboilermakers,Purdue Boilermakers,True,105,False
+purduefortwaynemastodons,Purdue Fort Wayne Mastodons,True,80,False
+quinnipiacbobcats,Quinnipiac Bobcats,True,80,False
+radfordhighlanders,Radford Highlanders,True,66,False
+rhodeislandrams,Rhode Island Rams,True,60,False
+riceowls,Rice Owls,True,71,False
+richmondspiders,Richmond Spiders,True,56,False
+riderbroncs,Rider Broncs,True,78,False
+robertmorriscolonials,Robert Morris Colonials,True,77,False
+rutgersscarletknights,Rutgers Scarlet Knights,True,80,False
+sacramentostatehornets,Sacramento State Hornets,True,59,False
+sacredheartpioneers,Sacred Heart Pioneers,True,72,False
+saintfrancisredflash,Saint Francis Red Flash,True,65,False
+saintjosephshawks,Saint Joseph's Hawks,True,68,False
+saintlouisbillikens,Saint Louis Billikens,True,68,False
+saintmarysgaels,Saint Mary's Gaels,True,69,False
+saintpeterspeacocks,Saint Peter's Peacocks,True,75,False
+samfordbulldogs,Samford Bulldogs,True,62,False
+samhoustonbearkats,Sam Houston Bearkats,True,60,False
+sandiegostateaztecs,San Diego State Aztecs,True,68,False
+sandiegotoreros,San Diego Toreros,True,67,False
+sanfranciscodons,San Francisco Dons,True,70,False
+sanjosstatespartans,San José State Spartans,True,61,False
+santaclarabroncos,Santa Clara Broncos,True,66,False
+seattleuredhawks,Seattle U Redhawks,True,69,False
+selouisianalions,SE Louisiana Lions,True,60,False
+setonhallpirates,Seton Hall Pirates,True,76,False
+sienasaints,Siena Saints,True,83,False
+siuedwardsvillecougars,SIU Edwardsville Cougars,True,69,False
+smumustangs,SMU Mustangs,True,70,False
+southalabamajaguars,South Alabama Jaguars,True,65,False
+southcarolinagamecocks,South Carolina Gamecocks,True,72,False
+southcarolinastatebulldogs,South Carolina State Bulldogs,True,60,False
+southcarolinaupstatespartans,South Carolina Upstate Spartans,True,60,False
+southdakotacoyotes,South Dakota Coyotes,True,63,False
+southdakotastatejackrabbits,South Dakota State Jackrabbits,True,73,False
+southeastmissouristateredhawks,Southeast Missouri State Redhawks,True,62,False
+southernillinoissalukis,Southern Illinois Salukis,True,70,False
+southernjaguars,Southern Jaguars,True,59,False
+southernmissgoldeneagles,Southern Miss Golden Eagles,True,65,False
+southernutahthunderbirds,Southern Utah Thunderbirds,True,57,False
+southfloridabulls,South Florida Bulls,True,77,False
+stanfordcardinal,Stanford Cardinal,True,70,False
+stbonaventurebonnies,St. Bonaventure Bonnies,True,64,False
+stephenfaustinlumberjacks,Stephen F. Austin Lumberjacks,True,61,False
+stetsonhatters,Stetson Hatters,True,71,False
+stjohnsredstorm,St. John's Red Storm,True,88,False
+stonehillskyhawks,Stonehill Skyhawks,True,69,False
+stonybrookseawolves,Stony Brook Seawolves,True,63,False
+stthomasminnesotatommies,St. Thomas-Minnesota Tommies,True,66,False
+syracuseorange,Syracuse Orange,True,59,False
+tarletonstatetexans,Tarleton State Texans,True,65,False
+tcuhornedfrogs,TCU Horned Frogs,True,70,False
+templeowls,Temple Owls,True,74,False
+tennesseestatetigers,Tennessee State Tigers,True,60,False
+tennesseetechgoldeneagles,Tennessee Tech Golden Eagles,True,62,False
+tennesseevolunteers,Tennessee Volunteers,True,104,False
+texasamaggies,Texas A&M Aggies,True,83,False
+texasamcorpuschristiislanders,Texas A&M-Corpus Christi Islanders,True,68,False
+texaslonghorns,Texas Longhorns,True,80,False
+texassoutherntigers,Texas Southern Tigers,True,57,False
+texasstatebobcats,Texas State Bobcats,True,66,False
+texastechredraiders,Texas Tech Red Raiders,True,95,False
+thecitadelbulldogs,The Citadel Bulldogs,True,60,False
+toledorockets,Toledo Rockets,True,62,False
+towsontigers,Towson Tigers,True,64,False
+troytrojans,Troy Trojans,True,61,False
+tulanegreenwave,Tulane Green Wave,True,73,False
+tulsagoldenhurricane,Tulsa Golden Hurricane,True,69,False
+uabblazers,UAB Blazers,True,90,False
+ualbanygreatdanes,UAlbany Great Danes,True,61,False
+ucdavisaggies,UC Davis Aggies,True,60,False
+ucfknights,UCF Knights,True,77,False
+ucirvineanteaters,UC Irvine Anteaters,True,67,False
+uclabruins,UCLA Bruins,True,84,False
+uconnhuskies,UConn Huskies,True,101,False
+ucriversidehighlanders,UC Riverside Highlanders,True,66,False
+ucsandiegotritons,UC San Diego Tritons,True,64,False
+ucsantabarbaragauchos,UC Santa Barbara Gauchos,True,61,False
+uicflames,UIC Flames,True,66,False
+ulmonroewarhawks,UL Monroe Warhawks,True,66,False
+umasslowellriverhawks,UMass Lowell River Hawks,True,57,False
+umbcretrievers,UMBC Retrievers,True,59,False
+uncashevillebulldogs,UNC Asheville Bulldogs,True,65,False
+uncgreensborospartans,UNC Greensboro Spartans,True,61,False
+uncwilmingtonseahawks,UNC Wilmington Seahawks,True,66,False
+unlvrebels,UNLV Rebels,True,65,False
+usctrojans,USC Trojans,True,77,False
+utahstateaggies,Utah State Aggies,True,71,False
+utahtechtrailblazers,Utah Tech Trailblazers,True,64,False
+utahutes,Utah Utes,True,71,False
+utahvalleywolverines,Utah Valley Wolverines,True,60,False
+utarlingtonmavericks,UT Arlington Mavericks,True,59,False
+utepminers,UTEP Miners,True,59,False
+utmartinskyhawks,UT Martin Skyhawks,True,66,False
+utriograndevalleyvaqueros,UT Rio Grande Valley Vaqueros,True,57,False
+utsaroadrunners,UTSA Roadrunners,True,68,False
+valparaisobeacons,Valparaiso Beacons,True,66,False
+vanderbiltcommodores,Vanderbilt Commodores,True,67,False
+vcurams,VCU Rams,True,79,False
+vermontcatamounts,Vermont Catamounts,True,63,False
+villanovawildcats,Villanova Wildcats,True,80,False
+virginiacavaliers,Virginia Cavaliers,True,64,False
+virginiatechhokies,Virginia Tech Hokies,True,59,False
+vmikeydets,VMI Keydets,True,63,False
+wagnerseahawks,Wagner Seahawks,True,67,False
+wakeforestdemondeacons,Wake Forest Demon Deacons,True,64,False
+washingtonhuskies,Washington Huskies,True,73,False
+washingtonstatecougars,Washington State Cougars,True,68,False
+weberstatewildcats,Weber State Wildcats,True,63,False
+westerncarolinacatamounts,Western Carolina Catamounts,True,58,False
+westernillinoisleathernecks,Western Illinois Leathernecks,True,59,False
+westernkentuckyhilltoppers,Western Kentucky Hilltoppers,True,57,False
+westernmichiganbroncos,Western Michigan Broncos,True,57,False
+westgeorgiawolves,West Georgia Wolves,True,40,False
+westvirginiamountaineers,West Virginia Mountaineers,True,72,False
+wichitastateshockers,Wichita State Shockers,True,77,False
+williammarytribe,William & Mary Tribe,True,66,False
+winthropeagles,Winthrop Eagles,True,62,False
+wisconsinbadgers,Wisconsin Badgers,True,97,False
+woffordterriers,Wofford Terriers,True,65,False
+wrightstateraiders,Wright State Raiders,True,77,False
+wyomingcowboys,Wyoming Cowboys,True,60,False
+xaviermusketeers,Xavier Musketeers,True,76,False
+yalebulldogs,Yale Bulldogs,True,58,False
+youngstownstatepenguins,Youngstown State Penguins,True,76,False

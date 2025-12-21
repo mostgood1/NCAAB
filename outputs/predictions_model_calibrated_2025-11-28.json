@@ -1,0 +1,19 @@
+{
+  "date": "2025-11-28",
+  "window_days": 14,
+  "total_calibration": {
+    "a": 0.0,
+    "b": 1.0,
+    "mode": "none",
+    "scale_factor": 2.2,
+    "median_raw": 31.92804950756026
+  },
+  "margin_calibration": {
+    "a": 0.0,
+    "b": 1.0,
+    "mode": "none"
+  },
+  "rows_used": 0,
+  "pred_rows": 58,
+  "timestamp_utc": "2025-11-28T16:33:27.700834"
+}

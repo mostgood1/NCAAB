@@ -1,0 +1,96 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20251119164006
+Username: CLARKANDADDISON\mostg
+RunAs User: CLARKANDADDISON\mostg
+Configuration Name: 
+Machine: CLARKANDADDISON (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\daily_update.ps1 -Today 2025-11-19
+Process ID: 20588
+PSVersion: 5.1.26100.7019
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.7019
+BuildVersion: 10.0.26100.7019
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==== 1) Fetch previous day's games (2025-11-18) ====\n
+
+
+==== 2) Fetch odds snapshots for 2025-11-18 and build last/closing lines ====\n
+
+
+
+
+
+
+
+
+==== 3) Build daily results (reconcile vs finals) for 2025-11-18 ====\n
+
+
+==== 3a) Fetch previous day raw scores (no cache) and boxscores ====\n
+
+
+
+==== 3b) Finalize previous day (refresh + fallback + overrides) ====\n
+
+
+==== 4) Update model tuning from recent daily results ====\n
+
+
+==== 5) Retrain baseline models on latest features_all.csv ====\n
+
+Model-first artifacts present; skipping explicit retrain.
+features_curr.csv already exists; skipping generation.
+Model predictions already exist for 2025-11-19; skipping inference.
+
+==== 6) Fetch today's schedule, odds, and run predictions/picks ====\n
+
+
+==== 6a) Restore full games_with_last.csv (historical) after daily-run ====\n
+
+
+==== 7) Filter merged last odds to today's slate ====\n
+
+
+==== 7b) Align predictions to period and compute edges ====\n
+
+
+==== 8) Generate baseline stake sheet (edge-based Kelly) ====\n
+
+
+==== 9) Generate calibrated distributional stake sheet (if distributional columns present) ====\n
+
+
+==== 10) Compare baseline vs calibrated stake sheets ====\n
+
+
+==== 11) Commit and push updated data files ====\n
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==== DONE ====\n
+Completed in 00:00:50.8075033
+**********************
+Windows PowerShell transcript end
+End time: 20251119164057
+**********************

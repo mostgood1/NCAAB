@@ -1,0 +1,8 @@
+{
+  "date": "2025-12-04",
+  "window_days": 60,
+  "totals_bias": 0.0,
+  "median_total": 18.587649999999996,
+  "threshold": 3.0,
+  "updated_file": "outputs\\predictions_unified_enriched_2025-12-04.csv"
+}

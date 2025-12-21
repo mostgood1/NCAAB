@@ -1,0 +1,134 @@
+{
+  "date": "2025-11-26",
+  "generated_at": "2025-12-05T15:22:54.853668",
+  "stake_mode": "flat",
+  "kelly_fraction": 0.5,
+  "bankroll_start": 1000.0,
+  "edge_calc_warning": "failed_edge_derivation",
+  "totals_closing": {
+    "n_games": 0,
+    "n_books_rows": 0,
+    "n_bets": 0,
+    "n_resolved": 0,
+    "win_rate": null,
+    "pnl_units": 0.0,
+    "roi": null,
+    "avg_edge": null
+  },
+  "spread_closing": {
+    "n_games": 72,
+    "n_books_rows": 1729,
+    "n_bets": 0,
+    "n_resolved": 0,
+    "win_rate": null,
+    "pnl_units": 0.0,
+    "roi": null,
+    "avg_edge": null
+  },
+  "moneyline_closing": {
+    "n_games": 72,
+    "n_books_rows": 1729,
+    "n_bets": 0,
+    "n_resolved": 0,
+    "win_rate": null,
+    "pnl_units": 0.0,
+    "roi": null,
+    "avg_edge": null
+  },
+  "bets_detail": {
+    "totals": [
+      {
+        "game_id": "401830117",
+        "edge_total": -10.4989013671875,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401823403",
+        "edge_total": -11.618072509765623,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401822738",
+        "edge_total": -34.19999999999999,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401823431",
+        "edge_total": -27.97388163248698,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401828311",
+        "edge_total": 3.887786865234375,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401820227",
+        "edge_total": 11.217971801757812,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401822333",
+        "edge_total": -7.5939788818359375,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401808897",
+        "edge_total": -27.3,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401823421",
+        "edge_total": 13.999343872070312,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401823362",
+        "edge_total": -16.023879394531235,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401818553",
+        "edge_total": 20.321578979492188,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401812606",
+        "edge_total": 7.890126749674494,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401826832",
+        "edge_total": -5.80792236328125,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401823353",
+        "edge_total": 2.4745025634765625,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401817522",
+        "edge_total": -3.6552581787109375,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401823860",
+        "edge_total": -7.617385864257812,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401829616",
+        "edge_total": -7.651199340820312,
+        "stake": 1.0
+      },
+      {
+        "game_id": "401824950",
+        "edge_total": -9.45151245117188,
+        "stake": 1.0
+      }
+    ],
+    "spread": [],
+    "moneyline": []
+  }
+}

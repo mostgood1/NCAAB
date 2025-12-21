@@ -1,0 +1,15 @@
+{
+  "date": "2025-11-15",
+  "events_count": 73,
+  "event_pairs": 73,
+  "current_rows": 1710,
+  "current_pairs": 73,
+  "snapshot_pairs": 0,
+  "snapshot_files": [],
+  "games_pairs": 80,
+  "pairs_intersections": {
+    "events_vs_games": 58,
+    "current_vs_games": 58,
+    "snapshots_vs_games": 0
+  }
+}

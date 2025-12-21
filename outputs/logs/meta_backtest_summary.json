@@ -1,0 +1,339 @@
+{
+  "by_date": {
+    "2025-11-22": {
+      "n_games": 45,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "ml": {
+        "logloss": 0.5448749314648426,
+        "brier": 0.18890154691557315,
+        "ece": 0.1128912833043223,
+        "auc": null,
+        "n": 45
+      }
+    },
+    "2025-11-23": {
+      "n_games": 43,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-11-24": {
+      "n_games": 62,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-11-25": {
+      "n_games": 78,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-11-26": {
+      "n_games": 72,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "ml": {
+        "logloss": 0.8197484748437712,
+        "brier": 0.27499542264956495,
+        "ece": 0.17151919416710767,
+        "auc": null,
+        "n": 72
+      }
+    },
+    "2025-11-27": {
+      "n_games": 20,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": 5.176196161818103,
+        "brier": 0.4048895330875755,
+        "ece": 0.41949367749704225,
+        "auc": null,
+        "n": 14
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-11-28": {
+      "n_games": 58,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": 1.026940013753435,
+        "brier": 0.31349777273279805,
+        "ece": 0.2917602959805409,
+        "auc": null,
+        "n": 51
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-11-29": {
+      "n_games": 68,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": 0.7071841487423427,
+        "brier": 0.246575390461438,
+        "ece": 0.36584502409758046,
+        "auc": null,
+        "n": 56
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-11-30": {
+      "n_games": 33,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": 0.7125355828518097,
+        "brier": 0.25967325584464196,
+        "ece": 0.2694162436116836,
+        "auc": null,
+        "n": 33
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-12-01": {
+      "n_games": 19,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": 0.6807170399728449,
+        "brier": 0.24378241309078463,
+        "ece": 0.16977209344628952,
+        "auc": null,
+        "n": 12
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-12-02": {
+      "n_games": 58,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": 0.6083023231238192,
+        "brier": 0.21483411146411316,
+        "ece": 0.4405448956793226,
+        "auc": null,
+        "n": 5
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-12-03": {
+      "n_games": 78,
+      "ats": {
+        "logloss": 2.9388948292811543,
+        "brier": 0.6031841633051334,
+        "ece": 0.6653935634274661,
+        "auc": null,
+        "n": 47
+      },
+      "totals": {
+        "logloss": 0.8612766528815724,
+        "brier": 0.28956342191472867,
+        "ece": 0.45260128219157425,
+        "auc": null,
+        "n": 47
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    },
+    "2025-12-04": {
+      "n_games": 11,
+      "ats": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      },
+      "totals": {
+        "logloss": 9.419666289521096,
+        "brier": 0.2727272727272727,
+        "ece": 0.2727272727272727,
+        "auc": null,
+        "n": 11
+      },
+      "ml": {
+        "logloss": null,
+        "brier": null,
+        "ece": null,
+        "auc": null,
+        "n": 0
+      }
+    }
+  },
+  "global": {
+    "ats": {
+      "logloss": 2.9388948292811543,
+      "brier": 0.6031841633051334,
+      "ece": 0.6653935634274661,
+      "auc": null,
+      "n": 47
+    },
+    "totals": {
+      "logloss": 1.4989655960524837,
+      "brier": 0.28228523810355766,
+      "ece": 0.3285221123021573,
+      "auc": null,
+      "n": 229
+    },
+    "ml": {
+      "logloss": 0.7140278812364909,
+      "brier": 0.2418823935211065,
+      "ece": 0.12406690926075284,
+      "auc": null,
+      "n": 117
+    }
+  }
+}

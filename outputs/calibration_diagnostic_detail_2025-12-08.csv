@@ -1,0 +1,8 @@
+game_id,home_team,away_team,date,start_time,reason,has_model_total,has_model_margin,has_cal_total,has_cal_margin,basis_total,basis_margin
+401828342,Kennesaw State Owls,Southern Wesleyan Warriors,2025-12-08,2025-12-08 17:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401812581,Pennsylvania Quakers,Lafayette Leopards,2025-12-08,2025-12-08 23:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401820846,Charleston Southern Buccaneers,South Carolina State Bulldogs,2025-12-08,2025-12-09 00:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827090,Southern Miss Golden Eagles,Grambling Tigers,2025-12-08,2025-12-09 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401827017,Texas Longhorns,Southern Jaguars,2025-12-08,2025-12-09 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401819895,Kansas State Wildcats,Mississippi Valley State Delta Devils,2025-12-08,2025-12-09 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal
+401808900,New Orleans Privateers,Incarnate Word Cardinals,2025-12-08,2025-12-09 01:00:00+00:00,ok_calibrated,True,True,True,True,cal,cal

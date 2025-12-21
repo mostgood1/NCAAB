@@ -1,0 +1,8 @@
+{
+  "features": [
+    "pred_margin_raw",
+    "pred_margin_cal",
+    "pred_margin_basis",
+    "spread_home"
+  ]
+}

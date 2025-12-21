@@ -1,0 +1,20 @@
+{
+  "window_days": 90,
+  "policy": {
+    "tau": 10.0,
+    "sigma_max": 0.0,
+    "pmin": 0.0,
+    "n": 2,
+    "accuracy": 0.5,
+    "over_count": 0,
+    "under_count": 2
+  },
+  "metrics": {
+    "n": 2,
+    "accuracy": 0.5,
+    "over_count": 0,
+    "under_count": 2
+  },
+  "status": "ok",
+  "generated_at": "2025-12-18T23:11:38.585891Z"
+}

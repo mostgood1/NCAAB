@@ -1,0 +1,60 @@
+game_id,date,home_team,away_team,home_off_rating,away_off_rating,home_def_rating,away_def_rating,home_tempo_rating,away_tempo_rating,tempo_rating_sum
+401824941,2025-12-17,Central Arkansas Bears,Kansas Christian Falcons,101.0,109.0,95.0,100.0,67.0,67.0,134.0
+401826811,2025-12-17,Rice Owls,Southwestern Christian Eagles,101.0,110.0,95.0,99.0,69.0,70.0,139.0
+401827135,2025-12-17,Arkansas-Pine Bluff Golden Lions,Champion Christian Tigers,105.0,100.0,95.0,100.0,72.0,70.0,142.0
+401830246,2025-12-17,UIC Flames,Northern Iowa Panthers,108.0,111.0,99.0,98.0,72.0,72.0,144.0
+401822354,2025-12-17,New Hampshire Wildcats,Stonehill Skyhawks,109.0,100.0,98.0,96.0,67.0,68.0,135.0
+401812387,2025-12-17,Florida Gators,Saint Francis Red Flash,103.0,101.0,97.0,99.0,74.0,75.0,149.0
+401822871,2025-12-17,Xavier Musketeers,Creighton Bluejays,110.0,111.0,97.0,98.0,69.0,70.0,139.0
+401826799,2025-12-17,Memphis Tigers,Vanderbilt Commodores,102.0,101.0,94.0,95.0,72.0,73.0,145.0
+401828739,2025-12-17,North Carolina Central Eagles,Mid-Atlantic Christian Mustangs,104.0,107.0,99.0,93.0,68.0,69.0,137.0
+401828479,2025-12-17,Green Bay Phoenix,UC Santa Barbara Gauchos,108.0,100.0,99.0,96.0,74.0,73.0,147.0
+401828314,2025-12-17,Jacksonville State Gamecocks,Eastern Kentucky Colonels,103.0,103.0,100.0,97.0,72.0,70.0,142.0
+401827496,2025-12-17,Stony Brook Seawolves,UAlbany Great Danes,105.0,101.0,98.0,95.0,68.0,69.0,137.0
+401827453,2025-12-17,Charleston Cougars,The Citadel Bulldogs,107.0,108.0,100.0,92.0,70.0,71.0,141.0
+401827065,2025-12-17,South Carolina Upstate Spartans,Southern Wesleyan Warriors,109.0,104.0,98.0,96.0,74.0,75.0,149.0
+401825390,2025-12-17,West Georgia Wolves,Brewton-Parker Wildcats,100.0,109.0,100.0,100.0,72.0,72.0,144.0
+401823491,2025-12-17,UCF Knights,Mercer Bears,109.0,102.0,98.0,94.0,72.0,72.0,144.0
+401823458,2025-12-17,Central Michigan Chippewas,Olivet Comets,100.0,106.0,96.0,94.0,76.0,74.0,150.0
+401823349,2025-12-17,Florida A&M Rattlers,Jacksonville Dolphins,105.0,104.0,98.0,96.0,68.0,68.0,136.0
+401823222,2025-12-17,Bellarmine Knights,Chattanooga Mocs,105.0,107.0,95.0,93.0,70.0,69.0,139.0
+401823043,2025-12-17,Wagner Seahawks,Maryland Eastern Shore Hawks,101.0,102.0,95.0,98.0,71.0,73.0,144.0
+401822837,2025-12-17,Vermont Catamounts,Siena Saints,102.0,105.0,98.0,95.0,69.0,69.0,138.0
+401820815,2025-12-17,East Carolina Pirates,Presbyterian Blue Hose,106.0,104.0,94.0,96.0,72.0,73.0,145.0
+401820585,2025-12-17,Monmouth Hawks,Quinnipiac Bobcats,109.0,101.0,98.0,95.0,73.0,75.0,148.0
+401819849,2025-12-17,Cincinnati Bearcats,Alabama State Hornets,104.0,101.0,99.0,95.0,67.0,69.0,136.0
+401817594,2025-12-17,Robert Morris Colonials,Youngstown State Penguins,102.0,101.0,98.0,95.0,69.0,69.0,138.0
+401817593,2025-12-17,Northern Kentucky Norse,Oakland Golden Grizzlies,103.0,104.0,97.0,96.0,67.0,68.0,135.0
+401817536,2025-12-17,Wake Forest Demon Deacons,Longwood Lancers,105.0,110.0,95.0,99.0,76.0,75.0,151.0
+401817484,2025-12-17,Syracuse Orange,Mercyhurst Lakers,101.0,104.0,99.0,96.0,75.0,75.0,150.0
+401817450,2025-12-17,Pittsburgh Panthers,Binghamton Bearcats,108.0,101.0,99.0,99.0,69.0,68.0,137.0
+401817260,2025-12-17,NC State Wolfpack,Texas Southern Tigers,110.0,103.0,97.0,97.0,76.0,75.0,151.0
+401817179,2025-12-17,Elon Phoenix,Richmond Spiders,104.0,112.0,96.0,97.0,69.0,68.0,137.0
+401826883,2025-12-17,Wichita State Shockers,Wofford Terriers,101.0,112.0,99.0,97.0,71.0,70.0,141.0
+401826877,2025-12-17,UAB Blazers,Cleveland State Vikings,107.0,108.0,100.0,92.0,73.0,74.0,147.0
+401826848,2025-12-17,Tulane Green Wave,Louisiana Tech Bulldogs,100.0,101.0,96.0,95.0,76.0,76.0,152.0
+401822999,2025-12-17,Middle Tennessee Blue Raiders,Kennesaw State Owls,100.0,109.0,96.0,100.0,70.0,68.0,138.0
+401808919,2025-12-17,Nicholls Colonels,Houston Christian Huskies,102.0,103.0,98.0,93.0,74.0,73.0,147.0
+401808578,2025-12-17,UL Monroe Warhawks,South Alabama Jaguars,107.0,110.0,100.0,99.0,73.0,73.0,146.0
+401812267,2025-12-17,Alabama Crimson Tide,South Florida Bulls,108.0,109.0,99.0,100.0,77.0,75.0,152.0
+401827197,2025-12-17,Ole Miss Rebels,Alabama A&M Bulldogs,101.0,112.0,95.0,97.0,69.0,69.0,138.0
+401826953,2025-12-17,Utah Valley Wolverines,Weber State Wildcats,102.0,110.0,98.0,99.0,76.0,75.0,151.0
+401817191,2025-12-17,Saint Louis Billikens,Bethune-Cookman Wildcats,101.0,101.0,99.0,95.0,73.0,74.0,147.0
+401811113,2025-12-17,South Dakota Coyotes,Dakota State Trojans,108.0,110.0,99.0,99.0,70.0,69.0,139.0
+401808577,2025-12-17,Old Dominion Monarchs,James Madison Dukes,101.0,103.0,99.0,93.0,69.0,69.0,138.0
+401822870,2025-12-17,Marquette Golden Eagles,Georgetown Hoyas,106.0,109.0,94.0,100.0,71.0,71.0,142.0
+401808575,2025-12-17,Texas State Bobcats,Arkansas State Red Wolves,106.0,104.0,94.0,96.0,67.0,68.0,135.0
+401824035,2025-12-17,Gonzaga Bulldogs,Campbell Fighting Camels,109.0,107.0,98.0,93.0,69.0,70.0,139.0
+401828295,2025-12-17,Montana Grizzlies,Montana Tech Orediggers,105.0,111.0,98.0,98.0,69.0,70.0,139.0
+401827440,2025-12-17,USC Trojans,UTSA Roadrunners,105.0,102.0,95.0,94.0,71.0,69.0,140.0
+401824131,2025-12-17,UC Davis Aggies,Seattle U Redhawks,104.0,100.0,99.0,96.0,68.0,69.0,137.0
+401824123,2025-12-17,Santa Clara Broncos,North Texas Mean Green,105.0,105.0,98.0,95.0,72.0,73.0,145.0
+401819869,2025-12-17,Colorado Buffaloes,Portland State Vikings,109.0,110.0,98.0,99.0,71.0,72.0,143.0
+401808967,2025-12-17,Stephen F. Austin Lumberjacks,Texas A&M-Corpus Christi Islanders,102.0,103.0,98.0,97.0,70.0,68.0,138.0
+401823356,2025-12-17,Oregon State Beavers,Sam Houston Bearkats,102.0,111.0,94.0,98.0,75.0,76.0,151.0
+401823507,2025-12-17,Washington State Cougars,Eastern Washington Eagles,104.0,103.0,99.0,97.0,67.0,67.0,134.0
+401820557,2025-12-17,San Diego State Aztecs,Air Force Falcons,102.0,105.0,94.0,95.0,69.0,70.0,139.0
+401817473,2025-12-17,Stanford Cardinal,UT Arlington Mavericks,104.0,102.0,96.0,94.0,73.0,72.0,145.0
+401817162,2025-12-17,San Francisco Dons,Loyola Chicago Ramblers,100.0,102.0,96.0,98.0,74.0,74.0,148.0
+401813764,2025-12-17,UCLA Bruins,Arizona State Sun Devils,106.0,103.0,94.0,93.0,69.0,70.0,139.0
+401824093,2025-12-17,Oregon Ducks,Portland Pilots,104.0,104.0,99.0,96.0,73.0,74.0,147.0

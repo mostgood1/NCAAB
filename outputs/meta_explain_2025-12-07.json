@@ -1,0 +1,99 @@
+{
+  "date": "2025-12-07",
+  "models": {
+    "cover": {
+      "n_rows": 48,
+      "features_used": [
+        "p_home_cover_meta_cal",
+        "p_home_cover",
+        "p_home_cover_emp",
+        "p_home_cover_dist",
+        "p_home_cover_ensemble"
+      ],
+      "intercept": -0.25734225673297406,
+      "top_abs_contributions": [
+        [
+          "p_home_cover_emp",
+          0.1304250347524458
+        ],
+        [
+          "p_home_cover_ensemble",
+          0.047854603459317656
+        ],
+        [
+          "p_home_cover_dist",
+          0.03527645002982036
+        ],
+        [
+          "p_home_cover",
+          0.02472288826276259
+        ],
+        [
+          "p_home_cover_meta_cal",
+          0.009308387593730054
+        ]
+      ],
+      "mean_abs_contribution": {
+        "p_home_cover_meta_cal": 0.009308387593730054,
+        "p_home_cover": 0.02472288826276259,
+        "p_home_cover_emp": 0.1304250347524458,
+        "p_home_cover_dist": 0.03527645002982036,
+        "p_home_cover_ensemble": 0.047854603459317656
+      },
+      "mean_signed_contribution": {
+        "p_home_cover_meta_cal": -0.009308387593730054,
+        "p_home_cover": 0.02472288826276259,
+        "p_home_cover_emp": -0.1304250347524458,
+        "p_home_cover_dist": -0.03527645002982036,
+        "p_home_cover_ensemble": -0.047854603459317656
+      }
+    },
+    "over": {
+      "n_rows": 48,
+      "features_used": [
+        "p_over_meta_cal",
+        "p_over_display",
+        "p_over_emp",
+        "p_over_dist",
+        "p_over_ensemble"
+      ],
+      "intercept": -0.4336288371662845,
+      "top_abs_contributions": [
+        [
+          "p_over_ensemble",
+          0.07170460873852023
+        ],
+        [
+          "p_over_emp",
+          0.06625267487893274
+        ],
+        [
+          "p_over_dist",
+          0.0021329968814562676
+        ],
+        [
+          "p_over_display",
+          0.0004452148320424264
+        ],
+        [
+          "p_over_meta_cal",
+          6.742921660516379e-05
+        ]
+      ],
+      "mean_abs_contribution": {
+        "p_over_meta_cal": 6.742921660516379e-05,
+        "p_over_display": 0.0004452148320424264,
+        "p_over_emp": 0.06625267487893274,
+        "p_over_dist": 0.0021329968814562676,
+        "p_over_ensemble": 0.07170460873852023
+      },
+      "mean_signed_contribution": {
+        "p_over_meta_cal": 6.742921660516379e-05,
+        "p_over_display": 0.0004452148320424264,
+        "p_over_emp": -0.06625267487893274,
+        "p_over_dist": 0.0021329968814562676,
+        "p_over_ensemble": -0.07170460873852023
+      }
+    }
+  }
+}

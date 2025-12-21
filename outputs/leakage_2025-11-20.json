@@ -1,0 +1,12 @@
+{
+  "date": "2025-11-20",
+  "generated_at": "2025-11-20T22:47:00.366594",
+  "n_games": 0,
+  "suspicious_columns": [],
+  "summary": {
+    "n_suspicious": 0,
+    "name_flagged": 0,
+    "corr_flagged": 0,
+    "temporal_flagged": 0
+  }
+}

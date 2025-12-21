@@ -1,0 +1,35 @@
+game_id,date,home_team,away_team,pred_total_mu_raw,pred_total_mu,pred_total_sigma,pred_dist_degenerate
+401812600,2025-11-09,Harvard Crimson,New Hampshire Wildcats,36.11062,36.11062,35.896725,False
+401828296,2025-11-09,Campbell Fighting Camels,Western Michigan Broncos,40.12085,40.12085,38.108967,False
+401826732,2025-11-09,App State Mountaineers,North Carolina Central Eagles,36.054047,36.054047,35.364883,False
+401823022,2025-11-09,Marquette Golden Eagles,Indiana Hoosiers,29.218452,29.218452,34.374146,False
+401822758,2025-11-09,James Madison Dukes,Coppin State Eagles,47.487366,47.487366,44.174263,False
+401812574,2025-11-09,American University Eagles,Pennsylvania Quakers,34.292053,34.292053,33.193607,False
+401828576,2025-11-09,Georgia Bulldogs,Morehead State Eagles,42.295998,42.295998,40.3674,False
+401823485,2025-11-09,Mercer Bears,Lipscomb Bisons,37.222248,37.222248,36.99181,False
+401823417,2025-11-09,Bowling Green Falcons,Le Moyne Dolphins,40.3618,40.3618,37.552315,False
+401823393,2025-11-09,Purdue Fort Wayne Mastodons,Dominican (IL) Dominican,37.00917,37.00917,36.11606,False
+401823256,2025-11-09,North Dakota Fighting Hawks,Cal State Northridge Matadors,39.96367,39.96367,37.630672,False
+401820542,2025-11-09,Northern Iowa Panthers,South Dakota State Jackrabbits,35.697525,35.697525,35.779613,False
+401818548,2025-11-09,Brown Bears,Vermont Catamounts,31.292282,31.292282,32.57247,False
+401813320,2025-11-09,Dartmouth Big Green,Marist Red Foxes,38.324776,38.324776,36.107437,False
+401813287,2025-11-09,Oklahoma State Cowboys,Texas A&M Aggies,27.663498,27.663498,32.665577,False
+401813254,2025-11-09,Illinois State Redbirds,Cornell Big Red,36.74345,36.74345,35.090416,False
+401811103,2025-11-09,South Dakota Coyotes,Ozark Christian Ambassadors,37.00078,37.00078,36.119198,False
+401826896,2025-11-09,Louisiana Tech Bulldogs,Lyon Scots,36.822456,36.822456,36.186077,False
+401825577,2025-11-09,Montana State Bobcats,Denver Pioneers,43.554474,43.554474,40.029354,False
+401819916,2025-11-09,West Virginia Mountaineers,Lehigh Mountain Hawks,34.79264,34.79264,36.95581,False
+401819814,2025-11-09,Arizona State Sun Devils,Utah Tech Trailblazers,39.553978,39.553978,38.777046,False
+401828912,2025-11-09,Evansville Purple Aces,Oakland City Mighty Oaks,38.420124,38.420124,35.591198,False
+401823515,2025-11-09,Missouri Tigers,VMI Keydets,35.67552,35.67552,36.61907,False
+401828276,2025-11-09,Loyola Chicago Ramblers,North Texas Mean Green,34.918076,34.918076,36.22138,False
+401824089,2025-11-09,Portland Pilots,UC Davis Aggies,38.17318,38.17318,36.673397,False
+401823555,2025-11-09,San Diego State Aztecs,Idaho State Bengals,35.251167,35.251167,36.780552,False
+401827088,2025-11-09,Howard Bison,Grambling Tigers,43.9503,43.9503,39.302635,False
+401826772,2025-11-09,Liberty Flames,Florida Atlantic Owls,30.622025,30.622025,33.522842,False
+401823858,2025-11-09,USC Trojans,Manhattan Jaspers,46.807068,46.807068,44.117798,False
+401823808,2025-11-09,Colorado State Rams,Omaha Mavericks,43.95704,43.95704,40.831654,False
+401827257,2025-11-09,South Carolina Gamecocks,Southern Miss Golden Eagles,41.22075,41.22075,40.07849,False
+401829390,2025-11-09,UT Martin Skyhawks,Kentucky Christian Knights,37.195778,37.195778,36.046204,False
+401819824,2025-11-09,Baylor Bears,Washington Huskies,36.983574,36.983574,39.93692,False
+401824896,2025-11-09,Hawai'i Rainbow Warriors,East Texas A&M Lions,39.395782,39.395782,37.170506,False

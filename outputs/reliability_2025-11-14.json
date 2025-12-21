@@ -1,0 +1,58 @@
+{
+  "date": "2025-11-14",
+  "generated_at": "2025-12-05T21:22:18.035139Z",
+  "status": "ok",
+  "bins": [
+    {
+      "bin": "(105.205, 110.0]",
+      "n_games": 10,
+      "mean_pred": 109.32805404663085,
+      "mean_actual": 150.2,
+      "mean_residual": -40.87194595336914,
+      "std_residual": 11.044910717506134
+    },
+    {
+      "bin": "(110.0, 142.138]",
+      "n_games": 7,
+      "mean_pred": 133.81485639299666,
+      "mean_actual": 154.0,
+      "mean_residual": -20.185143607003347,
+      "std_residual": 22.07072029031473
+    },
+    {
+      "bin": "(142.138, 143.802]",
+      "n_games": 8,
+      "mean_pred": 142.98077011108398,
+      "mean_actual": 154.375,
+      "mean_residual": -11.394229888916016,
+      "std_residual": 21.231504811931682
+    },
+    {
+      "bin": "(143.802, 145.135]",
+      "n_games": 8,
+      "mean_pred": 144.34112548828125,
+      "mean_actual": 142.625,
+      "mean_residual": 1.71612548828125,
+      "std_residual": 24.606353813651594
+    },
+    {
+      "bin": "(145.135, 149.373]",
+      "n_games": 8,
+      "mean_pred": 146.9142951965332,
+      "mean_actual": 143.375,
+      "mean_residual": 3.539295196533203,
+      "std_residual": 11.482754605590154
+    },
+    {
+      "bin": "(149.373, 160.472]",
+      "n_games": 9,
+      "mean_pred": 154.7369639078776,
+      "mean_actual": 157.66666666666666,
+      "mean_residual": -2.9297027587890625,
+      "std_residual": 17.586668370691253
+    }
+  ],
+  "calibration_slope": 0.11232436587164449,
+  "calibration_intercept": 134.94708508128858,
+  "rows": 50
+}

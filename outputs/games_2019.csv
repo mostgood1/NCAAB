@@ -1,0 +1,1053 @@
+game_id,season,date,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401168156,2019,2019-11-05,Miami Hurricanes,Louisville Cardinals,74,87,26.0,45.0,48.0,42.0,False,Watsco Center
+401169796,2019,2019-11-05,Florida Gators,North Florida Ospreys,74,59,39.0,22.0,35.0,37.0,False,Stephen C. O'Connell Center
+401166020,2019,2019-11-05,Maryland Terrapins,Holy Cross Crusaders,95,71,51.0,39.0,44.0,32.0,False,XFINITY Center
+401175199,2019,2019-11-05,Gonzaga Bulldogs,Alabama State Hornets,95,64,42.0,30.0,53.0,34.0,False,McCarthey Athletic Center
+401169778,2019,2019-11-05,Villanova Wildcats,Army Black Knights,97,54,49.0,26.0,48.0,28.0,False,Finneran Pavilion
+401168441,2019,2019-11-05,Seton Hall Pirates,Wagner Seahawks,105,71,52.0,37.0,53.0,34.0,False,Walsh Gymnasium
+401169597,2019,2019-11-05,Texas Tech Red Raiders,Eastern Illinois Panthers,85,60,46.0,31.0,39.0,29.0,False,United Supermarkets Arena
+401170001,2019,2019-11-05,Memphis Tigers,South Carolina State Bulldogs,97,64,50.0,32.0,47.0,32.0,False,FedExForum
+401170555,2019,2019-11-05,Oregon Ducks,Fresno State Bulldogs,71,57,38.0,27.0,33.0,30.0,False,Matthew Knight Arena
+401169593,2019,2019-11-05,Baylor Bears,Central Arkansas Bears,105,61,53.0,32.0,52.0,29.0,False,Ferrell Center
+401166408,2019,2019-11-05,Utah State Aggies,Montana State Bobcats,81,73,37.0,34.0,44.0,39.0,False,Dee Glen Smith Spectrum
+401169787,2019,2019-11-05,Xavier Musketeers,Jacksonville Dolphins,76,57,43.0,22.0,33.0,35.0,False,Cintas Center
+401175202,2019,2019-11-05,Wisconsin Badgers,Saint Mary's Gaels,63,65,24.0,30.0,30.0,24.0,True,Sanford Pentagon
+401169797,2019,2019-11-05,Auburn Tigers,Georgia Southern Eagles,83,74,41.0,37.0,42.0,37.0,False,Neville Arena
+401170102,2019,2019-11-05,VCU Rams,Saint Francis Red Flash,72,58,36.0,22.0,36.0,36.0,False,Siegel Center
+401168159,2019,2019-11-06,North Carolina Tar Heels,Notre Dame Fighting Irish,76,65,30.0,31.0,46.0,34.0,False,Dean E. Smith Center
+401168161,2019,2019-11-06,Syracuse Orange,Virginia Cavaliers,34,48,19.0,25.0,15.0,23.0,False,JMA Wireless Dome
+401166022,2019,2019-11-06,Ohio State Buckeyes,Cincinnati Bearcats,64,56,19.0,26.0,45.0,30.0,False,Value City Arena
+401166414,2019,2019-11-06,Arizona Wildcats,Northern Arizona Lumberjacks,91,52,44.0,22.0,47.0,30.0,False,McKale Memorial Center
+401166023,2019,2019-11-06,Purdue Boilermakers,Green Bay Phoenix,79,57,35.0,22.0,44.0,35.0,False,Mackey Arena
+401177913,2019,2019-11-07,Omaha Mavericks,Midland University Midland,72,53,30.0,21.0,42.0,32.0,False,Baxter Arena
+401175030,2019,2019-11-07,Morehead State Eagles,Spalding Pelicans,92,44,41.0,22.0,51.0,22.0,False,Ellis T. Johnson Arena
+401176777,2019,2019-11-07,Purdue Fort Wayne Mastodons,Manchester Spartans,91,80,50.0,32.0,41.0,48.0,False,Memorial Coliseum (IN)
+401175914,2019,2019-11-07,Marshall Thundering Herd,Robert Morris Colonials,67,60,33.0,27.0,34.0,33.0,False,Cam Henderson Center
+401174698,2019,2019-11-07,App State Mountaineers,Ferrum Panthers,83,56,47.0,24.0,36.0,32.0,False,Holmes Convocation Center
+401171546,2019,2019-11-07,Hartford Hawks,Winthrop Eagles,57,67,28.0,34.0,29.0,33.0,False,Chase Arena
+401171520,2019,2019-11-07,Clemson Tigers,Presbyterian Blue Hose,79,45,43.0,21.0,36.0,24.0,False,Littlejohn Coliseum
+401170342,2019,2019-11-07,North Florida Ospreys,Florida National Conquistadors,89,81,38.0,35.0,51.0,46.0,False,UNF Arena
+401166024,2019,2019-11-07,Rutgers Scarlet Knights,Bryant Bulldogs,73,71,38.0,30.0,35.0,41.0,False,Jersey Mike’s Arena
+401176061,2019,2019-11-07,Samford Bulldogs,Kentucky Wesleyan Panthers,68,42,33.0,21.0,35.0,21.0,False,Pete Hanna Center
+401177959,2019,2019-11-07,South Dakota State Jackrabbits,Peru State PERU STATE,86,58,42.0,28.0,44.0,30.0,False,Frost Arena
+401177442,2019,2019-11-07,North Dakota State Bison,Mayville St Comets,93,53,44.0,32.0,49.0,21.0,False,Scheels Center
+401176813,2019,2019-11-07,North Dakota Fighting Hawks,Crown College Polars,86,61,48.0,31.0,38.0,30.0,False,Betty Engelstad Sioux Center
+401176395,2019,2019-11-07,Central Arkansas Bears,Hendrix College Warriors,71,51,25.0,11.0,46.0,40.0,False,Farris Center
+401174699,2019,2019-11-07,Troy Trojans,UAB Blazers,75,76,30.0,26.0,45.0,50.0,False,Trojan Arena
+401170343,2019,2019-11-07,Drake Bulldogs,Kennesaw State Owls,86,55,39.0,19.0,47.0,36.0,False,Knapp Center
+401169599,2019,2019-11-07,TCU Horned Frogs,Southwestern (TX) Pirates,83,62,43.0,38.0,40.0,24.0,False,Schollmaier Arena
+401170559,2019,2019-11-07,Washington State Cougars,Seattle U Redhawks,85,54,43.0,21.0,42.0,33.0,False,Beasley Coliseum
+401166415,2019,2019-11-07,Air Force Falcons,Idaho State Bengals,79,89,31.0,42.0,48.0,47.0,False,Clune Arena
+401171629,2019,2019-11-07,UC Davis Aggies,Jessup University Warriors,109,63,51.0,32.0,58.0,31.0,False,University Credit Union Center
+401169808,2019,2019-11-08,Kentucky Wildcats,Eastern Kentucky Colonels,91,49,46.0,25.0,45.0,24.0,False,Rupp Arena
+401169601,2019,2019-11-08,Kansas Jayhawks,UNC Greensboro Spartans,74,62,36.0,32.0,38.0,30.0,False,Allen Fieldhouse
+401168162,2019,2019-11-08,Duke Blue Devils,Colorado State Rams,89,55,42.0,26.0,47.0,29.0,False,Cameron Indoor Stadium
+401168164,2019,2019-11-08,UNC Wilmington Seahawks,North Carolina Tar Heels,62,78,29.0,40.0,33.0,38.0,False,Trask Coliseum
+401166417,2019,2019-11-08,Utah State Aggies,Weber State Wildcats,89,34,48.0,13.0,41.0,21.0,False,Dee Glen Smith Spectrum
+401169788,2019,2019-11-08,Xavier Musketeers,Siena Saints,81,63,42.0,33.0,39.0,30.0,False,Cintas Center
+401169810,2019,2019-11-08,LSU Tigers,Bowling Green Falcons,88,79,46.0,36.0,42.0,43.0,False,Pete Maravich Assembly Center
+401170106,2019,2019-11-08,VCU Rams,North Texas Mean Green,59,56,31.0,21.0,28.0,35.0,False,Siegel Center
+401166028,2019,2019-11-09,Maryland Terrapins,Rhode Island Rams,73,55,35.0,32.0,38.0,23.0,False,XFINITY Center
+401175206,2019,2019-11-09,Gonzaga Bulldogs,Arkansas-Pine Bluff Golden Lions,110,60,56.0,30.0,54.0,30.0,False,McCarthey Athletic Center
+401168442,2019,2019-11-09,Seton Hall Pirates,Stony Brook Seawolves,74,57,31.0,33.0,43.0,24.0,False,Walsh Gymnasium
+401169606,2019,2019-11-09,Texas Tech Red Raiders,Bethune-Cookman Wildcats,79,44,40.0,19.0,39.0,25.0,False,United Supermarkets Arena
+401170563,2019,2019-11-09,Oregon Ducks,Boise State Broncos,106,75,48.0,30.0,58.0,45.0,False,Matthew Knight Arena
+401166030,2019,2019-11-09,Purdue Boilermakers,Texas Longhorns,66,70,34.0,31.0,32.0,39.0,False,Mackey Arena
+401166054,2019,2019-11-10,Michigan State Spartans,Binghamton Bearcats,100,47,54.0,23.0,46.0,24.0,False,Breslin Center
+401168168,2019,2019-11-10,Florida Gators,Florida State Seminoles,51,63,21.0,25.0,30.0,38.0,False,Stephen C. O'Connell Center
+401168171,2019,2019-11-10,Virginia Cavaliers,James Madison Dukes,65,34,31.0,23.0,34.0,11.0,False,John Paul Jones Arena
+401166055,2019,2019-11-10,Ohio State Buckeyes,UMass Lowell River Hawks,76,56,38.0,25.0,38.0,31.0,False,Value City Arena
+401169934,2019,2019-11-10,Arizona Wildcats,Illinois Fighting Illini,90,69,39.0,38.0,51.0,31.0,False,McKale Memorial Center
+401171548,2019,2019-11-11,Saint Mary's Gaels,Winthrop Eagles,59,61,25.0,26.0,34.0,35.0,False,University Credit Union Pavilion
+401169817,2019,2019-11-12,Kentucky Wildcats,Evansville Purple Aces,64,67,30.0,34.0,34.0,33.0,False,Rupp Arena
+401175210,2019,2019-11-12,Gonzaga Bulldogs,North Dakota Fighting Hawks,97,66,55.0,36.0,42.0,30.0,False,McCarthey Athletic Center
+401173654,2019,2019-11-12,Utah State Aggies,Denver Pioneers,97,56,53.0,27.0,44.0,29.0,False,Dee Glen Smith Spectrum
+401170570,2019,2019-11-12,Washington Huskies,Mount St. Mary's Mountaineers,56,46,21.0,21.0,35.0,25.0,False,Alaska Airlines Arena
+401169789,2019,2019-11-12,Xavier Musketeers,Missouri Tigers,63,58,28.0,21.0,23.0,30.0,False,Cintas Center
+401169820,2019,2019-11-12,South Alabama Jaguars,Auburn Tigers,69,70,30.0,38.0,39.0,32.0,False,Mitchell Center
+401168179,2019,2019-11-13,Louisville Cardinals,Indiana State Sycamores,91,62,47.0,26.0,44.0,36.0,False,KFC Yum! Center
+401169613,2019,2019-11-13,Texas Tech Red Raiders,Houston Christian Huskies,103,74,54.0,39.0,49.0,35.0,True,Chaparral Center
+401169823,2019,2019-11-13,VCU Rams,LSU Tigers,84,82,50.0,38.0,34.0,44.0,False,Siegel Center
+401169825,2019,2019-11-14,Florida Gators,Towson Tigers,66,60,30.0,30.0,36.0,30.0,False,Stephen C. O'Connell Center
+401171610,2019,2019-11-14,Saint Mary's Gaels,Long Beach State Beach,81,63,41.0,31.0,40.0,32.0,False,University Credit Union Pavilion
+401170571,2019,2019-11-14,Arizona Wildcats,San José State Spartans,87,39,39.0,17.0,48.0,22.0,False,McKale Memorial Center
+401169615,2019,2019-11-15,Kansas Jayhawks,Monmouth Hawks,112,57,59.0,21.0,53.0,36.0,False,Allen Fieldhouse
+401168185,2019,2019-11-15,North Carolina Tar Heels,Gardner-Webb Runnin' Bulldogs,77,61,30.0,27.0,47.0,34.0,False,Dean E. Smith Center
+401169828,2019,2019-11-15,Texas A&M Aggies,Gonzaga Bulldogs,49,79,19.0,40.0,30.0,39.0,False,Reed Arena
+401173658,2019,2019-11-15,Utah State Aggies,North Carolina A&T Aggies,81,54,38.0,23.0,43.0,31.0,False,Dee Glen Smith Spectrum
+401169790,2019,2019-11-15,Xavier Musketeers,Missouri State Bears,59,56,32.0,30.0,27.0,26.0,False,Cintas Center
+401169614,2019,2019-11-15,Baylor Bears,Texas State Bobcats,72,63,30.0,30.0,42.0,33.0,False,Ferrell Center
+401166072,2019,2019-11-16,Maryland Terrapins,Oakland Golden Grizzlies,80,50,35.0,22.0,45.0,28.0,False,XFINITY Center
+401169834,2019,2019-11-16,LSU Tigers,Nicholls Colonels,75,65,38.0,39.0,37.0,26.0,False,Pete Maravich Assembly Center
+401170576,2019,2019-11-16,Colorado Buffaloes,San Diego Toreros,71,53,30.0,27.0,41.0,26.0,False,CU Events Center
+401168443,2019,2019-11-17,Saint Louis Billikens,Seton Hall Pirates,66,83,31.0,46.0,35.0,37.0,False,Chaifetz Arena
+401170582,2019,2019-11-17,Oregon Ducks,UT Arlington Mavericks,67,47,37.0,28.0,30.0,19.0,False,Matthew Knight Arena
+401169447,2019,2019-11-17,UConn Huskies,Florida Gators,62,59,25.0,20.0,37.0,39.0,False,Gampel Pavilion
+401171562,2019,2019-11-17,Saint Mary's Gaels,Cal Poly Mustangs,79,48,46.0,21.0,33.0,27.0,False,University Credit Union Pavilion
+401170580,2019,2019-11-17,Arizona Wildcats,New Mexico State Aggies,83,53,43.0,21.0,40.0,32.0,False,McKale Memorial Center
+401173661,2019,2019-11-18,Utah State Aggies,UTSA Roadrunners,82,50,41.0,29.0,41.0,21.0,False,Dee Glen Smith Spectrum
+401170584,2019,2019-11-18,Colorado Buffaloes,UC Irvine Anteaters,69,53,40.0,30.0,29.0,23.0,False,CU Events Center
+401166079,2019,2019-11-19,Maryland Terrapins,Fairfield Stags,74,55,41.0,27.0,33.0,28.0,False,XFINITY Center
+401170587,2019,2019-11-19,Washington Huskies,Maine Black Bears,72,53,36.0,18.0,36.0,35.0,False,Alaska Airlines Arena
+401172743,2019,2019-11-20,Miami (OH) RedHawks,Central State (OH) Marauders,80,45,36.0,20.0,44.0,25.0,False,Millett Hall
+401168198,2019,2019-11-20,Florida State Seminoles,Chattanooga Mocs,89,53,41.0,29.0,48.0,24.0,False,Tucker Center
+401176081,2019,2019-11-20,VMI Keydets,Christendom Crusaders,96,20,54.0,13.0,42.0,7.0,False,Cameron Hall
+401175125,2019,2019-11-20,Wright State Raiders,Urbana Blue Knights,88,51,38.0,19.0,50.0,32.0,False,Nutter Center
+401172587,2019,2019-11-20,Ball State Cardinals,Northern Kentucky Norse,57,59,22.0,21.0,35.0,38.0,False,Worthen Arena
+401172375,2019,2019-11-20,Old Dominion Monarchs,James Madison Dukes,78,80,32.0,37.0,46.0,43.0,False,Chartway Arena
+401172089,2019,2019-11-20,Saint Peter's Peacocks,Wagner Seahawks,77,81,25.0,35.0,36.0,26.0,False,Yanitelli Center
+401172082,2019,2019-11-20,Yale Bulldogs,Siena Saints,100,89,32.0,32.0,40.0,40.0,False,John J. Lee Amphitheater
+401171776,2019,2019-11-20,Drexel Dragons,Bryant Bulldogs,86,74,40.0,30.0,46.0,44.0,False,Daskalakis Athletic Center
+401170370,2019,2019-11-20,NJIT Highlanders,Binghamton Bearcats,75,77,43.0,35.0,32.0,42.0,False,Joel & Diane Bloom Wellness and Events Center
+401170136,2019,2019-11-20,Massachusetts Minutemen,Rider Broncs,82,72,45.0,34.0,37.0,38.0,False,Mullins Center
+401169845,2019,2019-11-20,Tennessee Volunteers,Alabama State Hornets,76,41,34.0,23.0,42.0,18.0,False,Food City Center
+401168459,2019,2019-11-20,St. John's Red Storm,Columbia Lions,82,63,49.0,27.0,33.0,36.0,False,Carnesecca Arena
+401168203,2019,2019-11-20,Virginia Tech Hokies,Delaware State Hornets,100,64,45.0,27.0,55.0,37.0,False,Cassell Coliseum
+401168200,2019,2019-11-20,Louisville Cardinals,South Carolina Upstate Spartans,76,50,34.0,28.0,42.0,22.0,False,KFC Yum! Center
+401168199,2019,2019-11-20,Georgia Bulldogs,Georgia Tech Yellow Jackets,82,78,35.0,27.0,47.0,51.0,False,Stegeman Coliseum
+401166438,2019,2019-11-20,Boston College Eagles,Eastern Washington Eagles,72,68,33.0,31.0,39.0,37.0,False,Conte Forum
+401166082,2019,2019-11-20,Indiana Hoosiers,Princeton Tigers,79,54,35.0,31.0,44.0,23.0,False,Simon Skjodt Assembly Hall
+401166081,2019,2019-11-20,Rutgers Scarlet Knights,Stephen F. Austin Lumberjacks,69,57,31.0,26.0,38.0,31.0,False,Jersey Mike’s Arena
+401176398,2019,2019-11-20,Sam Houston Bearkats,LeTourneau Yellow Jackets,88,58,43.0,41.0,45.0,17.0,False,Bernard G. Johnson Coliseum
+401170372,2019,2019-11-20,Lipscomb Bisons,Belmont Bruins,67,73,33.0,32.0,34.0,41.0,False,Allen Arena
+401170371,2019,2019-11-20,Florida Gulf Coast Eagles,Florida Atlantic Owls,72,70,16.0,29.0,41.0,28.0,False,Alico Arena
+401168202,2019,2019-11-20,Syracuse Orange,Cornell Big Red,72,53,26.0,25.0,46.0,28.0,False,JMA Wireless Dome
+401176040,2019,2019-11-20,UAB Blazers,Mount St. Mary's Mountaineers,58,51,27.0,25.0,31.0,26.0,False,Bartow Arena
+401173621,2019,2019-11-20,Northern Iowa Panthers,Cornell College (IA) Rams,88,66,58.0,29.0,30.0,37.0,False,McLeod Center
+401173595,2019,2019-11-20,Loyola Chicago Ramblers,IU Indianapolis Jaguars,85,62,39.0,31.0,46.0,31.0,False,Gentile Arena
+401170137,2019,2019-11-20,Saint Louis Billikens,High Point Panthers,67,55,30.0,19.0,37.0,36.0,False,Chaifetz Arena
+401170042,2019,2019-11-20,Tulsa Golden Hurricane,SE Louisiana Lions,73,66,34.0,34.0,39.0,32.0,False,Reynolds Center
+401170003,2019,2019-11-20,Memphis Tigers,Little Rock Trojans,68,58,28.0,23.0,40.0,35.0,False,FedExForum
+401169847,2019,2019-11-20,Vanderbilt Commodores,Austin Peay Governors,90,72,38.0,37.0,52.0,35.0,False,Memorial Gymnasium (TN)
+401169846,2019,2019-11-20,Texas A&M Aggies,Troy Trojans,56,52,17.0,25.0,39.0,27.0,False,Reed Arena
+401169844,2019,2019-11-20,Missouri Tigers,Morehead State Eagles,70,52,36.0,29.0,34.0,23.0,False,Mizzou Arena
+401166439,2019,2019-11-20,Northern Arizona Lumberjacks,Benedictine (AZ) Redhawks,93,56,52.0,32.0,41.0,24.0,False,Rolle Activity Center
+401181602,2019,2019-11-20,Chicago State Cougars,North Park Vikings,79,66,40.0,34.0,39.0,32.0,False,Jones Convocation Center
+401172586,2019,2019-11-20,Western Illinois Leathernecks,Northern Illinois Huskies,81,86,36.0,41.0,45.0,45.0,False,Western Hall
+401168201,2019,2019-11-20,North Carolina Tar Heels,Elon Phoenix,75,61,32.0,33.0,43.0,28.0,False,Dean E. Smith Center
+401166440,2019,2019-11-20,UC Davis Aggies,Sacramento State Hornets,51,61,23.0,29.0,28.0,32.0,True,Golden 1 Center
+401173666,2019,2019-11-20,Colorado State Rams,Arkansas State Red Wolves,78,80,39.0,33.0,39.0,47.0,False,Moby Arena
+401166083,2019,2019-11-20,Illinois Fighting Illini,The Citadel Bulldogs,85,57,34.0,20.0,51.0,37.0,False,State Farm Center
+401173668,2019,2019-11-20,Boise State Broncos,BYU Cougars,72,68,27.0,20.0,31.0,38.0,False,ExtraMile Arena
+401173665,2019,2019-11-20,San José State Spartans,Grambling Tigers,83,76,35.0,34.0,48.0,42.0,False,Provident Credit Union Event Center
+401173664,2019,2019-11-20,UNLV Rebels,Texas State Bobcats,57,64,28.0,28.0,29.0,36.0,False,Thomas & Mack Center
+401170588,2019,2019-11-20,Oregon State Beavers,UC Santa Barbara Gauchos,78,67,34.0,27.0,44.0,40.0,False,Gill Coliseum
+401166441,2019,2019-11-20,Portland State Vikings,Portland Pilots,75,82,33.0,33.0,42.0,49.0,False,Viking Pavilion
+401173667,2019,2019-11-20,Fresno State Bulldogs,Saint Mary's Gaels,58,68,27.0,33.0,31.0,35.0,True,Golden 1 Center
+401173663,2019,2019-11-20,San Diego Toreros,San Diego State Aztecs,49,66,26.0,34.0,23.0,32.0,False,Jenny Craig Pavilion
+401170589,2019,2019-11-21,Arizona Wildcats,South Dakota State Jackrabbits,71,64,29.0,32.0,42.0,32.0,False,McKale Memorial Center
+401166087,2019,2019-11-22,Maryland Terrapins,George Mason Patriots,86,63,43.0,31.0,43.0,32.0,False,XFINITY Center
+401166091,2019,2019-11-22,Ohio State Buckeyes,Purdue Fort Wayne Mastodons,85,46,42.0,25.0,43.0,21.0,False,Value City Arena
+401169449,2019,2019-11-22,Oregon Ducks,Houston Cougars,78,66,32.0,27.0,46.0,39.0,False,Matthew Knight Arena
+401166443,2019,2019-11-22,Washington Huskies,Montana Grizzlies,73,56,31.0,29.0,42.0,27.0,False,Alaska Airlines Arena
+401175215,2019,2019-11-23,Gonzaga Bulldogs,Cal State Bakersfield Roadrunners,77,49,39.0,21.0,38.0,28.0,False,McCarthey Athletic Center
+401168444,2019,2019-11-23,Seton Hall Pirates,Florida A&M Rattlers,87,51,36.0,24.0,51.0,27.0,False,Prudential Center
+401169854,2019,2019-11-23,Memphis Tigers,Ole Miss Rebels,87,86,45.0,38.0,42.0,48.0,False,FedExForum
+401170144,2019,2019-11-23,VCU Rams,Florida Gulf Coast Eagles,78,48,43.0,16.0,35.0,32.0,False,Siegel Center
+401170595,2019,2019-11-24,Washington Huskies,San Diego Toreros,88,69,41.0,30.0,47.0,39.0,False,Alaska Airlines Arena
+401170148,2019,2019-11-25,VCU Rams,Alabama State Hornets,78,62,46.0,28.0,32.0,34.0,False,Siegel Center
+401168219,2019,2019-11-26,Duke Blue Devils,Stephen F. Austin Lumberjacks,83,85,45.0,40.0,36.0,41.0,False,Cameron Indoor Stadium
+401168224,2019,2019-11-27,Virginia Cavaliers,Maine Black Bears,46,26,24.0,14.0,22.0,12.0,False,John Paul Jones Arena
+401169453,2019,2019-11-28,Temple Owls,Maryland Terrapins,69,76,34.0,29.0,35.0,47.0,True,HP Field House
+401171832,2019,2019-11-28,Elon Phoenix,UT Arlington Mavericks,67,77,30.0,32.0,37.0,45.0,False,Schar Center
+401183482,2019,2019-11-28,Michigan Wolverines,North Carolina Tar Heels,73,64,39.0,34.0,34.0,30.0,True,Imperial Arena
+401169862,2019,2019-11-28,Harvard Crimson,Texas A&M Aggies,62,51,22.0,18.0,40.0,33.0,True,HP Field House
+401170517,2019,2019-11-28,Cal Poly Mustangs,Tennessee State Tigers,72,82,31.0,44.0,41.0,38.0,True,Orleans Arena
+401168428,2019,2019-11-28,Long Beach State Beach,Providence Friars,66,65,28.0,37.0,38.0,28.0,True,Anaheim Convention Center
+401183481,2019,2019-11-28,Gonzaga Bulldogs,Oregon Ducks,73,72,43.0,37.0,23.0,29.0,True,Imperial Arena
+401170602,2019,2019-11-28,Fairfield Stags,USC Trojans,47,54,22.0,25.0,25.0,29.0,True,HP Field House
+401168618,2019,2019-11-28,Memphis Tigers,NC State Wolfpack,83,78,55.0,39.0,28.0,39.0,True,Barclays Center
+401170516,2019,2019-11-28,North Florida Ospreys,Long Island University Sharks,95,92,40.0,46.0,55.0,46.0,True,Orleans Arena
+401168225,2019,2019-11-28,Charleston Cougars,Wake Forest Demon Deacons,56,65,26.0,28.0,30.0,37.0,True,Anaheim Convention Center
+401168407,2019,2019-11-28,Marquette Golden Eagles,Davidson Wildcats,73,63,25.0,26.0,48.0,37.0,True,HP Field House
+401183480,2019,2019-11-28,Iowa State Cyclones,Alabama Crimson Tide,104,89,51.0,36.0,53.0,53.0,True,Imperial Arena
+401169635,2019,2019-11-28,Texas Tech Red Raiders,Iowa Hawkeyes,61,72,26.0,36.0,35.0,36.0,True,Orleans Arena
+401169452,2019,2019-11-28,Pennsylvania Quakers,UCF Knights,68,67,31.0,30.0,37.0,37.0,True,Anaheim Convention Center
+401183479,2019,2019-11-28,Southern Miss Golden Eagles,Seton Hall Pirates,56,81,31.0,40.0,25.0,41.0,True,Imperial Arena
+401168318,2019,2019-11-28,Creighton Bluejays,San Diego State Aztecs,52,83,25.0,40.0,27.0,43.0,True,Orleans Arena
+401170601,2019,2019-11-28,Arizona Wildcats,Pepperdine Waves,93,91,42.0,42.0,51.0,49.0,True,Anaheim Convention Center
+401168226,2019,2019-11-29,Duke Blue Devils,Winthrop Eagles,83,70,42.0,35.0,41.0,35.0,False,Cameron Indoor Stadium
+401168228,2019,2019-11-29,Western Kentucky Hilltoppers,Louisville Cardinals,54,71,23.0,37.0,31.0,34.0,True,Bridgestone Arena
+401166100,2019,2019-11-29,Ohio State Buckeyes,Morgan State Bears,90,57,45.0,18.0,45.0,39.0,False,Value City Arena
+401173677,2019,2019-11-29,Saint Mary's Gaels,Utah State Aggies,81,73,34.0,36.0,47.0,37.0,False,University Credit Union Pavilion
+401169864,2019,2019-11-29,Florida Gators,Marshall Thundering Herd,73,67,25.0,33.0,48.0,34.0,False,Stephen C. O'Connell Center
+401166462,2019,2019-11-30,Colorado Buffaloes,Sacramento State Hornets,59,45,24.0,16.0,35.0,29.0,False,CU Events Center
+401169792,2019,2019-11-30,Xavier Musketeers,Lipscomb Bisons,87,62,40.0,26.0,47.0,36.0,False,Cintas Center
+401169781,2019,2019-12-01,Villanova Wildcats,La Salle Explorers,83,72,48.0,28.0,35.0,44.0,False,Finneran Pavilion
+401170606,2019,2019-12-02,Washington Huskies,South Dakota Coyotes,75,55,32.0,23.0,43.0,32.0,False,Alaska Airlines Arena
+401169455,2019,2019-12-03,Memphis Tigers,Bradley Braves,71,56,29.0,19.0,42.0,37.0,False,FedExForum
+401169640,2019,2019-12-03,Baylor Bears,Maryland Eastern Shore Hawks,78,46,38.0,21.0,40.0,25.0,False,Ferrell Center
+401170156,2019,2019-12-03,Dayton Flyers,Houston Christian Huskies,99,68,49.0,42.0,50.0,26.0,False,UD Arena
+401168292,2019,2019-12-03,Ole Miss Rebels,Butler Bulldogs,58,67,22.0,31.0,36.0,36.0,False,The Sandy and John Black Pavilion at Ole Miss
+401175220,2019,2019-12-04,Gonzaga Bulldogs,Texas Southern Tigers,101,62,53.0,30.0,48.0,32.0,False,McCarthey Athletic Center
+401170608,2019,2019-12-04,Colorado Buffaloes,Loyola Marymount Lions,76,64,30.0,34.0,46.0,30.0,False,CU Events Center
+401169873,2019,2019-12-04,Tennessee Volunteers,Florida A&M Rattlers,72,43,39.0,18.0,33.0,25.0,False,Food City Center
+401166467,2019,2019-12-04,Washington Huskies,Eastern Washington Eagles,90,80,47.0,35.0,43.0,45.0,False,Alaska Airlines Arena
+401169782,2019,2019-12-04,Villanova Wildcats,Pennsylvania Quakers,80,69,36.0,30.0,44.0,39.0,False,Finneran Pavilion
+401173685,2019,2019-12-04,San José State Spartans,Utah State Aggies,59,71,33.0,36.0,26.0,35.0,False,Provident Credit Union Event Center
+401169876,2019,2019-12-05,Auburn Tigers,Furman Paladins,81,78,31.0,39.0,35.0,27.0,False,Neville Arena
+401168505,2019,2019-12-06,Louisville Cardinals,Pittsburgh Panthers,64,46,35.0,21.0,29.0,25.0,False,KFC Yum! Center
+401166103,2019,2019-12-06,Michigan Wolverines,Iowa Hawkeyes,103,91,50.0,38.0,53.0,53.0,False,Crisler Center
+401170519,2019,2019-12-06,Virginia Tech Hokies,Duke Blue Devils,63,77,41.0,38.0,22.0,39.0,False,Cassell Coliseum
+401169646,2019,2019-12-07,Kansas Jayhawks,Colorado Buffaloes,72,58,34.0,22.0,38.0,36.0,False,Allen Fieldhouse
+401166104,2019,2019-12-07,Maryland Terrapins,Illinois Fighting Illini,59,58,25.0,39.0,34.0,19.0,False,XFINITY Center
+401166105,2019,2019-12-07,Ohio State Buckeyes,Penn State Nittany Lions,106,74,46.0,35.0,60.0,39.0,False,Value City Arena
+401169879,2019,2019-12-07,Kentucky Wildcats,Fairleigh Dickinson Knights,83,52,43.0,23.0,40.0,29.0,False,Rupp Arena
+401169647,2019,2019-12-07,Baylor Bears,Arizona Wildcats,63,58,35.0,24.0,28.0,34.0,False,Ferrell Center
+401170612,2019,2019-12-07,Oregon Ducks,Hawai'i Rainbow Warriors,89,64,34.0,34.0,55.0,30.0,False,Matthew Knight Arena
+401170004,2019,2019-12-07,UAB Blazers,Memphis Tigers,57,65,40.0,26.0,17.0,39.0,False,Bartow Arena
+401169783,2019,2019-12-07,Saint Joseph's Hawks,Villanova Wildcats,66,78,25.0,41.0,41.0,37.0,False,Michael J. Hagan '85 Arena
+401168293,2019,2019-12-07,Butler Bulldogs,Florida Gators,76,62,35.0,26.0,41.0,36.0,False,Hinkle Fieldhouse
+401173691,2019,2019-12-07,Utah State Aggies,Fresno State Bulldogs,77,70,27.0,24.0,34.0,37.0,False,Dee Glen Smith Spectrum
+401184943,2019,2019-12-08,Virginia Cavaliers,North Carolina Tar Heels,56,47,24.0,18.0,32.0,29.0,False,John Paul Jones Arena
+401170617,2019,2019-12-08,Washington Huskies,Gonzaga Bulldogs,76,83,37.0,41.0,39.0,42.0,False,Alaska Airlines Arena
+401166107,2019,2019-12-08,Michigan State Spartans,Rutgers Scarlet Knights,77,65,33.0,28.0,44.0,37.0,False,Breslin Center
+401168446,2019,2019-12-08,Iowa State Cyclones,Seton Hall Pirates,76,66,28.0,26.0,48.0,40.0,False,Hilton Coliseum
+401168520,2019,2019-12-08,Florida State Seminoles,Clemson Tigers,72,53,27.0,33.0,45.0,20.0,False,Tucker Center
+401176182,2019,2019-12-09,Alcorn State Braves,Rust Bearcats,108,62,52.0,43.0,56.0,19.0,False,Davey L. Whitney Complex
+401170170,2019,2019-12-09,Duquesne Dukes,Columbia Lions,90,54,45.0,21.0,45.0,33.0,False,Kerr Fitness Center
+401177955,2019,2019-12-09,South Dakota Coyotes,Alabama State Hornets,73,59,27.0,23.0,46.0,36.0,False,Sanford Coyote Sports Center
+401166109,2019,2019-12-09,Iowa Hawkeyes,Minnesota Golden Gophers,72,52,37.0,29.0,35.0,23.0,False,Carver-Hawkeye Arena
+401169649,2019,2019-12-10,Kansas Jayhawks,Milwaukee Panthers,95,68,52.0,27.0,43.0,41.0,False,Allen Fieldhouse
+401166110,2019,2019-12-10,Penn State Nittany Lions,Maryland Terrapins,76,69,40.0,30.0,36.0,39.0,False,Bryce Jordan Center
+401168294,2019,2019-12-10,Baylor Bears,Butler Bulldogs,53,52,34.0,24.0,19.0,28.0,False,Ferrell Center
+401170618,2019,2019-12-10,Colorado Buffaloes,Northern Iowa Panthers,76,79,32.0,33.0,44.0,46.0,False,CU Events Center
+401166111,2019,2019-12-11,Illinois Fighting Illini,Michigan Wolverines,71,62,30.0,28.0,41.0,34.0,False,State Farm Center
+401170619,2019,2019-12-11,Arizona Wildcats,Omaha Mavericks,99,49,43.0,23.0,56.0,26.0,False,McKale Memorial Center
+401175131,2019,2019-12-12,Wright State Raiders,Southern Jaguars,85,62,44.0,33.0,41.0,29.0,False,Nutter Center
+401172940,2019,2019-12-12,Abilene Christian Wildcats,Howard Payne Yellow Jackets,105,36,46.0,27.0,59.0,9.0,False,Moody Coliseum (Abilene)
+401169652,2019,2019-12-12,West Virginia Mountaineers,Austin Peay Governors,84,53,38.0,21.0,46.0,32.0,False,WVU Coliseum
+401169653,2019,2019-12-12,Iowa State Cyclones,Iowa Hawkeyes,68,84,24.0,39.0,44.0,45.0,False,Hilton Coliseum
+401173623,2019,2019-12-12,Grand Canyon Lopes,Northern Iowa Panthers,58,82,26.0,43.0,32.0,39.0,False,Global Credit Union Arena
+401166481,2019,2019-12-12,Portland State Vikings,Portland Bible Arrows,101,48,54.0,19.0,47.0,29.0,False,Viking Pavilion
+401170622,2019,2019-12-13,Colorado State Rams,Colorado Buffaloes,48,56,12.0,27.0,36.0,29.0,False,Moby Arena
+401168250,2019,2019-12-14,Louisville Cardinals,Eastern Kentucky Colonels,99,67,50.0,32.0,49.0,35.0,False,KFC Yum! Center
+401169657,2019,2019-12-14,Kansas Jayhawks,Kansas City Roos,98,57,43.0,24.0,55.0,33.0,False,T-Mobile Center
+401166114,2019,2019-12-14,Michigan Wolverines,Oregon Ducks,70,71,23.0,31.0,40.0,32.0,False,Crisler Center
+401170623,2019,2019-12-14,Arizona Wildcats,Gonzaga Bulldogs,80,84,34.0,35.0,46.0,49.0,False,McKale Memorial Center
+401168249,2019,2019-12-14,Kentucky Wildcats,Georgia Tech Yellow Jackets,67,53,36.0,30.0,31.0,23.0,False,Rupp Arena
+401169462,2019,2019-12-14,Tennessee Volunteers,Memphis Tigers,47,51,24.0,25.0,23.0,26.0,False,Food City Center
+401170176,2019,2019-12-14,Dayton Flyers,Drake Bulldogs,78,47,34.0,22.0,44.0,25.0,False,UD Arena
+401171734,2019,2019-12-14,Oakland Golden Grizzlies,Michigan State Spartans,49,72,19.0,34.0,30.0,38.0,True,Little Caesars Arena
+401168295,2019,2019-12-14,Butler Bulldogs,Southern Jaguars,66,41,34.0,16.0,32.0,25.0,False,Hinkle Fieldhouse
+401166118,2019,2019-12-15,Minnesota Golden Gophers,Ohio State Buckeyes,84,71,38.0,29.0,46.0,42.0,False,Williams Arena
+401168255,2019,2019-12-15,North Carolina Tar Heels,Wofford Terriers,64,68,36.0,32.0,28.0,36.0,False,Carmichael Arena
+401169659,2019,2019-12-16,Texas Tech Red Raiders,Southern Miss Golden Eagles,71,65,25.0,32.0,46.0,33.0,False,United Supermarkets Arena
+401166121,2019,2019-12-17,Ohio State Buckeyes,Southeast Missouri State Redhawks,80,48,35.0,26.0,45.0,22.0,False,Value City Arena
+401170181,2019,2019-12-17,Dayton Flyers,North Texas Mean Green,71,58,34.0,19.0,37.0,39.0,False,UD Arena
+401168258,2019,2019-12-17,Florida State Seminoles,North Florida Ospreys,98,81,48.0,39.0,50.0,42.0,False,Tucker Center
+401170630,2019,2019-12-17,Washington Huskies,Seattle U Redhawks,81,59,32.0,33.0,49.0,26.0,False,Alaska Airlines Arena
+401168261,2019,2019-12-18,Gonzaga Bulldogs,North Carolina Tar Heels,94,81,44.0,37.0,50.0,44.0,False,McCarthey Athletic Center
+401168262,2019,2019-12-18,Louisville Cardinals,Miami (OH) RedHawks,70,46,28.0,20.0,42.0,26.0,False,KFC Yum! Center
+401169891,2019,2019-12-18,Kentucky Wildcats,Utah Utes,66,69,31.0,35.0,35.0,34.0,True,T-Mobile Arena
+401166495,2019,2019-12-18,Oregon Ducks,Montana Grizzlies,81,48,37.0,24.0,44.0,24.0,False,Matthew Knight Arena
+401168264,2019,2019-12-18,Virginia Cavaliers,Stony Brook Seawolves,56,44,28.0,21.0,28.0,23.0,False,John Paul Jones Arena
+401166122,2019,2019-12-18,Northwestern Wildcats,Michigan State Spartans,72,77,27.0,37.0,45.0,40.0,False,Welsh-Ryan Arena
+401182455,2019,2019-12-18,San Diego State Aztecs,San Diego Christian Hawks,92,48,45.0,27.0,47.0,21.0,False,Viejas Arena
+401169895,2019,2019-12-18,Cincinnati Bearcats,Tennessee Volunteers,78,66,38.0,34.0,40.0,32.0,False,Fifth Third Arena
+401168265,2019,2019-12-19,Duke Blue Devils,Wofford Terriers,86,57,39.0,26.0,47.0,31.0,False,Cameron Indoor Stadium
+401168447,2019,2019-12-19,Seton Hall Pirates,Maryland Terrapins,52,48,27.0,18.0,25.0,30.0,False,Prudential Center
+401168621,2019,2019-12-19,Auburn Tigers,NC State Wolfpack,79,73,38.0,37.0,41.0,36.0,False,Neville Arena
+401166123,2019,2019-12-20,Penn State Nittany Lions,Central Connecticut Blue Devils,87,58,51.0,31.0,36.0,27.0,False,Bryce Jordan Center
+401169661,2019,2019-12-21,Villanova Wildcats,Kansas Jayhawks,56,55,23.0,23.0,33.0,32.0,False,Xfinity Mobile Arena
+401166502,2019,2019-12-21,Gonzaga Bulldogs,Eastern Washington Eagles,112,77,64.0,33.0,48.0,44.0,False,McCarthey Athletic Center
+401170635,2019,2019-12-21,Oregon Ducks,Texas Southern Tigers,84,78,36.0,33.0,48.0,45.0,False,Matthew Knight Arena
+401170005,2019,2019-12-21,Memphis Tigers,Jackson State Tigers,77,49,39.0,28.0,38.0,21.0,False,FedExForum
+401169900,2019,2019-12-21,Auburn Tigers,Lehigh Mountain Hawks,74,51,27.0,20.0,47.0,31.0,False,Neville Arena
+401166128,2019,2019-12-21,Michigan Wolverines,Presbyterian Blue Hose,86,44,38.0,15.0,48.0,29.0,False,Crisler Center
+401166129,2019,2019-12-21,Michigan State Spartans,Eastern Michigan Eagles,101,48,41.0,20.0,60.0,28.0,False,Breslin Center
+401169898,2019,2019-12-21,Tennessee Volunteers,Jacksonville State Gamecocks,75,53,30.0,26.0,45.0,27.0,False,Food City Center
+401169666,2019,2019-12-21,Texas Tech Red Raiders,UT Rio Grande Valley Vaqueros,68,58,26.0,27.0,42.0,31.0,False,United Supermarkets Arena
+401169662,2019,2019-12-21,Youngstown State Penguins,West Virginia Mountaineers,64,75,38.0,35.0,26.0,40.0,False,Covelli Centre (Youngstown)
+401168276,2019,2019-12-22,Virginia Cavaliers,South Carolina Gamecocks,59,70,24.0,33.0,35.0,37.0,False,John Paul Jones Arena
+401170200,2019,2019-12-23,Dayton Flyers,Grambling Tigers,81,53,40.0,22.0,41.0,31.0,False,UD Arena
+401182620,2019,2019-12-25,Ball State Cardinals,Portland Pilots,61,46,19.0,19.0,42.0,27.0,True,Stan Sheriff Center
+401182621,2019,2019-12-25,UTEP Miners,Boise State Broncos,67,72,27.0,29.0,40.0,43.0,True,Stan Sheriff Center
+401182622,2019,2019-12-25,Hawai'i Rainbow Warriors,Georgia Tech Yellow Jackets,53,70,32.0,29.0,21.0,41.0,False,Stan Sheriff Center
+401182623,2019,2019-12-25,Washington Huskies,Houston Cougars,71,75,36.0,31.0,35.0,44.0,True,Stan Sheriff Center
+401175693,2019,2019-12-27,Mount St. Mary's Mountaineers,Coppin State Eagles,79,55,37.0,27.0,42.0,28.0,False,Knott Arena
+401170937,2019,2019-12-27,Loyola Maryland Greyhounds,UMass Lowell River Hawks,93,81,46.0,43.0,47.0,38.0,False,Reitz Arena
+401168280,2019,2019-12-28,Kentucky Wildcats,Louisville Cardinals,78,70,32.0,24.0,29.0,37.0,False,Rupp Arena
+401168277,2019,2019-12-28,Duke Blue Devils,Brown Bears,75,50,35.0,29.0,40.0,21.0,False,Cameron Indoor Stadium
+401169467,2019,2019-12-28,Memphis Tigers,New Orleans Privateers,97,55,51.0,24.0,46.0,31.0,False,FedExForum
+401168296,2019,2019-12-28,Butler Bulldogs,UL Monroe Warhawks,67,36,33.0,14.0,34.0,22.0,False,Hinkle Fieldhouse
+401171566,2019,2019-12-28,San Diego State Aztecs,Cal Poly Mustangs,73,57,31.0,23.0,42.0,34.0,False,Viejas Arena
+401168278,2019,2019-12-28,Florida State Seminoles,North Alabama Lions,88,71,47.0,26.0,41.0,45.0,False,Tucker Center
+401166136,2019,2019-12-29,Ohio State Buckeyes,West Virginia Mountaineers,59,67,37.0,31.0,22.0,36.0,True,Rocket Arena
+401169669,2019,2019-12-29,Stanford Cardinal,Kansas Jayhawks,56,72,18.0,28.0,38.0,44.0,False,Maples Pavilion
+401170642,2019,2019-12-29,Oregon Ducks,Alabama State Hornets,98,59,48.0,24.0,50.0,35.0,False,Matthew Knight Arena
+401169913,2019,2019-12-29,Auburn Tigers,Lipscomb Bisons,86,59,40.0,25.0,46.0,34.0,False,Neville Arena
+401166133,2019,2019-12-29,Michigan Wolverines,UMass Lowell River Hawks,86,60,42.0,25.0,44.0,35.0,False,Crisler Center
+401166140,2019,2019-12-29,Maryland Terrapins,Bryant Bulldogs,84,70,36.0,31.0,48.0,39.0,False,XFINITY Center
+401166142,2019,2019-12-29,Michigan State Spartans,Western Michigan Broncos,95,62,48.0,24.0,47.0,38.0,False,Breslin Center
+401168283,2019,2019-12-29,Virginia Cavaliers,Navy Midshipmen,65,56,37.0,29.0,28.0,27.0,False,John Paul Jones Arena
+401166139,2019,2019-12-29,Penn State Nittany Lions,Cornell Big Red,90,59,45.0,29.0,45.0,30.0,False,Bryce Jordan Center
+401169672,2019,2019-12-29,Texas Tech Red Raiders,Cal State Bakersfield Roadrunners,73,58,33.0,29.0,40.0,29.0,False,United Supermarkets Arena
+401166134,2019,2019-12-29,Iowa Hawkeyes,Kennesaw State Owls,93,51,49.0,30.0,44.0,21.0,False,Carver-Hawkeye Arena
+401172493,2019,2019-12-30,Gonzaga Bulldogs,Detroit Mercy Titans,93,72,53.0,37.0,40.0,35.0,False,McCarthey Athletic Center
+401169675,2019,2019-12-30,Baylor Bears,Jackson State Tigers,83,57,48.0,24.0,35.0,33.0,False,Ferrell Center
+401169511,2019,2019-12-30,Memphis Tigers,Tulane Green Wave,84,73,40.0,30.0,44.0,43.0,False,FedExForum
+401169785,2019,2019-12-30,Villanova Wildcats,Xavier Musketeers,68,62,32.0,25.0,36.0,37.0,False,Finneran Pavilion
+401170208,2019,2019-12-30,Dayton Flyers,North Florida Ospreys,77,59,42.0,28.0,35.0,31.0,False,UD Arena
+401168354,2019,2019-12-31,Duke Blue Devils,Boston College Eagles,88,49,45.0,19.0,43.0,30.0,False,Cameron Indoor Stadium
+401168297,2019,2019-12-31,St. John's Red Storm,Butler Bulldogs,58,60,16.0,37.0,42.0,23.0,False,Carnesecca Arena
+401168521,2019,2019-12-31,Florida State Seminoles,Georgia Tech Yellow Jackets,70,58,31.0,29.0,39.0,29.0,False,Tucker Center
+401173716,2020,2020-01-01,San Diego State Aztecs,Fresno State Bulldogs,61,52,25.0,17.0,36.0,35.0,False,Viejas Arena
+401169513,2020,2020-01-01,Wichita State Shockers,East Carolina Pirates,75,69,37.0,30.0,38.0,39.0,False,Charles Koch Arena
+401175232,2020,2020-01-02,Portland Pilots,Gonzaga Bulldogs,72,85,42.0,35.0,30.0,50.0,False,Chiles Center
+401170644,2020,2020-01-02,Colorado Buffaloes,Oregon Ducks,74,65,28.0,22.0,46.0,43.0,False,CU Events Center
+401166145,2020,2020-01-02,Michigan State Spartans,Illinois Fighting Illini,76,56,36.0,30.0,40.0,26.0,False,Breslin Center
+401170214,2020,2020-01-02,La Salle Explorers,Dayton Flyers,58,84,24.0,46.0,34.0,38.0,False,Tom Gola Arena
+401166148,2020,2020-01-03,Ohio State Buckeyes,Wisconsin Badgers,57,61,25.0,29.0,32.0,32.0,False,Value City Arena
+401175236,2020,2020-01-04,Gonzaga Bulldogs,Pepperdine Waves,75,70,37.0,37.0,38.0,33.0,False,McCarthey Athletic Center
+401168355,2020,2020-01-04,Miami Hurricanes,Duke Blue Devils,62,95,36.0,50.0,26.0,45.0,False,Watsco Center
+401169679,2020,2020-01-04,Kansas Jayhawks,West Virginia Mountaineers,60,53,24.0,30.0,36.0,23.0,False,Allen Fieldhouse
+401170650,2020,2020-01-04,Utah Utes,Oregon Ducks,64,69,31.0,36.0,33.0,33.0,False,Jon M. Huntsman Center
+401169681,2020,2020-01-04,Baylor Bears,Texas Longhorns,59,44,36.0,23.0,23.0,21.0,False,Ferrell Center
+401168506,2020,2020-01-04,Louisville Cardinals,Florida State Seminoles,65,78,32.0,39.0,33.0,39.0,False,KFC Yum! Center
+401166273,2020,2020-01-04,Mississippi State Bulldogs,Auburn Tigers,68,80,24.0,29.0,44.0,51.0,False,Humphrey Coliseum
+401169468,2020,2020-01-04,Memphis Tigers,Georgia Bulldogs,62,65,37.0,37.0,25.0,28.0,False,FedExForum
+401168413,2020,2020-01-04,Marquette Golden Eagles,Villanova Wildcats,71,60,46.0,29.0,25.0,31.0,False,Fiserv Forum
+401168298,2020,2020-01-04,Butler Bulldogs,Creighton Bluejays,71,57,34.0,24.0,37.0,33.0,False,Hinkle Fieldhouse
+401173725,2020,2020-01-04,Utah State Aggies,San Diego State Aztecs,68,77,27.0,34.0,41.0,43.0,False,Dee Glen Smith Spectrum
+401166149,2020,2020-01-04,Maryland Terrapins,Indiana Hoosiers,75,59,28.0,20.0,47.0,39.0,False,XFINITY Center
+401166272,2020,2020-01-04,Kentucky Wildcats,Missouri Tigers,71,59,31.0,26.0,40.0,33.0,False,Rupp Arena
+401168473,2020,2020-01-04,Virginia Cavaliers,Virginia Tech Hokies,65,39,30.0,17.0,35.0,22.0,False,John Paul Jones Arena
+401166150,2020,2020-01-04,Penn State Nittany Lions,Iowa Hawkeyes,89,86,39.0,38.0,50.0,48.0,True,The Palestra
+401169678,2020,2020-01-04,Texas Tech Red Raiders,Oklahoma State Cowboys,85,50,36.0,30.0,49.0,20.0,False,United Supermarkets Arena
+401169469,2020,2020-01-04,Wichita State Shockers,Ole Miss Rebels,74,54,39.0,24.0,35.0,30.0,False,Charles Koch Arena
+401170649,2020,2020-01-04,Arizona Wildcats,Arizona State Sun Devils,75,47,36.0,17.0,39.0,30.0,False,McKale Memorial Center
+401166151,2020,2020-01-05,Michigan State Spartans,Michigan Wolverines,87,69,44.0,34.0,43.0,35.0,False,Breslin Center
+401170220,2020,2020-01-05,Saint Joseph's Hawks,Dayton Flyers,67,80,33.0,33.0,34.0,47.0,False,Michael J. Hagan '85 Arena
+401169683,2020,2020-01-06,Oklahoma State Cowboys,West Virginia Mountaineers,41,55,19.0,28.0,22.0,27.0,False,Gallagher-Iba Arena
+401169685,2020,2020-01-07,Texas Tech Red Raiders,Baylor Bears,52,57,18.0,21.0,34.0,36.0,False,United Supermarkets Arena
+401166154,2020,2020-01-07,Maryland Terrapins,Ohio State Buckeyes,67,55,28.0,22.0,39.0,33.0,False,XFINITY Center
+401168507,2020,2020-01-07,Louisville Cardinals,Miami Hurricanes,74,58,43.0,32.0,31.0,26.0,False,KFC Yum! Center
+401166278,2020,2020-01-07,Georgia Bulldogs,Kentucky Wildcats,69,78,37.0,31.0,32.0,47.0,False,Stegeman Coliseum
+401168325,2020,2020-01-07,Creighton Bluejays,Villanova Wildcats,59,64,33.0,25.0,26.0,39.0,False,CHI Health Center Omaha
+401168474,2020,2020-01-07,Boston College Eagles,Virginia Cavaliers,60,53,30.0,26.0,30.0,27.0,False,Conte Forum
+401166156,2020,2020-01-07,Rutgers Scarlet Knights,Penn State Nittany Lions,72,61,28.0,33.0,44.0,28.0,False,Jersey Mike’s Arena
+401168356,2020,2020-01-08,Georgia Tech Yellow Jackets,Duke Blue Devils,64,73,29.0,40.0,35.0,33.0,False,McCamish Pavilion
+401169686,2020,2020-01-08,Iowa State Cyclones,Kansas Jayhawks,53,79,26.0,46.0,27.0,33.0,False,Hilton Coliseum
+401166282,2020,2020-01-08,Auburn Tigers,Vanderbilt Commodores,83,79,42.0,38.0,41.0,41.0,False,Neville Arena
+401173729,2020,2020-01-08,Wyoming Cowboys,San Diego State Aztecs,52,72,21.0,32.0,31.0,40.0,False,Arena-Auditorium
+401168522,2020,2020-01-08,Wake Forest Demon Deacons,Florida State Seminoles,68,78,34.0,41.0,34.0,37.0,False,LJVM Coliseum
+401175240,2020,2020-01-09,San Diego Toreros,Gonzaga Bulldogs,50,94,16.0,53.0,34.0,41.0,False,Jenny Craig Pavilion
+401166160,2020,2020-01-09,Michigan State Spartans,Minnesota Golden Gophers,74,58,36.0,32.0,38.0,26.0,False,Breslin Center
+401170655,2020,2020-01-09,Oregon Ducks,Arizona Wildcats,74,73,34.0,36.0,32.0,30.0,False,Matthew Knight Arena
+401166159,2020,2020-01-09,Michigan Wolverines,Purdue Boilermakers,84,78,32.0,28.0,30.0,34.0,False,Crisler Center
+401169525,2020,2020-01-09,Wichita State Shockers,Memphis Tigers,76,67,37.0,31.0,39.0,36.0,False,Charles Koch Arena
+401168299,2020,2020-01-10,Providence Friars,Butler Bulldogs,58,70,18.0,30.0,40.0,40.0,False,Amica Mutual Pavilion
+401166161,2020,2020-01-10,Iowa Hawkeyes,Maryland Terrapins,67,49,38.0,24.0,29.0,25.0,False,Carver-Hawkeye Arena
+401175242,2020,2020-01-11,Loyola Marymount Lions,Gonzaga Bulldogs,62,87,22.0,38.0,40.0,49.0,False,Gersten Pavilion
+401168357,2020,2020-01-11,Duke Blue Devils,Wake Forest Demon Deacons,90,59,49.0,23.0,41.0,36.0,False,Cameron Indoor Stadium
+401169688,2020,2020-01-11,Kansas Jayhawks,Baylor Bears,55,67,24.0,37.0,31.0,30.0,False,Allen Fieldhouse
+401166287,2020,2020-01-11,Auburn Tigers,Georgia Bulldogs,82,60,35.0,24.0,47.0,36.0,False,Neville Arena
+401173731,2020,2020-01-11,San Diego State Aztecs,Boise State Broncos,83,65,48.0,25.0,35.0,40.0,False,Viejas Arena
+401170659,2020,2020-01-11,Oregon Ducks,Arizona State Sun Devils,78,69,40.0,31.0,38.0,38.0,False,Matthew Knight Arena
+401166163,2020,2020-01-11,Indiana Hoosiers,Ohio State Buckeyes,66,54,31.0,34.0,35.0,20.0,False,Simon Skjodt Assembly Hall
+401168508,2020,2020-01-11,Notre Dame Fighting Irish,Louisville Cardinals,64,67,24.0,36.0,40.0,31.0,False,Purcell Pavilion
+401166283,2020,2020-01-11,Kentucky Wildcats,Alabama Crimson Tide,76,67,45.0,35.0,31.0,32.0,False,Rupp Arena
+401170229,2020,2020-01-11,Dayton Flyers,Massachusetts Minutemen,88,60,48.0,22.0,40.0,38.0,False,UD Arena
+401168396,2020,2020-01-11,Villanova Wildcats,Georgetown Hoyas,80,66,39.0,36.0,41.0,30.0,False,Xfinity Mobile Arena
+401169690,2020,2020-01-11,West Virginia Mountaineers,Texas Tech Red Raiders,66,54,37.0,31.0,29.0,23.0,False,WVU Coliseum
+401168475,2020,2020-01-11,Virginia Cavaliers,Syracuse Orange,55,63,20.0,24.0,23.0,19.0,False,John Paul Jones Arena
+401166165,2020,2020-01-11,Penn State Nittany Lions,Wisconsin Badgers,49,58,22.0,31.0,27.0,27.0,False,Bryce Jordan Center
+401166167,2020,2020-01-12,Purdue Boilermakers,Michigan State Spartans,71,42,37.0,20.0,34.0,22.0,False,Mackey Arena
+401166166,2020,2020-01-12,Minnesota Golden Gophers,Michigan Wolverines,75,67,30.0,31.0,45.0,36.0,False,Williams Arena
+401169531,2020,2020-01-12,South Florida Bulls,Memphis Tigers,64,68,37.0,29.0,27.0,39.0,False,Yuengling Center
+401169530,2020,2020-01-12,UConn Huskies,Wichita State Shockers,86,89,30.0,35.0,39.0,34.0,False,PeoplesBank Arena
+401170663,2020,2020-01-12,Oregon State Beavers,Arizona Wildcats,82,65,31.0,31.0,51.0,34.0,False,Gill Coliseum
+401170662,2020,2020-01-12,Colorado Buffaloes,Utah Utes,91,52,44.0,22.0,47.0,30.0,False,CU Events Center
+401176242,2020,2020-01-13,Southern Jaguars,Jackson State Tigers,56,50,31.0,25.0,25.0,25.0,False,F.G. Clark Activity Center
+401200594,2020,2020-01-13,Cornell Big Red,Elmira Soaring Eagles,70,33,43.0,20.0,27.0,13.0,False,Newman Arena
+401172858,2020,2020-01-13,Loyola Maryland Greyhounds,Boston University Terriers,53,85,17.0,42.0,36.0,43.0,False,Reitz Arena
+401175773,2020,2020-01-13,Maryland Eastern Shore Hawks,North Carolina Central Eagles,64,69,25.0,28.0,34.0,31.0,False,Hytche Center
+401175759,2020,2020-01-13,Howard Bison,South Carolina State Bulldogs,95,101,43.0,40.0,41.0,44.0,False,Burr Gymnasium
+401175715,2020,2020-01-13,Delaware State Hornets,North Carolina A&T Aggies,77,98,46.0,50.0,31.0,48.0,False,Memorial Hall (DE)
+401175679,2020,2020-01-13,Bethune-Cookman Wildcats,Morgan State Bears,85,78,45.0,32.0,40.0,46.0,False,Moore Gymnasium (FL)
+401175696,2020,2020-01-13,Florida A&M Rattlers,Coppin State Eagles,65,54,27.0,13.0,38.0,41.0,False,Al Lawson Center
+401181598,2020,2020-01-13,Alabama State Hornets,Arkansas-Pine Bluff Golden Lions,56,61,27.0,28.0,29.0,33.0,False,Dunn-Oliver Acadome
+401176187,2020,2020-01-13,Alcorn State Braves,Grambling Tigers,87,69,39.0,31.0,48.0,38.0,False,Davey L. Whitney Complex
+401176145,2020,2020-01-13,Alabama A&M Bulldogs,Mississippi Valley State Delta Devils,66,72,28.0,42.0,38.0,30.0,False,T.M. Elmore Gymnasium
+401166534,2020,2020-01-13,Montana Grizzlies,Portland State Vikings,85,70,46.0,42.0,39.0,28.0,False,Dahlberg Arena
+401168358,2020,2020-01-14,Clemson Tigers,Duke Blue Devils,79,72,40.0,33.0,39.0,39.0,False,Littlejohn Coliseum
+401169693,2020,2020-01-14,Oklahoma Sooners,Kansas Jayhawks,52,66,27.0,28.0,25.0,38.0,False,Lloyd Noble Center
+401173737,2020,2020-01-14,Fresno State Bulldogs,San Diego State Aztecs,55,64,21.0,26.0,34.0,38.0,False,Save Mart Center
+401168509,2020,2020-01-14,Pittsburgh Panthers,Louisville Cardinals,68,73,31.0,28.0,30.0,33.0,False,Petersen Events Center
+401169694,2020,2020-01-14,West Virginia Mountaineers,TCU Horned Frogs,81,49,37.0,23.0,44.0,26.0,False,WVU Coliseum
+401170237,2020,2020-01-14,Dayton Flyers,VCU Rams,79,65,38.0,33.0,41.0,32.0,False,UD Arena
+401168352,2020,2020-01-14,Villanova Wildcats,DePaul Blue Demons,79,75,30.0,28.0,37.0,39.0,False,Finneran Pavilion
+401166170,2020,2020-01-14,Wisconsin Badgers,Maryland Terrapins,56,54,30.0,25.0,26.0,29.0,False,Kohl Center
+401166169,2020,2020-01-14,Ohio State Buckeyes,Nebraska Cornhuskers,80,68,38.0,25.0,42.0,43.0,False,Value City Arena
+401169695,2020,2020-01-14,Kansas State Wildcats,Texas Tech Red Raiders,63,77,30.0,37.0,33.0,40.0,False,Bramlage Coliseum
+401169697,2020,2020-01-15,Baylor Bears,Iowa State Cyclones,68,55,30.0,25.0,38.0,30.0,False,Ferrell Center
+401166296,2020,2020-01-15,Alabama Crimson Tide,Auburn Tigers,83,64,36.0,27.0,47.0,37.0,False,Coleman Coliseum
+401168300,2020,2020-01-15,Butler Bulldogs,Seton Hall Pirates,70,78,40.0,30.0,30.0,48.0,False,Hinkle Fieldhouse
+401168476,2020,2020-01-15,Florida State Seminoles,Virginia Cavaliers,54,50,31.0,24.0,23.0,26.0,False,Tucker Center
+401166293,2020,2020-01-15,South Carolina Gamecocks,Kentucky Wildcats,81,78,25.0,33.0,56.0,45.0,False,Colonial Life Arena
+401169535,2020,2020-01-15,Temple Owls,Wichita State Shockers,65,53,26.0,32.0,39.0,21.0,False,Liacouras Center
+401168327,2020,2020-01-15,Georgetown Hoyas,Creighton Bluejays,83,80,36.0,37.0,47.0,43.0,False,Capital One Arena
+401175246,2020,2020-01-16,Gonzaga Bulldogs,Santa Clara Broncos,104,54,58.0,22.0,46.0,32.0,False,McCarthey Athletic Center
+401170669,2020,2020-01-16,Washington State Cougars,Oregon Ducks,72,61,34.0,37.0,38.0,24.0,False,Beasley Coliseum
+401170666,2020,2020-01-16,Arizona State Sun Devils,Colorado Buffaloes,61,68,28.0,28.0,33.0,40.0,False,Desert Financial Arena
+401169536,2020,2020-01-16,Memphis Tigers,Cincinnati Bearcats,60,49,31.0,20.0,29.0,29.0,False,FedExForum
+401170242,2020,2020-01-17,Saint Louis Billikens,Dayton Flyers,76,78,33.0,25.0,36.0,44.0,False,Chaifetz Arena
+401166174,2020,2020-01-17,Michigan State Spartans,Wisconsin Badgers,67,55,35.0,20.0,32.0,35.0,False,Breslin Center
+401166173,2020,2020-01-17,Iowa Hawkeyes,Michigan Wolverines,90,83,47.0,43.0,43.0,40.0,False,Carver-Hawkeye Arena
+401175179,2020,2020-01-18,Gonzaga Bulldogs,BYU Cougars,92,69,38.0,31.0,54.0,38.0,False,McCarthey Athletic Center
+401169698,2020,2020-01-18,Oklahoma State Cowboys,Baylor Bears,68,75,36.0,27.0,32.0,48.0,False,Gallagher-Iba Arena
+401168359,2020,2020-01-18,Duke Blue Devils,Louisville Cardinals,73,79,32.0,42.0,41.0,37.0,False,Cameron Indoor Stadium
+401166298,2020,2020-01-18,Florida Gators,Auburn Tigers,69,47,28.0,23.0,41.0,24.0,False,Stephen C. O'Connell Center
+401168301,2020,2020-01-18,DePaul Blue Demons,Butler Bulldogs,79,66,44.0,34.0,35.0,32.0,False,Wintrust Arena
+401169699,2020,2020-01-18,Texas Longhorns,Kansas Jayhawks,57,66,31.0,26.0,26.0,40.0,False,Frank Erwin Center
+401173744,2020,2020-01-18,San Diego State Aztecs,Nevada Wolf Pack,68,55,33.0,35.0,35.0,20.0,False,Viejas Arena
+401170673,2020,2020-01-18,Washington Huskies,Oregon Ducks,61,64,37.0,25.0,19.0,31.0,False,Alaska Airlines Arena
+401168523,2020,2020-01-18,Miami Hurricanes,Florida State Seminoles,79,83,30.0,31.0,39.0,38.0,False,Watsco Center
+401166300,2020,2020-01-18,Arkansas Razorbacks,Kentucky Wildcats,66,73,27.0,36.0,39.0,37.0,False,Bud Walton Arena
+401169700,2020,2020-01-18,Kansas State Wildcats,West Virginia Mountaineers,84,68,42.0,25.0,42.0,43.0,False,Bramlage Coliseum
+401169470,2020,2020-01-18,Villanova Wildcats,UConn Huskies,61,55,27.0,21.0,34.0,34.0,False,Xfinity Mobile Arena
+401169537,2020,2020-01-18,Wichita State Shockers,Houston Cougars,54,65,25.0,35.0,29.0,30.0,False,Charles Koch Arena
+401166176,2020,2020-01-18,Maryland Terrapins,Purdue Boilermakers,57,50,36.0,20.0,21.0,30.0,False,XFINITY Center
+401168450,2020,2020-01-18,St. John's Red Storm,Seton Hall Pirates,79,82,43.0,30.0,36.0,52.0,False,Madison Square Garden
+401170670,2020,2020-01-18,Arizona Wildcats,Colorado Buffaloes,75,54,34.0,23.0,41.0,31.0,False,McKale Memorial Center
+401166178,2020,2020-01-18,Penn State Nittany Lions,Ohio State Buckeyes,90,76,42.0,27.0,48.0,49.0,False,Bryce Jordan Center
+401169701,2020,2020-01-18,Texas Tech Red Raiders,Iowa State Cyclones,72,52,27.0,21.0,45.0,31.0,False,United Supermarkets Arena
+401166175,2020,2020-01-18,Illinois Fighting Illini,Northwestern Wildcats,75,71,38.0,34.0,37.0,37.0,False,State Farm Center
+401168328,2020,2020-01-18,Creighton Bluejays,Providence Friars,78,74,41.0,37.0,37.0,37.0,False,CHI Health Center Omaha
+401170247,2020,2020-01-19,Fordham Rams,Davidson Wildcats,62,74,41.0,37.0,21.0,37.0,False,Rose Hill Gym
+401172056,2020,2020-01-19,Niagara Purple Eagles,Siena Saints,72,71,30.0,36.0,42.0,35.0,False,Gallagher Center
+401166179,2020,2020-01-19,Rutgers Scarlet Knights,Minnesota Golden Gophers,64,56,34.0,25.0,30.0,31.0,False,Jersey Mike’s Arena
+401175932,2020,2020-01-19,Chicago State Cougars,Cal State Bakersfield Roadrunners,54,72,30.0,38.0,24.0,34.0,False,Jones Convocation Center
+401174976,2020,2020-01-19,North Dakota State Bison,North Dakota Fighting Hawks,83,74,41.0,34.0,42.0,40.0,False,Scheels Center
+401171985,2020,2020-01-19,Marist Red Foxes,Iona Gaels,83,73,43.0,32.0,40.0,41.0,False,McCann Arena
+401171940,2020,2020-01-19,Canisius Golden Griffins,Rider Broncs,95,86,52.0,42.0,43.0,44.0,False,Koessler Athletic Center
+401170846,2020,2020-01-19,Maine Black Bears,Binghamton Bearcats,86,63,46.0,33.0,40.0,30.0,False,Cross Insurance Center
+401173565,2020,2020-01-19,Illinois State Redbirds,Loyola Chicago Ramblers,50,62,24.0,28.0,26.0,34.0,False,CEFCU Arena
+401173534,2020,2020-01-19,Southern Illinois Salukis,Drake Bulldogs,66,49,31.0,23.0,35.0,26.0,False,Banterra Center
+401174978,2020,2020-01-19,South Dakota Coyotes,South Dakota State Jackrabbits,99,84,52.0,38.0,47.0,46.0,False,Sanford Coyote Sports Center
+401206833,2020,2020-01-19,Kansas City Roos,Grand Canyon Lopes,66,69,32.0,36.0,34.0,33.0,False,Swinney Center
+401169541,2020,2020-01-19,Cincinnati Bearcats,East Carolina Pirates,82,57,45.0,28.0,37.0,29.0,False,Fifth Third Arena
+401168577,2020,2020-01-19,Wake Forest Demon Deacons,Boston College Eagles,80,62,36.0,29.0,44.0,33.0,False,LJVM Coliseum
+401170675,2020,2020-01-19,UCLA Bruins,California Golden Bears,50,40,22.0,21.0,28.0,19.0,False,Pauley Pavilion
+401169704,2020,2020-01-20,Baylor Bears,Oklahoma Sooners,61,57,35.0,24.0,26.0,33.0,False,Ferrell Center
+401169703,2020,2020-01-20,West Virginia Mountaineers,Texas Longhorns,97,59,45.0,20.0,52.0,39.0,False,WVU Coliseum
+401169705,2020,2020-01-21,Kansas Jayhawks,Kansas State Wildcats,81,60,39.0,23.0,42.0,37.0,False,Allen Fieldhouse
+401173746,2020,2020-01-21,San Diego State Aztecs,Wyoming Cowboys,72,55,32.0,19.0,40.0,36.0,False,Viejas Arena
+401168360,2020,2020-01-21,Duke Blue Devils,Miami Hurricanes,89,59,48.0,24.0,41.0,35.0,False,Cameron Indoor Stadium
+401168302,2020,2020-01-21,Villanova Wildcats,Butler Bulldogs,76,61,36.0,26.0,40.0,35.0,False,Finneran Pavilion
+401166305,2020,2020-01-21,Kentucky Wildcats,Georgia Bulldogs,89,79,41.0,35.0,48.0,44.0,False,Rupp Arena
+401166180,2020,2020-01-21,Northwestern Wildcats,Maryland Terrapins,66,77,40.0,26.0,26.0,51.0,False,Welsh-Ryan Arena
+401169706,2020,2020-01-21,TCU Horned Frogs,Texas Tech Red Raiders,65,54,27.0,31.0,38.0,23.0,False,Schollmaier Arena
+401166181,2020,2020-01-21,Purdue Boilermakers,Illinois Fighting Illini,62,79,30.0,29.0,32.0,50.0,False,Mackey Arena
+401168510,2020,2020-01-22,Louisville Cardinals,Georgia Tech Yellow Jackets,68,64,32.0,38.0,36.0,26.0,False,KFC Yum! Center
+401170250,2020,2020-01-22,Dayton Flyers,St. Bonaventure Bonnies,86,60,47.0,29.0,39.0,31.0,False,UD Arena
+401168434,2020,2020-01-22,Seton Hall Pirates,Providence Friars,73,64,36.0,32.0,37.0,32.0,False,Prudential Center
+401166308,2020,2020-01-22,Auburn Tigers,South Carolina Gamecocks,80,67,39.0,31.0,41.0,36.0,False,Neville Arena
+401166183,2020,2020-01-22,Iowa Hawkeyes,Rutgers Scarlet Knights,85,80,38.0,43.0,47.0,37.0,False,Carver-Hawkeye Arena
+401169545,2020,2020-01-22,Tulsa Golden Hurricane,Memphis Tigers,80,40,40.0,17.0,40.0,23.0,False,Reynolds Center
+401166185,2020,2020-01-23,Indiana Hoosiers,Michigan State Spartans,67,63,37.0,30.0,30.0,33.0,False,Simon Skjodt Assembly Hall
+401170677,2020,2020-01-23,Oregon Ducks,USC Trojans,79,70,32.0,30.0,30.0,32.0,False,Matthew Knight Arena
+401170676,2020,2020-01-23,Colorado Buffaloes,Washington State Cougars,78,56,38.0,33.0,40.0,23.0,False,CU Events Center
+401169546,2020,2020-01-23,Houston Cougars,UConn Huskies,63,59,25.0,30.0,38.0,29.0,False,Fertitta Center
+401168303,2020,2020-01-24,Butler Bulldogs,Marquette Golden Eagles,89,85,35.0,39.0,36.0,32.0,False,Hinkle Fieldhouse
+401175256,2020,2020-01-25,Gonzaga Bulldogs,Pacific Tigers,92,59,48.0,33.0,44.0,26.0,False,McCarthey Athletic Center
+401168524,2020,2020-01-25,Florida State Seminoles,Notre Dame Fighting Irish,85,84,47.0,37.0,38.0,47.0,False,Tucker Center
+401168511,2020,2020-01-25,Louisville Cardinals,Clemson Tigers,80,62,47.0,26.0,33.0,36.0,False,KFC Yum! Center
+401170257,2020,2020-01-25,Richmond Spiders,Dayton Flyers,79,87,32.0,40.0,47.0,47.0,False,Robins Center
+401168435,2020,2020-01-25,Providence Friars,Villanova Wildcats,60,64,30.0,37.0,30.0,27.0,False,Amica Mutual Pavilion
+401169548,2020,2020-01-25,Memphis Tigers,SMU Mustangs,70,74,41.0,32.0,29.0,42.0,False,FedExForum
+401166188,2020,2020-01-25,Michigan Wolverines,Illinois Fighting Illini,62,64,30.0,34.0,32.0,30.0,False,Crisler Center
+401170680,2020,2020-01-25,Arizona State Sun Devils,Arizona Wildcats,66,65,30.0,43.0,36.0,22.0,False,Desert Financial Arena
+401170681,2020,2020-01-25,Colorado Buffaloes,Washington Huskies,76,62,51.0,33.0,25.0,29.0,False,CU Events Center
+401166189,2020,2020-01-25,Rutgers Scarlet Knights,Nebraska Cornhuskers,75,72,38.0,33.0,37.0,39.0,False,Jersey Mike’s Arena
+401173755,2020,2020-01-26,UNLV Rebels,San Diego State Aztecs,67,71,28.0,34.0,39.0,37.0,False,Thomas & Mack Center
+401166191,2020,2020-01-26,Minnesota Golden Gophers,Michigan State Spartans,52,70,22.0,30.0,30.0,40.0,False,Williams Arena
+401170685,2020,2020-01-26,Oregon Ducks,UCLA Bruins,96,75,48.0,26.0,48.0,49.0,False,Matthew Knight Arena
+401166190,2020,2020-01-26,Indiana Hoosiers,Maryland Terrapins,76,77,36.0,45.0,40.0,32.0,False,Simon Skjodt Assembly Hall
+401169551,2020,2020-01-26,Houston Cougars,South Florida Bulls,68,49,31.0,23.0,37.0,26.0,False,Fertitta Center
+401169718,2020,2020-01-27,Oklahoma State Cowboys,Kansas Jayhawks,50,65,24.0,29.0,26.0,36.0,False,Gallagher-Iba Arena
+401166193,2020,2020-01-27,Iowa Hawkeyes,Wisconsin Badgers,68,62,30.0,30.0,38.0,32.0,False,Carver-Hawkeye Arena
+401168480,2020,2020-01-28,Virginia Cavaliers,Florida State Seminoles,61,56,27.0,28.0,34.0,28.0,False,John Paul Jones Arena
+401168468,2020,2020-01-28,St. John's Red Storm,Villanova Wildcats,59,79,26.0,39.0,33.0,40.0,False,Madison Square Garden
+401168361,2020,2020-01-28,Duke Blue Devils,Pittsburgh Panthers,79,67,45.0,34.0,34.0,33.0,False,Cameron Indoor Stadium
+401168304,2020,2020-01-28,Georgetown Hoyas,Butler Bulldogs,64,69,43.0,32.0,21.0,37.0,False,Capital One Arena
+401166314,2020,2020-01-28,Ole Miss Rebels,Auburn Tigers,82,83,37.0,20.0,29.0,46.0,False,The Sandy and John Black Pavilion at Ole Miss
+401166195,2020,2020-01-28,Rutgers Scarlet Knights,Purdue Boilermakers,70,63,39.0,27.0,31.0,36.0,False,Jersey Mike’s Arena
+401169720,2020,2020-01-29,Iowa State Cyclones,Baylor Bears,53,67,26.0,33.0,27.0,34.0,False,Hilton Coliseum
+401173759,2020,2020-01-29,New Mexico Lobos,San Diego State Aztecs,57,85,25.0,48.0,32.0,37.0,False,The Pit
+401168512,2020,2020-01-29,Boston College Eagles,Louisville Cardinals,69,86,43.0,45.0,26.0,41.0,False,Conte Forum
+401170264,2020,2020-01-29,Duquesne Dukes,Dayton Flyers,69,73,30.0,38.0,39.0,35.0,False,PPG Paints Arena
+401168374,2020,2020-01-29,Seton Hall Pirates,DePaul Blue Demons,64,57,28.0,29.0,36.0,28.0,False,Prudential Center
+401169722,2020,2020-01-29,Texas Tech Red Raiders,West Virginia Mountaineers,89,81,42.0,38.0,47.0,43.0,False,United Supermarkets Arena
+401166315,2020,2020-01-29,Kentucky Wildcats,Vanderbilt Commodores,71,62,28.0,35.0,43.0,27.0,False,Rupp Arena
+401166196,2020,2020-01-29,Michigan State Spartans,Northwestern Wildcats,79,50,33.0,22.0,46.0,28.0,False,Breslin Center
+401169555,2020,2020-01-29,East Carolina Pirates,Houston Cougars,59,69,21.0,33.0,38.0,36.0,False,Minges Coliseum
+401166316,2020,2020-01-29,LSU Tigers,Alabama Crimson Tide,90,76,51.0,33.0,39.0,43.0,False,Pete Maravich Assembly Center
+401166197,2020,2020-01-29,Penn State Nittany Lions,Indiana Hoosiers,64,49,28.0,28.0,36.0,21.0,False,Bryce Jordan Center
+401175260,2020,2020-01-30,Santa Clara Broncos,Gonzaga Bulldogs,72,87,36.0,40.0,36.0,47.0,False,Leavey Center
+401170687,2020,2020-01-30,California Golden Bears,Oregon Ducks,72,77,32.0,32.0,40.0,45.0,False,Haas Pavilion
+401166199,2020,2020-01-30,Maryland Terrapins,Iowa Hawkeyes,82,72,36.0,32.0,46.0,40.0,False,XFINITY Center
+401166198,2020,2020-01-30,Illinois Fighting Illini,Minnesota Golden Gophers,59,51,24.0,20.0,35.0,31.0,False,State Farm Center
+401170689,2020,2020-01-30,UCLA Bruins,Colorado Buffaloes,72,68,39.0,27.0,33.0,41.0,False,Pauley Pavilion
+401172335,2020,2020-01-31,Pennsylvania Quakers,Harvard Crimson,75,72,35.0,28.0,23.0,30.0,False,The Palestra
+401172669,2020,2020-01-31,Kent State Golden Flashes,Akron Zips,68,67,27.0,33.0,41.0,34.0,False,M.A.C. Center
+401172670,2020,2020-01-31,Buffalo Bulls,Bowling Green Falcons,77,78,45.0,34.0,32.0,44.0,False,Alumni Arena
+401172501,2020,2020-01-31,Detroit Mercy Titans,Oakland Golden Grizzlies,64,77,25.0,34.0,39.0,43.0,False,Calihan Hall
+401172322,2020,2020-01-31,Princeton Tigers,Dartmouth Big Green,66,44,32.0,27.0,34.0,17.0,False,Jadwin Gymnasium
+401172285,2020,2020-01-31,Yale Bulldogs,Columbia Lions,93,62,40.0,21.0,53.0,41.0,False,John J. Lee Amphitheater
+401172266,2020,2020-01-31,Brown Bears,Cornell Big Red,74,63,41.0,36.0,33.0,27.0,False,Pizzitola Sports Center
+401172027,2020,2020-01-31,Niagara Purple Eagles,Marist Red Foxes,48,67,17.0,33.0,31.0,34.0,False,Gallagher Center
+401172007,2020,2020-01-31,Saint Peter's Peacocks,Manhattan Jaspers,70,53,34.0,18.0,36.0,35.0,False,Yanitelli Center
+401171987,2020,2020-01-31,Iona Gaels,Siena Saints,64,87,29.0,45.0,35.0,42.0,False,Hynes Athletics Center
+401171966,2020,2020-01-31,Rider Broncs,Fairfield Stags,68,52,26.0,29.0,42.0,23.0,False,Alumni Gymnasium (Rider)
+401171943,2020,2020-01-31,Canisius Golden Griffins,Quinnipiac Bobcats,73,90,36.0,35.0,37.0,55.0,False,Koessler Athletic Center
+401170269,2020,2020-01-31,Rhode Island Rams,VCU Rams,87,75,49.0,27.0,38.0,48.0,False,Thomas M. Ryan Center
+401175144,2020,2020-01-31,Milwaukee Panthers,Wright State Raiders,61,65,19.0,26.0,42.0,39.0,False,UW-Milwaukee Panther Arena
+401172524,2020,2020-01-31,Green Bay Phoenix,Northern Kentucky Norse,62,71,34.0,32.0,28.0,39.0,False,Kress Center
+401169725,2020,2020-02-01,Baylor Bears,TCU Horned Frogs,68,52,35.0,24.0,33.0,28.0,False,Ferrell Center
+401175264,2020,2020-02-01,San Francisco Dons,Gonzaga Bulldogs,79,83,43.0,35.0,36.0,48.0,False,The Sobrato Center
+401169726,2020,2020-02-01,Kansas Jayhawks,Texas Tech Red Raiders,78,75,44.0,35.0,34.0,40.0,False,Allen Fieldhouse
+401173765,2020,2020-02-01,San Diego State Aztecs,Utah State Aggies,80,68,31.0,39.0,49.0,29.0,False,Viejas Arena
+401168525,2020,2020-02-01,Virginia Tech Hokies,Florida State Seminoles,63,74,29.0,34.0,34.0,40.0,False,Cassell Coliseum
+401168513,2020,2020-02-01,NC State Wolfpack,Louisville Cardinals,57,77,26.0,41.0,31.0,36.0,False,Lenovo Center
+401170270,2020,2020-02-01,Dayton Flyers,Fordham Rams,70,56,36.0,17.0,34.0,39.0,False,UD Arena
+401168331,2020,2020-02-01,Villanova Wildcats,Creighton Bluejays,61,76,23.0,35.0,38.0,41.0,False,Xfinity Mobile Arena
+401168362,2020,2020-02-01,Syracuse Orange,Duke Blue Devils,88,97,36.0,40.0,52.0,57.0,False,JMA Wireless Dome
+401168451,2020,2020-02-01,Seton Hall Pirates,Xavier Musketeers,62,74,23.0,35.0,39.0,39.0,False,Prudential Center
+401170693,2020,2020-02-01,Stanford Cardinal,Oregon Ducks,70,60,28.0,36.0,42.0,24.0,False,Maples Pavilion
+401169723,2020,2020-02-01,West Virginia Mountaineers,Kansas State Wildcats,66,57,30.0,27.0,36.0,30.0,False,WVU Coliseum
+401166322,2020,2020-02-01,Auburn Tigers,Kentucky Wildcats,75,66,34.0,35.0,41.0,31.0,False,Neville Arena
+401166204,2020,2020-02-01,Wisconsin Badgers,Michigan State Spartans,64,63,43.0,27.0,21.0,36.0,False,Kohl Center
+401168305,2020,2020-02-01,Butler Bulldogs,Providence Friars,61,65,25.0,31.0,36.0,34.0,False,Hinkle Fieldhouse
+401170694,2020,2020-02-01,USC Trojans,Colorado Buffaloes,57,78,24.0,33.0,33.0,45.0,False,Galen Center
+401169559,2020,2020-02-01,Cincinnati Bearcats,Houston Cougars,64,62,30.0,40.0,34.0,22.0,False,Fifth Third Arena
+401166318,2020,2020-02-01,LSU Tigers,Ole Miss Rebels,73,63,40.0,20.0,33.0,43.0,False,Pete Maravich Assembly Center
+401169560,2020,2020-02-01,Tulsa Golden Hurricane,Wichita State Shockers,54,51,23.0,29.0,31.0,22.0,False,Reynolds Center
+401166201,2020,2020-02-01,Nebraska Cornhuskers,Penn State Nittany Lions,64,76,33.0,38.0,31.0,38.0,False,Pinnacle Bank Arena
+401166200,2020,2020-02-01,Michigan Wolverines,Rutgers Scarlet Knights,69,63,37.0,34.0,32.0,29.0,True,Madison Square Garden
+401166205,2020,2020-02-02,Iowa Hawkeyes,Illinois Fighting Illini,72,65,30.0,31.0,42.0,34.0,False,Carver-Hawkeye Arena
+401169728,2020,2020-02-03,Kansas State Wildcats,Baylor Bears,67,73,28.0,33.0,39.0,40.0,False,Bramlage Coliseum
+401169729,2020,2020-02-03,Kansas Jayhawks,Texas Longhorns,69,58,31.0,33.0,38.0,25.0,False,Allen Fieldhouse
+401168498,2020,2020-02-03,Florida State Seminoles,North Carolina Tar Heels,65,59,29.0,28.0,36.0,31.0,False,Tucker Center
+401168363,2020,2020-02-04,Boston College Eagles,Duke Blue Devils,55,63,24.0,21.0,31.0,42.0,False,Conte Forum
+401166206,2020,2020-02-04,Maryland Terrapins,Rutgers Scarlet Knights,56,51,20.0,25.0,36.0,26.0,False,XFINITY Center
+401166326,2020,2020-02-04,Arkansas Razorbacks,Auburn Tigers,76,79,32.0,34.0,37.0,35.0,False,Bud Walton Arena
+401166327,2020,2020-02-04,Kentucky Wildcats,Mississippi State Bulldogs,80,72,31.0,23.0,49.0,49.0,False,Rupp Arena
+401166208,2020,2020-02-04,Michigan State Spartans,Penn State Nittany Lions,70,75,37.0,43.0,33.0,32.0,False,Breslin Center
+401168514,2020,2020-02-05,Louisville Cardinals,Wake Forest Demon Deacons,86,76,34.0,46.0,52.0,30.0,False,KFC Yum! Center
+401168306,2020,2020-02-05,Butler Bulldogs,Villanova Wildcats,79,76,42.0,38.0,37.0,38.0,False,Hinkle Fieldhouse
+401168400,2020,2020-02-05,Georgetown Hoyas,Seton Hall Pirates,71,78,32.0,42.0,39.0,36.0,False,Capital One Arena
+401169731,2020,2020-02-05,West Virginia Mountaineers,Iowa State Cyclones,76,61,41.0,27.0,35.0,34.0,False,WVU Coliseum
+401166210,2020,2020-02-05,Purdue Boilermakers,Iowa Hawkeyes,104,68,61.0,36.0,43.0,32.0,False,Mackey Arena
+401166331,2020,2020-02-05,Vanderbilt Commodores,LSU Tigers,99,90,52.0,47.0,47.0,43.0,False,Memorial Gymnasium (TN)
+401168332,2020,2020-02-05,Providence Friars,Creighton Bluejays,73,56,32.0,36.0,41.0,20.0,False,Amica Mutual Pavilion
+401175268,2020,2020-02-06,Gonzaga Bulldogs,Loyola Marymount Lions,85,67,38.0,30.0,47.0,37.0,False,McCarthey Athletic Center
+401170698,2020,2020-02-06,Arizona Wildcats,USC Trojans,85,80,43.0,33.0,42.0,47.0,False,McKale Memorial Center
+401170700,2020,2020-02-06,Colorado Buffaloes,California Golden Bears,71,65,28.0,28.0,43.0,37.0,False,CU Events Center
+401169567,2020,2020-02-06,Houston Cougars,Tulane Green Wave,75,62,39.0,21.0,36.0,41.0,False,Fertitta Center
+401166211,2020,2020-02-07,Illinois Fighting Illini,Maryland Terrapins,66,75,42.0,40.0,24.0,35.0,False,State Farm Center
+401169736,2020,2020-02-08,Baylor Bears,Oklahoma State Cowboys,78,70,35.0,26.0,43.0,44.0,False,Ferrell Center
+401175272,2020,2020-02-08,Saint Mary's Gaels,Gonzaga Bulldogs,60,90,28.0,53.0,32.0,37.0,False,University Credit Union Pavilion
+401169733,2020,2020-02-08,TCU Horned Frogs,Kansas Jayhawks,46,60,18.0,31.0,28.0,29.0,False,Schollmaier Arena
+401173772,2020,2020-02-08,Air Force Falcons,San Diego State Aztecs,74,89,34.0,41.0,40.0,48.0,False,Clune Arena
+401168482,2020,2020-02-08,Louisville Cardinals,Virginia Cavaliers,80,73,44.0,30.0,36.0,43.0,False,KFC Yum! Center
+401170281,2020,2020-02-08,Dayton Flyers,Saint Louis Billikens,71,65,39.0,31.0,32.0,34.0,False,UD Arena
+401168364,2020,2020-02-08,North Carolina Tar Heels,Duke Blue Devils,96,98,44.0,35.0,40.0,49.0,False,Dean E. Smith Center
+401168526,2020,2020-02-08,Florida State Seminoles,Miami Hurricanes,99,81,50.0,47.0,49.0,34.0,False,Tucker Center
+401168452,2020,2020-02-08,Villanova Wildcats,Seton Hall Pirates,64,70,31.0,27.0,33.0,43.0,False,Xfinity Mobile Arena
+401166332,2020,2020-02-08,Auburn Tigers,LSU Tigers,91,90,30.0,42.0,44.0,32.0,False,Neville Arena
+401169734,2020,2020-02-08,Oklahoma Sooners,West Virginia Mountaineers,69,59,31.0,24.0,38.0,35.0,False,Lloyd Noble Center
+401170705,2020,2020-02-08,Oregon State Beavers,Oregon Ducks,63,53,28.0,32.0,35.0,21.0,False,Gill Coliseum
+401166333,2020,2020-02-08,Tennessee Volunteers,Kentucky Wildcats,64,77,30.0,37.0,34.0,40.0,False,Food City Center
+401166214,2020,2020-02-08,Michigan Wolverines,Michigan State Spartans,77,68,29.0,23.0,48.0,45.0,False,Crisler Center
+401166213,2020,2020-02-08,Iowa Hawkeyes,Nebraska Cornhuskers,96,72,41.0,30.0,55.0,42.0,False,Carver-Hawkeye Arena
+401168333,2020,2020-02-08,Creighton Bluejays,St. John's Red Storm,94,82,47.0,37.0,47.0,45.0,False,CHI Health Center Omaha
+401166215,2020,2020-02-08,Penn State Nittany Lions,Minnesota Golden Gophers,83,77,36.0,22.0,47.0,55.0,False,Bryce Jordan Center
+401170702,2020,2020-02-08,Arizona Wildcats,UCLA Bruins,52,65,28.0,29.0,24.0,36.0,False,McKale Memorial Center
+401170704,2020,2020-02-08,Colorado Buffaloes,Stanford Cardinal,81,74,22.0,33.0,59.0,41.0,False,CU Events Center
+401168307,2020,2020-02-09,Marquette Golden Eagles,Butler Bulldogs,76,57,34.0,26.0,42.0,31.0,False,Fiserv Forum
+401169572,2020,2020-02-09,Houston Cougars,Wichita State Shockers,76,43,38.0,18.0,38.0,25.0,False,Fertitta Center
+401169739,2020,2020-02-10,Texas Longhorns,Baylor Bears,45,52,16.0,22.0,29.0,30.0,False,Frank Erwin Center
+401168365,2020,2020-02-10,Duke Blue Devils,Florida State Seminoles,70,65,33.0,32.0,37.0,33.0,False,Cameron Indoor Stadium
+401169738,2020,2020-02-10,Texas Tech Red Raiders,TCU Horned Frogs,88,42,45.0,20.0,43.0,22.0,False,United Supermarkets Arena
+401173777,2020,2020-02-11,San Diego State Aztecs,New Mexico Lobos,82,59,35.0,33.0,47.0,26.0,False,Viejas Arena
+401170287,2020,2020-02-11,Dayton Flyers,Rhode Island Rams,81,67,49.0,35.0,32.0,32.0,False,UD Arena
+401166219,2020,2020-02-11,Maryland Terrapins,Nebraska Cornhuskers,72,70,38.0,25.0,34.0,45.0,False,XFINITY Center
+401166339,2020,2020-02-11,Vanderbilt Commodores,Kentucky Wildcats,64,78,36.0,27.0,28.0,51.0,False,Memorial Gymnasium (TN)
+401166220,2020,2020-02-11,Purdue Boilermakers,Penn State Nittany Lions,76,88,30.0,42.0,46.0,46.0,False,Mackey Arena
+401166218,2020,2020-02-11,Illinois Fighting Illini,Michigan State Spartans,69,70,20.0,37.0,49.0,33.0,False,State Farm Center
+401166342,2020,2020-02-11,LSU Tigers,Missouri Tigers,82,78,37.0,43.0,45.0,35.0,False,Pete Maravich Assembly Center
+401169741,2020,2020-02-12,West Virginia Mountaineers,Kansas Jayhawks,49,58,30.0,24.0,19.0,34.0,False,WVU Coliseum
+401168515,2020,2020-02-12,Georgia Tech Yellow Jackets,Louisville Cardinals,64,58,31.0,26.0,33.0,32.0,False,McCamish Pavilion
+401168334,2020,2020-02-12,Seton Hall Pirates,Creighton Bluejays,82,87,39.0,41.0,43.0,46.0,False,Prudential Center
+401166344,2020,2020-02-12,Auburn Tigers,Alabama Crimson Tide,95,91,44.0,41.0,37.0,40.0,False,Neville Arena
+401168419,2020,2020-02-12,Villanova Wildcats,Marquette Golden Eagles,72,71,38.0,29.0,34.0,42.0,False,Finneran Pavilion
+401168308,2020,2020-02-12,Butler Bulldogs,Xavier Musketeers,66,61,32.0,23.0,34.0,38.0,False,Hinkle Fieldhouse
+401169577,2020,2020-02-12,South Florida Bulls,Houston Cougars,58,62,26.0,31.0,32.0,31.0,False,Yuengling Center
+401170709,2020,2020-02-13,Oregon Ducks,Colorado Buffaloes,68,60,26.0,35.0,42.0,25.0,False,Matthew Knight Arena
+401166223,2020,2020-02-13,Indiana Hoosiers,Iowa Hawkeyes,89,77,49.0,34.0,40.0,43.0,False,Simon Skjodt Assembly Hall
+401172692,2020,2020-02-14,Toledo Rockets,Buffalo Bulls,67,83,28.0,52.0,39.0,31.0,False,Savage Arena
+401174456,2020,2020-02-14,Northern Kentucky Norse,IU Indianapolis Jaguars,84,70,42.0,39.0,42.0,31.0,False,Truist Arena
+401172690,2020,2020-02-14,Central Michigan Chippewas,Akron Zips,67,80,34.0,37.0,33.0,43.0,False,McGuirk Arena
+401172345,2020,2020-02-14,Princeton Tigers,Yale Bulldogs,64,88,25.0,43.0,39.0,45.0,False,Jadwin Gymnasium
+401172305,2020,2020-02-14,Harvard Crimson,Cornell Big Red,85,63,42.0,15.0,43.0,48.0,False,Lavietes Pavilion
+401172288,2020,2020-02-14,Dartmouth Big Green,Columbia Lions,65,63,34.0,38.0,31.0,25.0,False,Leede Arena
+401172270,2020,2020-02-14,Pennsylvania Quakers,Brown Bears,63,75,35.0,29.0,28.0,46.0,False,The Palestra
+401172068,2020,2020-02-14,Saint Peter's Peacocks,Quinnipiac Bobcats,84,72,38.0,20.0,46.0,52.0,False,Yanitelli Center
+401171990,2020,2020-02-14,Iona Gaels,Manhattan Jaspers,80,57,45.0,22.0,35.0,35.0,False,Hynes Athletics Center
+401171970,2020,2020-02-14,Marist Red Foxes,Fairfield Stags,53,57,19.0,19.0,26.0,26.0,False,McCann Arena
+401171947,2020,2020-02-14,Canisius Golden Griffins,Monmouth Hawks,71,85,36.0,30.0,35.0,55.0,False,Koessler Athletic Center
+401170291,2020,2020-02-14,St. Bonaventure Bonnies,Davidson Wildcats,64,93,28.0,47.0,36.0,46.0,False,Reilly Center
+401175005,2020,2020-02-14,North Dakota State Bison,Purdue Fort Wayne Mastodons,80,70,43.0,33.0,37.0,37.0,False,Scheels Center
+401175004,2020,2020-02-14,South Dakota State Jackrabbits,Denver Pioneers,90,78,36.0,39.0,54.0,39.0,False,Frost Arena
+401174472,2020,2020-02-14,Wright State Raiders,UIC Flames,75,58,39.0,33.0,36.0,25.0,False,Nutter Center
+401172078,2020,2020-02-14,Siena Saints,Rider Broncs,73,64,39.0,17.0,34.0,47.0,False,MVP Arena
+401169746,2020,2020-02-15,Baylor Bears,West Virginia Mountaineers,70,59,33.0,22.0,37.0,37.0,False,Ferrell Center
+401175278,2020,2020-02-15,Pepperdine Waves,Gonzaga Bulldogs,77,89,36.0,40.0,41.0,49.0,False,Firestone Fieldhouse
+401169743,2020,2020-02-15,Kansas Jayhawks,Oklahoma Sooners,87,70,41.0,32.0,46.0,38.0,False,Allen Fieldhouse
+401168516,2020,2020-02-15,Clemson Tigers,Louisville Cardinals,77,62,31.0,14.0,46.0,48.0,False,Littlejohn Coliseum
+401170293,2020,2020-02-15,Massachusetts Minutemen,Dayton Flyers,63,71,26.0,31.0,37.0,40.0,False,Mullins Center
+401168366,2020,2020-02-15,Duke Blue Devils,Notre Dame Fighting Irish,94,60,42.0,32.0,52.0,28.0,False,Cameron Indoor Stadium
+401168527,2020,2020-02-15,Florida State Seminoles,Syracuse Orange,80,77,41.0,33.0,39.0,44.0,False,Tucker Center
+401166224,2020,2020-02-15,Michigan State Spartans,Maryland Terrapins,60,67,31.0,39.0,29.0,28.0,False,Breslin Center
+401168438,2020,2020-02-15,Providence Friars,Seton Hall Pirates,74,71,41.0,27.0,33.0,44.0,False,Amica Mutual Pavilion
+401166350,2020,2020-02-15,Missouri Tigers,Auburn Tigers,85,73,45.0,32.0,40.0,41.0,False,Mizzou Arena
+401166347,2020,2020-02-15,Kentucky Wildcats,Ole Miss Rebels,67,62,25.0,27.0,42.0,35.0,False,Rupp Arena
+401166227,2020,2020-02-15,Penn State Nittany Lions,Northwestern Wildcats,77,61,42.0,28.0,35.0,33.0,False,Bryce Jordan Center
+401170714,2020,2020-02-15,Oregon State Beavers,Colorado Buffaloes,47,69,22.0,31.0,25.0,38.0,False,Gill Coliseum
+401168309,2020,2020-02-15,Butler Bulldogs,Georgetown Hoyas,66,73,31.0,32.0,35.0,41.0,False,Hinkle Fieldhouse
+401169473,2020,2020-02-15,SMU Mustangs,Houston Cougars,73,72,39.0,28.0,25.0,36.0,False,Moody Coliseum (Dallas)
+401166228,2020,2020-02-15,Rutgers Scarlet Knights,Illinois Fighting Illini,72,57,34.0,32.0,38.0,25.0,False,Jersey Mike’s Arena
+401168335,2020,2020-02-15,Creighton Bluejays,DePaul Blue Demons,93,64,42.0,28.0,51.0,36.0,False,CHI Health Center Omaha
+401169744,2020,2020-02-15,Oklahoma State Cowboys,Texas Tech Red Raiders,73,70,27.0,29.0,46.0,41.0,False,Gallagher-Iba Arena
+401166349,2020,2020-02-15,Alabama Crimson Tide,LSU Tigers,88,82,40.0,29.0,48.0,53.0,False,Coleman Coliseum
+401173784,2020,2020-02-16,Boise State Broncos,San Diego State Aztecs,55,72,26.0,40.0,29.0,32.0,False,ExtraMile Arena
+401169471,2020,2020-02-16,Temple Owls,Villanova Wildcats,56,76,30.0,26.0,26.0,50.0,False,Liacouras Center
+401170719,2020,2020-02-16,Oregon Ducks,Utah Utes,80,62,44.0,30.0,36.0,32.0,False,Matthew Knight Arena
+401166230,2020,2020-02-16,Minnesota Golden Gophers,Iowa Hawkeyes,55,58,31.0,26.0,24.0,32.0,False,Williams Arena
+401169748,2020,2020-02-17,Kansas Jayhawks,Iowa State Cyclones,91,71,50.0,40.0,41.0,31.0,False,Allen Fieldhouse
+401169750,2020,2020-02-18,Oklahoma Sooners,Baylor Bears,54,65,24.0,30.0,30.0,35.0,False,Lloyd Noble Center
+401170299,2020,2020-02-18,VCU Rams,Dayton Flyers,61,66,29.0,36.0,32.0,30.0,False,Siegel Center
+401168528,2020,2020-02-18,Florida State Seminoles,Pittsburgh Panthers,82,67,38.0,33.0,44.0,34.0,False,Tucker Center
+401166232,2020,2020-02-18,Penn State Nittany Lions,Illinois Fighting Illini,56,62,26.0,30.0,30.0,32.0,False,Bryce Jordan Center
+401166356,2020,2020-02-18,LSU Tigers,Kentucky Wildcats,76,79,28.0,29.0,48.0,50.0,False,Pete Maravich Assembly Center
+401168336,2020,2020-02-18,Marquette Golden Eagles,Creighton Bluejays,65,73,22.0,32.0,43.0,41.0,False,Fiserv Forum
+401169749,2020,2020-02-18,West Virginia Mountaineers,Oklahoma State Cowboys,65,47,28.0,33.0,37.0,14.0,False,WVU Coliseum
+401168367,2020,2020-02-19,NC State Wolfpack,Duke Blue Devils,88,66,44.0,29.0,44.0,37.0,False,Lenovo Center
+401168517,2020,2020-02-19,Louisville Cardinals,Syracuse Orange,90,66,41.0,34.0,49.0,32.0,False,KFC Yum! Center
+401168378,2020,2020-02-19,DePaul Blue Demons,Villanova Wildcats,71,91,26.0,46.0,45.0,45.0,False,Wintrust Arena
+401166357,2020,2020-02-19,Georgia Bulldogs,Auburn Tigers,65,55,31.0,25.0,34.0,30.0,False,Stegeman Coliseum
+401168310,2020,2020-02-19,Seton Hall Pirates,Butler Bulldogs,74,72,28.0,34.0,46.0,38.0,False,Prudential Center
+401169480,2020,2020-02-19,Houston Cougars,Tulsa Golden Hurricane,76,43,26.0,20.0,50.0,23.0,False,Fertitta Center
+401175281,2020,2020-02-20,Gonzaga Bulldogs,San Francisco Dons,71,54,22.0,31.0,49.0,23.0,False,McCarthey Athletic Center
+401170722,2020,2020-02-20,Arizona State Sun Devils,Oregon Ducks,77,72,34.0,23.0,43.0,49.0,False,Desert Financial Arena
+401170723,2020,2020-02-20,Colorado Buffaloes,USC Trojans,70,66,26.0,29.0,44.0,37.0,False,CU Events Center
+401166236,2020,2020-02-20,Iowa Hawkeyes,Ohio State Buckeyes,85,76,46.0,35.0,39.0,41.0,False,Carver-Hawkeye Arena
+401175188,2020,2020-02-20,BYU Cougars,Santa Clara Broncos,85,75,40.0,30.0,45.0,45.0,False,Marriott Center
+401170721,2020,2020-02-20,Arizona Wildcats,Oregon State Beavers,89,63,40.0,30.0,49.0,33.0,False,McKale Memorial Center
+401176505,2020,2020-02-21,Merrimack Warriors,Sacred Heart Pioneers,64,57,26.0,26.0,38.0,31.0,False,Hammel Court
+401172702,2020,2020-02-21,Kent State Golden Flashes,Buffalo Bulls,98,104,39.0,33.0,43.0,49.0,False,M.A.C. Center
+401172505,2020,2020-02-21,Detroit Mercy Titans,Green Bay Phoenix,67,84,36.0,44.0,31.0,40.0,False,Calihan Hall
+401172346,2020,2020-02-21,Harvard Crimson,Princeton Tigers,61,60,30.0,34.0,31.0,26.0,False,Lavietes Pavilion
+401172325,2020,2020-02-21,Dartmouth Big Green,Pennsylvania Quakers,66,59,28.0,27.0,38.0,32.0,False,Leede Arena
+401172307,2020,2020-02-21,Cornell Big Red,Yale Bulldogs,80,81,37.0,32.0,23.0,28.0,False,Newman Arena
+401172272,2020,2020-02-21,Columbia Lions,Brown Bears,66,72,35.0,30.0,31.0,42.0,False,Levien Gymnasium
+401172029,2020,2020-02-21,Marist Red Foxes,Monmouth Hawks,61,65,22.0,23.0,36.0,35.0,False,McCann Arena
+401172011,2020,2020-02-21,Manhattan Jaspers,Saint Peter's Peacocks,64,67,26.0,26.0,38.0,41.0,False,Draddy Gymnasium
+401171993,2020,2020-02-21,Iona Gaels,Rider Broncs,70,69,34.0,29.0,36.0,40.0,False,Hynes Athletics Center
+401171972,2020,2020-02-21,Fairfield Stags,Niagara Purple Eagles,61,60,23.0,38.0,38.0,22.0,False,George Bisacca Court at Alumni Hall
+401171948,2020,2020-02-21,Quinnipiac Bobcats,Canisius Golden Griffins,66,64,32.0,39.0,34.0,25.0,False,M&T Bank Arena
+401176506,2020,2020-02-21,Robert Morris Colonials,Mount St. Mary's Mountaineers,68,60,28.0,33.0,40.0,27.0,False,UPMC Events Center
+401176503,2020,2020-02-21,Wagner Seahawks,Central Connecticut Blue Devils,68,56,29.0,35.0,39.0,21.0,False,Spiro Sports Center
+401176108,2020,2020-02-21,St. Francis Brooklyn Terriers,Bryant Bulldogs,74,82,41.0,46.0,33.0,36.0,False,Pope Physical Education Center
+401176504,2020,2020-02-21,Fairleigh Dickinson Knights,Long Island University Sharks,81,86,35.0,37.0,46.0,49.0,False,Bogota Savings Bank Center
+401175150,2020,2020-02-21,Oakland Golden Grizzlies,Milwaukee Panthers,75,68,34.0,35.0,41.0,33.0,False,OU Credit Union O'rena
+401170304,2020,2020-02-21,Saint Louis Billikens,VCU Rams,80,62,41.0,27.0,39.0,35.0,False,Chaifetz Arena
+401169753,2020,2020-02-22,Baylor Bears,Kansas Jayhawks,61,64,31.0,34.0,30.0,30.0,False,Ferrell Center
+401175189,2020,2020-02-22,BYU Cougars,Gonzaga Bulldogs,91,78,46.0,38.0,45.0,40.0,False,Marriott Center
+401173792,2020,2020-02-22,San Diego State Aztecs,UNLV Rebels,63,66,25.0,37.0,38.0,29.0,False,Viejas Arena
+401170308,2020,2020-02-22,Dayton Flyers,Duquesne Dukes,80,70,36.0,38.0,44.0,32.0,False,UD Arena
+401168368,2020,2020-02-22,Duke Blue Devils,Virginia Tech Hokies,88,64,51.0,25.0,37.0,39.0,False,Cameron Indoor Stadium
+401168529,2020,2020-02-22,NC State Wolfpack,Florida State Seminoles,61,67,32.0,27.0,29.0,40.0,False,Lenovo Center
+401166363,2020,2020-02-22,Kentucky Wildcats,Florida Gators,65,59,31.0,31.0,34.0,28.0,False,Rupp Arena
+401168501,2020,2020-02-22,Louisville Cardinals,North Carolina Tar Heels,72,55,36.0,23.0,36.0,32.0,False,KFC Yum! Center
+401169786,2020,2020-02-22,Xavier Musketeers,Villanova Wildcats,55,64,21.0,30.0,34.0,34.0,False,Cintas Center
+401166360,2020,2020-02-22,Auburn Tigers,Tennessee Volunteers,73,66,33.0,41.0,40.0,25.0,False,Neville Arena
+401170726,2020,2020-02-22,Arizona Wildcats,Oregon Ducks,72,73,33.0,36.0,31.0,28.0,False,McKale Memorial Center
+401169755,2020,2020-02-22,TCU Horned Frogs,West Virginia Mountaineers,67,60,29.0,31.0,26.0,24.0,False,Schollmaier Arena
+401170728,2020,2020-02-22,Colorado Buffaloes,UCLA Bruins,63,70,29.0,26.0,34.0,44.0,False,CU Events Center
+401168420,2020,2020-02-22,Providence Friars,Marquette Golden Eagles,84,72,43.0,29.0,41.0,43.0,False,Amica Mutual Pavilion
+401169484,2020,2020-02-22,Memphis Tigers,Houston Cougars,60,59,27.0,23.0,33.0,36.0,False,FedExForum
+401166241,2020,2020-02-23,Ohio State Buckeyes,Maryland Terrapins,79,72,40.0,33.0,39.0,39.0,False,Value City Arena
+401166239,2020,2020-02-23,Indiana Hoosiers,Penn State Nittany Lions,68,60,37.0,24.0,31.0,36.0,False,Simon Skjodt Assembly Hall
+401168311,2020,2020-02-23,Creighton Bluejays,Butler Bulldogs,81,59,40.0,21.0,41.0,38.0,False,CHI Health Center Omaha
+401168453,2020,2020-02-23,Seton Hall Pirates,St. John's Red Storm,81,65,36.0,22.0,45.0,43.0,False,Prudential Center
+401169759,2020,2020-02-24,Kansas Jayhawks,Oklahoma State Cowboys,83,58,35.0,25.0,48.0,33.0,False,Allen Fieldhouse
+401168518,2020,2020-02-24,Florida State Seminoles,Louisville Cardinals,82,67,32.0,40.0,50.0,27.0,False,Tucker Center
+401169758,2020,2020-02-24,Texas Longhorns,West Virginia Mountaineers,67,57,34.0,28.0,33.0,29.0,False,Frank Erwin Center
+401169761,2020,2020-02-25,Baylor Bears,Kansas State Wildcats,85,66,50.0,24.0,35.0,42.0,False,Ferrell Center
+401170312,2020,2020-02-25,George Mason Patriots,Dayton Flyers,55,62,25.0,30.0,30.0,32.0,False,EagleBank Arena
+401173796,2020,2020-02-25,San Diego State Aztecs,Colorado State Rams,66,60,34.0,36.0,32.0,24.0,False,Viejas Arena
+401168369,2020,2020-02-25,Wake Forest Demon Deacons,Duke Blue Devils,113,101,39.0,39.0,40.0,40.0,False,LJVM Coliseum
+401166368,2020,2020-02-25,Texas A&M Aggies,Kentucky Wildcats,60,69,27.0,36.0,33.0,33.0,False,Reed Arena
+401166367,2020,2020-02-25,Auburn Tigers,Ole Miss Rebels,67,58,31.0,24.0,36.0,34.0,False,Neville Arena
+401166244,2020,2020-02-25,Michigan State Spartans,Iowa Hawkeyes,78,70,27.0,33.0,51.0,37.0,False,Breslin Center
+401169762,2020,2020-02-25,Oklahoma Sooners,Texas Tech Red Raiders,65,51,32.0,22.0,33.0,29.0,False,Paycom Center
+401166245,2020,2020-02-26,Minnesota Golden Gophers,Maryland Terrapins,73,74,47.0,31.0,26.0,43.0,False,Williams Arena
+401168470,2020,2020-02-26,Villanova Wildcats,St. John's Red Storm,71,60,36.0,34.0,35.0,26.0,False,Finneran Pavilion
+401166246,2020,2020-02-26,Penn State Nittany Lions,Rutgers Scarlet Knights,65,64,42.0,24.0,23.0,40.0,False,Bryce Jordan Center
+401175288,2020,2020-02-27,Gonzaga Bulldogs,San Diego Toreros,94,59,46.0,34.0,48.0,25.0,False,McCarthey Athletic Center
+401170734,2020,2020-02-27,Oregon Ducks,Oregon State Beavers,69,54,29.0,25.0,40.0,29.0,False,Matthew Knight Arena
+401166247,2020,2020-02-27,Michigan Wolverines,Wisconsin Badgers,74,81,33.0,43.0,41.0,38.0,False,Crisler Center
+401170733,2020,2020-02-27,California Golden Bears,Colorado Buffaloes,76,62,38.0,26.0,38.0,36.0,False,Haas Pavilion
+401166248,2020,2020-02-27,Nebraska Cornhuskers,Ohio State Buckeyes,54,75,27.0,43.0,27.0,32.0,False,Pinnacle Bank Arena
+401170318,2020,2020-02-28,Dayton Flyers,Davidson Wildcats,82,67,42.0,24.0,40.0,43.0,False,UD Arena
+401169764,2020,2020-02-29,Kansas State Wildcats,Kansas Jayhawks,58,62,34.0,35.0,24.0,27.0,False,Bramlage Coliseum
+401169765,2020,2020-02-29,TCU Horned Frogs,Baylor Bears,75,72,21.0,28.0,54.0,44.0,False,Schollmaier Arena
+401175292,2020,2020-02-29,Gonzaga Bulldogs,Saint Mary's Gaels,86,76,34.0,34.0,52.0,42.0,False,McCarthey Athletic Center
+401173804,2020,2020-02-29,Nevada Wolf Pack,San Diego State Aztecs,76,83,45.0,36.0,31.0,47.0,False,Lawlor Events Center
+401168530,2020,2020-02-29,Clemson Tigers,Florida State Seminoles,70,69,32.0,39.0,38.0,30.0,False,Littlejohn Coliseum
+401168370,2020,2020-02-29,Virginia Cavaliers,Duke Blue Devils,52,50,25.0,25.0,27.0,25.0,False,John Paul Jones Arena
+401166378,2020,2020-02-29,Kentucky Wildcats,Auburn Tigers,73,66,40.0,37.0,33.0,29.0,False,Rupp Arena
+401166252,2020,2020-02-29,Maryland Terrapins,Michigan State Spartans,66,78,29.0,40.0,37.0,38.0,False,XFINITY Center
+401168439,2020,2020-02-29,Villanova Wildcats,Providence Friars,54,58,18.0,30.0,36.0,28.0,False,Xfinity Mobile Arena
+401168421,2020,2020-02-29,Marquette Golden Eagles,Seton Hall Pirates,79,88,35.0,44.0,44.0,44.0,False,Fiserv Forum
+401166251,2020,2020-02-29,Iowa Hawkeyes,Penn State Nittany Lions,77,68,35.0,34.0,42.0,34.0,False,Carver-Hawkeye Arena
+401175190,2020,2020-02-29,Pepperdine Waves,BYU Cougars,64,81,35.0,32.0,29.0,49.0,False,Firestone Fieldhouse
+401169767,2020,2020-02-29,West Virginia Mountaineers,Oklahoma Sooners,62,73,21.0,25.0,41.0,48.0,False,WVU Coliseum
+401169763,2020,2020-02-29,Texas Tech Red Raiders,Texas Longhorns,58,68,37.0,30.0,21.0,38.0,False,United Supermarkets Arena
+401168337,2020,2020-03-01,St. John's Red Storm,Creighton Bluejays,91,71,44.0,37.0,47.0,34.0,False,Carnesecca Arena
+401168519,2020,2020-03-01,Louisville Cardinals,Virginia Tech Hokies,68,52,27.0,27.0,41.0,25.0,False,KFC Yum! Center
+401166255,2020,2020-03-01,Ohio State Buckeyes,Michigan Wolverines,77,63,32.0,29.0,45.0,34.0,False,Value City Arena
+401170741,2020,2020-03-01,Stanford Cardinal,Colorado Buffaloes,72,64,35.0,28.0,37.0,36.0,False,Maples Pavilion
+401169498,2020,2020-03-01,Houston Cougars,Cincinnati Bearcats,68,55,38.0,31.0,30.0,24.0,False,Fertitta Center
+401169768,2020,2020-03-02,Baylor Bears,Texas Tech Red Raiders,71,68,30.0,30.0,30.0,30.0,False,Ferrell Center
+401168371,2020,2020-03-02,Duke Blue Devils,NC State Wolfpack,88,69,38.0,36.0,50.0,33.0,False,Cameron Indoor Stadium
+401166381,2020,2020-03-03,Kentucky Wildcats,Tennessee Volunteers,73,81,42.0,31.0,31.0,50.0,False,Rupp Arena
+401166259,2020,2020-03-03,Rutgers Scarlet Knights,Maryland Terrapins,78,67,35.0,29.0,43.0,38.0,False,Jersey Mike’s Arena
+401166258,2020,2020-03-03,Penn State Nittany Lions,Michigan State Spartans,71,79,46.0,31.0,25.0,48.0,False,Bryce Jordan Center
+401166257,2020,2020-03-03,Iowa Hawkeyes,Purdue Boilermakers,68,77,25.0,42.0,43.0,35.0,False,Carver-Hawkeye Arena
+401169772,2020,2020-03-04,Kansas Jayhawks,TCU Horned Frogs,75,66,35.0,37.0,40.0,29.0,False,Allen Fieldhouse
+401170327,2020,2020-03-04,Rhode Island Rams,Dayton Flyers,57,84,30.0,46.0,27.0,38.0,False,Thomas M. Ryan Center
+401168531,2020,2020-03-04,Notre Dame Fighting Irish,Florida State Seminoles,71,73,42.0,35.0,29.0,38.0,False,Purcell Pavilion
+401168454,2020,2020-03-04,Seton Hall Pirates,Villanova Wildcats,77,79,30.0,33.0,47.0,46.0,False,Prudential Center
+401168338,2020,2020-03-04,Creighton Bluejays,Georgetown Hoyas,91,76,48.0,33.0,43.0,43.0,False,CHI Health Center Omaha
+401166383,2020,2020-03-04,Auburn Tigers,Texas A&M Aggies,75,78,26.0,33.0,49.0,45.0,False,Neville Arena
+401168490,2020,2020-03-04,Miami Hurricanes,Virginia Cavaliers,44,46,23.0,24.0,21.0,22.0,False,Watsco Center
+401166261,2020,2020-03-04,Wisconsin Badgers,Northwestern Wildcats,63,48,34.0,28.0,29.0,20.0,False,Kohl Center
+401170744,2020,2020-03-05,Oregon Ducks,California Golden Bears,90,56,46.0,20.0,44.0,36.0,False,Matthew Knight Arena
+401166263,2020,2020-03-05,Ohio State Buckeyes,Illinois Fighting Illini,71,63,30.0,37.0,41.0,26.0,False,Value City Arena
+401169503,2020,2020-03-05,UConn Huskies,Houston Cougars,77,71,30.0,37.0,47.0,34.0,False,Gampel Pavilion
+401166262,2020,2020-03-05,Michigan Wolverines,Nebraska Cornhuskers,82,58,32.0,28.0,50.0,30.0,False,Crisler Center
+401211135,2020,2020-03-06,Northern Iowa Panthers,Drake Bulldogs,56,77,33.0,43.0,23.0,34.0,True,Enterprise Center
+401211136,2020,2020-03-06,Bradley Braves,Southern Illinois Salukis,64,59,24.0,27.0,40.0,32.0,True,Enterprise Center
+401211066,2020,2020-03-06,Samford Bulldogs,VMI Keydets,78,96,30.0,52.0,48.0,44.0,True,Harrah's Cherokee Center
+401210997,2020,2020-03-06,Winthrop Eagles,Gardner-Webb Runnin' Bulldogs,78,66,37.0,30.0,41.0,36.0,True,The Dedmon Center
+401172724,2020,2020-03-06,Bowling Green Falcons,Buffalo Bulls,84,88,33.0,40.0,51.0,48.0,False,Stroh Center
+401172721,2020,2020-03-06,Akron Zips,Kent State Golden Flashes,79,76,39.0,37.0,40.0,39.0,False,James A. Rhodes Arena
+401211137,2020,2020-03-06,Loyola Chicago Ramblers,Valparaiso Beacons,73,74,36.0,22.0,32.0,46.0,True,Enterprise Center
+401172726,2020,2020-03-06,Miami (OH) RedHawks,Ohio Bobcats,65,67,22.0,29.0,43.0,38.0,False,Millett Hall
+401172723,2020,2020-03-06,Central Michigan Chippewas,Western Michigan Broncos,85,68,33.0,29.0,52.0,39.0,False,McGuirk Arena
+401172722,2020,2020-03-06,Toledo Rockets,Eastern Michigan Eagles,79,57,32.0,26.0,47.0,31.0,False,Savage Arena
+401172327,2020,2020-03-06,Dartmouth Big Green,Yale Bulldogs,61,72,30.0,33.0,31.0,39.0,False,Leede Arena
+401172310,2020,2020-03-06,Pennsylvania Quakers,Cornell Big Red,78,64,35.0,32.0,43.0,32.0,False,The Palestra
+401172293,2020,2020-03-06,Princeton Tigers,Columbia Lions,81,58,42.0,21.0,39.0,37.0,False,Jadwin Gymnasium
+401172276,2020,2020-03-06,Harvard Crimson,Brown Bears,55,64,30.0,33.0,25.0,31.0,False,Lavietes Pavilion
+401172046,2020,2020-03-06,Monmouth Hawks,Siena Saints,72,86,34.0,43.0,38.0,43.0,False,OceanFirst Bank Center
+401171996,2020,2020-03-06,Saint Peter's Peacocks,Iona Gaels,68,65,36.0,36.0,32.0,29.0,False,Yanitelli Center
+401171977,2020,2020-03-06,Manhattan Jaspers,Fairfield Stags,50,66,17.0,34.0,33.0,32.0,False,Draddy Gymnasium
+401171953,2020,2020-03-06,Canisius Golden Griffins,Niagara Purple Eagles,67,63,28.0,29.0,39.0,34.0,False,Koessler Athletic Center
+401170332,2020,2020-03-06,Duquesne Dukes,Richmond Spiders,62,73,29.0,37.0,33.0,36.0,False,PPG Paints Arena
+401168581,2020,2020-03-06,NC State Wolfpack,Wake Forest Demon Deacons,84,64,44.0,31.0,40.0,33.0,False,Lenovo Center
+401168566,2020,2020-03-06,Clemson Tigers,Georgia Tech Yellow Jackets,62,65,28.0,39.0,34.0,26.0,False,Littlejohn Coliseum
+401211067,2020,2020-03-06,Wofford Terriers,The Citadel Bulldogs,93,76,51.0,32.0,42.0,44.0,True,Harrah's Cherokee Center
+401211063,2020,2020-03-06,Belmont Bruins,Eastern Kentucky Colonels,60,50,30.0,21.0,30.0,29.0,True,Ford Center
+401210998,2020,2020-03-06,Radford Highlanders,Hampton Pirates,78,86,34.0,39.0,44.0,47.0,False,The Dedmon Center
+401172725,2020,2020-03-06,Northern Illinois Huskies,Ball State Cardinals,54,75,24.0,36.0,30.0,39.0,False,NIU Convocation Center
+401211158,2020,2020-03-06,San Francisco Dons,Loyola Marymount Lions,82,53,39.0,26.0,43.0,27.0,True,Orleans Arena
+401211056,2020,2020-03-06,San Diego State Aztecs,Boise State Broncos,81,68,40.0,40.0,41.0,28.0,True,Thomas & Mack Center
+401170333,2020,2020-03-06,Davidson Wildcats,VCU Rams,75,65,33.0,35.0,42.0,30.0,False,John M. Belk Arena
+401211138,2020,2020-03-06,Indiana State Sycamores,Missouri State Bears,51,78,24.0,34.0,27.0,44.0,True,Enterprise Center
+401211064,2020,2020-03-06,Murray State Racers,Austin Peay Governors,73,61,36.0,29.0,37.0,32.0,True,Ford Center
+401211159,2020,2020-03-06,Pepperdine Waves,Santa Clara Broncos,84,73,41.0,26.0,43.0,47.0,True,Orleans Arena
+401211057,2020,2020-03-06,Utah State Aggies,Wyoming Cowboys,89,82,38.0,31.0,51.0,51.0,True,Thomas & Mack Center
+401169774,2020,2020-03-07,Texas Tech Red Raiders,Kansas Jayhawks,62,66,24.0,32.0,38.0,34.0,False,United Supermarkets Arena
+401170334,2020,2020-03-07,Dayton Flyers,George Washington Revolutionaries,76,51,26.0,25.0,50.0,26.0,False,UD Arena
+401169773,2020,2020-03-07,West Virginia Mountaineers,Baylor Bears,76,64,24.0,22.0,52.0,42.0,False,WVU Coliseum
+401166388,2020,2020-03-07,Florida Gators,Kentucky Wildcats,70,71,40.0,30.0,30.0,41.0,False,Stephen C. O'Connell Center
+401168532,2020,2020-03-07,Florida State Seminoles,Boston College Eagles,80,62,42.0,24.0,38.0,38.0,False,Tucker Center
+401168339,2020,2020-03-07,Creighton Bluejays,Seton Hall Pirates,77,60,32.0,32.0,45.0,28.0,False,CHI Health Center Omaha
+401168492,2020,2020-03-07,Virginia Cavaliers,Louisville Cardinals,57,54,31.0,24.0,26.0,30.0,False,John Paul Jones Arena
+401168372,2020,2020-03-07,Duke Blue Devils,North Carolina Tar Heels,89,76,42.0,34.0,47.0,42.0,False,Cameron Indoor Stadium
+401170748,2020,2020-03-07,Oregon Ducks,Stanford Cardinal,80,67,36.0,31.0,44.0,36.0,False,Matthew Knight Arena
+401168404,2020,2020-03-07,Georgetown Hoyas,Villanova Wildcats,69,70,30.0,39.0,39.0,31.0,False,Capital One Arena
+401166386,2020,2020-03-07,Tennessee Volunteers,Auburn Tigers,63,85,31.0,42.0,32.0,43.0,False,Food City Center
+401166265,2020,2020-03-07,Northwestern Wildcats,Penn State Nittany Lions,80,69,34.0,34.0,46.0,35.0,False,Welsh-Ryan Arena
+401166264,2020,2020-03-07,Indiana Hoosiers,Wisconsin Badgers,56,60,28.0,25.0,28.0,35.0,False,Simon Skjodt Assembly Hall
+401166268,2020,2020-03-08,Maryland Terrapins,Michigan Wolverines,83,70,41.0,28.0,42.0,42.0,False,XFINITY Center
+401166269,2020,2020-03-08,Michigan State Spartans,Ohio State Buckeyes,80,69,38.0,32.0,42.0,37.0,False,Breslin Center
+401166267,2020,2020-03-08,Illinois Fighting Illini,Iowa Hawkeyes,78,76,41.0,41.0,37.0,35.0,False,State Farm Center
+401169507,2020,2020-03-08,Houston Cougars,Memphis Tigers,64,57,26.0,30.0,38.0,27.0,False,Fertitta Center
+401210970,2020,2020-03-09,Hofstra Pride,Delaware Blue Hens,75,61,40.0,28.0,35.0,33.0,True,CareFirst Arena
+401211651,2020,2020-03-09,Ohio Bobcats,Central Michigan Chippewas,85,65,45.0,23.0,40.0,42.0,False,Convocation Center (OH)
+401211649,2020,2020-03-09,Toledo Rockets,Western Michigan Broncos,76,73,41.0,34.0,35.0,39.0,False,Savage Arena
+401211648,2020,2020-03-09,Kent State Golden Flashes,Eastern Michigan Eagles,86,76,39.0,28.0,47.0,48.0,False,M.A.C. Center
+401211638,2020,2020-03-09,Wright State Raiders,UIC Flames,56,73,26.0,41.0,30.0,32.0,True,Corteva Coliseum
+401211558,2020,2020-03-09,Georgia Southern Eagles,Louisiana Ragin' Cajuns,82,81,45.0,49.0,37.0,32.0,False,Hanner Fieldhouse
+401211557,2020,2020-03-09,App State Mountaineers,Coastal Carolina Chanticleers,70,65,22.0,37.0,48.0,28.0,False,Holmes Convocation Center
+401211086,2020,2020-03-09,North Dakota State Bison,Oral Roberts Golden Eagles,75,69,33.0,30.0,42.0,39.0,True,Denny Sanford Premier Center
+401211074,2020,2020-03-09,East Tennessee State Buccaneers,Wofford Terriers,72,58,36.0,31.0,36.0,27.0,True,Harrah's Cherokee Center
+401211650,2020,2020-03-09,Buffalo Bulls,Miami (OH) RedHawks,79,85,39.0,49.0,40.0,36.0,False,Alumni Arena
+401210971,2020,2020-03-09,Northeastern Huskies,Elon Phoenix,68,60,37.0,21.0,31.0,39.0,True,CareFirst Arena
+401211162,2020,2020-03-09,Gonzaga Bulldogs,San Francisco Dons,81,77,40.0,35.0,41.0,42.0,True,Orleans Arena
+401211639,2020,2020-03-09,Northern Kentucky Norse,Green Bay Phoenix,80,69,29.0,30.0,51.0,39.0,True,Corteva Coliseum
+401211087,2020,2020-03-09,North Dakota Fighting Hawks,Purdue Fort Wayne Mastodons,73,56,32.0,25.0,41.0,31.0,True,Denny Sanford Premier Center
+401211163,2020,2020-03-09,BYU Cougars,Saint Mary's Gaels,50,51,26.0,20.0,24.0,31.0,True,Orleans Arena
+401211585,2020,2020-03-10,Wake Forest Demon Deacons,Pittsburgh Panthers,72,81,41.0,40.0,31.0,41.0,True,First Horizon Coliseum
+401211030,2020,2020-03-10,Fairfield Stags,Manhattan Jaspers,43,61,19.0,19.0,24.0,42.0,True,Jim Whelan Boardwalk Hall
+401211040,2020,2020-03-10,Delaware State Hornets,Maryland Eastern Shore Hawks,68,64,31.0,30.0,37.0,34.0,True,Norfolk Scope Arena
+401211092,2020,2020-03-10,Prairie View A&M Panthers,Alabama A&M Bulldogs,82,60,37.0,27.0,45.0,33.0,False,William Nicks Building
+401211640,2020,2020-03-10,Northern Kentucky Norse,UIC Flames,71,62,34.0,24.0,37.0,38.0,True,Corteva Coliseum
+401211586,2020,2020-03-10,Virginia Tech Hokies,North Carolina Tar Heels,56,78,26.0,32.0,30.0,46.0,True,First Horizon Coliseum
+401211108,2020,2020-03-10,Vermont Catamounts,UMBC Retrievers,81,74,39.0,34.0,42.0,40.0,False,Patrick Gymnasium
+401211107,2020,2020-03-10,Stony Brook Seawolves,Hartford Hawks,58,64,19.0,31.0,39.0,33.0,False,Island FCU Arena
+401210972,2020,2020-03-10,Hofstra Pride,Northeastern Huskies,70,61,28.0,30.0,42.0,31.0,True,CareFirst Arena
+401210963,2020,2020-03-10,Robert Morris Colonials,Saint Francis Red Flash,77,67,34.0,25.0,43.0,42.0,False,UPMC Events Center
+401211031,2020,2020-03-10,Iona Gaels,Canisius Golden Griffins,70,60,36.0,32.0,34.0,28.0,True,Jim Whelan Boardwalk Hall
+401211041,2020,2020-03-10,South Carolina State Bulldogs,Howard Bison,63,70,22.0,29.0,41.0,41.0,True,Norfolk Scope Arena
+401211089,2020,2020-03-10,Texas Southern Tigers,Grambling Tigers,75,62,36.0,28.0,39.0,34.0,False,H&PE Arena
+401211164,2020,2020-03-10,Gonzaga Bulldogs,Saint Mary's Gaels,84,66,42.0,41.0,42.0,25.0,True,Orleans Arena
+401211091,2020,2020-03-10,Jackson State Tigers,Alcorn State Braves,69,52,37.0,16.0,32.0,36.0,False,Lee E. Williams Athletics and Assembly Center
+401211090,2020,2020-03-10,Southern Jaguars,Alabama State Hornets,67,53,28.0,27.0,39.0,26.0,False,F.G. Clark Activity Center
+401211088,2020,2020-03-10,North Dakota State Bison,North Dakota Fighting Hawks,89,53,49.0,22.0,40.0,31.0,True,Denny Sanford Premier Center
+401211032,2020,2020-03-10,Niagara Purple Eagles,Marist Red Foxes,56,54,31.0,30.0,25.0,24.0,True,Jim Whelan Boardwalk Hall
+401210973,2020,2020-03-11,Weber State Wildcats,Sacramento State Hornets,54,62,26.0,30.0,28.0,32.0,True,Idaho Central Arena
+401211587,2020,2020-03-11,Clemson Tigers,Miami Hurricanes,69,64,21.0,23.0,48.0,41.0,True,First Horizon Coliseum
+401210901,2020,2020-03-11,George Mason Patriots,Saint Joseph's Hawks,77,70,38.0,27.0,39.0,43.0,True,Barclays Center
+401210974,2020,2020-03-11,Southern Utah Thunderbirds,Idaho Vandals,75,69,29.0,27.0,46.0,42.0,True,Idaho Central Arena
+401211588,2020,2020-03-11,NC State Wolfpack,Pittsburgh Panthers,73,58,35.0,32.0,38.0,26.0,True,First Horizon Coliseum
+401211618,2020,2020-03-11,Oregon State Beavers,Utah Utes,71,69,31.0,39.0,40.0,30.0,True,T-Mobile Arena
+401210902,2020,2020-03-11,George Washington Revolutionaries,Fordham Rams,52,72,17.0,32.0,35.0,40.0,True,Barclays Center
+401210976,2020,2020-03-11,Northern Arizona Lumberjacks,Idaho State Bengals,62,64,29.0,44.0,33.0,20.0,True,Idaho Central Arena
+401211619,2020,2020-03-11,Arizona Wildcats,Washington Huskies,77,70,35.0,30.0,42.0,40.0,True,T-Mobile Arena
+401211075,2020,2020-03-11,Northwestern State Demons,Texas A&M-Corpus Christi Islanders,79,62,41.0,35.0,38.0,27.0,True,Leonard E. Merrell Center
+401211042,2020,2020-03-11,North Carolina Central Eagles,Delaware State Hornets,92,75,45.0,32.0,47.0,43.0,True,Norfolk Scope Arena
+401211003,2020,2020-03-11,Minnesota Golden Gophers,Northwestern Wildcats,74,57,29.0,31.0,45.0,26.0,True,Gainbridge Fieldhouse
+401211589,2020,2020-03-11,Notre Dame Fighting Irish,Boston College Eagles,80,58,36.0,21.0,44.0,37.0,True,First Horizon Coliseum
+401211560,2020,2020-03-11,Georgia State Panthers,Georgia Southern Eagles,62,81,33.0,34.0,29.0,47.0,False,Georgia State Sports Arena
+401211469,2020,2020-03-11,Oklahoma State Cowboys,Iowa State Cyclones,72,71,34.0,32.0,38.0,39.0,True,T-Mobile Center
+401211456,2020,2020-03-11,Ole Miss Rebels,Georgia Bulldogs,63,81,30.0,41.0,33.0,40.0,True,Bridgestone Arena
+401211033,2020,2020-03-11,Siena Saints,Manhattan Jaspers,63,49,34.0,25.0,29.0,24.0,True,Jim Whelan Boardwalk Hall
+401211019,2020,2020-03-11,Old Dominion Monarchs,Florida Atlantic Owls,56,66,32.0,32.0,24.0,34.0,True,Ford Center At The Star
+401210943,2020,2020-03-11,Georgetown Hoyas,St. John's Red Storm,62,75,42.0,33.0,20.0,42.0,True,Madison Square Garden
+401211660,2020,2020-03-11,Colgate Raiders,Boston University Terriers,61,64,33.0,29.0,28.0,35.0,False,Cotterell Court
+401211020,2020,2020-03-11,Florida International Panthers,Rice Owls,85,76,35.0,28.0,50.0,48.0,True,Ford Center At The Star
+401211559,2020,2020-03-11,Texas State Bobcats,App State Mountaineers,85,68,40.0,26.0,45.0,42.0,False,Strahan Arena at the University Events Center
+401211076,2020,2020-03-11,Lamar Cardinals,McNeese Cowboys,80,59,37.0,24.0,43.0,35.0,True,Leonard E. Merrell Center
+401211043,2020,2020-03-11,North Carolina A&T Aggies,Howard Bison,86,77,39.0,27.0,47.0,50.0,True,Norfolk Scope Arena
+401211004,2020,2020-03-11,Indiana Hoosiers,Nebraska Cornhuskers,89,64,43.0,34.0,46.0,30.0,True,Gainbridge Fieldhouse
+401211620,2020,2020-03-11,Stanford Cardinal,California Golden Bears,51,63,20.0,30.0,31.0,33.0,True,T-Mobile Arena
+401211590,2020,2020-03-11,Syracuse Orange,North Carolina Tar Heels,81,53,43.0,22.0,38.0,31.0,True,First Horizon Coliseum
+401211457,2020,2020-03-11,Arkansas Razorbacks,Vanderbilt Commodores,86,73,38.0,26.0,48.0,47.0,True,Bridgestone Arena
+401211034,2020,2020-03-11,Saint Peter's Peacocks,Iona Gaels,56,54,22.0,18.0,34.0,36.0,True,Jim Whelan Boardwalk Hall
+401211021,2020,2020-03-11,UAB Blazers,UTSA Roadrunners,74,69,44.0,38.0,30.0,31.0,True,Ford Center At The Star
+401210944,2020,2020-03-11,Xavier Musketeers,DePaul Blue Demons,67,71,34.0,38.0,33.0,33.0,True,Madison Square Garden
+401211470,2020,2020-03-11,TCU Horned Frogs,Kansas State Wildcats,49,53,18.0,28.0,31.0,25.0,True,T-Mobile Center
+401211022,2020,2020-03-11,Marshall Thundering Herd,UTEP Miners,86,78,43.0,32.0,43.0,46.0,True,Ford Center At The Star
+401211621,2020,2020-03-11,Colorado Buffaloes,Washington State Cougars,68,82,25.0,35.0,43.0,47.0,True,T-Mobile Arena
+401211005,2020,2020-03-12,Rutgers Scarlet Knights,Michigan Wolverines,0,0,,,,,True,Gainbridge Fieldhouse
+401210945,2020,2020-03-12,Creighton Bluejays,St. John's Red Storm,0,0,,,,,True,Madison Square Garden
+401210903,2020,2020-03-12,Massachusetts Minutemen,VCU Rams,0,0,,,,,True,Barclays Center
+401211591,2020,2020-03-12,Florida State Seminoles,Clemson Tigers,0,0,,,,,True,First Horizon Coliseum
+401211471,2020,2020-03-12,Texas Longhorns,Texas Tech Red Raiders,0,0,,,,,True,T-Mobile Center
+401211644,2020,2020-03-12,Akron Zips,Ohio Bobcats,0,0,,,,,True,Rocket Arena
+401211598,2020,2020-03-12,UCF Knights,South Florida Bulls,0,0,,,,,True,Dickies Arena
+401211458,2020,2020-03-12,Tennessee Volunteers,Alabama Crimson Tide,0,0,,,,,True,Bridgestone Arena
+401210977,2020,2020-03-12,Eastern Washington Eagles,Sacramento State Hornets,0,0,,,,,True,Idaho Central Arena
+401211007,2020,2020-03-12,Iowa Hawkeyes,Minnesota Golden Gophers,0,0,,,,,True,Gainbridge Fieldhouse
+401211592,2020,2020-03-12,Duke Blue Devils,NC State Wolfpack,0,0,,,,,True,First Horizon Coliseum
+401211472,2020,2020-03-12,Kansas Jayhawks,Oklahoma State Cowboys,0,0,,,,,False,T-Mobile Center
+401210946,2020,2020-03-12,Providence Friars,Butler Bulldogs,0,0,,,,,True,Madison Square Garden
+401210904,2020,2020-03-12,St. Bonaventure Bonnies,George Mason Patriots,0,0,,,,,True,Barclays Center
+401211622,2020,2020-03-12,Oregon Ducks,Oregon State Beavers,0,0,,,,,True,T-Mobile Arena
+401211599,2020,2020-03-12,UConn Huskies,Tulane Green Wave,0,0,,,,,True,Dickies Arena
+401211459,2020,2020-03-12,Florida Gators,Georgia Bulldogs,0,0,,,,,True,Bridgestone Arena
+401211110,2020,2020-03-12,Cal State Northridge Matadors,Cal State Fullerton Titans,0,0,,,,,True,Honda Center
+401211096,2020,2020-03-12,New Mexico State Aggies,Chicago State Cougars,0,0,,,,,True,Orleans Arena
+401211645,2020,2020-03-12,Northern Illinois Huskies,Miami (OH) RedHawks,0,0,,,,,True,Rocket Arena
+401210979,2020,2020-03-12,Portland State Vikings,Montana State Bobcats,0,0,,,,,True,Idaho Central Arena
+401211623,2020,2020-03-12,USC Trojans,Arizona Wildcats,0,0,,,,,True,T-Mobile Arena
+401211111,2020,2020-03-12,UC Santa Barbara Gauchos,UC Riverside Highlanders,0,0,,,,,True,Honda Center
+401211097,2020,2020-03-12,Grand Canyon Lopes,Kansas City Roos,0,0,,,,,True,Orleans Arena
+401211077,2020,2020-03-12,Sam Houston Bearkats,Northwestern State Demons,0,0,,,,,True,Leonard E. Merrell Center
+401211044,2020,2020-03-12,Bethune-Cookman Wildcats,Morgan State Bears,0,0,,,,,True,Norfolk Scope Arena
+401210905,2020,2020-03-12,Davidson Wildcats,La Salle Explorers,0,0,,,,,True,Barclays Center
+401211646,2020,2020-03-12,Bowling Green Falcons,Toledo Rockets,0,0,,,,,True,Rocket Arena
+401211008,2020,2020-03-12,Ohio State Buckeyes,Purdue Boilermakers,0,0,,,,,True,Gainbridge Fieldhouse
+401211613,2020,2020-03-12,Baylor Bears,Kansas State Wildcats,0,0,,,,,True,T-Mobile Center
+401211593,2020,2020-03-12,Virginia Cavaliers,Notre Dame Fighting Irish,0,0,,,,,True,First Horizon Coliseum
+401211460,2020,2020-03-12,Texas A&M Aggies,Missouri Tigers,0,0,,,,,True,Bridgestone Arena
+401211036,2020,2020-03-12,Rider Broncs,Niagara Purple Eagles,0,0,,,,,True,Jim Whelan Boardwalk Hall
+401211023,2020,2020-03-12,North Texas Mean Green,Florida Atlantic Owls,0,0,,,,,True,Ford Center At The Star
+401210947,2020,2020-03-12,Villanova Wildcats,DePaul Blue Demons,0,0,,,,,True,Madison Square Garden
+401211024,2020,2020-03-12,Charlotte 49ers,Florida International Panthers,0,0,,,,,True,Ford Center At The Star
+401210980,2020,2020-03-12,Northern Colorado Bears,Southern Utah Thunderbirds,0,0,,,,,True,Idaho Central Arena
+401211600,2020,2020-03-12,SMU Mustangs,Temple Owls,0,0,,,,,True,Dickies Arena
+401211078,2020,2020-03-12,Nicholls Colonels,Lamar Cardinals,0,0,,,,,True,Leonard E. Merrell Center
+401211045,2020,2020-03-12,Norfolk State Spartans,Coppin State Eagles,0,0,,,,,True,Norfolk Scope Arena
+401210906,2020,2020-03-12,Duquesne Dukes,Fordham Rams,0,0,,,,,True,Barclays Center
+401211009,2020,2020-03-12,Penn State Nittany Lions,Indiana Hoosiers,0,0,,,,,True,Gainbridge Fieldhouse
+401211647,2020,2020-03-12,Ball State Cardinals,Kent State Golden Flashes,0,0,,,,,True,Rocket Arena
+401211624,2020,2020-03-12,UCLA Bruins,California Golden Bears,0,0,,,,,True,T-Mobile Arena
+401211614,2020,2020-03-12,Oklahoma Sooners,West Virginia Mountaineers,0,0,,,,,True,T-Mobile Center
+401211594,2020,2020-03-12,Louisville Cardinals,Syracuse Orange,0,0,,,,,True,First Horizon Coliseum
+401211461,2020,2020-03-12,South Carolina Gamecocks,Arkansas Razorbacks,0,0,,,,,True,Bridgestone Arena
+401211112,2020,2020-03-12,UC Irvine Anteaters,Long Beach State Beach,0,0,,,,,True,Honda Center
+401211098,2020,2020-03-12,UT Rio Grande Valley Vaqueros,Cal State Bakersfield Roadrunners,0,0,,,,,True,Orleans Arena
+401211035,2020,2020-03-12,Monmouth Hawks,Quinnipiac Bobcats,0,0,,,,,True,Jim Whelan Boardwalk Hall
+401211025,2020,2020-03-12,Western Kentucky Hilltoppers,UAB Blazers,0,0,,,,,True,Ford Center At The Star
+401210948,2020,2020-03-12,Seton Hall Pirates,Marquette Golden Eagles,0,0,,,,,True,Madison Square Garden
+401211601,2020,2020-03-12,Memphis Tigers,East Carolina Pirates,0,0,,,,,True,Dickies Arena
+401211026,2020,2020-03-12,Louisiana Tech Bulldogs,Marshall Thundering Herd,0,0,,,,,True,Ford Center At The Star
+401210981,2020,2020-03-12,Montana Grizzlies,Idaho State Bengals,0,0,,,,,True,Idaho Central Arena
+401211625,2020,2020-03-12,Arizona State Sun Devils,Washington State Cougars,0,0,,,,,True,T-Mobile Arena
+401211113,2020,2020-03-12,Hawai'i Rainbow Warriors,UC Davis Aggies,0,0,,,,,True,Honda Center
+401211099,2020,2020-03-12,Seattle U Redhawks,Utah Valley Wolverines,0,0,,,,,True,Orleans Arena
+401211011,2020,2020-03-13,Wisconsin Badgers,TBD,0,0,,,,,True,Gainbridge Fieldhouse
+401210907,2020,2020-03-13,Dayton Flyers,TBD,0,0,,,,,True,Barclays Center
+401211602,2020,2020-03-13,Cincinnati Bearcats,TBD,0,0,,,,,True,Dickies Arena
+401211462,2020,2020-03-13,Kentucky Wildcats,TBD,0,0,,,,,True,Bridgestone Arena
+401211027,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Ford Center At The Star
+401211012,2020,2020-03-13,Illinois Fighting Illini,TBD,0,0,,,,,True,Gainbridge Fieldhouse
+401210908,2020,2020-03-13,Saint Louis Billikens,TBD,0,0,,,,,True,Barclays Center
+401211603,2020,2020-03-13,Wichita State Shockers,TBD,0,0,,,,,True,Dickies Arena
+401211463,2020,2020-03-13,Mississippi State Bulldogs,TBD,0,0,,,,,True,Bridgestone Arena
+401211093,2020,2020-03-13,Prairie View A&M Panthers,Jackson State Tigers,0,0,,,,,True,Bartow Arena
+401211028,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Ford Center At The Star
+401211079,2020,2020-03-13,Stephen F. Austin Lumberjacks,TBD,0,0,,,,,True,Leonard E. Merrell Center
+401211046,2020,2020-03-13,North Carolina Central Eagles,TBD,0,0,,,,,True,Norfolk Scope Arena
+401211037,2020,2020-03-13,Siena Saints,TBD,0,0,,,,,True,Jim Whelan Boardwalk Hall
+401210909,2020,2020-03-13,Richmond Spiders,TBD,0,0,,,,,True,Barclays Center
+401211013,2020,2020-03-13,Michigan State Spartans,TBD,0,0,,,,,True,Gainbridge Fieldhouse
+401210949,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Madison Square Garden
+401211642,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Rocket Arena
+401211615,2020,2020-03-13,TBD,TBD,0,0,,,,,True,T-Mobile Center
+401211595,2020,2020-03-13,TBD,TBD,0,0,,,,,True,First Horizon Coliseum
+401211464,2020,2020-03-13,Auburn Tigers,TBD,0,0,,,,,True,Bridgestone Arena
+401211604,2020,2020-03-13,Houston Cougars,TBD,0,0,,,,,True,Dickies Arena
+401210982,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Idaho Central Arena
+401211038,2020,2020-03-13,Saint Peter's Peacocks,TBD,0,0,,,,,True,Jim Whelan Boardwalk Hall
+401211080,2020,2020-03-13,Abilene Christian Wildcats,TBD,0,0,,,,,True,Leonard E. Merrell Center
+401211047,2020,2020-03-13,North Carolina A&T Aggies,TBD,0,0,,,,,True,Norfolk Scope Arena
+401210910,2020,2020-03-13,Rhode Island Rams,TBD,0,0,,,,,True,Barclays Center
+401211014,2020,2020-03-13,Maryland Terrapins,TBD,0,0,,,,,True,Gainbridge Fieldhouse
+401211626,2020,2020-03-13,TBD,TBD,0,0,,,,,True,T-Mobile Arena
+401211616,2020,2020-03-13,TBD,TBD,0,0,,,,,True,T-Mobile Center
+401211596,2020,2020-03-13,TBD,TBD,0,0,,,,,True,First Horizon Coliseum
+401211465,2020,2020-03-13,LSU Tigers,TBD,0,0,,,,,True,Bridgestone Arena
+401211100,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Orleans Arena
+401210950,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Madison Square Garden
+401211643,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Rocket Arena
+401211605,2020,2020-03-13,Tulsa Golden Hurricane,TBD,0,0,,,,,True,Dickies Arena
+401211114,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Honda Center
+401211094,2020,2020-03-13,Southern Jaguars,Texas Southern Tigers,0,0,,,,,True,Bartow Arena
+401210983,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Idaho Central Arena
+401211627,2020,2020-03-13,TBD,TBD,0,0,,,,,True,T-Mobile Arena
+401211101,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Orleans Arena
+401211116,2020,2020-03-13,TBD,TBD,0,0,,,,,True,Honda Center
+401211609,2020,2020-03-14,Yale Bulldogs,Pennsylvania Quakers,0,0,,,,,True,Lavietes Pavilion
+401211109,2020,2020-03-14,Vermont Catamounts,Hartford Hawks,0,0,,,,,False,Patrick Gymnasium
+401211561,2020,2020-03-14,Little Rock Trojans,Georgia Southern Eagles,0,0,,,,,True,Smoothie King Center
+401211466,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Bridgestone Arena
+401211048,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Norfolk Scope Arena
+401211015,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Gainbridge Fieldhouse
+401210911,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Barclays Center
+401211610,2020,2020-03-14,Harvard Crimson,Princeton Tigers,0,0,,,,,False,Lavietes Pavilion
+401211606,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Dickies Arena
+401211562,2020,2020-03-14,South Alabama Jaguars,Texas State Bobcats,0,0,,,,,True,Smoothie King Center
+401211467,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Bridgestone Arena
+401211017,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Gainbridge Fieldhouse
+401210912,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Barclays Center
+401211039,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Jim Whelan Boardwalk Hall
+401211607,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Dickies Arena
+401211617,2020,2020-03-14,TBD,TBD,0,0,,,,,True,T-Mobile Center
+401211095,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Bartow Arena
+401210951,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Madison Square Garden
+401211641,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Rocket Arena
+401210984,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Idaho Central Arena
+401211597,2020,2020-03-14,TBD,TBD,0,0,,,,,True,First Horizon Coliseum
+401211029,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Ford Center At The Star
+401211081,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Leonard E. Merrell Center
+401211102,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Orleans Arena
+401211628,2020,2020-03-14,TBD,TBD,0,0,,,,,True,T-Mobile Arena
+401211115,2020,2020-03-14,TBD,TBD,0,0,,,,,True,Honda Center
+401211611,2020,2020-03-15,TBD,TBD,0,0,,,,,True,Lavietes Pavilion
+401211468,2020,2020-03-15,TBD,TBD,0,0,,,,,True,Bridgestone Arena
+401210933,2020,2020-03-15,TBD,TBD,0,0,,,,,True,Barclays Center
+401211564,2020,2020-03-15,TBD,TBD,0,0,,,,,True,Smoothie King Center
+401211608,2020,2020-03-15,TBD,TBD,0,0,,,,,True,Dickies Arena
+401211018,2020,2020-03-15,TBD,TBD,0,0,,,,,True,Gainbridge Fieldhouse
+401216199,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216198,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216197,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216196,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216195,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216194,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216193,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216192,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216147,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216146,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216145,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216144,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216135,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216134,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216133,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216132,2020,2020-03-19,TBD,TBD,0,0,,,,,True,
+401216191,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216190,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216189,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216188,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216187,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216186,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216185,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216184,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216151,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216150,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216149,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216148,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216139,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216138,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216137,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216136,2020,2020-03-20,TBD,TBD,0,0,,,,,True,
+401216179,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216178,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216177,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216176,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216173,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216152,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216141,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216140,2020,2020-03-21,TBD,TBD,0,0,,,,,True,
+401216183,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216182,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216181,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216180,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216175,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216174,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216143,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216142,2020,2020-03-22,TBD,TBD,0,0,,,,,True,
+401216090,2020,2020-03-26,TBD,TBD,0,0,,,,,True,Lucas Oil Stadium
+401216089,2020,2020-03-26,TBD,TBD,0,0,,,,,True,Lucas Oil Stadium
+401216088,2020,2020-03-26,TBD,TBD,0,0,,,,,True,crypto.com Arena
+401216087,2020,2020-03-26,TBD,TBD,0,0,,,,,True,crypto.com Arena
+401216154,2020,2020-03-27,TBD,TBD,0,0,,,,,True,Madison Square Garden
+401216153,2020,2020-03-27,TBD,TBD,0,0,,,,,True,Madison Square Garden
+401216092,2020,2020-03-27,TBD,TBD,0,0,,,,,True,Toyota Center (Houston)
+401216091,2020,2020-03-27,TBD,TBD,0,0,,,,,True,Toyota Center (Houston)
+401216086,2020,2020-03-28,TBD,TBD,0,0,,,,,True,crypto.com Arena
+401216085,2020,2020-03-28,TBD,TBD,0,0,,,,,True,Lucas Oil Stadium
+401216084,2020,2020-03-29,TBD,TBD,0,0,,,,,True,Toyota Center (Houston)
+401216083,2020,2020-03-29,TBD,TBD,0,0,,,,,True,Madison Square Garden
+401216082,2020,2020-04-04,TBD,TBD,0,0,,,,,True,Mercedes-Benz Stadium
+401216081,2020,2020-04-04,TBD,TBD,0,0,,,,,True,Mercedes-Benz Stadium
+401216080,2020,2020-04-06,TBD,TBD,0,0,,,,,True,Mercedes-Benz Stadium

@@ -1,0 +1,2 @@
+date,n_games,n_with_pred,mae_model_total,mae_closing_total,beat_rate_vs_closing,n_picks,n_wins,n_losses,n_pushes,mae_model_total_1h,mae_model_total_2h,ats_cover_rate_full,ats_cover_rate_1h,brier_ml,logloss_ml
+2025-12-03,78,0,,,,0,0,0,0,,,0.23076923076923078,0.24358974358974358,,

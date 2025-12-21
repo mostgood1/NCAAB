@@ -1,0 +1,19 @@
+﻿[LightGBM] [Info] Auto-choosing col-wise multi-threading, the overhead of testing was 0.000671 seconds.
+You can set `force_col_wise=true` to remove the overhead.
+[LightGBM] [Info] Total Bins 10128
+[LightGBM] [Info] Number of data points in the train set: 2688, number of used features: 48
+[LightGBM] [Info] Start training from score 140.893973
+{
+  "target": "total",
+  "algo": "lightgbm",
+  "split": "random",
+  "test_size": 672,
+  "pred_variance": 1331.3557559043481,
+  "pred_std": 36.48774802456776,
+  "pred_iqr": 27.67973342174426,
+  "pred_min": 10.963630513060448,
+  "pred_max": 218.3864789842169,
+  "timestamp_utc": "2025-12-09T14:49:35.918679",
+  "status": "ok"
+}
+

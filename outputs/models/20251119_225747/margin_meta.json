@@ -1,0 +1,23 @@
+{
+  "algo": "lightgbm",
+  "features": [
+    "home_off_rating",
+    "away_off_rating",
+    "home_def_rating",
+    "away_def_rating",
+    "off_diff",
+    "def_diff",
+    "tempo_avg",
+    "tempo_rating_sum",
+    "home_rating_margin",
+    "away_rating_margin",
+    "rating_margin_diff"
+  ],
+  "train_rows": 632,
+  "test_rows": 210,
+  "mae": 7.302580564428724,
+  "rmse": 10.643836099367407,
+  "baseline_mae": 14.133333333333333,
+  "timestamp_utc": "2025-11-19T22:57:47.629200",
+  "status": "ok"
+}
