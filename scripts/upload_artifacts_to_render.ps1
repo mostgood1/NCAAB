@@ -50,10 +50,12 @@ function Upload-File {
 }
 
 # Resolve artifact paths
-$picksPath   = Join-Path -Path $OutputsDir -ChildPath 'picks_raw.csv'
-$edgesPath   = Join-Path -Path $OutputsDir -ChildPath ("align_period_{0}_edges.csv" -f $Date)
-$displayPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.csv" -f $Date)
-$resultsPath = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
+$picksPath     = Join-Path -Path $OutputsDir -ChildPath 'picks_raw.csv'
+$picksAtsPath  = Join-Path -Path $OutputsDir -ChildPath ("picks/ats_picks_{0}.csv" -f $Date)
+$edgesPath     = Join-Path -Path $OutputsDir -ChildPath ("align_period_{0}_edges.csv" -f $Date)
+$displayPath   = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.csv" -f $Date)
+$enrichedPath  = Join-Path -Path $OutputsDir -ChildPath ("predictions_unified_enriched_{0}.csv" -f $Date)
+$resultsPath   = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
 
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
 Write-Step "Outputs dir: $OutputsDir"
@@ -67,7 +69,7 @@ function Get-CsvRowCount {
     } catch { return 0 }
 }
 
-# Upload in preferred order: picks_raw -> edges(date) -> display(date)
+# Upload in preferred order: picks_raw -> ATS picks(date) -> edges(date) -> display(date) -> enriched(date)
 $picksRows = Get-CsvRowCount -Path $picksPath
 if ($picksRows -gt 0) {
     $u1 = Upload-File -Uri "$BaseUrl/api/upload_picks_raw" -FilePath $picksPath
@@ -76,11 +78,24 @@ if ($picksRows -gt 0) {
     Write-Host "[Skip] picks_raw.csv has 0 rows; preserving remote non-empty file." -ForegroundColor Yellow
 }
 
+# Upload ATS picks if present
+$picksAtsRows = Get-CsvRowCount -Path $picksAtsPath
+if ($picksAtsRows -gt 0) {
+    $u1b = Upload-File -Uri "$BaseUrl/api/upload_ats_picks" -FilePath $picksAtsPath -Query @{ date = $Date }
+    if ($u1b) { Write-Host "[OK] ats_picks uploaded: rows=$($u1b.rows)" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] ats_picks missing or empty for $Date" -ForegroundColor Yellow
+}
+
 $u2 = Upload-File -Uri "$BaseUrl/api/upload_align_edges" -FilePath $edgesPath -Query @{ date = $Date }
 if ($u2) { Write-Host "[OK] edges uploaded: rows=$($u2.rows)" -ForegroundColor Green }
 
 $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayPath -Query @{ date = $Date }
 if ($u3) { Write-Host "[OK] display uploaded: rows=$($u3.rows)" -ForegroundColor Green }
+
+# Upload enriched predictions snapshot for recommendations parity
+$u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedPath -Query @{ date = $Date }
+if ($u3b) { Write-Host "[OK] enriched uploaded: rows=$($u3b.rows)" -ForegroundColor Green }
 
 # Upload daily results if present
 $resRows = Get-CsvRowCount -Path $resultsPath
