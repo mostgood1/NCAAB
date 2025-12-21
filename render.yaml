@@ -18,6 +18,10 @@ services:
         value: UTC
       - key: NCAAB_LIGHT_MODE
         value: "1"
+      - key: NCAAB_P_OVER_THRESHOLD_HIGH
+        value: "0.50"
+      - key: NCAAB_P_OVER_THRESHOLD_LOW
+        value: "0.42"
     healthCheckPath: /healthz
     
     # Optional persistent disk if you later want to write outputs on Render
