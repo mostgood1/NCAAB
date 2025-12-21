@@ -117,14 +117,22 @@ $debug = $null
 $recs = $null
 try {
     $debug = Invoke-RestMethod -Uri "$BaseUrl/api/debug_artifacts?date=$Date" -Method Get
-    Write-Host "[Debug] exist(picks)=$($debug.global_picks_raw.exists) exist(edges)=$($debug.edges.exists) display_rows=$($debug.display.rows)" -ForegroundColor White
+    $art = $debug.artifacts
+    $p_rows = if ($art -and $art.ContainsKey('picks_raw.csv')) { $art['picks_raw.csv'].rows } else { $null }
+    $e_key = "align_period_${Date}_edges.csv"
+    $d_key = "predictions_display_${Date}.csv"
+    $ap_key = "picks/ats_picks_${Date}.csv"
+    $e_rows = if ($art -and $art.ContainsKey($e_key)) { $art[$e_key].rows } else { $null }
+    $d_rows = if ($art -and $art.ContainsKey($d_key)) { $art[$d_key].rows } else { $null }
+    $ap_rows = if ($art -and $art.ContainsKey($ap_key)) { $art[$ap_key].rows } else { $null }
+    Write-Host "[Debug] picks_raw_rows=$p_rows ats_picks_rows=$ap_rows edges_rows=$e_rows display_rows=$d_rows" -ForegroundColor White
 } catch {
     Write-Host "[Warn] debug_artifacts check failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
 try {
     $recs = Invoke-RestMethod -Uri "$BaseUrl/api/recommendations?date=$Date" -Method Get
-    $rowCount = if ($recs -is [System.Collections.IEnumerable]) { ($recs | Measure-Object).Count } else { 0 }
+    $rowCount = if ($recs.rows) { ($recs.data | Measure-Object).Count } else { 0 }
     Write-Host "[Check] recommendations rows=$rowCount" -ForegroundColor White
     if ($rowCount -eq 0) {
         Write-Host "[Alert] Recommendations are empty. Check uploads and server fallbacks." -ForegroundColor Yellow
