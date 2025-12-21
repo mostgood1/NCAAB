@@ -18906,6 +18906,42 @@ def api_recommendations():
                     tots = df[m].copy()
                     if tots.empty:
                         return tots
+                    # Load per-date over probabilities from enriched snapshot for gating/side selection
+                    prob_map: dict[str, float | None] = {}
+                    try:
+                        if date_q:
+                            en_path = OUT / f"predictions_unified_enriched_{date_q}.csv"
+                            base_path = OUT / f"predictions_unified_{date_q}.csv"
+                            src = en_path if en_path.exists() else (base_path if base_path.exists() else None)
+                            if src:
+                                df_en = _safe_read_csv(src)
+                                pcol = None
+                                for c in ['p_over_final','p_over_meta_cal','p_over_display','p_over','p_over_emp','p_over_dist','p_over_ensemble']:
+                                    if c in df_en.columns:
+                                        pcol = c; break
+                                if pcol and 'game_id' in df_en.columns:
+                                    try:
+                                        df_en['game_id'] = df_en['game_id'].astype(str)
+                                    except Exception:
+                                        pass
+                                    for r in df_en.to_dict(orient='records'):
+                                        try:
+                                            gid = str(r.get('game_id') or '')
+                                            pv = r.get(pcol)
+                                            prob_map[gid] = float(pv) if (pv is not None and str(pv).strip()!='' and pd.notna(pv)) else None
+                                        except Exception:
+                                            continue
+                    except Exception:
+                        prob_map = {}
+                    # Thresholds for probability gating (env-configurable)
+                    try:
+                        p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
+                    except Exception:
+                        p_hi = 0.52
+                    try:
+                        p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
+                    except Exception:
+                        p_lo = 0.48
                     def _tot_side(r: pd.Series) -> str:
                         try:
                             pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
@@ -18925,6 +18961,37 @@ def api_recommendations():
                     tots['line'] = tots['total'] if 'total' in tots.columns else None
                     tots['price'] = tots.apply(lambda r: (r['over_price'] if str(r.get('bet')).lower() == 'over' else r['under_price']), axis=1)
                     tots['edge'] = tots['edge_total'].abs() if 'edge_total' in tots.columns else None
+                    # Attach probability and adjust side by probability when confident
+                    try:
+                        if 'game_id' in tots.columns:
+                            tots['game_id'] = tots['game_id'].astype(str)
+                            tots['p_over_prob'] = tots['game_id'].map(prob_map)
+                            def _prob_side(r: pd.Series) -> str:
+                                try:
+                                    p = float(r.get('p_over_prob')) if r.get('p_over_prob') is not None else np.nan
+                                    if np.isfinite(p):
+                                        if p >= p_hi:
+                                            return 'Over'
+                                        if p <= p_lo:
+                                            return 'Under'
+                                except Exception:
+                                    pass
+                                return str(r.get('bet'))
+                            tots['bet'] = tots.apply(_prob_side, axis=1)
+                            # Gate: keep only totals with confident probability
+                            def _keep(r: pd.Series) -> bool:
+                                try:
+                                    p = float(r.get('p_over_prob')) if r.get('p_over_prob') is not None else np.nan
+                                    b = str(r.get('bet')).lower()
+                                    if np.isfinite(p):
+                                        return (p >= p_hi and b == 'over') or (p <= p_lo and b == 'under')
+                                    # If no probability, drop to avoid overs-only bias
+                                    return False
+                                except Exception:
+                                    return False
+                            tots = tots[tots.apply(_keep, axis=1)]
+                    except Exception:
+                        pass
                     tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'
                     return tots
                 def _spreads(df: pd.DataFrame) -> pd.DataFrame:
@@ -18981,6 +19048,27 @@ def api_recommendations():
             ddf = pd.read_csv(dpath) if (dpath and dpath.exists()) else pd.DataFrame()
             if not ddf.empty:
                 def _side(r: pd.Series) -> str:
+                    # Prefer probability-based side when confident
+                    try:
+                        # Load thresholds once
+                        try:
+                            p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
+                        except Exception:
+                            p_hi = 0.52
+                        try:
+                            p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
+                        except Exception:
+                            p_lo = 0.48
+                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                        if p is not None and str(p).strip()!='':
+                            p2 = float(p)
+                            if p2 >= p_hi:
+                                return 'Over'
+                            if p2 <= p_lo:
+                                return 'Under'
+                    except Exception:
+                        pass
+                    # Fallback to edge_total sign
                     try:
                         et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
                         if np.isfinite(et):
@@ -19002,7 +19090,34 @@ def api_recommendations():
                 out['pred_total'] = ddf.get('pred_total')
                 out['pred_margin'] = ddf.get('pred_margin')
                 out['rec_type'] = 'Totals'; out['rec_code'] = 'OU'
-                picks = out
+                # Gate by probability: keep only confident rows
+                try:
+                    try:
+                        p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
+                    except Exception:
+                        p_hi = 0.52
+                    try:
+                        p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
+                    except Exception:
+                        p_lo = 0.48
+                    def _keep_row(r: pd.Series) -> bool:
+                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                        b = str(r.get('bet')).lower()
+                        try:
+                            if p is not None and str(p).strip()!='':
+                                pv = float(p)
+                                return (pv >= p_hi and b=='over') or (pv <= p_lo and b=='under')
+                            return False
+                        except Exception:
+                            return False
+                    df_keep = ddf[ddf.apply(_keep_row, axis=1)]
+                    if not df_keep.empty:
+                        out = out.loc[df_keep.index]
+                        picks = out
+                    else:
+                        picks = pd.DataFrame()
+                except Exception:
+                    picks = out
         except Exception:
             picks = pd.DataFrame()
     # If date provided, filter
