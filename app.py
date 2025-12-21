@@ -18518,6 +18518,17 @@ def recommendations():
                                 mt_map = dict(zip(_dfd['game_id'], _dfd['market_total']))
                             if 'p_over' in _dfd.columns:
                                 po_map = dict(zip(_dfd['game_id'], _dfd['p_over']))
+                    # Fallback: use enriched meta sidecar for probabilities when display lacks them
+                    p_meta = OUT / f"predictions_unified_enriched_{disp_date}_meta.csv"
+                    if (not po_map) and p_meta.exists():
+                        try:
+                            _dfm = pd.read_csv(p_meta)
+                            if not _dfm.empty and 'game_id' in _dfm.columns:
+                                _dfm['game_id'] = _dfm['game_id'].astype(str)
+                                if 'p_over' in _dfm.columns:
+                                    po_map = dict(zip(_dfm['game_id'], _dfm['p_over']))
+                        except Exception:
+                            pass
             except Exception:
                 pt_map = {}; mt_map = {}; po_map = {}
             for oi in out_items:
