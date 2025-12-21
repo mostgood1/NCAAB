@@ -17987,7 +17987,66 @@ def recommendations():
                             continue
                 return None
             if "line" not in picks.columns:
-                picks["line"] = picks.apply(lambda r: _first_num(r, ["line_value","total","market_total","closing_total","spread","closing_spread_home"]) , axis=1)
+                def _resolve_line(r: pd.Series):
+                    try:
+                        # If an explicit numeric line exists, keep it
+                        cand = _first_num(r, ["line", "line_value"])
+                        if cand is not None and np.isfinite(float(cand)):
+                            return float(cand)
+                    except Exception:
+                        pass
+                    mkt = str(r.get("market") or "").strip().lower()
+                    sel = str(r.get("selection") or r.get("bet") or "").strip().lower()
+                    # Totals: prefer market/closing total
+                    if any(x in mkt for x in ("total","over/under","ou")):
+                        cand = _first_num(r, ["total","market_total","closing_total"])
+                        return cand
+                    # Spreads: derive side-specific line
+                    if any(x in mkt for x in ("spread","ats")):
+                        # Determine side: prefer explicit selection text, else predicted margin sign
+                        home = r.get("home_team") or r.get("home_team_name") or ""
+                        away = r.get("away_team") or r.get("away_team_name") or ""
+                        side_home = False
+                        if sel:
+                            s_norm = sel.lower()
+                            if ("home" in s_norm) or (normalize_name(str(home)) == s_norm):
+                                side_home = True
+                            elif ("away" in s_norm) or (normalize_name(str(away)) == s_norm):
+                                side_home = False
+                            else:
+                                # Fallback using pred_margin sign
+                                try:
+                                    pm = float(r.get("pred_margin")) if r.get("pred_margin") is not None else None
+                                    side_home = (pm is not None and pm >= 0)
+                                except Exception:
+                                    side_home = True
+                        else:
+                            try:
+                                pm = float(r.get("pred_margin")) if r.get("pred_margin") is not None else None
+                                side_home = (pm is not None and pm >= 0)
+                            except Exception:
+                                side_home = True
+                        # Pull side-specific spread when available
+                        if side_home:
+                            cand = _first_num(r, ["home_spread","closing_spread_home","spread","close_home_spread"])  # include alias
+                            if cand is not None:
+                                return cand
+                        else:
+                            cand = _first_num(r, ["away_spread","close_away_spread"])  # prefer explicit away spread
+                            if cand is not None:
+                                return cand
+                            # If only home closing spread exists, flip the sign for away
+                            cand = _first_num(r, ["closing_spread_home","home_spread","close_home_spread"])  # alias
+                            if cand is not None:
+                                try:
+                                    v = float(cand)
+                                    return (-v)
+                                except Exception:
+                                    return None
+                        return None
+                    # Moneyline or other: no line
+                    return _first_num(r, ["total","market_total","closing_total"])  # keep totals if mislabeled
+                picks["line"] = picks.apply(_resolve_line, axis=1)
             if "price" not in picks.columns:
                 picks["price"] = picks.apply(lambda r: _first_num(r, ["price","american_odds","odds","decimal_odds"]) , axis=1)
     except Exception:
