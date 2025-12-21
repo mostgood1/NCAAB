@@ -960,6 +960,10 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
   if (Test-Path $stakeCal) { $toStage += $stakeCal }
 
+  # ATS picks for UI consumption (publish per-date CSV)
+  $picksAts = Join-Path $OutDir ("picks\ats_picks_" + $todayIso + ".csv")
+  if (Test-Path $picksAts) { $toStage += $picksAts }
+
   # Model selection and conformal autotune artifacts
   $qcv = Join-Path $OutDir 'quantile_cv_results.csv'
   if (Test-Path $qcv) { $toStage += $qcv }
@@ -1023,6 +1027,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
             $p -like "*outputs\\metrics\\*.json" -or 
             $p -like "*outputs\\diagnostics\\*" -or 
             $p -like "*outputs\\picks_raw.csv" -or 
+            $p -like "*outputs\\picks\\ats_picks_*.csv" -or 
             $p -like "*outputs\\align_period_*_edges.csv" -or 
             $p -like "*outputs\\daily_results\\results_*.csv"
           ) {
@@ -1048,6 +1053,41 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   # Inference variance summary (produced earlier in step 5d) if present
   $infVarSummaryPath = Join-Path $OutDir ("variance/inference_variance_" + $todayIso + ".json")
   if (Test-Path $infVarSummaryPath) { git add $infVarSummaryPath }
+        # Guard: Unstage any files not explicitly allowlisted to keep repo lean
+        try {
+          $stagedRel = git diff --name-only --cached
+          $allowedRel = @()
+          foreach ($p in $toStage) {
+            if ($p) { $allowedRel += ($p -replace [regex]::Escape($RepoRoot + '\\'), '') }
+          }
+          foreach ($cp in $codePaths) {
+            if ($cp) { $allowedRel += ($cp -replace [regex]::Escape($RepoRoot + '\\'), '') }
+          }
+          if (Test-Path $varTotalPath) { $allowedRel += ($varTotalPath -replace [regex]::Escape($RepoRoot + '\\'), '') }
+          if (Test-Path $varMarginPath) { $allowedRel += ($varMarginPath -replace [regex]::Escape($RepoRoot + '\\'), '') }
+          if (Test-Path $infVarSummaryPath) { $allowedRel += ($infVarSummaryPath -replace [regex]::Escape($RepoRoot + '\\'), '') }
+          # Normalize and trim paths for reliable comparison with git output
+          $allowedRel = $allowedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() }
+          $stagedRel = $stagedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() }
+          foreach ($s in $stagedRel) {
+            # Never unstage core daily UI/data snapshots even if comparison fails
+            if (
+              $s -like 'outputs/predictions_display_*' -or
+              $s -like 'outputs/predictions_unified_enriched_*' -or
+              $s -like 'outputs/archive/*/predictions_display_*' -or
+              $s -like 'outputs/daily_results/results_*' -or
+              $s -like 'outputs/align_period_*_edges.csv' -or
+              $s -like 'outputs/picks_raw.csv' -or
+              $s -like 'outputs/picks/ats_picks_*'
+            ) { continue }
+            if (-not ($allowedRel -contains $s)) {
+              Write-Host "[unstage] Non-allowlisted: $s" -ForegroundColor DarkGray
+              git restore --staged -- $s
+            }
+          }
+        } catch {
+          Write-Warning "Failed to enforce allowlist on staged files: $($_)"
+        }
         $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data+ui): update outputs and UI for $prevDate (today $todayIso)" }
         $status = git status --porcelain
         if ($status) {
