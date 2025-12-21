@@ -380,6 +380,14 @@ print({'path': str(games_path), 'rows': len(df2)})
     }
   } catch { Write-Warning "backtest_models.py failed: $($_)" }
 
+  # Generate ATS picks for today (non-strict prob-side; fallback to delta where missing)
+  Write-Section '6i.b) Generate ATS picks (today)'
+  try {
+    & $VenvPython scripts/select_ats_picks.py --date $todayIso --use-closing --prob-side --prob-side-threshold 0.52
+    # Convert ATS picks into picks_raw.csv for uploader/recommendations
+    & $VenvPython scripts/make_picks_raw_from_ats.py --date $todayIso --outputs $OutDir
+  } catch { Write-Warning "ATS picks generation failed: $($_)" }
+
   # Normalize odds and enrich backtest for quantile training/selection
   Write-Section '6i.a) Normalize odds and enrich backtest (rest/travel/market)'
   try {
