@@ -918,6 +918,11 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $enrichedToday) { $toStage += $enrichedToday }
   $coverageSummary = Join-Path $OutDir ("coverage_status_summary_" + $todayIso + ".json")
   if (Test-Path $coverageSummary) { $toStage += $coverageSummary }
+  # Daily results (recaps) for previous and current dates
+  $dailyResultsPrev = Join-Path $OutDir ("daily_results\results_" + $prevDate + ".csv")
+  if (Test-Path $dailyResultsPrev) { $toStage += $dailyResultsPrev }
+  $dailyResultsToday = Join-Path $OutDir ("daily_results\results_" + $todayIso + ".csv")
+  if (Test-Path $dailyResultsToday) { $toStage += $dailyResultsToday }
 
   # Newly produced meta/stability/calibration artifacts
   $metaMetrics = Join-Path $OutDir 'meta_probs_metrics.json'
@@ -1018,7 +1023,8 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
             $p -like "*outputs\\metrics\\*.json" -or 
             $p -like "*outputs\\diagnostics\\*" -or 
             $p -like "*outputs\\picks_raw.csv" -or 
-            $p -like "*outputs\\align_period_*_edges.csv"
+            $p -like "*outputs\\align_period_*_edges.csv" -or 
+            $p -like "*outputs\\daily_results\\results_*.csv"
           ) {
             git add -f $p
           } else {
