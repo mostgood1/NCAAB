@@ -18504,6 +18504,8 @@ def recommendations():
         try:
             # Load display snapshot for per-game predicted/market totals and p_over as robust fallbacks
             pt_map = {}; mt_map = {}; po_map = {}
+            # Cover probability maps (home/away) from meta sidecar if available
+            pch_map = {}; pca_map = {}
             try:
                 if disp_date:
                     import os as _os
@@ -18520,17 +18522,30 @@ def recommendations():
                                 po_map = dict(zip(_dfd['game_id'], _dfd['p_over']))
                     # Fallback: use enriched meta sidecar for probabilities when display lacks them
                     p_meta = OUT / f"predictions_unified_enriched_{disp_date}_meta.csv"
-                    if (not po_map) and p_meta.exists():
+                    if p_meta.exists():
                         try:
                             _dfm = pd.read_csv(p_meta)
                             if not _dfm.empty and 'game_id' in _dfm.columns:
                                 _dfm['game_id'] = _dfm['game_id'].astype(str)
-                                if 'p_over' in _dfm.columns:
+                                # p_over (totals)
+                                if (not po_map) and ('p_over' in _dfm.columns):
                                     po_map = dict(zip(_dfm['game_id'], _dfm['p_over']))
+                                # cover probabilities: support multiple possible column names
+                                def _first_col(d, names):
+                                    for nm in names:
+                                        if nm in d.columns:
+                                            return nm
+                                    return None
+                                ch_col = _first_col(_dfm, ['p_home_cover','p_home_cover_dist','p_cover_home'])
+                                ca_col = _first_col(_dfm, ['p_away_cover','p_away_cover_dist','p_cover_away'])
+                                if ch_col:
+                                    pch_map = dict(zip(_dfm['game_id'], _dfm[ch_col]))
+                                if ca_col:
+                                    pca_map = dict(zip(_dfm['game_id'], _dfm[ca_col]))
                         except Exception:
                             pass
             except Exception:
-                pt_map = {}; mt_map = {}; po_map = {}
+                pt_map = {}; mt_map = {}; po_map = {}; pch_map = {}; pca_map = {}
             for oi in out_items:
                 codeu = (oi.get('code') or '').upper()
                 if codeu == 'OU':
@@ -18648,6 +18663,48 @@ def recommendations():
                     except Exception:
                         return True
                 out_items = [it for it in out_items if _ou_keep(it)]
+        except Exception:
+            pass
+        # Apply ATS cover-probability gating if configured
+        try:
+            pmin = settings.p_cover_min
+            if pmin is not None:
+                def _ats_keep(it_row: dict) -> bool:
+                    try:
+                        code = str(it_row.get('code') or it_row.get('rec_code') or '').upper()
+                        if code != 'ATS':
+                            return True
+                        gid = str(it_row.get('game_id') or '')
+                        # Determine side: prefer selection/bet text; fallback to pred_margin sign
+                        sel_raw = (str(it_row.get('selection') or it_row.get('bet') or '').strip()).lower()
+                        side_home = None
+                        if sel_raw:
+                            home = (rep.get('home_team') or rep.get('home_team_name') or '')
+                            away = (rep.get('away_team') or rep.get('away_team_name') or '')
+                            if ('home' in sel_raw) or (sel_raw == normalize_name(str(home))):
+                                side_home = True
+                            elif ('away' in sel_raw) or (sel_raw == normalize_name(str(away))):
+                                side_home = False
+                        if side_home is None:
+                            try:
+                                pm = float(rep.get('pred_margin')) if rep.get('pred_margin') is not None else None
+                                side_home = (pm is not None and pm >= 0)
+                            except Exception:
+                                side_home = True
+                        # Lookup cover probability for the chosen side
+                        p = None
+                        if gid:
+                            try:
+                                p = float(pch_map[gid]) if side_home else float(pca_map[gid])
+                            except Exception:
+                                p = None
+                        # If probability available, require minimum
+                        if p is not None:
+                            return p >= float(pmin)
+                        return True
+                    except Exception:
+                        return True
+                out_items = [it for it in out_items if _ats_keep(it)]
         except Exception:
             pass
         # Apply min edge gating to grouped items as a final filter

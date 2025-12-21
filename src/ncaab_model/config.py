@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     # Min edge thresholds to surface recommendations (optional)
     ou_edge_min: float | None = None  # NCAAB_OU_EDGE_MIN
     ats_edge_min: float | None = None  # NCAAB_ATS_EDGE_MIN
+    # Minimum cover probability to surface ATS recommendations (optional)
+    p_cover_min: float | None = None  # NCAAB_P_COVER_MIN
 
     # pydantic-settings v2 configuration
     model_config = SettingsConfigDict(
