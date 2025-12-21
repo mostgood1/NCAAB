@@ -1,9 +1,0 @@
-{
-  "pending": true,
-  "status": "pending",
-  "reason": "daily_results missing for selected date",
-  "source_date": "2025-12-08",
-  "totals_rows": 0,
-  "margins_rows": 0,
-  "window_days": 90
-}

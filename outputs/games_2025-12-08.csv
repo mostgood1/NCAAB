@@ -1,8 +1,0 @@
-game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401828342,2025,2025-12-08,2025-12-08 17:00:00+00:00,2025-12-08 12:00,EST,Kennesaw State Owls,Southern Wesleyan Warriors,121,66,65.0,22.0,56.0,44.0,False,KSU Convocation Center
-401812581,2025,2025-12-08,2025-12-08 23:00:00+00:00,2025-12-08 18:00,EST,Pennsylvania Quakers,Lafayette Leopards,0,0,,,,,False,The Palestra
-401820846,2025,2025-12-08,2025-12-09 00:00:00+00:00,2025-12-08 19:00,EST,Charleston Southern Buccaneers,South Carolina State Bulldogs,0,0,,,,,False,Buccaneer Fieldhouse
-401827090,2025,2025-12-08,2025-12-09 01:00:00+00:00,2025-12-08 20:00,EST,Southern Miss Golden Eagles,Grambling Tigers,0,0,,,,,False,Reed Green Coliseum
-401827017,2025,2025-12-08,2025-12-09 01:00:00+00:00,2025-12-08 20:00,EST,Texas Longhorns,Southern Jaguars,0,0,,,,,False,Moody Center
-401819895,2025,2025-12-08,2025-12-09 01:00:00+00:00,2025-12-08 20:00,EST,Kansas State Wildcats,Mississippi Valley State Delta Devils,0,0,,,,,False,Bramlage Coliseum
-401808900,2025,2025-12-08,2025-12-09 01:00:00+00:00,2025-12-08 20:00,EST,New Orleans Privateers,Incarnate Word Cardinals,0,0,,,,,False,Lakefront Arena

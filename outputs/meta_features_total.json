@@ -1,9 +1,0 @@
-{
-  "features": [
-    "pred_total_raw",
-    "pred_total_seg",
-    "pred_total_cal",
-    "pred_total_basis",
-    "market_total"
-  ]
-}

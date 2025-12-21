@@ -1,5 +1,0 @@
-rating_margin_diff
-off_rating_diff
-def_rating_diff
-tempo_rating_sum
-neutral_site
