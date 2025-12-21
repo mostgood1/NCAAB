@@ -1,0 +1,3 @@
+date,game_id,home_team,away_team,closing_spread_home,spread_home,ats_side,ats_reason,_delta,_pred_margin_blend,_mkt_margin,_p_cover,ats_side,ats_reason,_delta,_pred_margin_blend,_mkt_margin,_p_cover
+2025-12-21,401817261,NC State Wolfpack,Ole Miss Rebels,-7.0,-17.5,away,prob,8.698653052421404,15.698653052421404,7.0,0.1509728349777333,away,prob,8.698653052421404,15.698653052421404,7.0,0.1509728349777333
+2025-12-21,401817440,Notre Dame Fighting Irish,Purdue Fort Wayne Mastodons,-13.5,-5.5,away,prob,-6.201346947578598,7.298653052421402,13.5,0.0758716355396409,away,prob,-6.201346947578598,7.298653052421402,13.5,0.0758716355396409
