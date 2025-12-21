@@ -18639,6 +18639,26 @@ def recommendations():
                 out_items = [it for it in out_items if _ou_keep(it)]
         except Exception:
             pass
+        # Apply min edge gating to grouped items as a final filter
+        try:
+            em = settings.ou_edge_min; am = settings.ats_edge_min
+            def _keep_item(it: dict) -> bool:
+                try:
+                    code = str(it.get('code') or it.get('rec_code') or '').upper()
+                    e = it.get('edge') or it.get('abs_edge')
+                    if e is None:
+                        return True
+                    val = float(e)
+                    if code == 'OU' and (em is not None):
+                        return abs(val) >= float(em)
+                    if code == 'ATS' and (am is not None):
+                        return abs(val) >= float(am)
+                    return True
+                except Exception:
+                    return True
+            out_items = [it for it in out_items if _keep_item(it)]
+        except Exception:
+            pass
 
         # Include ISO start for client-side local-time rendering (derive from display fields first)
         iso_rep = None
@@ -19125,10 +19145,25 @@ def api_recommendations():
                             def _keep(r: pd.Series) -> bool:
                                 try:
                                     p = float(r.get('p_over_prob')) if r.get('p_over_prob') is not None else np.nan
+                            # Apply min edge gating on totals if configured
+                            try:
+                                em = settings.ou_edge_min
+                                if (em is not None) and ('edge_total' in tots.columns):
+                                    tots = tots[pd.to_numeric(tots['edge_total'], errors='coerce').abs() >= float(em)]
+                        
+                            except Exception:
+                                pass
                                     b = str(r.get('bet')).lower()
                                     if np.isfinite(p):
                                         return (p >= p_hi and b == 'over') or (p <= p_lo and b == 'under')
                                     # If no probability, drop to avoid overs-only bias
+                            # Apply min edge gating on spreads if configured
+                            try:
+                                am = settings.ats_edge_min
+                                if (am is not None) and ('edge_margin' in sprs.columns):
+                                    sprs = sprs[pd.to_numeric(sprs['edge_margin'], errors='coerce').abs() >= float(am)]
+                            except Exception:
+                                pass
                                     return False
                                 except Exception:
                                     return False
@@ -19680,6 +19715,13 @@ def api_picks_raw():
                         sprs['price'] = sprs.apply(_spr_price, axis=1)
                         sprs['edge'] = sprs['edge_margin'].abs() if 'edge_margin' in sprs.columns else None
                         sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'
+                        # Apply min edge gating on spreads in fallback
+                        try:
+                            am = settings.ats_edge_min
+                            if (am is not None) and ('edge_margin' in sprs.columns):
+                                sprs = sprs[pd.to_numeric(sprs['edge_margin'], errors='coerce').abs() >= float(am)]
+                        except Exception:
+                            pass
                     # Build ML
                     try:
                         ml_mask = edges['market'].astype(str).str.lower() == 'h2h' if 'market' in edges.columns else pd.Series([False]*len(edges))

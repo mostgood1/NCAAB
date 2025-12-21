@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Maps to env vars: NCAAB_P_OVER_THRESHOLD_HIGH / NCAAB_P_OVER_THRESHOLD_LOW
     p_over_threshold_high: float | None = None
     p_over_threshold_low: float | None = None
+    # Min edge thresholds to surface recommendations (optional)
+    ou_edge_min: float | None = None  # NCAAB_OU_EDGE_MIN
+    ats_edge_min: float | None = None  # NCAAB_ATS_EDGE_MIN
 
     # pydantic-settings v2 configuration
     model_config = SettingsConfigDict(
