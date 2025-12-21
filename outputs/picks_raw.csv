@@ -1,3 +1,1 @@
-game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,pred_total,rec_type,rec_code
-401817261,2025-12-21,NC State Wolfpack,Ole Miss Rebels,spreads,full_game,away,7.0,,8.698653052421404,15.698653052421404,,Spread,ATS
-401817440,2025-12-21,Notre Dame Fighting Irish,Purdue Fort Wayne Mastodons,spreads,full_game,away,13.5,,6.201346947578598,7.298653052421402,,Spread,ATS
+game_id,display_date,start_time_iso,start_time_local,start_time_local_venue,start_tz_abbr,start_tz_abbr_venue
