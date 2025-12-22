@@ -14588,7 +14588,7 @@ def index():
         if 'date_q' in locals() and date_q:  # type: ignore
             persist_date = str(date_q)
         else:
-            persist_date = datetime.utcnow().strftime('%Y-%m-%d')  # type: ignore
+            persist_date = dt.datetime.utcnow().strftime('%Y-%m-%d')  # type: ignore
         # ESPN subset/date filter before persisting display file
         try:
             # Date filter on persisted artifact
@@ -16332,7 +16332,7 @@ def calibration_diagnostic():  # type: ignore
         return jsonify({'error':'diagnose_exec_failed','detail':str(e)[:160]}), 500  # type: ignore
     summary = diag_df.groupby('reason').size().rename('count').reset_index() if not diag_df.empty else []
     resp = {
-        'date': date_q or datetime.utcnow().strftime('%Y-%m-%d'),  # type: ignore
+        'date': date_q or dt.datetime.utcnow().strftime('%Y-%m-%d'),  # type: ignore
         'summary': summary.to_dict(orient='records') if not isinstance(summary, list) else summary,
         'detail_sample': diag_df.head(50).to_dict(orient='records'),
         'total_games': int(len(diag_df)),
