@@ -5068,6 +5068,75 @@ def index():
                     rec['away_logo'] = b2.get('logo')
                 rows.append(rec)
             total_rows = len(rows)
+            # If rows collapsed to zero (e.g., synthetic-only snapshot), rebuild minimal rows from edges
+            if total_rows == 0:
+                try:
+                    ap = OUT / f"align_period_{target_date}_edges.csv"
+                    ed = _safe_read_csv(ap)
+                    if not ed.empty:
+                        # constrain to date
+                        if 'date' in ed.columns:
+                            try:
+                                ed['date'] = pd.to_datetime(ed['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                ed = ed[ed['date'].astype(str) == str(target_date)]
+                            except Exception:
+                                pass
+                        # remove synthetic
+                        if 'game_id' in ed.columns:
+                            try:
+                                ed['game_id'] = ed['game_id'].astype(str)
+                                ed = ed[~ed['game_id'].str.startswith('synthetic:')]
+                                ed = ed[~ed['game_id'].str.startswith('odds:')]
+                            except Exception:
+                                pass
+                        def _pick_col(df_, opts):
+                            for c in opts:
+                                if c in df_.columns:
+                                    return c
+                            return None
+                        hcol = _pick_col(ed, ['home_team','home_team_name','home'])
+                        acol = _pick_col(ed, ['away_team','away_team_name','away'])
+                        tcol = _pick_col(ed, ['pred_total_cal','pred_total'])
+                        mcol = _pick_col(ed, ['pred_margin_cal','pred_margin'])
+                        mtcol = _pick_col(ed, ['market_total','closing_total','total_median'])
+                        stcol = _pick_col(ed, ['start_time','commence_time'])
+                        keep_e = [c for c in ['game_id',hcol,acol,tcol,mcol,mtcol,stcol] if c]
+                        if keep_e:
+                            e2 = ed[keep_e].copy()
+                            ren = {}
+                            if hcol and hcol != 'home_team': ren[hcol] = 'home_team'
+                            if acol and acol != 'away_team': ren[acol] = 'away_team'
+                            if tcol and tcol != 'pred_total': ren[tcol] = 'pred_total'
+                            if mcol and mcol != 'pred_margin': ren[mcol] = 'pred_margin'
+                            if mtcol and mtcol != 'market_total': ren[mtcol] = 'market_total'
+                            if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
+                            if ren:
+                                e2 = e2.rename(columns=ren)
+                            # Aggregate by game_id and build branded rows
+                            if 'game_id' in e2.columns:
+                                def _agg_first(series):
+                                    try:
+                                        return series.dropna().iloc[0]
+                                    except Exception:
+                                        return series.iloc[0] if len(series) else None
+                                agg_map = {}
+                                for c in ['home_team','away_team','pred_total','pred_margin','market_total','start_time']:
+                                    if c in e2.columns:
+                                        agg_map[c] = _agg_first
+                                g = e2.groupby('game_id').agg(agg_map).reset_index()
+                                rows = []
+                                for _, r in g.iterrows():
+                                    item = {k: r.get(k) for k in ['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time'] if k in g.columns}
+                                    hb = branding.get(_canon_slug(str(item.get('home_team') or '')))
+                                    ab = branding.get(_canon_slug(str(item.get('away_team') or '')))
+                                    if hb:
+                                        item['home_logo'] = hb.get('logo')
+                                    if ab:
+                                        item['away_logo'] = ab.get('logo')
+                                    rows.append(item)
+                                total_rows = len(rows)
+                except Exception:
+                    pass
             removed_empty_rows = 0
             dynamic_css = None
             status = None
