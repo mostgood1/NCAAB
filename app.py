@@ -226,6 +226,27 @@ try:
 except Exception:
     # If Flask or app isn't available yet, skip gating setup
     pass
+# Global 500 handler: redirect to a resilient cards view
+try:
+    if isinstance(app, Flask):
+        @app.errorhandler(500)
+        def _global_500_handler(_e):
+            try:
+                # Prefer requested date; else use latest display snapshot; else today
+                d = (request.args.get('date') or '').strip()
+                if not d:
+                    import re as _re_mod
+                    try:
+                        pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+                        _dates = [m.group(1) for m in (pat.match(p.name) for p in (Path(os.getcwd()) / 'outputs').glob('predictions_display_*.csv')) if m]
+                        d = sorted(_dates)[-1] if _dates else dt.datetime.utcnow().strftime('%Y-%m-%d')
+                    except Exception:
+                        d = dt.datetime.utcnow().strftime('%Y-%m-%d')
+                return redirect(f"/cards-safe?date={d}"), 302
+            except Exception:
+                return jsonify({"status":"error","message":"Internal error; fallback redirect failed"}), 500
+except Exception:
+    pass
 import glob
 import json
 import pandas as pd
@@ -21733,16 +21754,25 @@ def api_display_predictions():
         tzinfo = ZoneInfo(tz_q)
     except Exception:
         tzinfo = ZoneInfo('UTC')
-    # Infer date from last_index_df if not provided
+    # Infer date if not provided: prefer latest available display snapshot, then last_index_df, else today
     if not date_q:
-        base_df = getattr(app, 'last_index_df', pd.DataFrame())
-        if isinstance(base_df, pd.DataFrame) and 'date' in base_df.columns and base_df['date'].notna().any():
-            try:
-                date_q = str(base_df['date'].dropna().astype(str).unique()[0])
-            except Exception:
+        try:
+            import re as _re_mod
+            pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+            _dates = [m.group(1) for m in (pat.match(p.name) for p in OUT.glob('predictions_display_*.csv')) if m]
+            if _dates:
+                date_q = sorted(_dates)[-1]
+            else:
+                raise RuntimeError('no_display_snapshots')
+        except Exception:
+            base_df = getattr(app, 'last_index_df', pd.DataFrame())
+            if isinstance(base_df, pd.DataFrame) and 'date' in base_df.columns and base_df['date'].notna().any():
+                try:
+                    date_q = str(base_df['date'].dropna().astype(str).unique()[0])
+                except Exception:
+                    date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+            else:
                 date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
-        else:
-            date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
     path = OUT / f'predictions_display_{date_q}.csv'
     if path.exists():
         try:
@@ -21870,10 +21900,67 @@ def api_display_predictions():
         return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
     else:
         df = getattr(app, 'last_index_df', pd.DataFrame())
-        if not df.empty:
+        # If no base df, attempt to rebuild from edges for the date
+        if (df is None) or (isinstance(df, pd.DataFrame) and df.empty):
+            try:
+                ap = OUT / f"align_period_{date_q}_edges.csv"
+                ed = _safe_read_csv(ap)
+                if not ed.empty:
+                    if 'game_id' in ed.columns:
+                        try:
+                            ed['game_id'] = ed['game_id'].astype(str)
+                            ed = ed[~ed['game_id'].str.startswith('synthetic:')]
+                        except Exception:
+                            pass
+                    if 'date' in ed.columns:
+                        try:
+                            ed['date'] = pd.to_datetime(ed['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            ed = ed[ed['date'].astype(str) == str(date_q)]
+                        except Exception:
+                            pass
+                    def _pick_col(df_, opts):
+                        for c in opts:
+                            if c in df_.columns:
+                                return c
+                        return None
+                    hcol = _pick_col(ed, ['home_team','home_team_name','home'])
+                    acol = _pick_col(ed, ['away_team','away_team_name','away'])
+                    tcol = _pick_col(ed, ['pred_total_cal','pred_total'])
+                    mcol = _pick_col(ed, ['pred_margin_cal','pred_margin'])
+                    mtcol = _pick_col(ed, ['market_total','closing_total','total_median'])
+                    stcol = _pick_col(ed, ['start_time','commence_time'])
+                    keep_e = [c for c in ['game_id','date',hcol,acol,tcol,mcol,mtcol,stcol] if c]
+                    if keep_e:
+                        e2 = ed[keep_e].copy()
+                        ren = {}
+                        if hcol and hcol != 'home_team': ren[hcol] = 'home_team'
+                        if acol and acol != 'away_team': ren[acol] = 'away_team'
+                        if tcol and tcol != 'pred_total': ren[tcol] = 'pred_total'
+                        if mcol and mcol != 'pred_margin': ren[mcol] = 'pred_margin'
+                        if mtcol and mtcol != 'market_total': ren[mtcol] = 'market_total'
+                        if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
+                        if ren:
+                            e2 = e2.rename(columns=ren)
+                        if 'game_id' in e2.columns:
+                            def _agg_first(series):
+                                try:
+                                    return series.dropna().iloc[0]
+                                except Exception:
+                                    return series.iloc[0] if len(series) else None
+                            agg_map = {}
+                            for c in ['date','home_team','away_team','pred_total','pred_margin','market_total','start_time']:
+                                if c in e2.columns:
+                                    agg_map[c] = _agg_first
+                            df = e2.groupby('game_id').agg(agg_map).reset_index()
+            except Exception:
+                pass
+        if isinstance(df, pd.DataFrame) and not df.empty:
             _persist_display(df, date_q)
-    df = _normalize_display(df)
-    # Persist again with refined bases (idempotent safe)
+    # Normalize and persist even when rebuilt; safe if empty
+    try:
+        df = _normalize_display(df)
+    except Exception:
+        df = df if isinstance(df, pd.DataFrame) else pd.DataFrame()
     _, digest = _persist_display(df, date_q)
     keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','display_date','display_time_str']
     rows: list[dict[str, Any]] = []
