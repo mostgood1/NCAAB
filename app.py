@@ -20694,14 +20694,36 @@ def api_upload_predictions_display():
             df = pd.read_csv(buf)
         except Exception as e:
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
-        # Write to outputs/predictions_display_<date>.csv
+        # Write atomically to outputs/predictions_display_<date>.csv and verify
         out_path = OUT / f"predictions_display_{date_q}.csv"
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(csv_bytes)
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with open(tmp_path, 'wb') as fh:
+                fh.write(csv_bytes)
+                try:
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                except Exception:
+                    pass
+            os.replace(tmp_path, out_path)
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
-        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+        # Re-open and verify rows + sha
+        try:
+            df2 = _safe_read_csv(out_path)
+            raw = out_path.read_bytes()
+            sha = _hashlib_mod.sha256(raw).hexdigest() if raw else None
+            return jsonify({
+                "status": "ok",
+                "rows_uploaded": int(len(df)),
+                "rows_verified": int(len(df2)) if not df2.empty else 0,
+                "date": date_q,
+                "path": str(out_path),
+                "sha": sha,
+            })
+        except Exception as e:
+            return jsonify({"status": "ok", "rows_uploaded": int(len(df)), "date": date_q, "path": str(out_path), "verify_error": str(e)})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -20732,14 +20754,36 @@ def api_upload_align_edges():
             df = pd.read_csv(buf)
         except Exception as e:
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
-        # Write to outputs/align_period_<date>_edges.csv
+        # Write atomically to outputs/align_period_<date>_edges.csv and verify
         out_path = OUT / f"align_period_{date_q}_edges.csv"
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(csv_bytes)
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with open(tmp_path, 'wb') as fh:
+                fh.write(csv_bytes)
+                try:
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                except Exception:
+                    pass
+            os.replace(tmp_path, out_path)
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
-        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+        # Verify
+        try:
+            df2 = _safe_read_csv(out_path)
+            raw = out_path.read_bytes()
+            sha = _hashlib_mod.sha256(raw).hexdigest() if raw else None
+            return jsonify({
+                "status": "ok",
+                "rows_uploaded": int(len(df)),
+                "rows_verified": int(len(df2)) if not df2.empty else 0,
+                "date": date_q,
+                "path": str(out_path),
+                "sha": sha,
+            })
+        except Exception as e:
+            return jsonify({"status": "ok", "rows_uploaded": int(len(df)), "date": date_q, "path": str(out_path), "verify_error": str(e)})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -20851,14 +20895,36 @@ def api_upload_predictions_enriched():
             df = pd.read_csv(buf)
         except Exception as e:
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
-        # Write to outputs/predictions_unified_enriched_<date>.csv
+        # Write atomically to outputs/predictions_unified_enriched_<date>.csv and verify
         out_path = OUT / f"predictions_unified_enriched_{date_q}.csv"
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(csv_bytes)
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with open(tmp_path, 'wb') as fh:
+                fh.write(csv_bytes)
+                try:
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                except Exception:
+                    pass
+            os.replace(tmp_path, out_path)
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
-        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+        # Verify
+        try:
+            df2 = _safe_read_csv(out_path)
+            raw = out_path.read_bytes()
+            sha = _hashlib_mod.sha256(raw).hexdigest() if raw else None
+            return jsonify({
+                "status": "ok",
+                "rows_uploaded": int(len(df)),
+                "rows_verified": int(len(df2)) if not df2.empty else 0,
+                "date": date_q,
+                "path": str(out_path),
+                "sha": sha,
+            })
+        except Exception as e:
+            return jsonify({"status": "ok", "rows_uploaded": int(len(df)), "date": date_q, "path": str(out_path), "verify_error": str(e)})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
