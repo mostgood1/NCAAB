@@ -102,6 +102,36 @@ if ($u3) { Write-Host "[OK] display uploaded: rows=$($u3.rows)" -ForegroundColor
 $u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedPath -Query @{ date = $Date }
 if ($u3b) { Write-Host "[OK] enriched uploaded: rows=$($u3b.rows)" -ForegroundColor Green }
 
+# Upload quantile artifacts if present
+$qselPath = Join-Path -Path $OutputsDir -ChildPath 'quantiles_selected.csv'
+$qhistPath = Join-Path -Path $OutputsDir -ChildPath 'quantiles_history.csv'
+$qmodelPath = Join-Path -Path $OutputsDir -ChildPath 'quantile_model.json'
+
+if (Test-Path -LiteralPath $qselPath) {
+    $uQsel = Upload-File -Uri "$BaseUrl/api/upload_quantiles_selected" -FilePath $qselPath
+    if ($uQsel) { Write-Host "[OK] quantiles_selected uploaded: rows=$($uQsel.rows)" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] quantiles_selected.csv missing" -ForegroundColor Yellow
+}
+if (Test-Path -LiteralPath $qhistPath) {
+    $uQhist = Upload-File -Uri "$BaseUrl/api/upload_quantiles_history" -FilePath $qhistPath
+    if ($uQhist) { Write-Host "[OK] quantiles_history uploaded: rows=$($uQhist.rows)" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] quantiles_history.csv missing" -ForegroundColor Yellow
+}
+if (Test-Path -LiteralPath $qmodelPath) {
+    try {
+        $json = Get-Content -LiteralPath $qmodelPath -Raw
+        Write-Step "POST $BaseUrl/api/upload_quantile_model with quantile_model.json"
+        $resp = Invoke-RestMethod -Uri "$BaseUrl/api/upload_quantile_model" -Method Post -Body $json -ContentType 'application/json'
+        if ($resp) { Write-Host "[OK] quantile_model uploaded: keys=$($resp.keys -join ',')" -ForegroundColor Green }
+    } catch {
+        Write-Host "[Error] quantile_model upload failed: $($_.Exception.Message)" -ForegroundColor Red
+    }
+} else {
+    Write-Host "[Skip] quantile_model.json missing" -ForegroundColor Yellow
+}
+
 # Upload daily results if present
 $resRows = Get-CsvRowCount -Path $resultsPath
 if ($resRows -gt 0) {
@@ -118,13 +148,26 @@ $recs = $null
 try {
     $debug = Invoke-RestMethod -Uri "$BaseUrl/api/debug_artifacts?date=$Date" -Method Get
     $art = $debug.artifacts
-    $p_rows = if ($art -and $art.ContainsKey('picks_raw.csv')) { $art['picks_raw.csv'].rows } else { $null }
+    function Get-ArtifactValue {
+        param([object]$obj, [string]$name)
+        if (-not $obj) { return $null }
+        # PSCustomObject safe property access
+        try {
+            $prop = $obj.PSObject.Properties[$name]
+            if ($prop) { return $prop.Value } else { return $null }
+        } catch { return $null }
+    }
+    $p_val = Get-ArtifactValue -obj $art -name 'picks_raw.csv'
+    $p_rows = if ($p_val) { $p_val.rows } else { $null }
     $e_key = "align_period_${Date}_edges.csv"
     $d_key = "predictions_display_${Date}.csv"
     $ap_key = "picks/ats_picks_${Date}.csv"
-    $e_rows = if ($art -and $art.ContainsKey($e_key)) { $art[$e_key].rows } else { $null }
-    $d_rows = if ($art -and $art.ContainsKey($d_key)) { $art[$d_key].rows } else { $null }
-    $ap_rows = if ($art -and $art.ContainsKey($ap_key)) { $art[$ap_key].rows } else { $null }
+    $e_val = Get-ArtifactValue -obj $art -name $e_key
+    $d_val = Get-ArtifactValue -obj $art -name $d_key
+    $ap_val = Get-ArtifactValue -obj $art -name $ap_key
+    $e_rows = if ($e_val) { $e_val.rows } else { $null }
+    $d_rows = if ($d_val) { $d_val.rows } else { $null }
+    $ap_rows = if ($ap_val) { $ap_val.rows } else { $null }
     Write-Host "[Debug] picks_raw_rows=$p_rows ats_picks_rows=$ap_rows edges_rows=$e_rows display_rows=$d_rows" -ForegroundColor White
 } catch {
     Write-Host "[Warn] debug_artifacts check failed: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -153,8 +196,36 @@ try {
 
 # Optional redeploy trigger via Render deploy hook
 if ($TriggerRedeploy.IsPresent) {
+    function Get-DeployHookUrl {
+        param()
+        try {
+            if ($env:RENDER_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_DEPLOY_HOOK_URL)) {
+                return $env:RENDER_DEPLOY_HOOK_URL
+            }
+            $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
+            $envPath = Join-Path $repoRoot '.env'
+            if (Test-Path -LiteralPath $envPath) {
+                $lines = Get-Content -LiteralPath $envPath
+                foreach ($line in $lines) {
+                    if ($line -match '^\s*RENDER_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
+                        $val = $Matches[1].Trim()
+                        if (-not [string]::IsNullOrWhiteSpace($val)) { return $val }
+                    }
+                }
+            }
+            $txtPath = Join-Path $repoRoot 'scripts/deploy_hook_url.txt'
+            if (Test-Path -LiteralPath $txtPath) {
+                $txt = Get-Content -LiteralPath $txtPath -TotalCount 1
+                if ($txt -and -not [string]::IsNullOrWhiteSpace($txt)) { return $txt.Trim() }
+            }
+        } catch {}
+        return $null
+    }
     if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) {
-        Write-Host "[Skip] TriggerRedeploy set but no DeployHookUrl provided or env var set." -ForegroundColor Yellow
+        $DeployHookUrl = Get-DeployHookUrl
+    }
+    if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) {
+        Write-Host "[Skip] TriggerRedeploy set but no DeployHookUrl provided, env var set, or .env/scripts fallback found." -ForegroundColor Yellow
     } else {
         Write-Step "Triggering redeploy via deploy hook"
         try {

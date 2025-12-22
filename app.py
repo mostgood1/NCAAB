@@ -18318,6 +18318,17 @@ def recommendations():
             disp_date = pd.to_datetime(disp_date_val, errors='coerce').strftime('%Y-%m-%d') if disp_date_val else ''
         except Exception:
             disp_date = str(disp_date_val)
+        # Fallback: use requested date when display/date is missing
+        try:
+            if (not disp_date) and request:
+                rq_date = (request.args.get('date') or '').strip()
+                if rq_date:
+                    # Validate format
+                    dtmp = pd.to_datetime(rq_date, errors='coerce')
+                    if pd.notna(dtmp):
+                        disp_date = dtmp.strftime('%Y-%m-%d')
+        except Exception:
+            pass
         # Time: prefer display_time_ampm (time only); fallback parse from start_time_display/display_time_str
         time_disp_val = rep.get('display_time_ampm')
         if not time_disp_val:
@@ -18536,12 +18547,35 @@ def recommendations():
                                         if nm in d.columns:
                                             return nm
                                     return None
-                                ch_col = _first_col(_dfm, ['p_home_cover','p_home_cover_dist','p_cover_home'])
-                                ca_col = _first_col(_dfm, ['p_away_cover','p_away_cover_dist','p_cover_away'])
+                                # Prefer calibrated/ensemble cover probabilities over display/dist/final
+                                ch_col = _first_col(_dfm, [
+                                    'p_home_cover_ensemble',
+                                    'p_home_cover_emp',
+                                    'p_home_cover',
+                                    'p_home_cover_meta_cal',
+                                    'p_home_cover_final',
+                                    'p_cover_home',
+                                    'p_home_cover_dist',
+                                ])
+                                ca_col = _first_col(_dfm, [
+                                    'p_away_cover_ensemble',
+                                    'p_away_cover_emp',
+                                    'p_away_cover',
+                                    'p_away_cover_meta_cal',
+                                    'p_away_cover_final',
+                                    'p_cover_away',
+                                    'p_away_cover_dist',
+                                ])
                                 if ch_col:
                                     pch_map = dict(zip(_dfm['game_id'], _dfm[ch_col]))
                                 if ca_col:
                                     pca_map = dict(zip(_dfm['game_id'], _dfm[ca_col]))
+                                # If away cover column is missing but home is present, derive away as 1 - home
+                                if (not ca_col) and ch_col:
+                                    try:
+                                        pca_map = {str(gid): (1.0 - float(val)) if (val is not None and str(val).strip()!='') else None for gid, val in pch_map.items()}
+                                    except Exception:
+                                        pass
                         except Exception:
                             pass
             except Exception:
@@ -18698,6 +18732,27 @@ def recommendations():
                                 p = float(pch_map[gid]) if side_home else float(pca_map[gid])
                             except Exception:
                                 p = None
+                        # Enforce side consistency with margin delta to avoid contradictory selections
+                        try:
+                            pm2 = float(rep.get('pred_margin')) if rep.get('pred_margin') is not None else None
+                            hs2 = float(rep.get('home_spread')) if rep.get('home_spread') is not None else None
+                            # If closing spread present on item, prefer that
+                            if (hs2 is None) and it_row.get('line') is not None:
+                                try:
+                                    ln2 = float(it_row.get('line'))
+                                    # If line corresponds to home spread, use as home spread; else flip sign
+                                    hs2 = ln2 if (rep.get('home_spread') is not None and abs(ln2 - float(rep.get('home_spread'))) < 1e-6) else ln2
+                                except Exception:
+                                    pass
+                            delta_ok = True
+                            if (pm2 is not None) and (hs2 is not None):
+                                mkt_margin = (0.0 - hs2)
+                                delta = pm2 - mkt_margin
+                                delta_ok = (delta > 0) if side_home else (delta < 0)
+                            if not delta_ok:
+                                return False
+                        except Exception:
+                            pass
                         # If probability available, require minimum
                         if p is not None:
                             return p >= float(pmin)
@@ -18725,6 +18780,279 @@ def recommendations():
                 except Exception:
                     return True
             out_items = [it for it in out_items if _keep_item(it)]
+        except Exception:
+            pass
+
+        # Ensure each game has both OU and ATS by synthesizing fallbacks when missing
+        try:
+            # Lazy-load aligned edges for this date to backfill lines and prices reliably
+            if ('edges_by_date' not in locals()) and disp_date:
+                try:
+                    _path_edges = OUT / f"align_period_{disp_date}_edges.csv"
+                    edges_by_date = pd.read_csv(_path_edges, dtype=str, low_memory=False) if _path_edges.exists() else pd.DataFrame()
+                    if not edges_by_date.empty:
+                        for c in [
+                            'total','over_price','under_price',
+                            'home_spread','home_spread_price','away_spread','away_spread_price',
+                            'pred_total','pred_margin'
+                        ]:
+                            if c in edges_by_date.columns:
+                                edges_by_date[c] = pd.to_numeric(edges_by_date[c], errors='coerce')
+                        try:
+                            if 'period' in edges_by_date.columns:
+                                edges_by_date = edges_by_date[edges_by_date['period'].astype(str).str.lower() == 'full_game']
+                        except Exception:
+                            pass
+                        # Build per-game maps
+                        _gid = 'game_id' if 'game_id' in edges_by_date.columns else None
+                        if _gid:
+                            edges_by_date[_gid] = edges_by_date[_gid].astype(str)
+                            _totals = edges_by_date[edges_by_date['market'].astype(str).str.lower() == 'totals'] if 'market' in edges_by_date.columns else pd.DataFrame()
+                            _spreads = edges_by_date[edges_by_date['market'].astype(str).str.lower() == 'spreads'] if 'market' in edges_by_date.columns else pd.DataFrame()
+                            # Prefer market_total when present; fallback to total
+                            if (not _totals.empty) and ('market_total' in _totals.columns):
+                                tot_line_map = dict(zip(_totals[_gid], _totals.get('market_total')))
+                            else:
+                                tot_line_map = dict(zip(_totals[_gid], _totals.get('total'))) if (not _totals.empty and 'total' in _totals.columns) else {}
+                            tot_over_price_map = dict(zip(_totals[_gid], _totals.get('over_price'))) if (not _totals.empty and 'over_price' in _totals.columns) else {}
+                            tot_under_price_map = dict(zip(_totals[_gid], _totals.get('under_price'))) if (not _totals.empty and 'under_price' in _totals.columns) else {}
+                            pred_total_map = dict(zip(_totals[_gid], _totals.get('pred_total'))) if (not _totals.empty and 'pred_total' in _totals.columns) else {}
+                            hs_map = dict(zip(_spreads[_gid], _spreads.get('home_spread'))) if (not _spreads.empty and 'home_spread' in _spreads.columns) else {}
+                            hs_price_map = dict(zip(_spreads[_gid], _spreads.get('home_spread_price'))) if (not _spreads.empty and 'home_spread_price' in _spreads.columns) else {}
+                            as_map = dict(zip(_spreads[_gid], _spreads.get('away_spread'))) if (not _spreads.empty and 'away_spread' in _spreads.columns) else {}
+                            as_price_map = dict(zip(_spreads[_gid], _spreads.get('away_spread_price'))) if (not _spreads.empty and 'away_spread_price' in _spreads.columns) else {}
+                            pred_margin_map = dict(zip(_spreads[_gid], _spreads.get('pred_margin'))) if (not _spreads.empty and 'pred_margin' in _spreads.columns) else {}
+                        else:
+                            tot_line_map = {}; tot_over_price_map = {}; tot_under_price_map = {}; pred_total_map = {}
+                            hs_map = {}; hs_price_map = {}; as_map = {}; as_price_map = {}; pred_margin_map = {}
+                except Exception:
+                    edges_by_date = pd.DataFrame()
+            present_codes = {str(it.get('code') or '').upper() for it in out_items}
+            gid_rep = str(rep.get('game_id') or '')
+            home_name = _s(rep.get('home_team') or rep.get('home_team_name'))
+            away_name = _s(rep.get('away_team') or rep.get('away_team_name'))
+            # OU fallback
+            if 'OU' not in present_codes:
+                ln_ou = None
+                try:
+                    for cand in [rep.get('market_total'), rep.get('total')]:
+                        if cand is not None and str(cand).strip()!='':
+                            ln_ou = float(cand)
+                            break
+                except Exception:
+                    ln_ou = None
+                if (ln_ou is None) and gid_rep and ('mt_map' in locals()):
+                    try:
+                        v = mt_map.get(gid_rep)
+                        ln_ou = float(v) if (v is not None and str(v).strip()!='') else None
+                    except Exception:
+                        ln_ou = None
+                # Prefer edges totals if available
+                if (ln_ou is None) and gid_rep and ('tot_line_map' in locals()):
+                    try:
+                        v = tot_line_map.get(gid_rep)
+                        ln_ou = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                # Fallback: closing totals from odds join
+                if ln_ou is None:
+                    try:
+                        closing_path = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+                        if os.path.exists(closing_path):
+                            cl = pd.read_csv(closing_path, dtype=str, low_memory=False)
+                            gid_col = 'game_id' if 'game_id' in cl.columns else None
+                            mtc = 'close_total' if 'close_total' in cl.columns else ('total' if 'total' in cl.columns else None)
+                            if gid_col and mtc:
+                                cl[gid_col] = cl[gid_col].astype(str)
+                                cl[mtc] = pd.to_numeric(cl[mtc], errors='coerce')
+                                _mt_map2 = dict(zip(cl[gid_col], cl[mtc]))
+                                v = _mt_map2.get(gid_rep)
+                                ln_ou = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                # Fallback: load enriched snapshot for date and build maps when needed
+                if (ln_ou is None) or ('pt_ou' not in locals()):
+                    try:
+                        if disp_date:
+                            p_enr = OUT / f"predictions_unified_enriched_{disp_date}.csv"
+                            if p_enr.exists():
+                                _df_enr = pd.read_csv(p_enr)
+                                if 'game_id' in _df_enr.columns:
+                                    _df_enr['game_id'] = _df_enr['game_id'].astype(str)
+                                    if ln_ou is None:
+                                        mc = next((c for c in ['market_total','closing_total','total'] if c in _df_enr.columns), None)
+                                        if mc:
+                                            mt_map = dict(zip(_df_enr['game_id'], pd.to_numeric(_df_enr[mc], errors='coerce')))
+                                            v = mt_map.get(gid_rep)
+                                            ln_ou = float(v) if (v is not None and pd.notna(v)) else None
+                                    # Build pred_total map
+                                    pc = next((c for c in ['pred_total','pred_total_model'] if c in _df_enr.columns), None)
+                                    if pc:
+                                        pt_map = dict(zip(_df_enr['game_id'], pd.to_numeric(_df_enr[pc], errors='coerce')))
+                    except Exception:
+                        pass
+                pt_ou = None
+                try:
+                    for cand in [rep.get('pred_total'), rep.get('pred_total_model')]:
+                        if cand is not None and str(cand).strip()!='':
+                            pt_ou = float(cand)
+                            break
+                except Exception:
+                    pt_ou = None
+                # Fallback: derive from projections if present
+                if pt_ou is None:
+                    try:
+                        ph = rep.get('proj_home'); pa = rep.get('proj_away')
+                        if (ph is not None) and (pa is not None) and str(ph).strip()!='' and str(pa).strip()!='':
+                            pt_ou = float(ph) + float(pa)
+                    except Exception:
+                        pass
+                if (pt_ou is None) and gid_rep and ('pt_map' in locals()):
+                    try:
+                        v = pt_map.get(gid_rep)
+                        pt_ou = float(v) if (v is not None and str(v).strip()!='') else None
+                    except Exception:
+                        pt_ou = None
+                if (pt_ou is None) and gid_rep and ('pred_total_map' in locals()):
+                    try:
+                        v = pred_total_map.get(gid_rep)
+                        pt_ou = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                # Last resort: use p_over thresholds to pick direction even without numeric line
+                side_ou = None
+                if (pt_ou is not None) and (ln_ou is not None):
+                    side_ou = 'Over' if pt_ou > ln_ou else 'Under'
+                if (side_ou is None) and gid_rep and ('po_map' in locals()):
+                    try:
+                        pv = po_map.get(gid_rep)
+                        if pv is not None and str(pv).strip()!='':
+                            pval = float(pv)
+                            hi = settings.p_over_threshold_high; lo = settings.p_over_threshold_low
+                            if (hi is not None) and (pval >= float(hi)):
+                                side_ou = 'Over'
+                            elif (lo is not None) and (pval <= float(lo)):
+                                side_ou = 'Under'
+                    except Exception:
+                        pass
+                edge_ou = None
+                try:
+                    if (pt_ou is not None) and (ln_ou is not None):
+                        edge_ou = abs(pt_ou - ln_ou)
+                    elif rep.get('edge_total') is not None and str(rep.get('edge_total')).strip()!='':
+                        edge_ou = abs(float(rep.get('edge_total')))
+                except Exception:
+                    edge_ou = None
+                # Price from chosen side when available
+                price_ou = None
+                try:
+                    if gid_rep and ('tot_over_price_map' in locals()) and ('tot_under_price_map' in locals()) and side_ou:
+                        price_ou = (tot_over_price_map.get(gid_rep) if side_ou == 'Over' else tot_under_price_map.get(gid_rep))
+                except Exception:
+                    price_ou = None
+                out_items.append({
+                    'type': 'Totals',
+                    'code': 'OU',
+                    'book': '',
+                    'bet': (f"{side_ou} {ln_ou:.1f}" if (side_ou and ln_ou is not None) else (side_ou or '')),
+                    'bet_label': (f"{side_ou} {ln_ou:.1f}" if (side_ou and ln_ou is not None) else (side_ou or '')),
+                    'line': ln_ou,
+                    'price': price_ou,
+                    'edge': edge_ou,
+                    'market': 'totals',
+                    'pred_total': pt_ou,
+                    'edge_total': rep.get('edge_total'),
+                    'market_total': ln_ou,
+                    'selection': (side_ou or ''),
+                    'game_id': gid_rep,
+                })
+            # ATS fallback
+            if 'ATS' not in present_codes:
+                hs = None
+                try:
+                    for cand in [rep.get('home_spread'), rep.get('closing_spread_home')]:
+                        if cand is not None and str(cand).strip()!='':
+                            hs = float(cand)
+                            break
+                except Exception:
+                    hs = None
+                # Fallback: pull closing/home spread from enriched by game_id
+                if (hs is None) and disp_date and gid_rep:
+                    try:
+                        p_enr = OUT / f"predictions_unified_enriched_{disp_date}.csv"
+                        if p_enr.exists():
+                            _df_enr2 = pd.read_csv(p_enr)
+                            if 'game_id' in _df_enr2.columns:
+                                _df_enr2['game_id'] = _df_enr2['game_id'].astype(str)
+                                shc = next((c for c in ['closing_spread_home','home_spread','spread_home'] if c in _df_enr2.columns), None)
+                                if shc:
+                                    _map_hs = dict(zip(_df_enr2['game_id'], pd.to_numeric(_df_enr2[shc], errors='coerce')))
+                                    v = _map_hs.get(gid_rep)
+                                    hs = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                if (hs is None) and gid_rep and ('hs_map' in locals()):
+                    try:
+                        v = hs_map.get(gid_rep)
+                        hs = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                pm = None
+                try:
+                    if rep.get('pred_margin') is not None and str(rep.get('pred_margin')).strip()!='':
+                        pm = float(rep.get('pred_margin'))
+                except Exception:
+                    pm = None
+                if (pm is None) and disp_date and gid_rep:
+                    try:
+                        p_enr3 = OUT / f"predictions_unified_enriched_{disp_date}.csv"
+                        if p_enr3.exists():
+                            _df_enr3 = pd.read_csv(p_enr3)
+                            if 'game_id' in _df_enr3.columns:
+                                _df_enr3['game_id'] = _df_enr3['game_id'].astype(str)
+                                pmc = next((c for c in ['pred_margin_market_blend','pred_margin'] if c in _df_enr3.columns), None)
+                                if pmc:
+                                    _map_pm = dict(zip(_df_enr3['game_id'], pd.to_numeric(_df_enr3[pmc], errors='coerce')))
+                                    v = _map_pm.get(gid_rep)
+                                    pm = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                if (pm is None) and gid_rep and ('pred_margin_map' in locals()):
+                    try:
+                        v = pred_margin_map.get(gid_rep)
+                        pm = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                if (hs is not None) and (pm is not None):
+                    mkt_margin = (0.0 - hs)
+                    delta = pm - mkt_margin
+                    side_home = (delta >= 0)
+                    side_team = home_name if side_home else away_name
+                    ln_spread = hs if side_home else (0.0 - hs)
+                    edge_spread = abs(delta)
+                    # Price from chosen side when available
+                    price_spread = None
+                    try:
+                        if gid_rep and ('hs_price_map' in locals()) and ('as_price_map' in locals()):
+                            price_spread = (hs_price_map.get(gid_rep) if side_home else as_price_map.get(gid_rep))
+                    except Exception:
+                        price_spread = None
+                    out_items.append({
+                        'type': 'Spread',
+                        'code': 'ATS',
+                        'book': '',
+                        'bet': f"{side_team} {ln_spread:+.1f}",
+                        'bet_label': f"{side_team} {ln_spread:+.1f}",
+                        'line': ln_spread,
+                        'price': price_spread,
+                        'edge': edge_spread,
+                        'market': 'spreads',
+                        'pred_total': rep.get('pred_total'),
+                        'edge_total': rep.get('edge_total'),
+                        'market_total': rep.get('market_total'),
+                        'selection': side_team,
+                        'game_id': gid_rep,
+                    })
         except Exception:
             pass
 
@@ -19213,28 +19541,20 @@ def api_recommendations():
                             def _keep(r: pd.Series) -> bool:
                                 try:
                                     p = float(r.get('p_over_prob')) if r.get('p_over_prob') is not None else np.nan
+                                    b = str(r.get('bet') or '').lower()
+                                    if np.isfinite(p):
+                                        return (p >= p_hi and b == 'over') or (p <= p_lo and b == 'under')
+                                    # If no probability, drop to avoid overs-only bias
+                                    return False
+                                except Exception:
+                                    return False
                             # Apply min edge gating on totals if configured
                             try:
                                 em = settings.ou_edge_min
                                 if (em is not None) and ('edge_total' in tots.columns):
                                     tots = tots[pd.to_numeric(tots['edge_total'], errors='coerce').abs() >= float(em)]
-                        
                             except Exception:
                                 pass
-                                    b = str(r.get('bet')).lower()
-                                    if np.isfinite(p):
-                                        return (p >= p_hi and b == 'over') or (p <= p_lo and b == 'under')
-                                    # If no probability, drop to avoid overs-only bias
-                            # Apply min edge gating on spreads if configured
-                            try:
-                                am = settings.ats_edge_min
-                                if (am is not None) and ('edge_margin' in sprs.columns):
-                                    sprs = sprs[pd.to_numeric(sprs['edge_margin'], errors='coerce').abs() >= float(am)]
-                            except Exception:
-                                pass
-                                    return False
-                                except Exception:
-                                    return False
                             tots = tots[tots.apply(_keep, axis=1)]
                     except Exception:
                         pass
@@ -19249,6 +19569,13 @@ def api_recommendations():
                     sprs['line'] = sprs.apply(lambda r: (r['home_spread'] if str(r.get('bet')).lower() == 'home' else r['away_spread']), axis=1)
                     sprs['price'] = sprs.apply(lambda r: (r['home_spread_price'] if str(r.get('bet')).lower() == 'home' else r['away_spread_price']), axis=1)
                     sprs['edge'] = sprs['edge_margin'].abs() if 'edge_margin' in sprs.columns else None
+                    # Apply min edge gating on spreads if configured
+                    try:
+                        am = settings.ats_edge_min
+                        if (am is not None) and ('edge_margin' in sprs.columns):
+                            sprs = sprs[pd.to_numeric(sprs['edge_margin'], errors='coerce').abs() >= float(am)]
+                    except Exception:
+                        pass
                     sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'
                     return sprs
                 def _moneyline(df: pd.DataFrame) -> pd.DataFrame:
@@ -20126,6 +20453,106 @@ def api_upload_predictions_enriched():
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
         return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# Quantile artifact uploads
+@app.route("/api/upload_quantiles_selected", methods=["POST"])
+def api_upload_quantiles_selected():
+    """Upload quantiles_selected.csv for today's slate.
+
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/quantiles_selected.csv so Render can serve quantile bands.
+    """
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / "quantiles_selected.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/upload_quantiles_history", methods=["POST"])
+def api_upload_quantiles_history():
+    """Upload quantiles_history.csv containing past q10/q50/q90 records.
+
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/quantiles_history.csv so Render can serve quantile metrics.
+    """
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / "quantiles_history.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/upload_quantile_model", methods=["POST"])
+def api_upload_quantile_model():
+    """Upload quantile residual model JSON payload.
+
+    Body: multipart 'file' or raw JSON text.
+    Writes to outputs/quantile_model.json for residual quantiles ingestion.
+    """
+    try:
+        # Read JSON content
+        raw: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            raw = f.read()
+        else:
+            raw = request.get_data() or b''
+        if not raw:
+            return jsonify({"status": "error", "message": "no JSON content provided"}), 400
+        # Validate JSON
+        try:
+            txt = raw.decode('utf-8')
+            payload = json.loads(txt)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid JSON: {e}"}), 400
+        out_path = OUT / "quantile_model.json"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(payload, indent=2), encoding='utf-8')
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "path": str(out_path), "keys": list(payload.keys())})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
