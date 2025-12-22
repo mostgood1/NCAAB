@@ -5084,6 +5084,88 @@ def index():
                 )
     except Exception:
         pass
+    # Server-safe fallback: render from display predictions API when snapshot is empty
+    try:
+        # Use explicit date if provided; else resolve from latest display
+        api_date = (request.args.get("date") or "").strip()
+        if not api_date:
+            try:
+                import re as _re_mod
+                pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+                _dates = []
+                for _p in OUT.glob('predictions_display_*.csv'):
+                    m = pat.match(_p.name)
+                    if m:
+                        _dates.append(m.group(1))
+                if _dates:
+                    api_date = sorted(_dates)[-1]
+            except Exception:
+                api_date = None
+        resp = api_display_predictions() if not api_date else api_display_predictions()
+        js_payload = None
+        try:
+            if hasattr(resp, 'get_json'):
+                js_payload = resp.get_json(silent=True)
+            else:
+                from flask import Response as _Resp
+                if isinstance(resp, _Resp):
+                    js_payload = json.loads(resp.get_data(as_text=True))
+        except Exception:
+            try:
+                js_payload = json.loads(getattr(resp, 'data', '{}'))
+            except Exception:
+                js_payload = None
+        rows_api = (js_payload.get('rows') if isinstance(js_payload, dict) else None) or []
+        if rows_api:
+            # Brand rows minimally for logos/colors
+            branding = _load_branding_map()
+            def _brand_row_basic(r: dict) -> dict:
+                out = dict(r)
+                try:
+                    hn = str(r.get('home_team') or '')
+                    an = str(r.get('away_team') or '')
+                    hb = branding.get(_canon_slug(hn), {})
+                    ab = branding.get(_canon_slug(an), {})
+                    out['home_logo'] = hb.get('logo')
+                    out['away_logo'] = ab.get('logo')
+                    out['home_color'] = hb.get('primary') or hb.get('secondary')
+                    out['away_color'] = ab.get('primary') or ab.get('secondary')
+                    out['home_text'] = hb.get('text') or '#f6f8ff'
+                    out['away_text'] = ab.get('text') or '#f6f8ff'
+                except Exception:
+                    pass
+                return out
+            safe_rows = [_brand_row_basic(r) for r in rows_api]
+            date_val = js_payload.get('date') if isinstance(js_payload, dict) else None
+            return render_template(
+                "index.html",
+                rows=safe_rows,
+                total_rows=len(safe_rows),
+                date_val=date_val,
+                top_picks=[],
+                accuracy=None,
+                uniform_note=None,
+                dynamic_css=None,
+                coverage_note=None,
+                results_note=None,
+                show_edges=True,
+                coverage={},
+                archive_dates=[],
+                show_bootstrap=False,
+                compact_mode=True,
+                bootstrap_url=None,
+                show_diag=False,
+                diag_url=None,
+                fused_bootstrap_url=None,
+                refresh_odds_url=None,
+                removed_empty_rows=0,
+                status=None,
+                pipeline_stats={},
+                source_path='api_display_predictions',
+                source_rows=len(safe_rows),
+            )
+    except Exception:
+        pass
     # Probability calibration enable flag (?cal_probs=1 or env CALIBRATE_PROBS=1)
     try:
         calibrate_probs_param = (request.args.get("cal_probs") or "").strip().lower() in ("1","true","yes")
