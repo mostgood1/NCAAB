@@ -3563,6 +3563,13 @@ def api_commit_mode_status():
 @app.route("/api/cal-debug")
 def cal_debug():
     from flask import jsonify
+    @app.errorhandler(500)
+    def _handle_500(_e):
+        try:
+            d = (request.args.get('date') or dt.datetime.utcnow().strftime('%Y-%m-%d')).strip()
+            return redirect(f"/recommendations?date={d}"), 302
+        except Exception:
+            return jsonify({"status":"error","message":"Internal error; redirecting to recommendations failed"}), 500
     import pandas as pd
     result: dict[str, any] = {}
     # Helper: stringify dict keys to avoid JSON sorting TypeErrors when None/NaN present
