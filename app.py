@@ -21853,7 +21853,13 @@ def api_display_predictions():
         try:
             df_full = pd.read_csv(path, low_memory=True)
         except Exception:
-            df_full = pd.DataFrame()
+            try:
+                df_full = pd.read_csv(path, low_memory=False, engine='python')
+            except Exception:
+                try:
+                    df_full = pd.read_csv(path, low_memory=False, encoding='utf-8-sig')
+                except Exception:
+                    df_full = pd.DataFrame()
         row_count = (0 if not isinstance(df_full, pd.DataFrame) else len(df_full))
         df = pd.DataFrame()
         # If we have any rows, flex-map columns instead of hard-requiring a schema
@@ -21940,6 +21946,37 @@ def api_display_predictions():
                                 df[['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time','date']].to_csv(path, index=False)
                             except Exception:
                                 pass
+            # Final fallback: derive minimal display from enriched snapshot if available
+            if df.empty:
+                enr = OUT / f"predictions_unified_enriched_{date_q}.csv"
+                ddf = _safe_read_csv(enr)
+                if not ddf.empty:
+                    def _pick_col(df_, opts):
+                        for c in opts:
+                            if c in df_.columns:
+                                return c
+                        return None
+                    hcol = _pick_col(ddf, ['home_team','home','home_team_name'])
+                    acol = _pick_col(ddf, ['away_team','away','away_team_name'])
+                    tcol = _pick_col(ddf, ['pred_total_cal','pred_total','total_pred'])
+                    mcol = _pick_col(ddf, ['pred_margin_cal','pred_margin','margin_pred'])
+                    mtcol = _pick_col(ddf, ['market_total','closing_total','total_median'])
+                    stcol = _pick_col(ddf, ['start_time','commence_time'])
+                    dcol = _pick_col(ddf, ['display_date','date'])
+                    keep_e = [c for c in ['game_id', dcol, hcol, acol, tcol, mcol, mtcol, stcol] if c]
+                    if keep_e:
+                        e2 = ddf[keep_e].copy()
+                        ren = {}
+                        if dcol and dcol != 'date': ren[dcol] = 'date'
+                        if hcol and hcol != 'home_team': ren[hcol] = 'home_team'
+                        if acol and acol != 'away_team': ren[acol] = 'away_team'
+                        if tcol and tcol != 'pred_total': ren[tcol] = 'pred_total'
+                        if mcol and mcol != 'pred_margin': ren[mcol] = 'pred_margin'
+                        if mtcol and mtcol != 'market_total': ren[mtcol] = 'market_total'
+                        if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
+                        if ren:
+                            e2 = e2.rename(columns=ren)
+                        df = e2.copy()
         except Exception:
             pass
         # Snapshot-first: compute hash and return rows without re-normalizing/persisting
