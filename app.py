@@ -22041,16 +22041,16 @@ def cards_safe():
             tm = r.get('display_time_ampm') or r.get('display_time_str') or ''
             items.append(f"<li>{at} at {ht} <span style='color:#777'>({tm})</span></li>")
         html = """
-<!doctype html>
-<html><head><meta charset="utf-8"><title>Cards (Safe)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{font-family:system-ui,Segoe UI,Arial;margin:16px} h1{font-size:18px} ul{padding-left:18px}</style>
-</head><body>
-<h1>Cards for {date}</h1>
-<p>Total games: {n}</p>
-<ul>{lis}</ul>
-</body></html>
-""".format(date=date_q, n=len(rows), lis='\n'.join(items))
+    <!doctype html>
+    <html><head><meta charset="utf-8"><title>Cards (Safe)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>body{{font-family:system-ui,Segoe UI,Arial;margin:16px}} h1{{font-size:18px}} ul{{padding-left:18px}}</style>
+    </head><body>
+    <h1>Cards for {date}</h1>
+    <p>Total games: {n}</p>
+    <ul>{lis}</ul>
+    </body></html>
+    """.format(date=date_q, n=len(rows), lis='\n'.join(items))
         from flask import Response
         return Response(html, mimetype='text/html')
     except Exception:
@@ -22069,7 +22069,7 @@ def cards_safe():
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Cards (Safe)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{font-family:system-ui,Segoe UI,Arial;margin:16px} h1{font-size:18px} ul{padding-left:18px}</style>
+<style>body{{font-family:system-ui,Segoe UI,Arial;margin:16px}} h1{{font-size:18px}} ul{{padding-left:18px}}</style>
 </head><body>
 <h1>Cards for {date}</h1>
 <p>Total games: {n}</p>
