@@ -21849,45 +21849,59 @@ def api_display_predictions():
                 date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
     path = OUT / f'predictions_display_{date_q}.csv'
     if path.exists():
+        # Read full CSV first to avoid dropping rows due to column projection
         try:
-            # Use low_memory reads and limit columns to reduce peak RAM
-            usecols = [
-                'game_id','home_team','away_team','pred_total','pred_margin',
-                'pred_total_basis','pred_margin_basis','market_total','spread_home',
-                'edge_total','edge_ats','start_time','date','display_date','display_time_str'
-            ]
-            # Some files may not have all keep columns; let pandas skip missing via errors='ignore' pattern
-            try:
-                df = pd.read_csv(path, low_memory=True, usecols=lambda c: True)
-                # Then project down to desired columns if present
-                df = df[[c for c in usecols if c in df.columns]]
-            except Exception:
-                # Fallback without usecols in case of engine quirks
-                df = pd.read_csv(path, low_memory=True)
-                df = df[[c for c in usecols if c in df.columns]]
+            df_full = pd.read_csv(path, low_memory=True)
         except Exception:
-            df = pd.DataFrame()
-        # If snapshot is empty or lacks rows, rebuild from edges and persist to avoid blank cards
+            df_full = pd.DataFrame()
+        row_count = (0 if not isinstance(df_full, pd.DataFrame) else len(df_full))
+        df = pd.DataFrame()
+        # If we have any rows, flex-map columns instead of hard-requiring a schema
+        if row_count > 0:
+            def _pick_col(df_, opts):
+                for c in opts:
+                    if c in df_.columns:
+                        return c
+                return None
+            try:
+                cols = {
+                    'game_id': _pick_col(df_full, ['game_id','id','gid']),
+                    'home_team': _pick_col(df_full, ['home_team','home_team_name','home']),
+                    'away_team': _pick_col(df_full, ['away_team','away_team_name','away']),
+                    'pred_total': _pick_col(df_full, ['pred_total','pred_total_cal','total_pred','total']),
+                    'pred_margin': _pick_col(df_full, ['pred_margin','pred_margin_cal','margin_pred','margin']),
+                    'market_total': _pick_col(df_full, ['market_total','closing_total','total_median']),
+                    'spread_home': _pick_col(df_full, ['spread_home','closing_spread_home','home_spread']),
+                    'start_time': _pick_col(df_full, ['start_time','commence_time']),
+                    'date': _pick_col(df_full, ['display_date','date']),
+                    'display_time_str': _pick_col(df_full, ['display_time_str','display_time'])
+                }
+                keep = [v for v in cols.values() if v]
+                if keep:
+                    df = df_full[keep].copy()
+                    ren = {v:k for k,v in cols.items() if v and v!=k}
+                    if ren:
+                        df = df.rename(columns=ren)
+            except Exception:
+                df = pd.DataFrame()
+        # If no rows or mapping failed, rebuild from edges and persist to avoid blank cards
         try:
-            if df.empty or len(df) == 0:
+            if df.empty:
                 ap = OUT / f"align_period_{date_q}_edges.csv"
                 ed = _safe_read_csv(ap)
                 if not ed.empty:
-                    # Remove synthetic placeholders
                     if 'game_id' in ed.columns:
                         try:
                             ed['game_id'] = ed['game_id'].astype(str)
                             ed = ed[~ed['game_id'].str.startswith('synthetic:')]
                         except Exception:
                             pass
-                    # Normalize date and constrain
                     if 'date' in ed.columns:
                         try:
                             ed['date'] = pd.to_datetime(ed['date'], errors='coerce').dt.strftime('%Y-%m-%d')
                             ed = ed[ed['date'].astype(str) == str(date_q)]
                         except Exception:
                             pass
-                    # Column picks
                     def _pick_col(df_, opts):
                         for c in opts:
                             if c in df_.columns:
@@ -21911,7 +21925,6 @@ def api_display_predictions():
                         if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
                         if ren:
                             e2 = e2.rename(columns=ren)
-                        # Aggregate per game
                         if 'game_id' in e2.columns:
                             def _agg_first(series):
                                 try:
@@ -21923,7 +21936,6 @@ def api_display_predictions():
                                 if c in e2.columns:
                                     agg_map[c] = _agg_first
                             df = e2.groupby('game_id').agg(agg_map).reset_index()
-                            # Persist rebuilt snapshot
                             try:
                                 df[['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time','date']].to_csv(path, index=False)
                             except Exception:
@@ -21948,7 +21960,7 @@ def api_display_predictions():
             digest = hasher.hexdigest()
         except Exception:
             digest = 'hash_error'
-        keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','display_date','display_time_str']
+        keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','date','display_date','display_time_str']
         rows: list[dict[str, Any]] = []
         for _, r in df.iterrows():
             item = {}
@@ -21968,6 +21980,9 @@ def api_display_predictions():
                     dt_local = dt_obj.astimezone(tzinfo)
                     item['display_time_ampm'] = dt_local.strftime('%I:%M %p')
                     item['display_date_local'] = dt_local.strftime('%Y-%m-%d')
+                # If we lack display_date, derive it from date or display_date_local
+                if 'display_date' not in item or not item.get('display_date'):
+                    item['display_date'] = item.get('date') or item.get('display_date_local')
             except Exception:
                 pass
             rows.append(item)
