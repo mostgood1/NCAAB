@@ -5,32 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Results Archive</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 24px; }
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
     header { display: flex; align-items: baseline; gap: 12px; }
+    header a { color: var(--accent); }
     select, button { padding: 6px 10px; }
     table { border-collapse: collapse; width: 100%; margin-top: 16px; }
-    thead th { position: sticky; top: 0; z-index: 1; }
-    th, td { border: 1px solid #ddd; padding: 8px; }
-    th { background: #f5f5f5; text-align: left; }
-    tbody tr:nth-child(odd) { background: #fafafa; }
-    .meta { margin-top: 8px; color: #666; }
+    thead th { position: sticky; top: 0; z-index: 1; background: var(--card); color: var(--muted); }
+    th, td { border-bottom: 1px solid var(--pill-br); padding: 8px; text-align: left; }
+    tbody tr:nth-child(odd) { background: #0d1427; }
+    .meta { margin-top: 8px; color: var(--muted); }
     .grid { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
     .center { text-align: center; }
     .num { text-align: right; }
-    .chip { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 12px; line-height: 1; }
-    .chip.over { background: #e6f7ff; color: #036; border: 1px solid #b3e5ff; }
-    .chip.under { background: #fff3e6; color: #633; border: 1px solid #ffd9b3; }
-    .chip.home { background: #e8f5e9; color: #064; border: 1px solid #c8e6c9; }
-    .chip.away { background: #f3e5f5; color: #503; border: 1px solid #e1bee7; }
+    .chip { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 12px; line-height: 1; border: 1px solid transparent }
+    .chip.over { background:#12324e22; border-color:#1d4d75; color:#bfe2ff }
+    .chip.under { background:#5e2a0a22; border-color:#a55c21; color:#ffd8ad }
+    .chip.home { background:#1f3f2a22; border-color:#2b5a3a; color:#bfeecb }
+    .chip.away { background:#3c274222; border-color:#5a3b63; color:#e6c8f0 }
     .teamCell { display: inline-flex; align-items: center; gap: 8px; }
     .teamLogo { width: 18px; height: 18px; border-radius: 2px; object-fit: contain; }
-    tbody tr { border-left: 4px solid #ddd; border-right: 4px solid #ddd; }
+    tbody tr { border-left: 4px solid var(--pill-br); border-right: 4px solid var(--pill-br); }
   </style>
 </head>
 <body>
+  <div class="container">
   <header>
     <h1>Results Archive</h1>
     <a href="/">Home</a>
+    <a href="/recommendations?group=1">Recommendations</a>
+    <a href="/accuracy">Accuracy</a>
   </header>
 
   <div class="grid">
@@ -211,5 +216,6 @@
     document.getElementById('refreshBtn').addEventListener('click', loadResults);
     (async function init(){ await loadDates(); await loadResults(); })();
   </script>
+  </div>
 </body>
 </html>

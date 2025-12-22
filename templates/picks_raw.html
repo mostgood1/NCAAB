@@ -4,15 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NCAAB Expanded Picks</title>
-  <link rel="stylesheet" href="/static/style.css" />
   <style>
-    .edge-high{background:#0b6623;color:#fff;}
-    .edge-med{background:#1e90ff;color:#fff;}
-    .edge-low{background:#555;color:#fff;}
-    .pill.ml{background:#6b2d5c;color:#fff;}
-    .pill.spreads{background:#8a4baf;color:#fff;}
-    .pill.totals{background:#b05f3c;color:#fff;}
-    .dt{font-size:11px;opacity:0.85;}
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text)}
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    .row.header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .row.header a{color:var(--accent)}
+    .spacer{flex:1}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+    .card{background:var(--card);border:1px solid var(--pill-br);border-radius:10px;padding:10px}
+    .pill{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:999px;padding:3px 8px;font-size:12px;color:var(--text)}
+    .edge-high{background:#1f3f2a;border-color:#2b5a3a;color:#bfeecb}
+    .edge-med{background:#12324e;border-color:#1d4d75;color:#bfe2ff}
+    .edge-low{background:#2a3a63;border-color:#384b7a;color:#d7e0f7}
+    .pill.ml{background:#3c2742;border-color:#5a3b63}
+    .pill.spreads{background:#1f3f2a;border-color:#2b5a3a}
+    .pill.totals{background:#12324e;border-color:#1d4d75}
+    .dt{font-size:11px;color:var(--muted)}
     .pill.time-local{background:#12324e;border-color:#1d4d75;color:#f6f8ff;}
     .pill.time-local.rollover{background:#53257c;border-color:#6d36a5;color:#fff;}
   </style>
@@ -23,7 +31,10 @@
       <h1>Expanded Picks</h1>
       <div class="spacer"></div>
       <a href="/">Cards</a>
-      <a href="/recommendations">Recommendations</a>
+      <a href="/recommendations?group=1" class="pill">Grouped</a>
+      <a href="/recommendations" class="pill">Recommendations</a>
+      <a href="/results-archive" class="pill">Daily Recap</a>
+      <a href="/accuracy" class="pill">Accuracy</a>
     </div>
     <form method="get" class="filters">
       <label>Date <input type="date" name="date" value="{{ date_val or '' }}"/></label>
@@ -124,23 +135,25 @@
       loadStatus().then(function(s){ renderStakePills(s && s.risk ? s.risk : null); });
     })();
   </script>
-</body>
-      function cleanupPicks(){
-        const rows = document.querySelectorAll('table tbody tr');
-        rows.forEach(tr=>{
-          tr.querySelectorAll('td').forEach(td=>{
-            const txt = (td.textContent||'').trim().toLowerCase();
-            if(txt==='nan' || txt==='-' || txt==='—'){
-              td.textContent = '';
-            }
-          });
-          const pill = tr.querySelector('.pill.time-local');
-          if(pill){
-            const disp = pill.getAttribute('data-display');
-            const tz = pill.getAttribute('data-tz');
-            if(disp){ pill.textContent = disp + (tz?(' '+tz):''); }
+  <script>
+    function cleanupPicks(){
+      const rows = document.querySelectorAll('table tbody tr');
+      rows.forEach(tr=>{
+        tr.querySelectorAll('td').forEach(td=>{
+          const txt = (td.textContent||'').trim().toLowerCase();
+          if(txt==='nan' || txt==='-' || txt==='—'){
+            td.textContent = '';
           }
         });
-      }
-      document.addEventListener('DOMContentLoaded', cleanupPicks);
+        const pill = tr.querySelector('.pill.time-local');
+        if(pill){
+          const disp = pill.getAttribute('data-display');
+          const tz = pill.getAttribute('data-tz');
+          if(disp){ pill.textContent = disp + (tz?(' '+tz):''); }
+        }
+      });
+    }
+    document.addEventListener('DOMContentLoaded', cleanupPicks);
+  </script>
+</body>
 </html>

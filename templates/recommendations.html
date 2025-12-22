@@ -21,10 +21,10 @@
     .pill.time-local{background:#12324e;border-color:#1d4d75;color:#f6f8ff;}
     .pill.time-local.rollover{background:#53257c;border-color:#6d36a5;color:#fff;}
     .chip{display:inline-block;border-radius:12px;padding:3px 8px;font-size:12px;line-height:1;border:1px solid transparent}
-    .chip.over{background:#0d2233;color:#9ec5ff;border-color:#1e3a5c}
-    .chip.under{background:#331f0d;color:#ffd09e;border-color:#5c3a1e}
-    .chip.home{background:#0d3317;color:#a6e3b1;border-color:#1e5c34}
-    .chip.away{background:#2b0d33;color:#e3a6d6;border-color:#5c1e69}
+    .chip.over{background:#12324e22;border-color:#1d4d75;color:#bfe2ff}
+    .chip.under{background:#5e2a0a22;border-color:#a55c21;color:#ffd8ad}
+    .chip.home{background:#1f3f2a22;border-color:#2b5a3a;color:#bfeecb}
+    .chip.away{background:#3c274222;border-color:#5a3b63;color:#e6c8f0}
     .center{text-align:center}
     .teamCell{display:inline-flex;align-items:center;gap:8px}
     .teamLogo{width:18px;height:18px;border-radius:2px;object-fit:contain}
@@ -36,6 +36,9 @@
       <h1>NCAAB – Recommendations</h1>
       <div class="spacer"></div>
       <a href="/">Cards</a>
+      <a href="/recommendations?group=1" class="pill" title="Grouped view">Grouped</a>
+      <a href="/results-archive" class="pill" title="Daily recap">Daily Recap</a>
+      <a href="/accuracy" class="pill" title="Season accuracy">Accuracy</a>
       <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
     </div>
     <div id="recapBar" class="meta" aria-live="polite" role="status" style="margin-bottom:10px;">

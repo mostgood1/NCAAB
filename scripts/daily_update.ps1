@@ -1127,7 +1127,26 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         Write-Warning "Render upload step failed: $($_)"
       }
     } else {
-      Write-Host 'UploadToRender flag not set; skipping Render upload.' -ForegroundColor Yellow
+      Write-Host 'UploadToRender flag not set; skipping Render upload.' -ForegroundColor Yellow    
+    }
+
+    # Auto-start results watcher job for today's date
+    try {
+      $runDate = $todayIso
+      $watcher = Join-Path $RepoRoot 'scripts\watch_results.ps1'
+      if (Test-Path $watcher) {
+        Write-Host ("Starting results watcher for {0}" -f $runDate) -ForegroundColor Cyan
+        Start-Job -ScriptBlock {
+          param($d,$root)
+          Push-Location $root
+          & ./scripts/watch_results.ps1 -Date $d -IntervalSec 30
+          Pop-Location
+        } -ArgumentList $runDate, $RepoRoot | Out-Null
+      } else {
+        Write-Warning "watch_results.ps1 not found; skipping watcher start."
+      }
+    } catch {
+      Write-Warning "Failed to start watcher job: $($_)"
     }
 
   Write-Section 'DONE'

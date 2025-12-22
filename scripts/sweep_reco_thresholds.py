@@ -110,7 +110,23 @@ def _ats_sweep(enriched: pd.DataFrame, tau_vals: Iterable[float], prob_threshold
     hs = pd.to_numeric(enriched.get("closing_spread_home") if use_closing else enriched.get("home_spread", enriched.get("spread_home")), errors="coerce")
     mkt_margin = -hs
     pred_blend = pd.to_numeric(enriched.get("pred_margin_market_blend", enriched.get("pred_margin")), errors="coerce")
-    p_cover = pd.to_numeric(enriched.get("p_cover_display", enriched.get("p_home_cover_emp", enriched.get("p_home_cover"))), errors="coerce")
+    # Prefer ensemble/empirical home-cover probabilities; avoid display/final if miscalibrated
+    p_cover = pd.to_numeric(
+        enriched.get(
+            "p_home_cover_ensemble",
+            enriched.get(
+                "p_home_cover_emp",
+                enriched.get(
+                    "p_home_cover",
+                    enriched.get(
+                        "p_home_cover_final",
+                        enriched.get("p_home_cover_meta_cal", enriched.get("p_cover_display")),
+                    ),
+                ),
+            ),
+        ),
+        errors="coerce",
+    )
     mismatch = enriched.get("flag_market_margin_mismatch")
     if mismatch is None:
         mismatch = pd.Series(False, index=enriched.index)
@@ -140,6 +156,9 @@ def _ats_sweep(enriched: pd.DataFrame, tau_vals: Iterable[float], prob_threshold
                         pred_home = pd.Series(False, index=enriched.index)
                         pred_home.loc[p_cover.notna()] = p_cover.loc[p_cover.notna()].ge(prob_thr)
                         pred_home.loc[~p_cover.notna()] = delta.loc[~p_cover.notna()].gt(0)
+                    # Enforce side consistency with delta sign to avoid contradictions
+                    consistency = (pred_home & delta.gt(0)) | ((~pred_home) & delta.lt(0))
+                    sel_final = sel_final & consistency
                 else:
                     sel_final = sel_base
                     pred_home = delta.gt(0)
