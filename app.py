@@ -3282,11 +3282,35 @@ def _get_display_tz_name() -> str:
 
 def _safe_read_csv(p: Path) -> pd.DataFrame:
     try:
-        if p.exists():
-            return pd.read_csv(p)
+        if not p.exists():
+            return pd.DataFrame()
+        # Try multiple pandas configurations first
+        for kwargs in (
+            dict(),
+            dict(low_memory=True),
+            dict(low_memory=False),
+            dict(low_memory=False, engine='python'),
+            dict(low_memory=False, encoding='utf-8-sig'),
+        ):
+            try:
+                df = pd.read_csv(p, **kwargs)
+                if isinstance(df, pd.DataFrame) and len(df) > 0:
+                    return df
+            except Exception:
+                continue
+        # csv module fallback
+        try:
+            import csv as _csv
+            rows = []
+            with open(p, 'r', encoding='utf-8', errors='ignore', newline='') as f:
+                reader = _csv.DictReader(f)
+                for row in reader:
+                    rows.append(row)
+            return pd.DataFrame(rows)
+        except Exception:
+            return pd.DataFrame()
     except Exception:
-        pass
-    return pd.DataFrame()
+        return pd.DataFrame()
 
 
 def _load_predictions_current() -> pd.DataFrame:
@@ -21906,18 +21930,38 @@ def api_display_predictions():
             else:
                 date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
     path = OUT / f'predictions_display_{date_q}.csv'
+    def _read_csv_resilient(_p: Path) -> pd.DataFrame:
+        # Try pandas in multiple modes; fall back to csv module when needed
+        try:
+            df1 = pd.read_csv(_p, low_memory=True)
+            if isinstance(df1, pd.DataFrame) and len(df1) > 0:
+                return df1
+        except Exception:
+            pass
+        for kwargs in (
+            dict(low_memory=False, engine='python'),
+            dict(low_memory=False, encoding='utf-8-sig'),
+        ):
+            try:
+                df2 = pd.read_csv(_p, **kwargs)
+                if isinstance(df2, pd.DataFrame) and len(df2) > 0:
+                    return df2
+            except Exception:
+                continue
+        # csv module fallback
+        try:
+            import csv as _csv
+            rows = []
+            with open(_p, 'r', encoding='utf-8', errors='ignore', newline='') as f:
+                reader = _csv.DictReader(f)
+                for row in reader:
+                    rows.append(row)
+            return pd.DataFrame(rows)
+        except Exception:
+            return pd.DataFrame()
     if path.exists():
         # Read full CSV first to avoid dropping rows due to column projection
-        try:
-            df_full = pd.read_csv(path, low_memory=True)
-        except Exception:
-            try:
-                df_full = pd.read_csv(path, low_memory=False, engine='python')
-            except Exception:
-                try:
-                    df_full = pd.read_csv(path, low_memory=False, encoding='utf-8-sig')
-                except Exception:
-                    df_full = pd.DataFrame()
+        df_full = _read_csv_resilient(path)
         row_count = (0 if not isinstance(df_full, pd.DataFrame) else len(df_full))
         df = pd.DataFrame()
         # If we have any rows, flex-map columns instead of hard-requiring a schema
@@ -22050,8 +22094,10 @@ def api_display_predictions():
                     line_vals = [row.get(col, '') for col in cols]
                 except AttributeError:
                     line_vals = [row[col] if col in row.index else '' for col in cols]
-                line = ','.join(map(str, line_vals)) + '\n'
-                hasher.update(line.encode())
+                # Avoid commas inside team names causing inconsistent hashing by replacing commas
+                safe_vals = [str(v).replace(',', ';') for v in line_vals]
+                line = ','.join(safe_vals) + '\n'
+                hasher.update(line.encode('utf-8', errors='ignore'))
             digest = hasher.hexdigest()
         except Exception:
             digest = 'hash_error'
