@@ -34,21 +34,23 @@
         <a class="pill" href="/finals">Finals</a>
       </div>
     </div>
+    {% set _display_dates = display_dates if display_dates is defined else (dates if dates is defined else []) %}
+    {% set _latest_display = latest_display if latest_display is defined else (latest if latest is defined else None) %}
     <div class="card search">
       <div class="muted">Quick filter</div>
       <input id="q" type="text" placeholder="YYYY-MM-DD" aria-label="Filter dates" />
-      <div class="muted">Latest display: {{ latest_display or 'n/a' }} · Latest results: {{ latest_results or 'n/a' }}</div>
+      <div class="muted">Latest display: {{ _latest_display or 'n/a' }} · Latest results: {{ latest_results or 'n/a' }}</div>
     </div>
     <div class="grid">
       <div class="card">
         <div class="section-title">Display Snapshots</div>
         <div id="displayList" class="wrap block">
-          {% for d in display_dates %}
+          {% for d in _display_dates %}
             <span class="wrap">
               <a class="date-link" data-date="{{ d }}" href="/?date={{ d }}&use_daily=1">{{ d }}</a>
             </span>
           {% endfor %}
-          {% if not display_dates %}<div class="muted">No display snapshots found.</div>{% endif %}
+          {% if not _display_dates %}<div class="muted">No display snapshots found.</div>{% endif %}
         </div>
       </div>
       <div class="card">
@@ -59,7 +61,7 @@
               <a class="date-link" data-date="{{ d }}" href="/finals?date={{ d }}">{{ d }}</a>
             </span>
           {% endfor %}
-          {% if not results_dates %}<div class="muted">No results files found.</div>{% endif %}
+          {% if results_dates is not defined or not results_dates %}<div class="muted">No results files found.</div>{% endif %}
         </div>
       </div>
     </div>
