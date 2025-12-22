@@ -97,7 +97,8 @@ if ($u2) {
     $rv = if ($u2.rows_verified) { $u2.rows_verified } elseif ($u2.rows) { $u2.rows } else { $null }
     $ru = if ($u2.rows_uploaded) { $u2.rows_uploaded } else { $null }
     $sha = if ($u2.sha) { $u2.sha } else { $null }
-    Write-Host ("[OK] edges uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, ($sha ? " sha=$sha" : "")) -ForegroundColor Green
+    $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+    Write-Host ("[OK] edges uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
 }
 
 $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayPath -Query @{ date = $Date }
@@ -105,7 +106,8 @@ if ($u3) {
     $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
     $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
     $sha = if ($u3.sha) { $u3.sha } else { $null }
-    Write-Host ("[OK] display uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, ($sha ? " sha=$sha" : "")) -ForegroundColor Green
+    $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+    Write-Host ("[OK] display uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
 }
 
 # Upload enriched predictions snapshot for recommendations parity
@@ -114,7 +116,8 @@ if ($u3b) {
     $rv = if ($u3b.rows_verified) { $u3b.rows_verified } elseif ($u3b.rows) { $u3b.rows } else { $null }
     $ru = if ($u3b.rows_uploaded) { $u3b.rows_uploaded } else { $null }
     $sha = if ($u3b.sha) { $u3b.sha } else { $null }
-    Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, ($sha ? " sha=$sha" : "")) -ForegroundColor Green
+    $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+    Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
 }
 
 # Upload quantile artifacts if present
