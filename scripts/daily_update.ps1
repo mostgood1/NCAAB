@@ -1116,10 +1116,12 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       Write-Section "11b) Upload artifacts to Render + verify ($todayIso)"
       try {
         $uploader = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
-        if (Test-Path $uploader) {
-          $args = @('-Date', $todayIso)
-          if ($TriggerRenderRedeploy.IsPresent) { $args += '-TriggerRedeploy' }
-          powershell.exe -ExecutionPolicy Bypass -File $uploader @args
+        $redeployHelper = Join-Path $RepoRoot 'scripts\redeploy_and_reseed.ps1'
+        if ($TriggerRenderRedeploy.IsPresent -and (Test-Path $redeployHelper)) {
+          Write-Host "[Render] Triggering redeploy + reseed via helper" -ForegroundColor Cyan
+          powershell.exe -ExecutionPolicy Bypass -File $redeployHelper -Date $todayIso
+        } elseif (Test-Path $uploader) {
+          powershell.exe -ExecutionPolicy Bypass -File $uploader -Date $todayIso
         } else {
           Write-Warning "Uploader script not found at $uploader; skipping Render upload."
         }
