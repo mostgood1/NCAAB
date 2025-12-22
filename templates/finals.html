@@ -17,6 +17,14 @@
     th{font-weight:700}
     .row{display:flex;justify-content:space-between;align-items:center}
     .header{margin-bottom:12px}
+    .archive-card{margin:8px 0}
+    .archive-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .spacer{flex:1}
+    .dates-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+    .date-link{padding:4px 6px;border:1px solid var(--pill-br);border-radius:6px;text-decoration:none;color:var(--text);background:var(--pill)}
+    .date-link.active{background:#1a274d}
+    .clickable{cursor:pointer}
+    .next-link{margin-left:8px}
   </style>
 </head>
 <body>
@@ -27,9 +35,36 @@
         <a href="/">Cards</a>
         &nbsp;|&nbsp;
         <a href="/recommendations">Recommendations</a>
+        &nbsp;|&nbsp;
+        <a href="/archive">Archive</a>
       </div>
     </div>
     <div class="muted">{{ total_rows }} games{% if date_min and date_max %} ({{ date_min }} → {{ date_max }}){% endif %}</div>
+    {% if dates %}
+      <div class="card archive-card">
+        <div class="archive-row">
+          <div class="muted">Archive</div>
+          <div>
+            {% set idx = dates.index(date_val) if date_val in dates else None %}
+            {% if idx is not none and idx > 0 %}
+              <a href="/finals?date={{ dates[idx-1] }}">◀ Prev</a>
+            {% endif %}
+            {% if idx is not none and idx + 1 < dates|length %}
+              <a href="/finals?date={{ dates[idx+1] }}" class="next-link">Next ▶</a>
+            {% endif %}
+          </div>
+          <div class="spacer"></div>
+          <details>
+            <summary class="clickable">Dates ({{ dates|length }})</summary>
+            <div class="dates-wrap">
+              {% for d in dates[-60:] %}
+                <a href="/finals?date={{ d }}" class="date-link{% if d == date_val %} active{% endif %}">{{ d }}</a>
+              {% endfor %}
+            </div>
+          </details>
+        </div>
+      </div>
+    {% endif %}
     {% if not rows %}
       <div class="card"><div class="muted">No final scores found yet. Generate daily results with the CLI.</div></div>
     {% else %}
