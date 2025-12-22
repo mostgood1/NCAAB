@@ -209,6 +209,7 @@ try:
                 '/api/persist_display',
                 '/api/accuracy',
                 '/accuracy',
+                '/cards-safe',
                 '/api/recommendations',
                 '/api/picks_raw',
                 '/api/debug_artifacts',
@@ -21987,50 +21988,52 @@ def api_display_predictions():
     return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
 @app.route('/cards-safe')
 def cards_safe():
-    try:
-        # Use requested date if present
-        date_q = (request.args.get('date') or '').strip()
-        if not date_q:
-            try:
-                import re as _re_mod
-                pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
-                _dates = [m.group(1) for m in (pat.match(p.name) for p in OUT.glob('predictions_display_*.csv')) if m]
-                date_q = (sorted(_dates)[-1] if _dates else dt.datetime.utcnow().strftime('%Y-%m-%d'))
-            except Exception:
-                date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
-        resp = api_display_predictions()
-        js = None
+    # Resolve date
+    date_q = (request.args.get('date') or '').strip()
+    if not date_q:
         try:
-            if hasattr(resp, 'get_json'):
-                js = resp.get_json(silent=True)
-            else:
-                from flask import Response as _Resp
-                if isinstance(resp, _Resp):
-                    js = json.loads(resp.get_data(as_text=True))
+            import re as _re_mod
+            pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+            _dates = [m.group(1) for m in (pat.match(p.name) for p in OUT.glob('predictions_display_*.csv')) if m]
+            date_q = (sorted(_dates)[-1] if _dates else dt.datetime.utcnow().strftime('%Y-%m-%d'))
         except Exception:
-            try:
-                js = json.loads(getattr(resp, 'data', '{}'))
-            except Exception:
-                js = None
-        rows_api = (js.get('rows') if isinstance(js, dict) else None) or []
-        branding = _load_branding_map()
-        def _brand_row_basic(r: dict) -> dict:
-            out = dict(r)
-            try:
-                hn = str(r.get('home_team') or '')
-                an = str(r.get('away_team') or '')
-                hb = branding.get(_canon_slug(hn), {})
-                ab = branding.get(_canon_slug(an), {})
-                out['home_logo'] = hb.get('logo')
-                out['away_logo'] = ab.get('logo')
-                out['home_color'] = hb.get('primary') or hb.get('secondary')
-                out['away_color'] = ab.get('primary') or ab.get('secondary')
-                out['home_text'] = hb.get('text') or '#f6f8ff'
-                out['away_text'] = ab.get('text') or '#f6f8ff'
-            except Exception:
-                pass
-            return out
-        rows = [_brand_row_basic(r) for r in rows_api]
+            date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+    # Fetch display payload directly via internal function call
+    resp = api_display_predictions()
+    js = None
+    try:
+        if hasattr(resp, 'get_json'):
+            js = resp.get_json(silent=True)
+        else:
+            from flask import Response as _Resp
+            if isinstance(resp, _Resp):
+                js = json.loads(resp.get_data(as_text=True))
+    except Exception:
+        try:
+            js = json.loads(getattr(resp, 'data', '{}'))
+        except Exception:
+            js = None
+    rows_api = (js.get('rows') if isinstance(js, dict) else None) or []
+    branding = _load_branding_map()
+    def _brand_row_basic(r: dict) -> dict:
+        out = dict(r)
+        try:
+            hn = str(r.get('home_team') or '')
+            an = str(r.get('away_team') or '')
+            hb = branding.get(_canon_slug(hn), {})
+            ab = branding.get(_canon_slug(an), {})
+            out['home_logo'] = hb.get('logo')
+            out['away_logo'] = ab.get('logo')
+            out['home_color'] = hb.get('primary') or hb.get('secondary')
+            out['away_color'] = ab.get('primary') or ab.get('secondary')
+            out['home_text'] = hb.get('text') or '#f6f8ff'
+            out['away_text'] = ab.get('text') or '#f6f8ff'
+        except Exception:
+            pass
+        return out
+    rows = [_brand_row_basic(r) for r in rows_api]
+    # Try standard template first
+    try:
         return render_template(
             'index.html',
             rows=rows,
@@ -22058,8 +22061,30 @@ def cards_safe():
             source_path='api_display_predictions',
             source_rows=len(rows),
         )
-    except Exception as e:
-        return jsonify({'error':'cards_safe_failed','detail':str(e)}), 500
+    except Exception:
+        # Minimal HTML fallback to avoid 500s
+        try:
+            items = []
+            for r in rows:
+                ht = r.get('home_team') or ''
+                at = r.get('away_team') or ''
+                tm = r.get('display_time_ampm') or r.get('display_time_str') or ''
+                items.append(f"<li>{at} at {ht} <span style='color:#777'>({tm})</span></li>")
+            html = """
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Cards (Safe)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{font-family:system-ui,Segoe UI,Arial;margin:16px} h1{font-size:18px} ul{padding-left:18px}</style>
+</head><body>
+<h1>Cards for {date}</h1>
+<p>Total games: {n}</p>
+<ul>{lis}</ul>
+</body></html>
+""".format(date=date_q, n=len(rows), lis='\n'.join(items))
+            from flask import Response
+            return Response(html, mimetype='text/html')
+        except Exception as e:
+            return jsonify({'error':'cards_safe_failed','detail':str(e)}), 500
 
 @app.route('/api/persist_display')
 def api_persist_display():
