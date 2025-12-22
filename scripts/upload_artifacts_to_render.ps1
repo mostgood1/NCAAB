@@ -93,14 +93,29 @@ if ($picksAtsRows -gt 0) {
 }
 
 $u2 = Upload-File -Uri "$BaseUrl/api/upload_align_edges" -FilePath $edgesPath -Query @{ date = $Date }
-if ($u2) { Write-Host "[OK] edges uploaded: rows=$($u2.rows)" -ForegroundColor Green }
+if ($u2) {
+    $rv = if ($u2.rows_verified) { $u2.rows_verified } elseif ($u2.rows) { $u2.rows } else { $null }
+    $ru = if ($u2.rows_uploaded) { $u2.rows_uploaded } else { $null }
+    $sha = if ($u2.sha) { $u2.sha } else { $null }
+    Write-Host ("[OK] edges uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, ($sha ? " sha=$sha" : "")) -ForegroundColor Green
+}
 
 $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayPath -Query @{ date = $Date }
-if ($u3) { Write-Host "[OK] display uploaded: rows=$($u3.rows)" -ForegroundColor Green }
+if ($u3) {
+    $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
+    $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
+    $sha = if ($u3.sha) { $u3.sha } else { $null }
+    Write-Host ("[OK] display uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, ($sha ? " sha=$sha" : "")) -ForegroundColor Green
+}
 
 # Upload enriched predictions snapshot for recommendations parity
 $u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedPath -Query @{ date = $Date }
-if ($u3b) { Write-Host "[OK] enriched uploaded: rows=$($u3b.rows)" -ForegroundColor Green }
+if ($u3b) {
+    $rv = if ($u3b.rows_verified) { $u3b.rows_verified } elseif ($u3b.rows) { $u3b.rows } else { $null }
+    $ru = if ($u3b.rows_uploaded) { $u3b.rows_uploaded } else { $null }
+    $sha = if ($u3b.sha) { $u3b.sha } else { $null }
+    Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, ($sha ? " sha=$sha" : "")) -ForegroundColor Green
+}
 
 # Upload quantile artifacts if present
 $qselPath = Join-Path -Path $OutputsDir -ChildPath 'quantiles_selected.csv'
@@ -175,13 +190,29 @@ try {
 
 try {
     $recs = Invoke-RestMethod -Uri "$BaseUrl/api/recommendations?date=$Date" -Method Get
-    $rowCount = if ($recs.rows) { ($recs.data | Measure-Object).Count } else { 0 }
+    $rowCount = 0
+    if ($recs) {
+        if ($recs.rows) { $rowCount = ($recs.rows | Measure-Object).Count }
+        elseif ($recs.data) { $rowCount = ($recs.data | Measure-Object).Count }
+        elseif ($recs.recommendations) { $rowCount = ($recs.recommendations | Measure-Object).Count }
+    }
     Write-Host "[Check] recommendations rows=$rowCount" -ForegroundColor White
     if ($rowCount -eq 0) {
         Write-Host "[Alert] Recommendations are empty. Check uploads and server fallbacks." -ForegroundColor Yellow
     }
 } catch {
     Write-Host "[Warn] recommendations check failed: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
+# Verify display predictions parity vs local CSV
+try {
+    $localDisplayRows = Get-CsvRowCount -Path $displayPath
+    $dispResp = Invoke-RestMethod -Uri "$BaseUrl/api/display_predictions?date=$Date" -Method Get
+    $remoteDisplayRows = if ($dispResp -and $dispResp.rows) { ($dispResp.rows | Measure-Object).Count } elseif ($dispResp -and $dispResp.count) { [int]$dispResp.count } else { 0 }
+    $note = if ($localDisplayRows -eq $remoteDisplayRows) { 'match' } else { 'mismatch' }
+    Write-Host "[Check] display parity: local=$localDisplayRows remote=$remoteDisplayRows ($note)" -ForegroundColor White
+} catch {
+    Write-Host "[Warn] display parity check failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
 # Verify results archive for the date
