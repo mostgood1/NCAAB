@@ -22357,7 +22357,16 @@ def cards_safe():
         for r in rows:
             ht = r.get('home_team') or ''
             at = r.get('away_team') or ''
-            tm = r.get('display_time_ampm') or r.get('display_time_str') or ''
+            tm = r.get('display_time_ampm') or r.get('display_time_str') or r.get('start_time_display') or ''
+            if not tm:
+                try:
+                    st = r.get('start_time')
+                    if st:
+                        dtv = pd.to_datetime(st, errors='coerce')
+                        if pd.notna(dtv):
+                            tm = dtv.strftime('%Y-%m-%d %I:%M %p')
+                except Exception:
+                    tm = ''
             pt = _fmt_num(r.get('pred_total'))
             pm = _fmt_num(r.get('pred_margin'))
             mt = _fmt_num(r.get('market_total')) or (str(r.get('market_total')) if r.get('market_total') not in (None, '') else None)
@@ -22396,8 +22405,18 @@ def cards_safe():
             items = []
             if not df.empty:
                 for _, r in df.iterrows():
-                    ht = str(r.get('home_team') or '')
-                    at = str(r.get('away_team') or '')
+                        ht = str(r.get('home_team') or '')
+                        at = str(r.get('away_team') or '')
+                        tm = str(r.get('display_time_ampm') or r.get('display_time_str') or r.get('start_time_display') or '')
+                        if not tm:
+                            try:
+                                st = r.get('start_time')
+                                if st:
+                                    dtv = pd.to_datetime(st, errors='coerce')
+                                    if pd.notna(dtv):
+                                        tm = dtv.strftime('%Y-%m-%d %I:%M %p')
+                            except Exception:
+                                tm = ''
                         pt = r.get('pred_total')
                         pm = r.get('pred_margin')
                         mt = r.get('market_total')
@@ -22426,7 +22445,8 @@ def cards_safe():
                             d.append(f"spread_home={v}")
                         det = (", ".join(d)) if d else ""
                         det_html = f"<br/><small style='color:#555'>{det}</small>" if det else ""
-                        items.append(f"<li>{at} at {ht}{det_html}</li>")
+                        time_html = f" <span style='color:#777'>({tm})</span>" if tm else ""
+                        items.append(f"<li>{at} at {ht}{time_html}{det_html}</li>")
             html = """
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Cards (Safe)</title>
