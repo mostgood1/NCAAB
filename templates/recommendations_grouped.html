@@ -65,7 +65,140 @@
     </div>
     <div class="meta">{{ total_games }} games</div>
     {% if not games %}
-      <div class="meta">No picks generated. Use daily-run or make-picks CLI.</div>
+      <div class="meta" id="no-picks-msg">No picks generated. Use daily-run or make-picks CLI.</div>
+      <div id="js-fallback-root"></div>
+      <script>
+        (function(){
+          // When server-side grouped data is empty, try client-side fallback
+          async function runFallback(){
+            try{
+              var params = new URLSearchParams(window.location.search);
+              var date = params.get('date');
+              if(!date){
+                var d = new Date();
+                var yyyy = d.getFullYear();
+                var mm = String(d.getMonth()+1).padStart(2,'0');
+                var dd = String(d.getDate()).padStart(2,'0');
+                date = yyyy+'-'+mm+'-'+dd;
+              }
+              const res = await fetch('/api/recommendations?date='+encodeURIComponent(date));
+              if(!res.ok) return;
+              const js = await res.json();
+              const data = (js && js.data) || [];
+              if(!data.length) return;
+              // Group by game_id (fallback to home+away+date)
+              const byGame = new Map();
+              function keyFor(r){
+                const gid = (r.game_id||'').toString();
+                if(gid) return gid;
+                return [
+                  (r.home_team||'').toLowerCase().replace(/\W+/g,''),
+                  (r.away_team||'').toLowerCase().replace(/\W+/g,''),
+                  (r.date||'')
+                ].join('__');
+              }
+              data.forEach(r=>{
+                const k = keyFor(r);
+                if(!byGame.has(k)) byGame.set(k, []);
+                byGame.get(k).push(r);
+              });
+              // For each game, pick best OU and ATS by abs edge
+              const typeOrder = { OU:0, ATS:1, ML:2, Other:9 };
+              const root = document.getElementById('js-fallback-root');
+              if(!root) return;
+              // Hide the message once we have data
+              const msg = document.getElementById('no-picks-msg');
+              if(msg) msg.style.display = 'none';
+              // Render cards
+              const frag = document.createDocumentFragment();
+              for(const [gkey, items] of byGame.entries()){
+                // Compute abs edge and pick representative
+                items.forEach(it=>{
+                  const e = (typeof it._abs_edge==='number'?it._abs_edge:parseFloat(it._abs_edge||it.edge||0));
+                  it.__abs_edge = isFinite(e)?Math.abs(e):0;
+                });
+                const rep = items.reduce((a,b)=> (a.__abs_edge>=b.__abs_edge?a:b));
+                // Best per type
+                const best = {};
+                items
+                  .sort((a,b)=> (b.__abs_edge - a.__abs_edge))
+                  .forEach(it=>{ const code=(it.rec_code||'Other'); if(!(code in best)) best[code]=it; });
+                // Build ordered list (OU, ATS, ML)
+                const ordered = Object.values(best).sort((a,b)=>{
+                  const ca = (a.rec_code||'Other');
+                  const cb = (b.rec_code||'Other');
+                  const ta = (ca in typeOrder)?typeOrder[ca]:9;
+                  const tb = (cb in typeOrder)?typeOrder[cb]:9;
+                  if(ta!==tb) return ta-tb;
+                  return b.__abs_edge - a.__abs_edge;
+                });
+                // Card element
+                const card = document.createElement('div');
+                card.className = 'game';
+                const hdr = document.createElement('div');
+                hdr.className = 'header';
+                hdr.style.background = 'linear-gradient(90deg,'+(rep.home_color||'#152042')+','+(rep.away_color||'#2a3a63')+')';
+                // Matchup brand
+                const brand = document.createElement('div');
+                brand.className = 'matchup brand';
+                if(rep.home_logo){ const img=document.createElement('img'); img.className='logo'; img.src=rep.home_logo; img.alt=(rep.home_team||'')+' logo'; brand.appendChild(img); }
+                const sh = document.createElement('span'); sh.style.color = rep.home_text_color||'#f6f8ff'; sh.textContent = rep.home_team||''; brand.appendChild(sh);
+                const mid = document.createElement('span'); mid.style.color = 'var(--muted)'; mid.textContent = 'vs'; brand.appendChild(mid);
+                const sa = document.createElement('span'); sa.style.color = rep.away_text_color||'#f6f8ff'; sa.textContent = rep.away_team||''; brand.appendChild(sa);
+                if(rep.away_logo){ const img2=document.createElement('img'); img2.className='logo'; img2.src=rep.away_logo; img2.alt=(rep.away_team||'')+' logo'; brand.appendChild(img2); }
+                hdr.appendChild(brand);
+                // Time
+                const time = document.createElement('div');
+                time.className = 'time';
+                const tp = document.createElement('span'); tp.className='time-pill'; tp.textContent = (rep.display_time_ampm||'')+' '+(rep.start_tz_abbr||''); time.appendChild(tp);
+                const dt = document.createElement('span'); dt.className='date-text'; dt.textContent = rep.display_date||rep.date||''; time.appendChild(dt);
+                hdr.appendChild(time);
+                const flex = document.createElement('div'); flex.style.flex='1'; hdr.appendChild(flex);
+                const link = document.createElement('a'); link.className='pill'; link.href = '/picks-raw?date='+(rep.date||'')+'&home='+(rep.home_team||'')+'&away='+(rep.away_team||''); link.textContent = 'View All Books'; hdr.appendChild(link);
+                card.appendChild(hdr);
+                // Table
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                thead.innerHTML = '<tr><th>Type</th><th>Book</th><th>Bet</th><th>Line</th><th>Price</th><th>Edge</th></tr>';
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                function pill(code){ const s=document.createElement('span'); s.className='pill '+code; s.textContent = (code==='OU'?'Totals':code==='ATS'?'Spread':code==='ML'?'Moneyline':code); return s; }
+                function numCell(val){ const td=document.createElement('td'); td.className='num'; td.textContent = (val==null||val==='')?'':(typeof val==='number'?val.toFixed(1):val); return td; }
+                function betChip(code, lbl){
+                  const sp=document.createElement('span');
+                  const l = (lbl||'').toString();
+                  const lo = l.toLowerCase();
+                  if(code==='OU'){
+                    sp.className = 'chip '+(lo.startsWith('over')?'over':'under');
+                  }else if(code==='ATS'){
+                    const home = (rep.home_team||'').toLowerCase();
+                    sp.className = 'chip '+((lo.includes('home')||lo.startsWith(home))?'home':'away');
+                  }
+                  sp.textContent = l;
+                  return sp;
+                }
+                ordered.forEach(it=>{
+                  const tr=document.createElement('tr');
+                  const tdType=document.createElement('td'); tdType.appendChild(pill(it.rec_code||'Other')); tr.appendChild(tdType);
+                  const tdBook=document.createElement('td'); tdBook.textContent = it.book||''; tr.appendChild(tdBook);
+                  const lbl=(it.bet_label||it.bet||'').toString();
+                  const tdBet=document.createElement('td'); tdBet.appendChild(betChip((it.rec_code||'Other').toUpperCase(), lbl)); tr.appendChild(tdBet);
+                  tr.appendChild(numCell(it.line));
+                  tr.appendChild(numCell(it.price));
+                  tr.appendChild(numCell(it._abs_edge||it.edge||it.abs_edge||''));
+                  tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                card.appendChild(table);
+                frag.appendChild(card);
+              }
+              root.appendChild(frag);
+            }catch(e){ /* ignore */ }
+          }
+          if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', runFallback);
+          else runFallback();
+        })();
+      </script>
     {% else %}
       {% for g in games %}
         <div class="game">
