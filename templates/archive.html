@@ -3,55 +3,83 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Display Predictions Archive</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <title>NCAAB – Archive</title>
   <style>
-    .dates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:12px;}
-    .date-card{border:1px solid #333;padding:8px;border-radius:4px;background:#111;display:flex;flex-direction:column;}
-    .date-card h3{margin:0 0 4px;font-size:14px;}
-    .links a{display:inline-block;margin:2px 4px 2px 0;font-size:11px;padding:2px 6px;border-radius:3px;background:#222;color:#fff;text-decoration:none;}
-    .hash{font-family:monospace;font-size:11px;word-break:break-all;margin-top:4px;color:#888;}
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text)}
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    h1{margin:0 0 8px 0;font-size:24px}
+    a{color:var(--accent)}
+    .muted{color:var(--muted);font-size:12px}
+    .card{background:var(--card);border:1px solid var(--pill-br);border-radius:12px;padding:12px;margin-bottom:12px}
+    .row{display:flex;justify-content:space-between;align-items:center}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .search{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .pill{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:6px;padding:4px 8px;color:var(--text);text-decoration:none}
+    .date-link{display:inline-block;margin:4px 6px 0 0;padding:4px 6px;border:1px solid var(--pill-br);border-radius:6px;text-decoration:none;color:var(--text);background:var(--pill)}
+    .date-link.active{background:#1a274d}
+    .block{margin-top:6px}
+    .wrap{display:flex;flex-wrap:wrap}
+    input[type="text"]{background:var(--bg);color:var(--text);border:1px solid var(--pill-br);border-radius:6px;padding:6px 8px}
+    .section-title{font-weight:700;margin-bottom:6px}
   </style>
+  
 </head>
 <body>
   <div class="container">
-    <div class="row header">
-      <h1>Display Predictions Archive</h1>
-      <div class="spacer"></div>
-      <nav class="nav-links">
-        <a href="/">Cards</a>
-        <a href="/finals">Finals</a>
-        <a href="/stake-sheet">Stake Sheet</a>
-        <a href="/coverage">Coverage</a>
-        <a href="/calibration">Calibration</a>
-      </nav>
+    <div class="row">
+      <h1>NCAAB – Archive</h1>
+      <div>
+        <a class="pill" href="/">Cards</a>
+        <a class="pill" href="/finals">Finals</a>
+      </div>
     </div>
-    <form method="get" class="filters">
-      <label class="muted">Remote Base:
-        <input type="text" name="remote_base" placeholder="https://ncaab.onrender.com" value="{{ remote_base or '' }}" />
-      </label>
-      <button type="submit" class="pill">Apply</button>
-      {% if remote_base %}<a class="pill" href="/display-archive">Clear</a>{% endif %}
-    </form>
-    <div class="meta">Total snapshots: {{ dates|length }}{% if latest %} · Latest: {{ latest }}{% endif %}</div>
-    {% if latest_hash %}<div class="card mb8"><div class="muted">Latest Local Hash: <code>{{ latest_hash }}</code>{% if remote_hash %}<br/>Remote Health Hash: <code>{{ remote_hash }}</code>{% endif %}</div></div>{% endif %}
-    {% if remote_base and remote_hash and latest_hash and remote_hash != latest_hash %}
-      <div class="card mb8 warn"><div class="muted">Hash mismatch between local latest and remote health display_hash.</div></div>
-    {% endif %}
-    <div class="dates-grid">
-      {% for d in dates|reverse %}
-        <div class="date-card">
-          <h3>{{ d }}</h3>
-          <div class="links">
-            <a href="/api/display_predictions?date={{ d }}" title="View JSON rows">JSON</a>
-            <a href="/download/display-predictions?date={{ d }}" title="Download CSV">CSV</a>
-            <a href="/api/display_hash_diff?date={{ d }}&hash={{ latest_hash or '' }}" title="Compare provided hash vs current for date">Hash Diff</a>
-          </div>
-          {% if d == latest and latest_hash %}<div class="hash" title="Computed local hash for latest snapshot">Hash: {{ latest_hash }}</div>{% endif %}
+    <div class="card search">
+      <div class="muted">Quick filter</div>
+      <input id="q" type="text" placeholder="YYYY-MM-DD" aria-label="Filter dates" />
+      <div class="muted">Latest display: {{ latest_display or 'n/a' }} · Latest results: {{ latest_results or 'n/a' }}</div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="section-title">Display Snapshots</div>
+        <div id="displayList" class="wrap block">
+          {% for d in display_dates %}
+            <span class="wrap">
+              <a class="date-link" data-date="{{ d }}" href="/?date={{ d }}&use_daily=1">{{ d }}</a>
+            </span>
+          {% endfor %}
+          {% if not display_dates %}<div class="muted">No display snapshots found.</div>{% endif %}
         </div>
-      {% endfor %}
+      </div>
+      <div class="card">
+        <div class="section-title">Results (Finals)</div>
+        <div id="resultsList" class="wrap block">
+          {% for d in results_dates %}
+            <span class="wrap">
+              <a class="date-link" data-date="{{ d }}" href="/finals?date={{ d }}">{{ d }}</a>
+            </span>
+          {% endfor %}
+          {% if not results_dates %}<div class="muted">No results files found.</div>{% endif %}
+        </div>
+      </div>
     </div>
   </div>
+  <script>
+    (function(){
+      var q = document.getElementById('q');
+      var lists = [document.getElementById('displayList'), document.getElementById('resultsList')];
+      if(!q) return;
+      q.addEventListener('input', function(){
+        var term = (q.value||'').trim().toLowerCase();
+        lists.forEach(function(list){
+          if(!list) return;
+          list.querySelectorAll('[data-date]').forEach(function(a){
+            var d = (a.getAttribute('data-date')||'').toLowerCase();
+            a.style.display = (!term || d.indexOf(term) !== -1) ? 'inline-block' : 'none';
+          });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
