@@ -5074,13 +5074,7 @@ def index():
                     ap = OUT / f"align_period_{target_date}_edges.csv"
                     ed = _safe_read_csv(ap)
                     if not ed.empty:
-                        # constrain to date
-                        if 'date' in ed.columns:
-                            try:
-                                ed['date'] = pd.to_datetime(ed['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-                                ed = ed[ed['date'].astype(str) == str(target_date)]
-                            except Exception:
-                                pass
+                        # Path is already per-date; don't constrain by date column to maximize resilience
                         # remove synthetic
                         if 'game_id' in ed.columns:
                             try:
