@@ -22033,45 +22033,14 @@ def cards_safe():
                 pass
             return out
         rows = [_brand_row_basic(r) for r in rows_api]
-        # Try standard template first
-        try:
-            return render_template(
-                'index.html',
-                rows=rows,
-                total_rows=len(rows),
-                date_val=date_q,
-                top_picks=[],
-                accuracy=None,
-                uniform_note=None,
-                dynamic_css=None,
-                coverage_note=None,
-                results_note=None,
-                show_edges=True,
-                coverage={},
-                archive_dates=[],
-                show_bootstrap=False,
-                compact_mode=True,
-                bootstrap_url=None,
-                show_diag=False,
-                diag_url=None,
-                fused_bootstrap_url=None,
-                refresh_odds_url=None,
-                removed_empty_rows=0,
-                status=None,
-                pipeline_stats={},
-                source_path='api_display_predictions',
-                source_rows=len(rows),
-            )
-        except Exception:
-            # Minimal HTML fallback to avoid 500s
-            try:
-                items = []
-                for r in rows:
-                    ht = r.get('home_team') or ''
-                    at = r.get('away_team') or ''
-                    tm = r.get('display_time_ampm') or r.get('display_time_str') or ''
-                    items.append(f"<li>{at} at {ht} <span style='color:#777'>({tm})</span></li>")
-                html = """
+        # Minimal HTML safe view (avoids template dependencies)
+        items = []
+        for r in rows:
+            ht = r.get('home_team') or ''
+            at = r.get('away_team') or ''
+            tm = r.get('display_time_ampm') or r.get('display_time_str') or ''
+            items.append(f"<li>{at} at {ht} <span style='color:#777'>({tm})</span></li>")
+        html = """
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Cards (Safe)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22082,10 +22051,8 @@ def cards_safe():
 <ul>{lis}</ul>
 </body></html>
 """.format(date=date_q, n=len(rows), lis='\n'.join(items))
-                from flask import Response
-                return Response(html, mimetype='text/html')
-            except Exception as e:
-                return jsonify({'error':'cards_safe_failed','detail':str(e)}), 500
+        from flask import Response
+        return Response(html, mimetype='text/html')
     except Exception:
         # Extreme fallback: read display CSV directly and render minimal HTML list
         try:
