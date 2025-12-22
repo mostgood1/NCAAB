@@ -22198,6 +22198,19 @@ def cards_safe():
             except Exception:
                 js = None
         rows_api = (js.get('rows') if isinstance(js, dict) else None) or []
+        # If API rows are empty, try reading display CSV directly for resilience
+        if not rows_api:
+            try:
+                p = OUT / f"predictions_display_{date_q}.csv"
+                df = _safe_read_csv(p)
+                if not df.empty:
+                    keep = ['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time','display_time_str']
+                    rows_api = [
+                        {k: r.get(k) for k in keep if k in df.columns}
+                        for _, r in df.to_dict(orient='records')
+                    ]
+            except Exception:
+                pass
         branding = _load_branding_map()
         def _brand_row_basic(r: dict) -> dict:
             out = dict(r)
