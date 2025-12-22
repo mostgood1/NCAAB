@@ -82,6 +82,33 @@
         });
       });
     })();
+    (function populateFromApis(){
+      function addDate(listEl, d, hrefBase){
+        if(!listEl) return;
+        var a = document.createElement('a');
+        a.className = 'date-link';
+        a.setAttribute('data-date', d);
+        a.href = hrefBase.replace('{d}', d);
+        a.textContent = d;
+        listEl.appendChild(a);
+      }
+      var dispList = document.getElementById('displayList');
+      if(dispList && dispList.querySelectorAll('[data-date]').length === 0){
+        fetch('/api/display_prediction_dates').then(function(r){return r.json();}).then(function(j){
+          if(j && Array.isArray(j.dates)){
+            j.dates.forEach(function(d){ addDate(dispList, d, '/?date={d}&use_daily=1'); });
+          }
+        }).catch(function(){});
+      }
+      var resList = document.getElementById('resultsList');
+      if(resList && resList.querySelectorAll('[data-date]').length === 0){
+        fetch('/api/results_dates').then(function(r){return r.json();}).then(function(j){
+          if(j && Array.isArray(j.dates)){
+            j.dates.forEach(function(d){ addDate(resList, d, '/finals?date={d}'); });
+          }
+        }).catch(function(){});
+      }
+    })();
   </script>
 </body>
 </html>
