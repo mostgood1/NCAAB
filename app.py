@@ -22341,13 +22341,39 @@ def cards_safe():
                 pass
             return out
         rows = [_brand_row_basic(r) for r in rows_api]
-        # Minimal HTML safe view (avoids template dependencies)
+        # Minimal HTML safe view (adds key numbers for quick diagnostics)
+        def _fmt_num(val, nd=2):
+            try:
+                if val is None:
+                    return None
+                s = str(val)
+                if s.lower() == 'nan':
+                    return None
+                f = float(val)
+                return f"{f:.{nd}f}"
+            except Exception:
+                return None
         items = []
         for r in rows:
             ht = r.get('home_team') or ''
             at = r.get('away_team') or ''
             tm = r.get('display_time_ampm') or r.get('display_time_str') or ''
-            items.append(f"<li>{at} at {ht} <span style='color:#777'>({tm})</span></li>")
+            pt = _fmt_num(r.get('pred_total'))
+            pm = _fmt_num(r.get('pred_margin'))
+            mt = _fmt_num(r.get('market_total')) or (str(r.get('market_total')) if r.get('market_total') not in (None, '') else None)
+            sh = _fmt_num(r.get('spread_home')) or (str(r.get('spread_home')) if r.get('spread_home') not in (None, '') else None)
+            details = []
+            if pt is not None:
+                details.append(f"pred_total={pt}")
+            if pm is not None:
+                details.append(f"pred_margin={pm}")
+            if mt is not None:
+                details.append(f"market_total={mt}")
+            if sh is not None:
+                details.append(f"spread_home={sh}")
+            det = (", ".join(details)) if details else ""
+            det_html = f"<br/><small style='color:#555'>{det}</small>" if det else ""
+            items.append(f"<li>{at} at {ht} <span style='color:#777'>({tm})</span>{det_html}</li>")
         html = """
     <!doctype html>
     <html><head><meta charset="utf-8"><title>Cards (Safe)</title>
@@ -22361,8 +22387,8 @@ def cards_safe():
     """.format(date=date_q, n=len(rows), lis='\n'.join(items))
         from flask import Response
         return Response(html, mimetype='text/html')
-    except Exception:
-        # Extreme fallback: read display CSV directly and render minimal HTML list
+        except Exception:
+            # Extreme fallback: read display CSV directly and render minimal HTML list with numbers
         try:
             date_q = (request.args.get('date') or dt.datetime.utcnow().strftime('%Y-%m-%d')).strip()
             p = OUT / f"predictions_display_{date_q}.csv"
@@ -22372,7 +22398,35 @@ def cards_safe():
                 for _, r in df.iterrows():
                     ht = str(r.get('home_team') or '')
                     at = str(r.get('away_team') or '')
-                    items.append(f"<li>{at} at {ht}</li>")
+                        pt = r.get('pred_total')
+                        pm = r.get('pred_margin')
+                        mt = r.get('market_total')
+                        sh = r.get('spread_home')
+                        def _n(x):
+                            try:
+                                s = str(x)
+                                if s.lower() == 'nan':
+                                    return None
+                                v = float(x)
+                                return f"{v:.2f}"
+                            except Exception:
+                                return None
+                        d = []
+                        v = _n(pt)
+                        if v is not None:
+                            d.append(f"pred_total={v}")
+                        v = _n(pm)
+                        if v is not None:
+                            d.append(f"pred_margin={v}")
+                        v = _n(mt)
+                        if v is not None:
+                            d.append(f"market_total={v}")
+                        v = _n(sh)
+                        if v is not None:
+                            d.append(f"spread_home={v}")
+                        det = (", ".join(d)) if d else ""
+                        det_html = f"<br/><small style='color:#555'>{det}</small>" if det else ""
+                        items.append(f"<li>{at} at {ht}{det_html}</li>")
             html = """
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Cards (Safe)</title>
