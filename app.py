@@ -17145,12 +17145,7 @@ def healthz():
         # Even on exception, respond with 200 and include message
         return jsonify({"status": "ok", "note": str(e)}), 200
 
-@app.route('/')
-def root_index():
-    try:
-        return jsonify({"status": "ok", "message": "NCAAB app root"}), 200
-    except Exception as e:
-        return jsonify({"status": "ok", "error": str(e)}), 200
+# Removed duplicate root route that shadowed the main index view.
 
 @app.route('/api/status')
 def api_status():
