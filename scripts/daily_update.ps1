@@ -424,6 +424,21 @@ print({'path': str(games_path), 'rows': len(df2)})
     }
   } catch { Write-Warning "daily quantile scoring failed: $($_)" }
 
+  # Quantile CRPS + coverage metrics and short-term/weekly trends
+  Write-Section '6j.iii) Quantile CRPS metrics + trends'
+  try { & $VenvPython scripts/evaluate_crps.py } catch { Write-Warning "evaluate_crps.py failed: $($_)" }
+  try { & $VenvPython scripts/score_quantile_trend.py } catch { Write-Warning "score_quantile_trend.py failed: $($_)" }
+
+  # Weekly drift summary (probability + quantile coverage/CRPS aggregates)
+  Write-Section '6j.iv) Weekly drift summary'
+  try { & $VenvPython scripts/drift_monitor.py } catch { Write-Warning "drift_monitor.py failed: $($_)" }
+
+  # Synthetic pipeline: calibrate + quantiles preference + stake sizing
+  Write-Section '6k) Synthetic pipeline (calibrate + intervals + stake sizing)'
+  try {
+    & $VenvPython scripts/run_synthetic_pipeline_end_to_end.py
+  } catch { Write-Warning "run_synthetic_pipeline_end_to_end.py failed: $($_)" }
+
   # Post-inference variance summary (inference-level dispersion)
   try {
     $predCsv = Get-Content $modelPredPath | Select-Object -Skip 1
@@ -940,6 +955,12 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   # Quantile model + proper scoring for today
   $quantModel = Join-Path $OutDir 'quantile_model.json'
   if (Test-Path $quantModel) { $toStage += $quantModel }
+  $quantMetrics = Join-Path $OutDir 'quantile_metrics.csv'
+  if (Test-Path $quantMetrics) { $toStage += $quantMetrics }
+  $quantTrend2w = Join-Path $OutDir 'quantile_trend_2w.csv'
+  if (Test-Path $quantTrend2w) { $toStage += $quantTrend2w }
+  $quantTrendWeekly = Join-Path $OutDir 'quantile_trend_weekly.csv'
+  if (Test-Path $quantTrendWeekly) { $toStage += $quantTrendWeekly }
   $scoreToday = Join-Path $OutDir ("scoring_" + $todayIso + ".json")
   if (Test-Path $scoreToday) { $toStage += $scoreToday }
   $probStability = Get-ChildItem -Path $OutDir -Filter ('prob_stability_' + $todayIso + '.json') -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -954,6 +975,8 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $metaRel) { $toStage += $metaRel }
   $metaCal = Join-Path $OutDir 'meta_calibration.json'
   if (Test-Path $metaCal) { $toStage += $metaCal }
+  $driftWeekly = Join-Path $OutDir 'drift_summary_weekly.csv'
+  if (Test-Path $driftWeekly) { $toStage += $driftWeekly }
 
   # Newly produced aligned and stake artifacts
   $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
@@ -967,6 +990,11 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $stakeBase) { $toStage += $stakeBase }
   $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
   if (Test-Path $stakeCal) { $toStage += $stakeCal }
+  # Synthetic calibrated stake sheet and today's calibrated snapshot
+  $stakeCalibrated = Join-Path $OutDir 'stake_sheet_calibrated.csv'
+  if (Test-Path $stakeCalibrated) { $toStage += $stakeCalibrated }
+  $predsTodayCalibrated = Join-Path $OutDir 'predictions_today_calibrated.csv'
+  if (Test-Path $predsTodayCalibrated) { $toStage += $predsTodayCalibrated }
 
   # ATS picks for UI consumption (publish per-date CSV)
   $picksAts = Join-Path $OutDir ("picks\ats_picks_" + $todayIso + ".csv")

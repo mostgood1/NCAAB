@@ -209,6 +209,11 @@ try:
                 '/api/persist_display',
                 '/api/accuracy',
                 '/accuracy',
+                '/finals',
+                '/archive',
+                '/api/results',
+                '/api/results_dates',
+                '/api/results_by_date',
                 '/cards-safe',
                 '/api/recommendations',
                 '/api/picks_raw',
@@ -19478,8 +19483,24 @@ def picks_raw_page():
 
 @app.route("/finals")
 def finals():
-    """Season-to-date final scores table, aggregated from daily_results.*"""
+    """Final scores table with optional per-date filter and archive navigation.
+
+    Query params:
+      - date=YYYY-MM-DD (optional): if provided, filter to that date
+    """
     df = _load_all_finals(limit=2000)
+    date_q = (request.args.get('date') or '').strip()
+    all_dates: list[str] = []
+    try:
+        if 'date' in df.columns and not df.empty:
+            all_dates = sorted(d for d in df['date'].astype(str).dropna().unique())
+    except Exception:
+        all_dates = []
+    if date_q:
+        try:
+            df = df[df['date'].astype(str) == date_q]
+        except Exception:
+            pass
     # Normalize numeric fields to avoid template formatting errors
     try:
         for c in ("home_score","away_score","actual_total","pred_total","closing_total"):
@@ -19506,7 +19527,59 @@ def finals():
     # Basic stats: count, last date range
     date_min = df["date"].min() if "date" in df.columns and not df.empty else None
     date_max = df["date"].max() if "date" in df.columns and not df.empty else None
-    return render_template("finals.html", rows=rows, total_rows=len(rows), date_min=date_min, date_max=date_max)
+    return render_template(
+        "finals.html",
+        rows=rows,
+        total_rows=len(rows),
+        date_min=date_min,
+        date_max=date_max,
+        dates=all_dates,
+        date_val=date_q or None,
+    )
+
+
+@app.route("/archive")
+def archive():
+    """Archive browser: lists available display snapshots and results dates.
+
+    Provides quick links to Cards and Finals per date and a simple search.
+    """
+    try:
+        disp_pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+    except Exception:
+        import re as _re_mod
+        disp_pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+    display_dates: list[str] = []
+    results_dates: list[str] = []
+    try:
+        for p in OUT.glob('predictions_display_*.csv'):
+            m = disp_pat.match(p.name)
+            if m:
+                display_dates.append(m.group(1))
+    except Exception:
+        pass
+    try:
+        import re as _re
+        res_pat = _re.compile(r'^results_(\d{4}-\d{2}-\d{2})\.csv$')
+        daily_dir = OUT / 'daily_results'
+        if daily_dir.exists():
+            for p in daily_dir.glob('results_*.csv'):
+                m = res_pat.match(p.name)
+                if m:
+                    results_dates.append(m.group(1))
+    except Exception:
+        pass
+    display_dates = sorted(set(display_dates))
+    results_dates = sorted(set(results_dates))
+    latest_display = display_dates[-1] if display_dates else None
+    latest_results = results_dates[-1] if results_dates else None
+    return render_template(
+        'archive.html',
+        display_dates=display_dates,
+        results_dates=results_dates,
+        latest_display=latest_display,
+        latest_results=latest_results,
+    )
 
 
 @app.route("/api/recommendations")
