@@ -17049,6 +17049,33 @@ def api_health():
             }
         except Exception:
             finalize = None
+        # Display/enriched rows for requested date (or today if absent)
+        try:
+            date_param = (request.args.get('date') or '').strip() or dt.datetime.utcnow().strftime('%Y-%m-%d')
+        except Exception:
+            date_param = dt.datetime.utcnow().strftime('%Y-%m-%d')
+        display_rows = None
+        enriched_rows = None
+        try:
+            p_disp = OUT / f"predictions_display_{date_param}.csv"
+            if p_disp.exists():
+                try:
+                    _dfd = pd.read_csv(p_disp)
+                    display_rows = int(len(_dfd))
+                except Exception:
+                    display_rows = None
+        except Exception:
+            display_rows = None
+        try:
+            p_enr = OUT / f"predictions_unified_enriched_{date_param}.csv"
+            if p_enr.exists():
+                try:
+                    _dfe = pd.read_csv(p_enr)
+                    enriched_rows = int(len(_dfe))
+                except Exception:
+                    enriched_rows = None
+        except Exception:
+            enriched_rows = None
         payload = {
             "status": "ok",
             "outputs_dir": str(OUT),
@@ -17078,6 +17105,9 @@ def api_health():
             "results_latest": results_latest,
             "stake_latest": stake_latest,
             "finalize": finalize,
+            "display_rows": display_rows,
+            "enriched_rows": enriched_rows,
+            "date": date_param,
         }
         return jsonify(payload), 200
     except Exception as e:
@@ -19147,6 +19177,121 @@ def recommendations():
                     if not bl.lower().startswith('over') and not bl.lower().startswith('under'):
                         ou_issues += 1
         logging.getLogger('ncaab_app').info(f"recommendations diagnostics: grouped_games={total_games} ou_missing_dir={ou_issues}")
+    except Exception:
+        pass
+    # Server-side fallback: when grouped view is empty, build from API payload
+    try:
+        if not grouped_games:
+            resp = api_recommendations()
+            js = None
+            try:
+                # Flask Response has get_json in newer versions
+                if hasattr(resp, 'get_json'):
+                    js = resp.get_json(silent=True)
+                else:
+                    from flask import Response as _Resp
+                    if isinstance(resp, _Resp):
+                        js = json.loads(resp.get_data(as_text=True))
+            except Exception:
+                try:
+                    js = json.loads(getattr(resp, 'data', '{}'))
+                except Exception:
+                    js = None
+            data = (js.get('data') if isinstance(js, dict) else None) or []
+            if data:
+                by_game: dict[str, list[dict]] = {}
+                def _norm_name(s: str) -> str:
+                    try:
+                        return normalize_name(str(s or ''))
+                    except Exception:
+                        return str(s or '')
+                for r in data:
+                    gid = str(r.get('game_id') or '').strip()
+                    key = gid or f"{_norm_name(r.get('home_team'))}__{_norm_name(r.get('away_team'))}__{str(r.get('date') or '')}"
+                    by_game.setdefault(key, []).append(r)
+                type_order = { 'OU': 0, 'ATS': 1, 'ML': 2, 'Other': 9 }
+                grouped_fb: list[dict] = []
+                def _s(v):
+                    try:
+                        s = str(v or '').strip()
+                        return '' if s.lower() in ('nan','none','null') else s
+                    except Exception:
+                        return ''
+                for gkey, items in by_game.items():
+                    for it in items:
+                        try:
+                            e = float(it.get('_abs_edge') or it.get('abs_edge') or it.get('edge') or 0.0)
+                            it['__abs_edge'] = abs(e)
+                        except Exception:
+                            it['__abs_edge'] = 0.0
+                    rep = max(items, key=lambda x: x['__abs_edge']) if items else (items[0] if items else {})
+                    best: dict[str, dict] = {}
+                    for it in sorted(items, key=lambda x: x['__abs_edge'], reverse=True):
+                        code = (it.get('rec_code') or 'Other')
+                        if code not in best:
+                            best[code] = it
+                    ordered = sorted(best.values(), key=lambda x: (type_order.get((x.get('rec_code') or 'Other'), 9), -x['__abs_edge']))
+                    out_items: list[dict] = []
+                    for it in ordered:
+                        lbl = str(it.get('bet_label') or it.get('bet') or '').strip()
+                        try:
+                            codei = str(it.get('rec_code') or '').upper()
+                            if codei == 'OU' and (not lbl.lower().startswith('over') and not lbl.lower().startswith('under')):
+                                ln_i = None
+                                for cand in [it.get('line'), it.get('total'), it.get('market_total')]:
+                                    if cand is not None and str(cand).strip()!='':
+                                        try:
+                                            ln_i = float(cand)
+                                            break
+                                        except Exception:
+                                            continue
+                                pt_i = None
+                                if it.get('pred_total') is not None:
+                                    try:
+                                        pt_i = float(it.get('pred_total'))
+                                    except Exception:
+                                        pt_i = None
+                                if (pt_i is not None) and (ln_i is not None):
+                                    lbl = (('Over ' if pt_i>ln_i else 'Under ') + ('%.1f' % ln_i)).strip()
+                        except Exception:
+                            pass
+                        out_items.append({
+                            'type': _s(it.get('rec_type') or it.get('rec_code') or 'Other'),
+                            'code': _s(it.get('rec_code') or 'Other'),
+                            'book': _s(it.get('book')),
+                            'bet': _s(it.get('bet')),
+                            'bet_label': _s(lbl),
+                            'line': it.get('line'),
+                            'price': it.get('price'),
+                            'edge': (it.get('_abs_edge') or it.get('edge') or it.get('abs_edge')),
+                            'market': _s(it.get('market')),
+                            'pred_total': it.get('pred_total'),
+                            'edge_total': it.get('edge_total'),
+                            'market_total': (it.get('total') or it.get('market_total')),
+                            'selection': it.get('selection') or it.get('bet'),
+                            'game_id': it.get('game_id'),
+                        })
+                    home_name = _s(rep.get('home_team'))
+                    away_name = _s(rep.get('away_team'))
+                    grouped_fb.append({
+                        'game_key': gkey,
+                        'matchup': f"{home_name} vs {away_name}",
+                        'date': _s(rep.get('display_date') or rep.get('date')),
+                        'time': _s(rep.get('display_time_ampm')),
+                        'time_ampm': _s(rep.get('display_time_ampm')),
+                        'tz': _s(rep.get('start_tz_abbr')),
+                        'start_time_iso': rep.get('start_time_iso'),
+                        'home': home_name,
+                        'away': away_name,
+                        'home_logo': rep.get('home_logo'),
+                        'away_logo': rep.get('away_logo'),
+                        'home_color': rep.get('home_color') or '#152042',
+                        'away_color': rep.get('away_color') or '#2a3a63',
+                        'home_text': rep.get('home_text_color') or '#f6f8ff',
+                        'away_text': rep.get('away_text_color') or '#f6f8ff',
+                        'recs': out_items,
+                    })
+                grouped_games = grouped_fb
     except Exception:
         pass
     return render_template("recommendations_grouped.html", games=grouped_games, total_games=len(grouped_games))
