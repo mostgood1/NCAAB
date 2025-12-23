@@ -81,7 +81,7 @@
                 var dd = String(d.getDate()).padStart(2,'0');
                 date = yyyy+'-'+mm+'-'+dd;
               }
-              const res = await fetch('/api/recommendations?date='+encodeURIComponent(date));
+              const res = await fetch('/api/recommendations?date='+encodeURIComponent(date)+'&ts='+Date.now());
               if(!res.ok) return;
               const js = await res.json();
               const data = (js && js.data) || [];
