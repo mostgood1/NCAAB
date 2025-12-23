@@ -19637,7 +19637,7 @@ def finals():
     # Basic stats: count, last date range
     date_min = df["date"].min() if "date" in df.columns and not df.empty else None
     date_max = df["date"].max() if "date" in df.columns and not df.empty else None
-            _resp = make_response(render_template(
+    _resp = make_response(render_template(
         "finals.html",
         rows=rows,
         total_rows=len(rows),
@@ -19645,7 +19645,13 @@ def finals():
         date_max=date_max,
         dates=all_dates,
         date_val=date_q or None,
-    )
+    ))
+    try:
+        _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        _resp.headers['Pragma'] = 'no-cache'
+    except Exception:
+        pass
+    return _resp
 
 
 @app.route("/archive")
@@ -19663,13 +19669,10 @@ def archive():
     results_dates: list[str] = []
     try:
         for p in OUT.glob('predictions_display_*.csv'):
-            ))
             try:
-                _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-                _resp.headers['Pragma'] = 'no-cache'
+                m = disp_pat.match(p.name)
             except Exception:
-                pass
-            return _resp
+                m = None
             if m:
                 display_dates.append(m.group(1))
     except Exception:
