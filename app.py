@@ -22400,6 +22400,57 @@ def cards_safe():
                                         r[k] = src.get(k)
                         except Exception:
                             continue
+            # If time is still missing, enrich from unified enriched snapshot for start times
+            try:
+                any_time = any(bool(r.get('display_time_str') or r.get('start_time')) for r in rows)
+                if not any_time:
+                    pe = OUT / f"predictions_unified_enriched_{date_q}.csv"
+                    df_u = _safe_read_csv(pe)
+                    if isinstance(df_u, pd.DataFrame) and not df_u.empty:
+                        def _canon(x):
+                            try:
+                                return _canon_slug(str(x or ''))
+                            except Exception:
+                                return str(x or '').strip().lower()
+                        gi_map = {}
+                        pair_map = {}
+                        try:
+                            df_u2 = df_u.copy()
+                            if 'game_id' in df_u2.columns:
+                                df_u2['game_id'] = df_u2['game_id'].astype(str)
+                            hcol = 'home_team' if 'home_team' in df_u2.columns else None
+                            acol = 'away_team' if 'away_team' in df_u2.columns else None
+                            if hcol and acol:
+                                df_u2['_hk'] = df_u2[hcol].map(_canon)
+                                df_u2['_ak'] = df_u2[acol].map(_canon)
+                            for _, rr in df_u2.to_dict(orient='records'):
+                                gid = rr.get('game_id')
+                                if gid:
+                                    gi_map[str(gid)] = rr
+                                hk = rr.get('_hk')
+                                ak = rr.get('_ak')
+                                if hk and ak:
+                                    pair_map[(hk, ak)] = rr
+                        except Exception:
+                            pass
+                        for r in rows:
+                            try:
+                                src = None
+                                gid = r.get('game_id')
+                                if gid and str(gid) in gi_map:
+                                    src = gi_map[str(gid)]
+                                if src is None:
+                                    hk = _canon(r.get('home_team'))
+                                    ak = _canon(r.get('away_team'))
+                                    src = pair_map.get((hk, ak))
+                                if isinstance(src, dict):
+                                    for k in ('start_time','display_time_str','market_total','spread_home'):
+                                        if (r.get(k) in (None, '') or (k not in r)) and (k in src):
+                                            r[k] = src.get(k)
+                            except Exception:
+                                continue
+            except Exception:
+                pass
         except Exception:
             pass
         # Minimal HTML safe view (adds key numbers for quick diagnostics)
