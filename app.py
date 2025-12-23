@@ -219,6 +219,9 @@ try:
                 '/api/upload_align_edges',
                 '/api/upload_daily_results'
             }
+            # Allow version and health endpoints for diagnostics
+            allowed.add('/api/version')
+            allowed.add('/api/health')
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
                 return None
@@ -17290,6 +17293,10 @@ def api_health():
             "last_pipeline_stats": _LAST_PIPELINE_STATS,
             "guardrails": guardrail_summary,
             "timestamp": dt.datetime.utcnow().isoformat() + "Z",
+            "build_time_utc": BUILD_TIME_UTC,
+            "app_sha": (lambda: (
+                (lambda _p, _hm: (_hm.sha256(_p.read_bytes()).hexdigest()) if _p.exists() else None)(Path(__file__), _hashlib_mod)
+            ))(),
             # Display predictions hash for alignment (prefer pipeline_stats then fallback to latest file)
             "display_hash": (lambda: (
                 _LAST_PIPELINE_STATS.get('display_hash') if isinstance(_LAST_PIPELINE_STATS, dict) and _LAST_PIPELINE_STATS.get('display_hash') else (
