@@ -20418,7 +20418,13 @@ def api_recommendations():
                 item[f'{side}_color'] = b.get('primary') or b.get('secondary')
                 item[f'{side}_text_color'] = b.get('text') or '#ffffff'
             rows.append(item)
-    return jsonify({"rows": len(rows), "data": rows})
+    _resp = jsonify({"rows": len(rows), "data": rows})
+    try:
+        _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        _resp.headers['Pragma'] = 'no-cache'
+    except Exception:
+        pass
+    return _resp
 
 @app.route("/api/midnight_drift_diagnostic")
 def api_midnight_drift_diagnostic():
