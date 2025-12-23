@@ -5185,7 +5185,7 @@ def index():
             pipeline_stats = {}
             # Only return snapshot-first render if we have rows; else fall through
             if total_rows > 0:
-                return render_template(
+                _resp = make_response(render_template(
                     "index.html",
                     rows=safe_rows,
                     total_rows=total_rows,
@@ -5209,7 +5209,13 @@ def index():
                     removed_empty_rows=removed_empty_rows,
                     status=status,
                     pipeline_stats=pipeline_stats,
-                )
+                ))
+                try:
+                    _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                    _resp.headers['Pragma'] = 'no-cache'
+                except Exception:
+                    pass
+                return _resp
     except Exception:
         pass
     # Server-safe fallback: render from display predictions API when snapshot is empty
@@ -5536,7 +5542,7 @@ def index():
                 archive_dates = []
             # Only return stable artifact render if we have rows; else fall through to general pipeline
             if total_rows > 0:
-                return render_template(
+                _resp = make_response(render_template(
                     "index.html",
                     rows=rows,
                     total_rows=total_rows,
@@ -5558,7 +5564,13 @@ def index():
                     refresh_odds_url=None,
                     source_path=str(path),
                     source_rows=total_rows,
-                )
+                ))
+                try:
+                    _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                    _resp.headers['Pragma'] = 'no-cache'
+                except Exception:
+                    pass
+                return _resp
             else:
                 pipeline_stats['stable_display_rows'] = 0
                 pipeline_stats['stable_fallback_to_general'] = True
@@ -19625,7 +19637,7 @@ def finals():
     # Basic stats: count, last date range
     date_min = df["date"].min() if "date" in df.columns and not df.empty else None
     date_max = df["date"].max() if "date" in df.columns and not df.empty else None
-    return render_template(
+            _resp = make_response(render_template(
         "finals.html",
         rows=rows,
         total_rows=len(rows),
@@ -19651,7 +19663,13 @@ def archive():
     results_dates: list[str] = []
     try:
         for p in OUT.glob('predictions_display_*.csv'):
-            m = disp_pat.match(p.name)
+            ))
+            try:
+                _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                _resp.headers['Pragma'] = 'no-cache'
+            except Exception:
+                pass
+            return _resp
             if m:
                 display_dates.append(m.group(1))
     except Exception:
