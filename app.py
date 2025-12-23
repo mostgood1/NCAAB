@@ -168,6 +168,7 @@ import os
 import numpy as np
 SNAPSHOT_ONLY = os.getenv('APP_REQUIRE_DISPLAY_SNAPSHOT', 'false').lower() == 'true' or os.getenv('RENDER_MODE', 'false').lower() == 'true'
 DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
+BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
 
 try:
     import pandas as pd
@@ -183,14 +184,9 @@ except Exception:
     request = None
     abort = None
 
-# Ensure a Flask app instance exists before route registration
-try:
-    app
-except NameError:
-    if Flask is not None:
-        app = Flask(__name__)
-    else:
-        app = None
+# Ensure a Flask app instance exists before route registration (avoid referencing undefined name)
+if 'app' not in globals():
+    app = Flask(__name__) if Flask is not None else None
 
 # Guard non-display endpoints in snapshot-only/Render mode
 try:
@@ -22341,6 +22337,64 @@ def cards_safe():
                 pass
             return out
         rows = [_brand_row_basic(r) for r in rows_api]
+        # If API rows lack key fields (times/metrics), enrich from display CSV directly
+        try:
+            def _has_key_fields(r_: dict) -> bool:
+                if not isinstance(r_, dict):
+                    return False
+                kf = ['pred_total','pred_margin','market_total','spread_home','display_time_ampm','display_time_str','start_time']
+                return any((r_.get(k) not in (None, '', float('nan')) for k in kf))
+            need_enrich = not any(_has_key_fields(r_) for r_ in rows)
+            if need_enrich:
+                p = OUT / f"predictions_display_{date_q}.csv"
+                df_en = _safe_read_csv(p)
+                if isinstance(df_en, pd.DataFrame) and not df_en.empty:
+                    # Build lookup maps by game_id and by canonical team pair
+                    def _canon(x):
+                        try:
+                            return _canon_slug(str(x or ''))
+                        except Exception:
+                            return str(x or '').strip().lower()
+                    gi_map = {}
+                    pair_map = {}
+                    try:
+                        df_e2 = df_en.copy()
+                        if 'game_id' in df_e2.columns:
+                            df_e2['game_id'] = df_e2['game_id'].astype(str)
+                        hcol = 'home_team' if 'home_team' in df_e2.columns else None
+                        acol = 'away_team' if 'away_team' in df_e2.columns else None
+                        if hcol and acol:
+                            df_e2['_hk'] = df_e2[hcol].map(_canon)
+                            df_e2['_ak'] = df_e2[acol].map(_canon)
+                        for _, rr in df_e2.to_dict(orient='records'):
+                            gid = rr.get('game_id')
+                            if gid:
+                                gi_map[str(gid)] = rr
+                            hk = rr.get('_hk')
+                            ak = rr.get('_ak')
+                            if hk and ak:
+                                pair_map[(hk, ak)] = rr
+                    except Exception:
+                        pass
+                    # Enrich rows in-place
+                    for i, r in enumerate(rows):
+                        try:
+                            src = None
+                            gid = r.get('game_id')
+                            if gid and str(gid) in gi_map:
+                                src = gi_map[str(gid)]
+                            if src is None:
+                                hk = _canon(r.get('home_team'))
+                                ak = _canon(r.get('away_team'))
+                                src = pair_map.get((hk, ak))
+                            if isinstance(src, dict):
+                                for k in ('pred_total','pred_margin','market_total','spread_home','start_time','display_time_str','date'):
+                                    if (r.get(k) in (None, '') or (k not in r)) and (k in src):
+                                        r[k] = src.get(k)
+                        except Exception:
+                            continue
+        except Exception:
+            pass
         # Minimal HTML safe view (adds key numbers for quick diagnostics)
         def _fmt_num(val, nd=2):
             try:
@@ -22396,8 +22450,8 @@ def cards_safe():
     """.format(date=date_q, n=len(rows), lis='\n'.join(items))
         from flask import Response
         return Response(html, mimetype='text/html')
-        except Exception:
-            # Extreme fallback: read display CSV directly and render minimal HTML list with numbers
+    except Exception:
+        # Extreme fallback: read display CSV directly and render minimal HTML list with numbers
         try:
             date_q = (request.args.get('date') or dt.datetime.utcnow().strftime('%Y-%m-%d')).strip()
             p = OUT / f"predictions_display_{date_q}.csv"
@@ -23111,6 +23165,30 @@ def download_backtest_cohort():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 # (Unified coverage API moved earlier; legacy summary endpoint removed.)
+
+@app.route('/api/version')
+def api_version():
+    """Return deployed app version info for verification.
+
+    Includes a build timestamp (UTC at import), the SHA256 of this file's
+    contents, and the file's last modified time in UTC.
+    """
+    try:
+        p = Path(__file__)
+        raw = p.read_bytes()
+        sha = _hashlib_mod.sha256(raw).hexdigest()
+        mtime = dt.datetime.utcfromtimestamp(p.stat().st_mtime).isoformat() + 'Z'
+    except Exception:
+        sha = 'hash_error'
+        mtime = None
+    return jsonify({
+        'ok': True,
+        'date': dt.datetime.utcnow().strftime('%Y-%m-%d'),
+        'build_time_utc': BUILD_TIME_UTC,
+        'app_mtime_utc': mtime,
+        'app_sha': sha,
+        'snapshot_only': SNAPSHOT_ONLY,
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))
