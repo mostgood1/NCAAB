@@ -247,7 +247,8 @@ try:
                         d = sorted(_dates)[-1] if _dates else dt.datetime.utcnow().strftime('%Y-%m-%d')
                     except Exception:
                         d = dt.datetime.utcnow().strftime('%Y-%m-%d')
-                return redirect(f"/cards-safe?date={d}"), 302
+                # Redirect to the full index page in stable mode to preserve UI
+                return redirect(f"/?date={d}&stable=1"), 302
             except Exception:
                 return jsonify({"status":"error","message":"Internal error; fallback redirect failed"}), 500
 except Exception:
@@ -5010,6 +5011,14 @@ def index():
             if _dates:
                 # pick maximum lexicographic ISO date safely
                 date_q = sorted(_dates)[-1]
+            if not date_q:
+                # Final fallback to ET "today" to align with site timezone
+                try:
+                    from zoneinfo import ZoneInfo as _ZI
+                    _now_et = dt.datetime.now(_ZI("America/New_York"))
+                    date_q = _now_et.date().isoformat()
+                except Exception:
+                    date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
     except Exception:
         pass
     # Compact card mode toggle
@@ -5024,11 +5033,15 @@ def index():
         # Resolve target_date with strong preference for the most recent available display snapshot
         # 1) Use explicit query date if provided
         # 2) Else, use the most recent predictions_display_<date>.csv in outputs
-        # 3) Fallback to today's UTC date
+        # 3) Fallback to today's ET date
         if date_q:
             target_date = date_q
         else:
-            today_iso = _dt.utcnow().strftime('%Y-%m-%d')
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                today_iso = _dt.now(_ZI("America/New_York")).strftime('%Y-%m-%d')
+            except Exception:
+                today_iso = _dt.utcnow().strftime('%Y-%m-%d')
             try:
                 import re as _re_mod
                 pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
@@ -19679,6 +19692,41 @@ def api_recommendations():
     Optional query: ?date=YYYY-MM-DD to target a specific slate.
     """
     date_q = (request.args.get("date") or "").strip()
+    # Resolve default date when not provided: prefer latest display snapshot, else latest edges
+    if not date_q:
+        try:
+            import re as _re_mod
+            pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+            _dates = []
+            for _p in OUT.glob('predictions_display_*.csv'):
+                m = pat.match(_p.name)
+                if m:
+                    _dates.append(m.group(1))
+            if _dates:
+                date_q = sorted(_dates)[-1]
+            else:
+                # Fallback: derive from latest edges file name
+                pat_e = _re_mod.compile(r'^align_period_(\d{4}-\d{2}-\d{2})_edges\.csv$')
+                _ed_dates = []
+                for _pe in OUT.glob('align_period_*_edges.csv'):
+                    me = pat_e.match(_pe.name)
+                    if me:
+                        _ed_dates.append(me.group(1))
+                if _ed_dates:
+                    date_q = sorted(_ed_dates)[-1]
+        except Exception:
+            date_q = date_q
+    # Final fallback to ET-aligned "today" when still empty
+    if not date_q:
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+            now_et = dt.datetime.now(_ZI("America/New_York"))
+            date_q = now_et.date().isoformat()
+        except Exception:
+            try:
+                date_q = dt.datetime.utcnow().date().isoformat()
+            except Exception:
+                date_q = dt.date.today().isoformat()
     # 1) Base picks_raw
     try:
         raw_path = OUT / 'picks_raw.csv'
@@ -19842,6 +19890,94 @@ def api_recommendations():
                         picks = out
         except Exception:
             pass
+    # 1.b) If still empty, derive OU recommendations from enriched snapshot
+    if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
+        try:
+            import re as _re_mod2
+            src = None
+            if date_q:
+                en_path = OUT / f"predictions_unified_enriched_{date_q}.csv"
+                base_path = OUT / f"predictions_unified_{date_q}.csv"
+                src = str(en_path) if en_path.exists() else (str(base_path) if base_path.exists() else None)
+            else:
+                # Choose latest available enriched or base snapshot
+                try:
+                    candidates = sorted(glob.glob(str(OUT / "predictions_unified_enriched_*.csv")))
+                except Exception:
+                    candidates = []
+                if not candidates:
+                    try:
+                        candidates = sorted(glob.glob(str(OUT / "predictions_unified_*.csv")))
+                    except Exception:
+                        candidates = []
+                src = candidates[-1] if candidates else None
+                # Derive date from filename when missing
+                if src and not date_q:
+                    m = _re_mod2.search(r"predictions_unified(?:_enriched)?_(\d{4}-\d{2}-\d{2})\.csv$", os.path.basename(src))
+                    if m:
+                        date_q = m.group(1)
+            ddf3 = _safe_read_csv(src) if src else pd.DataFrame()
+            if not ddf3.empty and date_q:
+                # Thresholds
+                try:
+                    p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
+                except Exception:
+                    p_hi = 0.52
+                try:
+                    p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
+                except Exception:
+                    p_lo = 0.48
+                def _side_en(r: pd.Series) -> str:
+                    try:
+                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                        if p is not None and str(p).strip()!='':
+                            pv = float(p)
+                            if pv >= p_hi:
+                                return 'Over'
+                            if pv <= p_lo:
+                                return 'Under'
+                    except Exception:
+                        pass
+                    try:
+                        et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                        if np.isfinite(et):
+                            return 'Over' if et >= 0 else 'Under'
+                    except Exception:
+                        pass
+                    return 'Over'
+                def _gate_en(r: pd.Series) -> bool:
+                    try:
+                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                        b = _side_en(r)
+                        if p is not None and str(p).strip()!='':
+                            pv = float(p)
+                            return (pv >= p_hi and b=='Over') or (pv <= p_lo and b=='Under')
+                        # Allow edge-only rows when probability missing to avoid emptiness
+                        return True
+                    except Exception:
+                        return False
+                df_keep3 = pd.DataFrame()
+                try:
+                    df_keep3 = ddf3[ddf3.apply(_gate_en, axis=1)]
+                except Exception:
+                    df_keep3 = pd.DataFrame()
+                if not df_keep3.empty:
+                    extra = pd.DataFrame()
+                    extra['game_id'] = df_keep3.get('game_id')
+                    extra['date'] = date_q
+                    extra['home_team'] = df_keep3.get('home_team') if 'home_team' in df_keep3.columns else df_keep3.get('home_team_name')
+                    extra['away_team'] = df_keep3.get('away_team') if 'away_team' in df_keep3.columns else df_keep3.get('away_team_name')
+                    extra['market'] = 'totals'; extra['period'] = 'full_game'
+                    extra['bet'] = df_keep3.apply(_side_en, axis=1)
+                    extra['line'] = df_keep3.get('market_total') if 'market_total' in df_keep3.columns else None
+                    extra['price'] = None
+                    extra['edge'] = df_keep3.get('edge_total')
+                    extra['pred_total'] = df_keep3.get('pred_total')
+                    extra['pred_margin'] = df_keep3.get('pred_margin')
+                    extra['rec_type'] = 'Totals'; extra['rec_code'] = 'OU'
+                    picks = extra
+        except Exception:
+            pass
     # 2) If empty, derive from edges (full_game period)
     if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
         try:
@@ -19953,8 +20089,8 @@ def api_recommendations():
                                     b = str(r.get('bet') or '').lower()
                                     if np.isfinite(p):
                                         return (p >= p_hi and b == 'over') or (p <= p_lo and b == 'under')
-                                    # If no probability, drop to avoid overs-only bias
-                                    return False
+                                    # If no probability and no date-scoped prob map, allow edge-based totals to avoid empty payloads
+                                    return True
                                 except Exception:
                                     return False
                             # Apply min edge gating on totals if configured
