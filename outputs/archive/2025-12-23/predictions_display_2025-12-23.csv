@@ -1,16 +1,13 @@
-game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home,display_date,start_time_display,start_time_local
-401820611,Army Black Knights,Binghamton Bearcats,142.5438,7.219405693013091,cal,cal,,,,,,2025-12-23 11:00,
-401828299,Campbell Fighting Camels,Green Bay Phoenix,139.8068,7.219405693013091,cal,cal,,,,,,2025-12-23 11:00,
-401823223,Kentucky Wildcats,Bellarmine Knights,142.2242,7.219405693013091,cal,cal,,,,,,2025-12-23 12:00,
-401827093,Ohio State Buckeyes,Grambling Tigers,140.6738,7.219405693013091,cal,cal,,,,,,2025-12-23 13:00,
-401824830,UCF Knights,Florida Atlantic Owls,141.6258,7.219405693013091,cal,cal,,,,,,2025-12-23 13:00,
-401822397,Missouri State Bears,Lindenwood Lions,142.2956,7.219405693013091,cal,cal,,,,,,2025-12-23 14:00,
-401813766,UCLA Bruins,UC Riverside Highlanders,142.9654,7.219405693013091,cal,cal,,,,,,2025-12-23 15:00,
-401823572,Cal State Bakersfield Roadrunners,Idaho Vandals,142.9382,7.219405693013091,cal,cal,,,,,,2025-12-23 16:00,
-401813284,Loyola Marymount Lions,Morgan State Bears,142.2208,7.219405693013091,cal,cal,,,,,,2025-12-23 17:00,
-401812611,St. John's Red Storm,Harvard Crimson,140.1196,7.219405693013091,cal,cal,,,,,,2025-12-23 17:00,
-401827264,Marshall Thundering Herd,WVU Tech Golden Bears,143.1728,7.219405693013091,cal,cal,,,,,,2025-12-23 18:00,
-401822876,Seton Hall Pirates,Villanova Wildcats,140.7452,7.219405693013091,cal,cal,,,,,,2025-12-23 18:00,
-synthetic:iowastate::syracuse@2025-12-23,Syracuse Orange,Iowa State Cyclones,142.0338,7.219405693013091,cal,cal,,,,,,,
-synthetic:towson::ucsandiegotritons@2025-12-23,Towson Tigers,UC San Diego Tritons,143.1524,7.219405693013091,cal,cal,,,,,,,
-synthetic:stfrancisparedflash::troytrojans@2025-12-23,Troy Trojans,Saint Francis (PA) Red Flash,142.724,7.219405693013091,cal,cal,,,,,,,
+game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home,start_time_display,start_time_local
+401820611,Army Black Knights,Binghamton Bearcats,142.5438,11.495510174738005,cal,cal,3.6745983398437545,9.760071351038054,,,2025-12-23 11:00,2025-12-23 11:00
+401828299,Campbell Fighting Camels,Green Bay Phoenix,139.8068,11.495510174738005,cal,cal,-5.19319999999999,16.745510174738005,,,2025-12-23 11:00,2025-12-23 11:00
+401823223,Kentucky Wildcats,Bellarmine Knights,142.2242,11.495510174738005,cal,cal,-12.275800000000004,46.995510174738,,,2025-12-23 12:00,2025-12-23 12:00
+401824830,Florida Atlantic Owls,UCF Knights,141.6258,11.495510174738005,cal,cal,-20.874200000000002,18.745510174738005,,,2025-12-23 13:00,2025-12-23 13:00
+401827093,Ohio State Buckeyes,Grambling Tigers,140.6738,11.495510174738005,cal,cal,-12.5762,41.495510174738,,,2025-12-23 13:00,2025-12-23 13:00
+401822397,Missouri State Bears,Lindenwood Lions,142.2956,11.495510174738005,cal,cal,-2.2043999999999926,13.995510174738005,,,2025-12-23 14:00,2025-12-23 14:00
+401813766,UCLA Bruins,UC Riverside Highlanders,142.9654,11.495510174738005,cal,cal,-6.534600000000012,35.495510174738,,,2025-12-23 15:00,2025-12-23 15:00
+401823572,Cal State Bakersfield Roadrunners,Idaho Vandals,142.9382,11.495510174738005,cal,cal,-7.561800000000005,5.995510174738005,,,2025-12-23 16:00,2025-12-23 16:00
+401813284,Loyola Marymount Lions,Morgan State Bears,142.2208,11.495510174738005,cal,cal,-4.279200000000003,34.995510174738,,,2025-12-23 17:00,2025-12-23 17:00
+401812611,St. John's Red Storm,Harvard Crimson,140.1196,11.495510174738005,cal,cal,-7.380400000000009,37.995510174738,,,2025-12-23 17:00,2025-12-23 17:00
+401827264,Marshall Thundering Herd,WVU Tech Golden Bears,143.1728,11.495510174738005,cal,cal,-1.4059847900390707,18.056320492731167,,,2025-12-23 18:00,2025-12-23 18:00
+401822876,Seton Hall Pirates,Villanova Wildcats,140.7452,11.495510174738005,cal,cal,-11.608925976562489,-8.6479052763118,,,2025-12-23 18:00,2025-12-23 18:00
