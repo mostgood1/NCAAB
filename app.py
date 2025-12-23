@@ -5349,7 +5349,7 @@ def index():
                 return out
             safe_rows = [_brand_row_basic(r) for r in rows_api]
             date_val = js_payload.get('date') if isinstance(js_payload, dict) else None
-            return render_template(
+            _resp = make_response(render_template(
                 "index.html",
                 rows=safe_rows,
                 total_rows=len(safe_rows),
@@ -5375,7 +5375,13 @@ def index():
                 pipeline_stats={},
                 source_path='api_display_predictions',
                 source_rows=len(safe_rows),
-            )
+            ))
+            try:
+                _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                _resp.headers['Pragma'] = 'no-cache'
+            except Exception:
+                pass
+            return _resp
     except Exception:
         pass
     # Probability calibration enable flag (?cal_probs=1 or env CALIBRATE_PROBS=1)
