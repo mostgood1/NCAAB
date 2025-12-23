@@ -825,6 +825,34 @@ print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows fo
       Write-Warning "align-period-preds failed: $($_)"
     }
 
+    # 7b.post) Ensure display snapshot exists (fallback from edges if enriched had no rows)
+    try {
+      $displaySnap = Join-Path $OutDir ("predictions_display_" + $todayIso + ".csv")
+      $needBuild = $false
+      if (-not (Test-Path -LiteralPath $displaySnap)) {
+        $needBuild = $true
+      } else {
+        try {
+          $rows = Import-Csv -LiteralPath $displaySnap -ErrorAction Stop
+          if (-not $rows -or ($rows | Measure-Object).Count -le 0) { $needBuild = $true }
+        } catch {
+          $needBuild = $true
+        }
+      }
+      if ($needBuild -and (Test-Path -LiteralPath $alignEdges)) {
+        Write-Host "[display] Building predictions_display from edges -> $displaySnap" -ForegroundColor Cyan
+        & $VenvPython (Join-Path $RepoRoot 'scripts\generate_display_from_edges.py') $todayIso
+        # Archive copy for lightweight browsing
+        try {
+          $archiveDir = Join-Path $OutDir ("archive\" + $todayIso)
+          New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
+          if (Test-Path -LiteralPath $displaySnap) {
+            Copy-Item -LiteralPath $displaySnap -Destination (Join-Path $archiveDir ("predictions_display_" + $todayIso + ".csv")) -Force
+          }
+        } catch { Write-Warning "Failed to archive display snapshot: $($_)" }
+      }
+    } catch { Write-Warning "Display-from-edges fallback failed: $($_)" }
+
     Write-Section "8) Generate baseline stake sheet (edge-based Kelly)"
     $stakeBase = Join-Path $OutDir 'stake_sheet_today.csv'
     try {
