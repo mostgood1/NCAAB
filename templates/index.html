@@ -254,7 +254,15 @@
         }
         async function fetchRecommended(){
           try{
-            const r = await fetch('/api/recommendations');
+            const params = new URLSearchParams();
+            // Prefer server-provided date to ensure parity with local artifacts
+            try {
+              const btn = document.getElementById('btnFinalize');
+              const dv = btn && btn.getAttribute('data-date');
+              if(dv) params.set('date', dv);
+            } catch(e){}
+            params.set('ts', Date.now().toString()); // cache-bust to avoid stale CDN
+            const r = await fetch('/api/recommendations' + (params.size? ('?'+params.toString()):''));
             const j = await r.json();
             const data = (j && Array.isArray(j.data)) ? j.data : [];
             data.sort(function(a,b){
