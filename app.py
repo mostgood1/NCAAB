@@ -22195,8 +22195,12 @@ def api_display_predictions():
                     ren = {v:k for k,v in cols.items() if v and v!=k}
                     if ren:
                         df = df.rename(columns=ren)
+                # If mapping produced no columns (unexpected schema), fall back to full snapshot as-is
+                if df.empty:
+                    df = df_full.copy()
             except Exception:
-                df = pd.DataFrame()
+                # On any error, serve the full snapshot directly to avoid blank payloads
+                df = df_full.copy()
         # If no rows or mapping failed, rebuild from edges and persist to avoid blank cards
         try:
             if df.empty:
