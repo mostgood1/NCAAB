@@ -22451,6 +22451,59 @@ def cards_safe():
                                 continue
             except Exception:
                 pass
+            # Final attempt: enrich from edges for commence/start times when still missing
+            try:
+                needs_time = any(not bool(rr.get('display_time_str') or rr.get('start_time') or rr.get('commence_time')) for rr in rows)
+                if needs_time:
+                    pe = OUT / f"align_period_{date_q}_edges.csv"
+                    df_ed = _safe_read_csv(pe)
+                    if isinstance(df_ed, pd.DataFrame) and not df_ed.empty:
+                        def _canon_e(x):
+                            try:
+                                return _canon_slug(str(x or ''))
+                            except Exception:
+                                return str(x or '').strip().lower()
+                        gi_map_e = {}
+                        pair_map_e = {}
+                        try:
+                            df_e2 = df_ed.copy()
+                            if 'game_id' in df_e2.columns:
+                                df_e2['game_id'] = df_e2['game_id'].astype(str)
+                            hcol = 'home_team' if 'home_team' in df_e2.columns else None
+                            acol = 'away_team' if 'away_team' in df_e2.columns else None
+                            if hcol and acol:
+                                df_e2['_hk'] = df_e2[hcol].map(_canon_e)
+                                df_e2['_ak'] = df_e2[acol].map(_canon_e)
+                            for _, rr in df_e2.to_dict(orient='records'):
+                                gid = rr.get('game_id')
+                                if gid:
+                                    gi_map_e[str(gid)] = rr
+                                hk = rr.get('_hk')
+                                ak = rr.get('_ak')
+                                if hk and ak:
+                                    pair_map_e[(hk, ak)] = rr
+                        except Exception:
+                            pass
+                        for r in rows:
+                            try:
+                                if r.get('display_time_str') or r.get('start_time') or r.get('commence_time'):
+                                    continue
+                                src = None
+                                gid = r.get('game_id')
+                                if gid and str(gid) in gi_map_e:
+                                    src = gi_map_e[str(gid)]
+                                if src is None:
+                                    hk = _canon_e(r.get('home_team'))
+                                    ak = _canon_e(r.get('away_team'))
+                                    src = pair_map_e.get((hk, ak))
+                                if isinstance(src, dict):
+                                    for k in ('commence_time','start_time'):
+                                        if (r.get(k) in (None, '') or (k not in r)) and (k in src):
+                                            r[k] = src.get(k)
+                            except Exception:
+                                continue
+            except Exception:
+                pass
         except Exception:
             pass
         # Minimal HTML safe view (adds key numbers for quick diagnostics)
