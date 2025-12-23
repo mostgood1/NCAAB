@@ -22336,7 +22336,13 @@ def api_display_predictions():
             except Exception:
                 pass
             rows.append(item)
-        return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
+        _resp = jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
+        try:
+            _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            _resp.headers['Pragma'] = 'no-cache'
+        except Exception:
+            pass
+        return _resp
     else:
         df = getattr(app, 'last_index_df', pd.DataFrame())
         # If no base df, attempt to rebuild from edges for the date
@@ -22423,7 +22429,13 @@ def api_display_predictions():
         except Exception:
             pass
         rows.append(item)
-    return jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
+    _resp = jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
+    try:
+        _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        _resp.headers['Pragma'] = 'no-cache'
+    except Exception:
+        pass
+    return _resp
 @app.route('/cards-safe')
 def cards_safe():
     try:
