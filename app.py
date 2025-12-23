@@ -22444,7 +22444,7 @@ def cards_safe():
                                     ak = _canon(r.get('away_team'))
                                     src = pair_map.get((hk, ak))
                                 if isinstance(src, dict):
-                                    for k in ('start_time','start_time_local','start_time_display','commence_time','display_time_str','market_total','spread_home'):
+                                    for k in ('start_time','start_time_local','start_time_display','commence_time','_start_dt','display_time_str','market_total','spread_home'):
                                         if (r.get(k) in (None, '') or (k not in r)) and (k in src):
                                             r[k] = src.get(k)
                             except Exception:
@@ -22522,10 +22522,10 @@ def cards_safe():
         for r in rows:
             ht = r.get('home_team') or ''
             at = r.get('away_team') or ''
-            tm = r.get('display_time_ampm') or r.get('display_time_str') or r.get('start_time_display') or r.get('start_time_local') or ''
+            tm = r.get('display_time_ampm') or r.get('display_time_str') or r.get('start_time_display') or r.get('start_time_local') or r.get('_start_dt') or ''
             if not tm:
                 try:
-                    st = r.get('start_time') or r.get('commence_time')
+                    st = r.get('start_time') or r.get('commence_time') or r.get('_start_dt')
                     if st:
                         dtv = pd.to_datetime(st, errors='coerce')
                         if pd.notna(dtv):
