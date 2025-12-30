@@ -5035,7 +5035,16 @@ def index():
         force_api = False
     if force_api:
         try:
-            resp = api_display_predictions()
+            # Ensure the API call uses the requested date if provided
+            _api_date_force = (request.args.get("date") or date_q or "").strip()
+            if _api_date_force:
+                try:
+                    with app.test_request_context(f"/api/display_predictions?date={_api_date_force}"):
+                        resp = api_display_predictions()
+                except Exception:
+                    resp = api_display_predictions()
+            else:
+                resp = api_display_predictions()
             js_payload = None
             try:
                 if hasattr(resp, 'get_json'):
@@ -5313,7 +5322,14 @@ def index():
                     api_date = sorted(_dates)[-1]
             except Exception:
                 api_date = None
-        resp = api_display_predictions() if not api_date else api_display_predictions()
+        if api_date:
+            try:
+                with app.test_request_context(f"/api/display_predictions?date={api_date}"):
+                    resp = api_display_predictions()
+            except Exception:
+                resp = api_display_predictions()
+        else:
+            resp = api_display_predictions()
         js_payload = None
         try:
             if hasattr(resp, 'get_json'):
@@ -15519,7 +15535,14 @@ def index():
         if {"game_id","market_total"}.issubset(df_tpl.columns):
             miss_mask = df_tpl["market_total"].isna()
             if miss_mask.any():
-                pipeline_stats["missing_odds_game_ids"] = list(df_tpl.loc[miss_mask, "game_id"].astype(str).head(12))
+                # Exclude synthetic/odds placeholder IDs from diagnostics
+                try:
+                    gid_ser = df_tpl["game_id"].astype(str)
+                    ex_mask = gid_ser.str.startswith("synthetic:") | gid_ser.str.startswith("odds:")
+                    eff_mask = miss_mask & (~ex_mask)
+                except Exception:
+                    eff_mask = miss_mask
+                pipeline_stats["missing_odds_game_ids"] = list(df_tpl.loc[eff_mask, "game_id"].astype(str).head(12))
     except Exception:
         pass
 
@@ -22561,7 +22584,11 @@ def cards_safe():
             except Exception:
                 date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
         # Fetch display payload directly via internal function call
-        resp = api_display_predictions()
+        try:
+            with app.test_request_context(f"/api/display_predictions?date={date_q}"):
+                resp = api_display_predictions()
+        except Exception:
+            resp = api_display_predictions()
         js = None
         try:
             if hasattr(resp, 'get_json'):
