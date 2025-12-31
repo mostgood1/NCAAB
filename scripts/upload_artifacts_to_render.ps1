@@ -77,6 +77,34 @@ function Get-CsvRowCount {
     }
 }
 
+# Create a sanitized display CSV by removing placeholder rows (AWAY/HOME teams) and synthetic/odds ids
+function Sanitize-DisplayCsv {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $null }
+    try {
+        $rows = Import-Csv -LiteralPath $Path -ErrorAction Stop
+        if (-not $rows) { return $null }
+        $filtered = @()
+        foreach ($r in $rows) {
+            $gid = ("" + $r.game_id).Trim()
+            $ht = ("" + $r.home_team).Trim().ToLower()
+            $at = ("" + $r.away_team).Trim().ToLower()
+            $isSynthetic = ($gid.StartsWith('synthetic:') -or $gid.StartsWith('odds:'))
+            $isPlaceholder = ($ht -in @('home','away') -or $at -in @('home','away'))
+            if (-not ($isSynthetic -or $isPlaceholder)) { $filtered += $r }
+        }
+        $tmp = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($Path), (".tmp_sanitized_{0}" -f [System.IO.Path]::GetFileName($Path)))
+        if ($filtered.Count -gt 0) { $filtered | Export-Csv -LiteralPath $tmp -NoTypeInformation -Encoding UTF8 }
+        else {
+            # Write header-only file to preserve schema
+            $rows | Select-Object -First 0 | Export-Csv -LiteralPath $tmp -NoTypeInformation -Encoding UTF8
+        }
+        return $tmp
+    } catch {
+        return $null
+    }
+}
+
 # Upload in preferred order: picks_raw -> ATS picks(date) -> edges(date) -> display(date) -> enriched(date)
 $picksRows = Get-CsvRowCount -Path $picksPath
 if ($picksRows -gt 0) {
@@ -104,7 +132,11 @@ if ($u2) {
     Write-Host ("[OK] edges uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
 }
 
-$u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayPath -Query @{ date = $Date }
+$sanitizedDisplayPath = Sanitize-DisplayCsv -Path $displayPath
+if ($sanitizedDisplayPath) {
+    Write-Step ("Sanitized display for upload: {0}" -f (Split-Path -Leaf $sanitizedDisplayPath))
+}
+$u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath ($sanitizedDisplayPath ?? $displayPath) -Query @{ date = $Date }
 if ($u3) {
     $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
     $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
@@ -212,7 +244,7 @@ try {
 
 # Verify display predictions parity vs local CSV
 try {
-    $localDisplayRows = Get-CsvRowCount -Path $displayPath
+    $localDisplayRows = Get-CsvRowCount -Path ($sanitizedDisplayPath ?? $displayPath)
     $dispResp = Invoke-RestMethod -Uri "$BaseUrl/api/display_predictions?date=$Date" -Method Get
     $remoteDisplayRows = if ($dispResp -and $dispResp.rows) { ($dispResp.rows | Measure-Object).Count } elseif ($dispResp -and $dispResp.count) { [int]$dispResp.count } else { 0 }
     $note = if ($localDisplayRows -eq $remoteDisplayRows) { 'match' } else { 'mismatch' }
