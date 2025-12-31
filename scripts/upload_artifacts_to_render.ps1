@@ -3,7 +3,10 @@ param(
     [string]$BaseUrl = 'https://ncaab.onrender.com',
     [string]$OutputsDir = "$PSScriptRoot/../outputs",
     [switch]$TriggerRedeploy,
-    [string]$DeployHookUrl = $env:RENDER_DEPLOY_HOOK_URL
+    [string]$DeployHookUrl = $env:RENDER_DEPLOY_HOOK_URL,
+    [string]$CodeDeployHookUrl = $env:RENDER_CODE_DEPLOY_HOOK_URL,
+    [int]$VersionPollSeconds = 90,
+    [int]$VersionPollIntervalMs = 3000
 )
 
 function Write-Step {
@@ -236,6 +239,10 @@ if ($TriggerRedeploy.IsPresent) {
             if ($env:RENDER_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_DEPLOY_HOOK_URL)) {
                 return $env:RENDER_DEPLOY_HOOK_URL
             }
+            if ($env:RENDER_CODE_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_CODE_DEPLOY_HOOK_URL)) {
+                # Prefer explicit code deploy hook if provided
+                return $env:RENDER_CODE_DEPLOY_HOOK_URL
+            }
             $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
             $envPath = Join-Path $repoRoot '.env'
             if (Test-Path -LiteralPath $envPath) {
@@ -244,6 +251,10 @@ if ($TriggerRedeploy.IsPresent) {
                     if ($line -match '^\s*RENDER_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
                         $val = $Matches[1].Trim()
                         if (-not [string]::IsNullOrWhiteSpace($val)) { return $val }
+                    }
+                    if ($line -match '^\s*RENDER_CODE_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
+                        $val2 = $Matches[1].Trim()
+                        if (-not [string]::IsNullOrWhiteSpace($val2)) { return $val2 }
                     }
                 }
             }
@@ -262,12 +273,38 @@ if ($TriggerRedeploy.IsPresent) {
         Write-Host "[Skip] TriggerRedeploy set but no DeployHookUrl provided, env var set, or .env/scripts fallback found." -ForegroundColor Yellow
     } else {
         Write-Step "Triggering redeploy via deploy hook"
+        # Capture baseline app version before triggering
+        $baselineSha = $null
+        $baselineBuildTime = $null
+        try {
+            $ver0 = Invoke-RestMethod -Uri "$BaseUrl/api/version" -Method Get
+            if ($ver0) { $baselineSha = $ver0.app_sha; $baselineBuildTime = $ver0.build_time_utc }
+            Write-Host ("[Check] Baseline version: sha={0} build_time={1}" -f $baselineSha, $baselineBuildTime) -ForegroundColor White
+        } catch { Write-Host "[Warn] Baseline version check failed: $($_.Exception.Message)" -ForegroundColor Yellow }
         try {
             $hookResp = Invoke-RestMethod -Uri $DeployHookUrl -Method Post
             Write-Host "[OK] Redeploy hook response received." -ForegroundColor Green
         } catch {
             Write-Host "[Error] Redeploy hook failed: $($_.Exception.Message)" -ForegroundColor Red
         }
+        # Poll /api/version until app_sha changes or timeout
+        $deadline = (Get-Date).AddSeconds($VersionPollSeconds)
+        $changed = $false
+        while ((Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds $VersionPollIntervalMs
+            try {
+                $ver = Invoke-RestMethod -Uri "$BaseUrl/api/version" -Method Get
+                if ($ver) {
+                    $sha = $ver.app_sha
+                    $bt = $ver.build_time_utc
+                    Write-Host ("[Poll] Version: sha={0} build_time={1}" -f $sha, $bt) -ForegroundColor Gray
+                    if ($baselineSha -and $sha -and $sha -ne $baselineSha) { $changed = $true; break }
+                    if (-not $baselineBuildTime -and $bt) { $changed = $true; break }
+                }
+            } catch { Write-Host "[Warn] Version poll failed: $($_.Exception.Message)" -ForegroundColor Yellow }
+        }
+        if ($changed) { Write-Host "[OK] Detected new deployment version." -ForegroundColor Green }
+        else { Write-Host "[Warn] Version unchanged after polling; deployment may still be in progress or using previous image." -ForegroundColor Yellow }
     }
 }
 
