@@ -5175,6 +5175,15 @@ def index():
                     df_snap = df_snap[~mask]
             except Exception:
                 pass
+            # Drop rows where team names are placeholders like AWAY/HOME
+            try:
+                if {'home_team','away_team'}.issubset(df_snap.columns):
+                    _ht = df_snap['home_team'].astype(str).str.strip().str.lower()
+                    _at = df_snap['away_team'].astype(str).str.strip().str.lower()
+                    _mask_valid = ~(_ht.isin(['home','away']) | _at.isin(['home','away']))
+                    df_snap = df_snap[_mask_valid]
+            except Exception:
+                pass
             rows = []
             keep = [
                 'game_id','home_team','away_team','pred_total','pred_margin',
@@ -22427,6 +22436,15 @@ def api_display_predictions():
         # Snapshot-first: compute hash and return rows without re-normalizing/persisting
         digest = None
         try:
+            # Drop placeholder rows with AWAY/HOME team names if present
+            try:
+                if isinstance(df, pd.DataFrame) and not df.empty and {'home_team','away_team'}.issubset(df.columns):
+                    _ht = df['home_team'].astype(str).str.strip().str.lower()
+                    _at = df['away_team'].astype(str).str.strip().str.lower()
+                    _mask_valid = ~(_ht.isin(['home','away']) | _at.isin(['home','away']))
+                    df = df[_mask_valid]
+            except Exception:
+                pass
             core = df[['game_id','pred_total','pred_margin']] if {'game_id','pred_total','pred_margin'}.issubset(df.columns) else df
             if 'game_id' in core.columns:
                 core = core.sort_values('game_id')
@@ -22541,6 +22559,15 @@ def api_display_predictions():
     except Exception:
         df = df if isinstance(df, pd.DataFrame) else pd.DataFrame()
     _, digest = _persist_display(df, date_q)
+    # Remove placeholder rows (AWAY/HOME team names) from rebuilt frame
+    try:
+        if isinstance(df, pd.DataFrame) and not df.empty and {'home_team','away_team'}.issubset(df.columns):
+            _ht = df['home_team'].astype(str).str.strip().str.lower()
+            _at = df['away_team'].astype(str).str.strip().str.lower()
+            _mask_valid = ~(_ht.isin(['home','away']) | _at.isin(['home','away']))
+            df = df[_mask_valid]
+    except Exception:
+        pass
     keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','display_date','display_time_str']
     rows: list[dict[str, Any]] = []
     for _, r in df.iterrows():
@@ -22603,12 +22630,40 @@ def cards_safe():
             except Exception:
                 js = None
         rows_api = (js.get('rows') if isinstance(js, dict) else None) or []
+        # Filter out placeholder rows (AWAY/HOME team names or synthetic ids) early
+        try:
+            def _is_placeholder_row_api(_r: dict) -> bool:
+                try:
+                    gid = str((_r.get('game_id') or '')).strip()
+                    if gid.startswith('synthetic:') or gid.startswith('odds:'):
+                        return True
+                    ht = str(_r.get('home_team') or '').strip().lower()
+                    at = str(_r.get('away_team') or '').strip().lower()
+                    return (ht in ('home','away')) or (at in ('home','away'))
+                except Exception:
+                    return False
+            if rows_api:
+                rows_api = [rr for rr in rows_api if not _is_placeholder_row_api(rr)]
+        except Exception:
+            pass
         # If API rows are empty, try reading display CSV directly for resilience
         if not rows_api:
             try:
                 p = OUT / f"predictions_display_{date_q}.csv"
                 df = _safe_read_csv(p)
                 if not df.empty:
+                    # Apply the same placeholder filter to the CSV fallback
+                    try:
+                        if 'game_id' in df.columns:
+                            _gid = df['game_id'].astype(str)
+                            df = df[~(_gid.str.startswith('synthetic:') | _gid.str.startswith('odds:'))]
+                        if {'home_team','away_team'}.issubset(df.columns):
+                            _ht = df['home_team'].astype(str).str.strip().str.lower()
+                            _at = df['away_team'].astype(str).str.strip().str.lower()
+                            _mask_valid = ~(_ht.isin(['home','away']) | _at.isin(['home','away']))
+                            df = df[_mask_valid]
+                    except Exception:
+                        pass
                     keep = ['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time','display_time_str']
                     rows_api = [
                         {k: r.get(k) for k in keep if k in df.columns}
@@ -22859,6 +22914,18 @@ def cards_safe():
             df = _safe_read_csv(p)
             items = []
             if not df.empty:
+                # Filter out placeholders in fallback HTML render as well
+                try:
+                    if 'game_id' in df.columns:
+                        _gid = df['game_id'].astype(str)
+                        df = df[~(_gid.str.startswith('synthetic:') | _gid.str.startswith('odds:'))]
+                    if {'home_team','away_team'}.issubset(df.columns):
+                        _ht = df['home_team'].astype(str).str.strip().str.lower()
+                        _at = df['away_team'].astype(str).str.strip().str.lower()
+                        _mask_valid = ~(_ht.isin(['home','away']) | _at.isin(['home','away']))
+                        df = df[_mask_valid]
+                except Exception:
+                    pass
                 for _, r in df.iterrows():
                         ht = str(r.get('home_team') or '')
                         at = str(r.get('away_team') or '')
