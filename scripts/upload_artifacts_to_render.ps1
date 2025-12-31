@@ -136,7 +136,9 @@ $sanitizedDisplayPath = Sanitize-DisplayCsv -Path $displayPath
 if ($sanitizedDisplayPath) {
     Write-Step ("Sanitized display for upload: {0}" -f (Split-Path -Leaf $sanitizedDisplayPath))
 }
-$u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath ($sanitizedDisplayPath ?? $displayPath) -Query @{ date = $Date }
+$displayToUpload = $null
+if ($sanitizedDisplayPath -and -not [string]::IsNullOrWhiteSpace($sanitizedDisplayPath)) { $displayToUpload = $sanitizedDisplayPath } else { $displayToUpload = $displayPath }
+$u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayToUpload -Query @{ date = $Date }
 if ($u3) {
     $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
     $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
@@ -244,7 +246,9 @@ try {
 
 # Verify display predictions parity vs local CSV
 try {
-    $localDisplayRows = Get-CsvRowCount -Path ($sanitizedDisplayPath ?? $displayPath)
+    $localDisplayPath = $displayPath
+    if ($sanitizedDisplayPath -and -not [string]::IsNullOrWhiteSpace($sanitizedDisplayPath)) { $localDisplayPath = $sanitizedDisplayPath }
+    $localDisplayRows = Get-CsvRowCount -Path $localDisplayPath
     $dispResp = Invoke-RestMethod -Uri "$BaseUrl/api/display_predictions?date=$Date" -Method Get
     $remoteDisplayRows = if ($dispResp -and $dispResp.rows) { ($dispResp.rows | Measure-Object).Count } elseif ($dispResp -and $dispResp.count) { [int]$dispResp.count } else { 0 }
     $note = if ($localDisplayRows -eq $remoteDisplayRows) { 'match' } else { 'mismatch' }
