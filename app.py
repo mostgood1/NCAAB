@@ -166,7 +166,11 @@ import pandas as pd
 import datetime as dt
 import os
 import numpy as np
-SNAPSHOT_ONLY = os.getenv('APP_REQUIRE_DISPLAY_SNAPSHOT', 'false').lower() == 'true' or os.getenv('RENDER_MODE', 'false').lower() == 'true'
+SNAPSHOT_ONLY = (
+    os.getenv('APP_REQUIRE_DISPLAY_SNAPSHOT', 'false').lower() == 'true'
+    or os.getenv('RENDER_MODE', 'false').lower() == 'true'
+    or os.getenv('SNAPSHOT_ONLY', 'false').lower() in ('1','true','yes')
+)
 DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
 BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
 
