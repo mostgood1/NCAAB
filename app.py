@@ -18170,7 +18170,7 @@ def recommendations():
                         picks_fb.rename(columns={'home_team_name':'home_team','away_team_name':'away_team'}, inplace=True)
                     keep_cols = [
                         'game_id','date','home_team','away_team','book','market','period',
-                        'line','price','edge','pred_total','pred_margin','edge_total','edge_margin',
+                        'bet','line','price','edge','pred_total','pred_margin','edge_total','edge_margin',
                         'home_spread','home_spread_price','away_spread','away_spread_price',
                         'total','over_price','under_price',
                         'start_time_iso','start_tz_abbr','start_time','display_date','start_time_local'
@@ -20252,7 +20252,44 @@ def api_recommendations():
                     if sprs.empty:
                         return sprs
                     sprs['bet'] = sprs.apply(lambda r: ('home' if (float(r.get('edge_margin') or 0.0) >= 0) else 'away'), axis=1)
-                    sprs['line'] = sprs.apply(lambda r: (r['home_spread'] if str(r.get('bet')).lower() == 'home' else r['away_spread']), axis=1)
+                    # Compute signed line consistently: use home spread as base; flip sign for away
+                    def _signed_line(r: pd.Series):
+                        try:
+                            sel = str(r.get('bet') or '').lower()
+                            if not sel:
+                                try:
+                                    pm = r.get('pred_margin')
+                                    if pm is not None and str(pm).strip() != '':
+                                        sel = 'home' if float(pm) >= 0 else 'away'
+                                except Exception:
+                                    sel = ''
+                            # Prefer explicit home spread columns
+                            hs = r.get('home_spread')
+                            chs = r.get('closing_spread_home')
+                            # Coerce to float if possible
+                            val = None
+                            for v in (chs, hs):
+                                try:
+                                    if v is not None and str(v).strip() != '':
+                                        val = float(v)
+                                        break
+                                except Exception:
+                                    continue
+                            # Fallback to away_spread if home spread missing
+                            if val is None:
+                                try:
+                                    aw = r.get('away_spread')
+                                    if aw is not None and str(aw).strip() != '':
+                                        av = float(aw)
+                                        return av if sel == 'away' else (0 - av)
+                                except Exception:
+                                    pass
+                            if val is None:
+                                return None
+                            return val if sel == 'home' else (0 - val)
+                        except Exception:
+                            return None
+                    sprs['line'] = sprs.apply(_signed_line, axis=1)
                     sprs['price'] = sprs.apply(lambda r: (r['home_spread_price'] if str(r.get('bet')).lower() == 'home' else r['away_spread_price']), axis=1)
                     sprs['edge'] = sprs['edge_margin'].abs() if 'edge_margin' in sprs.columns else None
                     # Apply min edge gating on spreads if configured
@@ -20470,6 +20507,32 @@ def api_recommendations():
                     side_team = home if (pm is not None and pm >= 0) else away
                 except Exception:
                     side_team = home or away
+            # Recompute signed line from home/away spread when available to ensure correctness
+            try:
+                hs = row.get('home_spread')
+                chs = row.get('closing_spread_home')
+                aw = row.get('away_spread')
+                base = None
+                for v in (chs, hs):
+                    if v is not None and str(v).strip() != '':
+                        try:
+                            base = float(v)
+                            break
+                        except Exception:
+                            continue
+                if base is None and aw is not None and str(aw).strip() != '':
+                    try:
+                        av = float(aw)
+                    except Exception:
+                        av = None
+                    if av is not None:
+                        ln2 = av if (side_team == away) else (0 - av)
+                        return f"{side_team} {ln2:+.1f}".strip()
+                if base is not None:
+                    ln2 = base if (side_team == home) else (0 - base)
+                    return f"{side_team} {ln2:+.1f}".strip()
+            except Exception:
+                pass
             if ln is not None:
                 return f"{side_team} {ln:+.1f}".strip()
             return f"{side_team} Spread".strip()
@@ -20790,7 +20853,35 @@ def api_picks_raw():
                         sprs['bet'] = sprs.apply(_spr_side, axis=1)
                         def _spr_line(r: pd.Series):
                             try:
-                                return r['home_spread'] if str(r.get('bet')).lower() == 'home' else r['away_spread']
+                                sel = str(r.get('bet') or '').lower()
+                                if not sel:
+                                    try:
+                                        pm = r.get('pred_margin')
+                                        if pm is not None and str(pm).strip() != '':
+                                            sel = 'home' if float(pm) >= 0 else 'away'
+                                    except Exception:
+                                        sel = ''
+                                hs = r.get('home_spread')
+                                chs = r.get('closing_spread_home')
+                                val = None
+                                for v in (chs, hs):
+                                    try:
+                                        if v is not None and str(v).strip() != '':
+                                            val = float(v)
+                                            break
+                                    except Exception:
+                                        continue
+                                if val is None:
+                                    try:
+                                        aw = r.get('away_spread')
+                                        if aw is not None and str(aw).strip() != '':
+                                            av = float(aw)
+                                            return av if sel == 'away' else (0 - av)
+                                    except Exception:
+                                        pass
+                                if val is None:
+                                    return None
+                                return val if sel == 'home' else (0 - val)
                             except Exception:
                                 return None
                         def _spr_price(r: pd.Series):
@@ -20851,7 +20942,7 @@ def api_picks_raw():
                             picks_fb.rename(columns={'home_team_name':'home_team','away_team_name':'away_team'}, inplace=True)
                         keep_cols = [
                             'game_id','date','home_team','away_team','book','market','period',
-                            'line','price','edge','pred_total','pred_margin','edge_total','edge_margin',
+                            'bet','line','price','edge','pred_total','pred_margin','edge_total','edge_margin',
                             'home_spread','home_spread_price','away_spread','away_spread_price',
                             'total','over_price','under_price',
                             'start_time_iso','start_tz_abbr','start_time','display_date','start_time_local'
