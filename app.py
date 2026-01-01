@@ -3451,12 +3451,18 @@ def _load_predictions_current() -> pd.DataFrame:
         # Prefer blended predictions for today if present
         candidates.append(OUT / f"predictions_blend_{today_str}.csv")
         candidates.append(OUT / f"predictions_{today_str}.csv")
+        # Also consider unified/enriched artifacts uploaded by deploy script
+        candidates.append(OUT / f"predictions_unified_enriched_{today_str}.csv")
+        candidates.append(OUT / f"predictions_unified_{today_str}.csv")
     # 3) Conventional aggregate files
     for name in ("predictions_blend.csv", "predictions_week.csv", "predictions.csv", "predictions_all.csv", "predictions_last2.csv"):
         candidates.append(OUT / name)
     # 4) All predictions_*.csv (other dates) ordered by size so richest historical fallback last
     try:
         globbed = list(OUT.glob("predictions_*.csv"))
+        # Include unified/enriched historical files as fallbacks
+        globbed += list(OUT.glob("predictions_unified_*.csv"))
+        globbed += list(OUT.glob("predictions_unified_enriched_*.csv"))
         # Put today's file (if present) at front; others sorted by size desc
         globbed_other = [p for p in globbed if not today_str or p.name != f"predictions_{today_str}.csv"]
         globbed_other = sorted(globbed_other, key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)
@@ -3875,14 +3881,16 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
         if not p.is_absolute():
             p = OUT / env_path
         candidates.append(p)
-    # 2) Explicit date (prefer unified -> enriched -> calibrated model -> raw model)
+    # 2) Explicit date (prefer unified_enriched -> unified -> enriched -> calibrated model -> raw model)
     if date_str:
+        candidates.append(OUT / f"predictions_unified_enriched_{date_str}.csv")
         candidates.append(OUT / f"predictions_unified_{date_str}.csv")
         candidates.append(OUT / f"predictions_enriched_{date_str}.csv")
         candidates.append(OUT / f"predictions_model_calibrated_{date_str}.csv")
         candidates.append(OUT / f"predictions_model_{date_str}.csv")
-    # 3) Today (prefer unified -> enriched -> calibrated model -> raw model)
+    # 3) Today (prefer unified_enriched -> unified -> enriched -> calibrated model -> raw model)
     if today_str and (not date_str or date_str != today_str):
+        candidates.append(OUT / f"predictions_unified_enriched_{today_str}.csv")
         candidates.append(OUT / f"predictions_unified_{today_str}.csv")
         candidates.append(OUT / f"predictions_enriched_{today_str}.csv")
         candidates.append(OUT / f"predictions_model_calibrated_{today_str}.csv")
@@ -17798,14 +17806,20 @@ def api_bootstrap():
         and target_date == today_str
         and isinstance(game_rows_after, int)
         and game_rows_after < min_thresh
-    ):
-        try:
-            cli_daily_run(
-                date=target_date,
-                season=dt.date.fromisoformat(target_date).year,
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+        # Prefer unified enriched for the date, then unified, then plain predictions
+        candidates = [
+            OUT / f"predictions_unified_enriched_{today_str}.csv",
+            OUT / f"predictions_unified_{today_str}.csv",
+            OUT / f"predictions_{today_str}.csv",
+            OUT / "predictions_unified_enriched.csv",
+            OUT / "predictions_enriched.csv",
+        ]
+        src = next((p for p in candidates if p.exists()), None)
                 region="us",
                 provider="fused",
-                threshold=2.0,
+        df = _safe_read_csv(src)
                 default_price=-110.0,
                 retrain=False,
                 segment="none",
