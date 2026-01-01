@@ -159,7 +159,7 @@
                 // Table
                 const table = document.createElement('table');
                 const thead = document.createElement('thead');
-                thead.innerHTML = '<tr><th>Type</th><th>Book</th><th>Bet</th><th>Line</th><th>Price</th><th>Edge</th></tr>';
+                thead.innerHTML = '<tr><th>Type</th><th>Book</th><th>Bet</th><th>Line</th><th>Price</th><th>Edge</th><th>Confidence</th></tr>';
                 table.appendChild(thead);
                 const tbody = document.createElement('tbody');
                 function pill(code){ const s=document.createElement('span'); s.className='pill '+code; s.textContent = (code==='OU'?'Totals':code==='ATS'?'Spread':code==='ML'?'Moneyline':code); return s; }
@@ -186,6 +186,10 @@
                   tr.appendChild(numCell(it.line));
                   tr.appendChild(numCell(it.price));
                   tr.appendChild(numCell(it._abs_edge||it.edge||it.abs_edge||''));
+                  const tdConf=document.createElement('td'); tdConf.className='num';
+                  const c = (typeof it.confidence==='number' ? Math.round(it.confidence*100) : '');
+                  tdConf.textContent = (c!=='' ? (c+'%') : '');
+                  tr.appendChild(tdConf);
                   tbody.appendChild(tr);
                 });
                 table.appendChild(tbody);
@@ -228,6 +232,7 @@
                 <th>Line</th>
                 <th>Price</th>
                 <th>Edge</th>
+                <th>Confidence</th>
               </tr>
             </thead>
             <tbody>
@@ -252,6 +257,10 @@
                 <td class="num">{{ '%.1f' % it.line if (it.line is defined and it.line is not none) else '' }}</td>
                 <td class="num">{{ it.price if (it.price is defined and it.price is not none) else '' }}</td>
                 <td class="num"><span class="pill">{{ '%.1f' % it.edge if (it.edge is defined and it.edge is not none) else '' }}</span></td>
+                <td class="num">
+                  {% set conf = it.confidence if (it.confidence is defined and it.confidence is not none) else None %}
+                  {% if conf is not none %}<span class="pill" title="Confidence (blended)">{{ '%d' % (conf*100) }}%</span>{% else %}{% endif %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>

@@ -17718,6 +17718,149 @@ def api_bootstrap():
         today_str = _today_local().strftime("%Y-%m-%d")
     except Exception:
         today_str = None
+    # --- Begin executable bootstrap logic (moved inside function to ensure valid response) ---
+    # use_cache override (refresh) param
+    use_cache_param = (request.args.get("use_cache") or (request.json.get("use_cache") if request.is_json else None) or "").strip().lower()
+    refresh_param = (request.args.get("refresh") or (request.json.get("refresh") if request.is_json else None) or "").strip().lower()
+    # Interpret: if use_cache in ['0','false','no'] OR refresh=1 => disable cache
+    disable_cache = use_cache_param in ("0","false","no") or refresh_param in ("1","true","yes")
+    target_date = date_param or today_str
+    if not target_date:
+        return jsonify({"status": "error", "message": "Unable to resolve target date"}), 400
+
+    # If predictions already exist for this date and not forced, short-circuit
+    existing_preds = _load_predictions_current()
+    already = False
+    pred_rows_for_date = 0
+    if not existing_preds.empty and "date" in existing_preds.columns:
+        try:
+            existing_preds["date"] = pd.to_datetime(existing_preds["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+        pred_rows_for_date = int((existing_preds["date"].astype(str) == target_date).sum())
+        already = pred_rows_for_date > 0
+    if already and not force_param:
+        return jsonify({
+            "status": "ok",
+            "message": f"Predictions already present for {target_date}; skipping bootstrap (use force=1 to override)",
+            "date": target_date,
+            "pred_rows": pred_rows_for_date,
+            "skipped": True,
+        }), 200
+
+    # Execute daily_run pipeline minimally (avoid retraining / heavy operations on server)
+    logs: list[str] = []
+    try:
+        cli_daily_run(
+            date=target_date,
+            season=dt.date.fromisoformat(target_date).year,
+            region="us",
+            provider=provider_param,
+            threshold=2.0,
+            default_price=-110.0,
+            retrain=False,
+            segment="none",
+            conf_map=None,
+            use_cache=(not disable_cache),
+            preseason_weight=0.0,
+            preseason_only_sparse=True,
+            apply_guardrails=True,
+            half_ratio=0.485,
+            auto_train_halves=False,
+            halves_models_dir=OUT / "models_halves",
+            enable_ort=False,
+            accumulate_schedule=True,
+            accumulate_predictions=True,
+        )
+    except Exception as e:
+        logger.exception("Bootstrap daily_run failed")
+        return jsonify({"status": "error", "message": f"daily_run failed: {e}"}), 500
+
+    # Reload artifacts to report counts
+    games_after = _safe_read_csv(OUT / "games_curr.csv")
+    preds_after = _load_predictions_current()
+    if "date" in preds_after.columns:
+        try:
+            preds_after["date"] = pd.to_datetime(preds_after["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    pred_rows_after = int(preds_after[preds_after.get("date","") == target_date].shape[0]) if not preds_after.empty and "date" in preds_after.columns else 0
+    game_rows_after = int(games_after[games_after.get("date","") == target_date].shape[0]) if not games_after.empty and "date" in games_after.columns else len(games_after)
+
+    # Optional auto-fallback: if today's slate looks sparse with provider 'espn' or 'ncaa', try fused
+    fallback_info: dict[str, Any] = {"triggered": False}
+    try:
+        min_thresh = int(os.environ.get("NCAAB_MIN_TODAY_GAMES", "25"))
+    except Exception:
+        min_thresh = 25
+    if (
+        provider_param != "fused"
+        and target_date == today_str
+        and isinstance(game_rows_after, int)
+        and game_rows_after < min_thresh
+    ):
+        try:
+            cli_daily_run(
+                date=target_date,
+                season=dt.date.fromisoformat(target_date).year,
+                region="us",
+                provider="fused",
+                threshold=2.0,
+                default_price=-110.0,
+                retrain=False,
+                segment="none",
+                conf_map=None,
+                use_cache=(not disable_cache),
+                preseason_weight=0.0,
+                preseason_only_sparse=True,
+                apply_guardrails=True,
+                half_ratio=0.485,
+                auto_train_halves=False,
+                halves_models_dir=OUT / "models_halves",
+                enable_ort=False,
+                accumulate_schedule=True,
+                accumulate_predictions=True,
+            )
+            # Recompute counts after fallback
+            games_after2 = _safe_read_csv(OUT / "games_curr.csv")
+            preds_after2 = _load_predictions_current()
+            if "date" in preds_after2.columns:
+                try:
+                    preds_after2["date"] = pd.to_datetime(preds_after2["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+            pred_rows_after2 = int(preds_after2[preds_after2.get("date","") == target_date].shape[0]) if not preds_after2.empty and "date" in preds_after2.columns else 0
+            game_rows_after2 = int(games_after2[games_after2.get("date","") == target_date].shape[0]) if not games_after2.empty and "date" in games_after2.columns else len(games_after2)
+            fallback_info = {
+                "triggered": True,
+                "reason": f"sparse slate ({game_rows_after}) with provider={provider_param}; retried fused",
+                "prev": {"game_rows": game_rows_after, "pred_rows": pred_rows_after, "provider": provider_param},
+                "after": {"game_rows": game_rows_after2, "pred_rows": pred_rows_after2, "provider": "fused"},
+            }
+            # Promote fused counts in primary response
+            game_rows_after = game_rows_after2
+            pred_rows_after = pred_rows_after2
+            provider_param = f"{provider_param}->fused"
+        except Exception as e:
+            logger.exception("Fallback to fused provider failed")
+            fallback_info = {
+                "triggered": True,
+                "error": str(e),
+                "prev": {"game_rows": game_rows_after, "pred_rows": pred_rows_after, "provider": provider_param},
+            }
+
+    return jsonify({
+        "status": "ok",
+        "message": f"Bootstrap complete for {target_date}",
+        "date": target_date,
+        "pred_rows": pred_rows_after,
+        "game_rows": game_rows_after,
+        "provider": provider_param,
+        "forced": force_param,
+        "cache_used": not disable_cache,
+        "fallback": fallback_info,
+    }), 200
+    # --- End executable bootstrap logic ---
 
 @app.route('/api/risk-config', methods=['POST'])
 def api_risk_config():
@@ -18108,7 +18251,7 @@ def recommendations():
                             return None
                     tots['price'] = tots.apply(_tot_price, axis=1)
                     tots['edge'] = tots['edge_total'].abs() if 'edge_total' in tots.columns else None
-                    tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'
+                    tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'; tots['type'] = 'OU'; tots['type_label'] = 'Totals'
                 # Build spreads recommendations
                 try:
                     spr_mask = edges['market'].astype(str).str.lower() == 'spreads' if 'market' in edges.columns else pd.Series([False]*len(edges))
@@ -18138,7 +18281,7 @@ def recommendations():
                     sprs['line'] = sprs.apply(_spr_line, axis=1)
                     sprs['price'] = sprs.apply(_spr_price, axis=1)
                     sprs['edge'] = sprs['edge_margin'].abs() if 'edge_margin' in sprs.columns else None
-                    sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'
+                    sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'; sprs['type'] = 'ATS'; sprs['type_label'] = 'Spread'
                 # Build ML recommendations when EV is positive (optional)
                 try:
                     ml_mask = edges['market'].astype(str).str.lower() == 'h2h' if 'market' in edges.columns else pd.Series([False]*len(edges))
@@ -18161,7 +18304,7 @@ def recommendations():
                             return None
                     mls['price'] = mls.apply(_ml_price, axis=1)
                     mls['edge'] = mls.apply(lambda r: max(float(r.get('home_ml_ev') or 0.0), float(r.get('away_ml_ev') or 0.0)), axis=1)
-                    mls['rec_type'] = 'Moneyline'; mls['rec_code'] = 'ML'
+                    mls['rec_type'] = 'Moneyline'; mls['rec_code'] = 'ML'; mls['type'] = 'ML'; mls['type_label'] = 'Moneyline'
                 else:
                     mls = pd.DataFrame(columns=edges.columns)
                 picks_fb = pd.concat([tots, sprs, mls], ignore_index=True) if ('tots' in locals() or 'sprs' in locals() or 'mls' in locals()) else pd.DataFrame()
@@ -18257,7 +18400,7 @@ def recommendations():
                         tots['line'] = tots['total']
                         tots['price'] = tots.apply(lambda r: r['over_price'] if str(r.get('bet')).lower() == 'over' else r['under_price'], axis=1)
                         tots['edge'] = tots['edge_total'].abs() if 'edge_total' in tots.columns else None
-                        tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'
+                        tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'; tots['type'] = 'OU'; tots['type_label'] = 'Totals'
                     # spreads
                     spr_mask = edges['market'].astype(str).str.lower() == 'spreads' if 'market' in edges.columns else pd.Series([False]*len(edges))
                     sprs = edges[spr_mask].copy()
@@ -18266,7 +18409,7 @@ def recommendations():
                         sprs['line'] = sprs.apply(lambda r: (r['home_spread'] if str(r.get('bet')).lower() == 'home' else r['away_spread']), axis=1)
                         sprs['price'] = sprs.apply(lambda r: (r['home_spread_price'] if str(r.get('bet')).lower() == 'home' else r['away_spread_price']), axis=1)
                         sprs['edge'] = sprs['edge_margin'].abs() if 'edge_margin' in sprs.columns else None
-                        sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'
+                        sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'; sprs['type'] = 'ATS'; sprs['type_label'] = 'Spread'
                     # h2h
                     ml_mask = edges['market'].astype(str).str.lower() == 'h2h' if 'market' in edges.columns else pd.Series([False]*len(edges))
                     mls = edges[ml_mask].copy()
@@ -18277,7 +18420,7 @@ def recommendations():
                         mls['line'] = None
                         mls['price'] = mls.apply(lambda r: (r['moneyline_home'] if str(r.get('bet')).lower() == 'home' else r['moneyline_away']), axis=1)
                         mls['edge'] = mls.apply(lambda r: max(float(r.get('home_ml_ev') or 0.0), float(r.get('away_ml_ev') or 0.0)), axis=1)
-                        mls['rec_type'] = 'Moneyline'; mls['rec_code'] = 'ML'
+                        mls['rec_type'] = 'Moneyline'; mls['rec_code'] = 'ML'; mls['type'] = 'ML'; mls['type_label'] = 'Moneyline'
                     else:
                         mls = pd.DataFrame(columns=edges.columns)
                     picks_fb = pd.concat([tots, sprs, mls], ignore_index=True) if ('tots' in locals() or 'sprs' in locals() or 'mls' in locals()) else pd.DataFrame()
@@ -18484,6 +18627,8 @@ def recommendations():
         r = _apply_site_display_global(r)
         # Confidence score (0..1) based on blended signals; not solely EV
         try:
+            # Optional components flag to surface per-row breakdown
+            components_q = (str(request.args.get("components") or request.args.get("debug") or "").strip().lower() in ("1","true","yes","debug"))
             def _american_to_prob_local(odds_val: Any) -> float | None:
                 try:
                     v = float(odds_val)
@@ -18495,67 +18640,253 @@ def recommendations():
                         return (-v) / ((-v) + 100.0)
                 except Exception:
                     return None
-            def _confidence_for_row_local(rw: dict) -> float:
+            def _confidence_components_for_row_local(rw: dict) -> tuple[float, dict]:
                 try:
-                    code = str(rw.get('rec_code') or '').upper()
-                    edge = rw.get('edge')
+                    # Derive code locally to avoid dependency on later normalization
+                    mkt = str(rw.get('market') or '').lower()
+                    bet = str(rw.get('bet') or str(rw.get('selection') or '')).lower().strip()
+                    def _is_totals_text(txt: str) -> bool:
+                        if not txt:
+                            return False
+                        txt = txt.strip().lower()
+                        if txt.startswith('over') or txt.startswith('under'):
+                            return True
+                        if txt.startswith('o') or txt.startswith('u'):
+                            return True
+                        return False
+                    if any(x in mkt for x in ("total","over/under","ou")) or _is_totals_text(bet):
+                        code = 'OU'
+                    elif any(x in mkt for x in ("spread","ats")) or ('spread' in bet):
+                        code = 'ATS'
+                    elif any(x in mkt for x in ("moneyline","ml")) or ('moneyline' in bet or bet.endswith(' ml')):
+                        code = 'ML'
+                    else:
+                        code = str(rw.get('rec_code') or 'Other').upper()
+
+                    # Core edge magnitude normalized by market-specific sigma/denom
                     line = rw.get('line')
                     price = rw.get('price')
+                    edge_raw = rw.get('edge')
                     try:
-                        e = float(edge) if edge is not None and str(edge).strip()!='' else 0.0
+                        e = float(edge_raw) if edge_raw is not None and str(edge_raw).strip()!='' else np.nan
                     except Exception:
-                        e = 0.0
+                        e = np.nan
+                    # If explicit edge missing, recompute from predictions and line
+                    if not np.isfinite(e):
+                        try:
+                            if code == 'OU':
+                                pt = rw.get('pred_total_calibrated') if rw.get('pred_total_calibrated') is not None else rw.get('pred_total')
+                                ln = line if line is not None else (rw.get('closing_total') if rw.get('closing_total') is not None else rw.get('market_total'))
+                                ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
+                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                e = (ptv - lnv) if (np.isfinite(ptv) and np.isfinite(lnv)) else np.nan
+                            elif code == 'ATS':
+                                pm = rw.get('pred_margin_calibrated') if rw.get('pred_margin_calibrated') is not None else rw.get('pred_margin')
+                                ln = line if line is not None else (rw.get('closing_spread_home') if rw.get('closing_spread_home') is not None else rw.get('spread_home'))
+                                pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
+                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                e = (pmv - lnv) if (np.isfinite(pmv) and np.isfinite(lnv)) else np.nan
+                            else:
+                                e = np.nan
+                        except Exception:
+                            e = np.nan
+                    # Sigma/denominator per market
+                    # Tunable sigmas (defaults lowered to lift strong signals)
                     if code == 'OU':
-                        denom = float(os.environ.get('CONF_DENOM_TOTAL','10'))
+                        sigma = float(os.environ.get('CONF_SIGMA_TOTAL','8'))
                     elif code == 'ATS':
-                        denom = float(os.environ.get('CONF_DENOM_SPREAD','7'))
+                        sigma = float(os.environ.get('CONF_SIGMA_SPREAD','5.5'))
                     elif code == 'ML':
-                        denom = float(os.environ.get('CONF_DENOM_ML','0.08'))
+                        sigma = float(os.environ.get('CONF_SIGMA_ML','0.06'))
                     else:
-                        denom = float(os.environ.get('CONF_DENOM_OTHER','10'))
-                    edge_comp = max(0.0, min(1.0, abs(e) / denom)) if denom>0 else 0.0
+                        sigma = float(os.environ.get('CONF_SIGMA_OTHER','10'))
+                    edge_comp = float(0.0)
+                    if sigma > 0 and np.isfinite(e):
+                        # smoother growth using tanh
+                        edge_comp = float(max(0.0, min(1.0, np.tanh(abs(e) / (sigma * 0.8)))))
+
+                    # Probability/consistency component from projection vs line
                     prob_comp = 0.0
-                    if code == 'OU':
-                        pt = rw.get('pred_total')
-                        ln = line if line is not None else rw.get('total')
-                        try:
-                            ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
-                            lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
-                            if np.isfinite(ptv) and np.isfinite(lnv):
-                                delta = ptv - lnv
-                                sigma = float(os.environ.get('CONF_SIGMA_TOTAL','10'))
-                                prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
-                                prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
-                        except Exception:
-                            prob_comp = 0.0
-                    elif code == 'ATS':
-                        pm = rw.get('pred_margin')
-                        ln = line
-                        try:
-                            pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
-                            lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
-                            if np.isfinite(pmv) and np.isfinite(lnv):
-                                delta = pmv - lnv
-                                sigma = float(os.environ.get('CONF_SIGMA_SPREAD','7'))
-                                prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
-                                prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
-                        except Exception:
-                            prob_comp = 0.0
-                    else:
-                        prob_comp = 0.0
-                    price_comp = 0.0
+                    cons_comp = 0.0
                     try:
-                        p_imp = _american_to_prob_local(price)
-                        if p_imp is not None:
-                            price_comp = 0.15
+                        if code in ('OU','ATS'):
+                            if code == 'OU':
+                                pt = rw.get('pred_total_calibrated') if rw.get('pred_total_calibrated') is not None else rw.get('pred_total')
+                                ln = line if line is not None else rw.get('total')
+                                ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
+                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                if np.isfinite(ptv) and np.isfinite(lnv) and sigma>0:
+                                    delta = ptv - lnv
+                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma)
+                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                                    # Consistency: selection direction vs delta
+                                    sel = bet
+                                    if sel:
+                                        if sel.startswith('over') or sel.startswith('o'):
+                                            cons_comp = 1.0 if delta > 0 else 0.3
+                                        elif sel.startswith('under') or sel.startswith('u'):
+                                            cons_comp = 1.0 if delta < 0 else 0.3
+                            else:  # ATS
+                                pm = rw.get('pred_margin_calibrated') if rw.get('pred_margin_calibrated') is not None else rw.get('pred_margin')
+                                ln = line
+                                pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
+                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                if np.isfinite(pmv) and np.isfinite(lnv) and sigma>0:
+                                    delta = pmv - lnv
+                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma)
+                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                                    sel = bet
+                                    if sel:
+                                        if 'home' in sel:
+                                            cons_comp = 1.0 if delta > 0 else 0.3
+                                        elif 'away' in sel:
+                                            cons_comp = 1.0 if delta < 0 else 0.3
+                        else:
+                            prob_comp = 0.0
                     except Exception:
-                        price_comp = 0.0
+                        prob_comp = 0.0
+                        cons_comp = 0.0
+
+                    # Market coverage & closing presence
+                    quotes_count = None
+                    try:
+                        qc = rw.get('quotes_count')
+                        quotes_count = int(qc) if qc is not None and str(qc).strip()!='' else None
+                    except Exception:
+                        quotes_count = None
+                    closing_present = any([
+                        rw.get('closing_total') is not None,
+                        rw.get('closing_spread_home') is not None,
+                    ])
+                    mkt_comp = 0.4
+                    if quotes_count is not None:
+                        if quotes_count >= 4:
+                            mkt_comp = 1.0
+                        elif quotes_count == 3:
+                            mkt_comp = 0.8
+                        elif quotes_count == 2:
+                            mkt_comp = 0.6
+                        else:
+                            mkt_comp = 0.5
+                    if closing_present:
+                        mkt_comp = min(1.0, mkt_comp + 0.2)
+
+                    # Calibration basis confidence
+                    basis_key = 'pred_total_basis' if code=='OU' else ('pred_margin_basis' if code=='ATS' else None)
+                    cal_comp = 0.6
+                    try:
+                        if basis_key:
+                            basis = str(rw.get(basis_key) or '').strip().lower()
+                            if basis == 'cal':
+                                cal_comp = 1.0
+                            elif basis == 'cal_est':
+                                cal_comp = 0.8
+                            elif basis in ('synthetic_baseline','market_copy',''):
+                                cal_comp = 0.4
+                    except Exception:
+                        cal_comp = 0.6
+
+                    # Segmentation/blend stability
+                    try:
+                        seg_n = rw.get('seg_n_rows')
+                        seg_n = float(seg_n) if seg_n is not None and str(seg_n).strip()!='' else np.nan
+                    except Exception:
+                        seg_n = np.nan
+                    try:
+                        bw = rw.get('blend_weight')
+                        bw = float(bw) if bw is not None and str(bw).strip()!='' else np.nan
+                    except Exception:
+                        bw = np.nan
+                    seg_comp = 0.6
+                    if np.isfinite(seg_n):
+                        seg_comp = min(1.0, max(0.3, seg_n / 6.0))
+                    if np.isfinite(bw):
+                        seg_comp = min(1.0, max(0.3, 0.3 + 0.7 * bw))
+
+                    # Price quality (juice)
+                    price_comp = 0.6
+                    try:
+                        p = float(price) if price is not None and str(price).strip()!='' else np.nan
+                        if np.isfinite(p):
+                            if p > 0:  # plus money
+                                price_comp = 0.9
+                            else:
+                                pv = abs(p)
+                                price_comp = 0.8 if pv <= 110 else (0.6 if pv <= 115 else (0.4 if pv <= 120 else 0.3))
+                    except Exception:
+                        price_comp = 0.6
+
+                    # Line presence slight boost
                     line_comp = 0.1 if (line is not None and str(line).strip()!='') else 0.0
-                    conf = 0.4*edge_comp + 0.4*prob_comp + 0.2*(price_comp + line_comp)
-                    return float(max(0.0, min(1.0, conf)))
+
+                    # Weighted composition (env-tunable). Base weights; allow per-market overrides.
+                    def _w(name: str, default: float, code_override: str | None) -> float:
+                        if code_override:
+                            v = os.environ.get(f'CONF_W_{name}_{code_override}', None)
+                            if v is not None:
+                                try:
+                                    return float(v)
+                                except Exception:
+                                    pass
+                        v2 = os.environ.get(f'CONF_W_{name}', None)
+                        if v2 is not None:
+                            try:
+                                return float(v2)
+                            except Exception:
+                                pass
+                        return default
+                    code_tag = code if code in ('OU','ATS','ML') else None
+                    if code == 'ML':
+                        w = {
+                            'edge': _w('EDGE', 0.40, code_tag),
+                            'prob': _w('PROB', 0.30, code_tag),
+                            'mkt': _w('MKT', 0.25, code_tag),
+                            'cal': _w('CAL', 0.15, code_tag),
+                            'seg': _w('SEG', 0.10, code_tag),
+                            'cons': _w('CONS', 0.10, code_tag),
+                            'price': _w('PRICE', 0.10, code_tag),
+                            'line': _w('LINE', 0.05, code_tag),
+                        }
+                    else:
+                        w = {
+                            'edge': _w('EDGE', 0.45, code_tag),
+                            'prob': _w('PROB', 0.25, code_tag),
+                            'mkt': _w('MKT', 0.25, code_tag),
+                            'cal': _w('CAL', 0.20, code_tag),
+                            'seg': _w('SEG', 0.15, code_tag),
+                            'cons': _w('CONS', 0.10, code_tag),
+                            'price': _w('PRICE', 0.08, code_tag),
+                            'line': _w('LINE', 0.05, code_tag),
+                        }
+                    conf = (
+                        w['edge']*edge_comp + w['prob']*prob_comp + w['mkt']*mkt_comp +
+                        w['cal']*cal_comp + w['seg']*seg_comp + w['cons']*cons_comp +
+                        w['price']*price_comp + w['line']*line_comp
+                    )
+                    # Gentle floor/ceiling and smoothing (env-tunable)
+                    floor = float(os.environ.get('CONF_SMOOTH_FLOOR','0.12'))
+                    scale = float(os.environ.get('CONF_SMOOTH_SCALE','0.95'))
+                    conf = floor + scale * conf
+                    comps = {
+                        'code': code,
+                        'sigma': sigma,
+                        'edge': edge_comp,
+                        'prob': prob_comp,
+                        'cons': cons_comp,
+                        'market': mkt_comp,
+                        'cal': cal_comp,
+                        'seg': seg_comp,
+                        'price': price_comp,
+                        'line': line_comp,
+                        'weights': w,
+                    }
+                    return float(max(0.0, min(1.0, conf))), comps
                 except Exception:
-                    return 0.0
-            r['confidence'] = _confidence_for_row_local(r)
+                    return 0.0, {}
+            _conf, _comps = _confidence_components_for_row_local(r)
+            r['confidence'] = _conf
+            if components_q:
+                r['confidence_components'] = _comps
         except Exception:
             r['confidence'] = 0.0
         # Normalize type label from market/bet
@@ -18585,15 +18916,23 @@ def recommendations():
         if any(x in mkt for x in ("total","over/under","ou")) or _is_totals_from_bet_text(bet0):
             r['rec_type'] = 'Totals'
             r['rec_code'] = 'OU'
+            r['type'] = 'OU'
+            r['type_label'] = 'Totals'
         elif any(x in mkt for x in ("spread","ats")) or ('spread' in bet):
             r['rec_type'] = 'Spread'
             r['rec_code'] = 'ATS'
+            r['type'] = 'ATS'
+            r['type_label'] = 'Spread'
         elif any(x in mkt for x in ("moneyline","ml")) or ('moneyline' in bet or bet.endswith(' ml')):
             r['rec_type'] = 'Moneyline'
             r['rec_code'] = 'ML'
+            r['type'] = 'ML'
+            r['type_label'] = 'Moneyline'
         else:
             r['rec_type'] = (r.get('market') or 'Other')
             r['rec_code'] = 'Other'
+            r['type'] = 'Other'
+            r['type_label'] = r['rec_type']
         # Compute explicit bet label for clarity in flat view
         try:
             code = (r.get('rec_code') or '').upper()
@@ -18962,6 +19301,7 @@ def recommendations():
                 'line': it.get('line'),
                 'price': it.get('price'),
                 'edge': (abs(float(it.get('edge'))) if it.get('edge') is not None and str(it.get('edge')).strip()!='' else it.get('abs_edge')),
+                'confidence': it.get('confidence'),
                 'market': _s(it.get('market')),
                 # carry-through fields to aid label repair
                 'pred_total': it.get('pred_total'),
@@ -19920,6 +20260,8 @@ def api_recommendations():
       - Explicit Over/Under, signed spreads, ML labels
     Optional query: ?date=YYYY-MM-DD to target a specific slate.
     """
+    # Optional components flag: include per-row confidence breakdown when requested
+    components_q = (str(request.args.get("components") or request.args.get("debug") or "").strip().lower() in ("1","true","yes","debug"))
     date_q = (request.args.get("date") or "").strip()
     # Resolve default date when not provided: prefer latest display snapshot, else latest edges
     if not date_q:
@@ -20698,6 +21040,12 @@ def api_recommendations():
                 rc2, rt2 = _infer_type(str(item.get('market') or ''), str(item.get('bet') or ''))
                 item['rec_code'] = rc or rc2
                 item['rec_type'] = rt or rt2
+            # Explicit type fields for API consumers
+            try:
+                item['type'] = item.get('type') or item.get('rec_code')
+                item['type_label'] = item.get('type_label') or item.get('rec_type')
+            except Exception:
+                pass
             # Explicit label
             item['bet_label'] = _label(item)
             # Branding
@@ -20722,71 +21070,199 @@ def api_recommendations():
                             return (-v) / ((-v) + 100.0)
                     except Exception:
                         return None
-                def _confidence_for_row(r: dict) -> float:
+                def _confidence_components_for_row(r: dict) -> tuple[float, dict]:
                     try:
                         code = str(r.get('rec_code') or '').upper()
-                        edge = r.get('edge')
                         line = r.get('line')
                         price = r.get('price')
-                        # Normalize edge by market type
+                        edge_raw = r.get('edge')
                         try:
-                            e = float(edge) if edge is not None and str(edge).strip()!='' else 0.0
+                            e = float(edge_raw) if edge_raw is not None and str(edge_raw).strip()!='' else np.nan
                         except Exception:
-                            e = 0.0
+                            e = np.nan
+                        # Sigma per market (env-tunable)
                         if code == 'OU':
-                            denom = float(os.environ.get('CONF_DENOM_TOTAL','10'))
+                            sigma = float(os.environ.get('CONF_SIGMA_TOTAL','8'))
                         elif code == 'ATS':
-                            denom = float(os.environ.get('CONF_DENOM_SPREAD','7'))
+                            sigma = float(os.environ.get('CONF_SIGMA_SPREAD','5.5'))
                         elif code == 'ML':
-                            denom = float(os.environ.get('CONF_DENOM_ML','0.08'))
+                            sigma = float(os.environ.get('CONF_SIGMA_ML','0.06'))
                         else:
-                            denom = float(os.environ.get('CONF_DENOM_OTHER','10'))
-                        edge_comp = max(0.0, min(1.0, abs(e) / denom)) if denom>0 else 0.0
-                        # Probability strength: derive from projection vs line when possible
+                            sigma = float(os.environ.get('CONF_SIGMA_OTHER','10'))
+                        edge_comp = 0.0
+                        if sigma>0 and np.isfinite(e):
+                            edge_comp = float(max(0.0, min(1.0, np.tanh(abs(e) / (sigma * 0.8)))))
+                        # Prob/consistency from projection vs line
                         prob_comp = 0.0
-                        if code == 'OU':
-                            pt = r.get('pred_total')
-                            ln = line if line is not None else r.get('total')
-                            try:
-                                ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
-                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
-                                if np.isfinite(ptv) and np.isfinite(lnv):
-                                    delta = ptv - lnv
-                                    sigma = float(os.environ.get('CONF_SIGMA_TOTAL','10'))
-                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
-                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
-                            except Exception:
-                                prob_comp = 0.0
-                        elif code == 'ATS':
-                            pm = r.get('pred_margin')
-                            ln = line
-                            try:
-                                pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
-                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
-                                if np.isfinite(pmv) and np.isfinite(lnv):
-                                    delta = pmv - lnv
-                                    sigma = float(os.environ.get('CONF_SIGMA_SPREAD','7'))
-                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
-                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
-                            except Exception:
-                                prob_comp = 0.0
-                        else:
-                            prob_comp = 0.0
-                        # Price presence contributes modestly
-                        price_comp = 0.0
+                        cons_comp = 0.0
                         try:
-                            p_imp = _american_to_prob(price)
-                            if p_imp is not None:
-                                # Favor reasonable prices; avoid overweighting EV
-                                price_comp = 0.15
+                            if code in ('OU','ATS'):
+                                if code == 'OU':
+                                    pt = r.get('pred_total_calibrated') if r.get('pred_total_calibrated') is not None else r.get('pred_total')
+                                    ln = line if line is not None else r.get('total')
+                                    ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
+                                    lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                    if np.isfinite(ptv) and np.isfinite(lnv) and sigma>0:
+                                        delta = ptv - lnv
+                                        prob_est = 0.5 + 0.5 * np.tanh(delta / sigma)
+                                        prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                                        sel = str(r.get('bet') or r.get('selection') or '').lower()
+                                        if sel:
+                                            if sel.startswith('over') or sel.startswith('o'):
+                                                cons_comp = 1.0 if delta > 0 else 0.3
+                                            elif sel.startswith('under') or sel.startswith('u'):
+                                                cons_comp = 1.0 if delta < 0 else 0.3
+                                else:
+                                    pm = r.get('pred_margin_calibrated') if r.get('pred_margin_calibrated') is not None else r.get('pred_margin')
+                                    ln = line
+                                    pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
+                                    lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                    if np.isfinite(pmv) and np.isfinite(lnv) and sigma>0:
+                                        delta = pmv - lnv
+                                        prob_est = 0.5 + 0.5 * np.tanh(delta / sigma)
+                                        prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                                        sel = str(r.get('bet') or r.get('selection') or '').lower()
+                                        if sel:
+                                            if 'home' in sel:
+                                                cons_comp = 1.0 if delta > 0 else 0.3
+                                            elif 'away' in sel:
+                                                cons_comp = 1.0 if delta < 0 else 0.3
                         except Exception:
-                            price_comp = 0.0
+                            prob_comp = 0.0
+                            cons_comp = 0.0
+                        # Market coverage & closing presence
+                        quotes_count = None
+                        try:
+                            qc = r.get('quotes_count')
+                            quotes_count = int(qc) if qc is not None and str(qc).strip()!='' else None
+                        except Exception:
+                            quotes_count = None
+                        closing_present = any([
+                            r.get('closing_total') is not None,
+                            r.get('closing_spread_home') is not None,
+                        ])
+                        mkt_comp = 0.4
+                        if quotes_count is not None:
+                            if quotes_count >= 4:
+                                mkt_comp = 1.0
+                            elif quotes_count == 3:
+                                mkt_comp = 0.8
+                            elif quotes_count == 2:
+                                mkt_comp = 0.6
+                            else:
+                                mkt_comp = 0.5
+                        if closing_present:
+                            mkt_comp = min(1.0, mkt_comp + 0.2)
+                        # Calibration basis
+                        basis_key = 'pred_total_basis' if code=='OU' else ('pred_margin_basis' if code=='ATS' else None)
+                        cal_comp = 0.6
+                        try:
+                            if basis_key:
+                                basis = str(r.get(basis_key) or '').strip().lower()
+                                if basis == 'cal':
+                                    cal_comp = 1.0
+                                elif basis == 'cal_est':
+                                    cal_comp = 0.8
+                                elif basis in ('synthetic_baseline','market_copy',''):
+                                    cal_comp = 0.4
+                        except Exception:
+                            cal_comp = 0.6
+                        # Segmentation/blend
+                        try:
+                            seg_n = r.get('seg_n_rows')
+                            seg_n = float(seg_n) if seg_n is not None and str(seg_n).strip()!='' else np.nan
+                        except Exception:
+                            seg_n = np.nan
+                        try:
+                            bw = r.get('blend_weight')
+                            bw = float(bw) if bw is not None and str(bw).strip()!='' else np.nan
+                        except Exception:
+                            bw = np.nan
+                        seg_comp = 0.6
+                        if np.isfinite(seg_n):
+                            seg_comp = min(1.0, max(0.3, seg_n / 6.0))
+                        if np.isfinite(bw):
+                            seg_comp = min(1.0, max(0.3, 0.3 + 0.7 * bw))
+                        # Price quality
+                        price_comp = 0.6
+                        try:
+                            p = float(price) if price is not None and str(price).strip()!='' else np.nan
+                            if np.isfinite(p):
+                                if p > 0:
+                                    price_comp = 0.9
+                                else:
+                                    pv = abs(p)
+                                    price_comp = 0.8 if pv <= 110 else (0.6 if pv <= 115 else (0.4 if pv <= 120 else 0.3))
+                        except Exception:
+                            price_comp = 0.6
                         line_comp = 0.1 if (line is not None and str(line).strip()!='') else 0.0
-                        conf = 0.4*edge_comp + 0.4*prob_comp + 0.2*(price_comp + line_comp)
-                        return float(max(0.0, min(1.0, conf)))
+                        # Weights (env-tunable)
+                        def _w(name: str, default: float, code_override: str | None) -> float:
+                            if code_override:
+                                v = os.environ.get(f'CONF_W_{name}_{code_override}', None)
+                                if v is not None:
+                                    try:
+                                        return float(v)
+                                    except Exception:
+                                        pass
+                            v2 = os.environ.get(f'CONF_W_{name}', None)
+                            if v2 is not None:
+                                try:
+                                    return float(v2)
+                                except Exception:
+                                    pass
+                            return default
+                        code_tag = code if code in ('OU','ATS','ML') else None
+                        if code == 'ML':
+                            w = {
+                                'edge': _w('EDGE', 0.40, code_tag),
+                                'prob': _w('PROB', 0.30, code_tag),
+                                'mkt': _w('MKT', 0.25, code_tag),
+                                'cal': _w('CAL', 0.15, code_tag),
+                                'seg': _w('SEG', 0.10, code_tag),
+                                'cons': _w('CONS', 0.10, code_tag),
+                                'price': _w('PRICE', 0.10, code_tag),
+                                'line': _w('LINE', 0.05, code_tag),
+                            }
+                        else:
+                            w = {
+                                'edge': _w('EDGE', 0.45, code_tag),
+                                'prob': _w('PROB', 0.25, code_tag),
+                                'mkt': _w('MKT', 0.25, code_tag),
+                                'cal': _w('CAL', 0.20, code_tag),
+                                'seg': _w('SEG', 0.15, code_tag),
+                                'cons': _w('CONS', 0.10, code_tag),
+                                'price': _w('PRICE', 0.08, code_tag),
+                                'line': _w('LINE', 0.05, code_tag),
+                            }
+                        conf = (
+                            w['edge']*edge_comp + w['prob']*prob_comp + w['mkt']*mkt_comp +
+                            w['cal']*cal_comp + w['seg']*seg_comp + w['cons']*cons_comp +
+                            w['price']*price_comp + w['line']*line_comp
+                        )
+                        floor = float(os.environ.get('CONF_SMOOTH_FLOOR','0.12'))
+                        scale = float(os.environ.get('CONF_SMOOTH_SCALE','0.95'))
+                        conf = floor + scale * conf
+                        comps = {
+                            'code': code,
+                            'sigma': sigma,
+                            'edge': edge_comp,
+                            'prob': prob_comp,
+                            'cons': cons_comp,
+                            'market': mkt_comp,
+                            'cal': cal_comp,
+                            'seg': seg_comp,
+                            'price': price_comp,
+                            'line': line_comp,
+                            'weights': w,
+                        }
+                        return float(max(0.0, min(1.0, conf))), comps
                     except Exception:
-                        return 0.0
-                item['confidence'] = _confidence_for_row(item)
+                        return 0.0, {}
+                _c, _comps = _confidence_components_for_row(item)
+                item['confidence'] = _c
+                if components_q:
+                    item['confidence_components'] = _comps
             except Exception:
                 item['confidence'] = 0.0
             rows.append(item)
