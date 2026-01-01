@@ -5002,6 +5002,18 @@ def index():
     # Optional view preference: force-calibrated display precedence even for tiny diffs
     prefer_cal_param = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
     prefer_cal_eff = prefer_cal_param
+    # If no explicit date was provided, redirect to today's ET date to pin the UI
+    # This avoids Render showing an older snapshot implicitly and ensures a stable slate.
+    try:
+        if not date_q:
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _today_et = dt.datetime.now(_ZI("America/New_York")).date().isoformat()
+            except Exception:
+                _today_et = dt.datetime.utcnow().strftime('%Y-%m-%d')
+            return redirect(f"/?date={_today_et}"), 302
+    except Exception:
+        pass
     # Strong fallback: if no date provided, prefer the latest predictions_display_<date>.csv in outputs
     try:
         if not date_q:
