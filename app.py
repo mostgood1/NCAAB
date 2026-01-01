@@ -18482,6 +18482,82 @@ def recommendations():
         r = _backfill_start_fields(r)
         r = _correct_midnight_drift(r, slate_date=str(r.get('date')) if r.get('date') else None)
         r = _apply_site_display_global(r)
+        # Confidence score (0..1) based on blended signals; not solely EV
+        try:
+            def _american_to_prob_local(odds_val: Any) -> float | None:
+                try:
+                    v = float(odds_val)
+                    if not np.isfinite(v):
+                        return None
+                    if v > 0:
+                        return 100.0 / (v + 100.0)
+                    else:
+                        return (-v) / ((-v) + 100.0)
+                except Exception:
+                    return None
+            def _confidence_for_row_local(rw: dict) -> float:
+                try:
+                    code = str(rw.get('rec_code') or '').upper()
+                    edge = rw.get('edge')
+                    line = rw.get('line')
+                    price = rw.get('price')
+                    try:
+                        e = float(edge) if edge is not None and str(edge).strip()!='' else 0.0
+                    except Exception:
+                        e = 0.0
+                    if code == 'OU':
+                        denom = float(os.environ.get('CONF_DENOM_TOTAL','10'))
+                    elif code == 'ATS':
+                        denom = float(os.environ.get('CONF_DENOM_SPREAD','7'))
+                    elif code == 'ML':
+                        denom = float(os.environ.get('CONF_DENOM_ML','0.08'))
+                    else:
+                        denom = float(os.environ.get('CONF_DENOM_OTHER','10'))
+                    edge_comp = max(0.0, min(1.0, abs(e) / denom)) if denom>0 else 0.0
+                    prob_comp = 0.0
+                    if code == 'OU':
+                        pt = rw.get('pred_total')
+                        ln = line if line is not None else rw.get('total')
+                        try:
+                            ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
+                            lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                            if np.isfinite(ptv) and np.isfinite(lnv):
+                                delta = ptv - lnv
+                                sigma = float(os.environ.get('CONF_SIGMA_TOTAL','10'))
+                                prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
+                                prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                        except Exception:
+                            prob_comp = 0.0
+                    elif code == 'ATS':
+                        pm = rw.get('pred_margin')
+                        ln = line
+                        try:
+                            pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
+                            lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                            if np.isfinite(pmv) and np.isfinite(lnv):
+                                delta = pmv - lnv
+                                sigma = float(os.environ.get('CONF_SIGMA_SPREAD','7'))
+                                prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
+                                prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                        except Exception:
+                            prob_comp = 0.0
+                    else:
+                        prob_comp = 0.0
+                    price_comp = 0.0
+                    try:
+                        p_imp = _american_to_prob_local(price)
+                        if p_imp is not None:
+                            price_comp = 0.15
+                    except Exception:
+                        price_comp = 0.0
+                    line_comp = 0.1 if (line is not None and str(line).strip()!='') else 0.0
+                    conf = 0.4*edge_comp + 0.4*prob_comp + 0.2*(price_comp + line_comp)
+                    return float(max(0.0, min(1.0, conf)))
+                except Exception:
+                    return 0.0
+            r['confidence'] = _confidence_for_row_local(r)
+        except Exception:
+            r['confidence'] = 0.0
         # Normalize type label from market/bet
         mkt = str(r.get('market') or '').lower()
         bet = str(r.get('bet') or '').lower()
@@ -20633,6 +20709,86 @@ def api_recommendations():
                 item[f'{side}_logo'] = b.get('logo')
                 item[f'{side}_color'] = b.get('primary') or b.get('secondary')
                 item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+            # Compute confidence score (0..1) using multi-factor blend, not solely EV
+            try:
+                def _american_to_prob(odds_val: Any) -> float | None:
+                    try:
+                        v = float(odds_val)
+                        if not np.isfinite(v):
+                            return None
+                        if v > 0:
+                            return 100.0 / (v + 100.0)
+                        else:
+                            return (-v) / ((-v) + 100.0)
+                    except Exception:
+                        return None
+                def _confidence_for_row(r: dict) -> float:
+                    try:
+                        code = str(r.get('rec_code') or '').upper()
+                        edge = r.get('edge')
+                        line = r.get('line')
+                        price = r.get('price')
+                        # Normalize edge by market type
+                        try:
+                            e = float(edge) if edge is not None and str(edge).strip()!='' else 0.0
+                        except Exception:
+                            e = 0.0
+                        if code == 'OU':
+                            denom = float(os.environ.get('CONF_DENOM_TOTAL','10'))
+                        elif code == 'ATS':
+                            denom = float(os.environ.get('CONF_DENOM_SPREAD','7'))
+                        elif code == 'ML':
+                            denom = float(os.environ.get('CONF_DENOM_ML','0.08'))
+                        else:
+                            denom = float(os.environ.get('CONF_DENOM_OTHER','10'))
+                        edge_comp = max(0.0, min(1.0, abs(e) / denom)) if denom>0 else 0.0
+                        # Probability strength: derive from projection vs line when possible
+                        prob_comp = 0.0
+                        if code == 'OU':
+                            pt = r.get('pred_total')
+                            ln = line if line is not None else r.get('total')
+                            try:
+                                ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
+                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                if np.isfinite(ptv) and np.isfinite(lnv):
+                                    delta = ptv - lnv
+                                    sigma = float(os.environ.get('CONF_SIGMA_TOTAL','10'))
+                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
+                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                            except Exception:
+                                prob_comp = 0.0
+                        elif code == 'ATS':
+                            pm = r.get('pred_margin')
+                            ln = line
+                            try:
+                                pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
+                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                                if np.isfinite(pmv) and np.isfinite(lnv):
+                                    delta = pmv - lnv
+                                    sigma = float(os.environ.get('CONF_SIGMA_SPREAD','7'))
+                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma) if sigma>0 else 0.5
+                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                            except Exception:
+                                prob_comp = 0.0
+                        else:
+                            prob_comp = 0.0
+                        # Price presence contributes modestly
+                        price_comp = 0.0
+                        try:
+                            p_imp = _american_to_prob(price)
+                            if p_imp is not None:
+                                # Favor reasonable prices; avoid overweighting EV
+                                price_comp = 0.15
+                        except Exception:
+                            price_comp = 0.0
+                        line_comp = 0.1 if (line is not None and str(line).strip()!='') else 0.0
+                        conf = 0.4*edge_comp + 0.4*prob_comp + 0.2*(price_comp + line_comp)
+                        return float(max(0.0, min(1.0, conf)))
+                    except Exception:
+                        return 0.0
+                item['confidence'] = _confidence_for_row(item)
+            except Exception:
+                item['confidence'] = 0.0
             rows.append(item)
     _resp = jsonify({"rows": len(rows), "data": rows})
     try:

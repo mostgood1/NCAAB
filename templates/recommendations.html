@@ -83,6 +83,7 @@
             <th>Proj Home</th>
             <th>Proj Away</th>
             <th>Edge</th>
+            <th>Confidence</th>
           </tr>
         </thead>
         <tbody>
@@ -134,6 +135,11 @@
               {% else %}
                 <span class="pill">{{ edge_val }}</span>
               {% endif %}
+            </td>
+            <td class="center">
+              {% set conf = r.confidence if (r.confidence is defined and r.confidence is not none) else 0 %}
+              {% set conf_pct = ('%d' % (conf*100)) %}
+              <span class="pill" title="Confidence (blended)">{{ conf_pct }}%</span>
             </td>
           </tr>
           {% endfor %}
