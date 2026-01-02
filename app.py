@@ -198,6 +198,7 @@ if 'app' not in globals():
 try:
     app  # type: ignore[name-defined]
     if isinstance(app, Flask):
+
         @app.before_request
         def _render_mode_gate():
             if not SNAPSHOT_ONLY:
@@ -9323,7 +9324,9 @@ def index():
                     pm_curr = pd.to_numeric(df.get("pred_margin"), errors="coerce") if "pred_margin" in df.columns else pd.Series([np.nan]*len(df))
                     _thr_m = 0.0 if prefer_cal_eff else 0.01
                     diff_mask_margin = pm_curr.isna() | (margin_cal_series.notna() & pm_curr.notna() & (margin_cal_series.sub(pm_curr).abs() > _thr_m))
-                    override_mask_margin_cal = margin_cal_series.notna() & override_candidates_m & diff_mask_margin
+                    # Treat exactly-zero calibrated margins as non-authoritative (eligible for fallback)
+                    nonzero_cal_m = margin_cal_series.notna() & (margin_cal_series.abs() > 1e-6)
+                    override_mask_margin_cal = nonzero_cal_m & override_candidates_m & diff_mask_margin
                     if override_mask_margin_cal.any():
                         df.loc[override_mask_margin_cal, "pred_margin"] = margin_cal_series[override_mask_margin_cal]
                         if "pred_margin_basis" in df.columns:
@@ -13350,22 +13353,61 @@ def index():
                     # Create basis column only where reconstructed
                     df['pred_total_basis'] = ['reconstructed_from_edge' if m else None for m in recon_mask_total]
                 pipeline_stats['reconstructed_pred_total_rows'] = int(recon_mask_total.sum())
-        # Rebuild pred_margin when missing but spread + edge_ats present
+        # Rebuild pred_margin when missing/zero (non-calibrated) but spread + edge_ats present
         if {'edge_ats','spread_home','pred_margin'}.issubset(df.columns):
             pm = pd.to_numeric(df['pred_margin'], errors='coerce')
             sh = pd.to_numeric(df['spread_home'], errors='coerce')
+            # Prefer closing spread when available
+            if 'closing_spread_home' in df.columns:
+                csh = pd.to_numeric(df['closing_spread_home'], errors='coerce')
+                sh = csh.where(csh.notna(), sh)
             ea = pd.to_numeric(df['edge_ats'], errors='coerce')
-            recon_mask_margin = pm.isna() & sh.notna() & ea.notna()
+            # Treat 0.0 margins as reconstructable when odds signals exist (edge/spread not both zero)
+            reconstructable = pm.isna() | pm.eq(0.0)
+            nonzero_signal = sh.notna() & ea.notna() & (~(sh.eq(0.0) & ea.eq(0.0)))
+            recon_mask_margin = reconstructable & nonzero_signal
             if recon_mask_margin.any():
-                # edge_ats = pred_margin - spread_home -> pred_margin = edge_ats + spread_home
-                df.loc[recon_mask_margin,'pred_margin'] = (ea[recon_mask_margin] + sh[recon_mask_margin]).round(2)
+                # edge_ats = -pred_margin - spread_home -> pred_margin = -edge_ats - spread_home
+                df.loc[recon_mask_margin,'pred_margin'] = (-ea[recon_mask_margin] - sh[recon_mask_margin]).round(2)
+                df['pred_margin_basis'] = df.get('pred_margin_basis')
                 if 'pred_margin_basis' in df.columns:
-                    basis_series_m = df['pred_margin_basis'].astype(str)
-                    basis_missing_m = basis_series_m.isna() | basis_series_m.eq('None') | basis_series_m.eq('') | basis_series_m.eq('nan')
-                    df.loc[recon_mask_margin & basis_missing_m,'pred_margin_basis'] = 'reconstructed_from_edge'
+                    df.loc[recon_mask_margin, 'pred_margin_basis'] = 'reconstructed_from_edge'
                 else:
                     df['pred_margin_basis'] = ['reconstructed_from_edge' if m else None for m in recon_mask_margin]
+                # Ensure projections reflect the reconstructed margin
+                if 'pred_total' in df.columns:
+                    pt2 = pd.to_numeric(df['pred_total'], errors='coerce')
+                    has_pt = pt2.notna() & recon_mask_margin
+                    if has_pt.any():
+                        df.loc[has_pt,'proj_home'] = (pt2[has_pt] + df.loc[has_pt,'pred_margin']) / 2.0
+                        df.loc[has_pt,'proj_away'] = pt2[has_pt] - df.loc[has_pt,'proj_home']
                 pipeline_stats['reconstructed_pred_margin_rows'] = int(recon_mask_margin.sum())
+
+        # Median (p50/q50) fallback if margin remains missing/zero and median exists
+        try:
+            pm2 = pd.to_numeric(df.get('pred_margin'), errors='coerce') if 'pred_margin' in df.columns else pd.Series()
+            # If margin is missing or exactly 0.0, prefer using median if available
+            need_q50 = pm2.isna() | pm2.eq(0.0)
+            cand_cols = [c for c in ['margin_p50','q50_margin','pred_margin_q50'] if c in df.columns]
+            for cc in cand_cols:
+                v = pd.to_numeric(df[cc], errors='coerce')
+                m = need_q50 & v.notna()
+                if m.any():
+                    df.loc[m, 'pred_margin'] = v[m]
+                    if 'pred_margin_basis' in df.columns:
+                        df.loc[m, 'pred_margin_basis'] = df.loc[m, 'pred_margin_basis'].where(~m, 'q50')
+                    else:
+                        df['pred_margin_basis'] = ['q50' if x else None for x in m]
+                    # projections
+                    if 'pred_total' in df.columns:
+                        pt3 = pd.to_numeric(df['pred_total'], errors='coerce')
+                        mh = m & pt3.notna()
+                        if mh.any():
+                            df.loc[mh,'proj_home'] = (pt3[mh] + df.loc[mh,'pred_margin']) / 2.0
+                            df.loc[mh,'proj_away'] = pt3[mh] - df.loc[mh,'proj_home']
+                    break
+        except Exception:
+            pass
         # Recompute projections for any reconstructed rows if proj_home/proj_away missing
         if {'pred_total','pred_margin'}.issubset(df.columns):
             pt2 = pd.to_numeric(df['pred_total'], errors='coerce')
@@ -13474,6 +13516,25 @@ def index():
                             pipeline_stats['final_cal_total_missing_artifact_sample'] = list(df.loc[missing_artifact_t,'game_id'].head(15))
                 except Exception:
                     pipeline_stats['final_cal_total_instrument_error'] = True
+            # Pre-pass: neutralize exactly-zero calibrated margins to enable fallbacks
+            try:
+                if 'pred_margin' in df.columns and 'pred_margin_basis' in df.columns:
+                    _pmv = pd.to_numeric(df['pred_margin'], errors='coerce')
+                    _pmb = df['pred_margin_basis'].astype(str)
+                    _cal_zero_mask = _pmb.eq('cal') & _pmv.fillna(0).abs().le(1e-6)
+                    if _cal_zero_mask.any():
+                        # Clear value and basis to allow reconstruction/model fallbacks downstream
+                        df.loc[_cal_zero_mask, 'pred_margin'] = np.nan
+                        df.loc[_cal_zero_mask, 'pred_margin_basis'] = None
+                        try:
+                            pipeline_stats['cal_zero_margin_neutralized_rows'] = int(_cal_zero_mask.sum())
+                        except Exception:
+                            pass
+            except Exception:
+                try:
+                    pipeline_stats['cal_zero_margin_neutralize_error'] = True
+                except Exception:
+                    pass
             # Margins
             if 'pred_margin_calibrated' in df.columns and 'pred_margin' in df.columns:
                 cal_m = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
@@ -13485,7 +13546,9 @@ def index():
                     'synthetic_from_total_final','reconstructed_from_edge','reconstructed_even','model_raw','model_v1','model','baseline','none','nan',
                     'model_calibrated','model_calibrated_bias'
                 }
-                override_mask_m = cal_m.notna() & (basis_curr_m.isin(lower_prec_final_m) | basis_curr_m.isna() | (basis_curr_m.str.strip()==''))
+                # Skip applying calibrated precedence when the calibrated value is exactly zero
+                _nonzero_cal_m = cal_m.notna() & (cal_m.abs() > 1e-6)
+                override_mask_m = _nonzero_cal_m & (basis_curr_m.isin(lower_prec_final_m) | basis_curr_m.isna() | (basis_curr_m.str.strip()==''))
                 if override_mask_m.any():
                     df.loc[override_mask_m,'pred_margin'] = cal_m[override_mask_m]
                     if 'pred_margin_basis' in df.columns:
@@ -14989,7 +15052,8 @@ def index():
         try:
             pm = pd.to_numeric(df.get('pred_margin'), errors='coerce') if 'pred_margin' in df.columns else pd.Series([None]*len(df))
             basis_m = df.get('pred_margin_basis') if 'pred_margin_basis' in df.columns else pd.Series([None]*len(df))
-            used = pd.Series([False]*len(df))
+            # Treat already-populated margins as used so we don't override
+            used = (pm.notna() if hasattr(pm, 'notna') else pd.Series([False]*len(df)))
             # 1) calibrated
             if 'pred_margin_calibrated' in df.columns:
                 pm_cal = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
@@ -15030,14 +15094,17 @@ def index():
                 used = used | mask
             # 5) reconstruct from edge + spread when available
             sh = None
-            if 'spread_home' in df.columns:
-                sh = pd.to_numeric(df['spread_home'], errors='coerce')
-            elif 'closing_spread_home' in df.columns:
+            # Prefer closing spread when available
+            if 'closing_spread_home' in df.columns:
                 sh = pd.to_numeric(df['closing_spread_home'], errors='coerce')
+            elif 'spread_home' in df.columns:
+                sh = pd.to_numeric(df['spread_home'], errors='coerce')
             ea = pd.to_numeric(df['edge_ats'], errors='coerce') if 'edge_ats' in df.columns else None
             if sh is not None and ea is not None:
-                pm_rec = ea + sh
-                mask = (~used) & pm_rec.notna()
+                # edge_ats = (-pred_margin) - spread_home -> pred_margin = -edge_ats - spread_home
+                pm_rec = (-ea) - sh
+                # Reconstruct when margin not yet used or is exactly 0.0
+                mask = ((~used) | pm.eq(0.0)) & pm_rec.notna()
                 pm[mask] = pm_rec[mask]
                 if 'pred_margin_basis' in df.columns:
                     basis_m = basis_m.where(~mask, 'reconstructed_from_edge')
@@ -15056,8 +15123,10 @@ def index():
             # Recompute edge_ats if spread present
             try:
                 if 'edge_ats' in df.columns and (('spread_home' in df.columns) or ('closing_spread_home' in df.columns)):
-                    sh2 = pd.to_numeric(df.get('spread_home') if 'spread_home' in df.columns else df.get('closing_spread_home'), errors='coerce')
-                    df['edge_ats'] = pd.to_numeric(df['pred_margin'], errors='coerce') - sh2
+                    # Prefer closing spread for recomputation consistency
+                    sh2 = pd.to_numeric(df.get('closing_spread_home') if 'closing_spread_home' in df.columns else df.get('spread_home'), errors='coerce')
+                    # ATS edge is predicted home spread minus market spread: (-pred_margin) - spread_home
+                    df['edge_ats'] = (-pd.to_numeric(df['pred_margin'], errors='coerce')) - sh2
             except Exception:
                 pass
         except Exception:
