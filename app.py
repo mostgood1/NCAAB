@@ -173,6 +173,8 @@ SNAPSHOT_ONLY = (
 )
 DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
 BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
+# Bump-only app revision to trigger deployment image rebuilds when needed
+APP_REV = "2026-01-02.1"
 
 try:
     import pandas as pd
@@ -14979,6 +14981,83 @@ def index():
                     if subset_ids_pd and 'game_id' in df.columns:
                         df['game_id'] = df['game_id'].astype(str)
                         df = df[df['game_id'].isin(subset_ids_pd)].reset_index(drop=True)
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # Ensure display margin is informative: prefer calibrated/model/blend/seg, else reconstruct from edge+spread
+        try:
+            pm = pd.to_numeric(df.get('pred_margin'), errors='coerce') if 'pred_margin' in df.columns else pd.Series([None]*len(df))
+            basis_m = df.get('pred_margin_basis') if 'pred_margin_basis' in df.columns else pd.Series([None]*len(df))
+            used = pd.Series([False]*len(df))
+            # 1) calibrated
+            if 'pred_margin_calibrated' in df.columns:
+                pm_cal = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
+                mask = pm_cal.notna()
+                pm[mask] = pm_cal[mask]
+                if 'pred_margin_basis' in df.columns:
+                    basis_m = basis_m.where(~mask, 'cal')
+                used = used | mask
+            # 2) model
+            if 'pred_margin_model' in df.columns:
+                pm_mod = pd.to_numeric(df['pred_margin_model'], errors='coerce')
+                mask = (~used) & pm_mod.notna()
+                pm[mask] = pm_mod[mask]
+                if 'pred_margin_basis' in df.columns:
+                    basis_m = basis_m.where(~mask, df.get('pred_margin_model_basis','model'))
+                else:
+                    basis_m = pd.Series(['model']*len(df)).where(mask, None)
+                used = used | mask
+            # 3) blend
+            if 'pred_margin_blend' in df.columns:
+                pm_blend = pd.to_numeric(df['pred_margin_blend'], errors='coerce')
+                mask = (~used) & pm_blend.notna()
+                pm[mask] = pm_blend[mask]
+                if 'pred_margin_basis' in df.columns:
+                    basis_m = basis_m.where(~mask, 'blend')
+                else:
+                    basis_m = pd.Series(['blend']*len(df)).where(mask, None)
+                used = used | mask
+            # 4) segmentation
+            if 'pred_margin_seg' in df.columns:
+                pm_seg = pd.to_numeric(df['pred_margin_seg'], errors='coerce')
+                mask = (~used) & pm_seg.notna()
+                pm[mask] = pm_seg[mask]
+                if 'pred_margin_basis' in df.columns:
+                    basis_m = basis_m.where(~mask, 'seg')
+                else:
+                    basis_m = pd.Series(['seg']*len(df)).where(mask, None)
+                used = used | mask
+            # 5) reconstruct from edge + spread when available
+            sh = None
+            if 'spread_home' in df.columns:
+                sh = pd.to_numeric(df['spread_home'], errors='coerce')
+            elif 'closing_spread_home' in df.columns:
+                sh = pd.to_numeric(df['closing_spread_home'], errors='coerce')
+            ea = pd.to_numeric(df['edge_ats'], errors='coerce') if 'edge_ats' in df.columns else None
+            if sh is not None and ea is not None:
+                pm_rec = ea + sh
+                mask = (~used) & pm_rec.notna()
+                pm[mask] = pm_rec[mask]
+                if 'pred_margin_basis' in df.columns:
+                    basis_m = basis_m.where(~mask, 'reconstructed_from_edge')
+                else:
+                    basis_m = pd.Series(['reconstructed_from_edge']*len(df)).where(mask, None)
+                used = used | mask
+            # Apply updates back to df
+            if 'pred_margin' in df.columns:
+                df['pred_margin'] = pm
+            else:
+                df['pred_margin'] = pm
+            if 'pred_margin_basis' in df.columns:
+                df['pred_margin_basis'] = basis_m
+            else:
+                df['pred_margin_basis'] = basis_m
+            # Recompute edge_ats if spread present
+            try:
+                if 'edge_ats' in df.columns and (('spread_home' in df.columns) or ('closing_spread_home' in df.columns)):
+                    sh2 = pd.to_numeric(df.get('spread_home') if 'spread_home' in df.columns else df.get('closing_spread_home'), errors='coerce')
+                    df['edge_ats'] = pd.to_numeric(df['pred_margin'], errors='coerce') - sh2
             except Exception:
                 pass
         except Exception:
