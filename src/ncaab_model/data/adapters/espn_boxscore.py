@@ -65,6 +65,39 @@ def _compute_four_factors(team_stats: dict, opp_stats: dict) -> dict:
     }
 
 
+def _compute_shooting_metrics(team_stats: dict) -> dict:
+    """Derive shooting profile metrics and paint/transition points when available.
+
+    Returns keys:
+      - 3pt_rate, 3pt_pct
+      - 2pt_rate, 2pt_pct
+      - pip (points in paint), fbp (fast break points), scp (second chance points)
+    """
+    fga = _get_stat(team_stats, "fieldgoalsattempted") or 0.0
+    fgm = _get_stat(team_stats, "fieldgoalsmade") or 0.0
+    tpa = _get_stat(team_stats, "threepointfieldgoalsattempted") or 0.0
+    tpm = _get_stat(team_stats, "threepointfieldgoalsmade") or 0.0
+    two_a = max(fga - tpa, 0.0)
+    two_m = max(fgm - tpm, 0.0)
+    three_rate = (tpa / fga) if fga > 0 else None
+    three_pct = (tpm / tpa) if tpa > 0 else None
+    two_rate = (two_a / fga) if fga > 0 else None
+    two_pct = (two_m / two_a) if two_a > 0 else None
+    # ESPN optional team stats names: use lowercase substring matching
+    pip = _get_stat(team_stats, "pointsinpaint")
+    fbp = _get_stat(team_stats, "fastbreakpoints")
+    scp = _get_stat(team_stats, "secondchancepoints")
+    return {
+        "3pt_rate": three_rate,
+        "3pt_pct": three_pct,
+        "2pt_rate": two_rate,
+        "2pt_pct": two_pct,
+        "pip": pip,
+        "fbp": fbp,
+        "scp": scp,
+    }
+
+
 def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRow]:
     cache_file = cache_path("espn_summary", f"{event_id}.json")
     data = None
@@ -152,6 +185,9 @@ def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRo
     # Compute four factors and possessions
     home_ff = _compute_four_factors(home_stats["statistics"], away_stats["statistics"])
     away_ff = _compute_four_factors(away_stats["statistics"], home_stats["statistics"])
+    # Shooting profiles & paint points
+    home_sh = _compute_shooting_metrics(home_stats["statistics"]) if isinstance(home_stats.get("statistics"), list) else {}
+    away_sh = _compute_shooting_metrics(away_stats["statistics"]) if isinstance(away_stats.get("statistics"), list) else {}
 
     # Pace as average of team possessions
     poss_vals = [v for v in (home_ff["poss"], away_ff["poss"]) if v is not None]
@@ -231,6 +267,20 @@ def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRo
         away_score_1h=away_score_1h,
         home_score_2h=home_score_2h,
         away_score_2h=away_score_2h,
+        home_3pt_rate=home_sh.get("3pt_rate"),
+        home_3pt_pct=home_sh.get("3pt_pct"),
+        away_3pt_rate=away_sh.get("3pt_rate"),
+        away_3pt_pct=away_sh.get("3pt_pct"),
+        home_2pt_rate=home_sh.get("2pt_rate"),
+        home_2pt_pct=home_sh.get("2pt_pct"),
+        away_2pt_rate=away_sh.get("2pt_rate"),
+        away_2pt_pct=away_sh.get("2pt_pct"),
+        home_pip=home_sh.get("pip"),
+        away_pip=away_sh.get("pip"),
+        home_fbp=home_sh.get("fbp"),
+        away_fbp=away_sh.get("fbp"),
+        home_scp=home_sh.get("scp"),
+        away_scp=away_sh.get("scp"),
     )
 
 

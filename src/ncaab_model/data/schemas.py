@@ -117,3 +117,22 @@ class BoxScoreRow(BaseModel):
     away_score_1h: Optional[float] = None
     home_score_2h: Optional[float] = None
     away_score_2h: Optional[float] = None
+
+    # Shooting profile and paint metrics (optional; best-effort extraction)
+    # 3PT attempt rate and percentage
+    home_3pt_rate: Optional[float] = None
+    home_3pt_pct: Optional[float] = None
+    away_3pt_rate: Optional[float] = None
+    away_3pt_pct: Optional[float] = None
+    # 2PT attempt rate and percentage (derived)
+    home_2pt_rate: Optional[float] = None
+    home_2pt_pct: Optional[float] = None
+    away_2pt_rate: Optional[float] = None
+    away_2pt_pct: Optional[float] = None
+    # Points in the paint / fast break / second chance (when present)
+    home_pip: Optional[float] = None
+    away_pip: Optional[float] = None
+    home_fbp: Optional[float] = None
+    away_fbp: Optional[float] = None
+    home_scp: Optional[float] = None  # second chance points
+    away_scp: Optional[float] = None

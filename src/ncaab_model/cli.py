@@ -2349,6 +2349,13 @@ def build_features(
                 bs["game_id"] = bs["game_id"].astype(str)
             ff = build_four_factor_rolling_features(games, bs, window=window)
             feats = feats.merge(ff, on="game_id", how="left")
+            # Shooting/paint rolling features
+            try:
+                from .features.shooting import build_shooting_rolling_features
+                sh = build_shooting_rolling_features(games, bs, window=window)
+                feats = feats.merge(sh, on="game_id", how="left")
+            except Exception as _shoot_e:
+                print(f"[yellow]Skipping shooting features due to error:[/yellow] {_shoot_e}")
         except Exception as e:
             print(f"[yellow]Skipping boxscore features due to error:[/yellow] {e}")
 
@@ -7037,6 +7044,13 @@ def daily_run(
             feats = feats.merge(rf, on="game_id", how="left")
             odt = build_adj_offdef_tempo_features(df_games, bs)
             feats = feats.merge(odt, on="game_id", how="left")
+            # Shooting/paint rolling features
+            try:
+                from .features.shooting import build_shooting_rolling_features
+                sh = build_shooting_rolling_features(df_games, bs, window=5)
+                feats = feats.merge(sh, on="game_id", how="left")
+            except Exception as _shoot_e:
+                print(f"[yellow]Skipping shooting features due to error:[/yellow] {_shoot_e}")
 
         # Seed opponent-adjusted rating priors from last-two-seasons if current-season history is shallow
         try:

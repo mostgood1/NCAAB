@@ -1190,6 +1190,32 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       Write-Host 'UploadToRender flag not set; skipping Render upload.' -ForegroundColor Yellow    
     }
 
+    # Verify Render health: ensure today's predictions rows recognized and bootstrap not needed
+    try {
+      Write-Section "11c) Render health verification ($todayIso)"
+      $healthUri = "https://ncaab.onrender.com/api/health?date=$todayIso"
+      $rowsTodayUri = "https://ncaab.onrender.com/api/rows-today"
+      $health = Invoke-RestMethod -Uri $healthUri -Method Get
+      $predsTodayRows = if ($health.today) { $health.today.preds_today_rows } else { $null }
+      $displayRows = $health.display_rows
+      $enrichedRows = $health.enriched_rows
+      $needBootstrap = $health.need_bootstrap
+      $predSource = $health.predictions_source
+      Write-Host ("[Health] preds_today_rows={0} display_rows={1} enriched_rows={2} need_bootstrap={3}" -f $predsTodayRows, $displayRows, $enrichedRows, $needBootstrap) -ForegroundColor White
+      if ($predSource) { Write-Host ("[Health] predictions_source={0}" -f $predSource) -ForegroundColor Gray }
+      # Cross-check rows-today snapshot
+      try {
+        $rt = Invoke-RestMethod -Uri $rowsTodayUri -Method Get
+        Write-Host ("[RowsToday] date={0} row_count={1} source={2}" -f $rt.date, $rt.row_count, $rt.source) -ForegroundColor Gray
+      } catch { Write-Warning "rows-today check failed: $($_.Exception.Message)" }
+      # Advisory: if bootstrap still flagged despite uploads, warn
+      if ($needBootstrap -and ($displayRows -gt 0 -or $enrichedRows -gt 0)) {
+        Write-Warning "Render health indicates need_bootstrap=true even though today's artifacts are present. Server may still be redeploying; parity should resolve shortly."
+      }
+    } catch {
+      Write-Warning "Render health verification failed: $($_.Exception.Message)"
+    }
+
     # Auto-start results watcher job for today's date
     try {
       $runDate = $todayIso

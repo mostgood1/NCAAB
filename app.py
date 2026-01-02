@@ -16854,12 +16854,71 @@ def api_rows_today():
     """
     try:
         today_str = _today_local().strftime("%Y-%m-%d")
-        path = OUT / f"predictions_enriched_{today_str}.csv"
-        fallback = OUT / "predictions_enriched.csv"
-        src = path if path.exists() else (fallback if fallback.exists() else None)
+        # Prefer unified enriched/base and display snapshots for accurate day counts
+        candidates = [
+            OUT / f"predictions_unified_enriched_{today_str}.csv",
+            OUT / f"predictions_unified_{today_str}.csv",
+            OUT / f"predictions_display_{today_str}.csv",
+            OUT / f"predictions_enriched_{today_str}.csv",
+            OUT / "predictions_enriched.csv",
+        ]
+        src = None
+        for p in candidates:
+            try:
+                if p.exists():
+                    src = p
+                    break
+            except Exception:
+                continue
         if src is None:
-            return jsonify({"date": today_str, "row_count": 0, "error": "no enriched predictions file"})
+            return jsonify({"date": today_str, "row_count": 0, "error": "no predictions file for today"})
         df = _safe_read_csv(src)
+        # Prefer richer snapshots: if selection landed on a synthetic-only file,
+        # fallback to unified/enriched or display files when they exist with real rows.
+        try:
+            if not df.empty:
+                _gid = df.get('game_id')
+                if _gid is not None:
+                    _gid_str = _gid.astype(str)
+                    synthetic_only = bool(len(_gid_str) and _gid_str.str.startswith('synthetic:').all())
+                else:
+                    synthetic_only = False
+            else:
+                synthetic_only = True
+        except Exception:
+            synthetic_only = False
+        if synthetic_only:
+            try:
+                today_str = _today_local().strftime("%Y-%m-%d")
+            except Exception:
+                today_str = None
+            fallback_candidates = []
+            if today_str:
+                # Strict preference order: unified_enriched -> unified -> display
+                fallback_candidates = [
+                    OUT / f"predictions_unified_enriched_{today_str}.csv",
+                    OUT / f"predictions_unified_{today_str}.csv",
+                    OUT / f"predictions_display_{today_str}.csv",
+                ]
+            for fp in fallback_candidates:
+                try:
+                    if fp.exists():
+                        df2 = _safe_read_csv(fp)
+                        if not df2.empty:
+                            # Accept only if the fallback has at least one non-synthetic row
+                            _gid2 = df2.get('game_id')
+                            ok = True
+                            if _gid2 is not None:
+                                _gid2s = _gid2.astype(str)
+                                if len(_gid2s) and _gid2s.str.startswith('synthetic:').all():
+                                    ok = False
+                            if ok:
+                                df = df2
+                                src = fp
+                                break
+                except Exception:
+                    # Continue to next fallback on error
+                    pass
         basis_counts = None
         if not df.empty and "pred_total_basis" in df.columns:
             try:
@@ -17310,20 +17369,50 @@ def api_health():
                 gm["date"] = gm["date"].astype(str)
                 games_today_rows = int((gm["date"] == today_str).sum())
         except Exception:
-            games_today_rows = None
-        try:
-            pr = _load_predictions_current()
-            if not pr.empty and today_str and "date" in pr.columns:
-                pr["date"] = pd.to_datetime(pr["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                preds_today_rows = int((pr["date"].astype(str) == today_str).sum())
-        except Exception:
             preds_today_rows = None
-        # Expose predictions source path if previously loaded during this process lifetime
-        try:
-            global _PREDICTIONS_SOURCE_PATH
-            predictions_source = _PREDICTIONS_SOURCE_PATH
-        except Exception:
             predictions_source = None
+            try:
+                # Prefer unified/enriched/display snapshots for today's count to avoid cross-date drift
+                if today_str:
+                    candidates = [
+                        OUT / f"predictions_unified_enriched_{today_str}.csv",
+                        OUT / f"predictions_unified_{today_str}.csv",
+                        OUT / f"predictions_display_{today_str}.csv",
+                        OUT / f"predictions_enriched_{today_str}.csv",
+                        OUT / f"predictions_{today_str}.csv",
+                    ]
+                    chosen = None
+                    for p in candidates:
+                        try:
+                            if p.exists():
+                                chosen = p
+                                break
+                        except Exception:
+                            continue
+                    if chosen is not None:
+                        try:
+                            df_today = _safe_read_csv(chosen)
+                            preds_today_rows = int(len(df_today)) if not df_today.empty else 0
+                            predictions_source = str(chosen)
+                        except Exception:
+                            preds_today_rows = None
+                    else:
+                        # Fallback: use previously loaded source path
+                        try:
+                            global _PREDICTIONS_SOURCE_PATH
+                            predictions_source = _PREDICTIONS_SOURCE_PATH
+                        except Exception:
+                            predictions_source = None
+                else:
+                    # No today string; retain prior behavior
+                    try:
+                        pr = _load_predictions_current()
+                        if not pr.empty and "date" in pr.columns:
+                            preds_today_rows = int(len(pr))
+                    except Exception:
+                        preds_today_rows = None
+            except Exception:
+                preds_today_rows = None
         need_bootstrap = bool(today_str and (preds_today_rows is None or preds_today_rows == 0))
         # Providers (runtime inference backends) best-effort
         try:
@@ -17806,20 +17895,14 @@ def api_bootstrap():
         and target_date == today_str
         and isinstance(game_rows_after, int)
         and game_rows_after < min_thresh
-    try:
-        today_str = _today_local().strftime("%Y-%m-%d")
-        # Prefer unified enriched for the date, then unified, then plain predictions
-        candidates = [
-            OUT / f"predictions_unified_enriched_{today_str}.csv",
-            OUT / f"predictions_unified_{today_str}.csv",
-            OUT / f"predictions_{today_str}.csv",
-            OUT / "predictions_unified_enriched.csv",
-            OUT / "predictions_enriched.csv",
-        ]
-        src = next((p for p in candidates if p.exists()), None)
+    ):
+        try:
+            cli_daily_run(
+                date=target_date,
+                season=dt.date.fromisoformat(target_date).year,
                 region="us",
                 provider="fused",
-        df = _safe_read_csv(src)
+                threshold=2.0,
                 default_price=-110.0,
                 retrain=False,
                 segment="none",
@@ -17899,148 +17982,6 @@ def api_risk_config():
         return jsonify({'status':'ok','config':cfg,'path':str(outp)}), 200
     except Exception as e:
         return jsonify({'status':'error','message':str(e)}), 500
-    # use_cache override (refresh) param
-    use_cache_param = (request.args.get("use_cache") or (request.json.get("use_cache") if request.is_json else None) or "").strip().lower()
-    refresh_param = (request.args.get("refresh") or (request.json.get("refresh") if request.is_json else None) or "").strip().lower()
-    # Interpret: if use_cache in ['0','false','no'] OR refresh=1 => disable cache
-    disable_cache = use_cache_param in ("0","false","no") or refresh_param in ("1","true","yes")
-    target_date = date_param or today_str
-    if not target_date:
-        return jsonify({"status": "error", "message": "Unable to resolve target date"}), 400
-
-    # If predictions already exist for this date and not forced, short-circuit
-    existing_preds = _load_predictions_current()
-    already = False
-    pred_rows_for_date = 0
-    if not existing_preds.empty and "date" in existing_preds.columns:
-        try:
-            existing_preds["date"] = pd.to_datetime(existing_preds["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-        except Exception:
-            pass
-        pred_rows_for_date = int((existing_preds["date"].astype(str) == target_date).sum())
-        already = pred_rows_for_date > 0
-    if already and not force_param:
-        return jsonify({
-            "status": "ok",
-            "message": f"Predictions already present for {target_date}; skipping bootstrap (use force=1 to override)",
-            "date": target_date,
-            "pred_rows": pred_rows_for_date,
-            "skipped": True,
-        }), 200
-
-    # Execute daily_run pipeline minimally (avoid retraining / heavy operations on server)
-    logs: list[str] = []
-    try:
-        # Wrap prints by temporarily redirecting stdout if desired; here we just call and rely on server logs
-        cli_daily_run(
-            date=target_date,
-            season=dt.date.fromisoformat(target_date).year,
-            region="us",
-            provider=provider_param,
-            threshold=2.0,
-            default_price=-110.0,
-            retrain=False,
-            segment="none",
-            conf_map=None,
-            use_cache=(not disable_cache),
-            preseason_weight=0.0,
-            preseason_only_sparse=True,
-            apply_guardrails=True,
-            half_ratio=0.485,
-            auto_train_halves=False,
-            halves_models_dir=OUT / "models_halves",
-            enable_ort=False,
-            accumulate_schedule=True,
-            accumulate_predictions=True,
-        )
-    except Exception as e:
-        logger.exception("Bootstrap daily_run failed")
-        return jsonify({"status": "error", "message": f"daily_run failed: {e}"}), 500
-
-    # Reload artifacts to report counts
-    games_after = _safe_read_csv(OUT / "games_curr.csv")
-    preds_after = _load_predictions_current()
-    if "date" in preds_after.columns:
-        try:
-            preds_after["date"] = pd.to_datetime(preds_after["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-        except Exception:
-            pass
-    pred_rows_after = int(preds_after[preds_after.get("date","") == target_date].shape[0]) if not preds_after.empty and "date" in preds_after.columns else 0
-    game_rows_after = int(games_after[games_after.get("date","") == target_date].shape[0]) if not games_after.empty and "date" in games_after.columns else len(games_after)
-
-    # Optional auto-fallback: if today's slate looks sparse with provider 'espn' or 'ncaa', try fused
-    fallback_info: dict[str, Any] = {"triggered": False}
-    try:
-        min_thresh = int(os.environ.get("NCAAB_MIN_TODAY_GAMES", "25"))
-    except Exception:
-        min_thresh = 25
-    if (
-        provider_param != "fused"
-        and target_date == today_str
-        and isinstance(game_rows_after, int)
-        and game_rows_after < min_thresh
-    ):
-        try:
-            cli_daily_run(
-                date=target_date,
-                season=dt.date.fromisoformat(target_date).year,
-                region="us",
-                provider="fused",
-                threshold=2.0,
-                default_price=-110.0,
-                retrain=False,
-                segment="none",
-                conf_map=None,
-                use_cache=(not disable_cache),
-                preseason_weight=0.0,
-                preseason_only_sparse=True,
-                apply_guardrails=True,
-                half_ratio=0.485,
-                auto_train_halves=False,
-                halves_models_dir=OUT / "models_halves",
-                enable_ort=False,
-                accumulate_schedule=True,
-                accumulate_predictions=True,
-            )
-            # Recompute counts after fallback
-            games_after2 = _safe_read_csv(OUT / "games_curr.csv")
-            preds_after2 = _load_predictions_current()
-            if "date" in preds_after2.columns:
-                try:
-                    preds_after2["date"] = pd.to_datetime(preds_after2["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                except Exception:
-                    pass
-            pred_rows_after2 = int(preds_after2[preds_after2.get("date","") == target_date].shape[0]) if not preds_after2.empty and "date" in preds_after2.columns else 0
-            game_rows_after2 = int(games_after2[games_after2.get("date","") == target_date].shape[0]) if not games_after2.empty and "date" in games_after2.columns else len(games_after2)
-            fallback_info = {
-                "triggered": True,
-                "reason": f"sparse slate ({game_rows_after}) with provider={provider_param}; retried fused",
-                "prev": {"game_rows": game_rows_after, "pred_rows": pred_rows_after, "provider": provider_param},
-                "after": {"game_rows": game_rows_after2, "pred_rows": pred_rows_after2, "provider": "fused"},
-            }
-            # Promote fused counts in primary response
-            game_rows_after = game_rows_after2
-            pred_rows_after = pred_rows_after2
-            provider_param = f"{provider_param}->fused"
-        except Exception as e:
-            logger.exception("Fallback to fused provider failed")
-            fallback_info = {
-                "triggered": True,
-                "error": str(e),
-                "prev": {"game_rows": game_rows_after, "pred_rows": pred_rows_after, "provider": provider_param},
-            }
-
-    return jsonify({
-        "status": "ok",
-        "message": f"Bootstrap complete for {target_date}",
-        "date": target_date,
-        "pred_rows": pred_rows_after,
-        "game_rows": game_rows_after,
-        "provider": provider_param,
-        "forced": force_param,
-        "cache_used": not disable_cache,
-        "fallback": fallback_info,
-    }), 200
 
 
 @app.route("/api/schedule-diagnostics")
@@ -18628,6 +18569,14 @@ def recommendations():
         pass
     # Rebuild rows after cleaning
     rows = picks.to_dict(orient="records") if not picks.empty else []
+    # Suppress placeholder rows where teams are missing/blank/nan
+    try:
+        def _ok_team(name: Any) -> bool:
+            s = str(name or '').strip().lower()
+            return bool(s) and s not in ('nan','none','null')
+        rows = [r for r in rows if _ok_team(r.get('home_team') or r.get('home_team_name')) and _ok_team(r.get('away_team') or r.get('away_team_name'))]
+    except Exception:
+        pass
     # Grouping by game (default) or flat table when group=0
     group_q = (request.args.get("group") or "1").strip().lower() not in ("0","false","no")
     # Harden display datetime and normalize per-row
@@ -19084,7 +19033,16 @@ def recommendations():
             pass
         # Filter out synthetic/odds placeholder games to keep recommendations real
         try:
-            norm_rows = [r for r in norm_rows if not str(r.get('game_id') or '').startswith('synthetic:') and not str(r.get('game_id') or '').startswith('odds:')]
+            def _ok_team(name: Any) -> bool:
+                s = str(name or '').strip().lower()
+                return bool(s) and s not in ('nan','none','null')
+            norm_rows = [
+                r for r in norm_rows
+                if not str(r.get('game_id') or '').startswith('synthetic:')
+                and not str(r.get('game_id') or '').startswith('odds:')
+                and _ok_team(r.get('home_team') or r.get('home_team_name'))
+                and _ok_team(r.get('away_team') or r.get('away_team_name'))
+            ]
         except Exception:
             pass
         return render_template("recommendations.html", rows=norm_rows, total_rows=len(norm_rows))
@@ -19092,7 +19050,14 @@ def recommendations():
     from collections import defaultdict
     games = defaultdict(list)
     for r in norm_rows:
-        games[r['__gkey']].append(r)
+        try:
+            def _ok_team(name: Any) -> bool:
+                s = str(name or '').strip().lower()
+                return bool(s) and s not in ('nan','none','null')
+            if _ok_team(r.get('home_team') or r.get('home_team_name')) and _ok_team(r.get('away_team') or r.get('away_team_name')):
+                games[r['__gkey']].append(r)
+        except Exception:
+            games[r['__gkey']].append(r)
     grouped_games: list[dict] = []
     # Load branding map for logos/colors
     try:
@@ -21280,6 +21245,14 @@ def api_recommendations():
             except Exception:
                 item['confidence'] = 0.0
             rows.append(item)
+    # Suppress placeholder rows with missing/blank/nan team names
+    try:
+        def _ok_team(name: Any) -> bool:
+            s = str(name or '').strip().lower()
+            return bool(s) and s not in ('nan','none','null')
+        rows = [it for it in rows if _ok_team(it.get('home_team') or it.get('home_team_name')) and _ok_team(it.get('away_team') or it.get('away_team_name'))]
+    except Exception:
+        pass
     _resp = jsonify({"rows": len(rows), "data": rows})
     try:
         _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
