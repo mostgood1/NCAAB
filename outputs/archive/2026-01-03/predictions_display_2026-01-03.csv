@@ -1,0 +1,4 @@
+game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home,start_time_local
+synthetic:iowastate::syracuse@2026-01-03,Syracuse Orange,Iowa State Cyclones,305.37267,7.219405693013091,cal,cal,0.0,,,,
+synthetic:towson::ucsandiegotritons@2026-01-03,Towson Tigers,UC San Diego Tritons,307.77766,7.219405693013091,cal,cal,0.0,,,,
+synthetic:stfrancisparedflash::troytrojans@2026-01-03,Troy Trojans,Saint Francis (PA) Red Flash,306.8566,7.219405693013091,cal,cal,0.0,,,,
