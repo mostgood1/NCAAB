@@ -8,25 +8,25 @@ Write-Host "[Redeploy] Date=$Date BaseUrl=$BaseUrl" -ForegroundColor Cyan
 
 function Get-DeployHookUrl {
   try {
-    if ($env:RENDER_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_DEPLOY_HOOK_URL)) {
-      return $env:RENDER_DEPLOY_HOOK_URL
-    }
     if ($env:RENDER_CODE_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_CODE_DEPLOY_HOOK_URL)) {
       # Prefer explicit code deploy hook if provided
       return $env:RENDER_CODE_DEPLOY_HOOK_URL
+    }
+    if ($env:RENDER_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_DEPLOY_HOOK_URL)) {
+      return $env:RENDER_DEPLOY_HOOK_URL
     }
     $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
     $envPath = Join-Path $repoRoot '.env'
     if (Test-Path -LiteralPath $envPath) {
       $lines = Get-Content -LiteralPath $envPath
       foreach ($line in $lines) {
-        if ($line -match '^\s*RENDER_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
-          $val = $Matches[1].Trim()
-          if (-not [string]::IsNullOrWhiteSpace($val)) { return $val }
-        }
         if ($line -match '^\s*RENDER_CODE_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
           $val2 = $Matches[1].Trim()
           if (-not [string]::IsNullOrWhiteSpace($val2)) { return $val2 }
+        }
+        if ($line -match '^\s*RENDER_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
+          $val = $Matches[1].Trim()
+          if (-not [string]::IsNullOrWhiteSpace($val)) { return $val }
         }
       }
     }

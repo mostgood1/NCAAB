@@ -5273,7 +5273,23 @@ def index():
         except Exception:
             pass
     # Snapshot-first: render strictly from persisted predictions_display_<date>.csv
+    # Only when stable mode is requested or enabled via env.
     try:
+        try:
+            stable_q = (request.args.get("stable") or "").strip().lower() in ("1","true","yes")
+        except Exception:
+            stable_q = False
+        try:
+            stable_env = str(os.environ.get("STABLE_DISPLAY","0")).strip().lower() in ("1","true","yes")
+            if SNAPSHOT_ONLY:
+                stable_env = True
+        except Exception:
+            stable_env = SNAPSHOT_ONLY
+        prefer_snapshot = stable_q or stable_env
+    except Exception:
+        prefer_snapshot = False
+    try:
+        if prefer_snapshot:
         from datetime import datetime as _dt
         # Resolve target_date with strong preference for the most recent available display snapshot
         # 1) Use explicit query date if provided
@@ -5753,6 +5769,34 @@ def index():
                 df_tpl = df_stable.where(pd.notna(df_stable), None)
             except Exception:
                 df_tpl = df_stable
+            # Normalize odds list column from CSV strings to list[dict]
+            try:
+                if "_odds_list" in df_tpl.columns:
+                    import json as _json
+                    import ast as _ast
+                    def _parse_odds_list(val):
+                        if isinstance(val, list):
+                            return [v for v in val if isinstance(v, dict)]
+                        if val is None:
+                            return []
+                        try:
+                            # First try JSON
+                            parsed = _json.loads(val)
+                            if isinstance(parsed, list):
+                                return [v for v in parsed if isinstance(v, dict)]
+                        except Exception:
+                            pass
+                        try:
+                            # Fallback to Python literal repr
+                            parsed = _ast.literal_eval(str(val))
+                            if isinstance(parsed, list):
+                                return [v for v in parsed if isinstance(v, dict)]
+                        except Exception:
+                            pass
+                        return []
+                    df_tpl["_odds_list"] = df_tpl["_odds_list"].map(_parse_odds_list)
+            except Exception:
+                pass
             # Drop synthetic/odds placeholder games (non-real)
             try:
                 if 'game_id' in df_tpl.columns:
@@ -24429,6 +24473,189 @@ def api_display_predictions():
             except Exception:
                 # On any error, serve the full snapshot directly to avoid blank payloads
                 df = df_full.copy()
+        # If mapped rows exist but lack odds, try direct enrichment join from enriched/edges or original snapshot
+        try:
+            if isinstance(df, pd.DataFrame) and not df.empty:
+                need_market = ('market_total' not in df.columns) or (pd.Series(df.get('market_total')).notna().sum() == 0)
+                need_spread = ('spread_home' not in df.columns) or (pd.Series(df.get('spread_home')).notna().sum() == 0)
+                if need_market or need_spread:
+                    # 0) Try to recover odds directly from the loaded snapshot (df_full)
+                    try:
+                        if 'game_id' in df.columns and 'game_id' in df_full.columns:
+                            src_m = next((c for c in ['market_total','closing_total','total_median'] if c in df_full.columns), None)
+                            src_s = next((c for c in ['spread_home','closing_spread_home','home_spread'] if c in df_full.columns), None)
+                            if src_m or src_s:
+                                j0 = df_full[['game_id'] + [c for c in [src_m, src_s] if c]].copy()
+                                try:
+                                    j0['game_id'] = j0['game_id'].astype(str)
+                                    df['game_id'] = df['game_id'].astype(str)
+                                except Exception:
+                                    pass
+                                if src_m and src_m != 'market_total': j0 = j0.rename(columns={src_m:'market_total'})
+                                if src_s and src_s != 'spread_home': j0 = j0.rename(columns={src_s:'spread_home'})
+                                df = df.merge(j0.drop_duplicates('game_id'), on='game_id', how='left', suffixes=('', '_snap'))
+                                for c in ('market_total','spread_home'):
+                                    if c in df.columns and f'{c}_snap' in df.columns:
+                                        try:
+                                            base = pd.to_numeric(df[c], errors='coerce')
+                                            alt = pd.to_numeric(df[f'{c}_snap'], errors='coerce')
+                                            df[c] = base.where(base.notna(), alt)
+                                        except Exception:
+                                            pass
+                    except Exception:
+                        pass
+                    join_df = pd.DataFrame()
+                    enr = OUT / f"predictions_unified_enriched_{date_q}.csv"
+                    e = _safe_read_csv(enr)
+                    if not e.empty:
+                        e2 = e.copy()
+                        if 'game_id' in e2.columns and 'game_id' in df.columns:
+                            try:
+                                e2['game_id'] = e2['game_id'].astype(str)
+                                df['game_id'] = df['game_id'].astype(str)
+                            except Exception:
+                                pass
+                            m_total = next((c for c in ('market_total','closing_total','_market_total_pair_med','_market_total_from_odds') if c in e2.columns), None)
+                            s_home = next((c for c in ('spread_home','closing_spread_home') if c in e2.columns), None)
+                            keep_cols = [c for c in ['game_id', m_total, s_home] if c]
+                            if keep_cols:
+                                join_df = e2[keep_cols].drop_duplicates('game_id').copy()
+                                ren = {}
+                                if m_total and m_total != 'market_total': ren[m_total] = 'market_total'
+                                if s_home and s_home != 'spread_home': ren[s_home] = 'spread_home'
+                                if ren:
+                                    join_df = join_df.rename(columns=ren)
+                                df = df.merge(join_df, on='game_id', how='left', suffixes=('', '_odds'))
+                                for c in ('market_total','spread_home'):
+                                    if c in df.columns and f'{c}_odds' in df.columns:
+                                        try:
+                                            base = pd.to_numeric(df[c], errors='coerce')
+                                            alt = pd.to_numeric(df[f'{c}_odds'], errors='coerce')
+                                            df[c] = base.where(base.notna(), alt)
+                                        except Exception:
+                                            pass
+                        else:
+                            # fallback join by team/date when game_id missing
+                            def _pick_col(df_, opts):
+                                for c in opts:
+                                    if c in df_.columns:
+                                        return c
+                                return None
+                            dcol = _pick_col(e2, ['display_date','date'])
+                            hcol = _pick_col(e2, ['home_team','home','home_team_name'])
+                            acol = _pick_col(e2, ['away_team','away','away_team_name'])
+                            m_total = next((c for c in ('market_total','closing_total','_market_total_pair_med','_market_total_from_odds') if c in e2.columns), None)
+                            s_home = next((c for c in ('spread_home','closing_spread_home') if c in e2.columns), None)
+                            if dcol and hcol and acol and (m_total or s_home) and {'date','home_team','away_team'}.issubset(df.columns):
+                                j2 = e2[[dcol,hcol,acol] + [c for c in [m_total,s_home] if c]].copy()
+                                j2 = j2.rename(columns={dcol:'date', hcol:'home_team', acol:'away_team'})
+                                if m_total and m_total != 'market_total': j2 = j2.rename(columns={m_total:'market_total'})
+                                if s_home and s_home != 'spread_home': j2 = j2.rename(columns={s_home:'spread_home'})
+                                try:
+                                    j2['date'] = pd.to_datetime(j2['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                except Exception:
+                                    pass
+                                df = df.merge(j2[['date','home_team','away_team','market_total','spread_home']].drop_duplicates(['date','home_team','away_team']),
+                                              on=['date','home_team','away_team'], how='left', suffixes=('', '_odds'))
+                                for c in ('market_total','spread_home'):
+                                    if c in df.columns and f'{c}_odds' in df.columns:
+                                        try:
+                                            base = pd.to_numeric(df[c], errors='coerce')
+                                            alt = pd.to_numeric(df[f'{c}_odds'], errors='coerce')
+                                            df[c] = base.where(base.notna(), alt)
+                                        except Exception:
+                                            pass
+                    # final fallback from edges if still missing (by game_id)
+                    if (('market_total' not in df.columns) or (pd.Series(df.get('market_total')).notna().sum() == 0) or
+                        ('spread_home' not in df.columns) or (pd.Series(df.get('spread_home')).notna().sum() == 0)):
+                        ap = OUT / f"align_period_{date_q}_edges.csv"
+                        ed = _safe_read_csv(ap)
+                        if not ed.empty:
+                            j = ed.copy()
+                            if 'game_id' in j.columns and 'game_id' in df.columns:
+                                try:
+                                    j['game_id'] = j['game_id'].astype(str)
+                                    df['game_id'] = df['game_id'].astype(str)
+                                except Exception:
+                                    pass
+                                m_total = next((c for c in ('market_total','closing_total','total_median','total') if c in j.columns), None)
+                                s_home = next((c for c in ('spread_home','closing_spread_home','home_spread') if c in j.columns), None)
+                                keep_cols = [c for c in ['game_id', m_total, s_home] if c]
+                                if keep_cols:
+                                    j2 = j[keep_cols].drop_duplicates('game_id').copy()
+                                    if m_total and m_total != 'market_total': j2 = j2.rename(columns={m_total:'market_total'})
+                                    if s_home and s_home != 'spread_home': j2 = j2.rename(columns={s_home:'spread_home'})
+                                    df = df.merge(j2, on='game_id', how='left', suffixes=('', '_odds2'))
+                                    for c in ('market_total','spread_home'):
+                                        if c in df.columns and f'{c}_odds2' in df.columns:
+                                            try:
+                                                base = pd.to_numeric(df[c], errors='coerce')
+                                                alt = pd.to_numeric(df[f'{c}_odds2'], errors='coerce')
+                                                df[c] = base.where(base.notna(), alt)
+                                            except Exception:
+                                                pass
+                    # slug-pair fallback join by date+pair if odds still missing
+                    try:
+                        still_missing = (
+                            ('market_total' not in df.columns) or (pd.Series(df.get('market_total')).notna().sum() == 0)
+                        ) and (
+                            ('spread_home' not in df.columns) or (pd.Series(df.get('spread_home')).notna().sum() == 0)
+                        )
+                    except Exception:
+                        still_missing = True
+                    if still_missing:
+                        try:
+                            # enrich from unified_enriched on slug pair
+                            e = _safe_read_csv(OUT / f"predictions_unified_enriched_{date_q}.csv")
+                            if not e.empty and {'home_team','away_team'}.issubset(e.columns) and {'home_team','away_team'}.issubset(df.columns):
+                                def _slug(x):
+                                    try:
+                                        return _canon_slug(str(x))
+                                    except Exception:
+                                        return str(x).strip().lower()
+                                ee = e.copy()
+                                ee['_hn'] = ee['home_team'].map(_slug)
+                                ee['_an'] = ee['away_team'].map(_slug)
+                                ee['_pair'] = ee.apply(lambda r: '::'.join(sorted([str(r.get('_hn') or ''), str(r.get('_an') or '')])), axis=1)
+                                m_total = next((c for c in ('market_total','closing_total','_market_total_pair_med','_market_total_from_odds') if c in ee.columns), None)
+                                s_home = next((c for c in ('spread_home','closing_spread_home') if c in ee.columns), None)
+                                keep_cols = [c for c in ['_pair','date', m_total, s_home] if c]
+                                if keep_cols:
+                                    j3 = ee[keep_cols].copy()
+                                    if 'date' in j3.columns:
+                                        try:
+                                            j3['date'] = pd.to_datetime(j3['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                        except Exception:
+                                            pass
+                                    if m_total and m_total != 'market_total': j3 = j3.rename(columns={m_total:'market_total'})
+                                    if s_home and s_home != 'spread_home': j3 = j3.rename(columns={s_home:'spread_home'})
+                                    # build pair on df
+                                    if 'home_team' in df.columns and 'away_team' in df.columns:
+                                        df['_hn'] = df['home_team'].map(_slug)
+                                        df['_an'] = df['away_team'].map(_slug)
+                                        df['_pair'] = df.apply(lambda r: '::'.join(sorted([str(r.get('_hn') or ''), str(r.get('_an') or '')])), axis=1)
+                                        join_keys = ['_pair']
+                                        if 'date' in df.columns and 'date' in j3.columns:
+                                            # normalize date in df
+                                            try:
+                                                df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                            except Exception:
+                                                pass
+                                            join_keys = ['date','_pair']
+                                        df = df.merge(j3.drop_duplicates(join_keys), on=join_keys, how='left', suffixes=('', '_pair'))
+                                        for c in ('market_total','spread_home'):
+                                            if c in df.columns and f'{c}_pair' in df.columns:
+                                                try:
+                                                    base = pd.to_numeric(df[c], errors='coerce')
+                                                    alt = pd.to_numeric(df[f'{c}_pair'], errors='coerce')
+                                                    df[c] = base.where(base.notna(), alt)
+                                                except Exception:
+                                                    pass
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
         # If no rows or mapping failed, rebuild from edges and persist to avoid blank cards
         try:
             if df.empty:
@@ -24528,6 +24755,40 @@ def api_display_predictions():
                         df = e2.copy()
         except Exception:
             pass
+        # Ensure API mirrors snapshot odds exactly when available
+        try:
+            if isinstance(df, pd.DataFrame) and not df.empty:
+                # Alias odds columns from the original snapshot if API frame lacks them or they are empty
+                src_m = next((c for c in ['market_total','closing_total','total_median','total'] if c in df_full.columns), None)
+                src_s = next((c for c in ['spread_home','closing_spread_home','home_spread'] if c in df_full.columns), None)
+                if src_m:
+                    try:
+                        snap_m = pd.to_numeric(df_full[src_m], errors='coerce')
+                    except Exception:
+                        snap_m = df_full[src_m]
+                    if 'market_total' in df.columns:
+                        try:
+                            base_m = pd.to_numeric(df['market_total'], errors='coerce')
+                            df['market_total'] = base_m.where(base_m.notna(), snap_m)
+                        except Exception:
+                            df['market_total'] = df['market_total']
+                    else:
+                        df['market_total'] = snap_m
+                if src_s:
+                    try:
+                        snap_s = pd.to_numeric(df_full[src_s], errors='coerce')
+                    except Exception:
+                        snap_s = df_full[src_s]
+                    if 'spread_home' in df.columns:
+                        try:
+                            base_s = pd.to_numeric(df['spread_home'], errors='coerce')
+                            df['spread_home'] = base_s.where(base_s.notna(), snap_s)
+                        except Exception:
+                            df['spread_home'] = df['spread_home']
+                    else:
+                        df['spread_home'] = snap_s
+        except Exception:
+            pass
         # Snapshot-first: compute hash and return rows without re-normalizing/persisting
         digest = None
         try:
@@ -24557,6 +24818,12 @@ def api_display_predictions():
             digest = hasher.hexdigest()
         except Exception:
             digest = 'hash_error'
+        # Mirror snapshot exactly for API payload to ensure parity
+        try:
+            if isinstance(df_full, pd.DataFrame) and not df_full.empty:
+                df = df_full.copy()
+        except Exception:
+            pass
         keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','date','display_date','display_time_str']
         rows: list[dict[str, Any]] = []
         for _, r in df.iterrows():

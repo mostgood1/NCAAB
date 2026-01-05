@@ -23,9 +23,9 @@ services:
       - key: NCAAB_P_OVER_THRESHOLD_LOW
         value: "0.42"
       - key: STABLE_DISPLAY
-        value: "1"
+        value: "0"
       - key: SNAPSHOT_ONLY
-        value: "1"
+        value: "0"
       - key: NCAAB_TOTALS_MODE
         value: model
     healthCheckPath: /healthz
