@@ -359,13 +359,13 @@ def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
     except Exception:
         pass
     df['date'] = pd.to_datetime(df.get('date'), errors='coerce')
-    out = {}
+                cols = {
     for d, g in df.groupby(df['date'].dt.date):
         rec = {'date': str(d)}
         ats_reqs = ['pred_margin','spread_home','actual_margin']
         for c in ats_reqs:
             rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
-        rec['ats_rows_complete'] = int(g[ats_reqs].notna().all(axis=1).sum()) if set(ats_reqs).issubset(g.columns) else 0
+                    'market_total': _pick_col(df_full, ['market_total','closing_total','total_median','total']),
         tot_reqs = ['pred_total','market_total','actual_total']
         for c in tot_reqs:
             rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
@@ -24172,6 +24172,90 @@ def _persist_display(df: pd.DataFrame, date_str: str) -> tuple[Path, str]:
                 pass
     except Exception:
         pass
+    # Enrich persisted display with market odds (totals/spreads) when available
+    try:
+        if isinstance(norm, pd.DataFrame) and not norm.empty and 'game_id' in norm.columns:
+            gid = norm['game_id'].astype(str)
+            # Attempt to pull odds from enriched snapshot first
+            odds_cols = {}
+            try:
+                enr_path = OUT / f'predictions_unified_enriched_{date_str}.csv'
+                enr_df = _safe_read_csv(enr_path)
+            except Exception:
+                enr_df = pd.DataFrame()
+            # Fallback to edges for raw market fields
+            try:
+                ed_path = OUT / f'align_period_{date_str}_edges.csv'
+                ed_df = _safe_read_csv(ed_path)
+            except Exception:
+                ed_df = pd.DataFrame()
+            join_df = pd.DataFrame()
+            if not enr_df.empty and 'game_id' in enr_df.columns:
+                e = enr_df.copy()
+                e['game_id'] = e['game_id'].astype(str)
+                # Prefer explicit market_total; else closing_total; spreads from closing_spread_home
+                m_total = None
+                s_home = None
+                for c in ('market_total','closing_total','_market_total_pair_med','_market_total_from_odds'):
+                    if c in e.columns:
+                        m_total = c
+                        break
+                for c in ('spread_home','closing_spread_home'):
+                    if c in e.columns:
+                        s_home = c
+                        break
+                keep_cols = [c for c in ['game_id', m_total, s_home] if c]
+                if keep_cols:
+                    join_df = e[keep_cols].copy()
+                    ren = {}
+                    if m_total and m_total != 'market_total': ren[m_total] = 'market_total'
+                    if s_home and s_home != 'spread_home': ren[s_home] = 'spread_home'
+                    if ren:
+                        join_df = join_df.rename(columns=ren)
+            if join_df.empty and not ed_df.empty and 'game_id' in ed_df.columns:
+                j = ed_df.copy()
+                j['game_id'] = j['game_id'].astype(str)
+                # Edges totals column is named 'total'; spreads often 'home_spread'
+                m_total = None
+                s_home = None
+                for c in ('market_total','closing_total','total_median','total'):
+                    if c in j.columns:
+                        m_total = c
+                        break
+                for c in ('spread_home','closing_spread_home','home_spread'):
+                    if c in j.columns:
+                        s_home = c
+                        break
+                keep_cols = [c for c in ['game_id', m_total, s_home] if c]
+                if keep_cols:
+                    join_df = j[keep_cols].copy()
+                    ren = {}
+                    if m_total and m_total != 'market_total': ren[m_total] = 'market_total'
+                    if s_home and s_home != 'spread_home': ren[s_home] = 'spread_home'
+                    if ren:
+                        join_df = join_df.rename(columns=ren)
+            if not join_df.empty and 'game_id' in join_df.columns:
+                join_df = join_df.drop_duplicates(subset=['game_id'])
+                try:
+                    norm['game_id'] = norm['game_id'].astype(str)
+                except Exception:
+                    pass
+                merged = norm.merge(join_df, on='game_id', how='left', suffixes=('', '_odds'))
+                # Only fill if display lacks these fields
+                for c in ('market_total','spread_home'):
+                    if c in merged.columns:
+                        base = merged.get(c)
+                        alt = merged.get(f'{c}_odds')
+                        if base is None:
+                            merged[c] = alt
+                        else:
+                            try:
+                                merged[c] = base.where(base.notna(), alt)
+                            except Exception:
+                                merged[c] = base
+                norm = merged
+    except Exception:
+        pass
     path = OUT / f'predictions_display_{date_str}.csv'
     try:
         norm.to_csv(path, index=False)
@@ -24329,7 +24413,7 @@ def api_display_predictions():
                     acol = _pick_col(ed, ['away_team','away_team_name','away'])
                     tcol = _pick_col(ed, ['pred_total_cal','pred_total'])
                     mcol = _pick_col(ed, ['pred_margin_cal','pred_margin'])
-                    mtcol = _pick_col(ed, ['market_total','closing_total','total_median'])
+                    mtcol = _pick_col(ed, ['market_total','closing_total','total_median','total'])
                     stcol = _pick_col(ed, ['start_time','commence_time'])
                     keep_e = [c for c in ['game_id','date',hcol,acol,tcol,mcol,mtcol,stcol] if c]
                     if keep_e:

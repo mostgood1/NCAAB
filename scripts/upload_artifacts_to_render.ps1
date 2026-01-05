@@ -211,6 +211,41 @@ function Build-ModelFirstDisplayFromModelPreds {
     } catch { return $DisplayCsv }
 }
 
+# Build a model-first enriched CSV by overriding pred_total and pred_total_basis
+# with precedence: pred_total_calibrated -> pred_total_model -> pred_total_blend -> pred_total_seg.
+function Build-ModelFirstEnriched {
+    param(
+        [string]$EnrichedCsv
+    )
+    if (-not (Test-Path -LiteralPath $EnrichedCsv)) { return $null }
+    try {
+        $rows = Import-Csv -LiteralPath $EnrichedCsv -ErrorAction Stop
+        if (-not $rows) { return $null }
+        $out = @()
+        foreach ($r in $rows) {
+            $choice = $null; $basis = $null
+            $cals = @('pred_total_calibrated','pred_total_model','pred_total_blend','pred_total_seg')
+            foreach ($c in $cals) {
+                if ($r.PSObject.Properties.Name -contains $c) {
+                    $val = $r.$c
+                    if ($null -ne $val -and -not [string]::IsNullOrWhiteSpace("" + $val)) {
+                        $dv = $null; [void][double]::TryParse(("" + $val), [ref]$dv)
+                        if ($dv -ne $null) { $choice = $dv; $basis = ($c -replace '^pred_total_',''); break }
+                    }
+                }
+            }
+            if ($null -ne $choice) {
+                $r.pred_total = $choice
+                $r.pred_total_basis = $basis
+            }
+            $out += $r
+        }
+        $tmp = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($EnrichedCsv), (".tmp_modelfirst_{0}" -f [System.IO.Path]::GetFileName($EnrichedCsv)))
+        $out | Export-Csv -LiteralPath $tmp -NoTypeInformation -Encoding UTF8
+        return $tmp
+    } catch { return $null }
+}
+
 # Upload in preferred order: picks_raw -> ATS picks(date) -> edges(date) -> display(date) -> enriched(date)
 $picksRows = Get-CsvRowCount -Path $picksPath
 if ($picksRows -gt 0) {
@@ -281,7 +316,35 @@ if ($u3) {
 }
 
 # Upload enriched predictions snapshot for recommendations parity
-$u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedPath -Query @{ date = $Date }
+# If enriched shows basis entirely NaN or equals market for all rows, rebuild to model-first
+$enrichedToUpload = $enrichedPath
+try {
+    if (Test-Path -LiteralPath $enrichedPath) {
+        $erows = Import-Csv -LiteralPath $enrichedPath -ErrorAction Stop
+        if ($erows) {
+            $n = 0; $eq = 0; $nanBasis = 0
+            foreach ($r in $erows) {
+                $pt = $null; $mt = $null
+                [void][double]::TryParse(("" + $r.pred_total), [ref]$pt)
+                [void][double]::TryParse(("" + $r.market_total), [ref]$mt)
+                $b = ("" + $r.pred_total_basis)
+                if (-not [string]::IsNullOrWhiteSpace($b)) { }
+                else { $nanBasis += 1 }
+                if ($pt -ne $null -and $mt -ne $null) {
+                    $n += 1
+                    if ([Math]::Abs($pt - $mt) -lt 1e-9) { $eq += 1 }
+                }
+            }
+            if (($n -gt 0 -and $eq -eq $n) -or ($nanBasis -ge $erows.Count)) {
+                Write-Step "Enriched appears synthetic or basis NaN; rebuilding model-first enriched"
+                $rebuiltEnr = Build-ModelFirstEnriched -EnrichedCsv $enrichedPath
+                if ($rebuiltEnr -and (Test-Path -LiteralPath $rebuiltEnr)) { $enrichedToUpload = $rebuiltEnr }
+            }
+        }
+    }
+} catch {}
+
+$u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedToUpload -Query @{ date = $Date }
 if ($u3b) {
     $rv = if ($u3b.rows_verified) { $u3b.rows_verified } elseif ($u3b.rows) { $u3b.rows } else { $null }
     $ru = if ($u3b.rows_uploaded) { $u3b.rows_uploaded } else { $null }

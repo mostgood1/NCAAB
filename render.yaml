@@ -26,6 +26,8 @@ services:
         value: "1"
       - key: SNAPSHOT_ONLY
         value: "1"
+      - key: NCAAB_TOTALS_MODE
+        value: model
     healthCheckPath: /healthz
     
     # Optional persistent disk if you later want to write outputs on Render
