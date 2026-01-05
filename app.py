@@ -266,8 +266,16 @@ try:
                         d = sorted(_dates)[-1] if _dates else dt.datetime.utcnow().strftime('%Y-%m-%d')
                     except Exception:
                         d = dt.datetime.utcnow().strftime('%Y-%m-%d')
-                # Redirect to the full index page in stable mode to preserve UI
-                return redirect(f"/?date={d}&stable=1"), 302
+                # Redirect to resilient cards-safe view to avoid loops and preserve UI
+                try:
+                    return redirect(f"/cards-safe?date={d}"), 302
+                except Exception:
+                    # As a last resort, render cards-safe directly
+                    try:
+                        with app.test_request_context(f"/cards-safe?date={d}"):
+                            return cards_safe()
+                    except Exception:
+                        return jsonify({"status":"error","message":"Fallback render failed"}), 500
             except Exception:
                 return jsonify({"status":"error","message":"Internal error; fallback redirect failed"}), 500
 except Exception:
