@@ -105,6 +105,112 @@ function Sanitize-DisplayCsv {
     }
 }
 
+# If local display mirrors market across all rows, build a model-first display by
+# overriding pred_total/pred_total_basis from enriched (cal -> model -> blend -> seg).
+function Build-ModelFirstDisplayFromEnriched {
+    param(
+        [string]$DisplayCsv,
+        [string]$EnrichedCsv
+    )
+    if (-not (Test-Path -LiteralPath $DisplayCsv)) { return $null }
+    if (-not (Test-Path -LiteralPath $EnrichedCsv)) { return $DisplayCsv }
+    try {
+        $disp = Import-Csv -LiteralPath $DisplayCsv -ErrorAction Stop
+        if (-not $disp) { return $DisplayCsv }
+        $rows = @()
+        # Index enriched by game_id for quick lookup
+        $enr = Import-Csv -LiteralPath $EnrichedCsv -ErrorAction Stop
+        $emap = @{}
+        foreach ($e in $enr) {
+            $gid = ("" + $e.game_id).Trim()
+            if (-not [string]::IsNullOrWhiteSpace($gid)) { $emap[$gid] = $e }
+        }
+        foreach ($r in $disp) {
+            $gid = ("" + $r.game_id).Trim()
+            $origPred = $r.pred_total
+            $origBasis = $r.pred_total_basis
+            if ($emap.ContainsKey($gid)) {
+                $e = $emap[$gid]
+                $choice = $null; $basis = $null
+                $cals = @('pred_total_calibrated','pred_total_model','pred_total_blend','pred_total_seg')
+                foreach ($c in $cals) {
+                    if ($e.PSObject.Properties.Name -contains $c) {
+                        $val = $e.$c
+                        if ($null -ne $val -and -not [string]::IsNullOrWhiteSpace("" + $val)) {
+                            $dv = $null; [void][double]::TryParse(("" + $val), [ref]$dv)
+                            if ($dv -ne $null) { $choice = $dv; $basis = ($c -replace '^pred_total_',''); break }
+                        }
+                    }
+                }
+                if ($null -ne $choice) {
+                    $r.pred_total = $choice
+                    $r.pred_total_basis = $basis
+                }
+            }
+            $rows += $r
+        }
+        $tmp = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($DisplayCsv), (".tmp_model_first_{0}" -f [System.IO.Path]::GetFileName($DisplayCsv)))
+        $rows | Export-Csv -LiteralPath $tmp -NoTypeInformation -Encoding UTF8
+        return $tmp
+    } catch { return $DisplayCsv }
+}
+
+# Build model-first display using predictions_model(_calibrated)_<date>.csv if present.
+function Build-ModelFirstDisplayFromModelPreds {
+    param(
+        [string]$DisplayCsv,
+        [string]$OutputsDir,
+        [string]$Date
+    )
+    if (-not (Test-Path -LiteralPath $DisplayCsv)) { return $null }
+    $predModelPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_model_{0}.csv" -f $Date)
+    $predCalPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_model_calibrated_{0}.csv" -f $Date)
+    if (-not (Test-Path -LiteralPath $predModelPath) -and -not (Test-Path -LiteralPath $predCalPath)) { return $DisplayCsv }
+    try {
+        $disp = Import-Csv -LiteralPath $DisplayCsv -ErrorAction Stop
+        if (-not $disp) { return $DisplayCsv }
+        $model = $null
+        $cal = $null
+        if (Test-Path -LiteralPath $predModelPath) { $model = Import-Csv -LiteralPath $predModelPath -ErrorAction Stop }
+        if (Test-Path -LiteralPath $predCalPath) { $cal = Import-Csv -LiteralPath $predCalPath -ErrorAction Stop }
+        $mmap = @{}
+        if ($model) {
+            foreach ($m in $model) {
+                $gid = ("" + $m.game_id).Trim(); if (-not [string]::IsNullOrWhiteSpace($gid)) { $mmap[$gid] = $m }
+            }
+        }
+        $cmap = @{}
+        if ($cal) {
+            foreach ($c in $cal) {
+                $gid = ("" + $c.game_id).Trim(); if (-not [string]::IsNullOrWhiteSpace($gid)) { $cmap[$gid] = $c }
+            }
+        }
+        $rows = @()
+        foreach ($r in $disp) {
+            $gid = ("" + $r.game_id).Trim()
+            $chosen = $null; $basis = $null
+            if ($cmap.ContainsKey($gid)) {
+                $cr = $cmap[$gid]
+                $pv = $null; [void][double]::TryParse(("" + $cr.pred_total), [ref]$pv)
+                if ($pv -ne $null) { $chosen = $pv; $basis = 'cal' }
+            }
+            if ($null -eq $chosen -and $mmap.ContainsKey($gid)) {
+                $mr = $mmap[$gid]
+                $pv2 = $null; [void][double]::TryParse(("" + $mr.pred_total), [ref]$pv2)
+                if ($pv2 -ne $null) { $chosen = $pv2; $basis = 'model' }
+            }
+            if ($null -ne $chosen) {
+                $r.pred_total = $chosen
+                $r.pred_total_basis = $basis
+            }
+            $rows += $r
+        }
+        $tmp = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($DisplayCsv), (".tmp_modelpred_first_{0}" -f [System.IO.Path]::GetFileName($DisplayCsv)))
+        $rows | Export-Csv -LiteralPath $tmp -NoTypeInformation -Encoding UTF8
+        return $tmp
+    } catch { return $DisplayCsv }
+}
+
 # Upload in preferred order: picks_raw -> ATS picks(date) -> edges(date) -> display(date) -> enriched(date)
 $picksRows = Get-CsvRowCount -Path $picksPath
 if ($picksRows -gt 0) {
@@ -138,6 +244,33 @@ if ($sanitizedDisplayPath) {
 }
 $displayToUpload = $null
 if ($sanitizedDisplayPath -and -not [string]::IsNullOrWhiteSpace($sanitizedDisplayPath)) { $displayToUpload = $sanitizedDisplayPath } else { $displayToUpload = $displayPath }
+# Detect if display mirrors market; if so, rebuild from enriched with model-first precedence
+try {
+    $drows = Import-Csv -LiteralPath $displayToUpload -ErrorAction Stop
+    if ($drows) {
+        $eq = 0; $n = 0
+        foreach ($r in $drows) {
+            $pt = $null; $mt = $null
+            [void][double]::TryParse(("" + $r.pred_total), [ref]$pt)
+            [void][double]::TryParse(("" + $r.market_total), [ref]$mt)
+            if ($pt -ne $null -and $mt -ne $null) {
+                $n += 1
+                if ([Math]::Abs($pt - $mt) -lt 1e-9) { $eq += 1 }
+            }
+        }
+        if ($n -gt 0 -and $eq -eq $n) {
+            Write-Step "Display mirrors market across all rows; rebuilding model-first display"
+            # Prefer model predictions files; fallback to enriched if needed
+            $rebuilt = Build-ModelFirstDisplayFromModelPreds -DisplayCsv $displayToUpload -OutputsDir $OutputsDir -Date $Date
+            if (-not $rebuilt -or -not (Test-Path -LiteralPath $rebuilt)) {
+                if (Test-Path -LiteralPath $enrichedPath) {
+                    $rebuilt = Build-ModelFirstDisplayFromEnriched -DisplayCsv $displayToUpload -EnrichedCsv $enrichedPath
+                }
+            }
+            if ($rebuilt -and (Test-Path -LiteralPath $rebuilt)) { $displayToUpload = $rebuilt }
+        }
+    }
+} catch {}
 $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayToUpload -Query @{ date = $Date }
 if ($u3) {
     $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }

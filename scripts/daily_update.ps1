@@ -29,7 +29,11 @@ param(
   [string]$GitCommitMessage,
   # Render upload integration
   [switch]$UploadToRender,
-  [switch]$TriggerRenderRedeploy
+  [switch]$TriggerRenderRedeploy,
+  # New: Upload to Render by default; opt-out with -SkipRenderUpload
+  [switch]$SkipRenderUpload,
+  # New: Redeploy after upload by default; opt-out with -SkipRenderRedeploy
+  [switch]$SkipRenderRedeploy
 )
 
 $ErrorActionPreference = 'Stop'
@@ -1041,6 +1045,14 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $btLatest) { $toStage += $btLatest }
 
   # Frontend display snapshots and enriched predictions for current date
+  # Rebuild display from enriched to ensure non-even margins before staging
+  try {
+    $enrichedToday = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
+    if (Test-Path $enrichedToday) {
+      & $VenvPython scripts/rebuild_display_from_enriched.py --date $todayIso
+    }
+  } catch { Write-Warning "rebuild_display_from_enriched failed: $($_)" }
+
   $predDisplay = Join-Path $OutDir ("predictions_display_" + $todayIso + ".csv")
   if (Test-Path $predDisplay) { $toStage += $predDisplay }
   $predEnriched = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
@@ -1167,13 +1179,20 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       }
     }
 
-    # Optional: Upload artifacts to Render and verify recommendations
-    if ($UploadToRender.IsPresent) {
+    # Upload artifacts to Render by default (opt-out with -SkipRenderUpload)
+    $doRenderUpload = $true
+    if ($PSBoundParameters.ContainsKey('SkipRenderUpload') -and $SkipRenderUpload.IsPresent) { $doRenderUpload = $false }
+    # Back-compat: if user explicitly supplied -UploadToRender, honor true; otherwise default remains true
+    if ($doRenderUpload -or $UploadToRender.IsPresent) {
       Write-Section "11b) Upload artifacts to Render + verify ($todayIso)"
       try {
         $uploader = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
         if (Test-Path $uploader) {
-          if ($TriggerRenderRedeploy.IsPresent) {
+          # Determine redeploy behavior: default true unless explicitly skipped; explicit -TriggerRenderRedeploy forces true
+          $doRedeploy = $true
+          if ($PSBoundParameters.ContainsKey('SkipRenderRedeploy') -and $SkipRenderRedeploy.IsPresent) { $doRedeploy = $false }
+          if ($TriggerRenderRedeploy.IsPresent) { $doRedeploy = $true }
+          if ($doRedeploy) {
             Write-Host "[Render] Uploading artifacts and triggering redeploy (sanitized display)" -ForegroundColor Cyan
             powershell.exe -ExecutionPolicy Bypass -File $uploader -Date $todayIso -TriggerRedeploy
           } else {
@@ -1187,7 +1206,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         Write-Warning "Render upload step failed: $($_)"
       }
     } else {
-      Write-Host 'UploadToRender flag not set; skipping Render upload.' -ForegroundColor Yellow    
+      Write-Host 'SkipRenderUpload flag set; skipping Render upload.' -ForegroundColor Yellow
     }
 
     # Verify Render health: ensure today's predictions rows recognized and bootstrap not needed
