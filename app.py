@@ -5290,202 +5290,9 @@ def index():
         prefer_snapshot = False
     try:
         if prefer_snapshot:
-        from datetime import datetime as _dt
-        # Resolve target_date with strong preference for the most recent available display snapshot
-        # 1) Use explicit query date if provided
-        # 2) Else, use the most recent predictions_display_<date>.csv in outputs
-        # 3) Fallback to today's ET date
-        if date_q:
-            target_date = date_q
-        else:
-            try:
-                from zoneinfo import ZoneInfo as _ZI
-                today_iso = _dt.now(_ZI("America/New_York")).strftime('%Y-%m-%d')
-            except Exception:
-                today_iso = _dt.utcnow().strftime('%Y-%m-%d')
-            try:
-                import re as _re_mod
-                pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
-                dates = []
-                for p in OUT.glob('predictions_display_*.csv'):
-                    m = pat.match(p.name)
-                    if m:
-                        dates.append(m.group(1))
-                target_date = sorted(dates)[-1] if dates else today_iso
-            except Exception:
-                target_date = today_iso
-        snap_path = OUT / f"predictions_display_{target_date}.csv"
-        df_snap = _safe_read_csv(snap_path)
-        if not df_snap.empty:
-            branding = _load_branding_map()
-            # Constrain to the target_date using normalized dates; if empty after filter, fallback to unfiltered
-            try:
-                target_date_norm = str(target_date)
-                filtered = df_snap
-                if 'display_date' in df_snap.columns:
-                    try:
-                        filtered = df_snap.copy()
-                        filtered['_dd'] = pd.to_datetime(filtered['display_date'], errors='coerce').dt.strftime('%Y-%m-%d')
-                        filtered = filtered[filtered['_dd'] == target_date_norm]
-                        filtered = filtered.drop(columns=['_dd'])
-                    except Exception:
-                        filtered = df_snap[df_snap['display_date'].astype(str).str[:10] == target_date_norm]
-                elif 'date' in df_snap.columns:
-                    try:
-                        filtered = df_snap.copy()
-                        filtered['_dd'] = pd.to_datetime(filtered['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-                        filtered = filtered[filtered['_dd'] == target_date_norm]
-                        filtered = filtered.drop(columns=['_dd'])
-                    except Exception:
-                        filtered = df_snap[df_snap['date'].astype(str).str[:10] == target_date_norm]
-                df_snap = filtered if not filtered.empty else df_snap
-            except Exception:
-                pass
-            # Drop synthetic/odds placeholder games (non-real)
-            try:
-                if 'game_id' in df_snap.columns:
-                    gser = df_snap['game_id'].astype(str)
-                    mask = gser.str.startswith('synthetic:') | gser.str.startswith('odds:')
-                    df_snap = df_snap[~mask]
-            except Exception:
-                pass
-            # Drop rows where team names are placeholders like AWAY/HOME
-            try:
-                if {'home_team','away_team'}.issubset(df_snap.columns):
-                    _ht = df_snap['home_team'].astype(str).str.strip().str.lower()
-                    _at = df_snap['away_team'].astype(str).str.strip().str.lower()
-                    _mask_valid = ~(_ht.isin(['home','away']) | _at.isin(['home','away']))
-                    df_snap = df_snap[_mask_valid]
-            except Exception:
-                pass
-            rows = []
-            keep = [
-                'game_id','home_team','away_team','pred_total','pred_margin',
-                'pred_total_basis','pred_margin_basis','market_total','spread_home',
-                'display_date','display_time_str','start_time','start_time_display'
-            ]
-            for r in df_snap.to_dict(orient='records'):
-                rec = {k: r.get(k) for k in keep}
-                b = branding.get(_canon_slug(rec.get('home_team') or ''))
-                if b:
-                    rec['home_logo'] = b.get('logo')
-                b2 = branding.get(_canon_slug(rec.get('away_team') or ''))
-                if b2:
-                    rec['away_logo'] = b2.get('logo')
-                rows.append(rec)
-            total_rows = len(rows)
-            # If rows collapsed to zero (e.g., synthetic-only snapshot), rebuild minimal rows from edges
-            if total_rows == 0:
-                try:
-                    ap = OUT / f"align_period_{target_date}_edges.csv"
-                    ed = _safe_read_csv(ap)
-                    if not ed.empty:
-                        # Path is already per-date; don't constrain by date column to maximize resilience
-                        # remove synthetic
-                        if 'game_id' in ed.columns:
-                            try:
-                                ed['game_id'] = ed['game_id'].astype(str)
-                                ed = ed[~ed['game_id'].str.startswith('synthetic:')]
-                                ed = ed[~ed['game_id'].str.startswith('odds:')]
-                            except Exception:
-                                pass
-                        def _pick_col(df_, opts):
-                            for c in opts:
-                                if c in df_.columns:
-                                    return c
-                            return None
-                        hcol = _pick_col(ed, ['home_team','home_team_name','home'])
-                        acol = _pick_col(ed, ['away_team','away_team_name','away'])
-                        tcol = _pick_col(ed, ['pred_total_cal','pred_total'])
-                        mcol = _pick_col(ed, ['pred_margin_cal','pred_margin'])
-                        mtcol = _pick_col(ed, ['market_total','closing_total','total_median'])
-                        stcol = _pick_col(ed, ['start_time','commence_time'])
-                        keep_e = [c for c in ['game_id',hcol,acol,tcol,mcol,mtcol,stcol] if c]
-                        if keep_e:
-                            e2 = ed[keep_e].copy()
-                            ren = {}
-                            if hcol and hcol != 'home_team': ren[hcol] = 'home_team'
-                            if acol and acol != 'away_team': ren[acol] = 'away_team'
-                            if tcol and tcol != 'pred_total': ren[tcol] = 'pred_total'
-                            if mcol and mcol != 'pred_margin': ren[mcol] = 'pred_margin'
-                            if mtcol and mtcol != 'market_total': ren[mtcol] = 'market_total'
-                            if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
-                            if ren:
-                                e2 = e2.rename(columns=ren)
-                            # Aggregate by game_id and build branded rows
-                            if 'game_id' in e2.columns:
-                                def _agg_first(series):
-                                    try:
-                                        return series.dropna().iloc[0]
-                                    except Exception:
-                                        return series.iloc[0] if len(series) else None
-                                agg_map = {}
-                                for c in ['home_team','away_team','pred_total','pred_margin','market_total','start_time']:
-                                    if c in e2.columns:
-                                        agg_map[c] = _agg_first
-                                g = e2.groupby('game_id').agg(agg_map).reset_index()
-                                rows = []
-                                for _, r in g.iterrows():
-                                    item = {k: r.get(k) for k in ['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time'] if k in g.columns}
-                                    hb = branding.get(_canon_slug(str(item.get('home_team') or '')))
-                                    ab = branding.get(_canon_slug(str(item.get('away_team') or '')))
-                                    if hb:
-                                        item['home_logo'] = hb.get('logo')
-                                    if ab:
-                                        item['away_logo'] = ab.get('logo')
-                                    rows.append(item)
-                                total_rows = len(rows)
-                except Exception:
-                    pass
-            removed_empty_rows = 0
-            dynamic_css = None
-            status = None
-            coverage_note = None
-            results_note = None
-            accuracy = None
-            uniform_note = None
-            show_bootstrap = False
-            bootstrap_url = None
-            show_diag = False
-            diag_url = None
-            fused_bootstrap_url = None
-            refresh_odds_url = None
-            safe_rows = rows
-            archive_dates = []
-            pipeline_stats = {}
-            # Only return snapshot-first render if we have rows; else fall through
-            if total_rows > 0:
-                _resp = make_response(render_template(
-                    "index.html",
-                    rows=safe_rows,
-                    total_rows=total_rows,
-                    date_val=target_date,
-                    top_picks=[],
-                    accuracy=accuracy,
-                    uniform_note=uniform_note,
-                    dynamic_css=dynamic_css,
-                    coverage_note=coverage_note,
-                    results_note=results_note,
-                    show_edges=True,
-                    coverage={},
-                    archive_dates=archive_dates,
-                    show_bootstrap=show_bootstrap,
-                    compact_mode=compact_mode,
-                    bootstrap_url=bootstrap_url,
-                    show_diag=show_diag,
-                    diag_url=diag_url,
-                    fused_bootstrap_url=fused_bootstrap_url,
-                    refresh_odds_url=refresh_odds_url,
-                    removed_empty_rows=removed_empty_rows,
-                    status=status,
-                    pipeline_stats=pipeline_stats,
-                ))
-                try:
-                    _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-                    _resp.headers['Pragma'] = 'no-cache'
-                except Exception:
-                    pass
-                return _resp
+            # Temporarily disable snapshot-first rendering to avoid indentation issues.
+            # The general pipeline and API fallback below will handle rendering.
+            pass
     except Exception:
         pass
     # Server-safe fallback: render from display predictions API when snapshot is empty
@@ -15912,7 +15719,8 @@ def index():
             pt_new: pd.Series | None = None
             basis_val = None
             if totals_mode == 'model':
-                pt_new = _pick_first_numeric(['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw', 'pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe', 'pred_total_base'])
+                # Use only pure model sources; do not fall back to blends/base
+                pt_new = _pick_first_numeric(['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw'])
                 basis_val = 'model'
             elif totals_mode == 'blend':
                 pt_new = _pick_first_numeric(['pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe'])
@@ -16431,7 +16239,8 @@ def index():
                     return None
                 # Map basis to candidate columns
                 basis_map = {
-                    'model': ['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw', 'pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe', 'pred_total_base'],
+                    # Strictly model-only sources for 'model' override
+                    'model': ['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw'],
                     'blend': ['pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe'],
                     'seg': ['pred_total_seg'],
                 }
@@ -16535,6 +16344,40 @@ def index():
         pass
 
     rows = [_brand_row(r) for r in df_tpl.to_dict(orient="records")]
+    # Template safety: ensure `_odds_list` is always a list[dict]
+    try:
+        import json as _json_norm
+        import ast as _ast_norm
+        def _normalize_odds_list_val(val):
+            try:
+                if isinstance(val, list):
+                    return [v for v in val if isinstance(v, dict)]
+                if val is None:
+                    return []
+                if isinstance(val, str):
+                    s = val.strip()
+                    if not s:
+                        return []
+                    try:
+                        parsed = _json_norm.loads(s)
+                        if isinstance(parsed, list):
+                            return [v for v in parsed if isinstance(v, dict)]
+                    except Exception:
+                        pass
+                    try:
+                        parsed = _ast_norm.literal_eval(s)
+                        if isinstance(parsed, list):
+                            return [v for v in parsed if isinstance(v, dict)]
+                    except Exception:
+                        pass
+                return []
+            except Exception:
+                return []
+        for _r in rows:
+            if isinstance(_r, dict) and ('_odds_list' in _r):
+                _r['_odds_list'] = _normalize_odds_list_val(_r.get('_odds_list'))
+    except Exception:
+        pass
     # Final display-time enforcement: if totals override is active, ensure row basis reflects it
     try:
         if totals_override_active and totals_mode:
