@@ -358,20 +358,23 @@ def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
                     df = df.merge(clw[['date','home_team','away_team','market_total','spread_home']], on=['date','home_team','away_team'], how='left')
     except Exception:
         pass
+    # Normalize dates and compute missing-field diagnostics per date
     df['date'] = pd.to_datetime(df.get('date'), errors='coerce')
-                cols = {
-    for d, g in df.groupby(df['date'].dt.date):
-        rec = {'date': str(d)}
-        ats_reqs = ['pred_margin','spread_home','actual_margin']
-        for c in ats_reqs:
-            rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
-                    'market_total': _pick_col(df_full, ['market_total','closing_total','total_median','total']),
-        tot_reqs = ['pred_total','market_total','actual_total']
-        for c in tot_reqs:
-            rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
-        rec['tot_rows_complete'] = int(g[tot_reqs].notna().all(axis=1).sum()) if set(tot_reqs).issubset(g.columns) else 0
-        rec['rows'] = int(len(g))
-        out[str(d)] = rec
+    out: dict[str, dict] = {}
+    try:
+        for d, g in df.groupby(df['date'].dt.date):
+            rec: dict[str, int] = {'date': str(d)}
+            ats_reqs = ['pred_margin', 'spread_home', 'actual_margin']
+            for c in ats_reqs:
+                rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
+            tot_reqs = ['pred_total', 'market_total', 'actual_total']
+            for c in tot_reqs:
+                rec[f'missing_{c}'] = int(g[c].isna().sum()) if c in g.columns else int(len(g))
+            rec['tot_rows_complete'] = int(g[tot_reqs].notna().all(axis=1).sum()) if set(tot_reqs).issubset(g.columns) else 0
+            rec['rows'] = int(len(g))
+            out[str(d)] = rec
+    except Exception:
+        pass
     return out
 
 def _conference_map() -> dict:
