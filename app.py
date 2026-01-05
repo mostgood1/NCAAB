@@ -174,7 +174,7 @@ SNAPSHOT_ONLY = (
 DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
 BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
 # Bump-only app revision to trigger deployment image rebuilds when needed
-APP_REV = "2026-01-02.1"
+APP_REV = "2026-01-05.2"
 
 try:
     import pandas as pd
@@ -5160,6 +5160,31 @@ def index():
         compact_mode = True if q_compact == "" else (q_compact in ("1","true","yes"))
     except Exception:
         compact_mode = True
+
+    # Early stable redirect: favor resilient cards-safe in snapshot-only/stable mode
+    try:
+        stable_q = (request.args.get("stable") or "").strip().lower() in ("1","true","yes")
+    except Exception:
+        stable_q = False
+    try:
+        stable_env = str(os.environ.get("STABLE_DISPLAY","0")).strip().lower() in ("1","true","yes")
+        if SNAPSHOT_ONLY:
+            stable_env = True
+    except Exception:
+        stable_env = SNAPSHOT_ONLY
+    try:
+        if (stable_q or stable_env) and request.path == "/":
+            # Resolve target date for redirect
+            target_date = date_q
+            if not target_date:
+                try:
+                    from zoneinfo import ZoneInfo as _ZI
+                    target_date = dt.datetime.now(_ZI("America/New_York")).date().isoformat()
+                except Exception:
+                    target_date = dt.datetime.utcnow().strftime('%Y-%m-%d')
+            return redirect(f"/cards-safe?date={target_date}"), 302
+    except Exception:
+        pass
 
     # Immediate API-render escape hatch: ?force_api=1 (or ?cards=1)
     try:
