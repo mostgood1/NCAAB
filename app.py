@@ -24260,6 +24260,12 @@ def api_display_predictions():
     if path.exists():
         # Read full CSV first to avoid dropping rows due to column projection
         df_full = _read_csv_resilient(path)
+        # Ensure basis fields are populated even if snapshot omitted them
+        try:
+            if isinstance(df_full, pd.DataFrame) and not df_full.empty:
+                df_full = _normalize_display(df_full)
+        except Exception:
+            pass
         row_count = (0 if not isinstance(df_full, pd.DataFrame) else len(df_full))
         df = pd.DataFrame()
         # If we have any rows, flex-map columns instead of hard-requiring a schema
@@ -24276,6 +24282,8 @@ def api_display_predictions():
                     'away_team': _pick_col(df_full, ['away_team','away_team_name','away']),
                     'pred_total': _pick_col(df_full, ['pred_total','pred_total_cal','total_pred','total']),
                     'pred_margin': _pick_col(df_full, ['pred_margin','pred_margin_cal','margin_pred','margin']),
+                    'pred_total_basis': _pick_col(df_full, ['pred_total_basis']),
+                    'pred_margin_basis': _pick_col(df_full, ['pred_margin_basis']),
                     'market_total': _pick_col(df_full, ['market_total','closing_total','total_median']),
                     'spread_home': _pick_col(df_full, ['spread_home','closing_spread_home','home_spread']),
                     'start_time': _pick_col(df_full, ['start_time','commence_time']),
@@ -24335,6 +24343,11 @@ def api_display_predictions():
                         if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
                         if ren:
                             e2 = e2.rename(columns=ren)
+                        # Classify basis for rebuilt display
+                        try:
+                            e2 = _normalize_display(e2)
+                        except Exception:
+                            pass
                         if 'game_id' in e2.columns:
                             def _agg_first(series):
                                 try:
@@ -24342,12 +24355,12 @@ def api_display_predictions():
                                 except Exception:
                                     return series.iloc[0] if len(series) else None
                             agg_map = {}
-                            for c in ['date','home_team','away_team','pred_total','pred_margin','market_total','start_time']:
+                            for c in ['date','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','start_time']:
                                 if c in e2.columns:
                                     agg_map[c] = _agg_first
                             df = e2.groupby('game_id').agg(agg_map).reset_index()
                             try:
-                                df[['game_id','home_team','away_team','pred_total','pred_margin','market_total','start_time','date']].to_csv(path, index=False)
+                                df[['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','start_time','date']].to_csv(path, index=False)
                             except Exception:
                                 pass
             # Final fallback: derive minimal display from enriched snapshot if available
@@ -24380,6 +24393,11 @@ def api_display_predictions():
                         if stcol and stcol != 'start_time': ren[stcol] = 'start_time'
                         if ren:
                             e2 = e2.rename(columns=ren)
+                        # Classify basis for enriched-derived display
+                        try:
+                            e2 = _normalize_display(e2)
+                        except Exception:
+                            pass
                         df = e2.copy()
         except Exception:
             pass
