@@ -560,6 +560,19 @@ if ($TriggerRedeploy.IsPresent) {
         }
         if ($changed) { Write-Host "[OK] Detected new deployment version." -ForegroundColor Green }
         else { Write-Host "[Warn] Version unchanged after polling; deployment may still be in progress or using previous image." -ForegroundColor Yellow }
+
+        # Post-deploy: proactively persist display for the date to enrich snapshot with odds
+        try {
+            Write-Step "Post-deploy persist_display for date $Date"
+            $pd = Invoke-RestMethod -Uri "$BaseUrl/api/persist_display?date=$Date" -Method Get
+            if ($pd -and $pd.ok) {
+                Write-Host ("[OK] persist_display wrote {0} rows path={1}" -f $pd.rows, $pd.path) -ForegroundColor Green
+            } else {
+                Write-Host "[Warn] persist_display did not return ok=true" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "[Warn] persist_display call failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
     }
 }
 
