@@ -24351,6 +24351,13 @@ def api_display_predictions():
         try:
             if isinstance(df_full, pd.DataFrame) and not df_full.empty:
                 df_full = _normalize_display(df_full)
+                # Enrich snapshot with market odds by persisting an updated copy, then reload
+                try:
+                    _persist_display(df_full, date_q)
+                    df_full = _read_csv_resilient(path)
+                    df_full = _normalize_display(df_full)
+                except Exception:
+                    pass
         except Exception:
             pass
         row_count = (0 if not isinstance(df_full, pd.DataFrame) else len(df_full))

@@ -5,7 +5,7 @@ param(
     [switch]$TriggerRedeploy,
     [string]$DeployHookUrl = $env:RENDER_DEPLOY_HOOK_URL,
     [string]$CodeDeployHookUrl = $env:RENDER_CODE_DEPLOY_HOOK_URL,
-    [int]$VersionPollSeconds = 90,
+    [int]$VersionPollSeconds = 240,
     [int]$VersionPollIntervalMs = 3000
 )
 
@@ -498,9 +498,13 @@ if ($TriggerRedeploy.IsPresent) {
         } catch {}
         return $null
     }
-    if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) {
-        $DeployHookUrl = Get-DeployHookUrl
-    }
+    if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) { $DeployHookUrl = Get-DeployHookUrl }
+    # Capture both hook URLs if available: prefer explicit code hook, but fall back to service hook as well
+    $codeHook = $null
+    $serviceHook = $null
+    if ($env:RENDER_CODE_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_CODE_DEPLOY_HOOK_URL)) { $codeHook = $env:RENDER_CODE_DEPLOY_HOOK_URL }
+    if ($env:RENDER_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_DEPLOY_HOOK_URL)) { $serviceHook = $env:RENDER_DEPLOY_HOOK_URL }
+    if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) { $DeployHookUrl = if ($codeHook) { $codeHook } else { $serviceHook } }
     if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) {
         Write-Host "[Skip] TriggerRedeploy set but no DeployHookUrl provided, env var set, or .env/scripts fallback found." -ForegroundColor Yellow
     } else {
@@ -513,27 +517,46 @@ if ($TriggerRedeploy.IsPresent) {
             if ($ver0) { $baselineSha = $ver0.app_sha; $baselineBuildTime = $ver0.build_time_utc }
             Write-Host ("[Check] Baseline version: sha={0} build_time={1}" -f $baselineSha, $baselineBuildTime) -ForegroundColor White
         } catch { Write-Host "[Warn] Baseline version check failed: $($_.Exception.Message)" -ForegroundColor Yellow }
-        try {
-            $hookResp = Invoke-RestMethod -Uri $DeployHookUrl -Method Post
-            Write-Host "[OK] Redeploy hook response received." -ForegroundColor Green
-        } catch {
-            Write-Host "[Error] Redeploy hook failed: $($_.Exception.Message)" -ForegroundColor Red
-        }
-        # Poll /api/version until app_sha changes or timeout
-        $deadline = (Get-Date).AddSeconds($VersionPollSeconds)
-        $changed = $false
-        while ((Get-Date) -lt $deadline) {
-            Start-Sleep -Milliseconds $VersionPollIntervalMs
+        function Invoke-DeployHookAndPoll {
+            param([string]$HookUrl, [datetime]$Deadline, [string]$Label)
+            if ([string]::IsNullOrWhiteSpace($HookUrl)) { return $false }
             try {
-                $ver = Invoke-RestMethod -Uri "$BaseUrl/api/version" -Method Get
-                if ($ver) {
-                    $sha = $ver.app_sha
-                    $bt = $ver.build_time_utc
-                    Write-Host ("[Poll] Version: sha={0} build_time={1}" -f $sha, $bt) -ForegroundColor Gray
-                    if ($baselineSha -and $sha -and $sha -ne $baselineSha) { $changed = $true; break }
-                    if (-not $baselineBuildTime -and $bt) { $changed = $true; break }
-                }
-            } catch { Write-Host "[Warn] Version poll failed: $($_.Exception.Message)" -ForegroundColor Yellow }
+                $hookResp = Invoke-RestMethod -Uri $HookUrl -Method Post
+                Write-Host ("[OK] {0} hook response received." -f $Label) -ForegroundColor Green
+            } catch {
+                Write-Host ("[Error] {0} hook failed: {1}" -f $Label, $_.Exception.Message) -ForegroundColor Red
+            }
+            $changedLocal = $false
+            while ((Get-Date) -lt $Deadline) {
+                Start-Sleep -Milliseconds $VersionPollIntervalMs
+                try {
+                    $ver = Invoke-RestMethod -Uri "$BaseUrl/api/version" -Method Get
+                    if ($ver) {
+                        $sha = $ver.app_sha
+                        $bt = $ver.build_time_utc
+                        Write-Host ("[Poll] Version: sha={0} build_time={1}" -f $sha, $bt) -ForegroundColor Gray
+                        if ($baselineSha -and $sha -and $sha -ne $baselineSha) { $changedLocal = $true; break }
+                        if ($baselineBuildTime -and $bt -and $bt -ne $baselineBuildTime) { $changedLocal = $true; break }
+                        if (-not $baselineBuildTime -and $bt) { $changedLocal = $true; break }
+                    }
+                } catch { Write-Host "[Warn] Version poll failed: $($_.Exception.Message)" -ForegroundColor Yellow }
+            }
+            return $changedLocal
+        }
+
+        $deadline1 = (Get-Date).AddSeconds([double]$VersionPollSeconds * 0.6)
+        $deadline2 = (Get-Date).AddSeconds([double]$VersionPollSeconds)
+        $changed = $false
+        # Try code hook first if available
+        if ($codeHook) { $changed = Invoke-DeployHookAndPoll -HookUrl $codeHook -Deadline $deadline1 -Label 'Code deploy' }
+        if (-not $changed) {
+            # Fall back to provided DeployHookUrl (may equal serviceHook) and allow more time
+            $changed = Invoke-DeployHookAndPoll -HookUrl $DeployHookUrl -Deadline $deadline2 -Label 'Service deploy'
+        }
+        if (-not $changed -and $serviceHook -and $DeployHookUrl -ne $serviceHook) {
+            # As a last resort, try the explicit service hook if different
+            $deadline3 = (Get-Date).AddSeconds([double]$VersionPollSeconds * 1.25)
+            $changed = Invoke-DeployHookAndPoll -HookUrl $serviceHook -Deadline $deadline3 -Label 'Service deploy (fallback)'
         }
         if ($changed) { Write-Host "[OK] Detected new deployment version." -ForegroundColor Green }
         else { Write-Host "[Warn] Version unchanged after polling; deployment may still be in progress or using previous image." -ForegroundColor Yellow }
