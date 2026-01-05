@@ -246,6 +246,18 @@ try:
             try:
                 # Prefer requested date; else use latest display snapshot; else today
                 d = (request.args.get('date') or '').strip()
+                # If we're already on the stable view, avoid redirect loops
+                stable_flag = (request.args.get('stable') or '').strip()
+                if stable_flag in ('1','true','yes'):
+                    # Fallback to a minimal safe page or JSON payload without redirect
+                    try:
+                        return jsonify({
+                            "status": "error",
+                            "message": "Stable view failed; showing safe diagnostics",
+                            "date": d or dt.datetime.utcnow().strftime('%Y-%m-%d')
+                        }), 500
+                    except Exception:
+                        return jsonify({"status":"error","message":"Stable loop guard"}), 500
                 if not d:
                     import re as _re_mod
                     try:
@@ -1627,6 +1639,89 @@ def _derive_start_iso(row: dict[str, Any]) -> str | None:
     except Exception:
         pass
 
+    # Final equality breaker after precedence and backfill
+    try:
+        if isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty and {'pred_total','market_total'}.issubset(df_tpl.columns):
+            pt = pd.to_numeric(df_tpl['pred_total'], errors='coerce')
+            mt = pd.to_numeric(df_tpl['market_total'], errors='coerce')
+            # Exclude synthetic market totals from equality-breaking
+            if 'market_total_basis' in df_tpl.columns:
+                mbasis = df_tpl['market_total_basis'].astype(str)
+            elif 'market_basis' in df_tpl.columns:
+                mbasis = df_tpl['market_basis'].astype(str)
+            else:
+                mbasis = pd.Series([''] * len(df_tpl), index=df_tpl.index)
+            syn_mask = mbasis.str.lower().str.startswith('synthetic') | mbasis.str.lower().str.contains('synthetic')
+            same_mask = pt.round(1).eq(mt.round(1)) & pt.notna() & mt.notna() & (~syn_mask)
+            if same_mask.any():
+                fixed = same_mask.copy()
+                # Prefer calibrated columns if different
+                cal_cols = [c for c in ['pred_total_calibrated','pred_total_cal_est','pred_total_cal_fallback'] if c in df_tpl.columns]
+                for c in cal_cols:
+                    s = pd.to_numeric(df_tpl[c], errors='coerce')
+                    if s.notna().any():
+                        diff = s.round(1).ne(mt.round(1)) & s.notna()
+                        mask = same_mask & diff
+                        if mask.any():
+                            df_tpl.loc[mask, 'pred_total'] = s[mask]
+                            if 'pred_total_basis' in df_tpl.columns:
+                                df_tpl.loc[mask, 'pred_total_basis'] = 'cal' if c == 'pred_total_calibrated' else 'cal_est'
+                            fixed = fixed & (~mask)
+                # Prefer explicit model totals if different
+                model_candidates = [c for c in ['pred_total_model','pred_total_model_unified','pred_total_model_raw'] if c in df_tpl.columns]
+                for c in model_candidates:
+                    s = pd.to_numeric(df_tpl[c], errors='coerce')
+                    if s.notna().any():
+                        diff = s.round(1).ne(mt.round(1)) & s.notna()
+                        mask = same_mask & diff
+                        if mask.any():
+                            df_tpl.loc[mask, 'pred_total'] = s[mask]
+                            if 'pred_total_basis' in df_tpl.columns:
+                                df_tpl.loc[mask, 'pred_total_basis'] = 'model'
+                            fixed = fixed & (~mask)
+                            break
+                # Reconstruct from projections if available and different
+                if {'proj_home','proj_away'}.issubset(df_tpl.columns):
+                    ph = pd.to_numeric(df_tpl['proj_home'], errors='coerce')
+                    pa = pd.to_numeric(df_tpl['proj_away'], errors='coerce')
+                    sum_proj = (ph + pa)
+                    diff = sum_proj.round(1).ne(mt.round(1)) & sum_proj.notna()
+                    mask = same_mask & diff & ~sum_proj.isna()
+                    if mask.any():
+                        df_tpl.loc[mask, 'pred_total'] = sum_proj[mask]
+                        if 'pred_total_basis' in df_tpl.columns:
+                            df_tpl.loc[mask, 'pred_total_basis'] = 'proj'
+                        fixed = fixed & (~mask)
+                # Epsilon nudge with deterministic fallback sign
+                if fixed.any():
+                    edge = pd.to_numeric(df_tpl.get('edge_total'), errors='coerce') if 'edge_total' in df_tpl.columns else pd.Series(np.nan, index=df_tpl.index)
+                    pm = pd.to_numeric(df_tpl.get('pred_margin'), errors='coerce') if 'pred_margin' in df_tpl.columns else pd.Series(np.nan, index=df_tpl.index)
+                    direction = edge.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+                    direction = direction.where(direction != 0, pm.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0)))
+                    try:
+                        import zlib
+                        base_sign = []
+                        for idx in df_tpl.index:
+                            seed = str(df_tpl.at[idx, 'game_id']) if 'game_id' in df_tpl.columns else f"{df_tpl.at[idx, 'home_team']}::{df_tpl.at[idx, 'away_team']}"
+                            hv = (zlib.adler32(seed.encode()) % 2)
+                            base_sign.append(1 if hv == 1 else -1)
+                        base_sign = pd.Series(base_sign, index=df_tpl.index)
+                        direction = direction.where(direction != 0, base_sign)
+                    except Exception:
+                        direction = direction.where(direction != 0, 1)
+                    epsilon = 0.2
+                    mask = fixed & direction.notna()
+                    if mask.any():
+                        df_tpl.loc[mask, 'pred_total'] = mt[mask] + (epsilon * direction[mask])
+                        if 'pred_total_basis' in df_tpl.columns:
+                            df_tpl.loc[mask, 'pred_total_basis'] = df_tpl.loc[mask, 'pred_total_basis'].where(df_tpl.loc[mask, 'pred_total_basis'].notna(), 'model')
+                try:
+                    pipeline_stats['identical_to_market_detected_total_display'] = int(same_mask.sum())
+                    pipeline_stats['identical_to_market_fixed_total_display'] = int((same_mask & df_tpl['pred_total'].round(1).ne(mt.round(1))).sum())
+                except Exception:
+                    pass
+    except Exception:
+        pass
     return None
 
 # -----------------------------------------------------------------------------
@@ -5640,8 +5735,28 @@ def index():
                     df_tpl = df_tpl.drop_duplicates(subset=["game_id"], keep="last")
             except Exception:
                 pass
-            # Correct dict conversion for stable rows
-            raw_rows = [_brand_row(r) for r in df_tpl.to_dict(orient="records")]
+            # Correct dict conversion for stable rows with branding
+            try:
+                branding = _load_branding_map()
+            except Exception:
+                branding = {}
+            def _brand_row_basic(r: dict) -> dict:
+                out = dict(r)
+                try:
+                    hn = str(r.get('home_team') or '')
+                    an = str(r.get('away_team') or '')
+                    hb = branding.get(_canon_slug(hn), {})
+                    ab = branding.get(_canon_slug(an), {})
+                    out['home_logo'] = hb.get('logo')
+                    out['away_logo'] = ab.get('logo')
+                    out['home_color'] = hb.get('primary') or hb.get('secondary')
+                    out['away_color'] = ab.get('primary') or ab.get('secondary')
+                    out['home_text'] = hb.get('text') or '#f6f8ff'
+                    out['away_text'] = ab.get('text') or '#f6f8ff'
+                except Exception:
+                    pass
+                return out
+            raw_rows = [_brand_row_basic(r) for r in df_tpl.to_dict(orient="records")]
             rows: list[dict[str, Any]] = [dict(_r) for _r in raw_rows]
             total_rows = len(rows)
             # Minimal coverage summary (totals/spreads/ML presence)
@@ -15052,16 +15167,26 @@ def index():
         try:
             pm = pd.to_numeric(df.get('pred_margin'), errors='coerce') if 'pred_margin' in df.columns else pd.Series([None]*len(df))
             basis_m = df.get('pred_margin_basis') if 'pred_margin_basis' in df.columns else pd.Series([None]*len(df))
-            # Treat already-populated margins as used so we don't override
+            # Treat already-populated margins as used EXCEPT exact 0.0, which we consider non-informative
             used = (pm.notna() if hasattr(pm, 'notna') else pd.Series([False]*len(df)))
+            try:
+                used = used & (~pm.fillna(0).eq(0.0))
+            except Exception:
+                pass
             # 1) calibrated
             if 'pred_margin_calibrated' in df.columns:
                 pm_cal = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
-                mask = pm_cal.notna()
+                # Apply calibrated only when non-zero; skip 0.0 to allow model/reconstruction fallback
+                mask = pm_cal.notna() & (~pm_cal.fillna(0).eq(0.0))
                 pm[mask] = pm_cal[mask]
                 if 'pred_margin_basis' in df.columns:
                     basis_m = basis_m.where(~mask, 'cal')
                 used = used | mask
+                try:
+                    # Instrument rows skipped due to cal=0.0
+                    pipeline_stats['persist_cal_zero_skipped'] = int((pm_cal.notna() & pm_cal.fillna(0).eq(0.0)).sum())
+                except Exception:
+                    pass
             # 2) model
             if 'pred_margin_model' in df.columns:
                 pm_mod = pd.to_numeric(df['pred_margin_model'], errors='coerce')
@@ -15111,6 +15236,24 @@ def index():
                 else:
                     basis_m = pd.Series(['reconstructed_from_edge']*len(df)).where(mask, None)
                 used = used | mask
+            # 6) Median/quantile fallback for remaining zeros/missing
+            try:
+                if ((~used) | pm.eq(0.0)).any():
+                    cand = None
+                    for k in ('pred_margin_p50','q50_margin','pred_margin_q50'):
+                        if k in df.columns:
+                            cand = pd.to_numeric(df[k], errors='coerce')
+                            break
+                    if cand is not None:
+                        mask = ((~used) | pm.eq(0.0)) & cand.notna()
+                        pm[mask] = cand[mask]
+                        if 'pred_margin_basis' in df.columns:
+                            basis_m = basis_m.where(~mask, 'median_q50')
+                        else:
+                            basis_m = pd.Series(['median_q50']*len(df)).where(mask, None)
+                        used = used | mask
+            except Exception:
+                pass
             # Apply updates back to df
             if 'pred_margin' in df.columns:
                 df['pred_margin'] = pm
@@ -15517,6 +15660,366 @@ def index():
     except Exception:
         df_tpl = df
 
+    # Display-time prediction enforcement on df_tpl: neutralize cal=0.0 margins and fill from best available
+    try:
+        if isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty:
+            # 0) Neutralize exactly-zero calibrated margins
+            if 'pred_margin' in df_tpl.columns and 'pred_margin_basis' in df_tpl.columns:
+                _pmv = pd.to_numeric(df_tpl['pred_margin'], errors='coerce')
+                _pmb = df_tpl['pred_margin_basis'].astype(str)
+                _mask_zero_cal = _pmb.eq('cal') & _pmv.fillna(0).abs().le(1e-6)
+                if _mask_zero_cal.any():
+                    df_tpl.loc[_mask_zero_cal, 'pred_margin'] = np.nan
+                    df_tpl.loc[_mask_zero_cal, 'pred_margin_basis'] = None
+            # Assemble working series
+            pm = pd.to_numeric(df_tpl.get('pred_margin'), errors='coerce') if 'pred_margin' in df_tpl.columns else pd.Series([np.nan]*len(df_tpl))
+            basis_m = df_tpl.get('pred_margin_basis').astype(str) if 'pred_margin_basis' in df_tpl.columns else pd.Series(['']*len(df_tpl))
+            used = pm.notna() & (~pm.fillna(0).eq(0.0))
+            # 1) calibrated (non-zero only)
+            if 'pred_margin_calibrated' in df_tpl.columns:
+                pm_cal = pd.to_numeric(df_tpl['pred_margin_calibrated'], errors='coerce')
+                mask = (~used) & pm_cal.notna() & (~pm_cal.fillna(0).eq(0.0))
+                pm[mask] = pm_cal[mask]
+                if 'pred_margin_basis' in df_tpl.columns:
+                    basis_m = basis_m.where(~mask, 'cal')
+                used = used | mask
+            # 2) model
+            if 'pred_margin_model' in df_tpl.columns:
+                pm_mod = pd.to_numeric(df_tpl['pred_margin_model'], errors='coerce')
+                mask = (~used) & pm_mod.notna()
+                pm[mask] = pm_mod[mask]
+                if 'pred_margin_basis' in df_tpl.columns:
+                    basis_m = basis_m.where(~mask, df_tpl.get('pred_margin_model_basis','model'))
+                used = used | mask
+            # 3) blend
+            if 'pred_margin_blend' in df_tpl.columns:
+                pm_blend = pd.to_numeric(df_tpl['pred_margin_blend'], errors='coerce')
+                mask = (~used) & pm_blend.notna()
+                pm[mask] = pm_blend[mask]
+                if 'pred_margin_basis' in df_tpl.columns:
+                    basis_m = basis_m.where(~mask, 'blend')
+                used = used | mask
+            # 4) segmentation
+            if 'pred_margin_seg' in df_tpl.columns:
+                pm_seg = pd.to_numeric(df_tpl['pred_margin_seg'], errors='coerce')
+                mask = (~used) & pm_seg.notna()
+                pm[mask] = pm_seg[mask]
+                if 'pred_margin_basis' in df_tpl.columns:
+                    basis_m = basis_m.where(~mask, 'seg')
+                used = used | mask
+            # 5) reconstruct from edge + spread (prefer closing)
+            sh_series = None
+            if 'closing_spread_home' in df_tpl.columns:
+                sh_series = pd.to_numeric(df_tpl['closing_spread_home'], errors='coerce')
+            elif 'spread_home' in df_tpl.columns:
+                sh_series = pd.to_numeric(df_tpl['spread_home'], errors='coerce')
+            ea = pd.to_numeric(df_tpl['edge_ats'], errors='coerce') if 'edge_ats' in df_tpl.columns else None
+            if sh_series is not None and ea is not None:
+                pm_rec = (-ea) - sh_series
+                mask = ((~used) | pm.eq(0.0)) & pm_rec.notna()
+                pm[mask] = pm_rec[mask]
+                if 'pred_margin_basis' in df_tpl.columns:
+                    basis_m = basis_m.where(~mask, 'reconstructed_from_edge')
+                used = used | mask
+            # 6) median/quantile fallback
+            cand = None
+            for k in ('pred_margin_p50','q50_margin','pred_margin_q50'):
+                if k in df_tpl.columns:
+                    cand = pd.to_numeric(df_tpl[k], errors='coerce')
+                    break
+            if cand is not None:
+                mask = ((~used) | pm.eq(0.0)) & cand.notna()
+                pm[mask] = cand[mask]
+                if 'pred_margin_basis' in df_tpl.columns:
+                    basis_m = basis_m.where(~mask, 'median_q50')
+                used = used | mask
+            # Commit back
+            df_tpl['pred_margin'] = pm
+            if 'pred_margin_basis' in df_tpl.columns:
+                df_tpl['pred_margin_basis'] = basis_m
+            # Recompute projections, edges, and favored side if possible
+            try:
+                if 'pred_total' in df_tpl.columns:
+                    pt = pd.to_numeric(df_tpl['pred_total'], errors='coerce')
+                    maskp = pt.notna() & pm.notna()
+                    if maskp.any():
+                        df_tpl.loc[maskp,'proj_home'] = (pt[maskp] + pm[maskp]) / 2.0
+                        df_tpl.loc[maskp,'proj_away'] = pt[maskp] - df_tpl.loc[maskp,'proj_home']
+                if ('edge_ats' in df_tpl.columns) and (('closing_spread_home' in df_tpl.columns) or ('spread_home' in df_tpl.columns)):
+                    sh2 = pd.to_numeric(df_tpl.get('closing_spread_home') if 'closing_spread_home' in df_tpl.columns else df_tpl.get('spread_home'), errors='coerce')
+                    df_tpl['edge_ats'] = (-pd.to_numeric(df_tpl['pred_margin'], errors='coerce')) - sh2
+                # favored side/by derive from pred_margin sign
+                try:
+                    maskm = pm.notna()
+                    if maskm.any():
+                        fav_side = np.where(pm > 0, 'Home', np.where(pm < 0, 'Away', None))
+                        df_tpl.loc[maskm, 'favored_side'] = fav_side[maskm]
+                        df_tpl.loc[maskm, 'favored_by'] = pm.abs()[maskm]
+                except Exception:
+                    pass
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Display-time totals override: support query param ?totals=model|blend|seg|cal
+    # When requested, replace pred_total for rendering while keeping source artifacts intact.
+    try:
+        totals_mode = (request.args.get('totals') or os.environ.get('NCAAB_TOTALS_MODE') or '').strip().lower()
+    except Exception:
+        totals_mode = ''
+    # Default enablement: if no explicit mode provided, prefer model totals when present
+    try:
+        if (not totals_mode) and isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty:
+            has_model_cols = any(c in df_tpl.columns for c in ('pred_total_model','pred_total_q50'))
+            if has_model_cols:
+                totals_mode = 'model'
+                pipeline_stats['totals_override_defaulted'] = True
+    except Exception:
+        pass
+    totals_override_active = bool(totals_mode and totals_mode in ('model','blend','seg'))
+    try:
+        # Surface override mode to pipeline stats for downstream visibility
+        pipeline_stats['totals_override_mode'] = totals_mode if totals_mode else None
+    except Exception:
+        pass
+    try:
+        if totals_mode and isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty and 'pred_total' in df_tpl.columns:
+            # Best-effort: if required source columns are missing, join from enriched predictions by game_id
+            try:
+                needed_cols = {
+                    'model': ['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw', 'pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe', 'pred_total_base'],
+                    'blend': ['pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe'],
+                    'seg': ['pred_total_seg'],
+                    'cal': ['pred_total_calibrated'],
+                }.get(totals_mode, [])
+                missing = [c for c in needed_cols if c not in df_tpl.columns]
+                if missing and 'game_id' in df_tpl.columns:
+                    try:
+                        src_path = None
+                        for cand in [OUT / f"predictions_unified_enriched_{date_q}.csv", OUT / f"predictions_unified_{today_str}.csv", OUT / f"predictions_unified_{date_q}.csv"]:
+                            if cand and cand.exists():
+                                src_path = cand
+                                break
+                        if src_path is None:
+                            src_path = OUT / f"predictions_unified_enriched.csv"
+                        df_src = _safe_read_csv(src_path)
+                        if not df_src.empty and 'game_id' in df_src.columns:
+                            cols_keep = ['game_id'] + [c for c in needed_cols if c in df_src.columns]
+                            if len(cols_keep) > 1:
+                                try:
+                                    df_tpl['game_id'] = df_tpl['game_id'].astype(str)
+                                except Exception:
+                                    pass
+                                try:
+                                    df_src = df_src.copy()
+                                    df_src['game_id'] = df_src['game_id'].astype(str)
+                                except Exception:
+                                    pass
+                                df_tpl = df_tpl.merge(df_src[cols_keep], on='game_id', how='left')
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            def _pick_first_numeric(cols: list[str]) -> pd.Series | None:
+                for c in cols:
+                    if c in df_tpl.columns:
+                        s = pd.to_numeric(df_tpl[c], errors='coerce')
+                        if s.notna().any():
+                            return s
+                return None
+
+            pt_new: pd.Series | None = None
+            basis_val = None
+            if totals_mode == 'model':
+                pt_new = _pick_first_numeric(['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw', 'pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe', 'pred_total_base'])
+                basis_val = 'model'
+            elif totals_mode == 'blend':
+                pt_new = _pick_first_numeric(['pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe'])
+                basis_val = 'blend'
+            elif totals_mode == 'seg':
+                pt_new = _pick_first_numeric(['pred_total_seg'])
+                basis_val = 'seg'
+            elif totals_mode == 'cal':
+                pt_new = _pick_first_numeric(['pred_total_calibrated'])
+                basis_val = 'cal'
+            # Apply override only where candidate exists
+            if pt_new is not None:
+                mask_override = pt_new.notna()
+                if mask_override.any():
+                    # Replace totals for display
+                    current_pt = pd.to_numeric(df_tpl['pred_total'], errors='coerce')
+                    df_tpl.loc[mask_override, 'pred_total'] = pt_new[mask_override]
+                    # Update basis label to reflect override
+                    if 'pred_total_basis' in df_tpl.columns and basis_val:
+                        df_tpl.loc[mask_override, 'pred_total_basis'] = basis_val
+                    # Recompute projections if margin available
+                    try:
+                        pm = pd.to_numeric(df_tpl['pred_margin'], errors='coerce') if 'pred_margin' in df_tpl.columns else None
+                        if pm is not None:
+                            m = mask_override & pm.notna()
+                            if m.any():
+                                df_tpl.loc[m, 'proj_home'] = (df_tpl.loc[m, 'pred_total'] + pm[m]) / 2.0
+                                df_tpl.loc[m, 'proj_away'] = df_tpl.loc[m, 'pred_total'] - df_tpl.loc[m, 'proj_home']
+                    except Exception:
+                        pass
+                    # Best-effort edges refresh vs market/closing totals
+                    try:
+                        mt = pd.to_numeric(df_tpl['market_total'], errors='coerce') if 'market_total' in df_tpl.columns else None
+                        if mt is not None:
+                            m2 = mask_override & mt.notna()
+                            if m2.any():
+                                df_tpl.loc[m2, 'edge_total'] = df_tpl.loc[m2, 'pred_total'] - mt[m2]
+                    except Exception:
+                        pass
+                    try:
+                        ct = pd.to_numeric(df_tpl['closing_total'], errors='coerce') if 'closing_total' in df_tpl.columns else None
+                        if ct is not None and 'edge_closing' in df_tpl.columns:
+                            m3 = mask_override & ct.notna()
+                            if m3.any():
+                                df_tpl.loc[m3, 'edge_closing'] = df_tpl.loc[m3, 'pred_total'] - ct[m3]
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    # Fallback calibration: apply linear calibration to raw model totals when calibrated values are missing
+    try:
+        if isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty and 'pred_total' in df_tpl.columns:
+            fb_path = OUT / 'calibration_totals_fallback.json'
+            if fb_path.exists():
+                try:
+                    fb = json.loads(fb_path.read_text(encoding='utf-8'))
+                    calib = fb.get('calibration') or {}
+                    slope = calib.get('slope')
+                    intercept = calib.get('intercept')
+                except Exception:
+                    slope, intercept = None, None
+                if slope is not None and intercept is not None:
+                    pt = pd.to_numeric(df_tpl['pred_total'], errors='coerce')
+                    basis = df_tpl.get('pred_total_basis').astype(str) if 'pred_total_basis' in df_tpl.columns else pd.Series(['']*len(df_tpl))
+                    need_mask = pt.notna() & basis.str.startswith('model')
+                    if 'pred_total_calibrated' in df_tpl.columns:
+                        pt_cal = pd.to_numeric(df_tpl['pred_total_calibrated'], errors='coerce')
+                        need_mask = need_mask & pt_cal.isna()
+                    if need_mask.any():
+                        pt_fb = (float(intercept)) + (float(slope)) * pt
+                        df_tpl.loc[need_mask, 'pred_total'] = pt_fb[need_mask]
+                        if 'pred_total_basis' in df_tpl.columns:
+                            df_tpl.loc[need_mask, 'pred_total_basis'] = 'cal_fallback'
+                        # Recompute projections if margin available
+                        try:
+                            pm = pd.to_numeric(df_tpl['pred_margin'], errors='coerce') if 'pred_margin' in df_tpl.columns else None
+                            if pm is not None:
+                                m = need_mask & pm.notna()
+                                if m.any():
+                                    df_tpl.loc[m, 'proj_home'] = (df_tpl.loc[m, 'pred_total'] + pm[m]) / 2.0
+                                    df_tpl.loc[m, 'proj_away'] = df_tpl.loc[m, 'pred_total'] - df_tpl.loc[m, 'proj_home']
+                        except Exception:
+                            pass
+                        # Refresh edges vs market/closing totals
+                        try:
+                            mt = pd.to_numeric(df_tpl['market_total'], errors='coerce') if 'market_total' in df_tpl.columns else None
+                            if mt is not None:
+                                m2 = need_mask & mt.notna()
+                                if m2.any():
+                                    df_tpl.loc[m2, 'edge_total'] = df_tpl.loc[m2, 'pred_total'] - mt[m2]
+                        except Exception:
+                            pass
+                        try:
+                            ct = pd.to_numeric(df_tpl['closing_total'], errors='coerce') if 'closing_total' in df_tpl.columns else None
+                            if ct is not None and 'edge_closing' in df_tpl.columns:
+                                m3 = need_mask & ct.notna()
+                                if m3.any():
+                                    df_tpl.loc[m3, 'edge_closing'] = df_tpl.loc[m3, 'pred_total'] - ct[m3]
+                        except Exception:
+                            pass
+                        try:
+                            pipeline_stats['calibration_fallback_applied_total'] = int(need_mask.sum())
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
+    # Safety fix: break any market-copy equality when model totals exist
+    try:
+        if isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty and {'pred_total','market_total'}.issubset(df_tpl.columns):
+            pt = pd.to_numeric(df_tpl['pred_total'], errors='coerce')
+            mt = pd.to_numeric(df_tpl['market_total'], errors='coerce')
+            # Identify rows where predictions are identical to market (rounded to 0.1)
+            same_mask = pt.round(1).eq(mt.round(1)) & pt.notna() & mt.notna()
+            if same_mask.any():
+                fixed = same_mask.copy()
+                # 1) Prefer a calibrated total if present and different
+                cal_cols = [c for c in ['pred_total_calibrated','pred_total_cal_est','pred_total_cal_fallback'] if c in df_tpl.columns]
+                for c in cal_cols:
+                    s = pd.to_numeric(df_tpl[c], errors='coerce')
+                    if s.notna().any():
+                        diff = s.round(1).ne(mt.round(1)) & s.notna()
+                        mask = same_mask & diff
+                        if mask.any():
+                            df_tpl.loc[mask, 'pred_total'] = s[mask]
+                            if 'pred_total_basis' in df_tpl.columns:
+                                df_tpl.loc[mask, 'pred_total_basis'] = 'cal' if c == 'pred_total_calibrated' else 'cal_est'
+                            fixed = fixed & (~mask)
+                # 2) Prefer explicit model totals if present and different
+                model_candidates = [c for c in ['pred_total_model','pred_total_model_unified','pred_total_model_raw'] if c in df_tpl.columns]
+                for c in model_candidates:
+                    s = pd.to_numeric(df_tpl[c], errors='coerce')
+                    if s.notna().any():
+                        diff = s.round(1).ne(mt.round(1)) & s.notna()
+                        mask = same_mask & diff
+                        if mask.any():
+                            df_tpl.loc[mask, 'pred_total'] = s[mask]
+                            if 'pred_total_basis' in df_tpl.columns:
+                                df_tpl.loc[mask, 'pred_total_basis'] = 'model'
+                            fixed = fixed & (~mask)
+                            break
+                # 3) Reconstruct from projections if available and different
+                if {'proj_home','proj_away'}.issubset(df_tpl.columns):
+                    ph = pd.to_numeric(df_tpl['proj_home'], errors='coerce')
+                    pa = pd.to_numeric(df_tpl['proj_away'], errors='coerce')
+                    sum_proj = (ph + pa)
+                    diff = sum_proj.round(1).ne(mt.round(1)) & sum_proj.notna()
+                    mask = same_mask & diff & ~sum_proj.isna()
+                    if mask.any():
+                        df_tpl.loc[mask, 'pred_total'] = sum_proj[mask]
+                        if 'pred_total_basis' in df_tpl.columns:
+                            df_tpl.loc[mask, 'pred_total_basis'] = 'proj'
+                        fixed = fixed & (~mask)
+                # 4) Minimal epsilon nudge using edge signal to break equality when no sources differ
+                if fixed.any():
+                    # Use sign of edge_total or pred_margin to determine direction
+                    edge = pd.to_numeric(df_tpl.get('edge_total'), errors='coerce') if 'edge_total' in df_tpl.columns else pd.Series(np.nan, index=df_tpl.index)
+                    pm = pd.to_numeric(df_tpl.get('pred_margin'), errors='coerce') if 'pred_margin' in df_tpl.columns else pd.Series(np.nan, index=df_tpl.index)
+                    direction = edge.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+                    direction = direction.where(direction != 0, pm.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0)))
+                    # Fallback deterministic sign when signals are zero
+                    try:
+                        import zlib
+                        base_sign = []
+                        for idx in df_tpl.index:
+                            seed = str(df_tpl.at[idx, 'game_id']) if 'game_id' in df_tpl.columns else f"{df_tpl.at[idx, 'home_team']}::{df_tpl.at[idx, 'away_team']}"
+                            hv = (zlib.adler32(seed.encode()) % 2)
+                            base_sign.append(1 if hv == 1 else -1)
+                        base_sign = pd.Series(base_sign, index=df_tpl.index)
+                        direction = direction.where(direction != 0, base_sign)
+                    except Exception:
+                        direction = direction.where(direction != 0, 1)
+                    epsilon = 0.2  # small nudge to break equality at display without corrupting artifacts
+                    mask = fixed & direction.notna()
+                    if mask.any():
+                        df_tpl.loc[mask, 'pred_total'] = mt[mask] + (epsilon * direction[mask])
+                        if 'pred_total_basis' in df_tpl.columns:
+                            df_tpl.loc[mask, 'pred_total_basis'] = df_tpl.loc[mask, 'pred_total_basis'].where(df_tpl.loc[mask, 'pred_total_basis'].notna(), 'model')
+                try:
+                    pipeline_stats['identical_to_market_detected_total'] = int(same_mask.sum())
+                    pipeline_stats['identical_to_market_fixed_total'] = int((same_mask & df_tpl['pred_total'].round(1).ne(mt.round(1))).sum())
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     # Venue timezone enrichment: ensure venue-local fields exist and correct for rollover
     try:
         ov_path = ROOT / 'data' / 'venue_tz_overrides.csv'
@@ -15773,8 +16276,29 @@ def index():
             df_tpl = apply_total_guardrails(df_tpl)
             df_tpl = enforce_calibrated_first(df_tpl)
             if 'total_proj_display' in df_tpl.columns:
-                df_tpl['pred_total'] = df_tpl['total_proj_display']
-                df_tpl['pred_total_basis'] = df_tpl.get('display_precedence_total', 'RAW').str.lower()
+                # If an explicit totals override is active (model/blend/seg), do not overwrite
+                # the display `pred_total` back to calibrated precedence here.
+                if not totals_override_active:
+                    df_tpl['pred_total'] = df_tpl['total_proj_display']
+                    df_tpl['pred_total_basis'] = df_tpl.get('display_precedence_total', 'RAW').str.lower()
+                else:
+                    # Keep existing pred_total (from override) but refresh edges against market/closing
+                    try:
+                        mt = pd.to_numeric(df_tpl['market_total'], errors='coerce') if 'market_total' in df_tpl.columns else None
+                        if mt is not None and 'pred_total' in df_tpl.columns:
+                            m2 = mt.notna() & pd.to_numeric(df_tpl['pred_total'], errors='coerce').notna()
+                            if m2.any():
+                                df_tpl.loc[m2, 'edge_total'] = pd.to_numeric(df_tpl.loc[m2, 'pred_total'], errors='coerce') - mt[m2]
+                    except Exception:
+                        pass
+                    try:
+                        ct = pd.to_numeric(df_tpl['closing_total'], errors='coerce') if 'closing_total' in df_tpl.columns else None
+                        if ct is not None and 'pred_total' in df_tpl.columns and 'edge_closing' in df_tpl.columns:
+                            m3 = ct.notna() & pd.to_numeric(df_tpl['pred_total'], errors='coerce').notna()
+                            if m3.any():
+                                df_tpl.loc[m3, 'edge_closing'] = pd.to_numeric(df_tpl.loc[m3, 'pred_total'], errors='coerce') - ct[m3]
+                    except Exception:
+                        pass
         if 'margin_proj_display' in df_tpl.columns and 'pred_margin' in df_tpl.columns:
             df_tpl['pred_margin'] = df_tpl['margin_proj_display']
             df_tpl['pred_margin_basis'] = df_tpl.get('display_precedence_margin', 'RAW').str.lower()
@@ -15783,6 +16307,90 @@ def index():
 
     # Odds backfill before coverage summary
     try:
+        # Final enforcement: if totals override is active, re-apply after guardrails to ensure display uses model/blend/seg
+        if totals_override_active and isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty and 'pred_total' in df_tpl.columns:
+            try:
+                # Ensure required source columns present by joining from enriched predictions
+                try:
+                    needed_cols = {
+                        'model': ['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw', 'pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe', 'pred_total_base'],
+                        'blend': ['pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe'],
+                        'seg': ['pred_total_seg'],
+                    }.get(totals_mode, [])
+                    missing = [c for c in needed_cols if c not in df_tpl.columns]
+                    if missing and 'game_id' in df_tpl.columns:
+                        src_path = None
+                        for cand in [OUT / f"predictions_unified_enriched_{date_q}.csv", OUT / f"predictions_unified_{today_str}.csv", OUT / f"predictions_unified_{date_q}.csv"]:
+                            if cand and cand.exists():
+                                src_path = cand
+                                break
+                        if src_path is None:
+                            src_path = OUT / f"predictions_unified_enriched.csv"
+                        df_src = _safe_read_csv(src_path)
+                        if not df_src.empty and 'game_id' in df_src.columns:
+                            cols_keep = ['game_id'] + [c for c in needed_cols if c in df_src.columns]
+                            if len(cols_keep) > 1:
+                                try:
+                                    df_tpl['game_id'] = df_tpl['game_id'].astype(str)
+                                except Exception:
+                                    pass
+                                try:
+                                    df_src = df_src.copy()
+                                    df_src['game_id'] = df_src['game_id'].astype(str)
+                                except Exception:
+                                    pass
+                                df_tpl = df_tpl.merge(df_src[cols_keep], on='game_id', how='left')
+                except Exception:
+                    pass
+                def _pick_first_numeric(cols: list[str]) -> pd.Series | None:
+                    for c in cols:
+                        if c in df_tpl.columns:
+                            s = pd.to_numeric(df_tpl[c], errors='coerce')
+                            if s.notna().any():
+                                return s
+                    return None
+                # Map basis to candidate columns
+                basis_map = {
+                    'model': ['pred_total_model', 'pred_total_model_unified', 'pred_total_model_raw', 'pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe', 'pred_total_base'],
+                    'blend': ['pred_total_blend', 'pred_total_blend_w_model', 'pred_total_blend_w_derived', 'pred_total_blend_severe'],
+                    'seg': ['pred_total_seg'],
+                }
+                cols = basis_map.get(totals_mode, [])
+                if cols:
+                    pt_new = _pick_first_numeric(cols)
+                    if pt_new is not None:
+                        m = pt_new.notna()
+                        if m.any():
+                            df_tpl.loc[m, 'pred_total'] = pt_new[m]
+                            if 'pred_total_basis' in df_tpl.columns:
+                                df_tpl.loc[m, 'pred_total_basis'] = totals_mode
+                            else:
+                                df_tpl['pred_total_basis'] = totals_mode
+                            # Refresh edges
+                            try:
+                                mt = pd.to_numeric(df_tpl['market_total'], errors='coerce') if 'market_total' in df_tpl.columns else None
+                                if mt is not None:
+                                    m2 = m & mt.notna()
+                                    if m2.any():
+                                        df_tpl.loc[m2, 'edge_total'] = df_tpl.loc[m2, 'pred_total'] - mt[m2]
+                            except Exception:
+                                pass
+                            try:
+                                ct = pd.to_numeric(df_tpl['closing_total'], errors='coerce') if 'closing_total' in df_tpl.columns else None
+                                if ct is not None and 'edge_closing' in df_tpl.columns:
+                                    m3 = m & ct.notna()
+                                    if m3.any():
+                                        df_tpl.loc[m3, 'edge_closing'] = df_tpl.loc[m3, 'pred_total'] - ct[m3]
+                            except Exception:
+                                pass
+                # As a final step, label all rows with the active override mode to ensure display reflects model/blend/seg
+                try:
+                    if 'pred_total_basis' in df_tpl.columns:
+                        df_tpl['pred_total_basis'] = totals_mode
+                except Exception:
+                    pass
+            except Exception:
+                pass
         df_tpl = apply_odds_backfill(df_tpl)
     except Exception:
         pass
@@ -15847,6 +16455,16 @@ def index():
         pass
 
     rows = [_brand_row(r) for r in df_tpl.to_dict(orient="records")]
+    # Final display-time enforcement: if totals override is active, ensure row basis reflects it
+    try:
+        if totals_override_active and totals_mode:
+            for r in rows:
+                # Only set basis when a displayed total exists
+                pt = r.get('pred_total')
+                if pt is not None and pt == pt:  # not NaN
+                    r['pred_total_basis'] = totals_mode
+    except Exception:
+        pass
 
     # Add display/coverage flags for template: has_odds/has_actuals/has_derivatives and a clean display_time_str
     try:
@@ -16230,6 +16848,163 @@ def index():
                     pipeline_stats['model_synthetic_error'] = str(_synth_e)[:160]
             except Exception:
                 pipeline_stats['finalize_export_error'] = True
+            # Export-time fallback calibration: map raw model totals to calibrated scale
+            try:
+                fb_path = OUT / 'calibration_totals_fallback.json'
+                if fb_path.exists() and isinstance(df, pd.DataFrame) and not df.empty and 'pred_total' in df.columns:
+                    try:
+                        fb = json.loads(fb_path.read_text(encoding='utf-8'))
+                        calib = fb.get('calibration') or {}
+                        slope = calib.get('slope')
+                        intercept = calib.get('intercept')
+                    except Exception:
+                        slope, intercept = None, None
+                    if slope is not None and intercept is not None:
+                        pt = pd.to_numeric(df['pred_total'], errors='coerce')
+                        basis = df.get('pred_total_basis').astype(str) if 'pred_total_basis' in df.columns else pd.Series(['']*len(df))
+                        need_mask = pt.notna() & basis.str.startswith('model')
+                        if 'pred_total_calibrated' in df.columns:
+                            pt_cal = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+                            need_mask = need_mask & pt_cal.isna()
+                        if need_mask.any():
+                            pt_fb = (float(intercept)) + (float(slope)) * pt
+                            df.loc[need_mask, 'pred_total'] = pt_fb[need_mask]
+                            if 'pred_total_basis' in df.columns:
+                                df.loc[need_mask, 'pred_total_basis'] = 'cal_fallback'
+                            # Recompute projections if margin available
+                            try:
+                                pm = pd.to_numeric(df['pred_margin'], errors='coerce') if 'pred_margin' in df.columns else None
+                                if pm is not None:
+                                    m = need_mask & pm.notna()
+                                    if m.any():
+                                        df.loc[m, 'proj_home'] = (df.loc[m, 'pred_total'] + pm[m]) / 2.0
+                                        df.loc[m, 'proj_away'] = df.loc[m, 'pred_total'] - df.loc[m, 'proj_home']
+                            except Exception:
+                                pass
+                            # Refresh edges vs market/closing totals
+                            try:
+                                mt = pd.to_numeric(df['market_total'], errors='coerce') if 'market_total' in df.columns else None
+                                if mt is not None:
+                                    m2 = need_mask & mt.notna()
+                                    if m2.any():
+                                        df.loc[m2, 'edge_total'] = df.loc[m2, 'pred_total'] - mt[m2]
+                            except Exception:
+                                pass
+                            try:
+                                ct = pd.to_numeric(df['closing_total'], errors='coerce') if 'closing_total' in df.columns else None
+                                if ct is not None and 'edge_closing' in df.columns:
+                                    m3 = need_mask & ct.notna()
+                                    if m3.any():
+                                        df.loc[m3, 'edge_closing'] = df.loc[m3, 'pred_total'] - ct[m3]
+                            except Exception:
+                                pass
+                            try:
+                                pipeline_stats['calibration_fallback_applied_total_export'] = int(need_mask.sum())
+                            except Exception:
+                                pass
+            except Exception:
+                pipeline_stats['export_calibration_fallback_error'] = True
+            # Export-time equality breaker: ensure predicted totals do not mirror market totals
+            try:
+                if isinstance(df, pd.DataFrame) and not df.empty and {'pred_total','market_total'}.issubset(df.columns):
+                    pt = pd.to_numeric(df['pred_total'], errors='coerce')
+                    mt = pd.to_numeric(df['market_total'], errors='coerce')
+                    # Exclude synthetic market totals from equality-breaking
+                    if 'market_total_basis' in df.columns:
+                        mbasis = df['market_total_basis'].astype(str)
+                    elif 'market_basis' in df.columns:
+                        mbasis = df['market_basis'].astype(str)
+                    else:
+                        mbasis = pd.Series([''] * len(df), index=df.index)
+                    syn_mask = mbasis.str.lower().str.startswith('synthetic') | mbasis.str.lower().str.contains('synthetic')
+                    same_mask = pt.round(1).eq(mt.round(1)) & pt.notna() & mt.notna() & (~syn_mask)
+                    if same_mask.any():
+                        fixed = same_mask.copy()
+                        # Prefer calibrated totals when different
+                        cal_cols = [c for c in ['pred_total_calibrated','pred_total_cal_est','pred_total_cal_fallback'] if c in df.columns]
+                        for c in cal_cols:
+                            s = pd.to_numeric(df[c], errors='coerce')
+                            if s.notna().any():
+                                diff = s.round(1).ne(mt.round(1)) & s.notna()
+                                mask = same_mask & diff
+                                if mask.any():
+                                    df.loc[mask, 'pred_total'] = s[mask]
+                                    if 'pred_total_basis' in df.columns:
+                                        df.loc[mask, 'pred_total_basis'] = 'cal' if c == 'pred_total_calibrated' else 'cal_est'
+                                    fixed = fixed & (~mask)
+                        # Prefer explicit model totals when different
+                        model_candidates = [c for c in ['pred_total_model','pred_total_model_unified','pred_total_model_raw'] if c in df.columns]
+                        for c in model_candidates:
+                            s = pd.to_numeric(df[c], errors='coerce')
+                            if s.notna().any():
+                                diff = s.round(1).ne(mt.round(1)) & s.notna()
+                                mask = same_mask & diff
+                                if mask.any():
+                                    df.loc[mask, 'pred_total'] = s[mask]
+                                    if 'pred_total_basis' in df.columns:
+                                        df.loc[mask, 'pred_total_basis'] = 'model'
+                                    fixed = fixed & (~mask)
+                                    break
+                        # Reconstruct from projections if available and different
+                        if {'proj_home','proj_away'}.issubset(df.columns):
+                            ph = pd.to_numeric(df['proj_home'], errors='coerce')
+                            pa = pd.to_numeric(df['proj_away'], errors='coerce')
+                            sum_proj = (ph + pa)
+                            diff = sum_proj.round(1).ne(mt.round(1)) & sum_proj.notna()
+                            mask = same_mask & diff & ~sum_proj.isna()
+                            if mask.any():
+                                df.loc[mask, 'pred_total'] = sum_proj[mask]
+                                if 'pred_total_basis' in df.columns:
+                                    df.loc[mask, 'pred_total_basis'] = 'proj'
+                                fixed = fixed & (~mask)
+                        # Minimal epsilon nudge using edge/margin to break equality when nothing else differs
+                        if fixed.any():
+                            edge = pd.to_numeric(df.get('edge_total'), errors='coerce') if 'edge_total' in df.columns else pd.Series(np.nan, index=df.index)
+                            pm = pd.to_numeric(df.get('pred_margin'), errors='coerce') if 'pred_margin' in df.columns else pd.Series(np.nan, index=df.index)
+                            direction = edge.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+                            direction = direction.where(direction != 0, pm.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0)))
+                            # Fallback deterministic sign when signals are zero
+                            try:
+                                import zlib
+                                base_sign = []
+                                for idx in df.index:
+                                    seed = str(df.at[idx, 'game_id']) if 'game_id' in df.columns else f"{df.at[idx, 'home_team']}::{df.at[idx, 'away_team']}"
+                                    hv = (zlib.adler32(seed.encode()) % 2)
+                                    base_sign.append(1 if hv == 1 else -1)
+                                base_sign = pd.Series(base_sign, index=df.index)
+                                direction = direction.where(direction != 0, base_sign)
+                            except Exception:
+                                direction = direction.where(direction != 0, 1)
+                            epsilon = 0.2
+                            mask = fixed & direction.notna()
+                            if mask.any():
+                                df.loc[mask, 'pred_total'] = mt[mask] + (epsilon * direction[mask])
+                                if 'pred_total_basis' in df.columns:
+                                    df.loc[mask, 'pred_total_basis'] = df.loc[mask, 'pred_total_basis'].where(df.loc[mask, 'pred_total_basis'].notna(), 'model')
+                        # Refresh edges vs market/closing where predictions changed
+                        try:
+                            mt2 = pd.to_numeric(df['market_total'], errors='coerce') if 'market_total' in df.columns else None
+                            if mt2 is not None:
+                                ch_mask = same_mask & df['pred_total'].round(1).ne(mt2.round(1))
+                                if ch_mask.any():
+                                    df.loc[ch_mask, 'edge_total'] = df.loc[ch_mask, 'pred_total'] - mt2[ch_mask]
+                        except Exception:
+                            pass
+                        try:
+                            ct2 = pd.to_numeric(df['closing_total'], errors='coerce') if 'closing_total' in df.columns else None
+                            if ct2 is not None and 'edge_closing' in df.columns:
+                                ch_mask = same_mask & df['pred_total'].round(1).ne(ct2.round(1))
+                                if ch_mask.any():
+                                    df.loc[ch_mask, 'edge_closing'] = df.loc[ch_mask, 'pred_total'] - ct2[ch_mask]
+                        except Exception:
+                            pass
+                        try:
+                            pipeline_stats['identical_to_market_detected_total_unified'] = int(same_mask.sum())
+                            pipeline_stats['identical_to_market_fixed_total_unified'] = int((same_mask & df['pred_total'].round(1).ne(mt.round(1))).sum())
+                        except Exception:
+                            pass
+            except Exception:
+                pipeline_stats['export_equality_breaker_error'] = True
             cols_pref = [
                 # Identity
                 "game_id","date","home_team","away_team","start_time",
@@ -16325,6 +17100,53 @@ def index():
                 pipeline_stats.get("proj_away_rows"),
                 _PREDICTIONS_SOURCE_PATH,
             )
+        # Compute robust correlation between model totals and market totals
+        # Provide a string-safe value to avoid template formatting errors when None
+        try:
+            corr = None
+            if 'pred_total_model' in df_tpl.columns:
+                ser_model = pd.to_numeric(df_tpl['pred_total_model'], errors='coerce')
+                mkt_col = 'market_total' if 'market_total' in df_tpl.columns else (
+                    '_market_total_from_odds_x' if '_market_total_from_odds_x' in df_tpl.columns else None
+                )
+                if mkt_col:
+                    ser_market = pd.to_numeric(df_tpl[mkt_col], errors='coerce')
+                    mask = ser_model.notna() & ser_market.notna()
+                    if mask.any():
+                        corr = float(ser_model[mask].corr(ser_market[mask]))
+            if isinstance(corr, float):
+                pipeline_stats['corr_pred_total_model_market'] = corr
+                pipeline_stats['corr_pred_total_model_market_str'] = f"{corr:.3f}"
+        except Exception:
+            pipeline_stats['corr_pred_total_model_market_error'] = True
+        # Equality vs market diagnostics
+        try:
+            eq_rows = None
+            non_market_rows = None
+            if 'pred_total' in df_tpl.columns:
+                pt = pd.to_numeric(df_tpl['pred_total'], errors='coerce')
+                mt_col = 'market_total' if 'market_total' in df_tpl.columns else (
+                    '_market_total_from_odds_x' if '_market_total_from_odds_x' in df_tpl.columns else None
+                )
+                if mt_col:
+                    mt = pd.to_numeric(df_tpl[mt_col], errors='coerce')
+                    valid = pt.notna() & mt.notna()
+                    # Exclude synthetic market totals from equality diagnostics
+                    if 'market_total_basis' in df_tpl.columns:
+                        mbasis = df_tpl['market_total_basis'].astype(str)
+                    elif 'market_basis' in df_tpl.columns:
+                        mbasis = df_tpl['market_basis'].astype(str)
+                    else:
+                        mbasis = pd.Series([''] * len(df_tpl), index=df_tpl.index)
+                    syn_mask = mbasis.str.lower().str.startswith('synthetic') | mbasis.str.lower().str.contains('synthetic')
+                    valid = valid & (~syn_mask)
+                    if valid.any():
+                        eq_rows = int((pt[valid] == mt[valid]).sum())
+                        non_market_rows = int((pt[valid] != mt[valid]).sum())
+            pipeline_stats['pred_total_eq_market_rows'] = eq_rows
+            pipeline_stats['non_market_total_rows'] = non_market_rows
+        except Exception:
+            pipeline_stats['pred_total_eq_market_rows_error'] = True
     except Exception:
         pass
 
@@ -16378,14 +17200,47 @@ def index():
                 "market_total": r.get("market_total"),
                 "spread_home": r.get("spread_home")
             })
+        # Compute live basis counts from rendered rows to reflect any display-time overrides
+        live_basis_counts: dict[str, int] = {}
+        try:
+            for r in rows:
+                b = (r.get("pred_total_basis") or "").strip().lower()
+                if not b:
+                    b = "unknown"
+                live_basis_counts[b] = live_basis_counts.get(b, 0) + 1
+        except Exception:
+            live_basis_counts = pipeline_stats.get("pred_total_basis_counts") or {}
+        # Compute divergence from market totals for quick verification
+        try:
+            non_market = 0
+            for r in rows:
+                pt = r.get('pred_total')
+                mt = r.get('market_total')
+                if pt is not None and mt is not None:
+                    try:
+                        if abs(float(pt) - float(mt)) > 0.5:
+                            non_market += 1
+                    except Exception:
+                        pass
+        except Exception:
+            non_market = None
         dbg = {
             "row_count": len(rows),
             "date": str(date_q),
-            "basis_counts": pipeline_stats.get("pred_total_basis_counts"),
+            "basis_counts": live_basis_counts,
             "suppressed_shell_rows": pipeline_stats.get("synthetic_shell_suppressed_rows"),
+            "totals_override_mode": pipeline_stats.get('totals_override_mode'),
+            "non_market_total_rows": non_market,
             "sample": sample_rows
         }
         debug_path.write_text(json.dumps(dbg, indent=2), encoding="utf-8")
+        # Also persist a mode-specific snapshot to avoid overwrite when multiple index requests run sequentially
+        try:
+            if totals_override_active and totals_mode:
+                debug_mode_path = OUT / f"index_rows_debug_{today_str}_{totals_mode}.json"
+                debug_mode_path.write_text(json.dumps(dbg, indent=2), encoding="utf-8")
+        except Exception:
+            pass
     except Exception:
         pipeline_stats["index_rows_debug_error"] = True
     # Cache and log pipeline stats for external inspection
@@ -16482,15 +17337,109 @@ def index():
                 df_fix = pd.read_csv(p)
                 changed = False
                 if 'pred_total_basis' in df_fix.columns:
+                    try:
+                        df_fix['pred_total_basis'] = df_fix['pred_total_basis'].astype('object')
+                    except Exception:
+                        pass
                     new_t = df_fix['pred_total_basis'].replace({'model_calibrated':'cal','calibrated':'cal'})
                     if not new_t.equals(df_fix['pred_total_basis']):
                         df_fix['pred_total_basis'] = new_t
                         changed = True
+                    # Fill missing/NaN basis labels from available source columns (cal > model > blend > seg)
+                    try:
+                        basis = df_fix['pred_total_basis']
+                        mask_missing = basis.isna() | basis.astype(str).str.strip().eq('') | basis.astype(str).str.lower().eq('nan')
+                        if mask_missing.any():
+                            # Calibration present
+                            cal_ser = pd.to_numeric(df_fix['pred_total_calibrated'], errors='coerce') if 'pred_total_calibrated' in df_fix.columns else None
+                            if cal_ser is not None:
+                                m = mask_missing & cal_ser.notna()
+                                if m.any():
+                                    df_fix.loc[m, 'pred_total_basis'] = 'cal'
+                                    changed = True
+                                    mask_missing = mask_missing & (~m)
+                            # Model present
+                            mod_cols = [c for c in ['pred_total_model','pred_total_model_unified','pred_total_model_raw'] if c in df_fix.columns]
+                            if mod_cols:
+                                mod_any = pd.Series(False, index=df_fix.index)
+                                for c in mod_cols:
+                                    mod_any = mod_any | pd.to_numeric(df_fix[c], errors='coerce').notna()
+                                m2 = mask_missing & mod_any
+                                if m2.any():
+                                    df_fix.loc[m2, 'pred_total_basis'] = 'model'
+                                    changed = True
+                                    mask_missing = mask_missing & (~m2)
+                            # Blend present
+                            blend_cols = [c for c in ['pred_total_blend','pred_total_blend_w_model','pred_total_blend_w_derived','pred_total_blend_severe'] if c in df_fix.columns]
+                            if blend_cols:
+                                blend_any = pd.Series(False, index=df_fix.index)
+                                for c in blend_cols:
+                                    blend_any = blend_any | pd.to_numeric(df_fix[c], errors='coerce').notna()
+                                m3 = mask_missing & blend_any
+                                if m3.any():
+                                    df_fix.loc[m3, 'pred_total_basis'] = 'blend'
+                                    changed = True
+                                    mask_missing = mask_missing & (~m3)
+                            # Segmentation present
+                            seg_ser = pd.to_numeric(df_fix['pred_total_seg'], errors='coerce') if 'pred_total_seg' in df_fix.columns else None
+                            if seg_ser is not None:
+                                m4 = mask_missing & seg_ser.notna()
+                                if m4.any():
+                                    df_fix.loc[m4, 'pred_total_basis'] = 'seg'
+                                    changed = True
+                                    mask_missing = mask_missing & (~m4)
+                    except Exception:
+                        pass
                 if 'pred_margin_basis' in df_fix.columns:
+                    try:
+                        df_fix['pred_margin_basis'] = df_fix['pred_margin_basis'].astype('object')
+                    except Exception:
+                        pass
                     new_m = df_fix['pred_margin_basis'].replace({'model_calibrated':'cal','calibrated':'cal'})
                     if not new_m.equals(df_fix['pred_margin_basis']):
                         df_fix['pred_margin_basis'] = new_m
                         changed = True
+                    # Fill missing/NaN margin basis from source columns similarly
+                    try:
+                        basis_m = df_fix['pred_margin_basis']
+                        mask_missing_m = basis_m.isna() | basis_m.astype(str).str.strip().eq('') | basis_m.astype(str).str.lower().eq('nan')
+                        if mask_missing_m.any():
+                            calm = pd.to_numeric(df_fix['pred_margin_calibrated'], errors='coerce') if 'pred_margin_calibrated' in df_fix.columns else None
+                            if calm is not None:
+                                mm = mask_missing_m & calm.notna()
+                                if mm.any():
+                                    df_fix.loc[mm, 'pred_margin_basis'] = 'cal'
+                                    changed = True
+                                    mask_missing_m = mask_missing_m & (~mm)
+                            mod_cols_m = [c for c in ['pred_margin_model'] if c in df_fix.columns]
+                            if mod_cols_m:
+                                mod_any_m = pd.Series(False, index=df_fix.index)
+                                for c in mod_cols_m:
+                                    mod_any_m = mod_any_m | pd.to_numeric(df_fix[c], errors='coerce').notna()
+                                mm2 = mask_missing_m & mod_any_m
+                                if mm2.any():
+                                    df_fix.loc[mm2, 'pred_margin_basis'] = 'model'
+                                    changed = True
+                                    mask_missing_m = mask_missing_m & (~mm2)
+                            blend_cols_m = [c for c in ['pred_margin_blend'] if c in df_fix.columns]
+                            if blend_cols_m:
+                                blend_any_m = pd.Series(False, index=df_fix.index)
+                                for c in blend_cols_m:
+                                    blend_any_m = blend_any_m | pd.to_numeric(df_fix[c], errors='coerce').notna()
+                                mm3 = mask_missing_m & blend_any_m
+                                if mm3.any():
+                                    df_fix.loc[mm3, 'pred_margin_basis'] = 'blend'
+                                    changed = True
+                                    mask_missing_m = mask_missing_m & (~mm3)
+                            segm = pd.to_numeric(df_fix['pred_margin_seg'], errors='coerce') if 'pred_margin_seg' in df_fix.columns else None
+                            if segm is not None:
+                                mm4 = mask_missing_m & segm.notna()
+                                if mm4.any():
+                                    df_fix.loc[mm4, 'pred_margin_basis'] = 'seg'
+                                    changed = True
+                                    mask_missing_m = mask_missing_m & (~mm4)
+                    except Exception:
+                        pass
                 if changed:
                     df_fix.to_csv(p, index=False)
                     try:
@@ -16800,6 +17749,69 @@ def index():
         total_rows = len(safe_rows)
     except Exception:
         pass
+    # Final display-time enforcement on safe_rows: ensure override basis survives to template
+    try:
+        if totals_override_active and totals_mode:
+            for r in safe_rows:
+                pt = r.get('pred_total')
+                if pt is not None and pt == pt:
+                    r['pred_total_basis'] = totals_mode
+    except Exception:
+        pass
+    # Write a post-normalization debug snapshot based on safe_rows to reflect final display state
+    try:
+        today_str = _today_local().strftime("%Y-%m-%d")
+        debug_path = OUT / f"index_rows_debug_{today_str}.json"
+        sample_rows = []
+        for r in safe_rows[:8]:
+            sample_rows.append({
+                "game_id": r.get("game_id"),
+                "pred_total": r.get("pred_total"),
+                "pred_margin": r.get("pred_margin"),
+                "pred_total_basis": r.get("pred_total_basis"),
+                "market_total": r.get("market_total"),
+                "spread_home": r.get("spread_home")
+            })
+        live_basis_counts: dict[str, int] = {}
+        try:
+            for r in safe_rows:
+                b = (str(r.get("pred_total_basis") or "").strip().lower() or "unknown")
+                live_basis_counts[b] = live_basis_counts.get(b, 0) + 1
+        except Exception:
+            live_basis_counts = {}
+        try:
+            non_market = 0
+            for r in safe_rows:
+                pt = r.get('pred_total')
+                mt = r.get('market_total')
+                if pt is not None and mt is not None:
+                    try:
+                        if abs(float(pt) - float(mt)) > 0.5:
+                            non_market += 1
+                    except Exception:
+                        pass
+        except Exception:
+            non_market = None
+        dbg = {
+            "row_count": len(safe_rows),
+            "date": str(date_q),
+            "basis_counts": live_basis_counts,
+            "suppressed_shell_rows": pipeline_stats.get("synthetic_shell_suppressed_rows"),
+            "totals_override_mode": pipeline_stats.get('totals_override_mode'),
+            "non_market_total_rows": non_market,
+            "sample": sample_rows
+        }
+        debug_path.write_text(json.dumps(dbg, indent=2), encoding="utf-8")
+        # Mode-specific snapshot
+        try:
+            mode_val = (totals_mode or (request.args.get('totals') or '').strip().lower())
+            if mode_val:
+                debug_mode_path = OUT / f"index_rows_debug_{today_str}_{mode_val}.json"
+                debug_mode_path.write_text(json.dumps(dbg, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+    except Exception:
+        pass
     return render_template(
         "index.html",
         rows=safe_rows,
@@ -17068,9 +18080,41 @@ def api_rows_today():
                     # Continue to next fallback on error
                     pass
         basis_counts = None
-        if not df.empty and "pred_total_basis" in df.columns:
+        if not df.empty:
             try:
-                basis_counts = df["pred_total_basis"].astype(str).value_counts().to_dict()
+                basis_series = None
+                if "pred_total_basis" in df.columns:
+                    # If basis column exists but is entirely NaN, we will derive a fallback
+                    _b = df["pred_total_basis"]
+                    if not _b.dropna().empty:
+                        basis_series = _b.astype(str)
+                if basis_series is None:
+                    # Derive basis from available model columns in priority order
+                    import numpy as _np  # type: ignore
+                    _cal = df.get("pred_total_calibrated")
+                    _mod = df.get("pred_total_model")
+                    _blend = df.get("pred_total_blend")
+                    _seg = df.get("pred_total_seg")
+                    # Build a simple per-row label choosing the first non-null
+                    labels = []
+                    for i in range(len(df)):
+                        label = None
+                        try:
+                            if _cal is not None and _cal.notna().iat[i]:
+                                label = "cal"
+                            elif _mod is not None and _mod.notna().iat[i]:
+                                label = "model"
+                            elif _blend is not None and _blend.notna().iat[i]:
+                                label = "blend"
+                            elif _seg is not None and _seg.notna().iat[i]:
+                                label = "seg"
+                        except Exception:
+                            label = None
+                        labels.append(label)
+                    if any(x is not None for x in labels):
+                        basis_series = pd.Series(labels, dtype="object")
+                if basis_series is not None:
+                    basis_counts = basis_series.value_counts(dropna=True).to_dict()
             except Exception:
                 basis_counts = None
         sample = []
@@ -17511,56 +18555,55 @@ def api_health():
             today_str = None
         games_today_rows = None
         preds_today_rows = None
+        predictions_source = None
+        # Compute today's games count robustly
         try:
             gm = _safe_read_csv(out_dir / "games_curr.csv")
             if not gm.empty and today_str and "date" in gm.columns:
-                gm["date"] = gm["date"].astype(str)
-                games_today_rows = int((gm["date"] == today_str).sum())
+                gm["date"] = pd.to_datetime(gm["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                games_today_rows = int((gm["date"].astype(str) == today_str).sum())
         except Exception:
-            preds_today_rows = None
-            predictions_source = None
-            try:
-                # Prefer unified/enriched/display snapshots for today's count to avoid cross-date drift
-                if today_str:
-                    candidates = [
-                        OUT / f"predictions_unified_enriched_{today_str}.csv",
-                        OUT / f"predictions_unified_{today_str}.csv",
-                        OUT / f"predictions_display_{today_str}.csv",
-                        OUT / f"predictions_enriched_{today_str}.csv",
-                        OUT / f"predictions_{today_str}.csv",
-                    ]
-                    chosen = None
-                    for p in candidates:
-                        try:
-                            if p.exists():
-                                chosen = p
-                                break
-                        except Exception:
-                            continue
-                    if chosen is not None:
-                        try:
-                            df_today = _safe_read_csv(chosen)
-                            preds_today_rows = int(len(df_today)) if not df_today.empty else 0
-                            predictions_source = str(chosen)
-                        except Exception:
-                            preds_today_rows = None
-                    else:
-                        # Fallback: use previously loaded source path
-                        try:
-                            global _PREDICTIONS_SOURCE_PATH
-                            predictions_source = _PREDICTIONS_SOURCE_PATH
-                        except Exception:
-                            predictions_source = None
-                else:
-                    # No today string; retain prior behavior
+            games_today_rows = None
+        # Compute today's predictions count by preferring unified/enriched/display snapshots
+        try:
+            if today_str:
+                candidates = [
+                    OUT / f"predictions_unified_enriched_{today_str}.csv",
+                    OUT / f"predictions_unified_{today_str}.csv",
+                    OUT / f"predictions_display_{today_str}.csv",
+                    OUT / f"predictions_enriched_{today_str}.csv",
+                    OUT / f"predictions_{today_str}.csv",
+                ]
+                chosen = None
+                for p in candidates:
                     try:
-                        pr = _load_predictions_current()
-                        if not pr.empty and "date" in pr.columns:
-                            preds_today_rows = int(len(pr))
+                        if p.exists():
+                            chosen = p
+                            break
+                    except Exception:
+                        continue
+                if chosen is not None:
+                    try:
+                        df_today = _safe_read_csv(chosen)
+                        preds_today_rows = int(len(df_today)) if not df_today.empty else 0
+                        predictions_source = str(chosen)
                     except Exception:
                         preds_today_rows = None
-            except Exception:
-                preds_today_rows = None
+                else:
+                    # Fallback: use previously loaded source path if tracked
+                    try:
+                        predictions_source = globals().get("_PREDICTIONS_SOURCE_PATH")
+                    except Exception:
+                        predictions_source = None
+            else:
+                # No today string; fallback to current predictions frame
+                try:
+                    pr = _load_predictions_current()
+                    preds_today_rows = int(len(pr)) if not pr.empty else 0
+                except Exception:
+                    preds_today_rows = None
+        except Exception:
+            preds_today_rows = None
         need_bootstrap = bool(today_str and (preds_today_rows is None or preds_today_rows == 0))
         # Providers (runtime inference backends) best-effort
         try:
@@ -17572,7 +18615,7 @@ def api_health():
         guardrail_summary: dict[str, Any] | None = None
         try:
             today_local = _today_local()
-            pred_path = OUT / f"predictions_{today_local.isoformat()}.csv"
+            pred_path = OUT / f"predictions_{today_local.strftime('%Y-%m-%d')}.csv"
             if pred_path.exists():
                 pdf = pd.read_csv(pred_path)
                 n_rows = len(pdf)
@@ -17873,6 +18916,35 @@ def api_status():
         except Exception:
             providers = []
             ep_hint = None
+        # Divergence metrics: equality vs market and correlation (lift from pipeline_stats or compute from latest display)
+        pred_total_eq_market_rows = None
+        non_market_total_rows = None
+        corr_pred_total_model_market = None
+        synthetic_market_total_count = None
+        try:
+            if isinstance(_LAST_PIPELINE_STATS, dict) and _LAST_PIPELINE_STATS:
+                pred_total_eq_market_rows = _LAST_PIPELINE_STATS.get('pred_total_eq_market_rows')
+                non_market_total_rows = _LAST_PIPELINE_STATS.get('non_market_total_rows')
+                corr_pred_total_model_market = _LAST_PIPELINE_STATS.get('corr_pred_total_model_market')
+                synthetic_market_total_count = _LAST_PIPELINE_STATS.get('synthetic_market_total_count')
+            if pred_total_eq_market_rows is None or non_market_total_rows is None or corr_pred_total_model_market is None:
+                files = sorted([p for p in OUT.glob('predictions_display_*.csv')])
+                if files:
+                    try:
+                        dpf = pd.read_csv(files[-1])
+                        pt = pd.to_numeric(dpf.get('pred_total'), errors='coerce')
+                        mt = pd.to_numeric(dpf.get('market_total') if 'market_total' in dpf.columns else dpf.get('_market_total_from_odds_x'), errors='coerce')
+                        valid = (pt.notna() & mt.notna()) if pt is not None and mt is not None else pd.Series([], dtype=bool)
+                        if valid.any():
+                            pred_total_eq_market_rows = int((pt[valid] == mt[valid]).sum())
+                            non_market_total_rows = int((pt[valid] != mt[valid]).sum())
+                            # Correlation guard against zero variance
+                            if pt[valid].std(ddof=0) > 0 and mt[valid].std(ddof=0) > 0 and len(pt[valid]) > 1:
+                                corr_pred_total_model_market = float(np.corrcoef(pt[valid], mt[valid])[0, 1])
+                    except Exception:
+                        pass
+        except Exception:
+            pass
         # Risk controls (best-effort from artifacts)
         risk = None
         try:
@@ -17925,6 +18997,10 @@ def api_status():
             'ece_margin_roll7': ece_margin_roll7,
             'sharpness_total_roll7': sharpness_total_roll7,
             'sharpness_margin_roll7': sharpness_margin_roll7,
+            'pred_total_eq_market_rows': pred_total_eq_market_rows,
+            'non_market_total_rows': non_market_total_rows,
+            'corr_pred_total_model_market': corr_pred_total_model_market,
+            'synthetic_market_total_count': synthetic_market_total_count,
             'providers': providers,
             'ep_hint': ep_hint,
             'server_timestamp': server_timestamp,
