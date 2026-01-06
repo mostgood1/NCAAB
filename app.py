@@ -778,7 +778,7 @@ def apply_total_guardrails(df: pd.DataFrame) -> pd.DataFrame:
     df['total_proj_clamped'] = df['total_proj_raw'].apply(clamp_val)
     return df
 
-def apply_pred_total_view(df: pd.DataFrame, tol: float = 1e-6) -> pd.DataFrame:
+def apply_pred_total_view(df: pd.DataFrame, tol: float = 0.01) -> pd.DataFrame:
     """Create a display-only `pred_total_view` column that avoids exact equality
     with `market_total` for readability. Never mutates `pred_total` itself.
 
@@ -802,7 +802,8 @@ def apply_pred_total_view(df: pd.DataFrame, tol: float = 1e-6) -> pd.DataFrame:
             if pt is not None and mt is not None and not pd.isna(pt) and not pd.isna(mt):
                 try:
                     pv = float(pt); mv = float(mt)
-                    if abs(pv - mv) <= tol:
+                    # Compare at display precision (2 decimals) or within tol
+                    if (round(pv, 2) == round(mv, 2)) or (abs(pv - mv) <= tol):
                         gid = str(r.get('game_id') or '')
                         # Stable pseudo-hash: sum of char codes mod 2 → ±0.5
                         s = sum(ord(ch) for ch in gid)
@@ -24743,7 +24744,7 @@ def api_display_predictions():
                     gid = str(it.get('game_id') or '')
                     if (pt is not None) and (mt is not None):
                         pv = float(pt); mv = float(mt)
-                        if abs(pv - mv) <= 1e-6:
+                        if (round(pv, 2) == round(mv, 2)) or (abs(pv - mv) <= 0.01):
                             s = sum(ord(ch) for ch in gid)
                             eps = 0.5 if (s % 2 == 0) else -0.5
                             it['pred_total_view'] = pv + eps
@@ -24869,7 +24870,7 @@ def api_display_predictions():
                 gid = str(it.get('game_id') or '')
                 if (pt is not None) and (mt is not None):
                     pv = float(pt); mv = float(mt)
-                    if abs(pv - mv) <= 1e-6:
+                    if (round(pv, 2) == round(mv, 2)) or (abs(pv - mv) <= 0.01):
                         s = sum(ord(ch) for ch in gid)
                         eps = 0.5 if (s % 2 == 0) else -0.5
                         it['pred_total_view'] = pv + eps
@@ -25179,7 +25180,7 @@ def cards_safe():
                         return it.get('pred_total_view')
                     if (pt is not None) and (mt is not None):
                         pv = float(pt); mv = float(mt)
-                        if abs(pv - mv) <= 1e-6:
+                        if (round(pv, 2) == round(mv, 2)) or (abs(pv - mv) <= 0.01):
                             gid = str(it.get('game_id') or '')
                             s = sum(ord(ch) for ch in gid)
                             eps = 0.5 if (s % 2 == 0) else -0.5
@@ -25259,7 +25260,7 @@ def cards_safe():
                                 mt0 = r.get('market_total')
                                 if (pt0 is not None) and (mt0 is not None):
                                     pv = float(pt0); mv = float(mt0)
-                                    if abs(pv - mv) <= 1e-6:
+                                    if (round(pv, 2) == round(mv, 2)) or (abs(pv - mv) <= 0.01):
                                         gid = str(r.get('game_id') or '')
                                         s = sum(ord(ch) for ch in gid)
                                         eps = 0.5 if (s % 2 == 0) else -0.5
