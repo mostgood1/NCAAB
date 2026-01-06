@@ -1297,6 +1297,101 @@ def api_backtest_roi():
         return jsonify({'status':'error','message':str(e)})
 
 # -----------------------------
+# Backtest Totals Bias API
+# -----------------------------
+def _compute_backtest_totals() -> dict:
+    """Compute backtest metrics for totals: bias (mean error), MAE, RMSE.
+
+    Uses consolidated daily results files under outputs/daily_results.
+    Returns a dict with overall metrics and per-date summaries. Also writes
+    sidecar artifacts to outputs/eval_totals/.
+    """
+    try:
+        df = _load_all_daily_results()
+        if df.empty:
+            return {'status':'missing'}
+        # Flexible column mapping
+        cols = {
+            'date': 'date' if 'date' in df.columns else None,
+            'pred_total': 'pred_total' if 'pred_total' in df.columns else None,
+            'actual_total': 'actual_total' if 'actual_total' in df.columns else None,
+            'market_total': 'market_total' if 'market_total' in df.columns else None,
+        }
+        for k,v in cols.items():
+            if v is None:
+                return {'status':'missing', 'message': f'missing column: {k}'}
+        # Coerce types
+        try:
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            for c in ['pred_total','actual_total','market_total']:
+                df[c] = pd.to_numeric(df[c], errors='coerce')
+        except Exception:
+            pass
+        # Filter to valid rows
+        mask = df[['pred_total','actual_total']].notna().all(axis=1)
+        d = df.loc[mask].copy()
+        if d.empty:
+            return {'status':'missing'}
+        # Errors (actual - predicted)
+        d['err'] = d['actual_total'] - d['pred_total']
+        # Overall metrics
+        try:
+            n = int(len(d))
+            me = float(d['err'].mean())
+            mae = float(d['err'].abs().mean())
+            rmse = float(np.sqrt((d['err']**2).mean()))
+            med = float(d['err'].median())
+            q10 = float(d['err'].quantile(0.10))
+            q90 = float(d['err'].quantile(0.90))
+        except Exception:
+            n = len(d); me = mae = rmse = med = q10 = q90 = None
+        # Per-date mean error
+        per_date = {}
+        try:
+            for dt_, g in d.groupby(d['date'].dt.date):
+                per_date[str(dt_)] = {
+                    'n': int(len(g)),
+                    'mean_error': float(g['err'].mean()),
+                    'mae': float(g['err'].abs().mean()),
+                    'rmse': float(np.sqrt((g['err']**2).mean())),
+                }
+        except Exception:
+            per_date = {}
+        out = {
+            'status': 'ok',
+            'n': n,
+            'mean_error': me,
+            'median_error': med,
+            'mae': mae,
+            'rmse': rmse,
+            'err_q10': q10,
+            'err_q90': q90,
+            'per_date': per_date,
+            'recommendation': {
+                'offset_total': float(me) if me is not None else None,
+                'note': 'Additive offset based on mean error (actual - predicted). Apply cautiously.'
+            }
+        }
+        # Persist artifacts
+        try:
+            out_dir = ROOT / 'outputs' / 'eval_totals'
+            out_dir.mkdir(parents=True, exist_ok=True)
+            (out_dir / 'summary.json').write_text(json.dumps(out, indent=2))
+            d[['date','pred_total','actual_total','market_total','err']].to_csv(out_dir / 'residuals.csv', index=False)
+            if out['recommendation']['offset_total'] is not None:
+                (out_dir / 'calibration_offset.json').write_text(json.dumps({'offset_total': out['recommendation']['offset_total']}))
+        except Exception:
+            pass
+        return out
+    except Exception as e:
+        return {'status':'error','message':str(e)}
+
+@app.get('/api/backtest-totals')
+def api_backtest_totals():
+    res = _compute_backtest_totals()
+    return jsonify(res)
+
+# -----------------------------
 # Meta reliability API
 # -----------------------------
 @app.get('/api/meta-reliability')
