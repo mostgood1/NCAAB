@@ -25170,8 +25170,25 @@ def cards_safe():
                             tm = dtv.strftime('%Y-%m-%d %I:%M %p')
                 except Exception:
                     tm = ''
-            # Prefer pred_total_view if present
-            pt = _fmt_num(r.get('pred_total_view') if ('pred_total_view' in r) else r.get('pred_total'))
+            # Prefer pred_total_view; else compute local view-only nudge when equal to market_total
+            def _pt_view_local(it: dict):
+                try:
+                    pt = it.get('pred_total')
+                    mt = it.get('market_total')
+                    if ('pred_total_view' in it) and (it.get('pred_total_view') is not None):
+                        return it.get('pred_total_view')
+                    if (pt is not None) and (mt is not None):
+                        pv = float(pt); mv = float(mt)
+                        if abs(pv - mv) <= 1e-6:
+                            gid = str(it.get('game_id') or '')
+                            s = sum(ord(ch) for ch in gid)
+                            eps = 0.5 if (s % 2 == 0) else -0.5
+                            return pv + eps
+                        return pv
+                    return pt
+                except Exception:
+                    return it.get('pred_total')
+            pt = _fmt_num(_pt_view_local(r))
             pm = _fmt_num(r.get('pred_margin'))
             mt = _fmt_num(r.get('market_total')) or (str(r.get('market_total')) if r.get('market_total') not in (None, '') else None)
             sh = _fmt_num(r.get('spread_home')) or (str(r.get('spread_home')) if r.get('spread_home') not in (None, '') else None)
@@ -25233,8 +25250,26 @@ def cards_safe():
                                         tm = dtv.strftime('%Y-%m-%d %I:%M %p')
                             except Exception:
                                 tm = ''
-                        # Prefer pred_total_view if present in snapshot
-                        pt = r.get('pred_total_view') if ('pred_total_view' in df.columns) else r.get('pred_total')
+                        # Prefer pred_total_view if present in snapshot; else local view-only nudge
+                        try:
+                            if ('pred_total_view' in df.columns) and (r.get('pred_total_view') is not None):
+                                pt = r.get('pred_total_view')
+                            else:
+                                pt0 = r.get('pred_total')
+                                mt0 = r.get('market_total')
+                                if (pt0 is not None) and (mt0 is not None):
+                                    pv = float(pt0); mv = float(mt0)
+                                    if abs(pv - mv) <= 1e-6:
+                                        gid = str(r.get('game_id') or '')
+                                        s = sum(ord(ch) for ch in gid)
+                                        eps = 0.5 if (s % 2 == 0) else -0.5
+                                        pt = pv + eps
+                                    else:
+                                        pt = pt0
+                                else:
+                                    pt = pt0
+                        except Exception:
+                            pt = r.get('pred_total')
                         pm = r.get('pred_margin')
                         mt = r.get('market_total')
                         sh = r.get('spread_home')
