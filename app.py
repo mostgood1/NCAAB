@@ -817,6 +817,89 @@ def apply_pred_total_view(df: pd.DataFrame, tol: float = 0.01) -> pd.DataFrame:
         # If anything goes wrong, keep original values untouched
         df['pred_total_view'] = df.get('pred_total')
     return df
+def _resolve_linear_calibration() -> tuple[float, float] | None:
+    """Resolve linear calibration parameters (slope, intercept) for totals.
+    Sources: outputs/calibration_totals_fallback.json produced by calibrate_totals_fallback.py.
+    Returns (slope, intercept) or None if unavailable.
+    """
+    try:
+        p = ROOT / 'outputs' / 'calibration_totals_fallback.json'
+        if p.exists():
+            obj = json.loads(p.read_text())
+            calib = obj.get('calibration') or {}
+            if calib.get('status') == 'ok':
+                slope = calib.get('slope')
+                intercept = calib.get('intercept')
+                if slope is not None and intercept is not None:
+                    return float(slope), float(intercept)
+    except Exception:
+        pass
+    return None
+
+def apply_total_linear_calibration_view(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply a linear calibration (intercept + slope * x) to totals for display.
+    Chooses model-specific `pred_total_model` when present, else `pred_total`.
+    Writes `pred_total_calibrated` and leaves original intact. Skips if params missing.
+    """
+    if df is None or len(df) == 0:
+        return df
+    try:
+        params = _resolve_linear_calibration()
+        if params is None:
+            return df
+        slope, intercept = params
+        base_series = None
+        if 'pred_total_model' in df.columns:
+            base_series = pd.to_numeric(df['pred_total_model'], errors='coerce')
+        if base_series is None or (isinstance(base_series, pd.Series) and base_series.isna().all()):
+            base_series = pd.to_numeric(df.get('pred_total'), errors='coerce')
+        if isinstance(base_series, pd.Series):
+            df['pred_total_calibrated'] = (float(intercept) + float(slope) * base_series)
+    except Exception:
+        pass
+    return df
+def _resolve_total_offset() -> float | None:
+    """Resolve a global additive calibration offset for totals.
+    Sources: env NCAAB_TOTAL_OFFSET, then outputs/eval_totals/calibration_offset.json.
+    """
+    try:
+        v = os.environ.get('NCAAB_TOTAL_OFFSET', '').strip()
+        if v:
+            return float(v)
+    except Exception:
+        pass
+    try:
+        p = ROOT / 'outputs' / 'eval_totals' / 'calibration_offset.json'
+        if p.exists():
+            obj = json.loads(p.read_text())
+            off = obj.get('offset_total')
+            if off is not None:
+                return float(off)
+    except Exception:
+        pass
+    return None
+
+def apply_total_offset_view(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply a global additive offset to `pred_total` for display-only purposes.
+    Writes `pred_total_calibrated` and leaves original `pred_total` intact unless
+    the caller reassigns for payload generation.
+    """
+    if df is None or len(df) == 0:
+        return df
+    try:
+        # If a calibrated series already exists (e.g., from linear calibration), do not re-apply offset
+        if 'pred_total_calibrated' in df.columns and pd.to_numeric(df['pred_total_calibrated'], errors='coerce').notna().any():
+            return df
+        off = _resolve_total_offset()
+        if off is None:
+            return df
+        # Apply additive offset to base pred_total for display-only calibration
+        if 'pred_total' in df.columns:
+            base = pd.to_numeric(df['pred_total'], errors='coerce')
+            df['pred_total_calibrated'] = base + float(off)
+    except Exception:
+        pass
+    return df
 
 # ---------------------------------
 # Module-level time helpers (for reuse)
@@ -1372,6 +1455,34 @@ def _compute_backtest_totals() -> dict:
                 'note': 'Additive offset based on mean error (actual - predicted). Apply cautiously.'
             }
         }
+        # Linear calibration (y ≈ intercept + slope * x)
+        try:
+            x = pd.to_numeric(d['pred_total'], errors='coerce')
+            y = pd.to_numeric(d['actual_total'], errors='coerce')
+            mask_xy = x.notna() & y.notna()
+            x2 = x[mask_xy].to_numpy(dtype=float)
+            y2 = y[mask_xy].to_numpy(dtype=float)
+            if len(x2) >= 2:
+                slope, intercept = np.polyfit(x2, y2, 1)
+                y_hat = intercept + slope * x2
+                mae_lin = float(np.mean(np.abs(y2 - y_hat)))
+                rmse_lin = float(np.sqrt(np.mean((y2 - y_hat)**2)))
+                bias_lin = float(np.mean(y_hat - y2))
+                corr_xy = float(np.corrcoef(x2, y2)[0,1]) if len(x2) >= 2 else None
+                out['linear_calibration'] = {
+                    'status': 'ok',
+                    'n': int(len(x2)),
+                    'slope': float(slope),
+                    'intercept': float(intercept),
+                    'mae': mae_lin,
+                    'rmse': rmse_lin,
+                    'bias': bias_lin,
+                    'corr_raw_pred_actual': corr_xy,
+                }
+            else:
+                out['linear_calibration'] = {'status':'empty','n': int(len(x2))}
+        except Exception:
+            out['linear_calibration'] = {'status':'error'}
         # Persist artifacts
         try:
             out_dir = ROOT / 'outputs' / 'eval_totals'
@@ -1380,6 +1491,18 @@ def _compute_backtest_totals() -> dict:
             d[['date','pred_total','actual_total','market_total','err']].to_csv(out_dir / 'residuals.csv', index=False)
             if out['recommendation']['offset_total'] is not None:
                 (out_dir / 'calibration_offset.json').write_text(json.dumps({'offset_total': out['recommendation']['offset_total']}))
+            # Also write linear calibration file for display use
+            try:
+                lin = out.get('linear_calibration') or {}
+                payload = {
+                    'generated_at': dt.datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+                    'days': None,
+                    'pairs': int(lin.get('n') or 0),
+                    'calibration': lin,
+                }
+                (ROOT / 'outputs' / 'calibration_totals_fallback.json').write_text(json.dumps(payload, indent=2), encoding='utf-8')
+            except Exception:
+                pass
         except Exception:
             pass
         return out
@@ -24407,11 +24530,22 @@ def api_display_predictions():
         try:
             if isinstance(df_full, pd.DataFrame) and not df_full.empty:
                 df_full = _normalize_display(df_full)
+                # Apply linear calibration first, then fallback to global offset (display-only)
+                try:
+                    df_full = apply_total_linear_calibration_view(df_full)
+                    df_full = apply_total_offset_view(df_full)
+                except Exception:
+                    pass
                 # Enrich snapshot with market odds by persisting an updated copy, then reload
                 try:
                     _persist_display(df_full, date_q)
                     df_full = _read_csv_resilient(path)
                     df_full = _normalize_display(df_full)
+                    try:
+                        df_full = apply_total_linear_calibration_view(df_full)
+                        df_full = apply_total_offset_view(df_full)
+                    except Exception:
+                        pass
                 except Exception:
                     pass
         except Exception:
@@ -24810,6 +24944,14 @@ def api_display_predictions():
             for c in keep_cols:
                 if c in df.columns:
                     item[c] = r.get(c)
+            # Prefer calibrated pred_total if present for payload
+            try:
+                if ('pred_total' in item) and ('pred_total_calibrated' in df.columns):
+                    pt_cal = r.get('pred_total_calibrated')
+                    if pt_cal is not None and not pd.isna(pt_cal):
+                        item['pred_total'] = pt_cal
+            except Exception:
+                pass
             # Add AM/PM local time derived from start_time/display_time_str
             try:
                 ts = item.get('start_time') or item.get('display_time_str')
@@ -24939,7 +25081,15 @@ def api_display_predictions():
         item = {}
         for c in keep_cols:
             if c in df.columns:
-                item[c] = r.get(c)
+                    item[c] = r.get(c)
+            # Prefer calibrated pred_total if present for payload
+            try:
+                if ('pred_total' in item) and ('pred_total_calibrated' in df.columns):
+                    pt_cal = r.get('pred_total_calibrated')
+                    if pt_cal is not None and not pd.isna(pt_cal):
+                        item['pred_total'] = pt_cal
+            except Exception:
+                pass
         try:
             ts = item.get('start_time') or item.get('display_time_str')
             dt_obj = None
@@ -25284,7 +25434,14 @@ def cards_safe():
                     return pt
                 except Exception:
                     return it.get('pred_total')
-            pt = _fmt_num(_pt_view_local(r))
+            # Prefer calibrated pred_total for view when available
+            try:
+                if r.get('pred_total_calibrated') is not None:
+                    pt = _fmt_num(r.get('pred_total_calibrated'))
+                else:
+                    pt = _fmt_num(_pt_view_local(r))
+            except Exception:
+                pt = _fmt_num(_pt_view_local(r))
             pm = _fmt_num(r.get('pred_margin'))
             mt = _fmt_num(r.get('market_total')) or (str(r.get('market_total')) if r.get('market_total') not in (None, '') else None)
             sh = _fmt_num(r.get('spread_home')) or (str(r.get('spread_home')) if r.get('spread_home') not in (None, '') else None)
@@ -25345,25 +25502,15 @@ def cards_safe():
                                     if pd.notna(dtv):
                                         tm = dtv.strftime('%Y-%m-%d %I:%M %p')
                             except Exception:
-                                tm = ''
-                        # Prefer pred_total_view if present in snapshot; else local view-only nudge
-                        try:
-                            if ('pred_total_view' in df.columns) and (r.get('pred_total_view') is not None):
-                                pt = r.get('pred_total_view')
-                            else:
-                                pt0 = r.get('pred_total')
-                                mt0 = r.get('market_total')
-                                if (pt0 is not None) and (mt0 is not None):
-                                    pv = float(pt0); mv = float(mt0)
-                                    if (round(pv, 2) == round(mv, 2)) or (abs(pv - mv) <= 0.01):
-                                        gid = str(r.get('game_id') or '')
-                                        s = sum(ord(ch) for ch in gid)
-                                        eps = 0.5 if (s % 2 == 0) else -0.5
-                                        pt = pv + eps
+                                try:
+                                    if ('pred_total_calibrated' in df.columns) and (r.get('pred_total_calibrated') is not None):
+                                        pt = r.get('pred_total_calibrated')
+                                    elif ('pred_total_view' in df.columns) and (r.get('pred_total_view') is not None):
+                                        pt = r.get('pred_total_view')
                                     else:
-                                        pt = pt0
-                                else:
-                                    pt = pt0
+                                        pt = r.get('pred_total')
+                                except Exception:
+                                    pt = r.get('pred_total')
                         except Exception:
                             pt = r.get('pred_total')
                         pm = r.get('pred_margin')

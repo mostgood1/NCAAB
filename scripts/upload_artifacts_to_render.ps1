@@ -561,7 +561,23 @@ if ($TriggerRedeploy.IsPresent) {
         if ($changed) { Write-Host "[OK] Detected new deployment version." -ForegroundColor Green }
         else { Write-Host "[Warn] Version unchanged after polling; deployment may still be in progress or using previous image." -ForegroundColor Yellow }
 
-        # Post-deploy: proactively persist display for the date to enrich snapshot with odds
+        # Post-deploy: run backtest totals to compute calibration offset, then persist display
+        try {
+            Write-Step "Post-deploy backtest_totals for date $Date"
+            $bt = Invoke-RestMethod -Uri "$BaseUrl/api/backtest-totals?date=$Date" -Method Get
+            if ($bt) {
+                $bias = if ($bt.bias) { $bt.bias } else { $null }
+                $mae = if ($bt.mae) { $bt.mae } else { $null }
+                $rmse = if ($bt.rmse) { $bt.rmse } else { $null }
+                Write-Host ("[OK] backtest_totals: bias={0} mae={1} rmse={2}" -f $bias, $mae, $rmse) -ForegroundColor Green
+            } else {
+                Write-Host "[Warn] backtest_totals returned empty response" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "[Warn] backtest_totals call failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+
+        # After backtest, proactively persist display for the date to enrich snapshot with odds and calibrated totals
         try {
             Write-Step "Post-deploy persist_display for date $Date"
             $pd = Invoke-RestMethod -Uri "$BaseUrl/api/persist_display?date=$Date" -Method Get
