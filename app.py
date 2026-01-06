@@ -174,7 +174,7 @@ SNAPSHOT_ONLY = (
 DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
 BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
 # Bump-only app revision to trigger deployment image rebuilds when needed
-APP_REV = "2026-01-05.2"
+APP_REV = "2026-01-06.1"
 
 try:
     import pandas as pd
