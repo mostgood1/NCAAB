@@ -21389,6 +21389,27 @@ def api_recommendations():
     # Optional components flag: include per-row confidence breakdown when requested
     components_q = (str(request.args.get("components") or request.args.get("debug") or "").strip().lower() in ("1","true","yes","debug"))
     date_q = (request.args.get("date") or "").strip()
+    # Helper: resolve OU gating thresholds. Only gate when explicitly configured.
+    def _get_ou_thresholds() -> tuple[float | None, float | None]:
+        try:
+            hi = getattr(settings, 'p_over_threshold_high', None)
+            lo = getattr(settings, 'p_over_threshold_low', None)
+        except Exception:
+            hi = None; lo = None
+        # If settings did not specify, check env only when explicitly set (empty → None)
+        try:
+            if hi is None:
+                v = os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '').strip()
+                hi = float(v) if v else None
+        except Exception:
+            pass
+        try:
+            if lo is None:
+                v = os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '').strip()
+                lo = float(v) if v else None
+        except Exception:
+            pass
+        return hi, lo
     # Resolve default date when not provided: prefer latest display snapshot, else latest edges
     if not date_q:
         try:
@@ -21449,21 +21470,14 @@ def api_recommendations():
                     try:
                         # Determine probabilities
                         def _side3(r: pd.Series) -> str:
-                            try:
-                                p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
-                            except Exception:
-                                p_hi = 0.52
-                            try:
-                                p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
-                            except Exception:
-                                p_lo = 0.48
+                            p_hi, p_lo = _get_ou_thresholds()
                             p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                             if p is not None and str(p).strip()!='':
                                 try:
                                     pv = float(p)
-                                    if pv >= p_hi:
+                                    if (p_hi is not None) and (pv >= p_hi):
                                         return 'Over'
-                                    if pv <= p_lo:
+                                    if (p_lo is not None) and (pv <= p_lo):
                                         return 'Under'
                                 except Exception:
                                     pass
@@ -21477,24 +21491,20 @@ def api_recommendations():
                             return 'Over'
                         df_keep3 = pd.DataFrame()
                         try:
-                            try:
-                                p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
-                            except Exception:
-                                p_hi = 0.52
-                            try:
-                                p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
-                            except Exception:
-                                p_lo = 0.48
+                            p_hi, p_lo = _get_ou_thresholds()
                             def _gate3(r: pd.Series) -> bool:
                                 p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                                 b = _side3(r)
                                 try:
-                                    if p is not None and str(p).strip()!='':
+                                    if (p is not None) and str(p).strip()!='' and (p_hi is not None or p_lo is not None):
                                         pv = float(p)
-                                        return (pv >= p_hi and b=='Over') or (pv <= p_lo and b=='Under')
-                                    return False
+                                        ok_hi = (p_hi is not None and pv >= float(p_hi) and b=='Over')
+                                        ok_lo = (p_lo is not None and pv <= float(p_lo) and b=='Under')
+                                        return bool(ok_hi or ok_lo)
+                                    # When thresholds are not configured or probability missing, do not gate out
+                                    return True
                                 except Exception:
-                                    return False
+                                    return True
                             df_keep3 = ddf3[ddf3.apply(_gate3, axis=1)]
                         except Exception:
                             df_keep3 = pd.DataFrame()
@@ -21616,22 +21626,15 @@ def api_recommendations():
             ddf3 = _safe_read_csv(src) if src else pd.DataFrame()
             if not ddf3.empty and date_q:
                 # Thresholds
-                try:
-                    p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
-                except Exception:
-                    p_hi = 0.52
-                try:
-                    p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
-                except Exception:
-                    p_lo = 0.48
+                p_hi, p_lo = _get_ou_thresholds()
                 def _side_en(r: pd.Series) -> str:
                     try:
                         p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                         if p is not None and str(p).strip()!='':
                             pv = float(p)
-                            if pv >= p_hi:
+                            if (p_hi is not None) and (pv >= p_hi):
                                 return 'Over'
-                            if pv <= p_lo:
+                            if (p_lo is not None) and (pv <= p_lo):
                                 return 'Under'
                     except Exception:
                         pass
@@ -21646,10 +21649,12 @@ def api_recommendations():
                     try:
                         p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                         b = _side_en(r)
-                        if p is not None and str(p).strip()!='':
+                        if (p is not None) and str(p).strip()!='' and (p_hi is not None or p_lo is not None):
                             pv = float(p)
-                            return (pv >= p_hi and b=='Over') or (pv <= p_lo and b=='Under')
-                        # Allow edge-only rows when probability missing to avoid emptiness
+                            ok_hi = (p_hi is not None and pv >= float(p_hi) and b=='Over')
+                            ok_lo = (p_lo is not None and pv <= float(p_lo) and b=='Under')
+                            return bool(ok_hi or ok_lo)
+                        # If thresholds are not configured or probability missing, do not gate out
                         return True
                     except Exception:
                         return False
@@ -21944,24 +21949,20 @@ def api_recommendations():
                 out['rec_type'] = 'Totals'; out['rec_code'] = 'OU'
                 # Gate by probability: keep only confident rows
                 try:
-                    try:
-                        p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
-                    except Exception:
-                        p_hi = 0.52
-                    try:
-                        p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
-                    except Exception:
-                        p_lo = 0.48
+                    p_hi, p_lo = _get_ou_thresholds()
                     def _keep_row(r: pd.Series) -> bool:
                         p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                         b = str(r.get('bet')).lower()
                         try:
-                            if p is not None and str(p).strip()!='':
+                            if (p is not None) and str(p).strip()!='' and (p_hi is not None or p_lo is not None):
                                 pv = float(p)
-                                return (pv >= p_hi and b=='over') or (pv <= p_lo and b=='under')
-                            return False
+                                ok_hi = (p_hi is not None and pv >= float(p_hi) and b=='over')
+                                ok_lo = (p_lo is not None and pv <= float(p_lo) and b=='under')
+                                return bool(ok_hi or ok_lo)
+                            # Without configured thresholds, do not gate out
+                            return True
                         except Exception:
-                            return False
+                            return True
                     df_keep = ddf[ddf.apply(_keep_row, axis=1)]
                     if not df_keep.empty:
                         out = out.loc[df_keep.index]
