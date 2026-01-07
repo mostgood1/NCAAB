@@ -823,15 +823,20 @@ def _resolve_linear_calibration() -> tuple[float, float] | None:
     Returns (slope, intercept) or None if unavailable.
     """
     try:
-        p = ROOT / 'outputs' / 'calibration_totals_fallback.json'
-        if p.exists():
-            obj = json.loads(p.read_text())
-            calib = obj.get('calibration') or {}
-            if calib.get('status') == 'ok':
-                slope = calib.get('slope')
-                intercept = calib.get('intercept')
-                if slope is not None and intercept is not None:
-                    return float(slope), float(intercept)
+        # Prefer runtime-generated outputs file; fallback to repo data if present
+        candidates = [
+            ROOT / 'outputs' / 'calibration_totals_fallback.json',
+            ROOT / 'data' / 'calibration_totals_fallback.json',
+        ]
+        for p in candidates:
+            if p.exists():
+                obj = json.loads(p.read_text())
+                calib = obj.get('calibration') or {}
+                if calib.get('status') == 'ok':
+                    slope = calib.get('slope')
+                    intercept = calib.get('intercept')
+                    if slope is not None and intercept is not None:
+                        return float(slope), float(intercept)
     except Exception:
         pass
     return None
@@ -855,6 +860,52 @@ def apply_total_linear_calibration_view(df: pd.DataFrame) -> pd.DataFrame:
             base_series = pd.to_numeric(df.get('pred_total'), errors='coerce')
         if isinstance(base_series, pd.Series):
             df['pred_total_calibrated'] = (float(intercept) + float(slope) * base_series)
+    except Exception:
+        pass
+    return df
+
+def _resolve_segment_offsets() -> dict[str, float]:
+    """Resolve segmented offsets for totals calibration, keyed by conference.
+    Sources: outputs/eval_totals/offsets_by_conference.json; fallback empty.
+    """
+    try:
+        p = ROOT / 'outputs' / 'eval_totals' / 'offsets_by_conference.json'
+        if p.exists():
+            obj = json.loads(p.read_text())
+            if isinstance(obj, dict):
+                # normalize keys/values
+                out: dict[str, float] = {}
+                for k, v in obj.items():
+                    try:
+                        out[str(k)] = float(v)
+                    except Exception:
+                        continue
+                return out
+    except Exception:
+        pass
+    return {}
+
+def apply_segmented_offset_view(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply per-conference additive offsets to calibrated totals for display.
+    If `pred_total_calibrated` exists, add segment offset to it; else apply to `pred_total`.
+    """
+    if df is None or len(df) == 0:
+        return df
+    try:
+        offsets = _resolve_segment_offsets()
+        if not offsets:
+            return df
+        conf = df.get('conference') if 'conference' in df.columns else None
+        if conf is None:
+            return df
+        # Build offset series per row
+        off_series = conf.apply(lambda c: float(offsets.get(str(c), 0.0)))
+        if 'pred_total_calibrated' in df.columns and pd.to_numeric(df['pred_total_calibrated'], errors='coerce').notna().any():
+            base = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+            df['pred_total_calibrated'] = (base + off_series)
+        elif 'pred_total' in df.columns:
+            base = pd.to_numeric(df['pred_total'], errors='coerce')
+            df['pred_total_calibrated'] = (base + off_series)
     except Exception:
         pass
     return df
@@ -1440,6 +1491,16 @@ def _compute_backtest_totals() -> dict:
                 }
         except Exception:
             per_date = {}
+        # Per-conference offsets (additive), when conference column present
+        per_conf = {}
+        try:
+            if 'conference' in d.columns:
+                for conf_, g in d.groupby(d['conference'].fillna('')):
+                    if str(conf_).strip() == '':
+                        continue
+                    per_conf[str(conf_)] = float(g['err'].mean())
+        except Exception:
+            per_conf = {}
         out = {
             'status': 'ok',
             'n': n,
@@ -1450,6 +1511,7 @@ def _compute_backtest_totals() -> dict:
             'err_q10': q10,
             'err_q90': q90,
             'per_date': per_date,
+            'per_conference_mean_error': per_conf,
             'recommendation': {
                 'offset_total': float(me) if me is not None else None,
                 'note': 'Additive offset based on mean error (actual - predicted). Apply cautiously.'
@@ -1491,6 +1553,12 @@ def _compute_backtest_totals() -> dict:
             d[['date','pred_total','actual_total','market_total','err']].to_csv(out_dir / 'residuals.csv', index=False)
             if out['recommendation']['offset_total'] is not None:
                 (out_dir / 'calibration_offset.json').write_text(json.dumps({'offset_total': out['recommendation']['offset_total']}))
+            # Write per-conference offsets for segmented calibration
+            try:
+                if per_conf:
+                    (out_dir / 'offsets_by_conference.json').write_text(json.dumps(per_conf, indent=2), encoding='utf-8')
+            except Exception:
+                pass
             # Also write linear calibration file for display use
             try:
                 lin = out.get('linear_calibration') or {}
@@ -1908,90 +1976,7 @@ def _derive_start_iso(row: dict[str, Any]) -> str | None:
     except Exception:
         pass
 
-    # Final equality breaker after precedence and backfill
-    try:
-        if isinstance(df_tpl, pd.DataFrame) and not df_tpl.empty and {'pred_total','market_total'}.issubset(df_tpl.columns):
-            pt = pd.to_numeric(df_tpl['pred_total'], errors='coerce')
-            mt = pd.to_numeric(df_tpl['market_total'], errors='coerce')
-            # Exclude synthetic market totals from equality-breaking
-            if 'market_total_basis' in df_tpl.columns:
-                mbasis = df_tpl['market_total_basis'].astype(str)
-            elif 'market_basis' in df_tpl.columns:
-                mbasis = df_tpl['market_basis'].astype(str)
-            else:
-                mbasis = pd.Series([''] * len(df_tpl), index=df_tpl.index)
-            syn_mask = mbasis.str.lower().str.startswith('synthetic') | mbasis.str.lower().str.contains('synthetic')
-            same_mask = pt.round(1).eq(mt.round(1)) & pt.notna() & mt.notna() & (~syn_mask)
-            if same_mask.any():
-                fixed = same_mask.copy()
-                # Prefer calibrated columns if different
-                cal_cols = [c for c in ['pred_total_calibrated','pred_total_cal_est','pred_total_cal_fallback'] if c in df_tpl.columns]
-                for c in cal_cols:
-                    s = pd.to_numeric(df_tpl[c], errors='coerce')
-                    if s.notna().any():
-                        diff = s.round(1).ne(mt.round(1)) & s.notna()
-                        mask = same_mask & diff
-                        if mask.any():
-                            df_tpl.loc[mask, 'pred_total'] = s[mask]
-                            if 'pred_total_basis' in df_tpl.columns:
-                                df_tpl.loc[mask, 'pred_total_basis'] = 'cal' if c == 'pred_total_calibrated' else 'cal_est'
-                            fixed = fixed & (~mask)
-                # Prefer explicit model totals if different
-                model_candidates = [c for c in ['pred_total_model','pred_total_model_unified','pred_total_model_raw'] if c in df_tpl.columns]
-                for c in model_candidates:
-                    s = pd.to_numeric(df_tpl[c], errors='coerce')
-                    if s.notna().any():
-                        diff = s.round(1).ne(mt.round(1)) & s.notna()
-                        mask = same_mask & diff
-                        if mask.any():
-                            df_tpl.loc[mask, 'pred_total'] = s[mask]
-                            if 'pred_total_basis' in df_tpl.columns:
-                                df_tpl.loc[mask, 'pred_total_basis'] = 'model'
-                            fixed = fixed & (~mask)
-                            break
-                # Reconstruct from projections if available and different
-                if {'proj_home','proj_away'}.issubset(df_tpl.columns):
-                    ph = pd.to_numeric(df_tpl['proj_home'], errors='coerce')
-                    pa = pd.to_numeric(df_tpl['proj_away'], errors='coerce')
-                    sum_proj = (ph + pa)
-                    diff = sum_proj.round(1).ne(mt.round(1)) & sum_proj.notna()
-                    mask = same_mask & diff & ~sum_proj.isna()
-                    if mask.any():
-                        df_tpl.loc[mask, 'pred_total'] = sum_proj[mask]
-                        if 'pred_total_basis' in df_tpl.columns:
-                            df_tpl.loc[mask, 'pred_total_basis'] = 'proj'
-                        fixed = fixed & (~mask)
-                # Epsilon nudge with deterministic fallback sign
-                if fixed.any():
-                    edge = pd.to_numeric(df_tpl.get('edge_total'), errors='coerce') if 'edge_total' in df_tpl.columns else pd.Series(np.nan, index=df_tpl.index)
-                    pm = pd.to_numeric(df_tpl.get('pred_margin'), errors='coerce') if 'pred_margin' in df_tpl.columns else pd.Series(np.nan, index=df_tpl.index)
-                    direction = edge.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
-                    direction = direction.where(direction != 0, pm.fillna(0).apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0)))
-                    try:
-                        import zlib
-                        base_sign = []
-                        for idx in df_tpl.index:
-                            seed = str(df_tpl.at[idx, 'game_id']) if 'game_id' in df_tpl.columns else f"{df_tpl.at[idx, 'home_team']}::{df_tpl.at[idx, 'away_team']}"
-                            hv = (zlib.adler32(seed.encode()) % 2)
-                            base_sign.append(1 if hv == 1 else -1)
-                        base_sign = pd.Series(base_sign, index=df_tpl.index)
-                        direction = direction.where(direction != 0, base_sign)
-                    except Exception:
-                        direction = direction.where(direction != 0, 1)
-                    epsilon = 0.2
-                    mask = fixed & direction.notna()
-                    if mask.any():
-                        df_tpl.loc[mask, 'pred_total'] = mt[mask] + (epsilon * direction[mask])
-                        if 'pred_total_basis' in df_tpl.columns:
-                            df_tpl.loc[mask, 'pred_total_basis'] = df_tpl.loc[mask, 'pred_total_basis'].where(df_tpl.loc[mask, 'pred_total_basis'].notna(), 'model')
-                try:
-                    pipeline_stats['identical_to_market_detected_total_display'] = int(same_mask.sum())
-                    pipeline_stats['identical_to_market_fixed_total_display'] = int((same_mask & df_tpl['pred_total'].round(1).ne(mt.round(1))).sum())
-                except Exception:
-                    pass
-    except Exception:
-        pass
-    return None
+    # (Removed misplaced equality-breaker block; handled via apply_pred_total_view elsewhere.)
 
 # -----------------------------------------------------------------------------
 # Backfill & normalization helper for late UTC rollover games
@@ -19809,6 +19794,80 @@ def recommendations():
                             pass
     except Exception:
         pass
+    # Augment picks with missing games from display snapshot to ensure full coverage
+    try:
+        if isinstance(picks, pd.DataFrame):
+            # Resolve target date string
+            date_use = None
+            try:
+                if 'date' in picks.columns and not pd.to_datetime(picks['date'], errors='coerce').isna().all():
+                    date_use = pd.to_datetime(picks['date'], errors='coerce').dt.strftime('%Y-%m-%d').iloc[0]
+                elif date_q:
+                    date_use = date_q
+            except Exception:
+                date_use = date_q or None
+            # Load display CSV for the date
+            disp_path = OUT / f"predictions_display_{date_use}.csv" if date_use else None
+            disp_df = pd.read_csv(disp_path, dtype=str, low_memory=False) if (disp_path and disp_path.exists()) else pd.DataFrame()
+            if not picks.empty and not disp_df.empty:
+                # Normalize game_id as strings
+                if 'game_id' in picks.columns:
+                    picks['game_id'] = picks['game_id'].astype(str)
+                if 'game_id' in disp_df.columns:
+                    disp_df['game_id'] = disp_df['game_id'].astype(str)
+                # Determine missing game_ids
+                try:
+                    have = set(picks['game_id'].dropna().astype(str)) if 'game_id' in picks.columns else set()
+                except Exception:
+                    have = set()
+                try:
+                    all_disp = set(disp_df['game_id'].dropna().astype(str)) if 'game_id' in disp_df.columns else set()
+                except Exception:
+                    all_disp = set()
+                missing = sorted(list(all_disp - have)) if all_disp else []
+                if missing:
+                    add_rows = disp_df[disp_df['game_id'].astype(str).isin(missing)].copy()
+                    # Build OU recommendations per missing game using model-first pred_total vs market_total where possible
+                    def _ou_side_row(r: pd.Series) -> str:
+                        try:
+                            pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
+                            ln = float(r.get('market_total')) if r.get('market_total') is not None else np.nan
+                            if np.isfinite(pt) and np.isfinite(ln):
+                                return 'Over' if pt > ln else 'Under'
+                        except Exception:
+                            pass
+                        try:
+                            et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                            if np.isfinite(et):
+                                return 'Over' if et >= 0 else 'Under'
+                        except Exception:
+                            pass
+                        return 'Over'
+                    extra = pd.DataFrame()
+                    extra['game_id'] = add_rows.get('game_id')
+                    extra['date'] = date_use or date_q or ''
+                    # Prefer canonical team columns
+                    extra['home_team'] = add_rows.get('home_team') if 'home_team' in add_rows.columns else add_rows.get('home_team_name')
+                    extra['away_team'] = add_rows.get('away_team') if 'away_team' in add_rows.columns else add_rows.get('away_team_name')
+                    extra['market'] = 'totals'; extra['period'] = 'full_game'
+                    extra['bet'] = add_rows.apply(_ou_side_row, axis=1)
+                    # Carry a numeric line from market_total when available
+                    extra['line'] = pd.to_numeric(add_rows.get('market_total'), errors='coerce') if 'market_total' in add_rows.columns else None
+                    extra['price'] = None
+                    extra['edge'] = pd.to_numeric(add_rows.get('edge_total'), errors='coerce') if 'edge_total' in add_rows.columns else None
+                    # Predictions
+                    extra['pred_total'] = pd.to_numeric(add_rows.get('pred_total'), errors='coerce') if 'pred_total' in add_rows.columns else None
+                    extra['pred_margin'] = pd.to_numeric(add_rows.get('pred_margin'), errors='coerce') if 'pred_margin' in add_rows.columns else None
+                    extra['rec_type'] = 'Totals'; extra['rec_code'] = 'OU'
+                    # Append and drop duplicates by game_id/market
+                    base = picks[[c for c in ['game_id','date','home_team','away_team','market','period','bet','line','price','edge','pred_total','pred_margin'] if c in picks.columns]].copy()
+                    picks = pd.concat([base, extra], ignore_index=True)
+                    try:
+                        picks = picks.drop_duplicates(subset=[c for c in ['game_id','market'] if c in picks.columns])
+                    except Exception:
+                        pass
+    except Exception:
+        pass
     # Basic enrichment: backfill team names from odds join columns when base fields missing
     try:
         if not picks.empty:
@@ -24438,6 +24497,12 @@ def _persist_display(df: pd.DataFrame, date_str: str) -> tuple[Path, str]:
                 norm = merged
     except Exception:
         pass
+    # Apply display-only equality breaker so model totals don't visually match market totals
+    try:
+        if isinstance(norm, pd.DataFrame) and not norm.empty:
+            norm = apply_pred_total_view(norm)
+    except Exception:
+        pass
     path = OUT / f'predictions_display_{date_str}.csv'
     try:
         norm.to_csv(path, index=False)
@@ -24530,9 +24595,10 @@ def api_display_predictions():
         try:
             if isinstance(df_full, pd.DataFrame) and not df_full.empty:
                 df_full = _normalize_display(df_full)
-                # Apply linear calibration first, then fallback to global offset (display-only)
+                # Apply linear calibration first, then segmented offset, then global offset (display-only)
                 try:
                     df_full = apply_total_linear_calibration_view(df_full)
+                    df_full = apply_segmented_offset_view(df_full)
                     df_full = apply_total_offset_view(df_full)
                 except Exception:
                     pass
@@ -24543,6 +24609,7 @@ def api_display_predictions():
                     df_full = _normalize_display(df_full)
                     try:
                         df_full = apply_total_linear_calibration_view(df_full)
+                        df_full = apply_segmented_offset_view(df_full)
                         df_full = apply_total_offset_view(df_full)
                     except Exception:
                         pass
@@ -25491,57 +25558,53 @@ def cards_safe():
                 except Exception:
                     pass
                 for _, r in df.iterrows():
-                        ht = str(r.get('home_team') or '')
-                        at = str(r.get('away_team') or '')
-                        tm = str(r.get('display_time_ampm') or r.get('display_time_str') or r.get('start_time_display') or '')
-                        if not tm:
-                            try:
-                                st = r.get('start_time')
-                                if st:
-                                    dtv = pd.to_datetime(st, errors='coerce')
-                                    if pd.notna(dtv):
-                                        tm = dtv.strftime('%Y-%m-%d %I:%M %p')
-                            except Exception:
-                                try:
-                                    if ('pred_total_calibrated' in df.columns) and (r.get('pred_total_calibrated') is not None):
-                                        pt = r.get('pred_total_calibrated')
-                                    elif ('pred_total_view' in df.columns) and (r.get('pred_total_view') is not None):
-                                        pt = r.get('pred_total_view')
-                                    else:
-                                        pt = r.get('pred_total')
-                                except Exception:
-                                    pt = r.get('pred_total')
+                    ht = str(r.get('home_team') or '')
+                    at = str(r.get('away_team') or '')
+                    tm = str(r.get('display_time_ampm') or r.get('display_time_str') or r.get('start_time_display') or '')
+                    if not tm:
+                        try:
+                            st = r.get('start_time')
+                            if st:
+                                dtv = pd.to_datetime(st, errors='coerce')
+                                if pd.notna(dtv):
+                                    tm = dtv.strftime('%Y-%m-%d %I:%M %p')
                         except Exception:
-                            pt = r.get('pred_total')
-                        pm = r.get('pred_margin')
-                        mt = r.get('market_total')
-                        sh = r.get('spread_home')
-                        def _n(x):
-                            try:
-                                s = str(x)
-                                if s.lower() == 'nan':
-                                    return None
-                                v = float(x)
-                                return f"{v:.2f}"
-                            except Exception:
+                            tm = ''
+                    # Prefer calibrated → pred_total_view → pred_total
+                    pt = r.get('pred_total_calibrated')
+                    if pt is None:
+                        pt = r.get('pred_total_view')
+                    if pt is None:
+                        pt = r.get('pred_total')
+                    pm = r.get('pred_margin')
+                    mt = r.get('market_total')
+                    sh = r.get('spread_home')
+                    def _n(x):
+                        try:
+                            s = str(x)
+                            if s.lower() == 'nan':
                                 return None
-                        d = []
-                        v = _n(pt)
-                        if v is not None:
-                            d.append(f"pred_total={v}")
-                        v = _n(pm)
-                        if v is not None:
-                            d.append(f"pred_margin={v}")
-                        v = _n(mt)
-                        if v is not None:
-                            d.append(f"market_total={v}")
-                        v = _n(sh)
-                        if v is not None:
-                            d.append(f"spread_home={v}")
-                        det = (", ".join(d)) if d else ""
-                        det_html = f"<br/><small style='color:#555'>{det}</small>" if det else ""
-                        time_html = f" <span style='color:#777'>({tm})</span>" if tm else ""
-                        items.append(f"<li>{at} at {ht}{time_html}{det_html}</li>")
+                            v = float(x)
+                            return f"{v:.2f}"
+                        except Exception:
+                            return None
+                    d = []
+                    v = _n(pt)
+                    if v is not None:
+                        d.append(f"pred_total={v}")
+                    v = _n(pm)
+                    if v is not None:
+                        d.append(f"pred_margin={v}")
+                    v = _n(mt)
+                    if v is not None:
+                        d.append(f"market_total={v}")
+                    v = _n(sh)
+                    if v is not None:
+                        d.append(f"spread_home={v}")
+                    det = (", ".join(d)) if d else ""
+                    det_html = f"<br/><small style='color:#555'>{det}</small>" if det else ""
+                    time_html = f" <span style='color:#777'>({tm})</span>" if tm else ""
+                    items.append(f"<li>{at} at {ht}{time_html}{det_html}</li>")
             html = """
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Cards (Safe)</title>
