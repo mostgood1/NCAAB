@@ -190,6 +190,84 @@ def load_enriched_predictions(outputs_dir: Path, min_date: str | None, max_date:
     out['date'] = pd.to_datetime(out['date'], errors='coerce').dt.strftime('%Y-%m-%d')
     return out
 
+def load_history_enriched(outputs_dir: Path, min_date: str | None, max_date: str | None) -> pd.DataFrame:
+    """Load consolidated historical enriched predictions with lines and probabilities.
+    File: outputs/predictions_history_enriched.csv
+    """
+    p = outputs_dir / 'predictions_history_enriched.csv'
+    df = safe_read_csv(p)
+    if df.empty:
+        return df
+    if 'game_id' in df.columns:
+        df['game_id'] = df['game_id'].astype(str)
+    if 'date' in df.columns:
+        try:
+            df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        except Exception:
+            df['date'] = df['date'].astype(str)
+    # Date range filter
+    if min_date:
+        df = df[df['date'] >= min_date]
+    if max_date:
+        df = df[df['date'] <= max_date]
+    return df
+
+def load_align_period_actuals(outputs_dir: Path, min_date: str | None, max_date: str | None) -> pd.DataFrame:
+    """Aggregate actual scores from align_period per-game CSV snapshots.
+    Files: outputs/align_period_*.csv containing home_score/away_score and model predictions.
+    Returns per-game actual totals/margins plus prediction columns (pred_total/pred_margin variants).
+    """
+    frames: List[pd.DataFrame] = []
+    for p in sorted(outputs_dir.glob('align_period_*.csv')):
+        # Extract date from filename suffix when possible
+        try:
+            date_part = p.stem.split('_')[-1]
+        except Exception:
+            date_part = None
+        if min_date and date_part and date_part < min_date: continue
+        if max_date and date_part and date_part > max_date: continue
+        df = safe_read_csv(p)
+        if df.empty:
+            continue
+        # Filter totals market and ensure scores
+        if 'game_id' in df.columns:
+            df['game_id'] = df['game_id'].astype(str)
+        # Use rows with numeric scores
+        hs = pd.to_numeric(df.get('home_score'), errors='coerce')
+        as_ = pd.to_numeric(df.get('away_score'), errors='coerce')
+        # Completed games typically have both scores > 0; filter out 0-0 placeholders
+        mask = hs.notna() & as_.notna() & (hs > 0) & (as_ > 0)
+        if mask.any():
+            cols = ['game_id','home_score','away_score',
+                'pred_total','pred_margin','pred_total_1h','pred_margin_1h',
+                'pred_total_2h','pred_margin_2h','pred_total_full','pred_margin_full',
+                'date_game','total']
+            cols_present = [c for c in cols if c in df.columns]
+            df2 = df.loc[mask, cols_present].copy()
+            # drop duplicates keeping last
+            df2 = df2.sort_values(['game_id']).drop_duplicates(['game_id'], keep='last')
+            frames.append(df2)
+    if not frames:
+        return pd.DataFrame()
+    out = pd.concat(frames, ignore_index=True, sort=False)
+    # Compute actuals
+    out['actual_total'] = pd.to_numeric(out['home_score'], errors='coerce') + pd.to_numeric(out['away_score'], errors='coerce')
+    out['actual_margin'] = pd.to_numeric(out['home_score'], errors='coerce') - pd.to_numeric(out['away_score'], errors='coerce')
+    # Normalize date if present
+    if 'date_game' in out.columns:
+        try:
+            out['date'] = pd.to_datetime(out['date_game'], errors='coerce').dt.strftime('%Y-%m-%d')
+        except Exception:
+            out['date'] = out['date_game'].astype(str)
+    # Ensure numeric prediction columns
+    for c in ['pred_total','pred_margin','pred_total_1h','pred_margin_1h','pred_total_2h','pred_margin_2h','pred_total_full','pred_margin_full']:
+        if c in out.columns:
+            out[c] = pd.to_numeric(out[c], errors='coerce')
+    # Ensure numeric market total if present
+    if 'total' in out.columns:
+        out['total'] = pd.to_numeric(out['total'], errors='coerce')
+    return out
+
 def compute_regression_metrics(pred: pd.Series, actual: pd.Series) -> Dict[str, Any]:
     predn = pd.to_numeric(pred, errors='coerce')
     actn = pd.to_numeric(actual, errors='coerce')
@@ -208,6 +286,48 @@ def compute_regression_metrics(pred: pd.Series, actual: pd.Series) -> Dict[str, 
         "actual_std": float(actn[mask].std(ddof=0)),
     }
 
+def regression_from_align(align_df: pd.DataFrame, preds_enr: pd.DataFrame, preds_all: pd.DataFrame) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    """Compute regression metrics using align-period anchored frame.
+    Joins predictions onto align actuals by game_id/date when available.
+    """
+    if align_df is None or align_df.empty:
+        return {"n": 0}, {"n": 0}
+    base = align_df.copy()
+    # Normalize game_id and date
+    if 'game_id' in base.columns:
+        base['game_id'] = base['game_id'].astype(str)
+    if 'date' not in base.columns and 'date_game' in base.columns:
+        try:
+            base['date'] = pd.to_datetime(base['date_game'], errors='coerce').dt.strftime('%Y-%m-%d')
+        except Exception:
+            base['date'] = base['date_game'].astype(str)
+    # Join predictions
+    for src, suff in [(preds_enr, '_enr'), (preds_all, '_all')]:
+        if src is None or src.empty:
+            continue
+        inter = src.copy()
+        if 'game_id' in inter.columns:
+            inter['game_id'] = inter['game_id'].astype(str)
+        keys = ['game_id']
+        try:
+            base = base.merge(inter, on=keys, how='left', suffixes=('', suff))
+        except Exception:
+            pass
+    # Select prediction columns
+    pt = None
+    for c in ['pred_total_calibrated','pred_total_model_unified','pred_total','pred_total_full','pred_total_enr','pred_total_all']:
+        if c in base.columns:
+            pt = base[c]
+            break
+    pm = None
+    for c in ['pred_margin_calibrated','pred_margin_model_unified','pred_margin','pred_margin_full','pred_margin_enr','pred_margin_all']:
+        if c in base.columns:
+            pm = base[c]
+            break
+    reg_t = compute_regression_metrics(pt if pt is not None else pd.Series(dtype=float), base.get('actual_total'))
+    reg_m = compute_regression_metrics(pm if pm is not None else pd.Series(dtype=float), base.get('actual_margin'))
+    return reg_t, reg_m
+
 def derive_outcomes(join: pd.DataFrame) -> pd.DataFrame:
     # Actual margin and O/U outcomes using closing_total/spread where present.
     if {'home_score','away_score'}.issubset(join.columns):
@@ -215,11 +335,18 @@ def derive_outcomes(join: pd.DataFrame) -> pd.DataFrame:
         as_ = pd.to_numeric(join['away_score'], errors='coerce')
         join['actual_total'] = hs + as_
         join['actual_margin'] = hs - as_
-    # Over outcome vs closing (1 if actual_total > closing_total)
-    if {'actual_total','closing_total'}.issubset(join.columns):
-        ct = pd.to_numeric(join['closing_total'], errors='coerce')
+    # Over outcome vs line: prefer closing_total, then market_total, then total (align)
+    if 'actual_total' in join.columns:
         at = pd.to_numeric(join['actual_total'], errors='coerce')
-        join['outcome_over'] = np.where(at.notna() & ct.notna(), (at > ct).astype(int), np.nan)
+        line = None
+        if 'closing_total' in join.columns:
+            line = pd.to_numeric(join['closing_total'], errors='coerce')
+        if (line is None or line.isna().all()) and 'market_total' in join.columns:
+            line = pd.to_numeric(join['market_total'], errors='coerce')
+        if (line is None or line.isna().all()) and 'total' in join.columns:
+            line = pd.to_numeric(join['total'], errors='coerce')
+        if line is not None:
+            join['outcome_over'] = np.where(at.notna() & line.notna(), (at > line).astype(int), np.nan)
     # Cover outcome for home vs closing_spread_home (home covers if margin > -spread_home)
     if {'actual_margin','closing_spread_home'}.issubset(join.columns):
         sp = pd.to_numeric(join['closing_spread_home'], errors='coerce')
@@ -258,7 +385,7 @@ def main():
     ap.add_argument('--kelly-floor', type=float, default=0.01, help='Minimum Kelly fraction to count a bet.')
     # Prefer empirical probabilities first when available
     ap.add_argument('--prob-cols-cover', nargs='*', default=['p_home_cover_emp','p_home_cover_meta_cal','p_home_cover_meta','p_cover_display','p_home_cover_dist'])
-    ap.add_argument('--prob-cols-over', nargs='*', default=['p_over_emp','p_over_meta_cal','p_over_meta','p_over_display','p_over_dist'])
+    ap.add_argument('--prob-cols-over', nargs='*', default=['p_over_quantile','p_over_emp','p_over_meta_cal','p_over_meta','p_over_display','p_over_dist'])
     ap.add_argument('--interval-point-col', default='pred_total_calibrated')
     ap.add_argument('--interval-lower-col', default='pred_total_calibrated_low_90')
     ap.add_argument('--interval-upper-col', default='pred_total_calibrated_high_90')
@@ -273,6 +400,7 @@ def main():
     preds_all = safe_read_csv(out_dir / 'predictions_all.csv')
     closing = safe_read_csv(out_dir / 'closing_lines.csv')
     last_odds = safe_read_csv(out_dir / 'last_odds.csv')
+    quant_hist = safe_read_csv(out_dir / 'quantiles_history.csv')
     daily = load_daily_results(out_dir, args.min_date, args.max_date)
 
     if 'game_id' in preds_all.columns:
@@ -284,7 +412,7 @@ def main():
     if 'game_id' in daily.columns:
         daily['game_id'] = daily['game_id'].astype(str)
     # Coerce 'date' to canonical YYYY-MM-DD when present
-    for df_ in (preds_all, closing, last_odds, daily):
+    for df_ in (preds_all, closing, last_odds, quant_hist, daily):
         if 'date' in df_.columns:
             try:
                 df_['date'] = pd.to_datetime(df_['date'], errors='coerce').dt.strftime('%Y-%m-%d')
@@ -310,7 +438,9 @@ def main():
                 base['date'] = None
         else:
             base['date'] = None
-    for df_extra, suff in [(closing,'_closing'), (last_odds,'_last'), (daily,'_daily')]:
+    hist_enriched = load_history_enriched(out_dir, args.min_date, args.max_date)
+    align_actuals = load_align_period_actuals(out_dir, args.min_date, args.max_date)
+    for df_extra, suff in [(closing,'_closing'), (last_odds,'_last'), (daily,'_daily'), (hist_enriched,'_hist'), (align_actuals,'_align'), (quant_hist,'_qhist')]:
         inter = df_extra.copy()
         # Decide merge keys dynamically
         keys = join_cols if set(join_cols).issubset(inter.columns) else (['game_id'] if 'game_id' in inter.columns else None)
@@ -359,32 +489,88 @@ def main():
 
     # Actual scores
     if 'home_score' not in base.columns:
-        coalesce('home_score', ['home_score_daily','home_score'])
+        coalesce('home_score', ['home_score_align','home_score_daily','home_score'])
     if 'away_score' not in base.columns:
-        coalesce('away_score', ['away_score_daily','away_score'])
+        coalesce('away_score', ['away_score_align','away_score_daily','away_score'])
     # Closing market values
     if 'closing_total' not in base.columns:
-        coalesce('closing_total', ['closing_total_closing','closing_total_last','closing_total'])
+        coalesce('closing_total', ['closing_total_hist','closing_total_closing','closing_total_last','total_align','total','closing_total'])
+    if 'market_total' not in base.columns:
+        coalesce('market_total', ['market_total_hist','market_total_last','total_last','market_total'])
     if 'closing_spread_home' not in base.columns:
-        coalesce('closing_spread_home', ['closing_spread_home_closing','closing_spread_home_last','closing_spread_home'])
+        coalesce('closing_spread_home', ['closing_spread_home_hist','closing_spread_home_closing','closing_spread_home_last','closing_spread_home'])
     # Actuals from daily by gid
     if 'actual_total' not in base.columns:
-        coalesce('actual_total', ['actual_total_daily','actual_total_daily_gid'])
+        coalesce('actual_total', ['actual_total_align','actual_total_daily','actual_total_daily_gid'])
     if 'actual_margin' not in base.columns:
-        coalesce('actual_margin', ['actual_margin_daily','actual_margin_daily_gid'])
+        coalesce('actual_margin', ['actual_margin_align','actual_margin_daily','actual_margin_daily_gid'])
 
     base = derive_outcomes(base)
 
+    # Quantile coalescing for calibrated intervals from quantiles_history
+    def pick_first(cols: list[str]) -> str | None:
+        for c in cols:
+            if c in base.columns:
+                return c
+        return None
+    q10_col = pick_first(['q10_total','q10','pred_total_q10','q10_qhist'])
+    q50_col = pick_first(['q50_total','q50','pred_total_q50','q50_qhist'])
+    q90_col = pick_first(['q90_total','q90','pred_total_q90','q90_qhist'])
+    if q50_col and 'pred_total_calibrated' not in base.columns:
+        base['pred_total_calibrated'] = pd.to_numeric(base[q50_col], errors='coerce')
+    if q10_col and 'pred_total_calibrated_low_90' not in base.columns:
+        base['pred_total_calibrated_low_90'] = pd.to_numeric(base[q10_col], errors='coerce')
+    if q90_col and 'pred_total_calibrated_high_90' not in base.columns:
+        base['pred_total_calibrated_high_90'] = pd.to_numeric(base[q90_col], errors='coerce')
+
+    # p_over from quantiles using piecewise-linear CDF
+    if q10_col and q50_col and q90_col:
+        q10 = pd.to_numeric(base[q10_col], errors='coerce')
+        q50 = pd.to_numeric(base[q50_col], errors='coerce')
+        q90 = pd.to_numeric(base[q90_col], errors='coerce')
+        line = pd.to_numeric(base.get('closing_total'), errors='coerce')
+        if line.isna().all():
+            line = pd.to_numeric(base.get('market_total'), errors='coerce')
+        cdf = pd.Series(np.nan, index=base.index)
+        # Middle and edges piecewise
+        mid1 = line.notna() & q10.notna() & q50.notna() & (line >= q10) & (line <= q50)
+        cdf.loc[mid1] = 0.1 + (0.4) * ((line[mid1] - q10[mid1]) / (q50[mid1] - q10[mid1]).replace(0, np.nan))
+        mid2 = line.notna() & q50.notna() & q90.notna() & (line > q50) & (line <= q90)
+        cdf.loc[mid2] = 0.5 + (0.4) * ((line[mid2] - q50[mid2]) / (q90[mid2] - q50[mid2]).replace(0, np.nan))
+        left = line.notna() & q10.notna() & (line < q10)
+        cdf.loc[left] = 0.1 * ((line[left]) / (q10[left]).replace(0, np.nan))
+        right = line.notna() & q90.notna() & (line > q90)
+        # extrapolate with gentle slope beyond q90
+        cdf.loc[right] = 0.9 + (0.1) * ((line[right] - q90[right]) / (q90[right]).replace(0, np.nan))
+        base['p_over_quantile'] = 1.0 - cdf
+
     # Regression metrics
-    # Prefer calibrated series when present; otherwise fallback to raw model/display columns.
-    # Prefer calibrated predictions; otherwise fallback to display/model/raw
+    # Prefer calibrated series when present; otherwise fallback to raw/model/display columns.
+    # Coalesce predictions from align_period/history by filling NaNs in-place.
+    def coalesce_fill(target: str, candidates: list[str]):
+        nonlocal base
+        if target not in base.columns:
+            base[target] = np.nan
+        for c in candidates:
+            if c in base.columns:
+                ser = pd.to_numeric(base[c], errors='coerce') if base[c].dtype.kind in 'biufc' else base[c]
+                try:
+                    mask = base[target].isna() & ser.notna()
+                except Exception:
+                    mask = pd.Series([True]*len(base)) & ser.notna()
+                if mask.any():
+                    base.loc[mask, target] = ser[mask]
+        return
+
+    coalesce_fill('pred_total', ['pred_total_align','pred_total_full_align','pred_total_full','pred_total_hist','pred_total'])
+    coalesce_fill('pred_margin', ['pred_margin_align','pred_margin_full_align','pred_margin_full','pred_margin'])
     pred_total_series = None
-    for c in ['pred_total_calibrated','pred_total_model_unified','pred_total']:
+    for c in ['pred_total_calibrated','pred_total_model_unified','pred_total','pred_total_full','pred_total_hist']:
         if c in base.columns:
             pred_total_series = base[c]
             break
     pred_margin_series = None
-    for c in ['pred_margin_calibrated','pred_margin_model_unified','pred_margin']:
+    for c in ['pred_margin_calibrated','pred_margin_model_unified','pred_margin','pred_margin_full']:
         if c in base.columns:
             pred_margin_series = base[c]
             break
@@ -394,6 +580,24 @@ def main():
         pred_margin_series = base.get('pred_margin')
     reg_total = compute_regression_metrics(pred_total_series, base.get('actual_total'))
     reg_margin = compute_regression_metrics(pred_margin_series, base.get('actual_margin'))
+    # Fallback: use align-period predictions and actuals if primary join is sparse
+    if isinstance(reg_total, dict) and reg_total.get('n', 0) == 0:
+        pt_align = base['pred_total_align'] if 'pred_total_align' in base.columns else pd.Series(dtype=float)
+        if not pt_align.empty:
+            actual_total_fallback = base['actual_total_align'] if 'actual_total_align' in base.columns else (pd.to_numeric(base.get('home_score_align'), errors='coerce') + pd.to_numeric(base.get('away_score_align'), errors='coerce'))
+            reg_total = compute_regression_metrics(pt_align, actual_total_fallback)
+    if isinstance(reg_margin, dict) and reg_margin.get('n', 0) == 0:
+        pm_align = base['pred_margin_align'] if 'pred_margin_align' in base.columns else pd.Series(dtype=float)
+        if not pm_align.empty:
+            actual_margin_fallback = base['actual_margin_align'] if 'actual_margin_align' in base.columns else (pd.to_numeric(base.get('home_score_align'), errors='coerce') - pd.to_numeric(base.get('away_score_align'), errors='coerce'))
+            reg_margin = compute_regression_metrics(pm_align, actual_margin_fallback)
+    # Secondary fallback: align-anchored regression by joining predictions onto align actuals
+    if reg_total.get('n', 0) == 0 or reg_margin.get('n', 0) == 0:
+        rt2, rm2 = regression_from_align(align_actuals, preds_enriched, preds_all)
+        if rt2.get('n', 0) > reg_total.get('n', 0):
+            reg_total = rt2
+        if rm2.get('n', 0) > reg_margin.get('n', 0):
+            reg_margin = rm2
 
     # Probability metrics (cover/over)
     prob_metrics = {}
@@ -506,9 +710,13 @@ def main():
     # AUC + CRPS if probability / sigma columns present
     aucs = {}
     crps_total = None
-    if 'pred_total_sigma' in base.columns:
-        mu = pd.to_numeric(base.get('pred_total_calibrated') or base.get('pred_total'), errors='coerce')
-        sig = pd.to_numeric(base['pred_total_sigma'], errors='coerce')
+    # Prefer sigma from history if present
+    sigma_col = 'pred_total_sigma'
+    if sigma_col not in base.columns and 'pred_margin_sigma_hist' in base.columns:
+        sigma_col = 'pred_total_sigma_hist'
+    if sigma_col in base.columns:
+        mu = pd.to_numeric(base.get('pred_total_calibrated') or base.get('pred_total') or base.get('pred_total_hist'), errors='coerce')
+        sig = pd.to_numeric(base[sigma_col], errors='coerce')
         act = pd.to_numeric(base.get('actual_total'), errors='coerce')
         mask_crps = mu.notna() & sig.notna() & act.notna()
         if mask_crps.sum() > 0:
@@ -543,6 +751,86 @@ def main():
         'crps_total': crps_total,
         'halftime_derivatives': ht_metrics,
     }
+
+    # All-games OU accuracy diagnostics (model-first vs closing/market line)
+    try:
+        line_series = pd.to_numeric(base.get('closing_total'), errors='coerce')
+        if line_series.isna().all():
+            line_series = pd.to_numeric(base.get('market_total'), errors='coerce')
+        pred_ou_source = None
+        # Prefer calibrated total for decision; fallback to raw/model
+        for c in ['pred_total_calibrated','pred_total_model_unified','pred_total','pred_total_full','pred_total_hist']:
+            if c in base.columns:
+                pred_ou_source = c
+                break
+        ou_block = {}
+        if pred_ou_source is not None and 'outcome_over' in base.columns:
+            pred_tot = pd.to_numeric(base[pred_ou_source], errors='coerce')
+            outcome_over = pd.to_numeric(base['outcome_over'], errors='coerce')
+            m1 = pred_tot.notna() & line_series.notna() & outcome_over.notna()
+            if m1.sum() > 0:
+                # Decision: Over if pred_total > line; Under otherwise
+                pick_over = (pred_tot[m1] > line_series[m1]).astype(int)
+                acc = float((pick_over == outcome_over[m1]).mean())
+                ou_block['pred_vs_line'] = {
+                    'n': int(m1.sum()),
+                    'acc': acc,
+                    'base_rate_over': float(outcome_over[m1].mean()),
+                    'pred_source': pred_ou_source,
+                    'line_source': 'closing_total_or_market',
+                }
+        # Probability-based decision using p_over (quantile-derived preferred)
+        p_over_source = None
+        for c in ['p_over_quantile','p_over_emp','p_over_meta_cal','p_over_meta','p_over_display','p_over_dist']:
+            if c in base.columns:
+                p_over_source = c
+                break
+        if p_over_source is not None and 'outcome_over' in base.columns:
+            p = pd.to_numeric(base[p_over_source], errors='coerce')
+            o = pd.to_numeric(base['outcome_over'], errors='coerce')
+            m2 = p.notna() & o.notna()
+            if m2.sum() > 0:
+                pick_over2 = (p[m2] > 0.5).astype(int)
+                acc2 = float((pick_over2 == o[m2]).mean())
+                ou_block['p_over_gt_0_5'] = {
+                    'n': int(m2.sum()),
+                    'acc': acc2,
+                    'prob_source': p_over_source,
+                    'base_rate_over': float(o[m2].mean()),
+                }
+            # Reliability bins for confidence diagnostics
+            bins = calibration_bins(p[m2].to_numpy(), o[m2].to_numpy(), n_bins=10) if m2.sum() > 0 else []
+            ou_block['confidence_bins'] = bins
+        if ou_block:
+            summary['all_games_ou'] = ou_block
+    except Exception:
+        pass
+
+    # Align-anchored all-games OU accuracy as a robust fallback
+    try:
+        if align_actuals is not None and not align_actuals.empty:
+            aa = align_actuals.copy()
+            pt = pd.to_numeric(aa.get('pred_total'), errors='coerce')
+            ln = pd.to_numeric(aa.get('total'), errors='coerce')
+            hs = pd.to_numeric(aa.get('home_score'), errors='coerce')
+            as_ = pd.to_numeric(aa.get('away_score'), errors='coerce')
+            at = hs + as_
+            m = pt.notna() & ln.notna() & hs.notna() & as_.notna() & (hs > 0) & (as_ > 0)
+            if m.sum() > 0:
+                pick_over = (pt[m] > ln[m]).astype(int)
+                outcome_over = (at[m] > ln[m]).astype(int)
+                acc = float((pick_over == outcome_over).mean())
+                block = summary.get('all_games_ou', {})
+                block['align_pred_vs_line'] = {
+                    'n': int(m.sum()),
+                    'acc': acc,
+                    'base_rate_over': float(outcome_over.mean()),
+                    'pred_source': 'align.pred_total',
+                    'line_source': 'align.total',
+                }
+                summary['all_games_ou'] = block
+    except Exception:
+        pass
 
     # Write outputs
     (out_dir_reports / 'backtest_full_summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
