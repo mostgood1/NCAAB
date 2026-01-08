@@ -21727,6 +21727,35 @@ def api_recommendations():
         except Exception:
             pass
         return hi, lo
+    # Helper: load blended simulation probabilities and optional line by game_id for a date
+    def _load_sim_blend_map(date_str: str) -> tuple[dict[str, float | None], dict[str, float | None]]:
+        prob_map: dict[str, float | None] = {}
+        line_map: dict[str, float | None] = {}
+        try:
+            if date_str:
+                pth = OUT / f"sim_blend_{date_str}.csv"
+            else:
+                pth = None
+            df_sb = pd.read_csv(pth) if (pth and pth.exists()) else pd.DataFrame()
+        except Exception:
+            df_sb = pd.DataFrame()
+        if not df_sb.empty:
+            try:
+                if 'game_id' in df_sb.columns:
+                    df_sb['game_id'] = df_sb['game_id'].astype(str)
+                for r in df_sb.to_dict(orient='records'):
+                    try:
+                        gid = str(r.get('game_id') or '')
+                        pv = r.get('p_over_blend')
+                        ln = r.get('market_total') if r.get('market_total') is not None else r.get('closing_total')
+                        prob_map[gid] = float(pv) if (pv is not None and str(pv).strip()!='' and pd.notna(pv)) else None
+                        line_map[gid] = float(ln) if (ln is not None and str(ln).strip()!='' and pd.notna(ln)) else line_map.get(gid)
+                    except Exception:
+                        continue
+            except Exception:
+                prob_map = {}
+                line_map = {}
+        return prob_map, line_map
     # Resolve default date when not provided: prefer latest display snapshot, else latest edges
     if not date_q:
         try:
@@ -21785,10 +21814,21 @@ def api_recommendations():
                 ddf3 = pd.read_csv(dpath3) if dpath3.exists() else pd.DataFrame()
                 if not ddf3.empty:
                     try:
+                        # Attach blended probabilities and preferred line when available
+                        try:
+                            _prob_blend_map, _line_blend_map = _load_sim_blend_map(date_q)
+                            if 'game_id' in ddf3.columns:
+                                ddf3['game_id'] = ddf3['game_id'].astype(str)
+                                ddf3['p_over_blend'] = ddf3['game_id'].map(_prob_blend_map)
+                                # Prefer market_total override from blend when display lacks it
+                                if 'market_total' not in ddf3.columns:
+                                    ddf3['market_total'] = ddf3['game_id'].map(_line_blend_map)
+                        except Exception:
+                            pass
                         # Determine probabilities
                         def _side3(r: pd.Series) -> str:
                             p_hi, p_lo = _get_ou_thresholds()
-                            p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                            p = r.get('p_over_blend') or r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                             if p is not None and str(p).strip()!='':
                                 try:
                                     pv = float(p)
@@ -21810,7 +21850,7 @@ def api_recommendations():
                         try:
                             p_hi, p_lo = _get_ou_thresholds()
                             def _gate3(r: pd.Series) -> bool:
-                                p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                                p = r.get('p_over_blend') or r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                                 b = _side3(r)
                                 try:
                                     if (p is not None) and str(p).strip()!='' and (p_hi is not None or p_lo is not None):
@@ -21825,6 +21865,22 @@ def api_recommendations():
                             df_keep3 = ddf3[ddf3.apply(_gate3, axis=1)]
                         except Exception:
                             df_keep3 = pd.DataFrame()
+                        # Fallback: ensure a minimum number of OU picks by relaxing gating
+                        try:
+                            min_recs = 5
+                            try:
+                                v = (os.environ.get('NCAAB_MIN_OU_RECS') or '').strip()
+                                if v:
+                                    min_recs = int(v)
+                            except Exception:
+                                pass
+                            if isinstance(df_keep3, pd.DataFrame):
+                                n_keep = int(len(df_keep3))
+                                if (min_recs is not None) and (n_keep < max(1, int(min_recs))):
+                                    # When gating yields too few picks, do not gate out rows
+                                    df_keep3 = ddf3
+                        except Exception:
+                            pass
                         if not df_keep3.empty:
                             extra = pd.DataFrame()
                             extra['game_id'] = df_keep3.get('game_id')
@@ -21944,9 +22000,19 @@ def api_recommendations():
             if not ddf3.empty and date_q:
                 # Thresholds
                 p_hi, p_lo = _get_ou_thresholds()
+                # Attach blended probabilities and preferred line when available
+                try:
+                    _prob_blend_map, _line_blend_map = _load_sim_blend_map(date_q)
+                    if 'game_id' in ddf3.columns:
+                        ddf3['game_id'] = ddf3['game_id'].astype(str)
+                        ddf3['p_over_blend'] = ddf3['game_id'].map(_prob_blend_map)
+                        if 'market_total' not in ddf3.columns:
+                            ddf3['market_total'] = ddf3['game_id'].map(_line_blend_map)
+                except Exception:
+                    pass
                 def _side_en(r: pd.Series) -> str:
                     try:
-                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                        p = r.get('p_over_blend') or r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                         if p is not None and str(p).strip()!='':
                             pv = float(p)
                             if (p_hi is not None) and (pv >= p_hi):
@@ -21964,7 +22030,7 @@ def api_recommendations():
                     return 'Over'
                 def _gate_en(r: pd.Series) -> bool:
                     try:
-                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                        p = r.get('p_over_blend') or r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                         b = _side_en(r)
                         if (p is not None) and str(p).strip()!='' and (p_hi is not None or p_lo is not None):
                             pv = float(p)
@@ -21980,6 +22046,21 @@ def api_recommendations():
                     df_keep3 = ddf3[ddf3.apply(_gate_en, axis=1)]
                 except Exception:
                     df_keep3 = pd.DataFrame()
+                # Fallback: ensure a minimum number of OU picks by relaxing gating
+                try:
+                    min_recs = 5
+                    try:
+                        v = (os.environ.get('NCAAB_MIN_OU_RECS') or '').strip()
+                        if v:
+                            min_recs = int(v)
+                    except Exception:
+                        pass
+                    if isinstance(df_keep3, pd.DataFrame):
+                        n_keep = int(len(df_keep3))
+                        if (min_recs is not None) and (n_keep < max(1, int(min_recs))):
+                            df_keep3 = ddf3
+                except Exception:
+                    pass
                 if not df_keep3.empty:
                     extra = pd.DataFrame()
                     extra['game_id'] = df_keep3.get('game_id')
@@ -22033,6 +22114,9 @@ def api_recommendations():
                     prob_map: dict[str, float | None] = {}
                     try:
                         if date_q:
+                            # Prefer blended simulation probabilities when available
+                            _prob_blend_map, _ = _load_sim_blend_map(date_q)
+                            prob_map = dict(_prob_blend_map) if _prob_blend_map else {}
                             en_path = OUT / f"predictions_unified_enriched_{date_q}.csv"
                             base_path = OUT / f"predictions_unified_{date_q}.csv"
                             src = en_path if en_path.exists() else (base_path if base_path.exists() else None)
@@ -22051,7 +22135,8 @@ def api_recommendations():
                                         try:
                                             gid = str(r.get('game_id') or '')
                                             pv = r.get(pcol)
-                                            prob_map[gid] = float(pv) if (pv is not None and str(pv).strip()!='' and pd.notna(pv)) else None
+                                            if gid not in prob_map:
+                                                prob_map[gid] = float(pv) if (pv is not None and str(pv).strip()!='' and pd.notna(pv)) else None
                                         except Exception:
                                             continue
                     except Exception:
@@ -22221,6 +22306,17 @@ def api_recommendations():
             dpath = OUT / f"predictions_display_{date_q}.csv" if date_q else None
             ddf = pd.read_csv(dpath) if (dpath and dpath.exists()) else pd.DataFrame()
             if not ddf.empty:
+                # Attach blended probabilities and preferred line when available
+                try:
+                    _prob_blend_map, _line_blend_map = _load_sim_blend_map(date_q)
+                    if 'game_id' in ddf.columns:
+                        ddf['game_id'] = ddf['game_id'].astype(str)
+                        ddf['p_over_blend'] = ddf['game_id'].map(_prob_blend_map)
+                        # If market_total is missing, fill from blended map
+                        if 'market_total' not in ddf.columns:
+                            ddf['market_total'] = ddf['game_id'].map(_line_blend_map)
+                except Exception:
+                    pass
                 def _side(r: pd.Series) -> str:
                     # Prefer probability-based side when confident
                     try:
@@ -22233,7 +22329,7 @@ def api_recommendations():
                             p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
                         except Exception:
                             p_lo = 0.48
-                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
+                        p = r.get('p_over_blend') or r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
                         if p is not None and str(p).strip()!='':
                             p2 = float(p)
                             if p2 >= p_hi:
@@ -22258,36 +22354,20 @@ def api_recommendations():
                 out['market'] = 'totals'
                 out['period'] = 'full_game'
                 out['bet'] = ddf.apply(_side, axis=1)
-                out['line'] = None
+                # Prefer market_total; fallback to closing_total when available
+                if 'market_total' in ddf.columns:
+                    out['line'] = ddf.get('market_total')
+                elif 'closing_total' in ddf.columns:
+                    out['line'] = ddf.get('closing_total')
+                else:
+                    out['line'] = None
                 out['price'] = None
                 out['edge'] = ddf.get('edge_total')
                 out['pred_total'] = ddf.get('pred_total')
                 out['pred_margin'] = ddf.get('pred_margin')
                 out['rec_type'] = 'Totals'; out['rec_code'] = 'OU'
-                # Gate by probability: keep only confident rows
-                try:
-                    p_hi, p_lo = _get_ou_thresholds()
-                    def _keep_row(r: pd.Series) -> bool:
-                        p = r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
-                        b = str(r.get('bet')).lower()
-                        try:
-                            if (p is not None) and str(p).strip()!='' and (p_hi is not None or p_lo is not None):
-                                pv = float(p)
-                                ok_hi = (p_hi is not None and pv >= float(p_hi) and b=='over')
-                                ok_lo = (p_lo is not None and pv <= float(p_lo) and b=='under')
-                                return bool(ok_hi or ok_lo)
-                            # Without configured thresholds, do not gate out
-                            return True
-                        except Exception:
-                            return True
-                    df_keep = ddf[ddf.apply(_keep_row, axis=1)]
-                    if not df_keep.empty:
-                        out = out.loc[df_keep.index]
-                        picks = out
-                    else:
-                        picks = pd.DataFrame()
-                except Exception:
-                    picks = out
+                # Do not gate out recommendations here; publish all rows for full-card coverage
+                picks = out
         except Exception:
             picks = pd.DataFrame()
     # If date provided, filter
@@ -23501,6 +23581,81 @@ def api_upload_quantile_model():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Simulation artifact uploads
+@app.route("/api/upload_sim_quantiles", methods=["POST"])
+def api_upload_sim_quantiles():
+    """Upload per-date simulation quantiles CSV.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/sim_quantiles_<date>.csv for recommendations and analysis.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / f"sim_quantiles_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/upload_sim_blend", methods=["POST"])
+def api_upload_sim_blend():
+    """Upload per-date blended simulation probabilities CSV.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/sim_blend_<date>.csv to support p_over_blend consumption.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / f"sim_blend_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/api/debug_artifacts")
 def api_debug_artifacts():
     """Diagnostics for per-date artifacts and resolved outputs directory.
@@ -23566,6 +23721,20 @@ def api_debug_artifacts():
             resp["artifacts"][f"predictions_unified_enriched_{date_q}.csv"] = {"exists": en_date.exists(), "rows": int(len(endf)) if not endf.empty else 0, "path": str(en_date)}
         except Exception as e:
             resp["artifacts"][f"predictions_unified_enriched_{date_q}.csv"] = {"error": str(e)}
+        # Simulation quantiles
+        try:
+            sq_date = OUT / f"sim_quantiles_{date_q}.csv"
+            sqdf = _safe_read_csv(sq_date)
+            resp["artifacts"][f"sim_quantiles_{date_q}.csv"] = {"exists": sq_date.exists(), "rows": int(len(sqdf)) if not sqdf.empty else 0, "path": str(sq_date)}
+        except Exception as e:
+            resp["artifacts"][f"sim_quantiles_{date_q}.csv"] = {"error": str(e)}
+        # Simulation blend
+        try:
+            sb_date = OUT / f"sim_blend_{date_q}.csv"
+            sbdf = _safe_read_csv(sb_date)
+            resp["artifacts"][f"sim_blend_{date_q}.csv"] = {"exists": sb_date.exists(), "rows": int(len(sbdf)) if not sbdf.empty else 0, "path": str(sb_date)}
+        except Exception as e:
+            resp["artifacts"][f"sim_blend_{date_q}.csv"] = {"error": str(e)}
         # Daily results
         try:
             dr_date = OUT / "daily_results" / f"results_{date_q}.csv"
@@ -24021,6 +24190,42 @@ def api_backtest():
         return jsonify({"ok": False, "error": "no_date"}), 400
     path = OUT / f"backtest_metrics_{date_q}.json"
     if not path.exists():
+        return jsonify({"ok": False, "error": "not_found", "date": date_q}), 404
+    try:
+        import json as _json
+        payload = _json.loads(path.read_text(encoding='utf-8'))
+        return jsonify({"ok": True, "date": date_q, "metrics": payload})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "date": date_q}), 500
+
+@app.route("/api/daily_accuracy")
+def api_daily_accuracy():
+    """Return daily accuracy snapshot (winners/totals/ATS) for a date.
+
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults to yesterday for completed games)
+
+    Response: { ok: bool, date: str, metrics: {...} }
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        try:
+            date_q = (_today_local() - dt.timedelta(days=1)).strftime('%Y-%m-%d')
+        except Exception:
+            date_q = None
+    if not date_q:
+        return jsonify({"ok": False, "error": "no_date"}), 400
+    path = OUT / f"daily_accuracy_{date_q}.json"
+    if not path.exists():
+        # fallback to metrics/latest if specific date missing
+        latest = OUT / "metrics" / "daily_accuracy_latest.json"
+        if latest.exists():
+            try:
+                import json as _json
+                payload = _json.loads(latest.read_text(encoding='utf-8'))
+                return jsonify({"ok": True, "date": payload.get("date", date_q), "metrics": payload})
+            except Exception as e:
+                return jsonify({"ok": False, "error": str(e), "date": date_q}), 500
         return jsonify({"ok": False, "error": "not_found", "date": date_q}), 404
     try:
         import json as _json

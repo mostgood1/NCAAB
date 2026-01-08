@@ -59,6 +59,9 @@ $edgesPath     = Join-Path -Path $OutputsDir -ChildPath ("align_period_{0}_edges
 $displayPath   = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.csv" -f $Date)
 $enrichedPath  = Join-Path -Path $OutputsDir -ChildPath ("predictions_unified_enriched_{0}.csv" -f $Date)
 $resultsPath   = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
+$simQuantilesPath = Join-Path -Path $OutputsDir -ChildPath ("sim_quantiles_{0}.csv" -f $Date)
+$simBlendPath     = Join-Path -Path $OutputsDir -ChildPath ("sim_blend_{0}.csv" -f $Date)
+${needSimRetry} = $false
 
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
 Write-Step "Outputs dir: $OutputsDir"
@@ -96,8 +99,8 @@ function Sanitize-DisplayCsv {
         $tmp = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($Path), (".tmp_sanitized_{0}" -f [System.IO.Path]::GetFileName($Path)))
         if ($filtered.Count -gt 0) { $filtered | Export-Csv -LiteralPath $tmp -NoTypeInformation -Encoding UTF8 }
         else {
-            # Write header-only file to preserve schema
-            $rows | Select-Object -First 0 | Export-Csv -LiteralPath $tmp -NoTypeInformation -Encoding UTF8
+            # If sanitization removes all rows, fall back to original path to avoid empty uploads
+            return $Path
         }
         return $tmp
     } catch {
@@ -306,6 +309,27 @@ try {
         }
     }
 } catch {}
+
+# If local display has fewer rows than edges, regenerate display from edges to publish all game cards
+try {
+    $edgesRowsLocal = Get-CsvRowCount -Path $edgesPath
+    $localDispRowsPre = Get-CsvRowCount -Path $displayToUpload
+    if ($edgesRowsLocal -gt 0 -and ($localDispRowsPre -lt $edgesRowsLocal)) {
+        Write-Step ("Local display has {0} rows < edges {1}; rebuilding from edges" -f $localDispRowsPre, $edgesRowsLocal)
+        $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
+        $pyExe = Join-Path $repoRoot ".venv/Scripts/python.exe"
+        $genScript = Join-Path $PSScriptRoot "generate_display_from_edges.py"
+        if (Test-Path -LiteralPath $pyExe) {
+            & $pyExe $genScript $Date | Out-Null
+        } else {
+            python $genScript $Date | Out-Null
+        }
+        $regeneratedPath = $displayPath
+        $san2 = Sanitize-DisplayCsv -Path $regeneratedPath
+        $usePath = if ($san2 -and (Get-CsvRowCount -Path $san2) -gt 0) { $san2 } else { $regeneratedPath }
+        $displayToUpload = $usePath
+    }
+} catch {}
 $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayToUpload -Query @{ date = $Date }
 if ($u3) {
     $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
@@ -351,6 +375,22 @@ if ($u3b) {
     $sha = if ($u3b.sha) { $u3b.sha } else { $null }
     $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
     Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+}
+
+# Upload simulation artifacts if present
+if (Test-Path -LiteralPath $simQuantilesPath) {
+    $uSimQ = Upload-File -Uri "$BaseUrl/api/upload_sim_quantiles" -FilePath $simQuantilesPath -Query @{ date = $Date }
+    if ($uSimQ) { Write-Host "[OK] sim_quantiles uploaded: rows=$($uSimQ.rows)" -ForegroundColor Green }
+    else { ${needSimRetry} = $true }
+} else {
+    Write-Host "[Skip] sim_quantiles_$Date.csv missing" -ForegroundColor Yellow
+}
+if (Test-Path -LiteralPath $simBlendPath) {
+    $uSimB = Upload-File -Uri "$BaseUrl/api/upload_sim_blend" -FilePath $simBlendPath -Query @{ date = $Date }
+    if ($uSimB) { Write-Host "[OK] sim_blend uploaded: rows=$($uSimB.rows)" -ForegroundColor Green }
+    else { ${needSimRetry} = $true }
+} else {
+    Write-Host "[Skip] sim_blend_$Date.csv missing" -ForegroundColor Yellow
 }
 
 # Upload quantile artifacts if present
@@ -588,6 +628,21 @@ if ($TriggerRedeploy.IsPresent) {
             }
         } catch {
             Write-Host "[Warn] persist_display call failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+
+        # Post-deploy: retry simulation artifact uploads if earlier failed (e.g., 404 before new code deployed)
+        if (${needSimRetry}) {
+            Write-Step "Retrying simulation uploads post-deploy"
+            if (Test-Path -LiteralPath $simQuantilesPath) {
+                $uSimQ2 = Upload-File -Uri "$BaseUrl/api/upload_sim_quantiles" -FilePath $simQuantilesPath -Query @{ date = $Date }
+                if ($uSimQ2) { Write-Host "[OK] sim_quantiles uploaded (retry): rows=$($uSimQ2.rows)" -ForegroundColor Green }
+                else { Write-Host "[Error] sim_quantiles retry failed" -ForegroundColor Red }
+            }
+            if (Test-Path -LiteralPath $simBlendPath) {
+                $uSimB2 = Upload-File -Uri "$BaseUrl/api/upload_sim_blend" -FilePath $simBlendPath -Query @{ date = $Date }
+                if ($uSimB2) { Write-Host "[OK] sim_blend uploaded (retry): rows=$($uSimB2.rows)" -ForegroundColor Green }
+                else { Write-Host "[Error] sim_blend retry failed" -ForegroundColor Red }
+            }
         }
     }
 }
