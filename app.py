@@ -19970,6 +19970,129 @@ def recommendations():
                             pass
     except Exception:
         pass
+    # Fallback: synthesize ATS from edges when ATS picks are missing or incomplete
+    try:
+        if isinstance(picks, pd.DataFrame):
+            # Determine if we already have ATS/spreads rows
+            has_ats = False
+            try:
+                if not picks.empty:
+                    rc = picks.get('rec_code')
+                    mk = picks.get('market')
+                    if rc is not None:
+                        has_ats = rc.astype(str).str.upper().eq('ATS').any()
+                    if not has_ats and mk is not None:
+                        has_ats = mk.astype(str).str.lower().str.contains('spread').any()
+            except Exception:
+                has_ats = False
+            # Compute date to use for edges lookup
+            date_use2 = None
+            try:
+                if 'date' in picks.columns and not pd.to_datetime(picks['date'], errors='coerce').isna().all():
+                    date_use2 = pd.to_datetime(picks['date'], errors='coerce').dt.strftime('%Y-%m-%d').iloc[0]
+            except Exception:
+                date_use2 = None
+            if not date_use2:
+                try:
+                    date_use2 = (request.args.get('date') or '').strip() or None
+                except Exception:
+                    date_use2 = None
+            # Load edges for the target date (or latest)
+            pattern = os.path.join(OUT, "align_period_*_edges.csv")
+            files = sorted(glob.glob(pattern))
+            sel_file2 = os.path.join(OUT, f"align_period_{date_use2}_edges.csv") if date_use2 else (files[-1] if files else None)
+            edges2 = pd.read_csv(sel_file2, dtype=str, low_memory=False) if sel_file2 and os.path.exists(sel_file2) else pd.DataFrame()
+            if not edges2.empty:
+                # Normalize numerics and filter to full_game spreads
+                for c in [
+                    'edge_margin','home_spread','home_spread_price','away_spread','away_spread_price',
+                    'pred_margin'
+                ]:
+                    if c in edges2.columns:
+                        edges2[c] = pd.to_numeric(edges2[c], errors='coerce')
+                try:
+                    if 'period' in edges2.columns:
+                        edges2 = edges2[edges2['period'].astype(str).str.lower() == 'full_game']
+                except Exception:
+                    pass
+                try:
+                    spr_mask2 = edges2['market'].astype(str).str.lower() == 'spreads' if 'market' in edges2.columns else pd.Series([False]*len(edges2))
+                except Exception:
+                    spr_mask2 = pd.Series([False]*len(edges2))
+                sprs2 = edges2[spr_mask2].copy()
+                if not sprs2.empty:
+                    # Determine which game_ids need ATS rows
+                    need_filter = False
+                    missing_gids = set()
+                    try:
+                        if 'game_id' in picks.columns:
+                            picks['game_id'] = picks['game_id'].astype(str)
+                            gid_all = set(picks['game_id'].dropna().astype(str))
+                            gid_has_ats = set()
+                            try:
+                                df_ats = picks.copy()
+                                if 'rec_code' in df_ats.columns:
+                                    df_ats = df_ats[df_ats['rec_code'].astype(str).str.upper() == 'ATS']
+                                elif 'market' in df_ats.columns:
+                                    df_ats = df_ats[df_ats['market'].astype(str).str.lower().str.contains('spread')]
+                                else:
+                                    df_ats = df_ats.iloc[0:0]
+                                if 'game_id' in df_ats.columns:
+                                    gid_has_ats = set(df_ats['game_id'].dropna().astype(str))
+                            except Exception:
+                                gid_has_ats = set()
+                            missing_gids = gid_all - gid_has_ats
+                            need_filter = True
+                    except Exception:
+                        need_filter = False
+                    if need_filter and missing_gids:
+                        try:
+                            sprs2['game_id'] = sprs2['game_id'].astype(str)
+                            sprs2 = sprs2[sprs2['game_id'].astype(str).isin(sorted(list(missing_gids)))]
+                        except Exception:
+                            pass
+                    # Build ATS recs from edges spreads
+                    if not sprs2.empty and (not has_ats or need_filter):
+                        def _spr_side2(r: pd.Series) -> str:
+                            try:
+                                em = float(r.get('edge_margin')) if r.get('edge_margin') is not None else np.nan
+                                if np.isfinite(em):
+                                    return 'home' if em >= 0 else 'away'
+                            except Exception:
+                                pass
+                            return 'home'
+                        sprs2['bet'] = sprs2.apply(_spr_side2, axis=1)
+                        def _spr_line2(r: pd.Series):
+                            try:
+                                return r['home_spread'] if str(r.get('bet')).lower() == 'home' else r['away_spread']
+                            except Exception:
+                                return None
+                        def _spr_price2(r: pd.Series):
+                            try:
+                                return r['home_spread_price'] if str(r.get('bet')).lower() == 'home' else r['away_spread_price']
+                            except Exception:
+                                return None
+                        sprs2['line'] = sprs2.apply(_spr_line2, axis=1)
+                        sprs2['price'] = sprs2.apply(_spr_price2, axis=1)
+                        sprs2['edge'] = sprs2['edge_margin'].abs() if 'edge_margin' in sprs2.columns else None
+                        sprs2['rec_type'] = 'Spread'; sprs2['rec_code'] = 'ATS'; sprs2['type'] = 'ATS'; sprs2['type_label'] = 'Spread'
+                        # Keep key columns and append
+                        keep_cols2 = [
+                            'game_id','date','home_team','away_team','book','market','period',
+                            'bet','line','price','edge','pred_margin','start_time_iso',
+                            'start_tz_abbr','start_time','display_date','start_time_local'
+                        ]
+                        sprs2 = sprs2[[c for c in keep_cols2 if c in sprs2.columns]].copy()
+                        try:
+                            merged2 = pd.concat([picks.copy(), sprs2], ignore_index=True)
+                            subset_cols2 = [c for c in ['game_id','rec_code','line','bet'] if c in merged2.columns]
+                            if subset_cols2:
+                                merged2 = merged2.drop_duplicates(subset=subset_cols2)
+                            picks = merged2
+                        except Exception:
+                            pass
+    except Exception:
+        pass
     # Basic enrichment: backfill team names from odds join columns when base fields missing
     try:
         if not picks.empty:

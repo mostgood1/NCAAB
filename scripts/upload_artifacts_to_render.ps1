@@ -473,9 +473,13 @@ try {
     $recs = Invoke-RestMethod -Uri "$BaseUrl/api/recommendations?date=$Date" -Method Get
     $rowCount = 0
     if ($recs) {
-        if ($recs.rows) { $rowCount = ($recs.rows | Measure-Object).Count }
-        elseif ($recs.data) { $rowCount = ($recs.data | Measure-Object).Count }
-        elseif ($recs.recommendations) { $rowCount = ($recs.recommendations | Measure-Object).Count }
+        $rowsArr = $null
+        if ($recs.data) { $rowsArr = $recs.data }
+        elseif ($recs.recommendations) { $rowsArr = $recs.recommendations }
+        elseif ($recs.rows -is [System.Collections.IEnumerable]) { $rowsArr = $recs.rows }
+        if ($rowsArr) { $rowCount = ($rowsArr | Measure-Object).Count }
+        elseif ($recs.rows -is [int]) { $rowCount = [int]$recs.rows }
+        else { $rowCount = 0 }
     }
     Write-Host "[Check] recommendations rows=$rowCount" -ForegroundColor White
     if ($rowCount -eq 0) {
@@ -484,15 +488,16 @@ try {
     # Preflight: verify OU recommendations include numeric totals in labels and a non-empty line
     try {
         $rows = $null
-        if ($recs.rows) { $rows = $recs.rows }
-        elseif ($recs.data) { $rows = $recs.data }
+        if ($recs.data) { $rows = $recs.data }
         elseif ($recs.recommendations) { $rows = $recs.recommendations }
+        elseif ($recs.rows -is [System.Collections.IEnumerable]) { $rows = $recs.rows }
         if ($rows) {
             $ouRows = @($rows | Where-Object { (("" + $_.code).ToUpper() -eq 'OU') -or (("" + $_.rec_code).ToUpper() -eq 'OU') })
             if ($ouRows.Count -gt 0) {
                 $bad = @()
                 foreach ($r in $ouRows) {
-                    $lbl = ("" + ($r.bet_label ?? $r.bet)).Trim()
+                    $lbl = ("" + $r.bet_label).Trim()
+                    if ([string]::IsNullOrWhiteSpace($lbl)) { $lbl = ("" + $r.bet).Trim() }
                     $ln = ("" + $r.line).Trim()
                     $hasDigit = ($lbl -match '\d')
                     if (-not $hasDigit -or [string]::IsNullOrWhiteSpace($ln)) {
