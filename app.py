@@ -23290,6 +23290,201 @@ def api_recommendations():
         pass
     return _resp
 
+@app.route("/api/recommendations_display")
+def api_recommendations_display():
+    """Return display-based totals for a slate and append ATS rows.
+
+    Always uses `predictions_display_<date>.csv` for totals to guarantee coverage,
+    then appends ATS rows from `outputs/picks/ats_picks_<date>.csv` when present.
+
+    Query params:
+      - date=YYYY-MM-DD (required or inferred to latest display)
+    """
+    date_q = (request.args.get("date") or "").strip()
+    # Resolve date to latest display when not provided
+    if not date_q:
+        try:
+            import re as _re_mod
+            pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+            _dates = []
+            for _p in OUT.glob('predictions_display_*.csv'):
+                m = pat.match(_p.name)
+                if m:
+                    _dates.append(m.group(1))
+            if _dates:
+                date_q = sorted(_dates)[-1]
+        except Exception:
+            date_q = date_q
+    rows: list[dict] = []
+    # Load display snapshot and publish all rows
+    try:
+        dpath = OUT / f"predictions_display_{date_q}.csv" if date_q else None
+        ddf = pd.read_csv(dpath) if (dpath and dpath.exists()) else pd.DataFrame()
+    except Exception:
+        ddf = pd.DataFrame()
+    if isinstance(ddf, pd.DataFrame) and not ddf.empty:
+        try:
+            ddf['game_id'] = ddf['game_id'].astype(str) if 'game_id' in ddf.columns else ddf.get('game_id')
+        except Exception:
+            pass
+        def _side_disp(r: pd.Series) -> str:
+            try:
+                pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
+                mt = float(r.get('market_total')) if r.get('market_total') is not None else np.nan
+                if np.isfinite(pt) and np.isfinite(mt):
+                    return 'Over' if pt > mt else 'Under'
+            except Exception:
+                pass
+            try:
+                et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                if np.isfinite(et):
+                    return 'Over' if et >= 0 else 'Under'
+            except Exception:
+                pass
+            return 'Over'
+        out = pd.DataFrame()
+        out['game_id'] = ddf.get('game_id')
+        out['date'] = date_q
+        out['home_team'] = ddf.get('home_team') if 'home_team' in ddf.columns else ddf.get('home_team_name')
+        out['away_team'] = ddf.get('away_team') if 'away_team' in ddf.columns else ddf.get('away_team_name')
+        out['market'] = 'totals'
+        out['period'] = 'full_game'
+        out['bet'] = ddf.apply(_side_disp, axis=1)
+        # Prefer market_total; fallback to closing_total
+        if 'market_total' in ddf.columns:
+            out['line'] = ddf.get('market_total')
+        elif 'closing_total' in ddf.columns:
+            out['line'] = ddf.get('closing_total')
+        else:
+            out['line'] = None
+        out['price'] = None
+        out['edge'] = ddf.get('edge_total')
+        out['pred_total'] = ddf.get('pred_total')
+        out['pred_margin'] = ddf.get('pred_margin')
+        out['rec_type'] = 'Totals'; out['rec_code'] = 'OU'
+        # Build labels and branding
+        branding = _load_branding_map()
+        def _mk_label(row: dict) -> str:
+            ln = row.get('line')
+            try:
+                ln2 = float(ln) if (ln is not None and str(ln).strip()!='') else None
+            except Exception:
+                ln2 = None
+            sel = str(row.get('bet') or '').strip()
+            return f"{sel} {(f'{ln2:.1f}' if ln2 is not None else '').strip()}".strip()
+        base_rows = out.to_dict(orient='records')
+        rows = []
+        for r in base_rows:
+            item = dict(r)
+            item['type'] = 'OU'; item['code'] = 'OU'
+            item['bet_label'] = _mk_label(item)
+            for side in ['home','away']:
+                nm = str(item.get(f'{side}_team') or '')
+                key = normalize_name(nm)
+                b = branding.get(key) or {}
+                item[f'{side}_key'] = key
+                item[f'{side}_logo'] = b.get('logo')
+                item[f'{side}_color'] = b.get('primary') or b.get('secondary')
+                item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+            rows.append(item)
+    # Append ATS rows from per-date artifact
+    try:
+        if date_q:
+            ats_path = OUT / 'picks' / f'ats_picks_{date_q}.csv'
+            if ats_path.exists():
+                ats_df = _safe_read_csv(ats_path)
+                if isinstance(ats_df, pd.DataFrame) and not ats_df.empty:
+                    try:
+                        ats_df = ats_df.loc[:, ~ats_df.columns.duplicated()]
+                    except Exception:
+                        pass
+                    cols = {c.lower(): c for c in ats_df.columns}
+                    def getc(name: str):
+                        return ats_df[cols[name]] if name in cols else None
+                    game_ids = list(getc('game_id')) if getc('game_id') is not None else []
+                    home_list = list(getc('home_team')) if getc('home_team') is not None else []
+                    away_list = list(getc('away_team')) if getc('away_team') is not None else []
+                    side_series = getc('ats_side')
+                    try:
+                        csh = pd.to_numeric(getc('closing_spread_home'), errors='coerce')
+                    except Exception:
+                        csh = None
+                    try:
+                        sh = pd.to_numeric(getc('spread_home'), errors='coerce')
+                    except Exception:
+                        sh = None
+                    try:
+                        delt = pd.to_numeric(getc('_delta'), errors='coerce')
+                    except Exception:
+                        delt = None
+                    try:
+                        pm_blend = pd.to_numeric(getc('_pred_margin_blend'), errors='coerce')
+                    except Exception:
+                        pm_blend = None
+                    def _signed_line(idx: int) -> float | None:
+                        try:
+                            ln_home = None
+                            if csh is not None and idx < len(csh):
+                                ln_home = float(csh.iloc[idx]) if pd.notna(csh.iloc[idx]) else None
+                            if (ln_home is None) and (sh is not None) and idx < len(sh):
+                                ln_home = float(sh.iloc[idx]) if pd.notna(sh.iloc[idx]) else None
+                            sel = str((side_series.iloc[idx] if (side_series is not None and idx < len(side_series)) else 'home')).lower()
+                            if ln_home is None:
+                                return None
+                            return ln_home if sel == 'home' else (0 - ln_home)
+                        except Exception:
+                            return None
+                    branding = _load_branding_map()
+                    for i in range(len(game_ids)):
+                        try:
+                            gid = str(game_ids[i]) if game_ids[i] is not None else ''
+                            home_nm = str(home_list[i]) if i < len(home_list) else ''
+                            away_nm = str(away_list[i]) if i < len(away_list) else ''
+                            ln = _signed_line(i)
+                            sel = str((side_series.iloc[i] if (side_series is not None and i < len(side_series)) else 'home')).lower()
+                            sel_team = home_nm if sel == 'home' else away_nm
+                            ed = None
+                            try:
+                                if delt is not None and i < len(delt) and pd.notna(delt.iloc[i]):
+                                    ed = abs(float(delt.iloc[i]))
+                            except Exception:
+                                ed = None
+                            pmv = None
+                            try:
+                                if pm_blend is not None and i < len(pm_blend) and pd.notna(pm_blend.iloc[i]):
+                                    pmv = float(pm_blend.iloc[i])
+                            except Exception:
+                                pmv = None
+                            bet_label = (f"{sel_team} {ln:+.1f}" if ln is not None else f"{sel_team} Spread").strip()
+                            item = {
+                                'type': 'ATS', 'code': 'ATS', 'market': 'spreads',
+                                'bet': bet_label, 'bet_label': bet_label,
+                                'line': ln, 'price': None, 'edge': ed,
+                                'pred_total': None, 'pred_margin': pmv,
+                                'selection': sel_team, 'game_id': gid, 'date': date_q,
+                                'home_team': home_nm, 'away_team': away_nm,
+                            }
+                            for side in ['home','away']:
+                                nm = str(item.get(f'{side}_team') or '')
+                                key = normalize_name(nm)
+                                b = branding.get(key) or {}
+                                item[f'{side}_key'] = key
+                                item[f'{side}_logo'] = b.get('logo')
+                                item[f'{side}_color'] = b.get('primary') or b.get('secondary')
+                                item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                            rows.append(item)
+                        except Exception:
+                            continue
+    except Exception:
+        pass
+    try:
+        resp = jsonify({"rows": len(rows), "data": rows, "date": date_q})
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        return resp
+    except Exception:
+        return jsonify({"rows": 0, "data": [], "date": date_q})
+
 @app.route("/api/midnight_drift_diagnostic")
 def api_midnight_drift_diagnostic():
     """Identify games whose UTC ISO spills into next day but belong to slate date.
