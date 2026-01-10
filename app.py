@@ -19868,6 +19868,85 @@ def recommendations():
                         pass
     except Exception:
         pass
+    # Merge ATS per-date file into picks to ensure ATS coverage on the grouped page
+    try:
+        if isinstance(picks, pd.DataFrame):
+            # Resolve target date string (prefer picks['date'], else query param)
+            date_use = None
+            try:
+                if 'date' in picks.columns and not pd.to_datetime(picks['date'], errors='coerce').isna().all():
+                    date_use = pd.to_datetime(picks['date'], errors='coerce').dt.strftime('%Y-%m-%d').iloc[0]
+            except Exception:
+                date_use = None
+            if not date_use:
+                try:
+                    date_use = (request.args.get('date') or '').strip() or None
+                except Exception:
+                    date_use = None
+            if date_use:
+                ats_path_grp = OUT / 'picks' / f'ats_picks_{date_use}.csv'
+                if ats_path_grp.exists():
+                    ats_df_grp = _safe_read_csv(ats_path_grp)
+                    if isinstance(ats_df_grp, pd.DataFrame) and not ats_df_grp.empty:
+                        try:
+                            ats_df_grp = ats_df_grp.loc[:, ~ats_df_grp.columns.duplicated()]
+                        except Exception:
+                            pass
+                        cols_m = {c.lower(): c for c in ats_df_grp.columns}
+                        def getc_m(name: str):
+                            return ats_df_grp[cols_m[name]] if name in cols_m else None
+                        out_m = pd.DataFrame()
+                        out_m['game_id'] = getc_m('game_id')
+                        out_m['date'] = date_use
+                        out_m['home_team'] = getc_m('home_team')
+                        out_m['away_team'] = getc_m('away_team')
+                        side_series_m = getc_m('ats_side')
+                        out_m['bet'] = (side_series_m.astype(str).str.lower() if side_series_m is not None else 'home')
+                        try:
+                            csh_m = pd.to_numeric(getc_m('closing_spread_home'), errors='coerce')
+                        except Exception:
+                            csh_m = None
+                        try:
+                            sh_m = pd.to_numeric(getc_m('spread_home'), errors='coerce')
+                        except Exception:
+                            sh_m = None
+                        def _line_m(idx: int) -> float | None:
+                            try:
+                                ln_home = None
+                                if csh_m is not None and idx < len(csh_m):
+                                    ln_home = float(csh_m.iloc[idx]) if pd.notna(csh_m.iloc[idx]) else None
+                                if (ln_home is None) and (sh_m is not None) and idx < len(sh_m):
+                                    ln_home = float(sh_m.iloc[idx]) if pd.notna(sh_m.iloc[idx]) else None
+                                sel = str(out_m['bet'].iloc[idx]).lower()
+                                if ln_home is None:
+                                    return None
+                                return ln_home if sel == 'home' else (0 - ln_home)
+                            except Exception:
+                                return None
+                        out_m['line'] = [_line_m(i) for i in range(len(out_m))]
+                        out_m['price'] = None
+                        try:
+                            delt_m = pd.to_numeric(getc_m('_delta'), errors='coerce')
+                            out_m['edge'] = delt_m.abs()
+                        except Exception:
+                            out_m['edge'] = None
+                        try:
+                            pm_m = pd.to_numeric(getc_m('_pred_margin_blend'), errors='coerce')
+                            out_m['pred_margin'] = pm_m
+                        except Exception:
+                            out_m['pred_margin'] = None
+                        out_m['rec_type'] = 'Spread'; out_m['rec_code'] = 'ATS'
+                        out_m['market'] = 'spreads'; out_m['period'] = 'full_game'
+                        try:
+                            merged_df = pd.concat([picks.copy(), out_m], ignore_index=True)
+                            subset_cols = [c for c in ['game_id','rec_code','line','bet'] if c in merged_df.columns]
+                            if subset_cols:
+                                merged_df = merged_df.drop_duplicates(subset=subset_cols)
+                            picks = merged_df
+                        except Exception:
+                            pass
+    except Exception:
+        pass
     # Basic enrichment: backfill team names from odds join columns when base fields missing
     try:
         if not picks.empty:
@@ -21797,6 +21876,16 @@ def api_recommendations():
         picks = pd.read_csv(raw_path) if raw_path.exists() else _load_picks()
     except Exception:
         picks = pd.DataFrame()
+    # If base picks are missing, try a date-specific picks_raw_<date>.csv first
+    try:
+        if ((picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty)) and date_q:
+            p_date = OUT / f"picks_raw_{date_q}.csv"
+            if p_date.exists():
+                df_date = _safe_read_csv(p_date)
+                if isinstance(df_date, pd.DataFrame) and not df_date.empty:
+                    picks = df_date
+    except Exception:
+        pass
     # If we have base picks_raw but no totals, synthesize gated totals and append
     try:
         if isinstance(picks, pd.DataFrame) and not picks.empty and date_q:
@@ -21889,7 +21978,34 @@ def api_recommendations():
                             extra['away_team'] = df_keep3.get('away_team') if 'away_team' in df_keep3.columns else df_keep3.get('away_team_name')
                             extra['market'] = 'totals'; extra['period'] = 'full_game'
                             extra['bet'] = df_keep3.apply(_side3, axis=1)
-                            extra['line'] = df_keep3.get('market_total') if 'market_total' in df_keep3.columns else None
+                            # Resolve a line when market_total is missing: prefer closing_total, else pred_total
+                            def _resolve_line3(r: pd.Series) -> float | None:
+                                try:
+                                    cand_cols = ['market_total','closing_total','total','line_total']
+                                    for c in cand_cols:
+                                        v = r.get(c)
+                                        if v is not None and str(v).strip()!='':
+                                            try:
+                                                fv = float(v)
+                                                if np.isfinite(fv):
+                                                    return fv
+                                            except Exception:
+                                                continue
+                                    pv = r.get('pred_total')
+                                    if pv is not None and str(pv).strip()!='':
+                                        try:
+                                            fv2 = float(pv)
+                                            if np.isfinite(fv2):
+                                                return fv2
+                                        except Exception:
+                                            pass
+                                    return None
+                                except Exception:
+                                    return None
+                            try:
+                                extra['line'] = df_keep3.apply(_resolve_line3, axis=1)
+                            except Exception:
+                                extra['line'] = df_keep3.get('market_total') if 'market_total' in df_keep3.columns else None
                             extra['price'] = None
                             extra['edge'] = df_keep3.get('edge_total')
                             extra['pred_total'] = df_keep3.get('pred_total')
@@ -22069,7 +22185,34 @@ def api_recommendations():
                     extra['away_team'] = df_keep3.get('away_team') if 'away_team' in df_keep3.columns else df_keep3.get('away_team_name')
                     extra['market'] = 'totals'; extra['period'] = 'full_game'
                     extra['bet'] = df_keep3.apply(_side_en, axis=1)
-                    extra['line'] = df_keep3.get('market_total') if 'market_total' in df_keep3.columns else None
+                    # Resolve a line when market_total is missing: prefer closing_total, else pred_total
+                    def _resolve_line_en(r: pd.Series) -> float | None:
+                        try:
+                            cand_cols = ['market_total','closing_total','total','line_total']
+                            for c in cand_cols:
+                                v = r.get(c)
+                                if v is not None and str(v).strip()!='':
+                                    try:
+                                        fv = float(v)
+                                        if np.isfinite(fv):
+                                            return fv
+                                    except Exception:
+                                        continue
+                            pv = r.get('pred_total')
+                            if pv is not None and str(pv).strip()!='':
+                                try:
+                                    fv2 = float(pv)
+                                    if np.isfinite(fv2):
+                                        return fv2
+                                except Exception:
+                                    pass
+                            return None
+                        except Exception:
+                            return None
+                    try:
+                        extra['line'] = df_keep3.apply(_resolve_line_en, axis=1)
+                    except Exception:
+                        extra['line'] = df_keep3.get('market_total') if 'market_total' in df_keep3.columns else None
                     extra['price'] = None
                     extra['edge'] = df_keep3.get('edge_total')
                     extra['pred_total'] = df_keep3.get('pred_total')
@@ -22377,6 +22520,17 @@ def api_recommendations():
             picks = picks[picks['date'] == date_q]
         except Exception:
             pass
+    # If filtering by date resulted in no rows, retry date-scoped picks_raw_<date>.csv
+    if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
+        try:
+            if date_q:
+                p_date2 = OUT / f"picks_raw_{date_q}.csv"
+                if p_date2.exists():
+                    df_date2 = _safe_read_csv(p_date2)
+                    if isinstance(df_date2, pd.DataFrame) and not df_date2.empty:
+                        picks = df_date2
+        except Exception:
+            pass
     # If filtering resulted in no rows, retry display-based OU fallback for the specific date
     if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
         try:
@@ -22510,6 +22664,88 @@ def api_recommendations():
     branding = _load_branding_map()
     if isinstance(picks, pd.DataFrame) and not picks.empty:
         df = picks.copy()
+        # Merge ATS per-date file into picks to ensure ATS coverage
+        try:
+            if date_q:
+                ats_path_m = OUT / 'picks' / f'ats_picks_{date_q}.csv'
+                if ats_path_m.exists():
+                    ats_df_m = _safe_read_csv(ats_path_m)
+                    if isinstance(ats_df_m, pd.DataFrame) and not ats_df_m.empty:
+                        # Deduplicate columns if repeated headers
+                        try:
+                            ats_df_m = ats_df_m.loc[:, ~ats_df_m.columns.duplicated()]
+                        except Exception:
+                            pass
+                        cols_m = {c.lower(): c for c in ats_df_m.columns}
+                        def getc_m(name: str):
+                            return ats_df_m[cols_m[name]] if name in cols_m else None
+                        out_m = pd.DataFrame()
+                        out_m['game_id'] = getc_m('game_id')
+                        out_m['date'] = date_q
+                        out_m['home_team'] = getc_m('home_team')
+                        out_m['away_team'] = getc_m('away_team')
+                        # side
+                        side_series_m = getc_m('ats_side')
+                        out_m['bet'] = (side_series_m.astype(str).str.lower() if side_series_m is not None else 'home')
+                        # line from closing_spread_home or spread_home
+                        try:
+                            csh_m = pd.to_numeric(getc_m('closing_spread_home'), errors='coerce')
+                        except Exception:
+                            csh_m = None
+                        try:
+                            sh_m = pd.to_numeric(getc_m('spread_home'), errors='coerce')
+                        except Exception:
+                            sh_m = None
+                        def _line_m(idx: int) -> float | None:
+                            try:
+                                ln_home = None
+                                if csh_m is not None and idx < len(csh_m):
+                                    ln_home = float(csh_m.iloc[idx]) if pd.notna(csh_m.iloc[idx]) else None
+                                if (ln_home is None) and (sh_m is not None) and idx < len(sh_m):
+                                    ln_home = float(sh_m.iloc[idx]) if pd.notna(sh_m.iloc[idx]) else None
+                                sel = str(out_m['bet'].iloc[idx]).lower()
+                                if ln_home is None:
+                                    return None
+                                return ln_home if sel == 'home' else (0 - ln_home)
+                            except Exception:
+                                return None
+                        out_m['line'] = [_line_m(i) for i in range(len(out_m))]
+                        out_m['price'] = None
+                        try:
+                            delt_m = pd.to_numeric(getc_m('_delta'), errors='coerce')
+                            out_m['edge'] = delt_m.abs()
+                        except Exception:
+                            out_m['edge'] = None
+                        try:
+                            pm_m = pd.to_numeric(getc_m('_pred_margin_blend'), errors='coerce')
+                            out_m['pred_margin'] = pm_m
+                        except Exception:
+                            out_m['pred_margin'] = None
+                        out_m['rec_type'] = 'Spread'; out_m['rec_code'] = 'ATS'
+                        # Append and drop duplicates by game/line/market when possible
+                        base_df = df.copy()
+                        # Ensure market label
+                        out_m['market'] = 'spreads'
+                        out_m['period'] = 'full_game'
+                        try:
+                            merged_df = pd.concat([base_df, out_m], ignore_index=True)
+                            # Prefer dedup by game_id + rec_code; fallback to team/date
+                            subset_cols = [c for c in ['game_id','rec_code','line','bet'] if c in merged_df.columns]
+                            if subset_cols:
+                                merged_df = merged_df.drop_duplicates(subset=subset_cols)
+                            df = merged_df
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        # Backfill canonical team columns to avoid blank filtering
+        try:
+            if 'home_team' not in df.columns and 'home_team_name' in df.columns:
+                df['home_team'] = df['home_team_name'].astype(str)
+            if 'away_team' not in df.columns and 'away_team_name' in df.columns:
+                df['away_team'] = df['away_team_name'].astype(str)
+        except Exception:
+            pass
         # Drop synthetic/odds placeholder game_id entries to keep payload real
         try:
             if 'game_id' in df.columns:
@@ -22796,6 +23032,246 @@ def api_recommendations():
             s = str(name or '').strip().lower()
             return bool(s) and s not in ('nan','none','null')
         rows = [it for it in rows if _ok_team(it.get('home_team') or it.get('home_team_name')) and _ok_team(it.get('away_team') or it.get('away_team_name'))]
+    except Exception:
+        pass
+    # Last-chance fallback: if no rows, derive minimal totals from display snapshot for the date
+    if len(rows) == 0:
+        try:
+            dpath_f = OUT / f"predictions_display_{date_q}.csv" if date_q else None
+            ddf_f = pd.read_csv(dpath_f) if (dpath_f and dpath_f.exists()) else pd.DataFrame()
+            if not ddf_f.empty:
+                def _side_f(r: pd.Series) -> str:
+                    try:
+                        et = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                        if np.isfinite(et):
+                            return 'Over' if et >= 0 else 'Under'
+                    except Exception:
+                        pass
+                    return 'Over'
+                out_f = pd.DataFrame()
+                out_f['game_id'] = ddf_f.get('game_id')
+                out_f['date'] = date_q
+                out_f['home_team'] = ddf_f.get('home_team') if 'home_team' in ddf_f.columns else ddf_f.get('home_team_name')
+                out_f['away_team'] = ddf_f.get('away_team') if 'away_team' in ddf_f.columns else ddf_f.get('away_team_name')
+                out_f['market'] = 'totals'
+                out_f['period'] = 'full_game'
+                out_f['bet'] = ddf_f.apply(_side_f, axis=1)
+                out_f['line'] = ddf_f.get('market_total') if 'market_total' in ddf_f.columns else (ddf_f.get('closing_total') if 'closing_total' in ddf_f.columns else None)
+                out_f['price'] = None
+                out_f['edge'] = ddf_f.get('edge_total')
+                out_f['pred_total'] = ddf_f.get('pred_total')
+                out_f['pred_margin'] = ddf_f.get('pred_margin')
+                out_f['rec_type'] = 'Totals'; out_f['rec_code'] = 'OU'
+                branding = _load_branding_map()
+                def _enr_f(row: dict[str, Any]) -> dict[str, Any]:
+                    for side in ["home","away"]:
+                        t = str(row.get(f"{side}_team") or "")
+                        key = normalize_name(t)
+                        b = branding.get(key) or {}
+                        row[f"{side}_key"] = key
+                        row[f"{side}_logo"] = b.get("logo")
+                        row[f"{side}_color"] = b.get("primary") or b.get("secondary")
+                        row[f"{side}_text_color"] = b.get("text") or "#ffffff"
+                    return row
+                rows = [_enr_f(r) for r in out_f.to_dict(orient="records")]
+        except Exception:
+            rows = []
+    # Ultimate fallback: if still empty, publish display rows unfiltered to guarantee coverage
+    if len(rows) == 0 and date_q:
+        try:
+            dpath_ff = OUT / f"predictions_display_{date_q}.csv"
+            ddf_ff = pd.read_csv(dpath_ff) if dpath_ff.exists() else pd.DataFrame()
+            if not ddf_ff.empty:
+                out_ff = pd.DataFrame()
+                out_ff['game_id'] = ddf_ff.get('game_id')
+                out_ff['date'] = date_q
+                out_ff['home_team'] = ddf_ff.get('home_team') if 'home_team' in ddf_ff.columns else ddf_ff.get('home_team_name')
+                out_ff['away_team'] = ddf_ff.get('away_team') if 'away_team' in ddf_ff.columns else ddf_ff.get('away_team_name')
+                out_ff['market'] = 'totals'
+                out_ff['period'] = 'full_game'
+                out_ff['bet'] = 'Over'
+                out_ff['line'] = ddf_ff.get('market_total') if 'market_total' in ddf_ff.columns else None
+                out_ff['price'] = None
+                out_ff['edge'] = ddf_ff.get('edge_total')
+                out_ff['pred_total'] = ddf_ff.get('pred_total')
+                out_ff['pred_margin'] = ddf_ff.get('pred_margin')
+                out_ff['rec_type'] = 'Totals'; out_ff['rec_code'] = 'OU'
+                rows = out_ff.to_dict(orient='records')
+        except Exception:
+            rows = []
+    # Append ATS from per-date artifact even when rows were built from display fallbacks
+    try:
+        if date_q:
+            ats_path_api = OUT / 'picks' / f'ats_picks_{date_q}.csv'
+            if ats_path_api.exists():
+                ats_df_api = _safe_read_csv(ats_path_api)
+                if isinstance(ats_df_api, pd.DataFrame) and not ats_df_api.empty:
+                    try:
+                        ats_df_api = ats_df_api.loc[:, ~ats_df_api.columns.duplicated()]
+                    except Exception:
+                        pass
+                    cols_a = {c.lower(): c for c in ats_df_api.columns}
+                    def getc_a(name: str):
+                        return ats_df_api[cols_a[name]] if name in cols_a else None
+                    # Build API-style dict rows
+                    game_ids = list(getc_a('game_id')) if getc_a('game_id') is not None else []
+                    home_list = list(getc_a('home_team')) if getc_a('home_team') is not None else []
+                    away_list = list(getc_a('away_team')) if getc_a('away_team') is not None else []
+                    side_series = getc_a('ats_side')
+                    try:
+                        csh = pd.to_numeric(getc_a('closing_spread_home'), errors='coerce')
+                    except Exception:
+                        csh = None
+                    try:
+                        sh = pd.to_numeric(getc_a('spread_home'), errors='coerce')
+                    except Exception:
+                        sh = None
+                    try:
+                        delt = pd.to_numeric(getc_a('_delta'), errors='coerce')
+                    except Exception:
+                        delt = None
+                    try:
+                        pm_blend = pd.to_numeric(getc_a('_pred_margin_blend'), errors='coerce')
+                    except Exception:
+                        pm_blend = None
+                    def _signed_line_api(idx: int) -> float | None:
+                        try:
+                            ln_home = None
+                            if csh is not None and idx < len(csh):
+                                ln_home = float(csh.iloc[idx]) if pd.notna(csh.iloc[idx]) else None
+                            if (ln_home is None) and (sh is not None) and idx < len(sh):
+                                ln_home = float(sh.iloc[idx]) if pd.notna(sh.iloc[idx]) else None
+                            sel = str((side_series.iloc[idx] if (side_series is not None and idx < len(side_series)) else 'home')).lower()
+                            if ln_home is None:
+                                return None
+                            return ln_home if sel == 'home' else (0 - ln_home)
+                        except Exception:
+                            return None
+                    ats_rows = []
+                    for i in range(len(game_ids)):
+                        try:
+                            gid = str(game_ids[i]) if game_ids[i] is not None else ''
+                            home_nm = str(home_list[i]) if i < len(home_list) else ''
+                            away_nm = str(away_list[i]) if i < len(away_list) else ''
+                            ln = _signed_line_api(i)
+                            sel = str((side_series.iloc[i] if (side_series is not None and i < len(side_series)) else 'home')).lower()
+                            sel_team = home_nm if sel == 'home' else away_nm
+                            ed = None
+                            try:
+                                if delt is not None and i < len(delt) and pd.notna(delt.iloc[i]):
+                                    ed = abs(float(delt.iloc[i]))
+                            except Exception:
+                                ed = None
+                            pmv = None
+                            try:
+                                if pm_blend is not None and i < len(pm_blend) and pd.notna(pm_blend.iloc[i]):
+                                    pmv = float(pm_blend.iloc[i])
+                            except Exception:
+                                pmv = None
+                            bet_label = (f"{sel_team} {ln:+.1f}" if ln is not None else f"{sel_team} Spread").strip()
+                            ats_rows.append({
+                                'type': 'Spread',
+                                'code': 'ATS',
+                                'book': '',
+                                'bet': bet_label,
+                                'bet_label': bet_label,
+                                'line': ln,
+                                'price': None,
+                                'edge': ed,
+                                'market': 'spreads',
+                                'pred_total': None,
+                                'pred_margin': pmv,
+                                'selection': sel_team,
+                                'game_id': gid,
+                                'date': date_q,
+                                'home_team': home_nm,
+                                'away_team': away_nm,
+                            })
+                        except Exception:
+                            continue
+                    # Deduplicate by game_id+code; prefer existing rows
+                    if ats_rows:
+                        have_keys = set()
+                        for r in rows:
+                            k = (str(r.get('game_id') or ''), str(r.get('code') or r.get('rec_code') or ''))
+                            have_keys.add(k)
+                        for ar in ats_rows:
+                            k2 = (str(ar.get('game_id') or ''), str(ar.get('code') or ''))
+                            if k2 not in have_keys:
+                                rows.append(ar)
+    except Exception:
+        pass
+    # Coverage augmentation: ensure at least one recommendation per displayed game
+    try:
+        if date_q:
+            disp_path_cov = OUT / f"predictions_display_{date_q}.csv"
+            ddf_cov = pd.read_csv(disp_path_cov) if disp_path_cov.exists() else pd.DataFrame()
+            if not ddf_cov.empty:
+                # Normalize IDs
+                try:
+                    ddf_cov['game_id'] = ddf_cov['game_id'].astype(str)
+                except Exception:
+                    pass
+                have_ids = set()
+                for r in rows:
+                    gid = str(r.get('game_id') or '').strip()
+                    if gid:
+                        have_ids.add(gid)
+                missing_df = ddf_cov[~ddf_cov['game_id'].astype(str).isin(have_ids)] if have_ids else ddf_cov
+                if not missing_df.empty:
+                    add = []
+                    for rec in missing_df.to_dict(orient='records'):
+                        try:
+                            gid = str(rec.get('game_id') or '')
+                            home = rec.get('home_team') or rec.get('home_team_name')
+                            away = rec.get('away_team') or rec.get('away_team_name')
+                            mt = rec.get('market_total') if 'market_total' in missing_df.columns else None
+                            ct = rec.get('closing_total') if 'closing_total' in missing_df.columns else None
+                            ln = None
+                            for v in (mt, ct):
+                                if v is not None and str(v).strip()!='':
+                                    try:
+                                        ln = float(v)
+                                        break
+                                    except Exception:
+                                        continue
+                            pt = None
+                            try:
+                                pv = rec.get('pred_total')
+                                if pv is not None and str(pv).strip()!='':
+                                    pt = float(pv)
+                            except Exception:
+                                pt = None
+                            side = None
+                            if (pt is not None) and (ln is not None):
+                                side = 'Over' if pt > ln else 'Under'
+                            elif rec.get('edge_total') is not None:
+                                try:
+                                    et = float(rec.get('edge_total'))
+                                    side = 'Over' if et >= 0 else 'Under'
+                                except Exception:
+                                    side = None
+                            add.append({
+                                'type': 'Totals',
+                                'code': 'OU',
+                                'book': '',
+                                'bet': (f"{side} {ln:.1f}" if (side and ln is not None) else (side or '')),
+                                'bet_label': (f"{side} {ln:.1f}" if (side and ln is not None) else (side or '')),
+                                'line': ln,
+                                'price': None,
+                                'edge': (abs(pt - ln) if (pt is not None and ln is not None) else rec.get('edge_total')),
+                                'market': 'totals',
+                                'pred_total': pt,
+                                'edge_total': rec.get('edge_total'),
+                                'market_total': ln,
+                                'selection': (side or ''),
+                                'game_id': gid,
+                                'home_team': home,
+                                'away_team': away,
+                            })
+                        except Exception:
+                            continue
+                    rows.extend(add)
     except Exception:
         pass
     _resp = jsonify({"rows": len(rows), "data": rows})
