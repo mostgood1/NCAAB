@@ -219,6 +219,7 @@ try:
                 '/api/results_by_date',
                 '/cards-safe',
                 '/api/recommendations',
+                '/api/recommendations_display',
                 '/api/picks_raw',
                 '/api/debug_artifacts',
                 '/api/upload_picks_raw',
