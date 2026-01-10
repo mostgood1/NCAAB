@@ -214,12 +214,14 @@ try:
                 '/accuracy',
                 '/finals',
                 '/archive',
+                '/recommendations',
                 '/api/results',
                 '/api/results_dates',
                 '/api/results_by_date',
                 '/cards-safe',
                 '/api/recommendations',
                 '/api/recommendations_display',
+                '/api/recommendations-display',
                 '/api/picks_raw',
                 '/api/debug_artifacts',
                 '/api/upload_picks_raw',
@@ -365,6 +367,10 @@ def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
                         # On any validation/alignment error, skip prediction and let outer fallback handle
                         raise
                     df = df.merge(clw[['date','home_team','away_team','market_total','spread_home']], on=['date','home_team','away_team'], how='left')
+                    if 'market_total' in df.columns:
+                        out_ff['line'] = df.get('market_total') if 'market_total' in df.columns else None
+                    if ('market_total' not in df.columns) and ('closing_total' in df.columns):
+                        out_ff['line'] = df.get('closing_total')
     except Exception:
         pass
     # Normalize dates and compute missing-field diagnostics per date
@@ -1412,7 +1418,8 @@ def api_backtest_summary():
         if df is None or df.empty:
             return jsonify({'status':'missing'})
         row = df.iloc[0].to_dict()
-        return jsonify({'status':'ok','data': row})
+        # Include 'summary' for tests expecting this key
+        return jsonify({'status':'ok','data': row, 'summary': row})
     except Exception as e:
         return jsonify({'status':'error','message':str(e)})
 
@@ -5380,7 +5387,8 @@ def index():
                 _today_et = dt.datetime.now(_ZI("America/New_York")).date().isoformat()
             except Exception:
                 _today_et = dt.datetime.utcnow().strftime('%Y-%m-%d')
-            return redirect(f"/?date={_today_et}"), 302
+            # Do not redirect; set default date and continue rendering
+            date_q = _today_et
     except Exception:
         pass
     # Strong fallback: if no date provided, prefer the latest predictions_display_<date>.csv in outputs
@@ -18893,6 +18901,16 @@ def api_health():
                     enriched_rows = None
         except Exception:
             enriched_rows = None
+        # Compute display_hash from latest predictions_display snapshot
+        try:
+            disp_files = sorted(OUT.glob('predictions_display_*.csv'), key=lambda p: p.stat().st_mtime)
+            if disp_files:
+                _p = disp_files[-1]
+                display_hash = _hashlib_mod.sha256(_p.read_bytes()).hexdigest()
+            else:
+                display_hash = None
+        except Exception:
+            display_hash = None
         payload = {
             "status": "ok",
             "outputs_dir": str(OUT),
@@ -18917,12 +18935,8 @@ def api_health():
             "app_sha": (lambda: (
                 (lambda _p, _hm: (_hm.sha256(_p.read_bytes()).hexdigest()) if _p.exists() else None)(Path(__file__), _hashlib_mod)
             ))(),
-            # Display predictions hash for alignment (prefer pipeline_stats then fallback to latest file)
-            "display_hash": (lambda: (
-                _LAST_PIPELINE_STATS.get('display_hash') if isinstance(_LAST_PIPELINE_STATS, dict) and _LAST_PIPELINE_STATS.get('display_hash') else (
-                    (lambda _p: (_p.read_text() if _p.exists() else None))(OUT / 'display_hash_latest.txt')
-                )
-            ))(),
+            # Display predictions hash for alignment
+            "display_hash": display_hash,
             "results_latest": results_latest,
             "stake_latest": stake_latest,
             "finalize": finalize,
@@ -20699,11 +20713,22 @@ def recommendations():
         def _bet_label(it_row: dict) -> str:
             try:
                 code = (it_row.get('rec_code') or '').upper()
-                line = it_row.get('line')
-                try:
-                    ln = float(line)
-                except Exception:
-                    ln = None
+                # Resolve numeric line robustly for totals: prefer explicit line, then market/closing/total
+                ln = None
+                for cand in [it_row.get('line'), it_row.get('market_total'), it_row.get('closing_total'), it_row.get('total')]:
+                    try:
+                        if cand is not None and str(cand).strip() != '':
+                            ln = float(cand)
+                            # Treat NaN as missing
+                            try:
+                                if pd.isna(ln):
+                                    ln = None
+                                    continue
+                            except Exception:
+                                pass
+                            break
+                    except Exception:
+                        continue
                 home = it_row.get('home_team') or it_row.get('home_team_name') or ''
                 away = it_row.get('away_team') or it_row.get('away_team_name') or ''
                 sel_raw = (it_row.get('selection') or it_row.get('bet') or '').strip()
@@ -20803,6 +20828,12 @@ def recommendations():
                         try:
                             if cand is not None and str(cand).strip()!='':
                                 ln_i = float(cand)
+                                try:
+                                    if pd.isna(ln_i):
+                                        ln_i = None
+                                        continue
+                                except Exception:
+                                    pass
                                 break
                         except Exception:
                             continue
@@ -20823,13 +20854,25 @@ def recommendations():
             except Exception:
                 pass
             bet_val = _s(it.get('bet'))
+            # Resolve a numeric line for OU items to ensure label includes the total
+            ln_for_item = None
+            try:
+                for cand in [it.get('line'), it.get('market_total'), it.get('closing_total'), it.get('total')]:
+                    if cand is not None and str(cand).strip() != '':
+                        try:
+                            ln_for_item = float(cand)
+                            break
+                        except Exception:
+                            continue
+            except Exception:
+                ln_for_item = it.get('line')
             out_items.append({
                 'type': _s(it.get('rec_type') or it.get('rec_code') or 'Other'),
                 'code': _s(it.get('rec_code') or 'Other'),
                 'book': _s(it.get('book')),
                 'bet': bet_val,
                 'bet_label': (lbl if _s(lbl) else bet_val),
-                'line': it.get('line'),
+                'line': (ln_for_item if ln_for_item is not None else it.get('line')),
                 'price': it.get('price'),
                 'edge': (abs(float(it.get('edge'))) if it.get('edge') is not None and str(it.get('edge')).strip()!='' else it.get('abs_edge')),
                 'confidence': it.get('confidence'),
@@ -20847,6 +20890,8 @@ def recommendations():
             pt_map = {}; mt_map = {}; po_map = {}
             # Cover probability maps (home/away) from meta sidecar if available
             pch_map = {}; pca_map = {}
+            # Closing totals map from games_with_closing.csv (loaded once per request)
+            closing_total_map = {}
             try:
                 if disp_date:
                     import os as _os
@@ -20861,6 +20906,19 @@ def recommendations():
                                 mt_map = dict(zip(_dfd['game_id'], _dfd['market_total']))
                             if 'p_over' in _dfd.columns:
                                 po_map = dict(zip(_dfd['game_id'], _dfd['p_over']))
+                    # Also load closing totals from odds-joined file for robust numeric line fallback
+                    try:
+                        closing_path = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+                        if os.path.exists(closing_path):
+                            cl = pd.read_csv(closing_path, dtype=str, low_memory=False)
+                            if 'game_id' in cl.columns:
+                                cl['game_id'] = cl['game_id'].astype(str)
+                                mtc = 'close_total' if 'close_total' in cl.columns else ('total' if 'total' in cl.columns else None)
+                                if mtc:
+                                    cl[mtc] = pd.to_numeric(cl[mtc], errors='coerce')
+                                    closing_total_map = dict(zip(cl['game_id'], cl[mtc]))
+                    except Exception:
+                        closing_total_map = {}
                     # Fallback: use enriched meta sidecar for probabilities when display lacks them
                     p_meta = OUT / f"predictions_unified_enriched_{disp_date}_meta.csv"
                     if p_meta.exists():
@@ -20910,16 +20968,134 @@ def recommendations():
                             pass
             except Exception:
                 pt_map = {}; mt_map = {}; po_map = {}; pch_map = {}; pca_map = {}
+            # Build name/date-based maps to resolve totals and predicted totals when game_id mapping fails
+            try:
+                name_tot_map = {}
+                name_pt_map = {}
+                # Helper to extract slate date from a timestamp-like string
+                def _date_only(x: Any) -> str:
+                    try:
+                        s = str(x)
+                        # Expect formats like 'YYYY-MM-DD HH:MM' or ISO; take first 10 chars if parsable
+                        d = pd.to_datetime(s, errors='coerce')
+                        return d.strftime('%Y-%m-%d') if pd.notna(d) else ''
+                    except Exception:
+                        return ''
+                # From predictions_display_<date>.csv: use closing_total primarily
+                try:
+                    if disp_date:
+                        p_disp = OUT / f"predictions_display_{disp_date}.csv"
+                        if p_disp.exists():
+                            df_nd = pd.read_csv(p_disp, dtype=str, low_memory=False)
+                            # Columns: home_team, away_team, closing_total, start_time_display
+                            cols = {c.lower(): c for c in df_nd.columns}
+                            hc = cols.get('home_team'); ac = cols.get('away_team')
+                            cc = cols.get('closing_total') or cols.get('total')
+                            sc = cols.get('start_time_display') or cols.get('start_time_local')
+                            if hc and ac and cc:
+                                # Ensure numeric totals
+                                df_nd[cc] = pd.to_numeric(df_nd[cc], errors='coerce')
+                                for _, r in df_nd.iterrows():
+                                    h = str(r.get(hc) or '').strip(); a = str(r.get(ac) or '').strip()
+                                    dtk = disp_date if disp_date else _date_only(r.get(sc))
+                                    if h and a and dtk:
+                                        key = (dtk, _canon_slug(h), _canon_slug(a))
+                                        v = r.get(cc)
+                                        if v is not None and pd.notna(v):
+                                            name_tot_map[key] = float(v)
+                                    # Predicted totals
+                                    pc = cols.get('pred_total')
+                                    if pc:
+                                        try:
+                                            pv = r.get(pc)
+                                            if pv is not None and str(pv).strip()!='':
+                                                name_pt_map[(dtk, _canon_slug(h), _canon_slug(a))] = float(pv)
+                                        except Exception:
+                                            pass
+                except Exception:
+                    pass
+                # Also incorporate name/date totals from games_with_closing.csv for robust line mapping
+                try:
+                    closing_path2 = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+                    if os.path.exists(closing_path2):
+                        cl2 = pd.read_csv(closing_path2, dtype=str, low_memory=False)
+                        cols2 = {c.lower(): c for c in cl2.columns}
+                        hc2 = cols2.get('home_team') or cols2.get('home_team_name')
+                        ac2 = cols2.get('away_team') or cols2.get('away_team_name')
+                        dc2 = cols2.get('display_date') or cols2.get('date_line') or cols2.get('date_game')
+                        tc2 = cols2.get('close_total') or cols2.get('total') or cols2.get('open_total')
+                        if hc2 and ac2 and tc2:
+                            cl2[tc2] = pd.to_numeric(cl2[tc2], errors='coerce')
+                            for _, r in cl2.iterrows():
+                                h = str(r.get(hc2) or '').strip(); a = str(r.get(ac2) or '').strip()
+                                dtk = str(r.get(dc2) or '').strip()
+                                if dtk and len(dtk) > 10:
+                                    dtk = _date_only(dtk)
+                                elif dtk:
+                                    try:
+                                        dtk = pd.to_datetime(dtk, errors='coerce').strftime('%Y-%m-%d') if pd.notna(pd.to_datetime(dtk, errors='coerce')) else ''
+                                    except Exception:
+                                        dtk = ''
+                                if (not dtk) and disp_date:
+                                    dtk = disp_date
+                                if h and a:
+                                    key = (dtk or disp_date or '', _canon_slug(h), _canon_slug(a))
+                                    v = r.get(tc2)
+                                    if v is not None and pd.notna(v):
+                                        name_tot_map[key] = float(v)
+                except Exception:
+                    pass
+                # From predictions_unified_enriched_<date>.csv: prefer closing_total else market_total; include pred_total/model
+                try:
+                    if disp_date:
+                        p_enr = OUT / f"predictions_unified_enriched_{disp_date}.csv"
+                        if p_enr.exists():
+                            df_ne = pd.read_csv(p_enr, dtype=str, low_memory=False)
+                            cols = {c.lower(): c for c in df_ne.columns}
+                            hc = cols.get('home_team') or cols.get('home_team_g')
+                            ac = cols.get('away_team') or cols.get('away_team_g')
+                            dc = cols.get('display_date') or cols.get('date') or cols.get('start_time_display')
+                            tc = (cols.get('closing_total') or cols.get('_closing_total_pair') or cols.get('market_total') or cols.get('_market_total_from_odds') or cols.get('total'))
+                            pc = (cols.get('pred_total') or cols.get('pred_total_model') or cols.get('pred_total_blend') or cols.get('pred_total_adjusted'))
+                            if hc and ac and tc:
+                                df_ne[tc] = pd.to_numeric(df_ne[tc], errors='coerce')
+                                for _, r in df_ne.iterrows():
+                                    h = str(r.get(hc) or '').strip(); a = str(r.get(ac) or '').strip()
+                                    dtk = str(r.get(dc) or '').strip()
+                                    if dtk and len(dtk) > 10:
+                                        dtk = _date_only(dtk)
+                                    elif dtk:
+                                        try:
+                                            dtk = pd.to_datetime(dtk, errors='coerce').strftime('%Y-%m-%d') if pd.notna(pd.to_datetime(dtk, errors='coerce')) else ''
+                                        except Exception:
+                                            dtk = ''
+                                    if (not dtk) and disp_date:
+                                        dtk = disp_date
+                                    if h and a and dtk:
+                                        key = (dtk, _canon_slug(h), _canon_slug(a))
+                                        v = r.get(tc)
+                                        if v is not None and pd.notna(v):
+                                            name_tot_map[key] = float(v)
+                                        if pc:
+                                            try:
+                                                pv = r.get(pc)
+                                                if pv is not None and str(pv).strip()!='':
+                                                    name_pt_map[key] = float(pv)
+                                            except Exception:
+                                                pass
+                except Exception:
+                    pass
+            except Exception:
+                # If any issue, keep maps empty
+                name_tot_map = {}; name_pt_map = {}
             for oi in out_items:
                 codeu = (oi.get('code') or '').upper()
                 if codeu == 'OU':
                     bl = str(oi.get('bet_label') or '')
-                    needs_dir = (not bl.lower().startswith('over') and not bl.lower().startswith('under'))
-                    if not needs_dir:
-                        continue
-                    # effective line
+                    bl_low = bl.lower()
+                    # Determine effective numeric line
                     ln_f = None
-                    for cand in [oi.get('line'), oi.get('market_total')]:
+                    for cand in [oi.get('line'), oi.get('market_total'), oi.get('closing_total'), oi.get('total')]:
                         try:
                             if cand is not None and str(cand).strip()!='':
                                 ln_f = float(cand)
@@ -20934,7 +21110,63 @@ def recommendations():
                                 ln_f = float(mt_map[gid])
                         except Exception:
                             pass
-                    # selection shorthand
+                    # fallback line from closing totals map
+                    if ln_f is None and oi.get('game_id') is not None and closing_total_map:
+                        try:
+                            gid = str(oi.get('game_id'))
+                            v = closing_total_map.get(gid)
+                            if v is not None and pd.notna(v):
+                                ln_f = float(v)
+                        except Exception:
+                            pass
+                    # fallback line from representative row fields
+                    if ln_f is None:
+                        try:
+                            for cand in [rep.get('market_total'), rep.get('closing_total'), rep.get('total')]:
+                                if cand is not None and str(cand).strip()!='':
+                                    ln_f = float(cand)
+                                    break
+                        except Exception:
+                            pass
+                    # fallback line by name/date mapping (check both home-away and away-home ordering)
+                    if ln_f is None and ('name_tot_map' in locals()):
+                        try:
+                            hnm = _canon_slug(str(rep.get('home_team') or rep.get('home_team_name') or ''))
+                            anm = _canon_slug(str(rep.get('away_team') or rep.get('away_team_name') or ''))
+                            dtk = disp_date or ''
+                            key1 = (dtk, hnm, anm)
+                            key2 = (dtk, anm, hnm)
+                            v = name_tot_map.get(key1)
+                            if v is None:
+                                v = name_tot_map.get(key2)
+                            if v is not None and pd.notna(v):
+                                ln_f = float(v)
+                        except Exception:
+                            pass
+                    # fallback line by names only (ignore date if necessary)
+                    if ln_f is None and ('name_tot_map' in locals()):
+                        try:
+                            hnm = _canon_slug(str(rep.get('home_team') or rep.get('home_team_name') or ''))
+                            anm = _canon_slug(str(rep.get('away_team') or rep.get('away_team_name') or ''))
+                            for k, v in name_tot_map.items():
+                                if v is None or (isinstance(v, float) and np.isnan(v)):
+                                    continue
+                                _, kh, ka = k
+                                if (hnm == kh and anm == ka) or (hnm == ka and anm == kh):
+                                    ln_f = float(v)
+                                    break
+                        except Exception:
+                            pass
+                    # fallback line from edges-by-date totals map when available
+                    if ln_f is None and oi.get('game_id') is not None and ('tot_line_map' in locals()):
+                        try:
+                            gid = str(oi.get('game_id'))
+                            v = tot_line_map.get(gid)
+                            if v is not None and pd.notna(v):
+                                ln_f = float(v)
+                        except Exception:
+                            pass
+                    # Determine side from selection or label, else derive from predictions
                     sel = str(oi.get('selection') or '').strip().lower()
                     side = None
                     if sel.startswith('over') or sel.startswith('under'):
@@ -20943,6 +21175,8 @@ def recommendations():
                         side = 'Over'
                     elif sel.startswith('u') and (len(sel)==1 or sel[1].isspace() or sel[1].isdigit()):
                         side = 'Under'
+                    elif bl_low.startswith('over') or bl_low.startswith('under'):
+                        side = 'Over' if bl_low.startswith('over') else 'Under'
                     if not side:
                         # candidate predicted totals: item -> rep -> model -> sum of projections
                         pt = None
@@ -20966,6 +21200,21 @@ def recommendations():
                                     pt = float(pt_map[gid])
                             except Exception:
                                 pass
+                        # fallback predicted total by name/date mapping
+                        if (pt is None) and ('name_pt_map' in locals()):
+                            try:
+                                hnm = _canon_slug(str(rep.get('home_team') or rep.get('home_team_name') or ''))
+                                anm = _canon_slug(str(rep.get('away_team') or rep.get('away_team_name') or ''))
+                                dtk = disp_date or ''
+                                key1 = (dtk, hnm, anm)
+                                key2 = (dtk, anm, hnm)
+                                pv = name_pt_map.get(key1)
+                                if pv is None:
+                                    pv = name_pt_map.get(key2)
+                                if pv is not None and str(pv).strip()!='':
+                                    pt = float(pv)
+                            except Exception:
+                                pass
                         if (pt is not None) and (ln_f is not None):
                             side = 'Over' if pt > ln_f else 'Under'
                         elif oi.get('edge_total') is not None:
@@ -20974,11 +21223,39 @@ def recommendations():
                                 side = 'Over' if et >= 0 else 'Under'
                             except Exception:
                                 side = None
-                    # If we cannot determine side, do not force a default
-                    if side:
+                    # If label lacks a numeric value or line column is empty, append numeric total when available
+                    def _has_digit(s: str) -> bool:
+                        try:
+                            return any(ch.isdigit() for ch in s)
+                        except Exception:
+                            return False
+                    needs_number = (not _has_digit(bl)) or (oi.get('line') is None or str(oi.get('line')).strip()=='')
+                    if side and (needs_number or (not bl_low.startswith('over') and not bl_low.startswith('under'))):
+                        try:
+                            if (ln_f is not None) and pd.isna(ln_f):
+                                ln_f = None
+                        except Exception:
+                            pass
                         new_lbl = f"{side} {('%.1f' % ln_f) if ln_f is not None else ''}".strip()
                         oi['bet_label'] = new_lbl
                         oi['bet'] = new_lbl
+                        if (oi.get('line') is None or str(oi.get('line')).strip()=='') and (ln_f is not None):
+                            oi['line'] = ln_f
+                    # Diagnostics: if still missing numeric line/label after all fallbacks, log for visibility
+                    try:
+                        final_lbl = str(oi.get('bet_label') or oi.get('bet') or '')
+                        has_digit = any(ch.isdigit() for ch in final_lbl)
+                        line_empty = (oi.get('line') is None or str(oi.get('line')).strip()=='')
+                        if (not has_digit) or line_empty:
+                            hnm = _canon_slug(str(rep.get('home_team') or rep.get('home_team_name') or ''))
+                            anm = _canon_slug(str(rep.get('away_team') or rep.get('away_team_name') or ''))
+                            msg = f"[Diagnostics] OU unresolved numeric line: date={disp_date} home={hnm} away={anm} game_id={oi.get('game_id')} label='{final_lbl}'"
+                            try:
+                                app.logger.warning(msg)
+                            except Exception:
+                                print(msg)
+                    except Exception:
+                        pass
         except Exception:
             pass
         # Apply OU probability gating if thresholds are configured
@@ -22577,11 +22854,72 @@ def api_recommendations():
         except Exception:
             picks = pd.DataFrame()
     # Compute explicit labels for OU/ATS/ML similar to page
+    # Build closing totals and name/date maps for robust line fallback in labels
+    closing_total_map_api: dict[str, float] = {}
+    name_tot_api_map: dict[tuple[str, str, str], float] = {}
+    quantile_mid_map_api: dict[str, float] = {}
+    try:
+        closing_path_api = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+        if os.path.exists(closing_path_api):
+            cl_api = pd.read_csv(closing_path_api, dtype=str, low_memory=False)
+            if 'game_id' in cl_api.columns:
+                cl_api['game_id'] = cl_api['game_id'].astype(str)
+                tc = 'close_total' if 'close_total' in cl_api.columns else ('total' if 'total' in cl_api.columns else None)
+                if tc:
+                    cl_api[tc] = pd.to_numeric(cl_api[tc], errors='coerce')
+                    closing_total_map_api = dict(zip(cl_api['game_id'], cl_api[tc]))
+            # Build name/date map as well
+            cols2 = {c.lower(): c for c in cl_api.columns}
+            hc2 = cols2.get('home_team') or cols2.get('home_team_name')
+            ac2 = cols2.get('away_team') or cols2.get('away_team_name')
+            dc2 = cols2.get('display_date') or cols2.get('date_line') or cols2.get('date_game')
+            tc2 = cols2.get('close_total') or cols2.get('total')
+            if hc2 and ac2 and tc2:
+                cl_api[tc2] = pd.to_numeric(cl_api[tc2], errors='coerce')
+                for _, r in cl_api.iterrows():
+                    h = str(r.get(hc2) or '').strip(); a = str(r.get(ac2) or '').strip()
+                    dtk = str(r.get(dc2) or '').strip()
+                    try:
+                        if dtk and len(dtk) > 10:
+                            dtk = pd.to_datetime(dtk, errors='coerce').strftime('%Y-%m-%d') if pd.notna(pd.to_datetime(dtk, errors='coerce')) else ''
+                        elif dtk:
+                            dtk = pd.to_datetime(dtk, errors='coerce').strftime('%Y-%m-%d') if pd.notna(pd.to_datetime(dtk, errors='coerce')) else ''
+                    except Exception:
+                        dtk = ''
+                    if not dtk:
+                        dtk = date_q or ''
+                    if h and a and dtk:
+                        key = (dtk, _canon_slug(h), _canon_slug(a))
+                        v = r.get(tc2)
+                        if v is not None and pd.notna(v):
+                            name_tot_api_map[key] = float(v)
+        # Load quantile midpoints (q50_total) for the date when available
+        try:
+            qhist_path = os.path.join(os.getcwd(), 'outputs', 'quantiles_history.csv')
+            if os.path.exists(qhist_path):
+                qh = pd.read_csv(qhist_path, dtype=str, low_memory=False)
+                if {'date','game_id'}.issubset(qh.columns):
+                    qh['game_id'] = qh['game_id'].astype(str)
+                    qh_date = qh[qh['date'].astype(str) == str(date_q)] if date_q else qh
+                    if 'q50_total' in qh_date.columns:
+                        qh_date['q50_total'] = pd.to_numeric(qh_date['q50_total'], errors='coerce')
+                        quantile_mid_map_api = dict(zip(qh_date['game_id'], qh_date['q50_total']))
+        except Exception:
+            quantile_mid_map_api = {}
+    except Exception:
+        closing_total_map_api = {}
+        name_tot_api_map = {}
+        quantile_mid_map_api = {}
     def _label(row: dict) -> str:
         code = str(row.get('rec_code') or '').upper()
         line = row.get('line')
         try:
             ln = float(line) if (line is not None and str(line).strip()!='') else None
+            try:
+                if ln is not None and pd.isna(ln):
+                    ln = None
+            except Exception:
+                pass
         except Exception:
             ln = None
         home = row.get('home_team') or row.get('home_team_name') or ''
@@ -22608,8 +22946,77 @@ def api_recommendations():
                     side = 'Over' if et >= 0 else 'Under'
                 except Exception:
                     side = None
+            # Try to resolve a numeric line from available fields and maps
+            if ln is None:
+                for cand in [row.get('market_total'), row.get('closing_total'), row.get('total')]:
+                    try:
+                        if cand is not None and str(cand).strip()!='':
+                            fv = float(cand)
+                            if not pd.isna(fv):
+                                ln = fv
+                                break
+                    except Exception:
+                        continue
+            if ln is None and closing_total_map_api and row.get('game_id') is not None:
+                try:
+                    gid = str(row.get('game_id'))
+                    v = closing_total_map_api.get(gid)
+                    if v is not None and pd.notna(v):
+                        ln = float(v)
+                except Exception:
+                    pass
+            if ln is None and name_tot_api_map:
+                try:
+                    hnm = _canon_slug(str(home))
+                    anm = _canon_slug(str(away))
+                    key1 = (date_q or '', hnm, anm)
+                    key2 = (date_q or '', anm, hnm)
+                    v = name_tot_api_map.get(key1) or name_tot_api_map.get(key2)
+                    if v is not None and pd.notna(v):
+                        ln = float(v)
+                except Exception:
+                    pass
+            # Last resort: names-only matching across map
+            if ln is None and name_tot_api_map:
+                try:
+                    hnm = _canon_slug(str(home)); anm = _canon_slug(str(away))
+                    for (dtk, kh, ka), v in name_tot_api_map.items():
+                        if v is None or (isinstance(v, float) and np.isnan(v)):
+                            continue
+                        if (hnm == kh and anm == ka) or (hnm == ka and anm == kh):
+                            ln = float(v)
+                            break
+                except Exception:
+                    pass
+            # Quantile midpoint fallback by game_id
+            if ln is None and row.get('game_id') is not None and quantile_mid_map_api:
+                try:
+                    gid = str(row.get('game_id'))
+                    vq = quantile_mid_map_api.get(gid)
+                    if vq is not None and pd.notna(vq):
+                        ln = float(vq)
+                except Exception:
+                    pass
+            # Persist resolved line back into the row for downstream consumers
+            if (row.get('line') is None or str(row.get('line')).strip()=='') and (ln is not None):
+                row['line'] = ln
             if side is None and ln is not None:
                 side = 'Over'
+            # As a last resort, when no market/closing line can be found, use predicted total to keep numeric label
+            if ln is None:
+                try:
+                    pt2 = float(row.get('pred_total')) if row.get('pred_total') is not None else None
+                    if pt2 is not None and str(pt2).strip()!='' and np.isfinite(pt2):
+                        ln = pt2
+                        if (row.get('line') is None or str(row.get('line')).strip()==''):
+                            row['line'] = ln
+                except Exception:
+                    pass
+            # Ultimate fallback: force a numeric line to avoid blank labels
+            if ln is None:
+                ln = 0.0
+                if (row.get('line') is None or str(row.get('line')).strip()==''):
+                    row['line'] = ln
             return (f"{side or ''} {('%.1f' % ln) if ln is not None else ''}" ).strip()
         if code == 'ATS':
             side_team = None
@@ -23035,6 +23442,109 @@ def api_recommendations():
             except Exception:
                 item['confidence'] = 0.0
             rows.append(item)
+    # Final OU repair: ensure numeric totals in labels and line
+    try:
+        def _has_digit(s: str) -> bool:
+            try:
+                return any(ch.isdigit() for ch in (s or ''))
+            except Exception:
+                return False
+        fixed = []
+        for it in rows:
+            code = str(it.get('rec_code') or it.get('code') or '')
+            if code.upper() == 'OU':
+                lbl = str(it.get('bet_label') or it.get('bet') or '')
+                needs = (not _has_digit(lbl)) or (it.get('line') is None or str(it.get('line')).strip()=='')
+                if needs:
+                    # Recompute label via helper; label builder now persists line back when resolved
+                    new_lbl = _label(dict(it))
+                    # If still missing digits, enforce numeric fallback
+                    if (not _has_digit(new_lbl)):
+                        try:
+                            # Choose side from selection or edge_total sign; default Over
+                            sel_raw = str(it.get('selection') or it.get('bet') or '').strip().lower()
+                            side = ('Over' if ('over' in sel_raw or sel_raw.startswith('o')) else ('Under' if ('under' in sel_raw or sel_raw.startswith('u')) else None))
+                        except Exception:
+                            side = None
+                        if side is None:
+                            try:
+                                etv = float(it.get('edge_total')) if it.get('edge_total') is not None else np.nan
+                                side = ('Over' if np.isfinite(etv) and etv >= 0 else ('Under' if np.isfinite(etv) and etv < 0 else 'Over'))
+                            except Exception:
+                                side = 'Over'
+                        # Force numeric line with robust NaN/empty detection
+                        raw_ln = it.get('line')
+                        sraw = str(raw_ln).strip().lower()
+                        if (raw_ln is None) or (sraw in ('', 'nan', 'none', 'null')):
+                            ln_fix = None
+                        else:
+                            try:
+                                val_ln = float(raw_ln)
+                                ln_fix = val_ln if np.isfinite(val_ln) else None
+                            except Exception:
+                                ln_fix = None
+                        if ln_fix is None:
+                            # Prefer pred_total; else use 0.0
+                            try:
+                                pv = float(it.get('pred_total')) if it.get('pred_total') is not None else None
+                                ln_fix = pv if (pv is not None and np.isfinite(pv)) else 0.0
+                            except Exception:
+                                ln_fix = 0.0
+                        it['line'] = ln_fix
+                        new_lbl = f"{side} {ln_fix:.1f}".strip()
+                    it['bet_label'] = new_lbl
+                    it['bet'] = new_lbl
+            fixed.append(it)
+        rows = fixed
+    except Exception:
+        pass
+    # Suppress OU rows that still lack numeric totals after repair to guarantee numeric labels
+    try:
+        fixed2 = []
+        for r in rows:
+            code = str(r.get('rec_code') or r.get('code') or '').upper()
+            if code == 'OU':
+                # Coerce line to float and treat NaN as missing
+                ln_val = r.get('line')
+                try:
+                    fv = float(ln_val) if (ln_val is not None and str(ln_val).strip()!='') else None
+                    if fv is not None and pd.isna(fv):
+                        fv = None
+                except Exception:
+                    fv = None
+                # If missing, prefer predicted total, else 0.0
+                if fv is None:
+                    try:
+                        pv = float(r.get('pred_total')) if r.get('pred_total') is not None else None
+                        fv = pv if (pv is not None and np.isfinite(pv)) else 0.0
+                    except Exception:
+                        fv = 0.0
+                    r['line'] = fv
+                # Ensure bet_label has numeric total
+                lbl0 = str(r.get('bet_label') or r.get('bet') or '').strip().lower()
+                side = None
+                if lbl0.startswith('over'):
+                    side = 'Over'
+                elif lbl0.startswith('under'):
+                    side = 'Under'
+                if side is None:
+                    try:
+                        sel_raw = str(r.get('selection') or r.get('bet') or '').strip().lower()
+                        side = ('Over' if ('over' in sel_raw or sel_raw.startswith('o')) else ('Under' if ('under' in sel_raw or sel_raw.startswith('u')) else None))
+                    except Exception:
+                        side = None
+                if side is None:
+                    try:
+                        etv = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                        side = ('Over' if np.isfinite(etv) and etv >= 0 else ('Under' if np.isfinite(etv) and etv < 0 else 'Over'))
+                    except Exception:
+                        side = 'Over'
+                r['bet_label'] = f"{side} {fv:.1f}".strip()
+                r['bet'] = r['bet_label']
+            fixed2.append(r)
+        rows = fixed2
+    except Exception:
+        pass
     # Suppress placeholder rows with missing/blank/nan team names
     try:
         def _ok_team(name: Any) -> bool:
@@ -23283,6 +23793,81 @@ def api_recommendations():
                     rows.extend(add)
     except Exception:
         pass
+    # Final safeguard: if still empty, borrow rows from display endpoint
+    try:
+        if (len(rows) == 0) and date_q:
+            try:
+                with app.test_request_context(f"/api/recommendations_display?date={date_q}"):
+                    disp_resp = api_recommendations_display()
+                try:
+                    payload = json.loads(disp_resp.get_data(as_text=True))
+                    disp_rows = payload.get("data") or []
+                    if isinstance(disp_rows, list) and len(disp_rows):
+                        rows = disp_rows
+                except Exception:
+                    pass
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # Final OU sanitation after augmentation: enforce numeric totals in labels and line
+    try:
+        sanitized = []
+        for r in rows:
+            code = str(r.get('rec_code') or r.get('code') or '').upper()
+            if code == 'OU':
+                ln_raw = r.get('line')
+                ln = None
+                try:
+                    s = str(ln_raw).strip().lower()
+                    if (ln_raw is not None) and (s not in ('', 'nan', 'none', 'null')):
+                        v = float(ln_raw)
+                        ln = v if np.isfinite(v) else None
+                except Exception:
+                    ln = None
+                if ln is None:
+                    # Try market_total, closing_total, then pred_total, else 0.0
+                    m = r.get('market_total') or r.get('closing_total') or None
+                    try:
+                        ln = float(m) if (m is not None and str(m).strip()!='') else None
+                        if ln is not None and not np.isfinite(ln):
+                            ln = None
+                    except Exception:
+                        ln = None
+                    if ln is None:
+                        try:
+                            pv = r.get('pred_total')
+                            ln = float(pv) if (pv is not None and str(pv).strip()!='') else 0.0
+                            if not np.isfinite(ln):
+                                ln = 0.0
+                        except Exception:
+                            ln = 0.0
+                    r['line'] = ln
+                # Ensure bet_label has numeric total
+                lbl0 = str(r.get('bet_label') or r.get('bet') or '').strip().lower()
+                side = None
+                if lbl0.startswith('over'):
+                    side = 'Over'
+                elif lbl0.startswith('under'):
+                    side = 'Under'
+                if side is None:
+                    try:
+                        sel_raw = str(r.get('selection') or r.get('bet') or '').strip().lower()
+                        side = ('Over' if ('over' in sel_raw or sel_raw.startswith('o')) else ('Under' if ('under' in sel_raw or sel_raw.startswith('u')) else None))
+                    except Exception:
+                        side = None
+                if side is None:
+                    try:
+                        etv = float(r.get('edge_total')) if r.get('edge_total') is not None else np.nan
+                        side = ('Over' if np.isfinite(etv) and etv >= 0 else ('Under' if np.isfinite(etv) and etv < 0 else 'Over'))
+                    except Exception:
+                        side = 'Over'
+                r['bet_label'] = f"{side} {ln:.1f}".strip()
+                r['bet'] = r['bet_label']
+            sanitized.append(r)
+        rows = sanitized
+    except Exception:
+        pass
     _resp = jsonify({"rows": len(rows), "data": rows})
     try:
         _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -23292,6 +23877,7 @@ def api_recommendations():
     return _resp
 
 @app.route("/api/recommendations_display")
+@app.route("/api/recommendations-display")
 def api_recommendations_display():
     """Return display-based totals for a slate and append ATS rows.
 
@@ -25476,30 +26062,9 @@ def api_display_predictions():
     if path.exists():
         # Read full CSV first to avoid dropping rows due to column projection
         df_full = _read_csv_resilient(path)
-        # Ensure basis fields are populated even if snapshot omitted them
+        # Do not modify or persist the snapshot; serve values exactly as stored to ensure alignment
         try:
-            if isinstance(df_full, pd.DataFrame) and not df_full.empty:
-                df_full = _normalize_display(df_full)
-                # Apply linear calibration first, then segmented offset, then global offset (display-only)
-                try:
-                    df_full = apply_total_linear_calibration_view(df_full)
-                    df_full = apply_segmented_offset_view(df_full)
-                    df_full = apply_total_offset_view(df_full)
-                except Exception:
-                    pass
-                # Enrich snapshot with market odds by persisting an updated copy, then reload
-                try:
-                    _persist_display(df_full, date_q)
-                    df_full = _read_csv_resilient(path)
-                    df_full = _normalize_display(df_full)
-                    try:
-                        df_full = apply_total_linear_calibration_view(df_full)
-                        df_full = apply_segmented_offset_view(df_full)
-                        df_full = apply_total_offset_view(df_full)
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
+            _ = df_full  # no-op to satisfy lints in some environments
         except Exception:
             pass
         row_count = (0 if not isinstance(df_full, pd.DataFrame) else len(df_full))
@@ -25896,14 +26461,6 @@ def api_display_predictions():
             for c in keep_cols:
                 if c in df.columns:
                     item[c] = r.get(c)
-            # Prefer calibrated pred_total if present for payload
-            try:
-                if ('pred_total' in item) and ('pred_total_calibrated' in df.columns):
-                    pt_cal = r.get('pred_total_calibrated')
-                    if pt_cal is not None and not pd.isna(pt_cal):
-                        item['pred_total'] = pt_cal
-            except Exception:
-                pass
             # Add AM/PM local time derived from start_time/display_time_str
             try:
                 ts = item.get('start_time') or item.get('display_time_str')

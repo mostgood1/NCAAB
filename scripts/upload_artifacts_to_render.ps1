@@ -379,9 +379,14 @@ if ($u3b) {
 
 # Upload simulation artifacts if present
 if (Test-Path -LiteralPath $simQuantilesPath) {
-    $uSimQ = Upload-File -Uri "$BaseUrl/api/upload_sim_quantiles" -FilePath $simQuantilesPath -Query @{ date = $Date }
-    if ($uSimQ) { Write-Host "[OK] sim_quantiles uploaded: rows=$($uSimQ.rows)" -ForegroundColor Green }
-    else { ${needSimRetry} = $true }
+    $simQRows = Get-CsvRowCount -Path $simQuantilesPath
+    if ($simQRows -gt 0) {
+        $uSimQ = Upload-File -Uri "$BaseUrl/api/upload_sim_quantiles" -FilePath $simQuantilesPath -Query @{ date = $Date }
+        if ($uSimQ) { Write-Host "[OK] sim_quantiles uploaded: rows=$($uSimQ.rows)" -ForegroundColor Green }
+        else { ${needSimRetry} = $true }
+    } else {
+        Write-Host "[Skip] sim_quantiles_$Date.csv empty (header-only); not uploading" -ForegroundColor Yellow
+    }
 } else {
     Write-Host "[Skip] sim_quantiles_$Date.csv missing" -ForegroundColor Yellow
 }
@@ -475,6 +480,38 @@ try {
     Write-Host "[Check] recommendations rows=$rowCount" -ForegroundColor White
     if ($rowCount -eq 0) {
         Write-Host "[Alert] Recommendations are empty. Check uploads and server fallbacks." -ForegroundColor Yellow
+    }
+    # Preflight: verify OU recommendations include numeric totals in labels and a non-empty line
+    try {
+        $rows = $null
+        if ($recs.rows) { $rows = $recs.rows }
+        elseif ($recs.data) { $rows = $recs.data }
+        elseif ($recs.recommendations) { $rows = $recs.recommendations }
+        if ($rows) {
+            $ouRows = @($rows | Where-Object { (("" + $_.code).ToUpper() -eq 'OU') -or (("" + $_.rec_code).ToUpper() -eq 'OU') })
+            if ($ouRows.Count -gt 0) {
+                $bad = @()
+                foreach ($r in $ouRows) {
+                    $lbl = ("" + ($r.bet_label ?? $r.bet)).Trim()
+                    $ln = ("" + $r.line).Trim()
+                    $hasDigit = ($lbl -match '\d')
+                    if (-not $hasDigit -or [string]::IsNullOrWhiteSpace($ln)) {
+                        $bad += $r
+                    }
+                }
+                if ($bad.Count -gt 0) {
+                    Write-Host ("[Error] OU label preflight failed: {0} rows missing numeric totals or line" -f $bad.Count) -ForegroundColor Red
+                    throw "OU labels missing numeric totals or line after upload"
+                } else {
+                    Write-Host "[OK] OU preflight: all labels include numeric totals and line" -ForegroundColor Green
+                }
+            } else {
+                Write-Host "[Warn] No OU rows found in recommendations to preflight" -ForegroundColor Yellow
+            }
+        }
+    } catch {
+        Write-Host ("[Error] OU preflight validation failed: {0}" -f $_.Exception.Message) -ForegroundColor Red
+        throw
     }
 } catch {
     Write-Host "[Warn] recommendations check failed: $($_.Exception.Message)" -ForegroundColor Yellow

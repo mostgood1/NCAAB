@@ -1,7 +1,9 @@
 import os
 import json
 import math
+import sys
 import pandas as pd
+from pathlib import Path
 
 # Minimal injector: fill pred_total_sigma, pred_margin_sigma, and kelly_fraction_total_adj
 # Sources:
@@ -70,6 +72,16 @@ def inject(outputs_dir: str, date_str: str):
     if not os.path.exists(path):
         raise FileNotFoundError(path)
     df = pd.read_csv(path)
+    # Attach pace/possessions features (default 40-minute scaling)
+    try:
+        # Ensure src is importable
+        root = Path(__file__).resolve().parents[1]
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from src.features.pace import attach_pace_features
+        df = attach_pace_features(df, minutes_col=None)
+    except Exception:
+        pass
     # Build lookup for interval sigmas
     interval = load_interval_sigmas(outputs_dir, date_str)
     rmse_total, rmse_margin = load_variance_fallback(outputs_dir, date_str)

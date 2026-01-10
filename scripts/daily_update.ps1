@@ -275,6 +275,23 @@ print({'path': str(games_path), 'rows': len(df2)})
     Write-Host "SkipFinalizePrev flag set; skipping finalize-day for $prevDate." -ForegroundColor Yellow
   }
 
+  # 3d) Compute daily accuracy snapshot for previous day and persist JSON
+  Write-Section "3d) Compute daily accuracy for $prevDate (winners/totals/ATS)"
+  try {
+    $accOut = (& $VenvPython scripts/compute_daily_accuracy.py $prevDate) | Out-String
+    $accPath = Join-Path $OutDir ("daily_accuracy_" + $prevDate + ".json")
+    $accOut.Trim() | Out-File -FilePath $accPath -Encoding UTF8
+    # Also mirror a copy under metrics for UI consumption
+    $metricsDir = Join-Path $OutDir 'metrics'
+    New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+    Copy-Item -LiteralPath $accPath -Destination (Join-Path $metricsDir ("daily_accuracy_" + $prevDate + ".json")) -Force
+    # Maintain a latest symlink-like copy
+    Copy-Item -LiteralPath $accPath -Destination (Join-Path $metricsDir 'daily_accuracy_latest.json') -Force
+    Write-Host ("[metrics] Wrote {0}" -f $accPath)
+  } catch {
+    Write-Warning "compute_daily_accuracy failed for ${prevDate}: $($_)"
+  }
+
   Write-Section '4) Update model tuning from recent daily results'
   & $VenvPython -m ncaab_model.cli update-tuning --results-dir (Join-Path $OutDir 'daily_results') --window-days 7 --min-valid-games 10 --cap-abs-bias 25 --out (Join-Path $OutDir 'model_tuning.json')
 
@@ -416,6 +433,29 @@ print({'path': str(games_path), 'rows': len(df2)})
     Write-Warning "select_quantiles_multi.py failed: $($_). Falling back to simple residual-based selection."
     try { & $VenvPython scripts/select_quantiles.py --window-days 28 --target-coverage 0.8 } catch { Write-Warning "select_quantiles.py failed: $($_)" }
   }
+
+  # Monte Carlo simulations for OU/margins and blend with model quantiles
+  Write-Section '6j.s) Monte Carlo simulations + blend'
+  try {
+    & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir
+  } catch { Write-Warning "run_game_simulations.py failed: $($_)" }
+  try {
+    $BlendSimWeight = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
+    Write-Host "Blending simulations with weight $BlendSimWeight"
+    & $VenvPython scripts/blend_sim_quantiles.py $todayIso $OutDir $BlendSimWeight
+  } catch { Write-Warning "blend_sim_quantiles.py failed: $($_)" }
+
+  # Tune OU segment thresholds over trailing 28 days before generating totals picks
+  Write-Section '6j.a) Tune OU segment thresholds (28 days)'
+  try {
+    & $VenvPython scripts/tune_ou_segment_thresholds.py --days 28 --outputs $OutDir --min-per-segment 30
+  } catch { Write-Warning "tune_ou_segment_thresholds.py failed: $($_)" }
+
+  # Generate OU picks for today using locked policy (tau/sigma_max/pmin)
+  Write-Section '6j.b) Generate OU picks (policy)'
+  try {
+    & $VenvPython scripts/make_picks_raw_from_totals.py --date $todayIso --outputs $OutDir
+  } catch { Write-Warning "OU picks generation failed: $($_)" }
 
   # Daily quantile retrain + scoring artifacts (lightweight; safe to run post-predictions)
   Write-Section '6j.ii) Daily quantile retrain + scoring'
@@ -771,11 +811,11 @@ sys.exit(1 if nan_count>0 else 0)
   } catch { Write-Warning "Restore games_with_last.csv failed: $($_)" }
 
   if (-not $SkipStakeSheets) {
-    Write-Section "7) Filter merged last odds to today's slate"
+    Write-Section "7) Filter merged last odds to today's slate (with closing fallback)"
     $mergedAll = Join-Path $OutDir 'games_with_last.csv'
     $mergedToday = Join-Path $OutDir 'games_with_last_today.csv'
-    if (Test-Path $mergedAll) {
     $gamesCurrPath = Join-Path $OutDir "games_${todayIso}.csv"
+    if (Test-Path $mergedAll) {
     $pyFilter = @"
 import pandas as pd, sys
 inp = r'$mergedAll'
@@ -783,37 +823,114 @@ outp = r'$mergedToday'
 target = '$todayIso'
 games_curr = r'$gamesCurrPath'
 try:
-  df = pd.read_csv(inp)
+    df = pd.read_csv(inp)
 except Exception as e:
-  print(f'[read-fail] merged: {e}')
-  sys.exit(1)
+    print(f'[read-fail] merged: {e}')
+    sys.exit(1)
 gid_today = set()
 try:
-  gc = pd.read_csv(games_curr)
-  if 'game_id' in gc.columns:
-    gc['game_id'] = gc['game_id'].astype(str)
+    gc = pd.read_csv(games_curr)
+    if 'game_id' in gc.columns:
+      gc['game_id'] = gc['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
     if 'date' in gc.columns:
       gc['date'] = gc['date'].astype(str)
       gc = gc[gc['date'] == target]
-    gid_today = set(gc['game_id'].astype(str))
+    if 'game_id' in gc.columns:
+      gid_today = set(gc['game_id'].astype(str))
 except Exception as e:
-  print(f'[warn] games_curr read failed: {e}')
+    print(f'[warn] games_curr read failed: {e}')
 if 'game_id' in df.columns:
-  df['game_id'] = df['game_id'].astype(str)
-if 'date' in df.columns:
-  df['date'] = df['date'].astype(str)
-  mask_date = df['date'] == target
+  df['game_id'] = df['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+# Prefer strict inner-join on today's game_id set to avoid oversized selections
+if gid_today:
+  gc_ids = pd.DataFrame({'game_id': list(gid_today)})
+  df_today = df.merge(gc_ids, on='game_id', how='inner')
+  # Ensure one row per game for downstream alignment
+  if 'game_id' in df_today.columns:
+    df_today = df_today.drop_duplicates(subset=['game_id'])
 else:
-  mask_date = pd.Series([True]*len(df))
-mask_gid = df['game_id'].isin(gid_today) if gid_today else mask_date
-df_today = df[mask_gid & mask_date].copy() if 'date' in df.columns else df[mask_gid].copy()
-if df_today.empty:
-  # Fallback: if no date column, attempt to infer using presence in games_curr IDs only
-  df_today = df[df['game_id'].isin(list(gid_today))].copy() if gid_today else df.head(0)
+  df_today = df.iloc[0:0].copy()
+if df_today.empty and ('date' in df.columns):
+  # Secondary filter by date only if gid-based yielded nothing
+  df['date'] = df['date'].astype(str)
+  df_today = df[df['date'] == target].copy()
+# Debug: show unique dates and gid_today size, avoid f-strings to prevent parser issues
+try:
+  udates = sorted(set(df['date'].astype(str)))[:5] if 'date' in df.columns else []
+  print('[debug] unique_dates_in_merged=' + str(udates))
+except Exception:
+  pass
+print('[debug] gid_today_count=' + str(len(gid_today)))
 df_today.to_csv(outp, index=False)
 print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows for {target}')
 "@
       & $VenvPython -c $pyFilter
+      # If last odds yielded 0 rows, fallback to closing lines
+      try {
+        $rows = @(Import-Csv -LiteralPath $mergedToday)
+        if (-not $rows -or $rows.Count -le 0) {
+          Write-Host "[fallback] No last-odds rows for $todayIso; using closing lines." -ForegroundColor Yellow
+          $mergedClosingAll = Join-Path $OutDir 'games_with_closing.csv'
+          $mergedClosingToday = Join-Path $OutDir 'games_with_closing_today.csv'
+          if (Test-Path $mergedClosingAll) {
+            $pyFilterClosing = @"
+import pandas as pd, sys
+inp = r'$mergedClosingAll'
+outp = r'$mergedClosingToday'
+target = '$todayIso'
+games_curr = r'$gamesCurrPath'
+try:
+    df = pd.read_csv(inp)
+except Exception as e:
+    print(f'[read-fail] merged(closing): {e}')
+    sys.exit(1)
+gid_today = set()
+try:
+    gc = pd.read_csv(games_curr)
+    if 'game_id' in gc.columns:
+        gc['game_id'] = gc['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+    if 'date' in gc.columns:
+        gc['date'] = gc['date'].astype(str)
+        gc = gc[gc['date'] == target]
+    if 'game_id' in gc.columns:
+        gid_today = set(gc['game_id'].astype(str))
+except Exception as e:
+    print(f'[warn] games_curr read failed: {e}')
+if 'game_id' in df.columns:
+  df['game_id'] = df['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+if gid_today:
+  gc_ids = pd.DataFrame({'game_id': list(gid_today)})
+  df_today = df.merge(gc_ids, on='game_id', how='inner')
+  if 'game_id' in df_today.columns:
+    df_today = df_today.drop_duplicates(subset=['game_id'])
+else:
+  df_today = df.iloc[0:0].copy()
+if df_today.empty and ('date' in df.columns):
+  df['date'] = df['date'].astype(str)
+  df_today = df[df['date'] == target].copy()
+# Debug: show unique dates and gid_today size, avoid f-strings to prevent parser issues
+try:
+  udates = sorted(set(df['date'].astype(str)))[:5] if 'date' in df.columns else []
+  print('[debug] unique_dates_in_merged_closing=' + str(udates))
+except Exception:
+  pass
+print('[debug] gid_today_count=' + str(len(gid_today)))
+df_today.to_csv(outp, index=False)
+print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows for {target}')
+"@
+            & $VenvPython -c $pyFilterClosing
+            # Switch mergedToday to closing fallback if it has rows
+            try {
+              $rowsClosing = @(Import-Csv -LiteralPath $mergedClosingToday)
+              if ($rowsClosing -and $rowsClosing.Count -gt 0) {
+                $mergedToday = $mergedClosingToday
+              }
+            } catch { Write-Warning "closing fallback probe failed: $($_)" }
+          } else {
+            Write-Warning "games_with_closing.csv not found; cannot fallback to closing lines."
+          }
+        }
+      } catch { Write-Warning "last-odds filter probe failed: $($_)" }
     } else {
       Write-Warning "Merged last odds file not found at $mergedAll; stake sheet generation may fail."
     }
@@ -906,6 +1023,8 @@ for name in ['stake_sheet_today.csv','stake_sheet_today_cal.csv']:
         # cannot safely join; skip
         continue
     df['game_id'] = df['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+    # Drop existing quantile columns to avoid duplicate suffix conflicts
+    df = df[[c for c in df.columns if c not in {'q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin'}]]
     merged = df.merge(q, on='game_id', how='left')
     merged.to_csv(p, index=False)
 print('Annotated stake sheets with quantiles (if matched by game_id).')
@@ -1078,6 +1197,10 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       # Accuracy snapshot + diagnostics (ensure UI and coverage are in sync)
       $accSnap = Join-Path $OutDir 'metrics\season_accuracy_summary.json'
       if (Test-Path $accSnap) { $toStage += $accSnap }
+      $accDailyPrev = Join-Path $OutDir ("daily_accuracy_" + $prevDate + ".json")
+      if (Test-Path $accDailyPrev) { $toStage += $accDailyPrev }
+      $accDailyLatest = Join-Path $OutDir 'metrics\daily_accuracy_latest.json'
+      if (Test-Path $accDailyLatest) { $toStage += $accDailyLatest }
       $accDiagJson = Join-Path $OutDir 'diagnostics\accuracy_missing_by_date.json'
       if (Test-Path $accDiagJson) { $toStage += $accDiagJson }
       $accDiagCsv = Join-Path $OutDir 'diagnostics\accuracy_missing_by_date.csv'
@@ -1227,6 +1350,75 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         $rt = Invoke-RestMethod -Uri $rowsTodayUri -Method Get
         Write-Host ("[RowsToday] date={0} row_count={1} source={2}" -f $rt.date, $rt.row_count, $rt.source) -ForegroundColor Gray
       } catch { Write-Warning "rows-today check failed: $($_.Exception.Message)" }
+      # Recommendations parity verification (robust count)
+      try {
+        $recUri = "https://ncaab.onrender.com/api/recommendations?date=$todayIso"
+        $recs = Invoke-RestMethod -Uri $recUri -Method Get
+        $recCount = if ($recs) {
+          if ($recs.PSObject.Properties.Name -contains 'rows' -and ($recs.rows -is [int])) {
+            $recs.rows
+          } elseif ($recs.PSObject.Properties.Name -contains 'data') {
+            ($recs.data | Measure-Object).Count
+          } elseif ($recs.PSObject.Properties.Name -contains 'recommendations') {
+            ($recs.recommendations | Measure-Object).Count
+          } else { 0 }
+        } else { -1 }
+        Write-Host ("[Recommendations] date={0} count={1}" -f $todayIso, $recCount) -ForegroundColor Gray
+        # Breakdown by market code for coverage diagnostics
+        try {
+          $ouCount = 0; $atsCount = 0; $mlCount = 0
+          if ($recs -and ($recs.PSObject.Properties.Name -contains 'data')) {
+            foreach ($it in $recs.data) {
+              $code = ''
+              if ($it.PSObject.Properties.Name -contains 'code') { $code = [string]$it.code }
+              elseif ($it.PSObject.Properties.Name -contains 'rec_code') { $code = [string]$it.rec_code }
+              if ($null -eq $code) { $code = '' } else { $code = [string]$code }
+              $code = $code.ToUpper()
+              switch ($code) {
+                'OU' { $ouCount++ }
+                'ATS' { $atsCount++ }
+                'ML' { $mlCount++ }
+                Default { }
+              }
+            }
+          }
+          Write-Host ("[Recommendations] OU={0} ATS={1} ML={2}" -f $ouCount, $atsCount, $mlCount) -ForegroundColor Gray
+        } catch { Write-Warning ("recommendations market breakdown failed: {0}" -f $_.Exception.Message) }
+        if ($displayRows -gt 0 -and $recCount -ge 0 -and $recCount -lt $displayRows) {
+          Write-Warning ("Recommendations count ({0}) is less than display rows ({1}); UI may not show full-card OU yet." -f $recCount, $displayRows)
+        }
+        # Debug artifacts: confirm ATS picks and picks_raw presence for the date
+        try {
+          $dbgUri = "https://ncaab.onrender.com/api/debug_artifacts?date=$todayIso"
+          $dbg = Invoke-RestMethod -Uri $dbgUri -Method Get
+          $atsKey = "picks/ats_picks_${todayIso}.csv"
+          $atsInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq $atsKey } | Select-Object -First 1
+          $atsRows = if ($atsInfoProp) { $atsInfoProp.Value.rows } else { $null }
+          $prInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq 'picks_raw.csv' } | Select-Object -First 1
+          $prRows = if ($prInfoProp) { $prInfoProp.Value.rows } else { $null }
+          Write-Host ("[Artifacts] picks_raw_rows={0} ats_picks_rows={1}" -f $prRows, $atsRows) -ForegroundColor Gray
+          if (($atsRows -eq $null -or [int]$atsRows -le 0) -and $displayRows -gt 0) {
+            Write-Warning "ATS picks artifact missing or empty; API will synthesize spreads fallback, but consider re-generating ats_picks for full coverage."
+          }
+          # Conditional re-upload: if server artifacts are empty, re-post local files to persist
+          try {
+            $baseUrl = "https://ncaab.onrender.com"
+            $outsDir = Join-Path $PWD "outputs"
+            $atsLocal = Join-Path $outsDir "picks\ats_picks_${todayIso}.csv"
+            $picksRawLocal = Join-Path $outsDir "picks_raw.csv"
+            if ((Test-Path -Path $atsLocal -PathType Leaf) -and ([int]$atsRows -le 0)) {
+              Write-Host ("[Re-upload] Posting ATS picks -> {0}" -f $atsLocal) -ForegroundColor DarkCyan
+              Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri ("{0}/api/upload_ats_picks?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $atsLocal -ContentType 'text/csv' | Out-Null
+            }
+            if ((Test-Path -Path $picksRawLocal -PathType Leaf) -and ([int]$prRows -le 0)) {
+              Write-Host ("[Re-upload] Posting picks_raw -> {0}" -f $picksRawLocal) -ForegroundColor DarkCyan
+              Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri ("{0}/api/upload_picks_raw" -f $baseUrl) -Method Post -InFile $picksRawLocal -ContentType 'text/csv' | Out-Null
+            }
+          } catch { Write-Warning ("conditional re-upload failed: {0}" -f $_.Exception.Message) }
+        } catch { Write-Warning ("debug_artifacts check failed: {0}" -f $_.Exception.Message) }
+      } catch {
+        Write-Warning "recommendations check failed: $($_.Exception.Message)"
+      }
       # Advisory: if bootstrap still flagged despite uploads, warn
       if ($needBootstrap -and ($displayRows -gt 0 -or $enrichedRows -gt 0)) {
         Write-Warning "Render health indicates need_bootstrap=true even though today's artifacts are present. Server may still be redeploying; parity should resolve shortly."

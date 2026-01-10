@@ -190,31 +190,52 @@ def backtest_walkforward(
         raise typer.Exit(code=1)
     preds = pd.read_csv(pred_path)
     games = pd.read_csv(games_path)
+    # Normalize game_id to string without trailing .0 for consistent joins
     for c in ("game_id",):
         if c in preds.columns:
-            preds[c] = preds[c].astype(str)
+            preds[c] = preds[c].astype(str).str.replace(r"\.0$", "", regex=True)
         if c in games.columns:
-            games[c] = games[c].astype(str)
+            games[c] = games[c].astype(str).str.replace(r"\.0$", "", regex=True)
     df = preds.merge(games[["game_id","date"]], on="game_id", how="left")
+    # Consolidate date column from preds/games into a single 'date'
+    try:
+        base_date = df["date_y"] if "date_y" in df.columns else df.get("date")
+        if base_date is None:
+            base_date = df.get("date_x")
+        df["date"] = pd.to_datetime(base_date, errors="coerce")
+    except Exception:
+        pass
     # Load actuals (aggregate daily_results/results_*.csv if present)
     actuals = []
-    for p in os.listdir(settings.outputs_dir):
-        if p.startswith("results_") and p.endswith(".csv"):
-            try:
-                f = pd.read_csv(settings.outputs_dir / p)
-                if "game_id" in f.columns:
-                    f["game_id"] = f["game_id"].astype(str)
-                actuals.append(f)
-            except Exception:
-                pass
+    dr = settings.outputs_dir / "daily_results"
+    try:
+        files = [fp for fp in os.listdir(dr) if fp.startswith("results_") and fp.endswith(".csv")]
+    except Exception:
+        files = []
+    for p in files:
+        try:
+            f = pd.read_csv(dr / p)
+            if "game_id" in f.columns:
+                f["game_id"] = f["game_id"].astype(str)
+            actuals.append(f)
+        except Exception:
+            pass
     if not actuals:
         print("[yellow]No results_*.csv found; finalize may be needed[/yellow]")
         raise typer.Exit(code=0)
     act = pd.concat(actuals, ignore_index=True)
-    df = df.merge(act[["game_id","ats_result","actual_total","market_total","closing_total"]], on="game_id", how="left")
+    # Merge only available actual/result columns; some daily_results may not include closing_total
+    act_cols = ["game_id", "ats_result", "actual_total", "market_total"]
+    if "closing_total" in act.columns:
+        act_cols.append("closing_total")
+    df = df.merge(act[act_cols], on="game_id", how="left")
     # Filter date range
     try:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        # Ensure 'date' is present and filtered
+        if "date" not in df.columns:
+            # Fallback consolidation if earlier step failed
+            base_date = df.get("date_y") if "date_y" in df.columns else df.get("date_x")
+            df["date"] = pd.to_datetime(base_date, errors="coerce")
         d0 = pd.to_datetime(start)
         d1 = pd.to_datetime(end)
         df = df[(df["date"]>=d0) & (df["date"]<=d1)]
@@ -246,12 +267,18 @@ def backtest_walkforward(
     lose_return = -stake
     for iso, grp in df.groupby(df["date"].dt.strftime("%Y-%m-%d")):
         n = len(grp)
-        # OU hits where we have a lean
-        ou_mask = grp["lean_ou_side"].notna() & grp["ou_actual"].notna()
-        ou_hits = (grp.loc[ou_mask, "lean_ou_side"] == grp.loc[ou_mask, "ou_actual"]).sum()
-        ou_push = (grp.loc[ou_mask, "ou_actual"] == "Push").sum()
-        ou_bets = int(ou_mask.sum())
-        ou_pnl = (ou_hits * win_return) + ((ou_bets - ou_hits - ou_push) * lose_return)
+        # OU hits where we have a lean (optional column)
+        if "lean_ou_side" in grp.columns:
+            ou_mask = grp["lean_ou_side"].notna() & grp["ou_actual"].notna()
+            ou_hits = (grp.loc[ou_mask, "lean_ou_side"] == grp.loc[ou_mask, "ou_actual"]).sum()
+            ou_push = (grp.loc[ou_mask, "ou_actual"] == "Push").sum()
+            ou_bets = int(ou_mask.sum())
+            ou_pnl = (ou_hits * win_return) + ((ou_bets - ou_hits - ou_push) * lose_return)
+        else:
+            ou_bets = 0
+            ou_hits = 0
+            ou_push = 0
+            ou_pnl = 0.0
         # ATS hits from ats_result text
         ats_text = grp["ats_result"].fillna("")
         ats_push = (ats_text == "Push").sum()
@@ -901,7 +928,8 @@ def finalize_day(
     games_df = pd.DataFrame(fetched_rows)
     if games_df.empty:
         print("[yellow]No games fetched from primary provider; attempting secondary fetch.[/yellow]")
-    games_df["game_id"] = games_df["game_id"].astype(str)
+    if not games_df.empty and "game_id" in games_df.columns:
+        games_df["game_id"] = games_df["game_id"].astype(str)
 
     # If no or zero scores from primary, try secondary provider for score enrichment
     try_secondary = False
@@ -3326,14 +3354,16 @@ def backfill_odds_history(
         else:
             print(f"[yellow]{date_iso} -> no odds-history rows[/yellow]")
         cur += dt.timedelta(days=1)
-    if total_rows == 0:
-        print("[red]No odds-history rows collected; aborting merge steps.[/red]")
-        raise typer.Exit(code=1)
-
-    # Load all snapshots for merge operations
+    # Load all snapshots for merge operations (allow proceeding with existing snapshots even if no new rows fetched)
     from .data.odds_closing import read_directory_for_dates, load_snapshots
     snap_paths = read_directory_for_dates(out_dir)
     snaps = load_snapshots(snap_paths)
+    if total_rows == 0:
+        if snaps.empty:
+            print("[red]No new odds-history rows collected and snapshot directory is empty; aborting.[/red]")
+            raise typer.Exit(code=1)
+        else:
+            print("[yellow]No new odds-history rows fetched; proceeding with existing snapshots.[/yellow]")
     if snaps.empty:
         print("[red]Snapshots set empty after read; nothing further to do.[/red]")
         raise typer.Exit(code=1)
@@ -4543,6 +4573,20 @@ def align_period_preds(
     e["pred_total"] = pd.to_numeric(pt, errors="coerce")
     e["pred_margin"] = pd.to_numeric(pm, errors="coerce")
 
+    # Ensure canonical market columns exist for edge computation
+    # totals: prefer market_total, fallback to closing_total
+    if "total" not in e.columns:
+        if "market_total" in e.columns:
+            e["total"] = pd.to_numeric(e["market_total"], errors="coerce")
+        elif "closing_total" in e.columns:
+            e["total"] = pd.to_numeric(e["closing_total"], errors="coerce")
+    # spreads: prefer home_spread, fallback to closing_spread_home or spread_home
+    if "home_spread" not in e.columns:
+        if "closing_spread_home" in e.columns:
+            e["home_spread"] = pd.to_numeric(e["closing_spread_home"], errors="coerce")
+        elif "spread_home" in e.columns:
+            e["home_spread"] = pd.to_numeric(e["spread_home"], errors="coerce")
+
     out.parent.mkdir(parents=True, exist_ok=True)
     try:
         e.to_csv(out, index=False)
@@ -5083,6 +5127,10 @@ def produce_picks(
     spread_threshold: float = typer.Option(1.0, help="Min |pred_margin - implied_margin| for spread pick (overridden by thresholds_vs_odds.json if present)"),
     moneyline_margin_scale: float = typer.Option(7.0, help="Scale converting margin to win prob via logistic"),
     moneyline_edge_pct: float = typer.Option(2.0, help="Min % edge (fair vs book implied prob) for moneyline pick"),
+    cal_edge_min: float = typer.Option(0.0, help="Optional calibrated edge gate: require |pred_total_calibrated - line_total| >= cal_edge_min (points) for OU picks"),
+    adaptive_ou: bool = typer.Option(True, help="Adapt OU thresholds to ensure a minimum pick count per day"),
+    min_ou_picks: int = typer.Option(3, help="Target minimum OU picks for the slate when adaptive gating is enabled"),
+    ou_pmin_default: float = typer.Option(0.65, help="Default minimum probability threshold when policy not provided"),
 ):
     """Generate picks (totals, spreads, moneyline) for full game and halves using predictions vs odds.
 
@@ -5094,8 +5142,24 @@ def produce_picks(
         print(f"[red]Missing merged odds file {odds_merged_path}[/red]"); raise typer.Exit(code=1)
     preds = pd.read_csv(preds_path)
     odds = pd.read_csv(odds_merged_path)
-    preds["game_id"] = preds.get("game_id").astype(str)
-    odds["game_id"] = odds.get("game_id").astype(str)
+    # Normalize game_id to consistent string without trailing .0
+    def _norm_gid(val: Any) -> str:
+        try:
+            if pd.isna(val):
+                return ""
+            s = str(val).strip()
+            if s.endswith(".0"):
+                s = s[:-2]
+            return s
+        except Exception:
+            try:
+                return str(int(val))
+            except Exception:
+                return str(val)
+    if "game_id" in preds.columns:
+        preds["game_id"] = preds["game_id"].map(_norm_gid)
+    if "game_id" in odds.columns:
+        odds["game_id"] = odds["game_id"].map(_norm_gid)
 
     # Optionally override thresholds using tuned values if available
     try:
@@ -5157,8 +5221,12 @@ def produce_picks(
         gid = str(r.get("game_id"))
         base = {"game_id": gid, "date": r.get("date"), "home_team": r.get("home_team"), "away_team": r.get("away_team")}
         # Prefer market-aware blended predictions when available for full game
-        mt_full = r.get("pred_total_market_blend") if "pred_total_market_blend" in preds.columns else r.get("pred_total")
-        mm_full = r.get("pred_margin_market_blend") if "pred_margin_market_blend" in preds.columns else r.get("pred_margin")
+        mt_full = r.get("pred_total_market_blend") if "pred_total_market_blend" in preds.columns else (
+            r.get("pred_total") if "pred_total" in preds.columns else r.get("pred_total_calibrated")
+        )
+        mm_full = r.get("pred_margin_market_blend") if "pred_margin_market_blend" in preds.columns else (
+            r.get("pred_margin") if "pred_margin" in preds.columns else r.get("pred_margin_calibrated")
+        )
         rows.append({**base,
                  "period": "full_game",
                  "model_total": mt_full,
@@ -5190,6 +5258,91 @@ def produce_picks(
         return (-a)/((-a)+100.0) if a < 0 else 100.0/(a+100.0)
 
     out_rows: list[dict] = []
+
+    # Adaptive OU gating: build totals candidates first and relax thresholds until min_ou_picks
+    adapt_totals_done = False
+    try:
+        if adaptive_ou:
+            tdf = merged.copy()
+            # Keep totals rows with model projections and line totals
+            tdf = tdf[(tdf.get("market", pd.Series(dtype=str)).astype(str).str.lower() == "totals")]
+            tdf = tdf[tdf.get("period", pd.Series(dtype=str)).astype(str).str.lower().isin(["full_game","full game","fg"])]
+            has_model = tdf.get("model_total").notna() if "model_total" in tdf.columns else tdf.get("pred_total").notna()
+            # Normalize model_total column name
+            if "model_total" not in tdf.columns and "pred_total" in tdf.columns:
+                tdf.rename(columns={"pred_total":"model_total"}, inplace=True)
+            tdf = tdf[has_model]
+            # Extract line totals
+            tdf["line_total"] = pd.to_numeric(tdf.get("total"), errors="coerce")
+            # Probability and sigma if available
+            tdf["p_over"] = tdf.get("p_over_display") if "p_over_display" in tdf.columns else tdf.get("p_over_emp")
+            # Edges: raw and calibrated
+            tdf["edge_raw"] = pd.to_numeric(tdf.get("model_total"), errors="coerce") - tdf["line_total"]
+            if "pred_total_calibrated" in tdf.columns:
+                tdf["edge_cal"] = pd.to_numeric(tdf.get("pred_total_calibrated"), errors="coerce") - tdf["line_total"]
+            else:
+                tdf["edge_cal"] = np.nan
+            # Initial gates
+            ou_pmin = ou_pmin_default
+            if ou_policy and isinstance(ou_policy, dict):
+                try:
+                    ou_pmin = float(ou_policy.get('pmin', ou_pmin_default))
+                    total_threshold = float(ou_policy.get('tau', total_threshold))
+                except Exception:
+                    pass
+            # Build threshold ladders
+            edge_steps: list[float] = []
+            if cal_edge_min and cal_edge_min > 0:
+                edge_steps = [float(cal_edge_min), 10.0, 8.0, 6.0, 4.0, 2.0, float(total_threshold)]
+            else:
+                edge_steps = [float(total_threshold), 2.0, 1.5, 1.0]
+            prob_steps = [float(ou_pmin), 0.60, 0.55, 0.50, 0.0]
+            picks_df = pd.DataFrame()
+            chosen_edge = None; chosen_p = None
+            for e in edge_steps:
+                for pthr in prob_steps:
+                    # Use calibrated edge when available, otherwise raw edge
+                    edge_series = tdf["edge_cal"].where(tdf["edge_cal"].notna(), tdf["edge_raw"])
+                    emask = edge_series.abs().ge(e)
+                    if pthr > 0 and "p_over" in tdf.columns and tdf["p_over"].notna().any():
+                        try:
+                            pmask = (pd.to_numeric(tdf["p_over"], errors="coerce").ge(pthr)) | (pd.to_numeric(tdf["p_over"], errors="coerce").le(1.0 - pthr))
+                        except Exception:
+                            pmask = True
+                    else:
+                        pmask = True
+                    cand = tdf[emask & pmask].copy()
+                    if not cand.empty and len(cand) >= min_ou_picks:
+                        picks_df = cand
+                        chosen_edge = e; chosen_p = pthr
+                        break
+                if not picks_df.empty:
+                    break
+            # If still empty, fall back to least strict combination to avoid zero-pick days
+            if picks_df.empty and not tdf.empty:
+                e = edge_steps[-1]; pthr = prob_steps[-1]
+                edge_series = tdf["edge_cal"].where(tdf["edge_cal"].notna(), tdf["edge_raw"])
+                emask = edge_series.abs().ge(e)
+                pmask = True
+                picks_df = tdf[emask & pmask].copy()
+                chosen_edge = e; chosen_p = pthr
+            # Emit picks from picks_df
+            if not picks_df.empty:
+                for _, r in picks_df.iterrows():
+                    gid = r.get("game_id"); period = r.get("period"); book = r.get("book")
+                    home = r.get("home_team") or r.get("home_team_name"); away = r.get("away_team") or r.get("away_team_name")
+                    m_total = r.get("model_total"); line_total = r.get("line_total")
+                    edge_val = float(r.get("edge_cal")) if pd.notna(r.get("edge_cal")) else float(r.get("edge_raw"))
+                    pick = "Over" if edge_val > 0 else "Under"
+                    out_rows.append({"game_id": gid,"period": str(period),"market": "totals","book": book,"pick": pick,
+                                     "edge": abs(edge_val),"line_value": line_total,"predicted_value": m_total,
+                                     "home_team": home,"away_team": away})
+                adapt_totals_done = True
+                print(f"[green]Adaptive OU picks[/green] edge>={chosen_edge} pmin>={chosen_p} -> {len(picks_df)} picks")
+            else:
+                print("[yellow]Adaptive gating found no OU picks; continuing with per-row defaults.[/yellow]")
+    except Exception as _adapt_err:
+        print(f"[yellow]Adaptive OU gating failed:[/yellow] {_adapt_err}")
     for _, r in merged.iterrows():
         gid = r.get("game_id"); period = r.get("period"); book = r.get("book")
         home = r.get("home_team") or r.get("home_team_name"); away = r.get("away_team") or r.get("away_team_name")
@@ -5197,37 +5350,43 @@ def produce_picks(
         # Guardrails: skip picks on mismatches when flags present (only meaningful for full_game)
         flag_t = bool(r.get("flag_market_total_mismatch")) if "flag_market_total_mismatch" in r.index else False
         flag_m = bool(r.get("flag_market_margin_mismatch")) if "flag_market_margin_mismatch" in r.index else False
-        # Totals
+        # Totals (skip per-row if adaptive totals already emitted)
         line_total = r.get("total")
-        if pd.notna(m_total) and pd.notna(line_total):
-            if period == "full_game" and (flag_t or flag_m):
-                # skip totals pick when mismatches detected
-                pass
-            else:
-                edge_t = float(m_total) - float(line_total)
-                # OU selection policy gates (only full-game totals)
-                allow_over = True; allow_under = True
-                if ou_policy and period == "full_game":
-                    # Sigma gate
-                    sig = r.get("sigma_total_emp") if "sigma_total_emp" in r.index else (r.get("sigma_total_adj") if "sigma_total_adj" in r.index else np.nan)
-                    if ou_policy['sigma_max'] > 0 and pd.notna(sig):
-                        allow_over = allow_over and (float(sig) <= ou_policy['sigma_max'])
-                        allow_under = allow_under and (float(sig) <= ou_policy['sigma_max'])
-                    # Probability gate
-                    p_over = r.get("p_over_display") if "p_over_display" in r.index else (r.get("p_over_emp") if "p_over_emp" in r.index else np.nan)
-                    if ou_policy['pmin'] > 0 and pd.notna(p_over):
+        if not adapt_totals_done:
+            if pd.notna(m_total) and pd.notna(line_total):
+                if period == "full_game" and (flag_t or flag_m):
+                    pass
+                else:
+                    edge_t = float(m_total) - float(line_total)
+                    allow_over = True; allow_under = True
+                    # Optional calibrated edge gate when calibrated totals are available
+                    if cal_edge_min and cal_edge_min > 0 and ("pred_total_calibrated" in merged.columns):
                         try:
-                            p_over = float(p_over)
-                            allow_over = allow_over and (p_over >= ou_policy['pmin'])
-                            allow_under = allow_under and (p_over <= (1.0 - ou_policy['pmin']))
+                            cal_edge_val = float(r.get("pred_total_calibrated")) - float(line_total)
+                            if abs(cal_edge_val) < float(cal_edge_min):
+                                allow_over = False
+                                allow_under = False
                         except Exception:
                             pass
-                if edge_t > total_threshold and allow_over:
-                    out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Over","edge": edge_t,
-                                     "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
-                elif edge_t < -total_threshold and allow_under:
-                    out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Under","edge": abs(edge_t),
-                                     "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
+                    if ou_policy and period == "full_game":
+                        sig = r.get("sigma_total_emp") if "sigma_total_emp" in r.index else (r.get("sigma_total_adj") if "sigma_total_adj" in r.index else np.nan)
+                        if ou_policy['sigma_max'] > 0 and pd.notna(sig):
+                            allow_over = allow_over and (float(sig) <= ou_policy['sigma_max'])
+                            allow_under = allow_under and (float(sig) <= ou_policy['sigma_max'])
+                        p_over = r.get("p_over_display") if "p_over_display" in r.index else (r.get("p_over_emp") if "p_over_emp" in r.index else np.nan)
+                        if ou_policy['pmin'] > 0 and pd.notna(p_over):
+                            try:
+                                p_over = float(p_over)
+                                allow_over = allow_over and (p_over >= ou_policy['pmin'])
+                                allow_under = allow_under and (p_over <= (1.0 - ou_policy['pmin']))
+                            except Exception:
+                                pass
+                    if edge_t > total_threshold and allow_over:
+                        out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Over","edge": edge_t,
+                                         "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
+                    elif edge_t < -total_threshold and allow_under:
+                        out_rows.append({"game_id": gid,"period": period,"market": "totals","book": book,"pick": "Under","edge": abs(edge_t),
+                                         "line_value": line_total,"predicted_value": m_total,"home_team": home,"away_team": away})
         # Spreads (home side)
         home_spread = r.get("home_spread")
         if pd.notna(m_margin) and pd.notna(home_spread):

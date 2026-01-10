@@ -19,9 +19,11 @@ services:
       - key: NCAAB_LIGHT_MODE
         value: "1"
       - key: NCAAB_P_OVER_THRESHOLD_HIGH
-        value: "0.50"
+        value: "0.60"
       - key: NCAAB_P_OVER_THRESHOLD_LOW
-        value: "0.42"
+        value: "0.40"
+      - key: NCAAB_MIN_OU_RECS
+        value: "5"
       - key: STABLE_DISPLAY
         value: "0"
       - key: SNAPSHOT_ONLY

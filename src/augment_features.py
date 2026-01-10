@@ -26,6 +26,16 @@ TEAM_KEYS = ['home_team','away_team']
 DATE_KEY = 'date'
 GAME_ID = 'game_id'
 
+# Basic timezone abbreviation to offset (hours) mapping for US timezones
+TZ_ABBR_OFFSETS = {
+    'ET': -5, 'EST': -5, 'EDT': -4,
+    'CT': -6, 'CST': -6, 'CDT': -5,
+    'MT': -7, 'MST': -7, 'MDT': -6,
+    'PT': -8, 'PST': -8, 'PDT': -7,
+    'AKT': -9, 'AKST': -9, 'AKDT': -8,
+    'HST': -10,
+}
+
 
 def _find_col(df: pd.DataFrame, prefix: str, suffixes: List[str]) -> str | None:
     """Find a column with given prefix and any of suffixes; returns column name or None."""
@@ -135,12 +145,32 @@ def augment_boxscores(boxscores: pd.DataFrame) -> pd.DataFrame:
     aug = pd.DataFrame(rows)
     # Rest/B2B flags
     aug = _compute_b2b_and_rest(aug)
+    # Timezone offset hours from start_tz_abbr if present
+    if 'start_tz_abbr' in boxscores.columns:
+        try:
+            tz_series = boxscores['start_tz_abbr'].astype(str).str.upper().str.strip()
+            aug['tz_offset_hours'] = tz_series.apply(lambda ab: float(TZ_ABBR_OFFSETS.get(ab, np.nan)))
+        except Exception:
+            aug['tz_offset_hours'] = np.nan
+    else:
+        aug['tz_offset_hours'] = np.nan
+    # Home advantage: 1 when not neutral site, else 0; fallback NaN when unavailable
+    if 'neutral_site' in boxscores.columns:
+        try:
+            ns = boxscores['neutral_site'].astype(str).str.lower().str.strip()
+            ns_flag = ns.isin(['1','true','yes','y','t'])
+            aug['home_adv'] = (~ns_flag).astype(float)
+        except Exception:
+            aug['home_adv'] = np.nan
+    else:
+        aug['home_adv'] = np.nan
     # Skip rolling aggregates to keep alignment simple when dates are missing
     # Keep a compact set
     keep = [GAME_ID, DATE_KEY, 'home_team','away_team',
             'home_pace','home_ts','home_3p_rate','home_to_rate','home_drb_rate',
             'away_pace','away_ts','away_3p_rate','away_to_rate','away_drb_rate',
-            'home_days_since','home_b2b','away_days_since','away_b2b']
+            'home_days_since','home_b2b','away_days_since','away_b2b',
+            'tz_offset_hours','home_adv']
     for k in list(keep):
         if k not in aug.columns:
             keep.remove(k)

@@ -15,8 +15,19 @@ def main(date_str: str) -> int:
     for k in ("game_id","home_team","away_team","pred_total","pred_margin","display_date","start_time","start_time_local","start_time_iso"):
         if k in df.columns:
             cols[k] = df[k]
+    # Prefer market total from edges if present; else fallback to closing_total or pred_total
     if "total" in df.columns:
         cols["market_total"] = df["total"]
+    else:
+        try:
+            if "closing_total" in df.columns:
+                cols["market_total"] = df["closing_total"]
+            else:
+                # As a last resort, use model predicted total for display
+                if "pred_total" in df.columns:
+                    cols["market_total"] = df["pred_total"]
+        except Exception:
+            pass
     order = [
         "game_id","home_team","away_team","pred_total","pred_margin",
         "market_total","display_date","start_time","start_time_local","start_time_iso"

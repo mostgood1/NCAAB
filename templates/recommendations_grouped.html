@@ -244,7 +244,11 @@
                   {% if (it.code or '')|upper == 'OU' and (it.bet_label or it.bet) %}
                     {%- set bl = (it.bet_label or it.bet)|string -%}
                     {%- set bl_low = (bl|lower) -%}
-                    <span class="chip {{ 'over' if (bl_low.startswith('over')) else 'under' }}">{{ bl }}</span>
+                    {# Resolve a numeric total for display if label lacks it #}
+                    {%- set ln = (it.line if (it.line is defined and it.line is not none) else (it.market_total if (it.market_total is defined and it.market_total is not none) else (it.total if (it.total is defined and it.total is not none) else None))) -%}
+                    {%- set base = bl_low|replace('over','')|replace('under','')|trim -%}
+                    {%- set show_lbl = (bl if base else (bl ~ (' ' ~ ('%.1f' % ln) if ln is not none else ''))) -%}
+                    <span class="chip {{ 'over' if (bl_low.startswith('over')) else 'under' }}">{{ show_lbl }}</span>
                   {% elif (it.code or '')|upper == 'ATS' and (it.bet_label or it.bet) %}
                     {%- set bl = (it.bet_label or it.bet)|string -%}
                     {%- set bl_low = (bl|lower) -%}
@@ -254,7 +258,17 @@
                     {{ it.bet_label or it.bet or '' }}
                   {% endif %}
                 </td>
-                <td class="num">{{ '%.1f' % it.line if (it.line is defined and it.line is not none) else '' }}</td>
+                <td class="num">
+                  {%- if (it.line is defined and it.line is not none) -%}
+                    {{ '%.1f' % it.line }}
+                  {%- elif (it.market_total is defined and it.market_total is not none) -%}
+                    {{ '%.1f' % it.market_total }}
+                  {%- elif (it.total is defined and it.total is not none) -%}
+                    {{ '%.1f' % it.total }}
+                  {%- else -%}
+                    
+                  {%- endif -%}
+                </td>
                 <td class="num">{{ it.price if (it.price is defined and it.price is not none) else '' }}</td>
                 <td class="num"><span class="pill">{{ '%.1f' % it.edge if (it.edge is defined and it.edge is not none) else '' }}</span></td>
                 <td class="num">

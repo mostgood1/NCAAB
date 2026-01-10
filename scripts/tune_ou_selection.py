@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-"""Tune O/U selection policy to target >=75% accuracy.
+"""Tune O/U selection policy to target configurable accuracy.
 
 Scans recent days of enriched predictions and daily results to evaluate grids
 over delta threshold (|pred_total_market_blend - market_total|), sigma caps,
 and minimum over-probability gates. Selects the combination achieving accuracy
->= target (default 0.75) with maximum coverage. Writes metrics to
+>= target (default 0.75, can be set to 0.55) with maximum coverage. Writes metrics to
 outputs/metrics/ou_selection_policy.json.
 """
 from __future__ import annotations
@@ -59,16 +59,103 @@ def build_frame(days: int) -> pd.DataFrame:
         res['game_id'] = res['game_id'].astype(str)
         df = enr.merge(res[['game_id','_actual_total']], on='game_id', how='left')
         frames.append(df)
+    # Also include enriched historical probabilities if available to boost coverage
+    hist_path = OUT / 'predictions_history_enriched.csv'
+    if hist_path.exists():
+        try:
+            hist = pd.read_csv(hist_path)
+            if 'game_id' in hist.columns:
+                hist['game_id'] = hist['game_id'].astype(str)
+            # Loop same window; merge per-day results with history by game_id
+            for i in range(1, days+1):
+                d = (today - dt.timedelta(days=i)).strftime('%Y-%m-%d')
+                res = load_results(d)
+                if res.empty:
+                    continue
+                if {'home_score','away_score'}.issubset(res.columns):
+                    res['_actual_total'] = pd.to_numeric(res['home_score'], errors='coerce') + pd.to_numeric(res['away_score'], errors='coerce')
+                res['game_id'] = res['game_id'].astype(str)
+                dfh = hist.merge(res[['game_id','_actual_total']], on='game_id', how='inner')
+                if not dfh.empty:
+                    frames.append(dfh)
+        except Exception:
+            pass
     if not frames:
         return pd.DataFrame()
-    return pd.concat(frames, ignore_index=True)
+    df_all = pd.concat(frames, ignore_index=True)
+    # Merge quantiles history for window
+    qhist_path = OUT / 'quantiles_history.csv'
+    if qhist_path.exists():
+        try:
+            qh = pd.read_csv(qhist_path)
+            qh['game_id'] = qh['game_id'].astype(str)
+            qh['date'] = pd.to_datetime(qh['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+            # Keep window dates
+            window_dates = {(today - dt.timedelta(days=i)).strftime('%Y-%m-%d') for i in range(1, days+1)}
+            qh = qh[qh['date'].isin(window_dates)]
+            df_all = df_all.merge(qh, on=['game_id'], how='left')
+            # Derive p_over_quantile and sigma_total_quantile if closing/market present
+            q10 = pd.to_numeric(df_all.get('q10_total'), errors='coerce')
+            q50 = pd.to_numeric(df_all.get('q50_total'), errors='coerce')
+            q90 = pd.to_numeric(df_all.get('q90_total'), errors='coerce')
+            line = pd.to_numeric(df_all.get('closing_total'), errors='coerce')
+            if line.isna().all():
+                line = pd.to_numeric(df_all.get('market_total'), errors='coerce')
+            cdf = pd.Series(np.nan, index=df_all.index)
+            mid1 = line.notna() & q10.notna() & q50.notna() & (line >= q10) & (line <= q50)
+            cdf.loc[mid1] = 0.1 + 0.4 * ((line[mid1] - q10[mid1]) / (q50[mid1] - q10[mid1]).replace(0, np.nan))
+            mid2 = line.notna() & q50.notna() & q90.notna() & (line > q50) & (line <= q90)
+            cdf.loc[mid2] = 0.5 + 0.4 * ((line[mid2] - q50[mid2]) / (q90[mid2] - q50[mid2]).replace(0, np.nan))
+            left = line.notna() & q10.notna() & (line < q10)
+            cdf.loc[left] = 0.1 * (line[left] / q10[left]).replace(0, np.nan)
+            right = line.notna() & q90.notna() & (line > q90)
+            cdf.loc[right] = 0.9 + 0.1 * ((line[right] - q90[right]) / q90[right]).replace(0, np.nan)
+            df_all['p_over_quantile'] = 1.0 - cdf
+            # Sigma from q10/q90
+            df_all['sigma_total_quantile'] = (q90 - q10) / 2.563103131089201
+        except Exception:
+            pass
+    return df_all
 
 
 def compute_selection_metrics(df: pd.DataFrame, tau: float, sigma_max: float, pmin: float, use_closing: bool = False) -> dict:
-    mkt = pd.to_numeric(df.get('closing_total'), errors='coerce') if use_closing else pd.to_numeric(df.get('market_total'), errors='coerce')
-    pred_blend = pd.to_numeric(df.get('pred_total_market_blend', df.get('pred_total')), errors='coerce')
-    sigma = pd.to_numeric(df.get('sigma_total_emp', df.get('sigma_total_adj')), errors='coerce')
-    p_over = pd.to_numeric(df.get('p_over_display', df.get('p_over_emp')), errors='coerce')
+    # Helper to guarantee Series output
+    def _series(col: str) -> pd.Series:
+        return pd.to_numeric(df[col], errors='coerce') if col in df.columns else pd.Series(np.nan, index=df.index)
+    # Market/closing total with robust fallbacks
+    mkt_primary = 'closing_total' if use_closing else 'market_total'
+    mkt_alt = 'market_total' if use_closing else 'closing_total'
+    mkt = _series(mkt_primary)
+    if mkt.isna().all():
+        # Accept alternative common alias if present, or align-period 'total'
+        mkt = _series('close_total') if (use_closing and 'close_total' in df.columns) else _series(mkt_alt)
+        if mkt.isna().all():
+            mkt = _series('total')
+    # Prediction mean with fallbacks (prefer calibrated model totals first)
+    pred_blend = _series('pred_total_calibrated')
+    if pred_blend.isna().all():
+        pred_blend = _series('pred_total')
+        if pred_blend.isna().all():
+            pred_blend = _series('pred_total_market_blend')
+        if pred_blend.isna().all():
+            pred_blend = _series('pred_total_blend')
+    # Sigma fallbacks (prefer quantile-derived sigma first)
+    sigma = _series('sigma_total_quantile')
+    if sigma.isna().all():
+        sigma = _series('sigma_total_emp')
+        if sigma.isna().all():
+            sigma = _series('sigma_total_adj')
+            if sigma.isna().all():
+                sigma = _series('pred_total_sigma')
+    # Probability fallbacks
+    # Probability fallbacks (prefer quantile-derived first)
+    p_over = _series('p_over_quantile')
+    if p_over.isna().all():
+        p_over = _series('p_over')
+        if p_over.isna().all():
+            p_over = _series('p_over_display')
+            if p_over.isna().all():
+                p_over = _series('p_over_emp')
     actual = pd.to_numeric(df.get('_actual_total'), errors='coerce')
     mismatch = df.get('flag_market_total_mismatch')
     if mismatch is None:
@@ -114,9 +201,10 @@ def main():
     if df.empty:
         print('[warn] No historical enriched+results data available for tuning.')
         return 0
-    grid_tau = [10, 12, 14, 16, 18, 20, 22]
-    grid_sigma = [0, 12, 10, 9, 8, 7, 6]  # 0 disables sigma gate
-    grid_pmin = [0.0, 0.62, 0.65, 0.68, 0.70, 0.75]
+    # Expanded grids to improve coverage while allowing 55% accuracy targets
+    grid_tau = [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+    grid_sigma = [0, 14, 12, 11, 10, 9, 8, 7, 6]  # 0 disables sigma gate
+    grid_pmin = [0.0, 0.55, 0.58, 0.60, 0.62, 0.65, 0.68, 0.70, 0.75]
     best = None
     evals = []
     for tau in grid_tau:

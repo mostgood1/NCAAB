@@ -207,7 +207,8 @@ def train(algo: str, split: str) -> Dict[str, Any]:
 
     preds = model.predict(X_test)
     mae = float(mean_absolute_error(y_test, preds))
-    rmse = float(mean_squared_error(y_test, preds, squared=False))
+    # Compute RMSE robustly across sklearn versions (older versions lack 'squared' kwarg)
+    rmse = float(mean_squared_error(y_test, preds)) ** 0.5
     # Simple baseline: mean of training
     baseline_mae = float(mean_absolute_error(y_test, np.full_like(y_test, y_train.mean())))
     artifact_dir = OUT / "models" / dt.datetime.utcnow().strftime("%Y%m%d_%H%M%S")

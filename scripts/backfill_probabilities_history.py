@@ -18,10 +18,28 @@ def load_history() -> pd.DataFrame:
     return df
 
 def load_lines() -> pd.DataFrame:
-    p = OUTPUTS / 'games_with_last.csv'
-    if not p.exists():
-        raise FileNotFoundError(p)
-    raw = pd.read_csv(p)
+    # Aggregate both historical closing and last lines when available to maximize coverage
+    close_files = sorted(OUTPUTS.glob('games_with_closing_*.csv'))
+    last_files = sorted(OUTPUTS.glob('games_with_last_*.csv'))
+    # Also include per-date align_period snapshots which carry book + market lines
+    align_files = sorted(OUTPUTS.glob('align_period_*.csv'))
+    frames = []
+    if close_files:
+        frames.append(pd.concat([pd.read_csv(f) for f in close_files], ignore_index=True))
+    if last_files:
+        frames.append(pd.concat([pd.read_csv(f) for f in last_files], ignore_index=True))
+    if align_files:
+        frames.append(pd.concat([pd.read_csv(f) for f in align_files], ignore_index=True))
+    if frames:
+        raw = pd.concat(frames, ignore_index=True)
+    else:
+        # Fallback to consolidated snapshots
+        p_close = OUTPUTS / 'games_with_closing.csv'
+        p_last = OUTPUTS / 'games_with_last.csv'
+        src = p_close if p_close.exists() else p_last
+        if not src.exists():
+            raise FileNotFoundError(src)
+        raw = pd.read_csv(src)
     if 'game_id' in raw.columns:
         raw['game_id'] = raw['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
     # Derive helpful unified columns
@@ -46,13 +64,14 @@ def load_lines() -> pd.DataFrame:
         for k,v in col_map.items():
             out[k] = sub[v] if v in sub.columns else np.nan
         return out
-    totals = _sel_latest(raw, 'totals', {'market_total':'market_total'})
-    spreads = _sel_latest(raw, 'spreads', {'spread_home':'spread_home'})
+    # Use explicit closing column names where available in historical files
+    totals = _sel_latest(raw, 'totals', {'market_total':'market_total', 'closing_total':'close_total'})
+    spreads = _sel_latest(raw, 'spreads', {'spread_home':'spread_home', 'closing_spread_home':'close_home_spread'})
     merged = totals.merge(spreads, on='game_id', how='outer')
     # closing aliases
-    if 'closing_total' not in merged.columns:
+    if 'closing_total' not in merged.columns or merged['closing_total'].isna().all():
         merged['closing_total'] = merged.get('market_total')
-    if 'closing_spread_home' not in merged.columns:
+    if 'closing_spread_home' not in merged.columns or merged['closing_spread_home'].isna().all():
         merged['closing_spread_home'] = merged.get('spread_home')
     return merged
 
@@ -67,17 +86,34 @@ def enrich_probabilities(hist: pd.DataFrame, lines: pd.DataFrame) -> pd.DataFram
             work = work.drop(columns=[col])
     work = work.merge(lines, on='game_id', how='left')
     # Totals probabilities
-    mu_cols = [c for c in ['pred_total_mu','pred_total_adjusted','pred_total'] if c in work.columns]
+    # Prefer clearly numeric prediction columns; avoid boolean flags like 'pred_total_adjusted'
+    mu_candidates_ordered = [
+        'pred_total',
+        'pred_total_blend',
+        'pred_total_seg',
+        'pred_total_base',
+        'pred_total_mu',
+        'pred_total_raw'
+    ]
+    mu_cols = [c for c in mu_candidates_ordered if c in work.columns]
     if mu_cols:
-        mu = pd.to_numeric(work.get(mu_cols[0]), errors='coerce')
+        mu_series = None
+        for c in mu_cols:
+            s = pd.to_numeric(work.get(c), errors='coerce')
+            if s.notna().any():
+                mu_series = s
+                break
+        # Fallback: if none had numeric values, keep as NaN series
+        mu = mu_series if mu_series is not None else pd.Series(np.nan, index=work.index)
         if 'pred_total_sigma' in work.columns:
             sigma = pd.to_numeric(work.get('pred_total_sigma'), errors='coerce')
         else:
             sigma = pd.Series(12.0, index=work.index)
         valid = sigma > 0
-        line_series = pd.to_numeric(work.get('market_total'), errors='coerce') if 'market_total' in work.columns else pd.Series(np.nan, index=work.index)
-        if line_series.isna().all() and 'closing_total' in work.columns:
-            line_series = pd.to_numeric(work.get('closing_total'), errors='coerce')
+        # Use closing_total preferentially; fallback to market_total
+        line_series = pd.to_numeric(work.get('closing_total'), errors='coerce') if 'closing_total' in work.columns else pd.Series(np.nan, index=work.index)
+        if line_series.isna().all() and 'market_total' in work.columns:
+            line_series = pd.to_numeric(work.get('market_total'), errors='coerce')
         p_over = work.get('p_over', pd.Series(np.nan, index=work.index))
         need_over = p_over.isna()
         if not line_series.isna().all():
@@ -115,6 +151,10 @@ def enrich_probabilities(hist: pd.DataFrame, lines: pd.DataFrame) -> pd.DataFram
 def main():
     hist = load_history()
     lines = load_lines()
+    # Debug: show lines availability
+    mt_count = int(pd.to_numeric(lines.get('market_total', pd.Series(dtype=float)), errors='coerce').notna().sum())
+    ct_count = int(pd.to_numeric(lines.get('closing_total', pd.Series(dtype=float)), errors='coerce').notna().sum())
+    print(f"[backfill] Lines coverage: market_total_non_null={mt_count} closing_total_non_null={ct_count} rows={len(lines)}")
     enriched = enrich_probabilities(hist, lines)
     out = OUTPUTS / 'predictions_history_enriched.csv'
     enriched.to_csv(out, index=False)
