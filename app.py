@@ -3505,6 +3505,14 @@ def _resolve_outputs_dir() -> Path:
             return p2
     except Exception:
         pass
+    # prefer well-known container paths when present
+    for cand in [Path("/app/outputs"), Path("/outputs")]:
+        try:
+            if cand.exists() and cand.is_dir():
+                logger.warning("Using container outputs dir: %s", cand)
+                return cand
+        except Exception:
+            continue
     # common fallbacks
     for cand in [ROOT / "outputs", ROOT]:
         try:
