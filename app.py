@@ -23857,6 +23857,17 @@ def api_recommendations():
                                 rows.append(ar)
     except Exception:
         pass
+    # ATS fallback from edges for API when ATS picks artifact is missing
+    try:
+        if date_q:
+            have_ats = any(str(r.get('code') or r.get('rec_code') or '').upper() == 'ATS' or str(r.get('type') or '').upper() == 'ATS' for r in rows)
+            if not have_ats:
+                existing_gids_api = {str(r.get('game_id') or '') for r in rows}
+                ats_edges_api = _derive_ats_from_edges(date_q, existing_gids_api)
+                if ats_edges_api:
+                    rows.extend(ats_edges_api)
+    except Exception:
+        pass
     # Coverage augmentation: ensure at least one recommendation per displayed game
     try:
         if date_q:
@@ -24082,6 +24093,122 @@ def api_recommendations():
         pass
     return _resp
 
+def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None, ddf: pd.DataFrame | None = None) -> list[dict]:
+    """Derive simple ATS rows from align_period_<date>_edges.csv.
+
+    When per-date ATS picks are missing, this provides a basic ATS recommendation per game
+    using the signed home spread to select side and line. Optionally enriches start-time
+    fields using the display snapshot frame `ddf` when provided.
+    """
+    out_rows: list[dict] = []
+    try:
+        ep = OUT / f"align_period_{date_str}_edges.csv"
+        if not ep.exists():
+            return out_rows
+        df_e = _safe_read_csv(ep)
+        if isinstance(df_e, pd.DataFrame) and not df_e.empty:
+            # Keep only spreads, full_game period
+            try:
+                df_e['market'] = df_e['market'].astype(str).str.lower()
+            except Exception:
+                pass
+            try:
+                df_e['period'] = df_e['period'].astype(str).str.lower()
+            except Exception:
+                pass
+            mask = (df_e.get('market') == 'spreads') & (df_e.get('period').isin(['full_game','full','game']))
+            df_s = df_e[mask] if isinstance(mask, pd.Series) else pd.DataFrame()
+            if not df_s.empty:
+                # Ensure basic columns
+                try:
+                    if 'game_id' in df_s.columns:
+                        df_s['game_id'] = df_s['game_id'].astype(str)
+                except Exception:
+                    pass
+                branding = _load_branding_map()
+                seen: set[str] = set()
+                if existing_gids:
+                    seen.update(existing_gids)
+                for r in df_s.to_dict(orient='records'):
+                    try:
+                        gid = str(r.get('game_id') or '')
+                        if not gid or gid in seen:
+                            continue
+                        home_nm = str(r.get('home_team') or r.get('home_team_name') or '')
+                        away_nm = str(r.get('away_team') or r.get('away_team_name') or '')
+                        # Determine signed line from home_spread
+                        ln_home = None
+                        try:
+                            ln_home = float(r.get('home_spread')) if r.get('home_spread') is not None else None
+                        except Exception:
+                            ln_home = None
+                        sel_team = None
+                        line_val = None
+                        if ln_home is not None:
+                            if ln_home < 0:
+                                sel_team = home_nm
+                                line_val = ln_home
+                            else:
+                                sel_team = away_nm
+                                line_val = 0 - ln_home
+                        else:
+                            # Fallback: choose home with unknown line
+                            sel_team = home_nm
+                        bet_label = (f"{sel_team} {line_val:+.1f}" if line_val is not None else f"{sel_team} Spread").strip()
+                        item = {
+                            'type': 'ATS', 'code': 'ATS', 'market': 'spreads', 'period': 'full_game',
+                            'bet': bet_label, 'bet_label': bet_label,
+                            'line': line_val, 'price': None, 'edge': None,
+                            'pred_total': None, 'pred_margin': None,
+                            'selection': sel_team, 'game_id': gid, 'date': date_str,
+                            'home_team': home_nm, 'away_team': away_nm,
+                        }
+                        # Branding enrichment
+                        for side in ['home','away']:
+                            nm = str(item.get(f'{side}_team') or '')
+                            key = normalize_name(nm)
+                            b = branding.get(key) or {}
+                            item[f'{side}_key'] = key
+                            item[f'{side}_logo'] = b.get('logo')
+                            item[f'{side}_color'] = b.get('primary') or b.get('secondary')
+                            item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                        # Derive canonical ISO/site display fields when possible using display snapshot
+                        try:
+                            if ddf is not None and 'game_id' in ddf.columns:
+                                try:
+                                    disp_row = ddf[ddf['game_id'].astype(str) == gid].iloc[0]
+                                    for cname in ('start_time','start_time_iso','start_time_local','start_tz_abbr','display_date','start_time_display'):
+                                        if cname in ddf.columns:
+                                            item[cname] = disp_row.get(cname)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        try:
+                            if not item.get('start_time_iso'):
+                                item['start_time_iso'] = _derive_start_iso(item)
+                        except Exception:
+                            pass
+                        try:
+                            item = _backfill_start_fields(item)
+                        except Exception:
+                            pass
+                        try:
+                            item = _correct_midnight_drift(item, slate_date=str(item.get('date') or date_str or ''))
+                        except Exception:
+                            pass
+                        try:
+                            item = _apply_site_display_global(item)
+                        except Exception:
+                            pass
+                        out_rows.append(item)
+                        seen.add(gid)
+                    except Exception:
+                        continue
+    except Exception:
+        return []
+    return out_rows
+
 @app.route("/api/recommendations_display")
 @app.route("/api/recommendations-display")
 def api_recommendations_display():
@@ -24120,7 +24247,7 @@ def api_recommendations_display():
             ddf['game_id'] = ddf['game_id'].astype(str) if 'game_id' in ddf.columns else ddf.get('game_id')
         except Exception:
             pass
-        def _side_disp(r: Series) -> str:
+        def _side_disp(r: pd.Series) -> str:
             try:
                 pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
                 mt = float(r.get('market_total')) if r.get('market_total') is not None else np.nan
@@ -24325,6 +24452,15 @@ def api_recommendations_display():
                             rows.append(item)
                         except Exception:
                             continue
+    except Exception:
+        pass
+    # ATS fallback from edges when ATS picks are missing
+    try:
+        if date_q:
+            existing_gids = {str(r.get('game_id') or '') for r in rows if str(r.get('type') or '').upper() == 'ATS' or str(r.get('code') or r.get('rec_code') or '').upper() == 'ATS'}
+            ats_edges = _derive_ats_from_edges(date_q, existing_gids, ddf=ddf if isinstance(ddf, pd.DataFrame) else None)
+            if ats_edges:
+                rows.extend(ats_edges)
     except Exception:
         pass
     try:
