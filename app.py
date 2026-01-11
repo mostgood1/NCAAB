@@ -24136,21 +24136,47 @@ def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None,
                             continue
                         home_nm = str(r.get('home_team') or r.get('home_team_name') or '')
                         away_nm = str(r.get('away_team') or r.get('away_team_name') or '')
-                        # Determine signed line from home_spread
+                        # Determine signed line using closing/home/away spreads
                         ln_home = None
+                        ln_away = None
                         try:
-                            ln_home = float(r.get('home_spread')) if r.get('home_spread') is not None else None
+                            # Prefer closing_spread_home when available
+                            v_chs = r.get('closing_spread_home')
+                            if v_chs is not None and str(v_chs).strip() != '':
+                                ln_home = float(v_chs)
                         except Exception:
                             ln_home = None
+                        if ln_home is None:
+                            try:
+                                v_hs = r.get('home_spread')
+                                if v_hs is not None and str(v_hs).strip() != '':
+                                    ln_home = float(v_hs)
+                            except Exception:
+                                ln_home = None
+                        try:
+                            v_as = r.get('away_spread')
+                            if v_as is not None and str(v_as).strip() != '':
+                                ln_away = float(v_as)
+                        except Exception:
+                            ln_away = None
                         sel_team = None
                         line_val = None
                         if ln_home is not None:
+                            # Negative home spread → home favorite
                             if ln_home < 0:
                                 sel_team = home_nm
                                 line_val = ln_home
                             else:
                                 sel_team = away_nm
                                 line_val = 0 - ln_home
+                        elif ln_away is not None:
+                            # Negative away spread → away favorite
+                            if ln_away < 0:
+                                sel_team = away_nm
+                                line_val = ln_away
+                            else:
+                                sel_team = home_nm
+                                line_val = 0 - ln_away
                         else:
                             # Fallback: choose home with unknown line
                             sel_team = home_nm
@@ -24158,8 +24184,12 @@ def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None,
                         item = {
                             'type': 'ATS', 'code': 'ATS', 'market': 'spreads', 'period': 'full_game',
                             'bet': bet_label, 'bet_label': bet_label,
-                            'line': line_val, 'price': None, 'edge': None,
-                            'pred_total': None, 'pred_margin': None,
+                            'line': line_val, 'price': None,
+                            # Use edge_margin absolute when present
+                            'edge': (abs(float(r.get('edge_margin'))) if (r.get('edge_margin') is not None and str(r.get('edge_margin')).strip()!='') else None),
+                            'pred_total': None,
+                            # Carry predicted margin when available
+                            'pred_margin': (float(r.get('pred_margin')) if (r.get('pred_margin') is not None and str(r.get('pred_margin')).strip()!='') else None),
                             'selection': sel_team, 'game_id': gid, 'date': date_str,
                             'home_team': home_nm, 'away_team': away_nm,
                         }
