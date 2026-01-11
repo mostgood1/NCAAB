@@ -109,8 +109,13 @@ def _apply_calibration_and_sigma_post_run():
         # Swallow errors to avoid impacting primary app flow
         pass
 
-# Run post-run calibration block
-_apply_calibration_and_sigma_post_run()
+# Optionally run post-run calibration block (disabled by default in deployments)
+try:
+    import os as _os
+    if str(_os.environ.get('RUN_POST_CALIBRATION','0')).strip().lower() in ('1','true','yes'):
+        _apply_calibration_and_sigma_post_run()
+except Exception:
+    pass
 
 import json
 import shutil
@@ -163,6 +168,7 @@ from flask import Flask, render_template, jsonify, request, make_response, redir
 import logging
 from flask import send_file
 import pandas as pd
+from pandas import DataFrame, Series
 import datetime as dt
 import os
 import numpy as np
@@ -176,12 +182,11 @@ BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
 # Bump-only app revision to trigger deployment image rebuilds when needed
 APP_REV = "2026-01-06.1"
 
+# Reduce memory churn by enabling copy-on-write and disabling chained assignment copies
 try:
-    import pandas as pd
-    # Reduce memory churn by enabling copy-on-write and disabling chained assignment copies
     pd.options.mode.copy_on_write = True
 except Exception:
-    pd = None
+    pass
 
 try:
     from flask import Flask, request, abort
@@ -288,7 +293,7 @@ import json
 import pandas as pd
 import re
 import io
-from src.ncaab_model.config import settings
+# Avoid importing project settings here; defer until src path is added below
 
 def _load_all_daily_results() -> pd.DataFrame:
     try:
@@ -367,10 +372,6 @@ def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
                         # On any validation/alignment error, skip prediction and let outer fallback handle
                         raise
                     df = df.merge(clw[['date','home_team','away_team','market_total','spread_home']], on=['date','home_team','away_team'], how='left')
-                    if 'market_total' in df.columns:
-                        out_ff['line'] = df.get('market_total') if 'market_total' in df.columns else None
-                    if ('market_total' not in df.columns) and ('closing_total' in df.columns):
-                        out_ff['line'] = df.get('closing_total')
     except Exception:
         pass
     # Normalize dates and compute missing-field diagnostics per date
@@ -738,9 +739,22 @@ ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
-
-from ncaab_model.config import settings  # type: ignore
-from ncaab_model.data.merge_odds import normalize_name  # type: ignore
+try:
+    from ncaab_model.config import settings  # type: ignore
+    from ncaab_model.data.merge_odds import normalize_name  # type: ignore
+except Exception:
+    class _SettingsFallback:
+        outputs_dir = ROOT / "outputs"
+        data_dir = ROOT / "data"
+    settings = _SettingsFallback()  # type: ignore
+    def normalize_name(x: str) -> str:  # type: ignore
+        try:
+            import re as _re
+            s = str(x or "").lower().strip()
+            s = _re.sub(r"[^a-z0-9]+", " ", s).strip()
+            return s
+        except Exception:
+            return str(x or "").lower().strip()
 try:
     # Import CLI routines we can safely invoke programmatically
     from ncaab_model.cli import finalize_day as cli_finalize_day  # type: ignore
@@ -3652,7 +3666,7 @@ def _get_display_tz_name() -> str:
         return os.getenv("SCHEDULE_TZ") or "America/Chicago"
 
 
-def _safe_read_csv(p: Path) -> pd.DataFrame:
+def _safe_read_csv(p: Path) -> DataFrame:
     try:
         if not p.exists():
             return pd.DataFrame()
@@ -3685,7 +3699,7 @@ def _safe_read_csv(p: Path) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def _load_predictions_current() -> pd.DataFrame:
+def _load_predictions_current() -> DataFrame:
     """Load predictions file using priority order with environment override.
 
     Priority:
@@ -4978,7 +4992,7 @@ def _load_d1_team_set() -> set[str]:
     return d1set
 
 
-def _load_all_finals(limit: int | None = 1000) -> pd.DataFrame:
+def _load_all_finals(limit: int | None = 1000) -> DataFrame:
     """Load all per-day results files and return a consolidated DataFrame of finals.
 
     Columns include: date, game_id, home_team, away_team, home_score, away_score, actual_total,
@@ -4990,7 +5004,7 @@ def _load_all_finals(limit: int | None = 1000) -> pd.DataFrame:
     files = sorted([p for p in dr_dir.glob("results_*.csv")])
     if not files:
         return pd.DataFrame()
-    parts: list[pd.DataFrame] = []
+    parts: list[DataFrame] = []
     for p in files:
         try:
             df = pd.read_csv(p)
@@ -24106,7 +24120,7 @@ def api_recommendations_display():
             ddf['game_id'] = ddf['game_id'].astype(str) if 'game_id' in ddf.columns else ddf.get('game_id')
         except Exception:
             pass
-        def _side_disp(r: pd.Series) -> str:
+        def _side_disp(r: Series) -> str:
             try:
                 pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
                 mt = float(r.get('market_total')) if r.get('market_total') is not None else np.nan
@@ -24273,6 +24287,41 @@ def api_recommendations_display():
                                 item[f'{side}_logo'] = b.get('logo')
                                 item[f'{side}_color'] = b.get('primary') or b.get('secondary')
                                 item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                            # Attach start-time fields for ATS via display snapshot when available
+                            try:
+                                disp_row = None
+                                if ('game_id' in ddf.columns):
+                                    try:
+                                        disp_row = ddf[ddf['game_id'].astype(str) == gid].iloc[0]
+                                    except Exception:
+                                        disp_row = None
+                                if disp_row is not None:
+                                    for cname in ('start_time','start_time_iso','start_time_local','start_tz_abbr','display_date','start_time_display'):
+                                        try:
+                                            if cname in ddf.columns:
+                                                item[cname] = disp_row.get(cname)
+                                        except Exception:
+                                            continue
+                            except Exception:
+                                pass
+                            # Derive canonical ISO and site display fields for ATS rows
+                            try:
+                                if not item.get('start_time_iso'):
+                                    item['start_time_iso'] = _derive_start_iso(item)
+                            except Exception:
+                                pass
+                            try:
+                                item = _backfill_start_fields(item)
+                            except Exception:
+                                pass
+                            try:
+                                item = _correct_midnight_drift(item, slate_date=str(item.get('date') or date_q or ''))
+                            except Exception:
+                                pass
+                            try:
+                                item = _apply_site_display_global(item)
+                            except Exception:
+                                pass
                             rows.append(item)
                         except Exception:
                             continue
@@ -24336,37 +24385,6 @@ def api_midnight_drift_diagnostic():
         chosen = enriched if enriched.exists() else (base if base.exists() else None)
         if chosen:
             df_r = _safe_read_csv(chosen)
-                            # Attach start-time fields for ATS via display map
-                            try:
-                                disp_row = ddf[ddf['game_id'].astype(str)==gid].iloc[0] if ('game_id' in ddf.columns) else None
-                            except Exception:
-                                disp_row = None
-                            if disp_row is not None:
-                                for cname in ('start_time','start_time_iso','start_time_local','start_tz_abbr','display_date','start_time_display'):
-                                    try:
-                                        if cname in ddf.columns:
-                                            row_obj[cname] = disp_row.get(cname)
-                                    except Exception:
-                                        continue
-                            # Derive canonical fields and display string
-                            try:
-                                if not row_obj.get('start_time_iso'):
-                                    row_obj['start_time_iso'] = _derive_start_iso(row_obj)
-                            except Exception:
-                                pass
-                            try:
-                                row_obj = _backfill_start_fields(row_obj)
-                            except Exception:
-                                pass
-                            try:
-                                row_obj = _correct_midnight_drift(row_obj, slate_date=str(row_obj.get('date') or date_q or ''))
-                            except Exception:
-                                pass
-                            try:
-                                row_obj = _apply_site_display_global(row_obj)
-                            except Exception:
-                                pass
-                            ats_rows.append(row_obj)
             rendered_rows = df_r.to_dict(orient="records")
     except Exception:
         rendered_rows = []
@@ -25998,7 +26016,7 @@ def _classify_pred_margin(row: dict[str, Any]) -> str:
         return existing
     return 'unknown'
 
-def _normalize_display(df: pd.DataFrame) -> pd.DataFrame:
+def _normalize_display(df: DataFrame) -> DataFrame:
     if df.empty:
         return df
     # Avoid deep copies; create a shallow copy only once
@@ -26048,7 +26066,7 @@ def _normalize_display(df: pd.DataFrame) -> pd.DataFrame:
     out['pred_margin_basis'] = m_bases
     return out
 
-def _persist_display(df: pd.DataFrame, date_str: str) -> tuple[Path, str]:
+def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
     # Normalize with minimal copying to reduce memory footprint
     norm = _normalize_display(df)
     # Ensure canonical display-date/time fields are present so the cards UI
