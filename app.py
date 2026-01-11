@@ -23991,6 +23991,75 @@ def api_recommendations():
         rows = sanitized
     except Exception:
         pass
+    # Enrich rows with start-time fields for correct rendering in clients
+    try:
+        # Build per-game time maps from display snapshot for the target date
+        disp_times: dict[str, dict] = {}
+        date_for_times = None
+        try:
+            # Prefer explicit query date, else first row's date
+            date_for_times = date_q or None
+            if (not date_for_times) and rows:
+                d0 = str(rows[0].get('date') or '').strip()
+                if d0:
+                    date_for_times = d0
+        except Exception:
+            date_for_times = date_q or None
+        df_disp_t = pd.read_csv(OUT / f"predictions_display_{date_for_times}.csv") if (date_for_times and (OUT / f"predictions_display_{date_for_times}.csv").exists()) else pd.DataFrame()
+        if isinstance(df_disp_t, pd.DataFrame) and not df_disp_t.empty:
+            try:
+                if 'game_id' in df_disp_t.columns:
+                    df_disp_t['game_id'] = df_disp_t['game_id'].astype(str)
+                cols = {c.lower(): c for c in df_disp_t.columns}
+                for r in df_disp_t.to_dict(orient='records'):
+                    try:
+                        gid = str(r.get(cols.get('game_id','game_id')) or '')
+                        disp_times[gid] = {
+                            'start_time': r.get(cols.get('start_time') or 'start_time'),
+                            'start_time_iso': r.get(cols.get('start_time_iso') or 'start_time_iso'),
+                            'start_time_local': r.get(cols.get('start_time_local') or 'start_time_local'),
+                            'start_tz_abbr': r.get(cols.get('start_tz_abbr') or 'start_tz_abbr'),
+                            'display_date': r.get(cols.get('display_date') or 'display_date') or r.get(cols.get('date') or 'date'),
+                            'start_time_display': r.get(cols.get('start_time_display') or 'start_time_display'),
+                        }
+                    except Exception:
+                        continue
+            except Exception:
+                disp_times = {}
+        enr_rows = []
+        for r in rows:
+            rr = dict(r)
+            gid = str(rr.get('game_id') or '')
+            tm = disp_times.get(gid) or {}
+            # Backfill missing fields from display maps
+            for k in ('start_time','start_time_iso','start_time_local','start_tz_abbr','display_date','start_time_display'):
+                try:
+                    if (rr.get(k) is None or str(rr.get(k)).strip()=='') and tm.get(k) is not None:
+                        rr[k] = tm.get(k)
+                except Exception:
+                    continue
+            # Derive canonical ISO and display string
+            try:
+                if not rr.get('start_time_iso'):
+                    rr['start_time_iso'] = _derive_start_iso(rr)
+            except Exception:
+                pass
+            try:
+                rr = _backfill_start_fields(rr)
+            except Exception:
+                pass
+            try:
+                rr = _correct_midnight_drift(rr, slate_date=str(rr.get('date') or date_for_times or ''))
+            except Exception:
+                pass
+            try:
+                rr = _apply_site_display_global(rr)
+            except Exception:
+                pass
+            enr_rows.append(rr)
+        rows = enr_rows
+    except Exception:
+        pass
     _resp = jsonify({"rows": len(rows), "data": rows})
     try:
         _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -24072,6 +24141,10 @@ def api_recommendations_display():
         out['pred_total'] = ddf.get('pred_total')
         out['pred_margin'] = ddf.get('pred_margin')
         out['rec_type'] = 'Totals'; out['rec_code'] = 'OU'
+        # Carry start-time fields from display snapshot when present
+        for cname in ('start_time','start_time_iso','start_time_local','start_tz_abbr','display_date','start_time_display'):
+            if cname in ddf.columns:
+                out[cname] = ddf.get(cname)
         # Build labels and branding
         branding = _load_branding_map()
         def _mk_label(row: dict) -> str:
@@ -24096,6 +24169,24 @@ def api_recommendations_display():
                 item[f'{side}_logo'] = b.get('logo')
                 item[f'{side}_color'] = b.get('primary') or b.get('secondary')
                 item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+            # Normalize/derive canonical start-time fields
+            try:
+                if not item.get('start_time_iso'):
+                    item['start_time_iso'] = _derive_start_iso(item)
+            except Exception:
+                pass
+            try:
+                item = _backfill_start_fields(item)
+            except Exception:
+                pass
+            try:
+                item = _correct_midnight_drift(item, slate_date=str(item.get('date') or date_q or ''))
+            except Exception:
+                pass
+            try:
+                item = _apply_site_display_global(item)
+            except Exception:
+                pass
             rows.append(item)
     # Append ATS rows from per-date artifact
     try:
@@ -24245,6 +24336,37 @@ def api_midnight_drift_diagnostic():
         chosen = enriched if enriched.exists() else (base if base.exists() else None)
         if chosen:
             df_r = _safe_read_csv(chosen)
+                            # Attach start-time fields for ATS via display map
+                            try:
+                                disp_row = ddf[ddf['game_id'].astype(str)==gid].iloc[0] if ('game_id' in ddf.columns) else None
+                            except Exception:
+                                disp_row = None
+                            if disp_row is not None:
+                                for cname in ('start_time','start_time_iso','start_time_local','start_tz_abbr','display_date','start_time_display'):
+                                    try:
+                                        if cname in ddf.columns:
+                                            row_obj[cname] = disp_row.get(cname)
+                                    except Exception:
+                                        continue
+                            # Derive canonical fields and display string
+                            try:
+                                if not row_obj.get('start_time_iso'):
+                                    row_obj['start_time_iso'] = _derive_start_iso(row_obj)
+                            except Exception:
+                                pass
+                            try:
+                                row_obj = _backfill_start_fields(row_obj)
+                            except Exception:
+                                pass
+                            try:
+                                row_obj = _correct_midnight_drift(row_obj, slate_date=str(row_obj.get('date') or date_q or ''))
+                            except Exception:
+                                pass
+                            try:
+                                row_obj = _apply_site_display_global(row_obj)
+                            except Exception:
+                                pass
+                            ats_rows.append(row_obj)
             rendered_rows = df_r.to_dict(orient="records")
     except Exception:
         rendered_rows = []
