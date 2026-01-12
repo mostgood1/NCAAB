@@ -50,7 +50,13 @@
             params.set('date', yyyy + '-' + mm + '-' + dd);
             if (!params.has('group')) params.set('group', '1');
             var newUrl = window.location.pathname + '?' + params.toString();
-            window.location.replace(newUrl);
+            if (newUrl !== (window.location.pathname + window.location.search)) {
+              try {
+                history.replaceState(null, '', newUrl);
+              } catch (e) {
+                // As a fallback, avoid forcing a reload; leave URL as-is
+              }
+            }
           }
         } catch (e) {
           // no-op fallback: page will still render without redirect

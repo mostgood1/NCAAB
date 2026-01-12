@@ -19839,10 +19839,10 @@ def recommendations():
             try:
                 if 'date' in picks.columns and not pd.to_datetime(picks['date'], errors='coerce').isna().all():
                     date_use = pd.to_datetime(picks['date'], errors='coerce').dt.strftime('%Y-%m-%d').iloc[0]
-                elif date_q:
-                    date_use = date_q
+                else:
+                    date_use = (request.args.get('date') or '').strip() or None
             except Exception:
-                date_use = date_q or None
+                date_use = (request.args.get('date') or '').strip() or None
             # Load display CSV for the date
             disp_path = OUT / f"predictions_display_{date_use}.csv" if date_use else None
             disp_df = pd.read_csv(disp_path, dtype=str, low_memory=False) if (disp_path and disp_path.exists()) else pd.DataFrame()
@@ -19882,7 +19882,9 @@ def recommendations():
                         return 'Over'
                     extra = pd.DataFrame()
                     extra['game_id'] = add_rows.get('game_id')
-                    extra['date'] = date_use or date_q or ''
+                    # Prefer derived date_use, else request param
+                    _date_param = (request.args.get('date') or '').strip()
+                    extra['date'] = date_use or _date_param or ''
                     # Prefer canonical team columns
                     extra['home_team'] = add_rows.get('home_team') if 'home_team' in add_rows.columns else add_rows.get('home_team_name')
                     extra['away_team'] = add_rows.get('away_team') if 'away_team' in add_rows.columns else add_rows.get('away_team_name')
@@ -27498,7 +27500,8 @@ def api_persist_display():
 
     Query params:
       - date: YYYY-MM-DD (required)
-      - source: unified|index (optional; default tries unified then falls back to index df)
+            - source: display|unified|index (optional; default prefers existing display CSV,
+                then unified predictions, then falls back to index/results)
 
     Returns: { ok, date, path, hash, rows }
     """
@@ -27509,8 +27512,16 @@ def api_persist_display():
     df = pd.DataFrame()
     loaded_path = None
     try:
-        # Prefer unified predictions CSV for the date
-        if source_q in ('', 'unified', 'u'):
+        # Prefer exact display CSV if it was uploaded (source of truth for parity)
+        p_disp = OUT / f'predictions_display_{date_q}.csv'
+        if (source_q in ('', 'display', 'd') and p_disp.exists()):
+            try:
+                df = pd.read_csv(p_disp)
+                loaded_path = str(p_disp)
+            except Exception:
+                df = pd.DataFrame()
+        # Else prefer unified predictions CSV for the date
+        elif source_q in ('', 'unified', 'u'):
             p = OUT / f'predictions_unified_{date_q}.csv'
             if p.exists():
                 try:
