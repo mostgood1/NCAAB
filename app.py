@@ -30456,7 +30456,14 @@ def api_results_dates():
     except Exception:
         pass
     dates = sorted(set(dates))
-    return jsonify({'dates': dates, 'latest': dates[-1] if dates else None})
+    resp = jsonify({'dates': dates, 'latest': dates[-1] if dates else None})
+    try:
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+    except Exception:
+        pass
+    return resp
 
 @app.route('/api/results_by_date')
 def api_results_by_date():
@@ -30747,7 +30754,14 @@ def api_results_by_date():
             return resp
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-    return jsonify({'date': date_q, 'count': len(rows), 'rows': rows, 'summary': summary})
+    resp = jsonify({'date': date_q, 'count': len(rows), 'rows': rows, 'summary': summary})
+    try:
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+    except Exception:
+        pass
+    return resp
 
 @app.route('/api/finalize_hint')
 def api_finalize_hint():

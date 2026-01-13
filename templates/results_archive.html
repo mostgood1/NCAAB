@@ -176,10 +176,22 @@
         opt.value = d; opt.textContent = d;
         sel.appendChild(opt);
       });
+      // Default to latest date if available
+      if (data.latest) {
+        sel.value = data.latest;
+      } else if (sel.options.length > 0) {
+        // Fallback to last option if latest not provided
+        sel.value = sel.options[sel.options.length - 1].value;
+      }
     }
     async function loadResults() {
       const sel = document.getElementById('dateSel');
-      const date = sel.value;
+      let date = sel.value;
+      if (!date && sel.options.length > 0) {
+        // Ensure a date is selected to avoid blank fetch
+        date = sel.options[sel.options.length - 1].value;
+        sel.value = date;
+      }
       const data = await fetchJSON('/api/results_by_date?date=' + encodeURIComponent(date));
       const s = data.summary || {};
       let metaText = `Count: ${data.count}`;
