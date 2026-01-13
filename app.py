@@ -31034,7 +31034,7 @@ def api_version():
     except Exception:
         sha = 'hash_error'
         mtime = None
-    return jsonify({
+    resp = jsonify({
         'ok': True,
         'date': dt.datetime.utcnow().strftime('%Y-%m-%d'),
         'build_time_utc': BUILD_TIME_UTC,
@@ -31042,6 +31042,12 @@ def api_version():
         'app_sha': sha,
         'snapshot_only': SNAPSHOT_ONLY,
     })
+    try:
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+    except Exception:
+        pass
+    return resp
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))
