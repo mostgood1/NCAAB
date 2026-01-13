@@ -437,6 +437,20 @@ if ($resRows -gt 0) {
     Write-Host "[Skip] daily results missing or empty for $Date" -ForegroundColor Yellow
 }
 
+# Proactive: persist display snapshot after uploads (upload-only mode)
+try {
+    Write-Step "Persist display for date $Date (upload-only)"
+    $tsPersist = [int](Get-Date -UFormat %s)
+    $pd0 = Invoke-RestMethod -Uri ("{0}/api/persist_display?date={1}&t={2}" -f $BaseUrl, $Date, $tsPersist) -Method Get
+    if ($pd0 -and $pd0.ok) {
+        Write-Host ("[OK] persist_display wrote {0} rows path={1}" -f $pd0.rows, $pd0.path) -ForegroundColor Green
+    } else {
+        Write-Host "[Warn] persist_display did not return ok=true (upload-only)" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "[Warn] persist_display (upload-only) call failed: $($_.Exception.Message)" -ForegroundColor Yellow
+}
+
 # Verify artifacts and recommendations presence
 Write-Step "Verifying debug_artifacts and recommendations"
 $debug = $null
@@ -470,7 +484,8 @@ try {
 }
 
 try {
-    $recs = Invoke-RestMethod -Uri "$BaseUrl/api/recommendations?date=$Date" -Method Get
+    $tsRecs = [int](Get-Date -UFormat %s)
+    $recs = Invoke-RestMethod -Uri ("{0}/api/recommendations?date={1}&t={2}" -f $BaseUrl, $Date, $tsRecs) -Method Get
     $rowCount = 0
     if ($recs) {
         $rowsArr = $null
@@ -522,12 +537,43 @@ try {
     Write-Host "[Warn] recommendations check failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
+# Decide whether redeploy is necessary: skip if recommendations already include ATS
+# and row count meets expected parity (ATS + OU at minimum).
+${shouldSkipRedeploy} = $false
+try {
+    $rowsForSkip = $null
+    if ($recs) {
+        if ($recs.data) { $rowsForSkip = $recs.data }
+        elseif ($recs.recommendations) { $rowsForSkip = $recs.recommendations }
+        elseif ($recs.rows -is [System.Collections.IEnumerable]) { $rowsForSkip = $recs.rows }
+    }
+    $hasATS = $false
+    if ($rowsForSkip) {
+        foreach ($rr in $rowsForSkip) {
+            $codeVal = ("" + ($rr.code))
+            $recCodeVal = ("" + ($rr.rec_code))
+            if ($codeVal.ToUpper() -eq 'ATS' -or $recCodeVal.ToUpper() -eq 'ATS') { $hasATS = $true; break }
+        }
+    }
+    $minExpected = 0
+    if ($ap_rows -is [int]) { $minExpected += [int]$ap_rows }
+    if ($d_rows -is [int]) { $minExpected += [int]$d_rows }
+    if ($rowCount -is [int]) {
+        # If ATS is present and we have at least ATS + OU rows, skip redeploy
+        if ($hasATS -and ([int]$rowCount) -ge ([Math]::Max(35, $minExpected))) {
+            ${shouldSkipRedeploy} = $true
+            Write-Host ("[Info] Redeploy not needed: ATS present and rows={0} >= expected={1}" -f $rowCount, $minExpected) -ForegroundColor Gray
+        }
+    }
+} catch {}
+
 # Verify display predictions parity vs local CSV
 try {
     $localDisplayPath = $displayPath
     if ($sanitizedDisplayPath -and -not [string]::IsNullOrWhiteSpace($sanitizedDisplayPath)) { $localDisplayPath = $sanitizedDisplayPath }
     $localDisplayRows = Get-CsvRowCount -Path $localDisplayPath
-    $dispResp = Invoke-RestMethod -Uri "$BaseUrl/api/display_predictions?date=$Date" -Method Get
+    $tsDisp = [int](Get-Date -UFormat %s)
+    $dispResp = Invoke-RestMethod -Uri ("{0}/api/display_predictions?date={1}&t={2}" -f $BaseUrl, $Date, $tsDisp) -Method Get
     $remoteDisplayRows = if ($dispResp -and $dispResp.rows) { ($dispResp.rows | Measure-Object).Count } elseif ($dispResp -and $dispResp.count) { [int]$dispResp.count } else { 0 }
     $note = if ($localDisplayRows -eq $remoteDisplayRows) { 'match' } else { 'mismatch' }
     Write-Host "[Check] display parity: local=$localDisplayRows remote=$remoteDisplayRows ($note)" -ForegroundColor White
@@ -538,7 +584,8 @@ try {
 # Verify results archive for the date
 Write-Step "Verifying results archive"
 try {
-    $res = Invoke-RestMethod -Uri "$BaseUrl/api/results?date=$Date" -Method Get
+    $tsRes = [int](Get-Date -UFormat %s)
+    $res = Invoke-RestMethod -Uri ("{0}/api/results?date={1}&t={2}" -f $BaseUrl, $Date, $tsRes) -Method Get
     $n = if ($res.rows) { ($res.rows | Measure-Object).Count } else { 0 }
     Write-Host "[Check] results rows=$n (date=$Date)" -ForegroundColor White
 } catch {
@@ -547,6 +594,7 @@ try {
 
 # Optional redeploy trigger via Render deploy hook
 if ($TriggerRedeploy.IsPresent) {
+    # Force redeploy when TriggerRedeploy is set, regardless of parity checks
     function Get-DeployHookUrl {
         param()
         try {
@@ -590,12 +638,13 @@ if ($TriggerRedeploy.IsPresent) {
     if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) {
         Write-Host "[Skip] TriggerRedeploy set but no DeployHookUrl provided, env var set, or .env/scripts fallback found." -ForegroundColor Yellow
     } else {
-        Write-Step "Triggering redeploy via deploy hook"
+        Write-Step "Triggering redeploy via deploy hook (forced)"
         # Capture baseline app version before triggering
         $baselineSha = $null
         $baselineBuildTime = $null
         try {
-            $ver0 = Invoke-RestMethod -Uri "$BaseUrl/api/version" -Method Get
+            $ts0 = [int](Get-Date -UFormat %s)
+            $ver0 = Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $BaseUrl, $ts0) -Method Get
             if ($ver0) { $baselineSha = $ver0.app_sha; $baselineBuildTime = $ver0.build_time_utc }
             Write-Host ("[Check] Baseline version: sha={0} build_time={1}" -f $baselineSha, $baselineBuildTime) -ForegroundColor White
         } catch { Write-Host "[Warn] Baseline version check failed: $($_.Exception.Message)" -ForegroundColor Yellow }
@@ -612,7 +661,9 @@ if ($TriggerRedeploy.IsPresent) {
             while ((Get-Date) -lt $Deadline) {
                 Start-Sleep -Milliseconds $VersionPollIntervalMs
                 try {
-                    $ver = Invoke-RestMethod -Uri "$BaseUrl/api/version" -Method Get
+                    # Bust CDN caches by adding a random query parameter
+                    $pollTs = [int](Get-Date -UFormat %s)
+                    $ver = Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $BaseUrl, $pollTs) -Method Get
                     if ($ver) {
                         $sha = $ver.app_sha
                         $bt = $ver.build_time_utc
