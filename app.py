@@ -26009,7 +26009,8 @@ def api_recommendations():
         if date_q:
             have_ats = any(str(r.get('code') or r.get('rec_code') or '').upper() == 'ATS' or str(r.get('type') or '').upper() == 'ATS' for r in rows)
             if not have_ats:
-                existing_gids_api = {str(r.get('game_id') or '') for r in rows}
+                # Only mark games that already have ATS to avoid skipping OU-only games
+                existing_gids_api = {str(r.get('game_id') or '') for r in rows if str(r.get('code') or r.get('rec_code') or '').upper() == 'ATS'}
                 ats_edges_api = _derive_ats_from_edges(date_q, existing_gids_api)
                 if ats_edges_api:
                     rows.extend(ats_edges_api)
