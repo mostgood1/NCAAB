@@ -25336,6 +25336,28 @@ def api_recommendations():
                     side_team = home or away
             return f"{side_team} ML".strip()
         return str(row.get('bet') or '').strip()
+    # Helper: choose readable text color for a given hex background
+    def _pick_text_color(hex_color: Any) -> str:
+        try:
+            s = str(hex_color or '').strip()
+            if not s:
+                return '#ffffff'
+            # Normalize to #RRGGBB
+            if s.startswith('#'):
+                s = s[1:]
+            if len(s) == 3:
+                s = ''.join([ch*2 for ch in s])
+            if len(s) != 6:
+                return '#ffffff'
+            r = int(s[0:2], 16)
+            g = int(s[2:4], 16)
+            b = int(s[4:6], 16)
+            # Relative luminance and contrast heuristic
+            # Use simple perceived brightness
+            brightness = (0.299*r + 0.587*g + 0.114*b)
+            return '#0a0a0a' if brightness > 180 else '#ffffff'
+        except Exception:
+            return '#ffffff'
     # Prepare rows with branding
     rows: list[dict] = []
     branding = _load_branding_map()
@@ -25490,10 +25512,11 @@ def api_recommendations():
                 nm = str(item.get(f'{side}_team') or item.get(f'{side}_team_name') or '')
                 key = normalize_name(nm)
                 b = branding.get(key) or {}
+                base_color = b.get('primary') or b.get('secondary')
                 item[f'{side}_key'] = key
                 item[f'{side}_logo'] = b.get('logo')
-                item[f'{side}_color'] = b.get('primary') or b.get('secondary')
-                item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                item[f'{side}_color'] = base_color
+                item[f'{side}_text_color'] = b.get('text') or _pick_text_color(base_color)
             # Compute confidence score (0..1) using multi-factor blend, not solely EV
             try:
                 def _american_to_prob(odds_val: Any) -> float | None:
@@ -26763,7 +26786,8 @@ def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None,
                     df_e['period'] = df_e['period'].astype(str).str.lower()
             except Exception:
                 pass
-            # Build mask: allow spread-like rows even when market label is missing
+            # Build mask: allow spread-like rows even when market label is missing;
+            # if neither market nor spread columns exist, accept rows with edge_margin or pred_margin
             try:
                 n = len(df_e)
             except Exception:
@@ -26782,11 +26806,19 @@ def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None,
                 )
             except Exception:
                 m_cols = pd.Series([False]*n)
+            # Fallback: synthesize ATS when we at least have edge_margin or pred_margin
+            try:
+                m_signals = (
+                    (pd.to_numeric(df_e.get('edge_margin'), errors='coerce').notna() if 'edge_margin' in df_e.columns else _nan_series()) |
+                    (pd.to_numeric(df_e.get('pred_margin'), errors='coerce').notna() if 'pred_margin' in df_e.columns else _nan_series())
+                )
+            except Exception:
+                m_signals = pd.Series([False]*n)
             try:
                 m_period = (df_e.get('period').isin(['full_game','full','game'])) if 'period' in df_e.columns else pd.Series([True]*n)
             except Exception:
                 m_period = pd.Series([True]*n)
-            mask = m_period & (m_mkt | m_cols)
+            mask = m_period & (m_mkt | m_cols | m_signals)
             df_s = df_e[mask] if isinstance(mask, pd.Series) else pd.DataFrame()
             if not df_s.empty:
                 # Ensure basic columns
@@ -26868,10 +26900,11 @@ def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None,
                             nm = str(item.get(f'{side}_team') or '')
                             key = normalize_name(nm)
                             b = branding.get(key) or {}
+                            base_color = b.get('primary') or b.get('secondary')
                             item[f'{side}_key'] = key
                             item[f'{side}_logo'] = b.get('logo')
-                            item[f'{side}_color'] = b.get('primary') or b.get('secondary')
-                            item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                            item[f'{side}_color'] = base_color
+                            item[f'{side}_text_color'] = b.get('text') or _pick_text_color(base_color)
                         # Derive canonical ISO/site display fields when possible using display snapshot
                         try:
                             if ddf is not None and 'game_id' in ddf.columns:
@@ -26977,10 +27010,11 @@ def _derive_ml_from_edges(date_str: str, existing_gids: set[str] | None = None, 
                             nm = str(item.get(f'{side}_team') or '')
                             key = normalize_name(nm)
                             b = branding.get(key) or {}
+                            base_color = b.get('primary') or b.get('secondary')
                             item[f'{side}_key'] = key
                             item[f'{side}_logo'] = b.get('logo')
-                            item[f'{side}_color'] = b.get('primary') or b.get('secondary')
-                            item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                            item[f'{side}_color'] = base_color
+                            item[f'{side}_text_color'] = b.get('text') or _pick_text_color(base_color)
                         # Derive canonical ISO/site display fields when possible using display snapshot
                         try:
                             if ddf is not None and 'game_id' in ddf.columns:
@@ -27017,6 +27051,26 @@ def _derive_ml_from_edges(date_str: str, existing_gids: set[str] | None = None, 
     except Exception:
         return []
     return out_rows
+
+# Global helper: choose readable text color given a hex background (e.g., team primary)
+def _pick_text_color(hex_color: Any) -> str:
+    try:
+        s = str(hex_color or '').strip()
+        if not s:
+            return '#ffffff'
+        if s.startswith('#'):
+            s = s[1:]
+        if len(s) == 3:
+            s = ''.join([ch*2 for ch in s])
+        if len(s) != 6:
+            return '#ffffff'
+        r = int(s[0:2], 16)
+        g = int(s[2:4], 16)
+        b = int(s[4:6], 16)
+        brightness = (0.299*r + 0.587*g + 0.114*b)
+        return '#0a0a0a' if brightness > 180 else '#ffffff'
+    except Exception:
+        return '#ffffff'
 
 @app.route("/api/recommendations_display")
 @app.route("/api/recommendations-display")
