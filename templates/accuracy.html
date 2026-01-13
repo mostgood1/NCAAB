@@ -23,7 +23,7 @@
   <header style="display:flex; align-items:baseline; gap:12px;">
     <h1>Season Accuracy</h1>
     <a href="/">Home</a>
-    <a href="/recommendations?group=1">Recommendations</a>
+    <a href="/recommendations?group=1{% if request.args.get('date') %}&date={{ request.args.get('date') }}{% endif %}">Recommendations</a>
     <a href="/results-archive">Daily Recap</a>
   </header>
   <p class="muted">Model-implied accuracy vs market for ATS and totals; includes daily breakdown and team/conference aggregates.</p>

@@ -54,7 +54,33 @@
       <nav class="nav-links">
         <a href="/dashboard">Dashboard</a>
         <a href="/finals">Final Scores</a>
-        <a href="/recommendations">Recommendations</a>
+  <script>
+    // Defensive: ensure header nav anchors perform hard navigations
+    (function(){
+      try{
+        var nav = document.querySelector('.nav-links');
+        if(nav){
+          nav.querySelectorAll('a[href]').forEach(function(a){
+            a.addEventListener('click', function(ev){
+              try{
+                var href = this.getAttribute('href');
+                if(href && href.indexOf('#')!==0){
+                  // hard navigation to avoid any SPA-style intercepts
+                  // prevent any other click handlers from interfering
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  window.location.assign(href);
+                }
+              }catch(e){}
+            });
+          });
+        }
+      }catch(e){}
+    })();
+  </script>
+        {# Robust date resolution for Recommendations link #}
+        {% set _rec_date = (request.args.get('date') or (date_val if date_val is defined else None) or (date_q if date_q is defined else None) or (status.results_latest if status and status.results_latest is defined else '')) %}
+        <a href="/recommendations?group=1{% if _rec_date %}&date={{ _rec_date }}{% endif %}">Recommendations</a>
         <a href="/stake-sheet">Stake Sheet</a>
         <a href="/coverage">Coverage</a>
         <a href="/calibration">Calibration</a>
@@ -121,7 +147,8 @@
         <div class="title-sm">Recommended Edges</div>
         <div id="recommendedList" class="wrap" aria-live="polite">Loading…</div>
         <div class="spacer"></div>
-        <a href="/recommendations" class="pill">View All</a>
+        {% set _rec_date2 = (request.args.get('date') or (date_val if date_val is defined else None) or (date_q if date_q is defined else None) or (status.results_latest if status and status.results_latest is defined else '')) %}
+        <a href="/recommendations?group=1{% if _rec_date2 %}&date={{ _rec_date2 }}{% endif %}" class="pill">View All</a>
       </div>
     </div>
     <div class="card mb8" id="filtersBar" aria-label="Quick Filters" role="region">

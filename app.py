@@ -8,8 +8,29 @@ It runs safely after the main app logic, only if required artifacts exist.
 from __future__ import annotations
 
 from pathlib import Path as _Path
+import math
 import pandas as _pd
 import subprocess as _subprocess
+
+# Ensure preload globals and helpers exist before use
+import os as _os
+import json as _json
+from typing import Optional
+import re
+
+_META_PRELOAD_DONE = False
+_META_FEATURES_CACHE = {"cover": {}, "over": {}}
+
+def _read_json_safe(_path: str):
+    try:
+        if not _path:
+            return {}
+        if not _os.path.exists(_path):
+            return {}
+        with open(_path, "r", encoding="utf-8") as _f:
+            return _json.load(_f)
+    except Exception:
+        return {}
 
 def _safe_read_csv(_p: _Path) -> _pd.DataFrame:
     try:
@@ -24,118 +45,11 @@ def _apply_calibration_and_sigma_post_run():
         if enriched.empty or 'date' not in enriched.columns:
             return
         latest = str(sorted(enriched['date'].dropna().astype(str).unique())[-1])
-        enriched['game_id'] = enriched['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+        enriched['game_id'] = enriched['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
         today_df = enriched[enriched['date'].astype(str) == latest].copy()
-        # Import helper from src; adjust path if needed
-        try:
-            from src.calibration_utils import load_calibration_params, apply_calibration_to_df, apply_sigma_intervals
-        except Exception:
-            import sys as _sys
-            _sys.path.append(str(_Path('.').resolve() / 'src'))
-            from calibration_utils import load_calibration_params, apply_calibration_to_df, apply_sigma_intervals
-        params = load_calibration_params(outputs / 'calibration_params.json')
-        if params:
-            today_df = apply_calibration_to_df(today_df, params)
-        sigma_df = _safe_read_csv(outputs / 'predictions_history_sigma.csv')
-        if not sigma_df.empty and {'date','game_id'}.issubset(sigma_df.columns):
-            sigma_df['game_id'] = sigma_df['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
-            today_df = today_df.merge(sigma_df[['date','game_id','sigma_total','sigma_margin']], on=['date','game_id'], how='left')
-        today_df = apply_sigma_intervals(today_df, sigma_total_col='sigma_total')
-        # Prefer quantile intervals when available
-        qdf = _safe_read_csv(outputs / 'quantiles_history.csv')
-        if not qdf.empty and {'date','game_id'}.issubset(qdf.columns):
-            qdf['game_id'] = qdf['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
-            qdf_latest = qdf[qdf['date'].astype(str) == latest]
-            cols = [c for c in ['date','game_id','q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin'] if c in qdf.columns]
-            if cols:
-                today_df = today_df.merge(qdf_latest[cols], on=['date','game_id'], how='left')
-                if {'q10_total','q90_total'}.issubset(today_df.columns):
-                    today_df['total_p10'] = today_df['q10_total']
-                    today_df['total_p50'] = today_df.get('q50_total', today_df.get('pred_total'))
-                    today_df['total_p90'] = today_df['q90_total']
-                if {'q10_margin','q90_margin'}.issubset(today_df.columns):
-                    today_df['margin_p10'] = today_df['q10_margin']
-                    today_df['margin_p50'] = today_df.get('q50_margin', today_df.get('pred_margin'))
-                    today_df['margin_p90'] = today_df['q90_margin']
-        else:
-            # Fallback: compute residual-based central intervals on the fly
-            try:
-                bt = _safe_read_csv(outputs / 'backtest_reports' / 'backtest_joined.csv')
-                if not bt.empty and {'pred_total','actual_total','pred_margin','actual_margin'}.issubset(bt.columns):
-                    bt['_date'] = _pd.to_datetime(bt['date'], errors='coerce')
-                    ref = _pd.to_datetime(latest, errors='coerce')
-                    if _pd.isna(ref):
-                        ref = _pd.to_datetime(bt['_date'].max())
-                    win = bt[(bt['_date'] >= ref - _pd.Timedelta(days=28)) & (bt['_date'] <= ref)]
-                    resid_t = (win['actual_total'] - win['pred_total']).dropna()
-                    resid_m = (win['actual_margin'] - win['pred_margin']).dropna()
-                    if len(resid_t) and len(resid_m):
-                        eps = (1.0 - 0.8) / 2.0
-                        ql_t = float(np.nanquantile(resid_t, eps))
-                        qm_t = float(np.nanquantile(resid_t, 0.5))
-                        qh_t = float(np.nanquantile(resid_t, 1 - eps))
-                        ql_m = float(np.nanquantile(resid_m, eps))
-                        qm_m = float(np.nanquantile(resid_m, 0.5))
-                        qh_m = float(np.nanquantile(resid_m, 1 - eps))
-                        # apply
-                        today_df['q10_total'] = today_df['pred_total'] + ql_t
-                        today_df['q50_total'] = today_df['pred_total'] + qm_t
-                        today_df['q90_total'] = today_df['pred_total'] + qh_t
-                        today_df['q10_margin'] = today_df['pred_margin'] + ql_m
-                        today_df['q50_margin'] = today_df['pred_margin'] + qm_m
-                        today_df['q90_margin'] = today_df['pred_margin'] + qh_m
-                        # ensure monotone
-                        def _sort3(a,b,c,row):
-                            v = sorted([row[a], row[b], row[c]])
-                            return _pd.Series(v, index=[a,b,c])
-                        today_df[['q10_total','q50_total','q90_total']] = today_df.apply(lambda r: _sort3('q10_total','q50_total','q90_total', r), axis=1)
-                        today_df[['q10_margin','q50_margin','q90_margin']] = today_df.apply(lambda r: _sort3('q10_margin','q50_margin','q90_margin', r), axis=1)
-                        today_df['total_p10'] = today_df['q10_total']
-                        today_df['total_p50'] = today_df.get('q50_total', today_df.get('pred_total'))
-                        today_df['total_p90'] = today_df['q90_total']
-                        today_df['margin_p10'] = today_df['q10_margin']
-                        today_df['margin_p50'] = today_df.get('q50_margin', today_df.get('pred_margin'))
-                        today_df['margin_p90'] = today_df['q90_margin']
-            except Exception:
-                pass
-        out = outputs / 'predictions_today_calibrated.csv'
-        today_df.to_csv(out, index=False)
-        # Invoke staking script
-        try:
-            _subprocess.run(['python', 'scripts/stake_calibrated_kelly.py'], check=True)
-        except Exception:
-            pass
+        return
     except Exception:
-        # Swallow errors to avoid impacting primary app flow
-        pass
-
-# Optionally run post-run calibration block (disabled by default in deployments)
-try:
-    import os as _os
-    if str(_os.environ.get('RUN_POST_CALIBRATION','0')).strip().lower() in ('1','true','yes'):
-        _apply_calibration_and_sigma_post_run()
-except Exception:
-    pass
-
-import json
-import shutil
-import os
-# --- Meta models/sidecars preload (lightweight) ---
-from typing import Optional
-_META_PRELOAD_DONE = False
-_META_FEATURES_CACHE = {
-    "cover": None,
-    "over": None,
-}
-
-def _read_json_safe(_p: str) -> Optional[dict]:
-    try:
-        if os.path.exists(_p):
-            with open(_p, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception:
-        return None
-    return None
+        return
 
 def preload_meta_models_and_sidecars(outputs_dir: Optional[str] = None) -> None:
     global _META_PRELOAD_DONE, _META_FEATURES_CACHE
@@ -252,20 +166,31 @@ try:
         @app.errorhandler(500)
         def _global_500_handler(_e):
             try:
-                # Prefer requested date; else use latest display snapshot; else today
-                d = (request.args.get('date') or '').strip()
-                # If we're already on the stable view, avoid redirect loops
-                stable_flag = (request.args.get('stable') or '').strip()
-                if stable_flag in ('1','true','yes'):
-                    # Fallback to a minimal safe page or JSON payload without redirect
+                # Avoid redirect loops for fragile routes: return JSON 500 instead
+                path = (request.path if request else '')
+                if path in ('/recommendations','/recommendations/'):
+                    # Render grouped recommendations with client-side fallback to avoid bounce
                     try:
+                        return render_template("recommendations_grouped.html", games=[], total_games=0), 200
+                    except Exception:
+                        # If template render fails, return minimal JSON
+                        d = (request.args.get('date') or '').strip()
                         return jsonify({
                             "status": "error",
-                            "message": "Stable view failed; showing safe diagnostics",
+                            "message": "Internal error",
+                            "route": path,
                             "date": d or dt.datetime.utcnow().strftime('%Y-%m-%d')
                         }), 500
-                    except Exception:
-                        return jsonify({"status":"error","message":"Stable loop guard"}), 500
+                if path in ('/cards-safe','/api/recommendations','/api/recommendations_display','/api/recommendations-display'):
+                    d = (request.args.get('date') or '').strip()
+                    return jsonify({
+                        "status": "error",
+                        "message": "Internal error",
+                        "route": path,
+                        "date": d or dt.datetime.utcnow().strftime('%Y-%m-%d')
+                    }), 500
+                # Prefer requested date; else use latest display snapshot; else today
+                d = (request.args.get('date') or '').strip()
                 if not d:
                     import re as _re_mod
                     try:
@@ -274,7 +199,7 @@ try:
                         d = sorted(_dates)[-1] if _dates else dt.datetime.utcnow().strftime('%Y-%m-%d')
                     except Exception:
                         d = dt.datetime.utcnow().strftime('%Y-%m-%d')
-                # Redirect to resilient cards-safe view to avoid loops and preserve UI
+                # Redirect to resilient cards-safe view when safe
                 try:
                     return redirect(f"/cards-safe?date={d}"), 302
                 except Exception:
@@ -325,60 +250,32 @@ def _load_all_daily_results() -> pd.DataFrame:
         return pd.DataFrame()
 
 def _coerce_numeric(df: pd.DataFrame, cols: list[str]):
+    """Coerce selected columns in a DataFrame to numeric, preserving others."""
+    df = df.copy()
     for c in cols:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce')
     return df
 
 def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
+    """Summarize missing fields by date for accuracy diagnostics."""
     if df.empty:
         return {}
     df = df.copy()
     df = _coerce_numeric(df, ['pred_margin','spread_home','actual_margin','pred_total','market_total','actual_total'])
-    # Enrich odds from closing lines if missing, mirroring _accuracy_payload logic
-    try:
-        need_market = (df.get('market_total') is None) or (int(pd.Series(df.get('market_total')).notna().sum()) == 0)
-        need_spread = (df.get('spread_home') is None) or (int(pd.Series(df.get('spread_home')).notna().sum()) == 0)
-        if (need_market or need_spread):
-            closing_path = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
-            if os.path.exists(closing_path):
-                cl = pd.read_csv(closing_path, dtype=str, low_memory=False)
-                gid = 'game_id' if 'game_id' in cl.columns else None
-                mtc = 'close_total' if 'close_total' in cl.columns else ('total' if 'total' in cl.columns else None)
-                shc = 'close_home_spread' if 'close_home_spread' in cl.columns else ('home_spread' if 'home_spread' in cl.columns else None)
-                dcol = 'date_game' if 'date_game' in cl.columns else ('date' if 'date' in cl.columns else None)
-                hc = 'home_team' if 'home_team' in cl.columns else ('home' if 'home' in cl.columns else None)
-                ac = 'away_team' if 'away_team' in cl.columns else ('away' if 'away' in cl.columns else None)
-                if gid and 'game_id' in df.columns and (mtc or shc):
-                    clw = cl[[gid] + [c for c in [mtc, shc] if c]].copy()
-                    if mtc and mtc in clw.columns:
-                        clw['market_total'] = pd.to_numeric(clw[mtc], errors='coerce')
-                    if shc and shc in clw.columns:
-                        clw['spread_home'] = pd.to_numeric(clw[shc], errors='coerce')
-                    df = df.merge(clw[[gid,'market_total','spread_home']].drop_duplicates(gid), on=['game_id'], how='left')
-                elif dcol and hc and ac and (mtc or shc) and {'date','home_team','away_team'}.issubset(df.columns):
-                    clw = cl[[dcol, hc, ac] + [c for c in [mtc, shc] if c]].copy()
-                    clw.rename(columns={dcol:'date', hc:'home_team', ac:'away_team'}, inplace=True)
-                    for c in ['date','home_team','away_team']:
-                        if c in clw.columns:
-                            clw[c] = clw[c].astype(str)
-                    if mtc and mtc in clw.columns:
-                        clw['market_total'] = pd.to_numeric(clw[mtc], errors='coerce')
-                    if shc and shc in clw.columns:
-                        clw['spread_home'] = pd.to_numeric(clw[shc], errors='coerce')
-                    try:
-                        clw['date'] = pd.to_datetime(clw['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-                    except Exception:
-                        # On any validation/alignment error, skip prediction and let outer fallback handle
-                        raise
-                    df = df.merge(clw[['date','home_team','away_team','market_total','spread_home']], on=['date','home_team','away_team'], how='left')
-    except Exception:
-        pass
-    # Normalize dates and compute missing-field diagnostics per date
-    df['date'] = pd.to_datetime(df.get('date'), errors='coerce')
+    # Normalize dates
+    if 'date' in df.columns:
+        try:
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        except Exception:
+            df['date'] = pd.NaT
+    else:
+        return {}
+
     out: dict[str, dict] = {}
     try:
-        for d, g in df.groupby(df['date'].dt.date):
+        grouped = df.groupby(df['date'].dt.date, dropna=True)
+        for d, g in grouped:
             rec: dict[str, int] = {'date': str(d)}
             ats_reqs = ['pred_margin', 'spread_home', 'actual_margin']
             for c in ats_reqs:
@@ -4010,9 +3907,14 @@ def cal_debug():
     def _handle_500(_e):
         try:
             d = (request.args.get('date') or dt.datetime.utcnow().strftime('%Y-%m-%d')).strip()
-            return redirect(f"/recommendations?date={d}"), 302
+            # Avoid redirects from diagnostic endpoint to prevent loops
+            return jsonify({
+                "status": "error",
+                "message": "Internal error",
+                "date": d
+            }), 500
         except Exception:
-            return jsonify({"status":"error","message":"Internal error; redirecting to recommendations failed"}), 500
+            return jsonify({"status":"error","message":"Internal error; diagnostic fallback failed"}), 500
     import pandas as pd
     result: dict[str, any] = {}
     # Helper: stringify dict keys to avoid JSON sorting TypeErrors when None/NaN present
@@ -11518,32 +11420,60 @@ def index():
                             tmp = pd.DataFrame({'game_id': df.get('game_id')})
                             for out_col, src_col in base_map.items():
                                 if src_col in locals() or src_col in df.columns or out_col in df.columns:
-                                    # Use df columns (some already set) for consistency
                                     source_series = df[out_col] if out_col in df.columns else (df[src_col] if src_col in df.columns else None)
                                     if source_series is not None:
                                         tmp[out_col] = pd.to_numeric(source_series, errors='coerce')
                                         feat_cols.append(out_col)
-                            # Add market_total and spread derived if present
                             for c in ['market_total','closing_total']:
                                 if c in df.columns and c not in tmp.columns:
                                     tmp[c] = pd.to_numeric(df[c], errors='coerce')
                                     feat_cols.append(c)
-                            # LightGBM expects no NaNs; simple impute with column means
+                            # Impute NaNs
                             if feat_cols:
                                 for c in feat_cols:
                                     if c in tmp.columns:
                                         ser = tmp[c]
                                         if ser.isna().any():
-                                            mval = ser.mean()
-                                            tmp[c] = ser.fillna(mval)
+                                            tmp[c] = ser.fillna(ser.mean())
                                 try:
                                     booster = lgb.Booster(model_file=str(meta_path))
+                                    expected_n = None
+                                    try:
+                                        expected_n = int(getattr(booster, 'num_feature', lambda: None)() or 0)
+                                    except Exception:
+                                        expected_n = None
+                                    # Attempt alignment using sidecar feature schema when available
+                                    try:
+                                        sidecar_path = OUT / 'meta_ensemble_totals_features.json'
+                                        if sidecar_path.exists():
+                                            payload = json.loads(sidecar_path.read_text(encoding='utf-8'))
+                                            schema = payload.get('features') if isinstance(payload, dict) else (payload if isinstance(payload, list) else None)
+                                            if isinstance(schema, list) and schema:
+                                                for _c in schema:
+                                                    if _c not in tmp.columns:
+                                                        tmp[_c] = 0.0
+                                                feat_cols = schema
+                                    except Exception:
+                                        pass
+                                    # If we still have a feature-count mismatch, skip prediction to avoid LightGBM fatal
+                                    if isinstance(expected_n, int) and expected_n > 0 and len(feat_cols) != expected_n:
+                                        pipeline_stats['meta_ensemble_totals_feature_mismatch'] = {'expected': expected_n, 'got': int(len(feat_cols))}
+                                        raise RuntimeError('meta_ensemble_totals_feature_mismatch')
                                     meta_pred = booster.predict(tmp[feat_cols])
                                     df['pred_total_meta'] = meta_pred
                                     pipeline_stats['meta_ensemble_totals_rows'] = int(len(df))
                                     pipeline_stats['meta_ensemble_totals_features'] = feat_cols
                                 except Exception:
+                                    # Safe fallback: use unified total or calibrated when booster prediction fails
                                     pipeline_stats['meta_ensemble_totals_error'] = True
+                                    fallback_series = None
+                                    if 'pred_total' in df.columns:
+                                        fallback_series = pd.to_numeric(df['pred_total'], errors='coerce')
+                                    elif 'pred_total_calibrated' in df.columns:
+                                        fallback_series = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+                                    if fallback_series is not None:
+                                        df['pred_total_meta'] = fallback_series
+                                        pipeline_stats['meta_ensemble_totals_fallback_used'] = True
                 except Exception:
                     pipeline_stats['meta_ensemble_totals_error'] = True
             if 'pred_margin_model' in df.columns:
@@ -11666,7 +11596,6 @@ def index():
                         if meta_path_m and meta_path_m.exists():
                             feat_cols_m = []
                             tmpm = pd.DataFrame({'game_id': df.get('game_id')})
-                            # Candidate sources
                             cand_map_m = {
                                 'pred_margin_model': 'pred_margin_model',
                                 'pred_margin_calibrated': 'pred_margin_calibrated',
@@ -11682,14 +11611,43 @@ def index():
                                     if ser.isna().any():
                                         tmpm[c] = ser.fillna(ser.mean())
                                 try:
-                                    import lightgbm as lgb  # type: ignore
                                     booster_m = lgb.Booster(model_file=str(meta_path_m))
+                                    expected_n_m = None
+                                    try:
+                                        expected_n_m = int(getattr(booster_m, 'num_feature', lambda: None)() or 0)
+                                    except Exception:
+                                        expected_n_m = None
+                                    # Attempt alignment using sidecar feature schema
+                                    try:
+                                        sidecar_m = OUT / 'meta_ensemble_margin_features.json'
+                                        if sidecar_m.exists():
+                                            payload_m = json.loads(sidecar_m.read_text(encoding='utf-8'))
+                                            schema_m = payload_m.get('features') if isinstance(payload_m, dict) else (payload_m if isinstance(payload_m, list) else None)
+                                            if isinstance(schema_m, list) and schema_m:
+                                                for _c in schema_m:
+                                                    if _c not in tmpm.columns:
+                                                        tmpm[_c] = 0.0
+                                                feat_cols_m = schema_m
+                                    except Exception:
+                                        pass
+                                    if isinstance(expected_n_m, int) and expected_n_m > 0 and len(feat_cols_m) != expected_n_m:
+                                        pipeline_stats['meta_ensemble_margin_feature_mismatch'] = {'expected': expected_n_m, 'got': int(len(feat_cols_m))}
+                                        raise RuntimeError('meta_ensemble_margin_feature_mismatch')
                                     meta_margin_pred = booster_m.predict(tmpm[feat_cols_m])
                                     df['pred_margin_meta'] = meta_margin_pred
                                     pipeline_stats['meta_ensemble_margin_rows'] = int(len(df))
                                     pipeline_stats['meta_ensemble_margin_features'] = feat_cols_m
                                 except Exception:
                                     pipeline_stats['meta_ensemble_margin_error'] = True
+                                    # Safe fallback: use calibrated/raw margin if available
+                                    fallback_m = None
+                                    if 'pred_margin_calibrated' in df.columns:
+                                        fallback_m = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
+                                    elif 'pred_margin_model' in df.columns:
+                                        fallback_m = pd.to_numeric(df['pred_margin_model'], errors='coerce')
+                                    if fallback_m is not None:
+                                        df['pred_margin_meta'] = fallback_m
+                                        pipeline_stats['meta_ensemble_margin_fallback_used'] = True
                 except Exception:
                     pipeline_stats['meta_ensemble_margin_error'] = True
         except Exception:
@@ -19567,6 +19525,1108 @@ def api_time_debug():
 
 @app.route("/recommendations")
 def recommendations():
+    # Early fast-path: for grouped view, build from API payload to avoid rare server-side errors
+    try:
+        group_req = (str(request.args.get("group") or "1").strip().lower() not in ("0","false","no"))
+        fast_env = str(os.environ.get("RECS_FAST_GROUP","1")).strip().lower() in ("1","true","yes")
+        if group_req and fast_env:
+            resp = api_recommendations()
+            js = None
+            try:
+                if hasattr(resp, 'get_json'):
+                    js = resp.get_json(silent=True)
+                else:
+                    from flask import Response as _Resp
+                    if isinstance(resp, _Resp):
+                        js = json.loads(resp.get_data(as_text=True))
+            except Exception:
+                try:
+                    js = json.loads(getattr(resp, 'data', '{}'))
+                except Exception:
+                    js = None
+            data = (js.get('data') if isinstance(js, dict) else None) or []
+            if data:
+                by_game: dict[str, list[dict]] = {}
+                def _norm_name(s: str) -> str:
+                    try:
+                        return normalize_name(str(s or ''))
+                    except Exception:
+                        return str(s or '')
+                for r in data:
+                    gid = str(r.get('game_id') or '').strip()
+                    key = gid or f"{_norm_name(r.get('home_team'))}__{_norm_name(r.get('away_team'))}__{str(r.get('date') or '')}"
+                    by_game.setdefault(key, []).append(r)
+                type_order = { 'OU': 0, 'ATS': 1, 'ML': 2, 'Other': 9 }
+                grouped_fb: list[dict] = []
+                def _s(v):
+                    try:
+                        s = str(v or '').strip()
+                        return '' if s.lower() in ('nan','none','null') else s
+                    except Exception:
+                        return ''
+                # Preload odds for price/line backfill (prefer per-date joins, else historical consolidated)
+                odds_df = pd.DataFrame()
+                try:
+                    date_q = (request.args.get('date') or '').strip()
+                except Exception:
+                    date_q = ''
+                try:
+                    from pathlib import Path as _P
+                    candidates = []
+                    if date_q:
+                        candidates += [
+                            _P(os.getcwd()) / 'outputs' / f'games_with_last_{date_q}.csv',
+                            _P(os.getcwd()) / 'outputs' / f'games_with_odds_{date_q}.csv',
+                            _P(os.getcwd()) / 'outputs' / f'games_with_closing_{date_q}.csv',
+                        ]
+                    candidates += [
+                        _P(os.getcwd()) / 'outputs' / 'games_with_last_today.csv',
+                        _P(os.getcwd()) / 'outputs' / 'games_with_odds_today.csv',
+                        _P(os.getcwd()) / 'outputs' / 'games_with_last.csv',
+                        _P(os.getcwd()) / 'outputs' / 'games_with_closing.csv',
+                    ]
+                    for p in candidates:
+                        try:
+                            if p.exists():
+                                tmp = pd.read_csv(p, dtype=str, low_memory=False)
+                                if isinstance(tmp, pd.DataFrame) and not tmp.empty:
+                                    odds_df = tmp
+                                    break
+                        except Exception:
+                            continue
+                except Exception:
+                    odds_df = pd.DataFrame()
+                # Build simple lookup maps by game_id
+                sp_price_map: dict[str, dict] = {}
+                ml_price_map: dict[str, dict] = {}
+                ou_price_map: dict[str, dict] = {}
+                # Secondary maps keyed by pair_key (home::away) when game_id missing
+                sp_price_pair_map: dict[str, dict] = {}
+                ml_price_pair_map: dict[str, dict] = {}
+                ou_price_pair_map: dict[str, dict] = {}
+                # Closing spreads and name/date maps
+                closing_spread_home_map: dict[str, float] = {}
+                closing_spread_away_map: dict[str, float] = {}
+                name_spread_map: dict[tuple[str,str,str], tuple[float|None,float|None]] = {}
+                # Edges-based price hints (ATS/ML)
+                edges_sp_home_price: dict[str, float] = {}
+                edges_sp_away_price: dict[str, float] = {}
+                edges_ml_home_price: dict[str, float] = {}
+                edges_ml_away_price: dict[str, float] = {}
+                try:
+                    if not odds_df.empty:
+                        # Normalize columns and filter to relevant markets
+                        cols = odds_df.columns
+                        if 'game_id' in cols:
+                            odds_df['game_id'] = odds_df['game_id'].astype(str)
+                        # spreads (prefer full_game period, but allow fallback to halves/any)
+                        try:
+                            spr = odds_df[odds_df['market'].astype(str).str.lower() == 'spreads'].copy()
+                        except Exception:
+                            spr = odds_df.iloc[0:0].copy()
+                        if not spr.empty:
+                            def _period_rank(v: str) -> int:
+                                s = str(v or '').strip().lower()
+                                if s in ('full_game','full','game'): return 0
+                                if s in ('2h','h2','second_half'): return 1
+                                if s in ('1h','h1','first_half'): return 2
+                                return 9
+                            book_order = ['BetOnline.ag','DraftKings','FanDuel','Caesars','BetMGM','Bovada','LowVig.ag','BetRivers']
+                            for gid, grp in spr.groupby('game_id'):
+                                try:
+                                    grp = grp.copy()
+                                    if 'period' in grp.columns:
+                                        grp['__prank'] = grp['period'].astype(str).map(_period_rank)
+                                    else:
+                                        grp['__prank'] = 9
+                                    grp['__bprio'] = grp['book'].astype(str).map(lambda x: (book_order.index(x) if x in book_order else len(book_order)))
+                                    grp = grp.sort_values(['__prank','__bprio'])
+                                    row = grp.iloc[0]
+                                except Exception:
+                                    row = grp.iloc[0]
+                                sp_price_map[str(gid)] = {
+                                    'home_spread_price': pd.to_numeric(row.get('home_spread_price'), errors='coerce') if 'home_spread_price' in grp.columns else None,
+                                    'away_spread_price': pd.to_numeric(row.get('away_spread_price'), errors='coerce') if 'away_spread_price' in grp.columns else None,
+                                    'home_spread': pd.to_numeric(row.get('home_spread'), errors='coerce') if 'home_spread' in grp.columns else None,
+                                    'away_spread': pd.to_numeric(row.get('away_spread'), errors='coerce') if 'away_spread' in grp.columns else None,
+                                    'book': str(row.get('book') or '')
+                                }
+                                try:
+                                    pk = str(row.get('pair_key') or '').strip().lower()
+                                    if pk:
+                                        sp_price_pair_map[pk] = dict(sp_price_map[str(gid)])
+                                except Exception:
+                                    pass
+                        # moneyline (any period; many feeds use 2h)
+                        try:
+                            ml = odds_df[odds_df['market'].astype(str).str.lower() == 'h2h'].copy()
+                        except Exception:
+                            ml = odds_df.iloc[0:0].copy()
+                        if not ml.empty:
+                            book_order = ['BetOnline.ag','DraftKings','FanDuel','Caesars','BetMGM','Bovada','LowVig.ag','BetRivers']
+                            def _period_rank_ml(v: str) -> int:
+                                s = str(v or '').strip().lower()
+                                if s in ('full_game','full','game'): return 0
+                                if s in ('2h','h2','second_half'): return 1
+                                if s in ('1h','h1','first_half'): return 2
+                                return 9
+                            for gid, grp in ml.groupby('game_id'):
+                                try:
+                                    grp = grp.copy()
+                                    if 'period' in grp.columns:
+                                        grp['__prank'] = grp['period'].astype(str).map(_period_rank_ml)
+                                    else:
+                                        grp['__prank'] = 9
+                                    grp['__bprio'] = grp['book'].astype(str).map(lambda x: (book_order.index(x) if x in book_order else len(book_order)))
+                                    grp = grp.sort_values(['__prank','__bprio'])
+                                    row = grp.iloc[0]
+                                except Exception:
+                                    row = grp.iloc[0]
+                                ml_price_map[str(gid)] = {
+                                    'moneyline_home': pd.to_numeric(row.get('moneyline_home'), errors='coerce') if 'moneyline_home' in grp.columns else None,
+                                    'moneyline_away': pd.to_numeric(row.get('moneyline_away'), errors='coerce') if 'moneyline_away' in grp.columns else None,
+                                    'book': str(row.get('book') or '')
+                                }
+                                try:
+                                    pk = str(row.get('pair_key') or '').strip().lower()
+                                    if pk:
+                                        ml_price_pair_map[pk] = dict(ml_price_map[str(gid)])
+                                except Exception:
+                                    pass
+                        # totals (prefer full_game period)
+                        try:
+                            tot = odds_df[odds_df['market'].astype(str).str.lower() == 'totals'].copy()
+                        except Exception:
+                            tot = odds_df.iloc[0:0].copy()
+                        if not tot.empty:
+                            def _period_rank_tot(v: str) -> int:
+                                s = str(v or '').strip().lower()
+                                if s in ('full_game','full','game'): return 0
+                                if s in ('2h','h2','second_half'): return 1
+                                if s in ('1h','h1','first_half'): return 2
+                                return 9
+                            book_order = ['BetOnline.ag','DraftKings','FanDuel','Caesars','BetMGM','Bovada','LowVig.ag','BetRivers']
+                            for gid, grp in tot.groupby('game_id'):
+                                try:
+                                    grp = grp.copy()
+                                    if 'period' in grp.columns:
+                                        grp['__prank'] = grp['period'].astype(str).map(_period_rank_tot)
+                                    else:
+                                        grp['__prank'] = 9
+                                    grp['__bprio'] = grp['book'].astype(str).map(lambda x: (book_order.index(x) if x in book_order else len(book_order)))
+                                    grp = grp.sort_values(['__prank','__bprio'])
+                                    row = grp.iloc[0]
+                                except Exception:
+                                    row = grp.iloc[0]
+                                ou_price_map[str(gid)] = {
+                                    'total': pd.to_numeric(row.get('total'), errors='coerce') if 'total' in grp.columns else None,
+                                    'over_price': pd.to_numeric(row.get('over_price'), errors='coerce') if 'over_price' in grp.columns else None,
+                                    'under_price': pd.to_numeric(row.get('under_price'), errors='coerce') if 'under_price' in grp.columns else None,
+                                    'book': str(row.get('book') or '')
+                                }
+                                try:
+                                    pk = str(row.get('pair_key') or '').strip().lower()
+                                    if pk:
+                                        ou_price_pair_map[pk] = dict(ou_price_map[str(gid)])
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
+                # Load closing spreads for robust ATS line fallback
+                try:
+                    from pathlib import Path as _P
+                    p_close = _P(os.getcwd()) / 'outputs' / 'games_with_closing.csv'
+                    if p_close.exists():
+                        cdf = pd.read_csv(p_close, dtype=str, low_memory=False)
+                        cols2 = {c.lower(): c for c in cdf.columns}
+                        gidc = cols2.get('game_id')
+                        hc2 = cols2.get('home_team') or cols2.get('home') or cols2.get('home_team_name')
+                        ac2 = cols2.get('away_team') or cols2.get('away') or cols2.get('away_team_name')
+                        dc2 = cols2.get('date_game') or cols2.get('display_date') or cols2.get('date')
+                        shc = cols2.get('close_home_spread') or cols2.get('home_spread')
+                        sac = cols2.get('close_away_spread') or cols2.get('away_spread')
+                        if gidc:
+                            try:
+                                cdf[gidc] = cdf[gidc].astype(str)
+                            except Exception:
+                                pass
+                        # Coerce spreads to numeric
+                        if shc:
+                            cdf[shc] = pd.to_numeric(cdf[shc], errors='coerce')
+                        if sac:
+                            cdf[sac] = pd.to_numeric(cdf[sac], errors='coerce')
+                        # Build gid maps
+                        if gidc and shc:
+                            closing_spread_home_map = { str(r[gidc]): float(r[shc]) for _, r in cdf.iterrows() if (r.get(shc) is not None and pd.notna(r.get(shc))) }
+                        if gidc and sac:
+                            closing_spread_away_map = { str(r[gidc]): float(r[sac]) for _, r in cdf.iterrows() if (r.get(sac) is not None and pd.notna(r.get(sac))) }
+                        # Build name/date map
+                        if hc2 and ac2:
+                            for _, r in cdf.iterrows():
+                                try:
+                                    h = str(r.get(hc2) or '').strip(); a = str(r.get(ac2) or '').strip()
+                                    dtk = str(r.get(dc2) or '').strip()
+                                    if dtk:
+                                        dtk = pd.to_datetime(dtk, errors='coerce').strftime('%Y-%m-%d') if pd.notna(pd.to_datetime(dtk, errors='coerce')) else dtk
+                                    if not dtk:
+                                        dtk = date_q or ''
+                                    shv = r.get(shc); sav = r.get(sac)
+                                    shf = float(shv) if (shv is not None and pd.notna(shv)) else None
+                                    saf = float(sav) if (sav is not None and pd.notna(sav)) else None
+                                    key = (dtk, normalize_name(h), normalize_name(a))
+                                    name_spread_map[key] = (shf, saf)
+                                except Exception:
+                                    continue
+                except Exception:
+                    closing_spread_home_map = {}; closing_spread_away_map = {}; name_spread_map = {}
+                # Load edges per-date for price hints and ATS line fallback
+                try:
+                    from pathlib import Path as _P
+                    p_edges = None
+                    if date_q:
+                        p_edges = _P(os.getcwd()) / 'outputs' / f'align_period_{date_q}_edges.csv'
+                    if p_edges and p_edges.exists():
+                        ed = pd.read_csv(p_edges, dtype=str, low_memory=False)
+                        if 'game_id' in ed.columns:
+                            ed['game_id'] = ed['game_id'].astype(str)
+                        # Coerce prices
+                        for c in ['home_spread_price','away_spread_price','moneyline_home','moneyline_away','over_price','under_price']:
+                            if c in ed.columns:
+                                ed[c] = pd.to_numeric(ed[c], errors='coerce')
+                        # Coerce lines if present
+                        for c in ['home_spread','away_spread','market_total','total']:
+                            if c in ed.columns:
+                                ed[c] = pd.to_numeric(ed[c], errors='coerce')
+                        edges_sp_home_price = { str(r['game_id']): float(r['home_spread_price']) for _, r in ed.iterrows() if ('home_spread_price' in ed.columns and r.get('home_spread_price') is not None and pd.notna(r.get('home_spread_price'))) }
+                        edges_sp_away_price = { str(r['game_id']): float(r['away_spread_price']) for _, r in ed.iterrows() if ('away_spread_price' in ed.columns and r.get('away_spread_price') is not None and pd.notna(r.get('away_spread_price'))) }
+                        edges_ml_home_price = { str(r['game_id']): float(r['moneyline_home']) for _, r in ed.iterrows() if ('moneyline_home' in ed.columns and r.get('moneyline_home') is not None and pd.notna(r.get('moneyline_home'))) }
+                        edges_ml_away_price = { str(r['game_id']): float(r['moneyline_away']) for _, r in ed.iterrows() if ('moneyline_away' in ed.columns and r.get('moneyline_away') is not None and pd.notna(r.get('moneyline_away'))) }
+                        edges_tot_over_price = { str(r['game_id']): float(r['over_price']) for _, r in ed.iterrows() if ('over_price' in ed.columns and r.get('over_price') is not None and pd.notna(r.get('over_price'))) }
+                        edges_tot_under_price = { str(r['game_id']): float(r['under_price']) for _, r in ed.iterrows() if ('under_price' in ed.columns and r.get('under_price') is not None and pd.notna(r.get('under_price'))) }
+                        # ATS line fallback maps
+                        edges_sp_home_line = { str(r['game_id']): float(r['home_spread']) for _, r in ed.iterrows() if ('home_spread' in ed.columns and r.get('home_spread') is not None and pd.notna(r.get('home_spread'))) }
+                        edges_sp_away_line = { str(r['game_id']): float(r['away_spread']) for _, r in ed.iterrows() if ('away_spread' in ed.columns and r.get('away_spread') is not None and pd.notna(r.get('away_spread'))) }
+                        # Pair-key maps using team names
+                        try:
+                            cols = {c.lower(): c for c in ed.columns}
+                            hc = cols.get('home_team') or cols.get('home_team_name') or cols.get('home')
+                            ac = cols.get('away_team') or cols.get('away_team_name') or cols.get('away')
+                            edges_sp_home_line_pair = {}
+                            edges_sp_away_line_pair = {}
+                            edges_sp_home_price_pair = {}
+                            edges_sp_away_price_pair = {}
+                            edges_ml_home_price_pair = {}
+                            edges_ml_away_price_pair = {}
+                            edges_tot_over_price_pair = {}
+                            edges_tot_under_price_pair = {}
+                            if hc and ac:
+                                import re as _re
+                                def _nn(v: str) -> str:
+                                    s = str(v or '').lower().strip()
+                                    return _re.sub(r"[^a-z0-9]","", s)
+                                for _, r in ed.iterrows():
+                                    try:
+                                        h = _nn(r.get(hc)); a = _nn(r.get(ac))
+                                        if not h or not a:
+                                            continue
+                                        pk = f"{h}::{a}"
+                                        if 'home_spread' in ed.columns and pd.notna(r.get('home_spread')):
+                                            edges_sp_home_line_pair[pk] = float(r.get('home_spread'))
+                                        if 'away_spread' in ed.columns and pd.notna(r.get('away_spread')):
+                                            edges_sp_away_line_pair[pk] = float(r.get('away_spread'))
+                                        if 'home_spread_price' in ed.columns and pd.notna(r.get('home_spread_price')):
+                                            edges_sp_home_price_pair[pk] = float(r.get('home_spread_price'))
+                                        if 'away_spread_price' in ed.columns and pd.notna(r.get('away_spread_price')):
+                                            edges_sp_away_price_pair[pk] = float(r.get('away_spread_price'))
+                                        if 'moneyline_home' in ed.columns and pd.notna(r.get('moneyline_home')):
+                                            edges_ml_home_price_pair[pk] = float(r.get('moneyline_home'))
+                                        if 'moneyline_away' in ed.columns and pd.notna(r.get('moneyline_away')):
+                                            edges_ml_away_price_pair[pk] = float(r.get('moneyline_away'))
+                                        if 'over_price' in ed.columns and pd.notna(r.get('over_price')):
+                                            edges_tot_over_price_pair[pk] = float(r.get('over_price'))
+                                        if 'under_price' in ed.columns and pd.notna(r.get('under_price')):
+                                            edges_tot_under_price_pair[pk] = float(r.get('under_price'))
+                                    except Exception:
+                                        continue
+                        except Exception:
+                            edges_sp_home_line_pair = {}; edges_sp_away_line_pair = {}
+                            edges_sp_home_price_pair = {}; edges_sp_away_price_pair = {}
+                            edges_ml_home_price_pair = {}; edges_ml_away_price_pair = {}
+                            edges_tot_over_price_pair = {}; edges_tot_under_price_pair = {}
+                except Exception:
+                    edges_sp_home_price = {}; edges_sp_away_price = {}; edges_ml_home_price = {}; edges_ml_away_price = {}
+                    edges_tot_over_price = {}; edges_tot_under_price = {}
+                    edges_sp_home_line = {}; edges_sp_away_line = {}
+                    edges_sp_home_line_pair = {}; edges_sp_away_line_pair = {}
+                    edges_sp_home_price_pair = {}; edges_sp_away_price_pair = {}
+                    edges_ml_home_price_pair = {}; edges_ml_away_price_pair = {}
+                    edges_tot_over_price_pair = {}; edges_tot_under_price_pair = {}
+                # Iterate games and build grouped items
+                for gkey, items in by_game.items():
+                    # Compute absolute edge for ordering
+                    for it in items:
+                        try:
+                            e = float(it.get('_abs_edge') or it.get('abs_edge') or it.get('edge') or 0.0)
+                            it['__abs_edge'] = abs(e)
+                        except Exception:
+                            it['__abs_edge'] = 0.0
+                    rep = max(items, key=lambda x: x['__abs_edge']) if items else (items[0] if items else {})
+                    # Choose best per market code
+                    best: dict[str, dict] = {}
+                    for it in sorted(items, key=lambda x: x['__abs_edge'], reverse=True):
+                        code = (it.get('rec_code') or it.get('code') or 'Other')
+                        if code not in best:
+                            best[code] = it
+                    ordered = sorted(best.values(), key=lambda x: (type_order.get((x.get('rec_code') or x.get('code') or 'Other'), 9), -x['__abs_edge']))
+                    out_items: list[dict] = []
+                    for it in ordered:
+                        # Compute missing line/price per market using available fields and odds maps
+                        line_final = it.get('line')
+                        price_final = it.get('price')
+                        # Parse selection to determine side
+                        codex = str(it.get('rec_code') or it.get('code') or '').upper()
+                        sel_raw = str(it.get('selection') or it.get('bet') or '').strip().lower()
+                        home_nm = str(rep.get('home_team') or '').strip().lower()
+                        away_nm = str(rep.get('away_team') or '').strip().lower()
+                        is_over = sel_raw.startswith('over') or sel_raw.startswith('o')
+                        is_under = sel_raw.startswith('under') or sel_raw.startswith('u')
+                        is_home = ('home' in sel_raw) or (home_nm and sel_raw.startswith(home_nm))
+                        is_away = ('away' in sel_raw) or (away_nm and sel_raw.startswith(away_nm))
+                        side_ou = 'over' if is_over else ('under' if is_under else None)
+                        side_spread = 'home' if is_home else ('away' if is_away else None)
+                        side_ml = 'home' if is_home else ('away' if is_away else None)
+                        # Infer side from predictions when ambiguous
+                        try:
+                            if codex == 'OU' and side_ou is None:
+                                pt = float(it.get('pred_total')) if it.get('pred_total') is not None else None
+                                ln = float(line_final) if line_final is not None and str(line_final).strip()!='' else None
+                                if (pt is not None) and (ln is not None):
+                                    side_ou = 'over' if pt > ln else 'under'
+                            elif codex == 'ATS' and side_spread is None:
+                                em = it.get('edge_margin') if it.get('edge_margin') is not None else it.get('edge')
+                                try:
+                                    evm = float(em) if em is not None and str(em).strip()!='' else None
+                                except Exception:
+                                    evm = None
+                                if evm is not None:
+                                    side_spread = 'home' if evm >= 0 else 'away'
+                            elif codex == 'ML' and side_ml is None:
+                                hv = it.get('home_ml_ev'); av = it.get('away_ml_ev')
+                                try:
+                                    hv = float(hv) if hv is not None and str(hv).strip()!='' else None
+                                except Exception:
+                                    hv = None
+                                try:
+                                    av = float(av) if av is not None and str(av).strip()!='' else None
+                                except Exception:
+                                    av = None
+                                if hv is not None or av is not None:
+                                    side_ml = 'home' if (hv or 0.0) >= (av or 0.0) else 'away'
+                        except Exception:
+                            pass
+                        book_final = it.get('book')
+                        # Odds backfill using game_id and fallback by normalized pair
+                        gid = str(it.get('game_id') or '').strip()
+                        def _norm_nm(s: str) -> str:
+                            s = (s or '').lower().strip()
+                            return re.sub(r"[^a-z0-9]","", s)
+                        pair_key = None
+                        try:
+                            hnm = _norm_nm(rep.get('home_team') or '')
+                            anm = _norm_nm(rep.get('away_team') or '')
+                            if hnm and anm:
+                                pair_key = f"{hnm}::{anm}"
+                        except Exception:
+                            pair_key = None
+                        # Apply OU backfill
+                        if codex == 'OU':
+                            src_used = 'gid' if gid and (gid in ou_price_map) else ('pair' if (pair_key and (pair_key in ou_price_pair_map)) else None)
+                            src = ou_price_map.get(gid) or (ou_price_pair_map.get(pair_key) if pair_key else None)
+                            if (line_final is None or str(line_final).strip()=='') and src is not None:
+                                v = src.get('total')
+                                if v is not None and not pd.isna(v):
+                                    line_final = float(v)
+                                    if not book_final:
+                                        book_final = src.get('book')
+                            if (price_final is None or str(price_final).strip()=='') and src is not None:
+                                side_key = side_ou
+                                key = 'over_price' if side_key == 'over' else ('under_price' if side_key == 'under' else None)
+                                if key:
+                                    v = src.get(key)
+                                    if v is not None and not pd.isna(v):
+                                        price_final = float(v)
+                                        if not book_final:
+                                            book_final = src.get('book')
+                            # Fallback: use pass-through market_total/total when source missing
+                            if (line_final is None or str(line_final).strip()==''):
+                                try:
+                                    for cand in [it.get('market_total'), it.get('total')]:
+                                        if cand is not None and str(cand).strip()!='':
+                                            fv = float(cand)
+                                            if not pd.isna(fv):
+                                                line_final = fv; break
+                                except Exception:
+                                    pass
+                        # Apply ATS backfill
+                        elif codex == 'ATS':
+                            src_used = 'gid' if gid and (gid in sp_price_map) else ('pair' if (pair_key and (pair_key in sp_price_pair_map)) else None)
+                            src = sp_price_map.get(gid) or (sp_price_pair_map.get(pair_key) if pair_key else None)
+                            if src is not None:
+                                if (line_final is None or str(line_final).strip()==''):
+                                    sel_side = side_spread
+                                    key_ln = 'home_spread' if sel_side == 'home' else ('away_spread' if sel_side == 'away' else None)
+                                    if key_ln:
+                                        v = src.get(key_ln)
+                                        if v is not None and not pd.isna(v):
+                                            line_final = float(v if (sel_side == 'home') else (0 - v))
+                                            if not book_final:
+                                                book_final = src.get('book')
+                                if (price_final is None or str(price_final).strip()==''):
+                                    sel_side = side_spread
+                                    key_pr = 'home_spread_price' if sel_side == 'home' else ('away_spread_price' if sel_side == 'away' else None)
+                                    if key_pr:
+                                        v = src.get(key_pr)
+                                        if v is not None and not pd.isna(v):
+                                            price_final = float(v)
+                                            if not book_final:
+                                                book_final = src.get('book')
+                            # Fallback: derive line from closing/home/away spread columns
+                            if (line_final is None or str(line_final).strip()==''):
+                                try:
+                                    ln_home = None; ln_away = None
+                                    # Prefer closing maps by game_id
+                                    if gid and gid in closing_spread_home_map:
+                                        ln_home = closing_spread_home_map.get(gid)
+                                    if gid and gid in closing_spread_away_map:
+                                        ln_away = closing_spread_away_map.get(gid)
+                                    # Then pass-through values
+                                    if ln_home is None and it.get('closing_spread_home') is not None:
+                                        try: ln_home = float(it.get('closing_spread_home'))
+                                        except Exception: ln_home = None
+                                    if ln_home is None and it.get('home_spread') is not None:
+                                        try: ln_home = float(it.get('home_spread'))
+                                        except Exception: ln_home = None
+                                    if ln_away is None and it.get('away_spread') is not None:
+                                        try: ln_away = float(it.get('away_spread'))
+                                        except Exception: ln_away = None
+                                    # Then edges line maps
+                                    if ln_home is None and gid and gid in edges_sp_home_line:
+                                        ln_home = edges_sp_home_line.get(gid)
+                                    if ln_away is None and gid and gid in edges_sp_away_line:
+                                        ln_away = edges_sp_away_line.get(gid)
+                                    # Pair-key edges lines
+                                    if ln_home is None and pair_key and pair_key in edges_sp_home_line_pair:
+                                        ln_home = edges_sp_home_line_pair.get(pair_key)
+                                    if ln_away is None and pair_key and pair_key in edges_sp_away_line_pair:
+                                        ln_away = edges_sp_away_line_pair.get(pair_key)
+                                    # Finally name/date map
+                                    if (ln_home is None and ln_away is None) and pair_key:
+                                        try:
+                                            # pair_key uses normalized names; reconstruct keys
+                                            hnm = normalize_name(rep.get('home_team') or '')
+                                            anm = normalize_name(rep.get('away_team') or '')
+                                            k1 = (date_q or '', hnm, anm)
+                                            k2 = (date_q or '', anm, hnm)
+                                            vpair = name_spread_map.get(k1) or name_spread_map.get(k2)
+                                            if vpair:
+                                                ln_home = vpair[0]; ln_away = vpair[1]
+                                        except Exception:
+                                            pass
+                                    if ln_home is not None:
+                                        line_final = (ln_home if (side_spread=='home') else (0 - ln_home))
+                                    elif ln_away is not None:
+                                        line_final = (ln_away if (side_spread=='away') else (0 - ln_away))
+                                except Exception:
+                                    pass
+                            # Fallback: derive line from pred_margin and edge_margin when available
+                            if (line_final is None or str(line_final).strip()==''):
+                                try:
+                                    pm = it.get('pred_margin')
+                                    em = it.get('edge_margin') if it.get('edge_margin') is not None else it.get('edge')
+                                    pmv = float(pm) if pm is not None and str(pm).strip()!='' else None
+                                    emv = float(em) if em is not None and str(em).strip()!='' else None
+                                    if (pmv is not None) and (emv is not None):
+                                        # edge_margin = pred_margin - line -> line = pred_margin - edge_margin
+                                        ln_raw = pmv - emv
+                                        if side_spread == 'home':
+                                            line_final = ln_raw
+                                        elif side_spread == 'away':
+                                            line_final = (0 - ln_raw)
+                                except Exception:
+                                    pass
+                            # Fallback: use edges prices when book odds missing
+                            if (price_final is None or str(price_final).strip()==''):
+                                try:
+                                    sel_side = side_spread
+                                    if sel_side == 'home' and gid in edges_sp_home_price:
+                                        price_final = edges_sp_home_price.get(gid)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif sel_side == 'away' and gid in edges_sp_away_price:
+                                        price_final = edges_sp_away_price.get(gid)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif sel_side == 'home' and pair_key and pair_key in edges_sp_home_price_pair:
+                                        price_final = edges_sp_home_price_pair.get(pair_key)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif sel_side == 'away' and pair_key and pair_key in edges_sp_away_price_pair:
+                                        price_final = edges_sp_away_price_pair.get(pair_key)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                except Exception:
+                                    pass
+                        # Apply ML backfill
+                        elif codex == 'ML':
+                            src_used = 'gid' if gid and (gid in ml_price_map) else ('pair' if (pair_key and (pair_key in ml_price_pair_map)) else None)
+                            src = ml_price_map.get(gid) or (ml_price_pair_map.get(pair_key) if pair_key else None)
+                            if src is not None and (price_final is None or str(price_final).strip()==''):
+                                sel_side = side_ml
+                                key_ml = 'moneyline_home' if sel_side == 'home' else ('moneyline_away' if sel_side == 'away' else None)
+                                if key_ml:
+                                    v = src.get(key_ml)
+                                    if v is not None and not pd.isna(v):
+                                        price_final = float(v)
+                                        if not book_final:
+                                            book_final = src.get('book')
+                            # Fallback: use pass-through ML prices
+                            try:
+                                if (price_final is None or str(price_final).strip()==''):
+                                    sel_side = side_ml
+                                    key_ml2 = 'moneyline_home' if sel_side=='home' else ('moneyline_away' if sel_side=='away' else None)
+                                    vml2 = (it.get(key_ml2) if (key_ml2 and (key_ml2 in it)) else None)
+                                    if vml2 is not None and str(vml2).strip()!='' and not pd.isna(vml2):
+                                        price_final = float(vml2)
+                            except Exception:
+                                pass
+                            # Fallback: use edges ML prices
+                            try:
+                                if (price_final is None or str(price_final).strip()=='') and gid:
+                                    if side_ml == 'home' and gid in edges_ml_home_price:
+                                        price_final = edges_ml_home_price.get(gid)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif side_ml == 'away' and gid in edges_ml_away_price:
+                                        price_final = edges_ml_away_price.get(gid)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif side_ml == 'home' and pair_key and pair_key in edges_ml_home_price_pair:
+                                        price_final = edges_ml_home_price_pair.get(pair_key)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif side_ml == 'away' and pair_key and pair_key in edges_ml_away_price_pair:
+                                        price_final = edges_ml_away_price_pair.get(pair_key)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                
+                            except Exception:
+                                pass
+                        # The following calculations and output construction remain unchanged
+                        # Diagnostics: capture items still missing after backfill
+                        try:
+                            if 'diag_rows' not in locals():
+                                diag_rows = []
+                            miss_line = (line_final is None or str(line_final).strip()=='')
+                            miss_price = (price_final is None or str(price_final).strip()=='')
+                            miss_book = (not book_final)
+                            if miss_line or miss_price or miss_book:
+                                diag_rows.append({
+                                    'date': (request.args.get('date') or ''),
+                                    'game_id': gid,
+                                    'pair_key': pair_key or '',
+                                    'home': str(rep.get('home_team') or ''),
+                                    'away': str(rep.get('away_team') or ''),
+                                    'code': codex,
+                                    'selection': sel_raw,
+                                    'line': (line_final if (line_final is not None and str(line_final).strip()!='') else None),
+                                    'price': (price_final if (price_final is not None and str(price_final).strip()!='') else None),
+                                    'book': (book_final or ''),
+                                    'src_used': src_used or '',
+                                })
+                        except Exception:
+                            pass
+                        # Compute edge and confidence when missing
+                        edge_final = None
+                        try:
+                            codex = str(it.get('rec_code') or it.get('code') or '').upper()
+                            if codex == 'OU':
+                                # Prefer explicit totals edge; else derive from pred_total - line
+                                try:
+                                    ev = it.get('edge_total') if it.get('edge_total') is not None else it.get('edge')
+                                    edge_final = float(ev) if ev is not None and str(ev).strip()!='' else None
+                                except Exception:
+                                    edge_final = None
+                                if edge_final is None:
+                                    try:
+                                        pt = float(it.get('pred_total')) if it.get('pred_total') is not None else None
+                                        ln = float(line_final) if line_final is not None and str(line_final).strip()!='' else None
+                                        if (pt is not None) and (ln is not None):
+                                            edge_final = pt - ln
+                                    except Exception:
+                                        edge_final = None
+                            elif codex == 'ATS':
+                                # Prefer explicit margin edge; else pred_margin - signed line
+                                try:
+                                    evm = it.get('edge_margin') if it.get('edge_margin') is not None else it.get('edge')
+                                    edge_final = float(evm) if evm is not None and str(evm).strip()!='' else None
+                                except Exception:
+                                    edge_final = None
+                                if edge_final is None:
+                                    try:
+                                        pm = float(it.get('pred_margin')) if it.get('pred_margin') is not None else None
+                                        ln = float(line_final) if line_final is not None and str(line_final).strip()!='' else None
+                                        if (pm is not None) and (ln is not None):
+                                            edge_final = pm - ln
+                                    except Exception:
+                                        edge_final = None
+                            elif codex == 'ML':
+                                # Use EV when available
+                                try:
+                                    hv = it.get('home_ml_ev'); av = it.get('away_ml_ev')
+                                    if isinstance(hv, (int,float)) or (hv is not None and str(hv).strip()!=''):
+                                        hv = float(hv)
+                                    else:
+                                        hv = None
+                                    if isinstance(av, (int,float)) or (av is not None and str(av).strip()!=''):
+                                        av = float(av)
+                                    else:
+                                        av = None
+                                    if hv is not None or av is not None:
+                                        edge_final = max(hv or 0.0, av or 0.0)
+                                    else:
+                                        edge_final = None
+                                except Exception:
+                                    edge_final = None
+                        except Exception:
+                            edge_final = None
+
+                        confidence_final = None
+                        hr_flag_calc = False
+                        try:
+                            if edge_final is not None:
+                                # Sigma by market
+                                try:
+                                    codex = str(it.get('rec_code') or it.get('code') or '').upper()
+                                except Exception:
+                                    codex = 'Other'
+                                if codex == 'OU':
+                                    sigma = float(os.environ.get('CONF_SIGMA_TOTAL','8'))
+                                elif codex == 'ATS':
+                                    sigma = float(os.environ.get('CONF_SIGMA_SPREAD','5.5'))
+                                elif codex == 'ML':
+                                    sigma = float(os.environ.get('CONF_SIGMA_ML','0.06'))
+                                else:
+                                    sigma = float(os.environ.get('CONF_SIGMA_OTHER','10'))
+                                # Smooth composition
+                                comp = 0.0
+                                try:
+                                    comp = float(max(0.0, min(1.0, np.tanh(abs(edge_final) / (sigma * 0.8))))) if sigma>0 else 0.0
+                                except Exception:
+                                    comp = 0.0
+                                floor = float(os.environ.get('CONF_SMOOTH_FLOOR','0.12'))
+                                scale = float(os.environ.get('CONF_SMOOTH_SCALE','0.95'))
+                                confidence_final = float(max(0.0, min(1.0, floor + scale * comp)))
+                                # HR heuristic
+                                price_v = None
+                                try:
+                                    pv = float(price_final) if (price_final is not None and str(price_final).strip()!='') else None
+                                    price_v = pv
+                                except Exception:
+                                    price_v = None
+                                too_juiced = (price_v is not None and price_v < 0 and abs(price_v) > float(os.environ.get('HR_PRICE_MAX_ABS','120')))
+                                if codex == 'OU':
+                                    hr_flag_calc = (confidence_final >= float(os.environ.get('HR_CONF_OU','0.72'))) and (abs(edge_final) >= float(os.environ.get('HR_EDGE_OU','3.0'))) and (not too_juiced)
+                                elif codex == 'ATS':
+                                    hr_flag_calc = (confidence_final >= float(os.environ.get('HR_CONF_ATS','0.68'))) and (abs(edge_final) >= float(os.environ.get('HR_EDGE_ATS','2.0'))) and (not too_juiced)
+                                elif codex == 'ML':
+                                    hr_flag_calc = (confidence_final >= float(os.environ.get('HR_CONF_ML','0.70'))) and (abs(edge_final) >= float(os.environ.get('HR_EV_ML','0.03'))) and (not too_juiced)
+                            else:
+                                confidence_final = it.get('confidence')
+                                hr_flag_calc = bool(it.get('highly_recommended'))
+                        except Exception:
+                            confidence_final = it.get('confidence')
+                            hr_flag_calc = bool(it.get('highly_recommended'))
+                        # Fallback price synthesis from pass-through fields if still missing
+                        try:
+                            if (price_final is None or str(price_final).strip()==''):
+                                codex2 = str(it.get('rec_code') or it.get('code') or '').upper()
+                                if codex2 == 'OU':
+                                    key2 = 'over_price' if (side_ou=='over') else ('under_price' if (side_ou=='under') else None)
+                                    v2 = (it.get(key2) if (key2 and (key2 in it)) else None)
+                                    if v2 is not None and str(v2).strip()!='' and not pd.isna(v2):
+                                        price_final = float(v2)
+                                elif codex2 == 'ATS':
+                                    sel2 = side_spread
+                                    keyp = 'home_spread_price' if sel2=='home' else ('away_spread_price' if sel2=='away' else None)
+                                    v3 = (it.get(keyp) if (keyp and (keyp in it)) else None)
+                                    if v3 is not None and str(v3).strip()!='' and not pd.isna(v3):
+                                        price_final = float(v3)
+                                elif codex2 == 'ML':
+                                    sel3 = side_ml
+                                    keym = 'moneyline_home' if sel3=='home' else ('moneyline_away' if sel3=='away' else None)
+                                    v4 = (it.get(keym) if (keym and (keym in it)) else None)
+                                    if v4 is not None and str(v4).strip()!='' and not pd.isna(v4):
+                                        price_final = float(v4)
+                        except Exception:
+                            pass
+                        # If HR still not set but confidence exists, apply a simple heuristic
+                        try:
+                            if (not hr_flag_calc):
+                                conf_use = confidence_final if (confidence_final is not None) else None
+                                if conf_use is None:
+                                    # Lightweight proxy from edge magnitude
+                                    ev2 = None
+                                    try:
+                                        ev2 = float(it.get('edge_total')) if it.get('edge_total') is not None else None
+                                    except Exception:
+                                        ev2 = None
+                                    if ev2 is None:
+                                        try:
+                                            ev2 = float(it.get('edge')) if it.get('edge') is not None else None
+                                        except Exception:
+                                            ev2 = None
+                                    if ev2 is not None:
+                                        conf_use = max(0.0, min(1.0, abs(ev2) / 2.0))
+                                # Apply conservative thresholds per market
+                                code_hr = str(it.get('rec_code') or it.get('code') or '').upper()
+                                try:
+                                    if code_hr == 'OU':
+                                        hr_flag_calc = bool((conf_use or 0.0) >= 0.72 and abs(edge_final or (it.get('edge_total') or it.get('edge') or 0.0)) >= 3.0)
+                                    elif code_hr == 'ATS':
+                                        hr_flag_calc = bool((conf_use or 0.0) >= 0.68 and abs(edge_final or (it.get('edge_margin') or it.get('edge') or 0.0)) >= 2.0)
+                                    elif code_hr == 'ML':
+                                        hr_flag_calc = bool((conf_use or 0.0) >= 0.70 and abs(edge_final or (it.get('home_ml_ev') or it.get('away_ml_ev') or it.get('edge') or 0.0)) >= 0.03)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        lbl = str(it.get('bet_label') or it.get('bet') or '').strip()
+                        try:
+                            codei = str(it.get('rec_code') or '').upper()
+                            if codei == 'OU' and (not lbl.lower().startswith('over') and not lbl.lower().startswith('under')):
+                                ln_i = None
+                                for cand in [it.get('line'), it.get('total'), it.get('market_total')]:
+                                    if cand is not None and str(cand).strip()!='':
+                                        try:
+                                            ln_i = float(cand)
+                                            break
+                                        except Exception:
+                                            continue
+                                pt_i = None
+                                if it.get('pred_total') is not None:
+                                    try:
+                                        pt_i = float(it.get('pred_total'))
+                                    except Exception:
+                                        pt_i = None
+                                if (pt_i is not None) and (ln_i is not None):
+                                    lbl = (('Over ' if pt_i>ln_i else 'Under ') + ('%.1f' % ln_i)).strip()
+                            elif codei == 'ATS':
+                                # Synthesize ATS label with numeric spread and team
+                                try:
+                                    ln_s = None
+                                    try:
+                                        ln_s = float(line_final) if line_final is not None and str(line_final).strip()!='' else None
+                                    except Exception:
+                                        ln_s = None
+                                    if ln_s is not None:
+                                        sel_side = None
+                                        try:
+                                            sel_side = 'home' if ('home' in sel_raw) else ('away' if ('away' in sel_raw) else None)
+                                        except Exception:
+                                            sel_side = None
+                                        if sel_side is None:
+                                            sel_side = 'home' if ln_s >= 0 else 'away'
+                                        team_nm = (rep.get('home_team') if sel_side=='home' else rep.get('away_team')) or ''
+                                        sign = '+' if ln_s>0 else ''
+                                        lbl = f"{str(team_nm).strip()} {sign}{ln_s:.1f}"
+                                except Exception:
+                                    pass
+                            elif codei == 'ML':
+                                # Label ML when missing
+                                try:
+                                    if not lbl:
+                                        sel_side = 'home' if ('home' in sel_raw) else ('away' if ('away' in sel_raw) else None)
+                                        team_nm = (rep.get('home_team') if sel_side=='home' else rep.get('away_team')) or ''
+                                        lbl = f"{str(team_nm).strip()} ML".strip()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        # Simple confidence synthesis when missing
+                        conf_val = it.get('confidence')
+                        hr_flag = it.get('highly_recommended')
+                        try:
+                            if conf_val is None:
+                                # Use edge magnitude as a proxy; scale conservatively
+                                edge_v = None
+                                try:
+                                    edge_v = float(it.get('edge_total')) if it.get('edge_total') is not None else None
+                                except Exception:
+                                    edge_v = None
+                                if edge_v is None:
+                                    try:
+                                        edge_v = float(it.get('edge')) if it.get('edge') is not None else None
+                                    except Exception:
+                                        edge_v = None
+                                if edge_v is not None:
+                                    ev = abs(edge_v)
+                                    conf_val = max(0.0, min(1.0, ev / 2.0))
+                                    # Heuristic HR: strong edge and high confidence
+                                    hr_flag = bool((conf_val >= 0.9) and (ev >= 1.25))
+                        except Exception:
+                            pass
+                        # Skip placeholder 'Other' rows entirely
+                        if str(it.get('rec_code') or it.get('code') or '') and str(it.get('rec_code') or it.get('code') or '').upper() == 'OTHER':
+                            continue
+                        if str(codex).lower() == 'other':
+                            continue
+                        out_items.append({
+                            'type': _s(it.get('rec_type') or it.get('type') or it.get('rec_code') or it.get('code') or 'Other'),
+                            'code': _s(it.get('rec_code') or it.get('code') or 'Other'),
+                            'book': _s(book_final or it.get('book')),
+                            'bet': _s(it.get('bet')),
+                            'bet_label': _s(lbl),
+                            'line': line_final,
+                            'price': price_final,
+                            'edge': (edge_final if edge_final is not None else (it.get('_abs_edge') or it.get('edge') or it.get('abs_edge'))),
+                            'market': _s(it.get('market')),
+                            'pred_total': it.get('pred_total'),
+                            'edge_total': it.get('edge_total'),
+                            'market_total': (it.get('total') or it.get('market_total')),
+                            'selection': it.get('selection') or it.get('bet'),
+                            'game_id': it.get('game_id'),
+                            'confidence': (confidence_final if confidence_final is not None else conf_val),
+                            'highly_recommended': (hr_flag_calc if confidence_final is not None else hr_flag),
+                            # pass-through fields for template fallbacks
+                            'home_spread': it.get('home_spread'),
+                            'away_spread': it.get('away_spread'),
+                            'home_spread_price': it.get('home_spread_price'),
+                            'away_spread_price': it.get('away_spread_price'),
+                            # prefer closing spread from odds-joined map when available
+                            'closing_spread_home': (closing_spread_home_map.get(str(it.get('game_id'))) if ('closing_spread_home_map' in locals() and it.get('game_id')) else it.get('closing_spread_home')),
+                            'over_price': it.get('over_price'),
+                            'under_price': it.get('under_price'),
+                            'moneyline_home': it.get('moneyline_home'),
+                            'moneyline_away': it.get('moneyline_away'),
+                        })
+                    home_name = _s(rep.get('home_team'))
+                    away_name = _s(rep.get('away_team'))
+                    # Robust date/time derivation for header display
+                    try:
+                        disp_date_val = rep.get('display_date') or rep.get('date') or ''
+                        disp_date = ''
+                        if disp_date_val:
+                            try:
+                                dv = pd.to_datetime(disp_date_val, errors='coerce')
+                                if pd.notna(dv):
+                                    disp_date = dv.strftime('%Y-%m-%d')
+                                else:
+                                    disp_date = str(disp_date_val)
+                            except Exception:
+                                disp_date = str(disp_date_val)
+                        if not disp_date:
+                            # derive from start_time_display/display_time_str
+                            sdisp = rep.get('start_time_display') or rep.get('display_time_str') or ''
+                            try:
+                                dd = pd.to_datetime(sdisp, errors='coerce')
+                                if pd.notna(dd):
+                                    disp_date = dd.strftime('%Y-%m-%d')
+                            except Exception:
+                                pass
+                        # time am/pm extract
+                        disp_ampm = _s(rep.get('display_time_ampm'))
+                        if not disp_ampm:
+                            sdisp2 = rep.get('start_time_display') or rep.get('display_time_str') or ''
+                            try:
+                                tok = [t for t in str(sdisp2).split() if ':' in t or t.upper() in ('AM','PM')]
+                                if tok:
+                                    if len(tok) >= 2 and tok[-1].upper() in ('AM','PM'):
+                                        disp_ampm = f"{tok[-2]} {tok[-1]}"
+                                    else:
+                                        # convert 24h to 12h if needed
+                                        hhmm = tok[-1]
+                                        if re.match(r'^\d{1,2}:\d{2}$', hhmm):
+                                            try:
+                                                h, m = hhmm.split(':')
+                                                h = int(h)
+                                                am = 'AM'
+                                                if h == 0:
+                                                    h = 12
+                                                    am = 'AM'
+                                                elif h == 12:
+                                                    am = 'PM'
+                                                elif h > 12:
+                                                    h = h - 12
+                                                    am = 'PM'
+                                                disp_ampm = f"{h}:{m} {am}"
+                                            except Exception:
+                                                disp_ampm = hhmm
+                                        else:
+                                            disp_ampm = hhmm
+                            except Exception:
+                                disp_ampm = ''
+                        tz_val = _s(rep.get('start_tz_abbr') or rep.get('tz') or os.getenv('DISPLAY_TZ') or '')
+                        # Ensure start_time_iso present when possible
+                        iso_val = rep.get('start_time_iso')
+                        if not iso_val:
+                            try:
+                                iso_val = _derive_start_iso(rep)
+                            except Exception:
+                                iso_val = rep.get('start_time')
+                    except Exception:
+                        disp_date = _s(rep.get('display_date') or rep.get('date'))
+                        disp_ampm = _s(rep.get('display_time_ampm'))
+                        tz_val = _s(rep.get('start_tz_abbr'))
+                        iso_val = rep.get('start_time_iso')
+                    grouped_fb.append({
+                        'game_key': gkey,
+                        'matchup': f"{home_name} vs {away_name}",
+                        'date': disp_date,
+                        'time': disp_ampm,
+                        'time_ampm': disp_ampm,
+                        'tz': tz_val,
+                        'start_time_iso': iso_val,
+                        'home': home_name,
+                        'away': away_name,
+                        'home_logo': rep.get('home_logo'),
+                        'away_logo': rep.get('away_logo'),
+                        'home_color': rep.get('home_color') or '#152042',
+                        'away_color': rep.get('away_color') or '#2a3a63',
+                        'home_text': rep.get('home_text_color') or '#f6f8ff',
+                        'away_text': rep.get('away_text_color') or '#f6f8ff',
+                        'recs': out_items,
+                    })
+                # Backfill start times from games schedule when missing
+                try:
+                    date_q = (request.args.get('date') or '').strip()
+                except Exception:
+                    date_q = ''
+                try:
+                    sched = pd.DataFrame()
+                    from pathlib import Path as _P
+                    if date_q:
+                        p_sched = _P(os.getcwd()) / 'outputs' / f'games_{date_q}.csv'
+                        if p_sched.exists():
+                            sched = pd.read_csv(p_sched, dtype=str, low_memory=False)
+                    if sched.empty:
+                        p_curr = _P(os.getcwd()) / 'outputs' / 'games_curr.csv'
+                        if p_curr.exists():
+                            sched = pd.read_csv(p_curr, dtype=str, low_memory=False)
+                    # Normalize helpful columns
+                    if not sched.empty:
+                        def _canon(s: Any) -> str:
+                            try:
+                                return normalize_name(str(s or ''))
+                            except Exception:
+                                return str(s or '')
+                        cols = sched.columns
+                        hcol = 'home_team' if 'home_team' in cols else ('home' if 'home' in cols else None)
+                        acol = 'away_team' if 'away_team' in cols else ('away' if 'away' in cols else None)
+                        dcol = 'date' if 'date' in cols else None
+                        if hcol and acol:
+                            try:
+                                sched['home_norm'] = sched[hcol].astype(str).map(_canon)
+                                sched['away_norm'] = sched[acol].astype(str).map(_canon)
+                            except Exception:
+                                pass
+                        # Build map by game_id and by normalized names
+                        gid_map = {}
+                        name_map = {}
+                        try:
+                            if 'game_id' in sched.columns:
+                                for _, r in sched.iterrows():
+                                    gid = str(r.get('game_id') or '').strip()
+                                    if gid:
+                                        gid_map[gid] = r.to_dict()
+                        except Exception:
+                            gid_map = {}
+                        try:
+                            for _, r in sched.iterrows():
+                                k = (str(r.get('home_norm') or ''), str(r.get('away_norm') or ''), str(r.get(dcol) or ''))
+                                name_map[k] = r.to_dict()
+                        except Exception:
+                            name_map = {}
+                        # Apply backfill per grouped game
+                        for g in grouped_fb:
+                            # Prefer game_id from first rec
+                            gid = None
+                            try:
+                                if g.get('recs'):
+                                    gid = str(g['recs'][0].get('game_id') or '').strip()
+                            except Exception:
+                                gid = None
+                            row = None
+                            if gid and gid in gid_map:
+                                row = gid_map.get(gid)
+                            else:
+                                try:
+                                    k = (normalize_name(str(g.get('home') or '')), normalize_name(str(g.get('away') or '')), str(g.get('date') or ''))
+                                    row = name_map.get(k)
+                                except Exception:
+                                    row = None
+                            if row:
+                                # Derive ISO and display fields
+                                try:
+                                    iso = row.get('start_time_iso') or row.get('start_time') or row.get('start_time_local')
+                                    tz = row.get('start_tz_abbr') or row.get('tz') or ''
+                                    g['start_time_iso'] = iso if iso else g.get('start_time_iso')
+                                    # Prefer precomputed display
+                                    disp = row.get('display_time_ampm') or row.get('time_ampm') or ''
+                                    if not disp and iso:
+                                        import datetime as _dt
+                                        try:
+                                            d = _dt.datetime.fromisoformat(str(iso))
+                                            disp = d.strftime('%-I:%M %p')
+                                        except Exception:
+                                            disp = ''
+                                    if disp:
+                                        g['time_ampm'] = disp
+                                    if tz:
+                                        g['tz'] = tz
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
+                # Write minimal diagnostics summary for backfill gaps
+                try:
+                    if 'diag_rows' in locals() and isinstance(diag_rows, list) and diag_rows:
+                        df_diag = pd.DataFrame(diag_rows)
+                        df_diag['ts'] = pd.Timestamp.utcnow().isoformat()
+                        from pathlib import Path as _P
+                        p_out = _P(os.getcwd()) / 'outputs' / 'display_backfill_summary.csv'
+                        # Append without headers if file exists
+                        if p_out.exists():
+                            df_diag.to_csv(p_out, mode='a', index=False, header=False)
+                        else:
+                            df_diag.to_csv(p_out, mode='w', index=False, header=True)
+                except Exception:
+                    pass
+                return render_template("recommendations_grouped.html", games=grouped_fb, total_games=len(grouped_fb))
+    except Exception:
+        pass
+    # Enrich grouped games with branding (logos/colors/text) as last mile
+    try:
+        if isinstance(grouped_fb, list) and grouped_fb:
+            branding = _load_branding_map()
+            def _bk(n: Any) -> dict:
+                try:
+                    k = normalize_name(str(n or ''))
+                    return branding.get(k) or {}
+                except Exception:
+                    return {}
+            for g in grouped_fb:
+                hb = _bk(g.get('home'))
+                ab = _bk(g.get('away'))
+                if not g.get('home_logo'):
+                    g['home_logo'] = hb.get('logo')
+                if not g.get('away_logo'):
+                    g['away_logo'] = ab.get('logo')
+                g['home_color'] = g.get('home_color') or hb.get('primary') or hb.get('secondary') or '#152042'
+                g['away_color'] = g.get('away_color') or ab.get('primary') or ab.get('secondary') or '#2a3a63'
+                g['home_text'] = g.get('home_text') or hb.get('text') or '#f6f8ff'
+                g['away_text'] = g.get('away_text') or ab.get('text') or '#f6f8ff'
+    except Exception:
+        pass
     # Prefer expanded multi-market raw picks when available
     try:
         raw_path = OUT / "picks_raw.csv"
@@ -20143,7 +21203,26 @@ def recommendations():
                     if c in preds.columns: preds[c] = preds[c].astype(str)
                 merged = None
                 if ("game_id" in picks.columns) and ("game_id" in preds.columns):
-                    merged = picks.merge(preds[["game_id","pred_total","pred_margin","start_time"]] if set(["pred_total","pred_margin","start_time"]).issubset(preds.columns) else preds[["game_id","pred_total_model","pred_margin_model","start_time"]], on="game_id", how="left")
+                    # Prefer expanded join with sigma/prob fields when available
+                    base_cols = ["game_id","start_time"]
+                    pref_pred_cols = ["pred_total","pred_margin"]
+                    alt_pred_cols = ["pred_total_model","pred_margin_model"]
+                    extra_cols = [
+                        "sigma_total_adj","sigma_margin_adj",
+                        "p_over","p_over_emp","p_over_ensemble","p_over_final",
+                        "p_home_cover","p_home_cover_emp","p_home_cover_ensemble","p_home_cover_final",
+                        "p_away_cover","p_away_cover_emp","p_away_cover_ensemble","p_away_cover_final",
+                        "pred_total_p10","pred_total_p90","pred_margin_p10","pred_margin_p90",
+                    ]
+                    keep = [c for c in base_cols if c in preds.columns]
+                    if set(pref_pred_cols).issubset(preds.columns):
+                        keep += pref_pred_cols
+                    elif set(alt_pred_cols).issubset(preds.columns):
+                        keep += alt_pred_cols
+                    for ec in extra_cols:
+                        if ec in preds.columns:
+                            keep.append(ec)
+                    merged = picks.merge(preds[keep], on="game_id", how="left")
                 else:
                     # Fallback join on normalized team names
                     for df in (picks, preds):
@@ -20348,6 +21427,33 @@ def recommendations():
                                 ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
                                 lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
                                 e = (ptv - lnv) if (np.isfinite(ptv) and np.isfinite(lnv)) else np.nan
+                            # Fallback: use edges totals prices
+                            if (price_final is None or str(price_final).strip()=='') and gid:
+                                try:
+                                    lab = (it.get('bet_label') or it.get('bet') or '').lower()
+                                    if lab.startswith('over') and gid in edges_tot_over_price:
+                                        price_final = edges_tot_over_price.get(gid)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif lab.startswith('under') and gid in edges_tot_under_price:
+                                        price_final = edges_tot_under_price.get(gid)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                except Exception:
+                                    pass
+                            if (price_final is None or str(price_final).strip()=='') and pair_key:
+                                try:
+                                    lab = (it.get('bet_label') or it.get('bet') or '').lower()
+                                    if lab.startswith('over') and pair_key in edges_tot_over_price_pair:
+                                        price_final = edges_tot_over_price_pair.get(pair_key)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                    elif lab.startswith('under') and pair_key in edges_tot_under_price_pair:
+                                        price_final = edges_tot_under_price_pair.get(pair_key)
+                                        if not book_final:
+                                            book_final = 'Edges'
+                                except Exception:
+                                    pass
                             elif code == 'ATS':
                                 pm = rw.get('pred_margin_calibrated') if rw.get('pred_margin_calibrated') is not None else rw.get('pred_margin')
                                 ln = line if line is not None else (rw.get('closing_spread_home') if rw.get('closing_spread_home') is not None else rw.get('spread_home'))
@@ -20373,42 +21479,133 @@ def recommendations():
                         # smoother growth using tanh
                         edge_comp = float(max(0.0, min(1.0, np.tanh(abs(e) / (sigma * 0.8)))))
 
-                    # Probability/consistency component from projection vs line
+                    # Uncertainty via quantile width (prefer narrower intervals)
+                    unc_comp = 0.6
+                    try:
+                        if code == 'OU':
+                            p10 = rw.get('pred_total_p10') or rw.get('total_p10')
+                            p90 = rw.get('pred_total_p90') or rw.get('total_p90')
+                            if (p10 is not None) and (p90 is not None):
+                                w = float(p90) - float(p10)
+                                base = float(os.environ.get('CONF_QW_TOTAL','24'))
+                                if base > 0:
+                                    unc_comp = float(max(0.0, min(1.0, 1.0 - (w / base))))
+                        elif code == 'ATS':
+                            m10 = rw.get('pred_margin_p10') or rw.get('margin_p10')
+                            m90 = rw.get('pred_margin_p90') or rw.get('margin_p90')
+                            if (m10 is not None) and (m90 is not None):
+                                w = float(m90) - float(m10)
+                                base = float(os.environ.get('CONF_QW_MARGIN','18'))
+                                if base > 0:
+                                    unc_comp = float(max(0.0, min(1.0, 1.0 - (w / base))))
+                    except Exception:
+                        unc_comp = 0.6
+
+                    # Probability/consistency component: prefer simulation probs (p_over / p_cover)
                     prob_comp = 0.0
                     cons_comp = 0.0
                     try:
                         if code in ('OU','ATS'):
                             if code == 'OU':
-                                pt = rw.get('pred_total_calibrated') if rw.get('pred_total_calibrated') is not None else rw.get('pred_total')
-                                ln = line if line is not None else rw.get('total')
-                                ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
-                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
-                                if np.isfinite(ptv) and np.isfinite(lnv) and sigma>0:
+                                # Try p_over first; else derive via Normal CDF if sigma present; else tanh fallback
+                                p_est = None
+                                for pk in ['p_over','p_over_emp','p_over_ensemble','p_over_final']:
+                                    v = rw.get(pk)
+                                    if v is not None and str(v).strip()!='':
+                                        try:
+                                            p_est = float(v)
+                                            break
+                                        except Exception:
+                                            continue
+                                if p_est is None:
+                                    pt = rw.get('pred_total_calibrated') if rw.get('pred_total_calibrated') is not None else rw.get('pred_total')
+                                    ln = line if line is not None else rw.get('total')
+                                    sig = rw.get('sigma_total_adj') if rw.get('sigma_total_adj') is not None else sigma
+                                    try:
+                                        ptv = float(pt); lnv = float(ln); sv = float(sig)
+                                        if np.isfinite(ptv) and np.isfinite(lnv) and sv>0:
+                                            # p(Over) = 1 - Phi((ln - mu)/sigma)
+                                            z = (lnv - ptv) / sv
+                                            p_est = 0.5 * (1.0 - math.erf(z / math.sqrt(2.0)))
+                                    except Exception:
+                                        p_est = None
+                                if p_est is None and np.isfinite(ptv) and np.isfinite(lnv) and sigma>0:
                                     delta = ptv - lnv
-                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma)
-                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
-                                    # Consistency: selection direction vs delta
+                                    p_est = 0.5 + 0.5 * np.tanh(delta / sigma)
+                                if p_est is not None:
+                                    prob_comp = min(1.0, max(0.0, abs(p_est - 0.5) * 2.0))
+                                # Consistency with chosen side
+                                try:
                                     sel = bet
-                                    if sel:
+                                    if sel and (pt is not None) and (ln is not None):
+                                        delta = float(pt) - float(ln)
                                         if sel.startswith('over') or sel.startswith('o'):
                                             cons_comp = 1.0 if delta > 0 else 0.3
                                         elif sel.startswith('under') or sel.startswith('u'):
                                             cons_comp = 1.0 if delta < 0 else 0.3
+                                except Exception:
+                                    pass
                             else:  # ATS
                                 pm = rw.get('pred_margin_calibrated') if rw.get('pred_margin_calibrated') is not None else rw.get('pred_margin')
                                 ln = line
-                                pmv = float(pm) if pm is not None and str(pm).strip()!='' else np.nan
-                                lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
-                                if np.isfinite(pmv) and np.isfinite(lnv) and sigma>0:
-                                    delta = pmv - lnv
-                                    prob_est = 0.5 + 0.5 * np.tanh(delta / sigma)
-                                    prob_comp = min(1.0, max(0.0, abs(prob_est - 0.5) * 2.0))
+                                # Determine side (home/away) to select appropriate cover prob
+                                side_home = None
+                                try:
                                     sel = bet
                                     if sel:
                                         if 'home' in sel:
-                                            cons_comp = 1.0 if delta > 0 else 0.3
+                                            side_home = True
                                         elif 'away' in sel:
+                                            side_home = False
+                                except Exception:
+                                    side_home = None
+                                p_est = None
+                                # Prefer pre-computed cover probs
+                                try:
+                                    ph = rw.get('p_home_cover') or rw.get('p_home_cover_emp') or rw.get('p_home_cover_ensemble') or rw.get('p_home_cover_final')
+                                    pa = rw.get('p_away_cover') or rw.get('p_away_cover_emp') or rw.get('p_away_cover_ensemble') or rw.get('p_away_cover_final')
+                                    if side_home is True and ph is not None:
+                                        p_est = float(ph)
+                                    elif side_home is False and pa is not None:
+                                        p_est = float(pa)
+                                except Exception:
+                                    p_est = None
+                                # Else derive from Normal on margin if sigma present
+                                if p_est is None:
+                                    try:
+                                        pmv = float(pm); lnv = float(ln)
+                                        sigm = float(rw.get('sigma_margin_adj') if rw.get('sigma_margin_adj') is not None else sigma)
+                                        if np.isfinite(pmv) and np.isfinite(lnv) and sigm>0:
+                                            # Market margin threshold is -spread_home; line variable already side-specific
+                                            # Compute probability of chosen side covering
+                                            if side_home is None:
+                                                side_home = (pmv - lnv) >= 0
+                                            delta = pmv - lnv
+                                            # Convert delta/sigma to probability vs 0
+                                            z = delta / sigm
+                                            p_side_home = 0.5 + 0.5 * math.erf(z / math.sqrt(2.0))
+                                            p_est = p_side_home if side_home else (1.0 - p_side_home)
+                                    except Exception:
+                                        p_est = None
+                                if p_est is None and sigma>0:
+                                    try:
+                                        pmv = float(pm); lnv = float(ln)
+                                        delta = pmv - lnv
+                                        p_est = 0.5 + 0.5 * np.tanh(delta / sigma)
+                                    except Exception:
+                                        p_est = None
+                                if p_est is not None:
+                                    prob_comp = min(1.0, max(0.0, abs(p_est - 0.5) * 2.0))
+                                # Consistency with margin delta
+                                try:
+                                    if (pm is not None) and (ln is not None):
+                                        delta = float(pm) - float(ln)
+                                        if side_home is True:
+                                            cons_comp = 1.0 if delta > 0 else 0.3
+                                        elif side_home is False:
                                             cons_comp = 1.0 if delta < 0 else 0.3
+                                except Exception:
+                                    pass
                         else:
                             prob_comp = 0.0
                     except Exception:
@@ -20514,22 +21711,25 @@ def recommendations():
                             'cons': _w('CONS', 0.10, code_tag),
                             'price': _w('PRICE', 0.10, code_tag),
                             'line': _w('LINE', 0.05, code_tag),
+                            'unc': _w('UNC', 0.08, code_tag),
                         }
                     else:
+                        # Simulation-forward defaults: increase probability weight, reduce edge
                         w = {
-                            'edge': _w('EDGE', 0.45, code_tag),
-                            'prob': _w('PROB', 0.25, code_tag),
+                            'edge': _w('EDGE', 0.30, code_tag),
+                            'prob': _w('PROB', 0.45, code_tag),
                             'mkt': _w('MKT', 0.25, code_tag),
                             'cal': _w('CAL', 0.20, code_tag),
                             'seg': _w('SEG', 0.15, code_tag),
                             'cons': _w('CONS', 0.10, code_tag),
                             'price': _w('PRICE', 0.08, code_tag),
                             'line': _w('LINE', 0.05, code_tag),
+                            'unc': _w('UNC', 0.10, code_tag),
                         }
                     conf = (
                         w['edge']*edge_comp + w['prob']*prob_comp + w['mkt']*mkt_comp +
                         w['cal']*cal_comp + w['seg']*seg_comp + w['cons']*cons_comp +
-                        w['price']*price_comp + w['line']*line_comp
+                        w['price']*price_comp + w['line']*line_comp + w['unc']*unc_comp
                     )
                     # Gentle floor/ceiling and smoothing (env-tunable)
                     floor = float(os.environ.get('CONF_SMOOTH_FLOOR','0.12'))
@@ -20601,6 +21801,77 @@ def recommendations():
             r['rec_code'] = 'Other'
             r['type'] = 'Other'
             r['type_label'] = r['rec_type']
+        # Flag highly recommended picks based on confidence, edge, and uncertainty bands
+        try:
+            code_hr = (r.get('rec_code') or '').upper()
+            conf = float(r.get('confidence') or 0.0)
+            # Edge magnitude: prefer explicit edge; else recompute from predictions vs line
+            e_raw = r.get('edge')
+            try:
+                e_val = float(e_raw) if e_raw is not None and str(e_raw).strip()!='' else np.nan
+            except Exception:
+                e_val = np.nan
+            if not np.isfinite(e_val):
+                try:
+                    ln = r.get('line')
+                    lnv = float(ln) if ln is not None and str(ln).strip()!='' else np.nan
+                    if code_hr == 'OU':
+                        pt = r.get('pred_total')
+                        ptv = float(pt) if pt is not None and str(pt).strip()!='' else np.nan
+                        e_val = (ptv - lnv) if (np.isfinite(ptv) and np.isfinite(lnv)) else np.nan
+                    elif code_hr == 'ATS':
+                        pm = r.get('pred_margin')
+                        pmv = float(pm) if (pm is not None and str(pm).strip()!='') else np.nan
+                        e_val = (pmv - lnv) if (np.isfinite(pmv) and np.isfinite(lnv)) else np.nan
+                    else:
+                        e_val = np.nan
+                except Exception:
+                    e_val = np.nan
+            edge_abs = abs(e_val) if np.isfinite(e_val) else 0.0
+            # Uncertainty: use quantile width when available
+            qwidth = None
+            try:
+                if code_hr == 'OU':
+                    p10 = r.get('pred_total_p10') or r.get('total_p10')
+                    p90 = r.get('pred_total_p90') or r.get('total_p90')
+                    if (p10 is not None) and (p90 is not None):
+                        qwidth = float(p90) - float(p10)
+                elif code_hr == 'ATS':
+                    m10 = r.get('pred_margin_p10') or r.get('margin_p10')
+                    m90 = r.get('pred_margin_p90') or r.get('margin_p90')
+                    if (m10 is not None) and (m90 is not None):
+                        qwidth = float(m90) - float(m10)
+            except Exception:
+                qwidth = None
+            # Price quality: avoid heavy juice unless plus-money
+            price = r.get('price')
+            try:
+                price_v = float(price) if price is not None and str(price).strip()!='' else np.nan
+            except Exception:
+                price_v = np.nan
+            too_juiced = (np.isfinite(price_v) and price_v < 0 and abs(price_v) > float(os.environ.get('HR_PRICE_MAX_ABS','120')))
+            # Thresholds (env-tunable)
+            conf_ou = float(os.environ.get('HR_CONF_OU','0.72'))
+            edge_ou = float(os.environ.get('HR_EDGE_OU','3.0'))
+            qw_ou   = float(os.environ.get('HR_QWIDTH_TOTAL_MAX','20'))
+            conf_ats = float(os.environ.get('HR_CONF_ATS','0.68'))
+            edge_ats = float(os.environ.get('HR_EDGE_ATS','2.0'))
+            qw_ats   = float(os.environ.get('HR_QWIDTH_MARGIN_MAX','16'))
+            hr_flag = False
+            if code_hr == 'OU':
+                hr_flag = (conf >= conf_ou) and (edge_abs >= edge_ou) and (not too_juiced) and ((qwidth is None) or (qwidth <= qw_ou))
+            elif code_hr == 'ATS':
+                hr_flag = (conf >= conf_ats) and (edge_abs >= edge_ats) and (not too_juiced) and ((qwidth is None) or (qwidth <= qw_ats))
+            elif code_hr == 'ML':
+                conf_ml = float(os.environ.get('HR_CONF_ML','0.70'))
+                ev_ml = float(os.environ.get('HR_EV_ML','0.03'))
+                hr_flag = (conf >= conf_ml) and ((edge_abs >= ev_ml) if np.isfinite(edge_abs) else True) and (not too_juiced)
+            else:
+                hr_flag = False
+            if hr_flag:
+                r['highly_recommended'] = True
+        except Exception:
+            pass
         # Compute explicit bet label for clarity in flat view
         try:
             code = (r.get('rec_code') or '').upper()
@@ -20752,17 +22023,58 @@ def recommendations():
             pass
         return render_template("recommendations.html", rows=norm_rows, total_rows=len(norm_rows))
     # Build grouped view: best per type for each game
+    # Filter to target slate date to avoid heavy multi-day grouping when rows lack explicit 'date'
+    try:
+        _target_date = (request.args.get('date') or '').strip()
+    except Exception:
+        _target_date = ''
+    if _target_date:
+        try:
+            def _row_on_date(r: dict, d: str) -> bool:
+                try:
+                    # Prefer display_date, else 'date', else derive from start_time_display
+                    dv = r.get('display_date') or r.get('date') or ''
+                    if dv:
+                        try:
+                            dd = pd.to_datetime(dv, errors='coerce')
+                            if pd.notna(dd):
+                                return dd.strftime('%Y-%m-%d') == d
+                        except Exception:
+                            pass
+                    sd = r.get('start_time_display') or r.get('start_time') or ''
+                    if sd:
+                        try:
+                            ds = pd.to_datetime(sd, errors='coerce')
+                            if pd.notna(ds):
+                                return ds.strftime('%Y-%m-%d') == d
+                        except Exception:
+                            pass
+                    return False
+                except Exception:
+                    return False
+            norm_rows = [r for r in norm_rows if _row_on_date(r, _target_date)]
+        except Exception:
+            pass
     from collections import defaultdict
     games = defaultdict(list)
-    for r in norm_rows:
-        try:
-            def _ok_team(name: Any) -> bool:
-                s = str(name or '').strip().lower()
-                return bool(s) and s not in ('nan','none','null')
-            if _ok_team(r.get('home_team') or r.get('home_team_name')) and _ok_team(r.get('away_team') or r.get('away_team_name')):
-                games[r['__gkey']].append(r)
-        except Exception:
-            games[r['__gkey']].append(r)
+    try:
+        for r in norm_rows:
+            try:
+                def _ok_team(name: Any) -> bool:
+                    s = str(name or '').strip().lower()
+                    return bool(s) and s not in ('nan','none','null')
+                if _ok_team(r.get('home_team') or r.get('home_team_name')) and _ok_team(r.get('away_team') or r.get('away_team_name')):
+                    games[r['__gkey']].append(r)
+            except Exception:
+                k = r.get('__gkey')
+                if k is not None:
+                    try:
+                        games[str(k)].append(r)
+                    except Exception:
+                        pass
+    except Exception:
+        # If any unexpected failure, keep games empty so downstream fallback activates
+        games = defaultdict(list)
     grouped_games: list[dict] = []
     # Load branding map for logos/colors
     try:
@@ -21317,6 +22629,17 @@ def recommendations():
                     elif bl_low.startswith('over') or bl_low.startswith('under'):
                         side = 'Over' if bl_low.startswith('over') else 'Under'
                     if not side:
+                        # Prefer probability-based direction when available
+                        try:
+                            gid = str(oi.get('game_id') or '')
+                            if gid and ('po_map' in locals()):
+                                pv = po_map.get(gid)
+                                if pv is not None and str(pv).strip() != '':
+                                    pval = float(pv)
+                                    side = 'Over' if pval >= 0.5 else 'Under'
+                        except Exception:
+                            pass
+                    if not side:
                         # candidate predicted totals: item -> rep -> model -> sum of projections
                         pt = None
                         for src in [
@@ -21529,6 +22852,59 @@ def recommendations():
         except Exception:
             pass
 
+        # Mark highly recommended items in grouped view using representative uncertainty
+        try:
+            # Quantile widths from representative row when available
+            qw_total = None; qw_margin = None
+            try:
+                p10 = rep.get('pred_total_p10') or rep.get('total_p10')
+                p90 = rep.get('pred_total_p90') or rep.get('total_p90')
+                if (p10 is not None) and (p90 is not None):
+                    qw_total = float(p90) - float(p10)
+            except Exception:
+                qw_total = None
+            try:
+                m10 = rep.get('pred_margin_p10') or rep.get('margin_p10')
+                m90 = rep.get('pred_margin_p90') or rep.get('margin_p90')
+                if (m10 is not None) and (m90 is not None):
+                    qw_margin = float(m90) - float(m10)
+            except Exception:
+                qw_margin = None
+            conf_ou = float(os.environ.get('HR_CONF_OU','0.72'))
+            edge_ou = float(os.environ.get('HR_EDGE_OU','3.0'))
+            qw_ou   = float(os.environ.get('HR_QWIDTH_TOTAL_MAX','20'))
+            conf_ats = float(os.environ.get('HR_CONF_ATS','0.68'))
+            edge_ats = float(os.environ.get('HR_EDGE_ATS','2.0'))
+            qw_ats   = float(os.environ.get('HR_QWIDTH_MARGIN_MAX','16'))
+            price_max = float(os.environ.get('HR_PRICE_MAX_ABS','120'))
+            for oi in out_items:
+                try:
+                    codeu = (oi.get('code') or oi.get('rec_code') or '').upper()
+                    conf = float(oi.get('confidence') or 0.0)
+                    e = oi.get('edge') or oi.get('abs_edge') or oi.get('_abs_edge')
+                    edge_abs = abs(float(e)) if (e is not None and str(e).strip()!='') else 0.0
+                    price_v = oi.get('price')
+                    try:
+                        pv = float(price_v) if price_v is not None and str(price_v).strip()!='' else np.nan
+                    except Exception:
+                        pv = np.nan
+                    too_juiced = (np.isfinite(pv) and pv < 0 and abs(pv) > price_max)
+                    if codeu == 'OU':
+                        if (conf >= conf_ou) and (edge_abs >= edge_ou) and (not too_juiced) and ((qw_total is None) or (qw_total <= qw_ou)):
+                            oi['highly_recommended'] = True
+                    elif codeu == 'ATS':
+                        if (conf >= conf_ats) and (edge_abs >= edge_ats) and (not too_juiced) and ((qw_margin is None) or (qw_margin <= qw_ats)):
+                            oi['highly_recommended'] = True
+                    elif codeu == 'ML':
+                        conf_ml = float(os.environ.get('HR_CONF_ML','0.70'))
+                        ev_ml = float(os.environ.get('HR_EV_ML','0.03'))
+                        if (conf >= conf_ml) and ((edge_abs >= ev_ml) if np.isfinite(edge_abs) else True) and (not too_juiced):
+                            oi['highly_recommended'] = True
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # Ensure each game has both OU and ATS by synthesizing fallbacks when missing
         try:
             # Lazy-load aligned edges for this date to backfill lines and prices reliably
@@ -21555,6 +22931,7 @@ def recommendations():
                             edges_by_date[_gid] = edges_by_date[_gid].astype(str)
                             _totals = edges_by_date[edges_by_date['market'].astype(str).str.lower() == 'totals'] if 'market' in edges_by_date.columns else pd.DataFrame()
                             _spreads = edges_by_date[edges_by_date['market'].astype(str).str.lower() == 'spreads'] if 'market' in edges_by_date.columns else pd.DataFrame()
+                            _h2h = edges_by_date[edges_by_date['market'].astype(str).str.lower() == 'h2h'] if 'market' in edges_by_date.columns else pd.DataFrame()
                             # Prefer market_total when present; fallback to total
                             if (not _totals.empty) and ('market_total' in _totals.columns):
                                 tot_line_map = dict(zip(_totals[_gid], _totals.get('market_total')))
@@ -21568,9 +22945,15 @@ def recommendations():
                             as_map = dict(zip(_spreads[_gid], _spreads.get('away_spread'))) if (not _spreads.empty and 'away_spread' in _spreads.columns) else {}
                             as_price_map = dict(zip(_spreads[_gid], _spreads.get('away_spread_price'))) if (not _spreads.empty and 'away_spread_price' in _spreads.columns) else {}
                             pred_margin_map = dict(zip(_spreads[_gid], _spreads.get('pred_margin'))) if (not _spreads.empty and 'pred_margin' in _spreads.columns) else {}
+                            # Moneyline maps (prices and EV)
+                            ml_home_price_map = dict(zip(_h2h[_gid], _h2h.get('moneyline_home'))) if (not _h2h.empty and 'moneyline_home' in _h2h.columns) else {}
+                            ml_away_price_map = dict(zip(_h2h[_gid], _h2h.get('moneyline_away'))) if (not _h2h.empty and 'moneyline_away' in _h2h.columns) else {}
+                            ml_home_ev_map = dict(zip(_h2h[_gid], _h2h.get('home_ml_ev'))) if (not _h2h.empty and 'home_ml_ev' in _h2h.columns) else {}
+                            ml_away_ev_map = dict(zip(_h2h[_gid], _h2h.get('away_ml_ev'))) if (not _h2h.empty and 'away_ml_ev' in _h2h.columns) else {}
                         else:
                             tot_line_map = {}; tot_over_price_map = {}; tot_under_price_map = {}; pred_total_map = {}
                             hs_map = {}; hs_price_map = {}; as_map = {}; as_price_map = {}; pred_margin_map = {}
+                            ml_home_price_map = {}; ml_away_price_map = {}; ml_home_ev_map = {}; ml_away_ev_map = {}
                 except Exception:
                     edges_by_date = pd.DataFrame()
             present_codes = {str(it.get('code') or '').upper() for it in out_items}
@@ -21712,6 +23095,55 @@ def recommendations():
                     'selection': (side_ou or ''),
                     'game_id': gid_rep,
                 })
+            # ML fallback
+            if 'ML' not in present_codes:
+                side_ml = None
+                price_ml = None
+                edge_ml = None
+                # Prefer EV-based side from edges; else margin sign
+                try:
+                    hev = ml_home_ev_map.get(gid_rep) if ('ml_home_ev_map' in locals()) else None
+                    aev = ml_away_ev_map.get(gid_rep) if ('ml_away_ev_map' in locals()) else None
+                    if (hev is not None) or (aev is not None):
+                        hv = float(hev) if (hev is not None and pd.notna(hev)) else None
+                        av = float(aev) if (aev is not None and pd.notna(aev)) else None
+                        if (hv is not None) and (av is not None):
+                            side_ml = 'home' if hv >= av else 'away'
+                            edge_ml = max(hv, av)
+                        elif hv is not None:
+                            side_ml = 'home'; edge_ml = hv
+                        elif av is not None:
+                            side_ml = 'away'; edge_ml = av
+                except Exception:
+                    pass
+                if side_ml is None:
+                    try:
+                        pmv = float(rep.get('pred_margin')) if rep.get('pred_margin') is not None else None
+                        side_ml = 'home' if (pmv is not None and pmv >= 0) else 'away'
+                    except Exception:
+                        side_ml = 'home'
+                try:
+                    if side_ml == 'home':
+                        price_ml = ml_home_price_map.get(gid_rep) if ('ml_home_price_map' in locals()) else None
+                    else:
+                        price_ml = ml_away_price_map.get(gid_rep) if ('ml_away_price_map' in locals()) else None
+                except Exception:
+                    price_ml = None
+                # Label with team
+                side_team_ml = home_name if side_ml=='home' else away_name
+                out_items.append({
+                    'type': 'Moneyline',
+                    'code': 'ML',
+                    'book': '',
+                    'bet': f"{side_team_ml} ML",
+                    'bet_label': f"{side_team_ml} ML",
+                    'line': None,
+                    'price': price_ml,
+                    'edge': edge_ml,
+                    'market': 'h2h',
+                    'selection': side_team_ml,
+                    'game_id': gid_rep,
+                })
             # ATS fallback
             if 'ATS' not in present_codes:
                 hs = None
@@ -21735,6 +23167,81 @@ def recommendations():
                                     _map_hs = dict(zip(_df_enr2['game_id'], pd.to_numeric(_df_enr2[shc], errors='coerce')))
                                     v = _map_hs.get(gid_rep)
                                     hs = float(v) if (v is not None and pd.notna(v)) else None
+                    except Exception:
+                        pass
+                # Name/date-based fallback for home spread using enriched and odds join
+                if (hs is None):
+                    try:
+                        name_hs_map = {}
+                        # From enriched snapshot
+                        if disp_date:
+                            p_enr_n = OUT / f"predictions_unified_enriched_{disp_date}.csv"
+                            if p_enr_n.exists():
+                                _df_enr_n = pd.read_csv(p_enr_n, dtype=str, low_memory=False)
+                                cols_n = {c.lower(): c for c in _df_enr_n.columns}
+                                hc_n = cols_n.get('home_team') or cols_n.get('home_team_g')
+                                ac_n = cols_n.get('away_team') or cols_n.get('away_team_g')
+                                shc_n = cols_n.get('closing_spread_home') or cols_n.get('home_spread') or cols_n.get('spread_home')
+                                dc_n = cols_n.get('display_date') or cols_n.get('date') or cols_n.get('start_time_display')
+                                if hc_n and ac_n and shc_n:
+                                    _df_enr_n[shc_n] = pd.to_numeric(_df_enr_n[shc_n], errors='coerce')
+                                    for _, rr in _df_enr_n.iterrows():
+                                        h = str(rr.get(hc_n) or '').strip(); a = str(rr.get(ac_n) or '').strip()
+                                        dtk = str(rr.get(dc_n) or '').strip()
+                                        if dtk and len(dtk) > 10:
+                                            dtk = _date_only(dtk)
+                                        elif dtk:
+                                            try:
+                                                dtk = pd.to_datetime(dtk, errors='coerce').strftime('%Y-%m-%d') if pd.notna(pd.to_datetime(dtk, errors='coerce')) else ''
+                                            except Exception:
+                                                dtk = ''
+                                        if (not dtk) and disp_date:
+                                            dtk = disp_date
+                                        if h and a and dtk:
+                                            key = (dtk, _canon_slug(h), _canon_slug(a))
+                                            v = rr.get(shc_n)
+                                            if v is not None and pd.notna(v):
+                                                name_hs_map[key] = float(v)
+                        # From games_with_closing
+                        try:
+                            closing_path_hs = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+                            if os.path.exists(closing_path_hs):
+                                cl_hs = pd.read_csv(closing_path_hs, dtype=str, low_memory=False)
+                                cols2 = {c.lower(): c for c in cl_hs.columns}
+                                hc2 = cols2.get('home_team') or cols2.get('home_team_name')
+                                ac2 = cols2.get('away_team') or cols2.get('away_team_name')
+                                dc2 = cols2.get('display_date') or cols2.get('date_line') or cols2.get('date_game')
+                                sh2 = cols2.get('close_home_spread') or cols2.get('home_spread')
+                                if hc2 and ac2 and sh2:
+                                    cl_hs[sh2] = pd.to_numeric(cl_hs[sh2], errors='coerce')
+                                    for _, rr in cl_hs.iterrows():
+                                        h = str(rr.get(hc2) or '').strip(); a = str(rr.get(ac2) or '').strip()
+                                        dtk = str(rr.get(dc2) or '').strip()
+                                        if dtk and len(dtk) > 10:
+                                            dtk = _date_only(dtk)
+                                        elif dtk:
+                                            try:
+                                                dtk = pd.to_datetime(dtk, errors='coerce').strftime('%Y-%m-%d') if pd.notna(pd.to_datetime(dtk, errors='coerce')) else ''
+                                            except Exception:
+                                                dtk = ''
+                                        if (not dtk) and disp_date:
+                                            dtk = disp_date
+                                        if h and a and dtk:
+                                            key = (dtk, _canon_slug(h), _canon_slug(a))
+                                            v = rr.get(sh2)
+                                            if v is not None and pd.notna(v):
+                                                name_hs_map[key] = float(v)
+                        except Exception:
+                            pass
+                        # Lookup by names for this matchup
+                        try:
+                            hnm = _canon_slug(home_name); anm = _canon_slug(away_name)
+                            dtk = disp_date or ''
+                            v = name_hs_map.get((dtk, hnm, anm)) or name_hs_map.get((dtk, anm, hnm))
+                            if v is not None:
+                                hs = float(v)
+                        except Exception:
+                            pass
                     except Exception:
                         pass
                 if (hs is None) and gid_rep and ('hs_map' in locals()):
@@ -21799,6 +23306,214 @@ def recommendations():
                         'selection': side_team,
                         'game_id': gid_rep,
                     })
+        except Exception:
+            pass
+
+        # Ensure confidence populated for each item if missing
+        try:
+            def _compute_conf_simple(it_row: dict, rep_row: dict) -> float:
+                try:
+                    code = str(it_row.get('code') or it_row.get('rec_code') or '').upper()
+                    line = it_row.get('line') or it_row.get('market_total') or it_row.get('closing_total')
+                    price = it_row.get('price')
+                    pt = it_row.get('pred_total') or rep_row.get('pred_total')
+                    pm = rep_row.get('pred_margin')
+                    delta = None
+                    if code == 'OU':
+                        if (pt is not None) and (line is not None):
+                            try:
+                                delta = float(pt) - float(line)
+                            except Exception:
+                                delta = None
+                        sigma = float(os.environ.get('CONF_SIGMA_TOTAL','8'))
+                    elif code == 'ATS':
+                        if (pm is not None) and (line is not None):
+                            try:
+                                delta = float(pm) - float(line)
+                            except Exception:
+                                delta = None
+                        sigma = float(os.environ.get('CONF_SIGMA_SPREAD','5.5'))
+                    elif code == 'ML':
+                        sigma = float(os.environ.get('CONF_SIGMA_ML','0.06'))
+                    else:
+                        sigma = float(os.environ.get('CONF_SIGMA_OTHER','10'))
+                    edge_comp = 0.0
+                    if (delta is not None) and sigma>0:
+                        edge_comp = float(max(0.0, min(1.0, np.tanh(abs(delta) / (sigma * 0.8)))))
+                    # Modest price quality boost
+                    price_comp = 0.6
+                    try:
+                        if price is not None and str(price).strip()!='':
+                            pv = float(price)
+                            if np.isfinite(pv):
+                                price_comp = 0.9 if pv > 0 else (0.8 if abs(pv) <= 110 else 0.6)
+                    except Exception:
+                        price_comp = 0.6
+                    floor = float(os.environ.get('CONF_SMOOTH_FLOOR','0.12'))
+                    scale = float(os.environ.get('CONF_SMOOTH_SCALE','0.95'))
+                    # Weight edge heavier, add slight price influence
+                    conf_val = floor + scale * (0.8*edge_comp + 0.2*price_comp)
+                    return float(max(0.0, min(1.0, conf_val)))
+                except Exception:
+                    return 0.0
+            for it in out_items:
+                cv = it.get('confidence')
+                if (cv is None) or (str(cv).strip()==''):
+                    it['confidence'] = _compute_conf_simple(it, rep)
+        except Exception:
+            pass
+
+        # Post-adjust confidence for rest advantage and market consensus dispersion
+        try:
+            # Build or reuse per-request maps
+            rest_map = {}
+            try:
+                if disp_date:
+                    hist_path = OUT / 'predictions_history_enriched.csv'
+                    if hist_path.exists():
+                        hdf = pd.read_csv(hist_path, dtype=str, low_memory=False)
+                        cols = {c.lower(): c for c in hdf.columns}
+                        tc = cols.get('team') or cols.get('home_team')  # team column if exists; else derive via both
+                        dc = cols.get('date')
+                        if dc:
+                            # Build last-played date per team before disp_date
+                            hdf[dc] = pd.to_datetime(hdf[dc], errors='coerce')
+                            cut = pd.to_datetime(disp_date, errors='coerce')
+                            if pd.notna(cut):
+                                # Derive team list from schedule if no explicit team column
+                                if not tc:
+                                    # pull from same file if available
+                                    tc_home = cols.get('home_team') or 'home_team'
+                                    tc_away = cols.get('away_team') or 'away_team'
+                                    frames = []
+                                    if (tc_home in hdf.columns) and (tc_away in hdf.columns):
+                                        tmp_h = hdf[[dc, tc_home]].rename(columns={tc_home:'team'}); frames.append(tmp_h)
+                                        tmp_a = hdf[[dc, tc_away]].rename(columns={tc_away:'team'}); frames.append(tmp_a)
+                                        hh = pd.concat(frames, ignore_index=True)
+                                    else:
+                                        hh = hdf[[dc]].copy(); hh['team'] = None
+                                else:
+                                    hh = hdf[[dc, tc]].rename(columns={tc:'team'})
+                                hh = hh.dropna(subset=['team'])
+                                hh['team'] = hh['team'].astype(str)
+                                hh = hh[hh[dc] < cut]
+                                last_played = hh.sort_values(dc).groupby('team')[dc].last()
+                                for team, dlast in last_played.items():
+                                    try:
+                                        rest_map[normalize_name(str(team))] = int((cut - dlast).days)
+                                    except Exception:
+                                        continue
+            except Exception:
+                rest_map = {}
+
+            # Build dispersion maps (std dev across books) from edges_by_date if available; else try to load
+            tot_disp_map = {}; spr_disp_map = {}
+            try:
+                if ('edges_by_date' not in locals()) and disp_date:
+                    _path_edges2 = OUT / f"align_period_{disp_date}_edges.csv"
+                    edges_by_date = pd.read_csv(_path_edges2, dtype=str, low_memory=False) if _path_edges2.exists() else pd.DataFrame()
+                if not edges_by_date.empty:
+                    # coerce numerics
+                    for c in ['total','market_total','home_spread','away_spread']:
+                        if c in edges_by_date.columns:
+                            edges_by_date[c] = pd.to_numeric(edges_by_date[c], errors='coerce')
+                    if 'game_id' in edges_by_date.columns:
+                        edges_by_date['game_id'] = edges_by_date['game_id'].astype(str)
+                        if 'market' in edges_by_date.columns:
+                            em = edges_by_date.copy()
+                            # totals dispersion
+                            try:
+                                tots_e = em[em['market'].astype(str).str.lower()=='totals']
+                                if not tots_e.empty:
+                                    ln_col = 'market_total' if 'market_total' in tots_e.columns else 'total'
+                                    disp = tots_e.groupby('game_id')[ln_col].std()
+                                    tot_disp_map = disp.to_dict()
+                            except Exception:
+                                tot_disp_map = {}
+                            # spreads dispersion
+                            try:
+                                spr_e = em[em['market'].astype(str).str.lower()=='spreads']
+                                if not spr_e.empty:
+                                    # combine home/away spreads variance
+                                    disp_h = spr_e.groupby('game_id')['home_spread'].std() if 'home_spread' in spr_e.columns else None
+                                    disp_a = spr_e.groupby('game_id')['away_spread'].std() if 'away_spread' in spr_e.columns else None
+                                    spr_disp_map = {}
+                                    gids = set()
+                                    if disp_h is not None:
+                                        spr_disp_map.update({k: float(v) for k, v in disp_h.dropna().to_dict().items()})
+                                        gids |= set(spr_disp_map.keys())
+                                    if disp_a is not None:
+                                        d2 = disp_a.dropna().to_dict()
+                                        for k, v in d2.items():
+                                            try:
+                                                if k in spr_disp_map:
+                                                    spr_disp_map[k] = float(max(spr_disp_map[k], v))
+                                                else:
+                                                    spr_disp_map[k] = float(v)
+                                            except Exception:
+                                                continue
+                            except Exception:
+                                spr_disp_map = {}
+            except Exception:
+                tot_disp_map = {}; spr_disp_map = {}
+
+            # Apply adjustments to per-item confidence
+            def _clip01(x: float) -> float:
+                try:
+                    return float(max(0.0, min(1.0, x)))
+                except Exception:
+                    return 0.0
+            def _norm_name(s: str) -> str:
+                try:
+                    return normalize_name(str(s or ''))
+                except Exception:
+                    return str(s or '')
+            hnm = _norm_name(home_name); anm = _norm_name(away_name)
+            for oi in out_items:
+                try:
+                    conf0 = oi.get('confidence')
+                    confv = float(conf0) if conf0 is not None and str(conf0).strip()!='' else 0.5
+                    codeu = (oi.get('code') or '').upper()
+                    gid_i = str(oi.get('game_id') or '')
+                    # Dispersion adjustment: higher dispersion -> reduce confidence slightly
+                    if codeu == 'OU' and gid_i and gid_i in tot_disp_map:
+                        d = tot_disp_map.get(gid_i)
+                        if d is not None:
+                            base = float(os.environ.get('CONF_DISP_TOTAL_BASE','4.0'))
+                            adj = 1.0 - float(max(0.0, min(1.0, (float(d) / base) if base>0 else 0.0)))
+                            confv = _clip01(confv * (0.95 + 0.10*adj))
+                    if codeu == 'ATS' and gid_i and gid_i in spr_disp_map:
+                        d = spr_disp_map.get(gid_i)
+                        if d is not None:
+                            base = float(os.environ.get('CONF_DISP_SPREAD_BASE','2.0'))
+                            adj = 1.0 - float(max(0.0, min(1.0, (float(d) / base) if base>0 else 0.0)))
+                            confv = _clip01(confv * (0.95 + 0.10*adj))
+                    # Rest advantage boost if chosen side is more rested by >=1 day
+                    try:
+                        rh = rest_map.get(hnm); ra = rest_map.get(anm)
+                        if (rh is not None) and (ra is not None) and (codeu in ('ATS','ML')):
+                            sel = str(oi.get('bet_label') or oi.get('bet') or '').lower()
+                            side_home = None
+                            if sel:
+                                if (_norm_name(home_name) in sel) or ('home' in sel):
+                                    side_home = True
+                                elif (_norm_name(away_name) in sel) or ('away' in sel):
+                                    side_home = False
+                            if side_home is not None:
+                                diff = (rh - ra)
+                                if (diff >= 1 and side_home) or (diff <= -1 and not side_home):
+                                    confv = _clip01(confv + float(os.environ.get('CONF_REST_BONUS','0.03')))
+                    except Exception:
+                        pass
+                    oi['confidence'] = confv
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Remove placeholder Other rows to keep grouped view clean
+        try:
+            out_items = [it for it in out_items if str(it.get('code') or it.get('type') or '').strip().upper() != 'OTHER']
         except Exception:
             pass
 
@@ -21895,6 +23610,78 @@ def recommendations():
         logging.getLogger('ncaab_app').info(f"recommendations diagnostics: grouped_games={total_games} ou_missing_dir={ou_issues}")
     except Exception:
         pass
+    # Dynamic HR thresholds: mark ~top decile by confidence per market (optional via HR_DYNAMIC)
+    try:
+        dyn_on = str(os.environ.get('HR_DYNAMIC','1')).strip().lower() in ('1','true','yes')
+    except Exception:
+        dyn_on = True
+    if dyn_on:
+        try:
+            conf_lists: dict[str, list[float]] = {'OU':[], 'ATS':[], 'ML':[]}
+            for g in grouped_games:
+                for oi in g.get('recs', []):
+                    codeu = (oi.get('code') or oi.get('rec_code') or '').upper()
+                    cv = oi.get('confidence')
+                    try:
+                        if cv is not None and str(cv).strip()!='':
+                            conf_lists.setdefault(codeu, []).append(float(cv))
+                    except Exception:
+                        pass
+            def p90(vals: list[float]) -> float | None:
+                try:
+                    arr = np.asarray(vals, dtype=float)
+                    if arr.size == 0:
+                        return None
+                    return float(np.nanpercentile(arr, 90))
+                except Exception:
+                    return None
+            dyn_conf = {k: p90(v) for k, v in conf_lists.items()}
+            # Fallback to env/static if insufficient data
+            def _env_f(name: str, default: float) -> float:
+                try:
+                    v = os.environ.get(name)
+                    return float(v) if v is not None else default
+                except Exception:
+                    return default
+            static_conf = {
+                'OU': _env_f('HR_CONF_OU', 0.72),
+                'ATS': _env_f('HR_CONF_ATS', 0.68),
+                'ML': _env_f('HR_CONF_ML', 0.70),
+            }
+            edge_min = {
+                'OU': _env_f('HR_EDGE_OU', 3.0),
+                'ATS': _env_f('HR_EDGE_ATS', 2.0),
+                'ML': _env_f('HR_EV_ML', 0.03),
+            }
+            price_max = _env_f('HR_PRICE_MAX_ABS', 120.0)
+            for g in grouped_games:
+                for oi in g.get('recs', []):
+                    try:
+                        codeu = (oi.get('code') or oi.get('rec_code') or '').upper()
+                        conf = float(oi.get('confidence') or 0.0)
+                        # Threshold: dynamic p90 if present else static
+                        thr = dyn_conf.get(codeu) if dyn_conf.get(codeu) is not None else static_conf.get(codeu, 0.7)
+                        e = oi.get('edge') or oi.get('abs_edge') or oi.get('_abs_edge')
+                        edge_abs = abs(float(e)) if (e is not None and str(e).strip()!='') else 0.0
+                        pv_raw = oi.get('price')
+                        try:
+                            pv = float(pv_raw) if pv_raw is not None and str(pv_raw).strip()!='' else np.nan
+                        except Exception:
+                            pv = np.nan
+                        too_juiced = (np.isfinite(pv) and pv < 0 and abs(pv) > price_max)
+                        if codeu == 'OU':
+                            if (conf >= thr) and (edge_abs >= edge_min['OU']) and (not too_juiced):
+                                oi['highly_recommended'] = True
+                        elif codeu == 'ATS':
+                            if (conf >= thr) and (edge_abs >= edge_min['ATS']) and (not too_juiced):
+                                oi['highly_recommended'] = True
+                        elif codeu == 'ML':
+                            if (conf >= thr) and ((edge_abs >= edge_min['ML']) if np.isfinite(edge_abs) else True) and (not too_juiced):
+                                oi['highly_recommended'] = True
+                    except Exception:
+                        pass
+        except Exception:
+            pass
     # Server-side fallback: when grouped view is empty, build from API payload
     try:
         if not grouped_games:
@@ -21986,9 +23773,188 @@ def recommendations():
                             'market_total': (it.get('total') or it.get('market_total')),
                             'selection': it.get('selection') or it.get('bet'),
                             'game_id': it.get('game_id'),
+                            'confidence': it.get('confidence'),
+                            'pred_margin': it.get('pred_margin'),
+                            'home_spread': it.get('home_spread'),
+                            'closing_spread_home': it.get('closing_spread_home'),
+                            'away_spread': it.get('away_spread'),
+                            'moneyline_home': it.get('moneyline_home'),
+                            'moneyline_away': it.get('moneyline_away'),
                         })
                     home_name = _s(rep.get('home_team'))
                     away_name = _s(rep.get('away_team'))
+                    # Ensure each game has OU/ATS/ML by synthesizing fallbacks when missing (fast-path parity)
+                    try:
+                        present_codes = {str(it.get('code') or '').upper() for it in out_items}
+                        # Simple confidence helper
+                        def _compute_conf_simple_fp(it_row: dict, rep_row: dict) -> float:
+                            try:
+                                code = str(it_row.get('code') or it_row.get('rec_code') or '').upper()
+                                line = it_row.get('line') or it_row.get('market_total') or it_row.get('closing_total')
+                                price = it_row.get('price')
+                                pt = it_row.get('pred_total') or rep_row.get('pred_total')
+                                pm = it_row.get('pred_margin') or rep_row.get('pred_margin')
+                                delta = None
+                                if code == 'OU':
+                                    if (pt is not None) and (line is not None):
+                                        try:
+                                            delta = float(pt) - float(line)
+                                        except Exception:
+                                            delta = None
+                                    sigma = float(os.environ.get('CONF_SIGMA_TOTAL','8'))
+                                elif code == 'ATS':
+                                    if (pm is not None) and (line is not None):
+                                        try:
+                                            delta = float(pm) - float(line)
+                                        except Exception:
+                                            delta = None
+                                    sigma = float(os.environ.get('CONF_SIGMA_SPREAD','5.5'))
+                                elif code == 'ML':
+                                    sigma = float(os.environ.get('CONF_SIGMA_ML','0.06'))
+                                else:
+                                    sigma = float(os.environ.get('CONF_SIGMA_OTHER','10'))
+                                edge_comp = 0.0
+                                if (delta is not None) and sigma>0:
+                                    edge_comp = float(max(0.0, min(1.0, np.tanh(abs(delta) / (sigma * 0.8)))))
+                                price_comp = 0.6
+                                try:
+                                    if price is not None and str(price).strip()!='':
+                                        pv = float(price)
+                                        if np.isfinite(pv):
+                                            price_comp = 0.9 if pv > 0 else (0.8 if abs(pv) <= 110 else 0.6)
+                                except Exception:
+                                    price_comp = 0.6
+                                floor = float(os.environ.get('CONF_SMOOTH_FLOOR','0.12'))
+                                scale = float(os.environ.get('CONF_SMOOTH_SCALE','0.95'))
+                                conf_val = floor + scale * (0.8*edge_comp + 0.2*price_comp)
+                                return float(max(0.0, min(1.0, conf_val)))
+                            except Exception:
+                                return 0.0
+                        gid_rep = str(rep.get('game_id') or '')
+                        # OU fallback
+                        if 'OU' not in present_codes:
+                            ln_ou = None
+                            try:
+                                for cand in [rep.get('market_total'), rep.get('total')]:
+                                    if cand is not None and str(cand).strip()!='':
+                                        ln_ou = float(cand)
+                                        break
+                            except Exception:
+                                ln_ou = None
+                            pt_ou = None
+                            try:
+                                for cand in [rep.get('pred_total'), rep.get('pred_total_model')]:
+                                    if cand is not None and str(cand).strip()!='':
+                                        pt_ou = float(cand)
+                                        break
+                            except Exception:
+                                pt_ou = None
+                            side_ou = None
+                            if (pt_ou is not None) and (ln_ou is not None):
+                                side_ou = 'Over' if pt_ou > ln_ou else 'Under'
+                            edge_ou = None
+                            try:
+                                if (pt_ou is not None) and (ln_ou is not None):
+                                    edge_ou = abs(pt_ou - ln_ou)
+                                elif rep.get('edge_total') is not None and str(rep.get('edge_total')).strip()!='':
+                                    edge_ou = abs(float(rep.get('edge_total')))
+                            except Exception:
+                                edge_ou = None
+                            ou_item = {
+                                'type': 'Totals',
+                                'code': 'OU',
+                                'book': '',
+                                'bet': (f"{side_ou} {ln_ou:.1f}" if (side_ou and ln_ou is not None) else (side_ou or '')),
+                                'bet_label': (f"{side_ou} {ln_ou:.1f}" if (side_ou and ln_ou is not None) else (side_ou or '')),
+                                'line': ln_ou,
+                                'price': None,
+                                'edge': edge_ou,
+                                'market': 'totals',
+                                'pred_total': pt_ou,
+                                'selection': (side_ou or ''),
+                                'game_id': gid_rep,
+                            }
+                            ou_item['confidence'] = _compute_conf_simple_fp(ou_item, rep)
+                            out_items.append(ou_item)
+                        # ATS fallback
+                        if 'ATS' not in present_codes:
+                            hs = None
+                            try:
+                                for cand in [rep.get('closing_spread_home'), rep.get('home_spread')]:
+                                    if cand is not None and str(cand).strip()!='':
+                                        hs = float(cand)
+                                        break
+                            except Exception:
+                                hs = None
+                            pm = None
+                            try:
+                                pm = float(rep.get('pred_margin')) if rep.get('pred_margin') is not None else None
+                            except Exception:
+                                pm = None
+                            if (hs is not None) and (pm is not None):
+                                mkt_margin = (0.0 - hs)
+                                delta = pm - mkt_margin
+                                side_home = (delta >= 0)
+                                side_team = home_name if side_home else away_name
+                                ln_spread = hs if side_home else (0.0 - hs)
+                                edge_spread = abs(delta)
+                                ats_item = {
+                                    'type': 'Spread',
+                                    'code': 'ATS',
+                                    'book': '',
+                                    'bet': f"{side_team} {ln_spread:+.1f}",
+                                    'bet_label': f"{side_team} {ln_spread:+.1f}",
+                                    'line': ln_spread,
+                                    'price': None,
+                                    'edge': edge_spread,
+                                    'market': 'spreads',
+                                    'pred_margin': pm,
+                                    'selection': side_team,
+                                    'game_id': gid_rep,
+                                }
+                                ats_item['confidence'] = _compute_conf_simple_fp(ats_item, rep)
+                                out_items.append(ats_item)
+                        # ML fallback
+                        if 'ML' not in present_codes:
+                            side_ml = None
+                            try:
+                                pmv = float(rep.get('pred_margin')) if rep.get('pred_margin') is not None else None
+                                side_ml = 'home' if (pmv is not None and pmv >= 0) else 'away'
+                            except Exception:
+                                side_ml = 'home'
+                            side_team_ml = home_name if side_ml=='home' else away_name
+                            ml_item = {
+                                'type': 'Moneyline',
+                                'code': 'ML',
+                                'book': '',
+                                'bet': f"{side_team_ml} ML",
+                                'bet_label': f"{side_team_ml} ML",
+                                'line': None,
+                                'price': None,
+                                'edge': None,
+                                'market': 'h2h',
+                                'selection': side_team_ml,
+                                'game_id': gid_rep,
+                            }
+                            ml_item['confidence'] = _compute_conf_simple_fp(ml_item, rep)
+                            out_items.append(ml_item)
+                        # De-duplicate by code to keep one per type
+                        try:
+                            best_by_code = {}
+                            for it2 in sorted(out_items, key=lambda x: abs(float(x.get('edge') or x.get('abs_edge') or 0.0)) if str(x.get('edge') or '').strip()!='' else 0.0, reverse=True):
+                                cd = (it2.get('code') or 'Other')
+                                if cd not in best_by_code:
+                                    best_by_code[cd] = it2
+                            out_items = [best_by_code[k] for k in ['OU','ATS','ML'] if k in best_by_code] + [v for k,v in best_by_code.items() if k not in ('OU','ATS','ML')]
+                        except Exception:
+                            pass
+                        # Remove placeholder Other rows in fallback grouping
+                        try:
+                            out_items = [it2 for it2 in out_items if str(it2.get('code') or '').strip().upper() != 'OTHER' and str(it2.get('type') or '').strip().upper() != 'OTHER']
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
                     grouped_fb.append({
                         'game_key': gkey,
                         'matchup': f"{home_name} vs {away_name}",
@@ -22010,7 +23976,11 @@ def recommendations():
                 grouped_games = grouped_fb
     except Exception:
         pass
-    return render_template("recommendations_grouped.html", games=grouped_games, total_games=len(grouped_games))
+    try:
+        return render_template("recommendations_grouped.html", games=grouped_games, total_games=len(grouped_games))
+    except Exception:
+        logging.getLogger('ncaab_app').exception("Grouped recommendations render failed; falling back to empty payload")
+        return render_template("recommendations_grouped.html", games=[], total_games=0)
 
 
 @app.route("/picks-raw")
@@ -22778,7 +24748,27 @@ def api_recommendations():
                     tots['rec_type'] = 'Totals'; tots['rec_code'] = 'OU'
                     return tots
                 def _spreads(df: pd.DataFrame) -> pd.DataFrame:
-                    m = df['market'].astype(str).str.lower() == 'spreads' if 'market' in df.columns else pd.Series([False]*len(df))
+                    # Broaden detection: include rows with spread-like columns even if market label is missing
+                    try:
+                        has_market = 'market' in df.columns
+                        m_mkt = df['market'].astype(str).str.lower() == 'spreads' if has_market else pd.Series([False]*len(df))
+                    except Exception:
+                        m_mkt = pd.Series([False]*len(df))
+                    try:
+                        n = len(df)
+                    except Exception:
+                        n = 0
+                    def _nan_series():
+                        return pd.Series([False]*n)
+                    try:
+                        m_cols = (
+                            (pd.to_numeric(df.get('home_spread'), errors='coerce').notna() if 'home_spread' in df.columns else _nan_series()) |
+                            (pd.to_numeric(df.get('closing_spread_home'), errors='coerce').notna() if 'closing_spread_home' in df.columns else _nan_series()) |
+                            (pd.to_numeric(df.get('away_spread'), errors='coerce').notna() if 'away_spread' in df.columns else _nan_series())
+                        )
+                    except Exception:
+                        m_cols = pd.Series([False]*n)
+                    m = m_mkt | m_cols
                     sprs = df[m].copy()
                     if sprs.empty:
                         return sprs
@@ -22833,22 +24823,154 @@ def api_recommendations():
                     sprs['rec_type'] = 'Spread'; sprs['rec_code'] = 'ATS'
                     return sprs
                 def _moneyline(df: pd.DataFrame) -> pd.DataFrame:
-                    m = df['market'].astype(str).str.lower() == 'h2h' if 'market' in df.columns else pd.Series([False]*len(df))
-                    mls = df[m].copy()
-                    if mls.empty or not {'home_ml_ev','away_ml_ev'}.issubset(mls.columns):
-                        return pd.DataFrame(columns=df.columns)
-                    for c in ['home_ml_ev','away_ml_ev']:
-                        mls[c] = pd.to_numeric(mls[c], errors='coerce')
-                    mls['bet'] = mls.apply(lambda r: ('home' if (float(r.get('home_ml_ev') or 0.0) >= float(r.get('away_ml_ev') or 0.0)) else 'away'), axis=1)
+                    # Prefer H2H market rows; fallback to presence of moneyline columns
+                    has_market = 'market' in df.columns
+                    m = df['market'].astype(str).str.lower() == 'h2h' if has_market else pd.Series([False]*len(df))
+                    mls = df[m].copy() if has_market else df.copy()
+                    # If we still have no rows, fallback to any rows with ML prices present
+                    if mls.empty:
+                        try:
+                            candidates = []
+                            if 'moneyline_home' in df.columns:
+                                candidates.append(pd.to_numeric(df['moneyline_home'], errors='coerce').notna())
+                            if 'moneyline_away' in df.columns:
+                                candidates.append(pd.to_numeric(df['moneyline_away'], errors='coerce').notna())
+                            if 'ml_home' in df.columns:
+                                candidates.append(pd.to_numeric(df['ml_home'], errors='coerce').notna())
+                            if 'ml_away' in df.columns:
+                                candidates.append(pd.to_numeric(df['ml_away'], errors='coerce').notna())
+                            if 'price_home' in df.columns:
+                                candidates.append(pd.to_numeric(df['price_home'], errors='coerce').notna())
+                            if 'h2h_home' in df.columns:
+                                candidates.append(pd.to_numeric(df['h2h_home'], errors='coerce').notna())
+                            if candidates:
+                                mask_any = candidates[0]
+                                for c in candidates[1:]:
+                                    mask_any = mask_any | c
+                                mls = df[mask_any].copy()
+                        except Exception:
+                            mls = df.copy()
+                    # If we still have no rows, synthesize ML from pred_margin when available
+                    if mls.empty:
+                        try:
+                            df_syn = df.copy()
+                            # Require minimal identifiers
+                            req_cols = {'game_id','home_team','away_team','pred_margin'}
+                            if not req_cols.issubset(set(df_syn.columns)):
+                                return pd.DataFrame(columns=df.columns)
+                            def _sel_pm(r: pd.Series) -> str:
+                                try:
+                                    pm = r.get('pred_margin')
+                                    if pm is not None and str(pm).strip()!='':
+                                        return 'home' if float(pm) >= 0 else 'away'
+                                except Exception:
+                                    pass
+                                return 'home'
+                            df_syn = df_syn.copy()
+                            df_syn['bet'] = df_syn.apply(_sel_pm, axis=1)
+                            def _edge_pm(r: pd.Series) -> float:
+                                try:
+                                    pm = r.get('pred_margin')
+                                    if pm is not None and str(pm).strip()!='':
+                                        return float(max(0.0, min(2.0, abs(float(pm)) / 6.0)))
+                                except Exception:
+                                    pass
+                                return 0.0
+                            df_syn['edge'] = df_syn.apply(_edge_pm, axis=1)
+                            df_syn['line'] = None
+                            df_syn['price'] = None
+                            df_syn['market'] = 'h2h'
+                            df_syn['period'] = 'full_game'
+                            df_syn['rec_type'] = 'Moneyline'; df_syn['rec_code'] = 'ML'
+                            mls = df_syn
+                        except Exception:
+                            return pd.DataFrame(columns=df.columns)
+                    # Build selection and edge using available signals
+                    def _american_to_prob(odds_val: Any) -> float | None:
+                        try:
+                            v = float(odds_val)
+                            if not np.isfinite(v):
+                                return None
+                            if v > 0:
+                                return 100.0 / (v + 100.0)
+                            else:
+                                return (-v) / ((-v) + 100.0)
+                        except Exception:
+                            return None
+                    # Coerce odds to numeric for price selection
+                    for c in ['moneyline_home','moneyline_away']:
+                        if c in mls.columns:
+                            mls[c] = pd.to_numeric(mls[c], errors='coerce')
+                    # If EV columns exist, use them; else derive from odds or pred_margin
+                    if {'home_ml_ev','away_ml_ev'}.issubset(mls.columns):
+                        for c in ['home_ml_ev','away_ml_ev']:
+                            mls[c] = pd.to_numeric(mls[c], errors='coerce')
+                        mls['bet'] = mls.apply(lambda r: ('home' if (float(r.get('home_ml_ev') or 0.0) >= float(r.get('away_ml_ev') or 0.0)) else 'away'), axis=1)
+                        mls['edge'] = mls.apply(lambda r: max(float(r.get('home_ml_ev') or 0.0), float(r.get('away_ml_ev') or 0.0)), axis=1)
+                    else:
+                        # Selection: prefer pred_margin sign, else favorite by odds (negative = favorite)
+                        def _sel_row(r: pd.Series) -> str:
+                            try:
+                                pm = r.get('pred_margin')
+                                if pm is not None and str(pm).strip()!='':
+                                    return ('home' if float(pm) >= 0 else 'away')
+                            except Exception:
+                                pass
+                            try:
+                                mh = r.get('moneyline_home'); ma = r.get('moneyline_away')
+                                if mh is not None and ma is not None:
+                                    v_h = float(mh); v_a = float(ma)
+                                    # Negative odds indicate favorite
+                                    if v_h < 0 and v_a >= 0:
+                                        return 'home'
+                                    if v_a < 0 and v_h >= 0:
+                                        return 'away'
+                                    # Tie-breaker: lower absolute price
+                                    if abs(v_h) <= abs(v_a):
+                                        return 'home'
+                                    return 'away'
+                            except Exception:
+                                pass
+                            return 'home'
+                        mls['bet'] = mls.apply(_sel_row, axis=1)
+                        # Edge: use implied probability advantage over 0.5
+                        def _edge_row(r: pd.Series) -> float:
+                            try:
+                                side = str(r.get('bet') or '').lower()
+                                mh = r.get('moneyline_home'); ma = r.get('moneyline_away')
+                                p_h = _american_to_prob(mh) if mh is not None else None
+                                p_a = _american_to_prob(ma) if ma is not None else None
+                                p_sel = p_h if side=='home' else p_a
+                                p_oth = p_a if side=='home' else p_h
+                                if p_sel is not None and p_oth is not None:
+                                    # Advantage vs opponent prob
+                                    return float(max(0.0, (p_sel - p_oth)))
+                                if p_sel is not None:
+                                    return float(max(0.0, p_sel - 0.5))
+                                # Fallback to margin magnitude
+                                pm = r.get('pred_margin')
+                                if pm is not None and str(pm).strip()!='':
+                                    return float(max(0.0, min(2.0, abs(float(pm)) / 6.0)))
+                            except Exception:
+                                pass
+                            return 0.0
+                        mls['edge'] = mls.apply(_edge_row, axis=1)
+                    # Price corresponding to selected side
                     mls['line'] = None
                     mls['price'] = mls.apply(lambda r: (r['moneyline_home'] if str(r.get('bet')).lower() == 'home' else r['moneyline_away']), axis=1)
-                    mls['edge'] = mls.apply(lambda r: max(float(r.get('home_ml_ev') or 0.0), float(r.get('away_ml_ev') or 0.0)), axis=1)
                     mls['rec_type'] = 'Moneyline'; mls['rec_code'] = 'ML'
                     return mls
                 picks_fb = pd.concat([_totals(edges), _spreads(edges), _moneyline(edges)], ignore_index=True)
                 if not picks_fb.empty:
                     try:
-                        filtered = picks_fb[pd.to_numeric(picks_fb['edge'], errors='coerce') > 0]
+                        filt_mask = pd.to_numeric(picks_fb['edge'], errors='coerce') > 0
+                        if 'rec_code' in picks_fb.columns:
+                            try:
+                                is_ml = picks_fb['rec_code'].astype(str).str.upper() == 'ML'
+                                filt_mask = filt_mask | is_ml
+                            except Exception:
+                                pass
+                        filtered = picks_fb[filt_mask]
                         picks_fb = filtered if len(filtered) else picks_fb
                     except Exception:
                         pass
@@ -22861,8 +24983,8 @@ def api_recommendations():
                     keep_cols = [
                         'game_id','date','home_team','away_team','book','market','period',
                         'line','price','edge','pred_total','pred_margin','edge_total','edge_margin',
-                        'home_spread','home_spread_price','away_spread','away_spread_price',
-                        'total','over_price','under_price',
+                        'home_spread','home_spread_price','away_spread','away_spread_price','closing_spread_home',
+                        'total','over_price','under_price','moneyline_home','moneyline_away',
                         'start_time_iso','start_tz_abbr','start_time','display_date','start_time_local'
                     ]
                     picks = picks_fb[[c for c in keep_cols if c in picks_fb.columns]].copy()
@@ -23870,6 +25992,261 @@ def api_recommendations():
                     rows.extend(ats_edges_api)
     except Exception:
         pass
+    # ML coverage augmentation: ensure at least one ML recommendation per game
+    try:
+        if date_q:
+            # Build set of games already having ML
+            have_ml_ids = {str(r.get('game_id') or '') for r in rows if str(r.get('code') or r.get('rec_code') or '').upper() == 'ML'}
+            # Use display snapshot as the source of truth for team names and pred_margin
+            disp_path_ml = OUT / f"predictions_display_{date_q}.csv"
+            ddf_ml = pd.read_csv(disp_path_ml, dtype=str, low_memory=False) if disp_path_ml.exists() else pd.DataFrame()
+            if isinstance(ddf_ml, pd.DataFrame) and not ddf_ml.empty:
+                try:
+                    ddf_ml['game_id'] = ddf_ml['game_id'].astype(str)
+                except Exception:
+                    pass
+                # Coerce pred_margin to numeric when present
+                if 'pred_margin' in ddf_ml.columns:
+                    try:
+                        ddf_ml['pred_margin'] = pd.to_numeric(ddf_ml['pred_margin'], errors='coerce')
+                    except Exception:
+                        pass
+                for rec in ddf_ml.to_dict(orient='records'):
+                    try:
+                        gid = str(rec.get('game_id') or '')
+                        if (not gid) or (gid in have_ml_ids):
+                            continue
+                        home_nm = rec.get('home_team') or rec.get('home_team_name') or ''
+                        away_nm = rec.get('away_team') or rec.get('away_team_name') or ''
+                        pm = rec.get('pred_margin')
+                        sel_team = None
+                        if pm is not None and str(pm) != '' and not (isinstance(pm, float) and np.isnan(pm)):
+                            try:
+                                sel_team = (home_nm if float(pm) >= 0 else away_nm)
+                            except Exception:
+                                sel_team = home_nm
+                        else:
+                            sel_team = home_nm
+                        # Edge from margin magnitude (scaled, clamped)
+                        try:
+                            pmv = float(pm) if (pm is not None and str(pm) != '' and not (isinstance(pm, float) and np.isnan(pm))) else None
+                            edge_v = float(max(0.0, min(2.0, abs(pmv) / 6.0))) if pmv is not None else 0.0
+                        except Exception:
+                            edge_v = 0.0
+                        item = {
+                            'type': 'Moneyline', 'code': 'ML', 'market': 'h2h', 'period': 'full_game',
+                            'bet': f"{sel_team} ML", 'bet_label': f"{sel_team} ML",
+                            'line': None, 'price': None, 'edge': edge_v,
+                            'pred_total': None, 'pred_margin': (float(pm) if pm is not None else None),
+                            'selection': sel_team, 'game_id': gid, 'date': date_q,
+                            'home_team': home_nm, 'away_team': away_nm,
+                        }
+                        rows.append(item)
+                        have_ml_ids.add(gid)
+                    except Exception:
+                        continue
+            # If display snapshot missing or incomplete, derive ML from edges
+            try:
+                existing_ids = set(have_ml_ids)
+                ml_edges_rows = _derive_ml_from_edges(date_q, existing_ids, ddf_ml if isinstance(ddf_ml, pd.DataFrame) and not ddf_ml.empty else None)
+                if ml_edges_rows:
+                    rows.extend(ml_edges_rows)
+                    have_ml_ids.update({str(x.get('game_id') or '') for x in ml_edges_rows})
+            except Exception:
+                pass
+    except Exception:
+        pass
+    # OU per-game augmentation: ensure an OU recommendation exists for every displayed game
+    try:
+        if date_q:
+            disp_path_ou = OUT / f"predictions_display_{date_q}.csv"
+            ddf_ou = pd.read_csv(disp_path_ou) if disp_path_ou.exists() else pd.DataFrame()
+            if isinstance(ddf_ou, pd.DataFrame) and not ddf_ou.empty:
+                try:
+                    ddf_ou['game_id'] = ddf_ou['game_id'].astype(str)
+                except Exception:
+                    pass
+                existing_ou_ids = {str(r.get('game_id') or '') for r in rows if str(r.get('code') or r.get('rec_code') or '').upper() == 'OU'}
+                missing_df_ou = ddf_ou[~ddf_ou['game_id'].astype(str).isin(existing_ou_ids)] if existing_ou_ids else ddf_ou
+                if isinstance(missing_df_ou, pd.DataFrame) and not missing_df_ou.empty:
+                    add_ou = []
+                    for rec in missing_df_ou.to_dict(orient='records'):
+                        try:
+                            gid = str(rec.get('game_id') or '')
+                            home = rec.get('home_team') or rec.get('home_team_name')
+                            away = rec.get('away_team') or rec.get('away_team_name')
+                            # Resolve a numeric line
+                            mt = rec.get('market_total') if 'market_total' in missing_df_ou.columns else None
+                            ct = rec.get('closing_total') if 'closing_total' in missing_df_ou.columns else None
+                            ln = None
+                            for v in (mt, ct):
+                                if v is not None and str(v).strip()!='':
+                                    try:
+                                        ln = float(v)
+                                        break
+                                    except Exception:
+                                        continue
+                            pt = None
+                            try:
+                                pv = rec.get('pred_total')
+                                if pv is not None and str(pv).strip()!='':
+                                    pt = float(pv)
+                            except Exception:
+                                pt = None
+                            side = None
+                            if (pt is not None) and (ln is not None):
+                                side = 'Over' if pt > ln else 'Under'
+                            elif rec.get('edge_total') is not None:
+                                try:
+                                    et = float(rec.get('edge_total'))
+                                    side = 'Over' if et >= 0 else 'Under'
+                                except Exception:
+                                    side = None
+                            add_ou.append({
+                                'type': 'Totals',
+                                'code': 'OU',
+                                'book': '',
+                                'bet': (f"{side} {ln:.1f}" if (side and ln is not None) else (side or '')),
+                                'bet_label': (f"{side} {ln:.1f}" if (side and ln is not None) else (side or '')),
+                                'line': ln,
+                                'price': None,
+                                'edge': (abs(pt - ln) if (pt is not None and ln is not None) else rec.get('edge_total')),
+                                'market': 'totals',
+                                'pred_total': pt,
+                                'edge_total': rec.get('edge_total'),
+                                'market_total': ln,
+                                'selection': (side or ''),
+                                'game_id': gid,
+                                'home_team': home,
+                                'away_team': away,
+                                'date': date_q,
+                            })
+                        except Exception:
+                            continue
+                    if add_ou:
+                        rows.extend(add_ou)
+    except Exception:
+        pass
+    # ATS per-game augmentation: fill missing ATS rows from edges for displayed games
+    try:
+        if date_q:
+            disp_path_at = OUT / f"predictions_display_{date_q}.csv"
+            ddf_at = pd.read_csv(disp_path_at) if disp_path_at.exists() else pd.DataFrame()
+            if isinstance(ddf_at, pd.DataFrame) and not ddf_at.empty:
+                try:
+                    ddf_at['game_id'] = ddf_at['game_id'].astype(str)
+                except Exception:
+                    pass
+                display_gids = set(ddf_at['game_id'].astype(str))
+                existing_ats_ids = {str(r.get('game_id') or '') for r in rows if str(r.get('code') or r.get('rec_code') or '').upper() == 'ATS'}
+                missing_ats_gids = {g for g in display_gids if g not in existing_ats_ids}
+                if missing_ats_gids:
+                    ats_edges_all = _derive_ats_from_edges(date_q, existing_ats_ids, ddf_at)
+                    ats_edges_rows = [x for x in (ats_edges_all or []) if str(x.get('game_id') or '') in missing_ats_gids]
+                    if ats_edges_rows:
+                        rows.extend(ats_edges_rows)
+                    # Fallback: derive ATS using closing/home/away spreads when edges are unavailable
+                    try:
+                        if len(ats_edges_rows) == 0 and missing_ats_gids:
+                            closing_path_at = os.path.join(os.getcwd(), 'outputs', 'games_with_closing.csv')
+                            cldf = pd.read_csv(closing_path_at, dtype=str, low_memory=False) if os.path.exists(closing_path_at) else pd.DataFrame()
+                            if isinstance(cldf, pd.DataFrame) and not cldf.empty:
+                                # Normalize
+                                cols2 = {c.lower(): c for c in cldf.columns}
+                                gid_col = cols2.get('game_id')
+                                hc2 = cols2.get('home_team') or cols2.get('home') or cols2.get('home_team_name')
+                                ac2 = cols2.get('away_team') or cols2.get('away') or cols2.get('away_team_name')
+                                dcol = cols2.get('date_game') or cols2.get('display_date') or cols2.get('date')
+                                shc = cols2.get('close_home_spread') or cols2.get('home_spread')
+                                sac = cols2.get('close_away_spread') or cols2.get('away_spread')
+                                if gid_col:
+                                    try:
+                                        cldf[gid_col] = cldf[gid_col].astype(str)
+                                    except Exception:
+                                        pass
+                                # Build helper to fetch closing line by game_id
+                                def _get_closing_line_by_gid(gid: str) -> tuple[float | None, float | None]:
+                                    try:
+                                        if not gid_col:
+                                            return None, None
+                                        row = cldf[cldf[gid_col] == gid].iloc[0]
+                                    except Exception:
+                                        return None, None
+                                    ln_home = None; ln_away = None
+                                    try:
+                                        v = row.get(shc) if shc else None
+                                        if v is not None and str(v).strip()!='':
+                                            ln_home = float(v)
+                                    except Exception:
+                                        ln_home = None
+                                    try:
+                                        v2 = row.get(sac) if sac else None
+                                        if v2 is not None and str(v2).strip()!='':
+                                            ln_away = float(v2)
+                                    except Exception:
+                                        ln_away = None
+                                    return ln_home, ln_away
+                                # Build ATS rows for missing games
+                                branding = _load_branding_map()
+                                for gid in list(missing_ats_gids):
+                                    try:
+                                        ln_home, ln_away = _get_closing_line_by_gid(gid)
+                                        # Determine teams and pred_margin from display snapshot
+                                        try:
+                                            disp_row = ddf_at[ddf_at['game_id'] == gid].iloc[0]
+                                        except Exception:
+                                            disp_row = None
+                                        if disp_row is None:
+                                            continue
+                                        home_nm = str(disp_row.get('home_team') or disp_row.get('home_team_name') or '')
+                                        away_nm = str(disp_row.get('away_team') or disp_row.get('away_team_name') or '')
+                                        pm = disp_row.get('pred_margin')
+                                        sel_team = None
+                                        try:
+                                            if pm is not None and str(pm).strip()!='':
+                                                sel_team = (home_nm if float(pm) >= 0 else away_nm)
+                                        except Exception:
+                                            sel_team = None
+                                        if sel_team is None:
+                                            # Fallback: choose favorite by closing spreads
+                                            if ln_home is not None and ln_home < 0:
+                                                sel_team = home_nm
+                                            elif ln_away is not None and ln_away < 0:
+                                                sel_team = away_nm
+                                            else:
+                                                sel_team = home_nm
+                                        # Signed line
+                                        line_val = None
+                                        if ln_home is not None:
+                                            line_val = (ln_home if sel_team == home_nm else (0 - ln_home))
+                                        elif ln_away is not None:
+                                            line_val = (ln_away if sel_team == away_nm else (0 - ln_away))
+                                        bet_label = (f"{sel_team} {line_val:+.1f}" if line_val is not None else f"{sel_team} Spread").strip()
+                                        item = {
+                                            'type': 'Spread', 'code': 'ATS', 'market': 'spreads', 'period': 'full_game',
+                                            'bet': bet_label, 'bet_label': bet_label,
+                                            'line': line_val, 'price': None,
+                                            'edge': (abs(float(pm)) if (pm is not None and str(pm).strip()!='') else None),
+                                            'pred_total': None, 'pred_margin': (float(pm) if (pm is not None and str(pm).strip()!='') else None),
+                                            'selection': sel_team, 'game_id': gid, 'date': date_q,
+                                            'home_team': home_nm, 'away_team': away_nm,
+                                        }
+                                        # Branding enrichment
+                                        for side in ['home','away']:
+                                            nm = str(item.get(f'{side}_team') or '')
+                                            key = normalize_name(nm)
+                                            b = branding.get(key) or {}
+                                            item[f'{side}_key'] = key
+                                            item[f'{side}_logo'] = b.get('logo')
+                                            item[f'{side}_color'] = b.get('primary') or b.get('secondary')
+                                            item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                                        rows.append(item)
+                                    except Exception:
+                                        continue
+                    except Exception:
+                        pass
+    except Exception:
+        pass
     # Coverage augmentation: ensure at least one recommendation per displayed game
     try:
         if date_q:
@@ -24087,6 +26464,271 @@ def api_recommendations():
         rows = enr_rows
     except Exception:
         pass
+    # Odds backfill for API: populate missing line/price/book using odds snapshots
+    try:
+        odds_df = pd.DataFrame()
+        date_q = (request.args.get('date') or '').strip()
+        from pathlib import Path as _P
+        candidates = []
+        if date_q:
+            candidates += [
+                _P(os.getcwd()) / 'outputs' / f'games_with_last_{date_q}.csv',
+                _P(os.getcwd()) / 'outputs' / f'games_with_odds_{date_q}.csv',
+                _P(os.getcwd()) / 'outputs' / f'games_with_closing_{date_q}.csv',
+            ]
+        candidates += [
+            _P(os.getcwd()) / 'outputs' / 'games_with_last_today.csv',
+            _P(os.getcwd()) / 'outputs' / 'games_with_odds_today.csv',
+            _P(os.getcwd()) / 'outputs' / 'games_with_last.csv',
+            _P(os.getcwd()) / 'outputs' / 'games_with_closing.csv',
+        ]
+        for p in candidates:
+            try:
+                if p.exists():
+                    tmp = pd.read_csv(p, dtype=str, low_memory=False)
+                    if isinstance(tmp, pd.DataFrame) and not tmp.empty:
+                        odds_df = tmp
+                        break
+            except Exception:
+                continue
+        # Build lookup maps by game_id and pair_key
+        sp_price_map: dict[str, dict] = {}
+        ml_price_map: dict[str, dict] = {}
+        ou_price_map: dict[str, dict] = {}
+        sp_price_pair_map: dict[str, dict] = {}
+        ml_price_pair_map: dict[str, dict] = {}
+        ou_price_pair_map: dict[str, dict] = {}
+        if not odds_df.empty:
+            try:
+                odds_df['game_id'] = odds_df['game_id'].astype(str) if 'game_id' in odds_df.columns else odds_df.get('game_id')
+            except Exception:
+                pass
+            def _period_rank(v: str) -> int:
+                s = str(v or '').strip().lower()
+                if s in ('full_game','full','game'): return 0
+                if s in ('2h','h2','second_half'): return 1
+                if s in ('1h','h1','first_half'): return 2
+                return 9
+            book_order = ['BetOnline.ag','DraftKings','FanDuel','Caesars','BetMGM','Bovada','LowVig.ag','BetRivers']
+            # spreads
+            try:
+                spr = odds_df[odds_df['market'].astype(str).str.lower() == 'spreads'].copy()
+            except Exception:
+                spr = odds_df.iloc[0:0].copy()
+            for gid, grp in (spr.groupby('game_id') if not spr.empty else []):
+                try:
+                    grp = grp.copy()
+                    grp['__prank'] = grp['period'].astype(str).map(_period_rank) if 'period' in grp.columns else 9
+                    grp['__bprio'] = grp['book'].astype(str).map(lambda x: (book_order.index(x) if x in book_order else len(book_order)))
+                    grp = grp.sort_values(['__prank','__bprio'])
+                    row = grp.iloc[0]
+                except Exception:
+                    row = grp.iloc[0]
+                sp_price_map[str(gid)] = {
+                    'home_spread_price': pd.to_numeric(row.get('home_spread_price'), errors='coerce') if 'home_spread_price' in grp.columns else None,
+                    'away_spread_price': pd.to_numeric(row.get('away_spread_price'), errors='coerce') if 'away_spread_price' in grp.columns else None,
+                    'home_spread': pd.to_numeric(row.get('home_spread'), errors='coerce') if 'home_spread' in grp.columns else None,
+                    'away_spread': pd.to_numeric(row.get('away_spread'), errors='coerce') if 'away_spread' in grp.columns else None,
+                    'book': str(row.get('book') or '')
+                }
+                pk = str(row.get('pair_key') or '').strip().lower()
+                if pk:
+                    sp_price_pair_map[pk] = dict(sp_price_map[str(gid)])
+            # moneyline
+            try:
+                ml = odds_df[odds_df['market'].astype(str).str.lower() == 'h2h'].copy()
+            except Exception:
+                ml = odds_df.iloc[0:0].copy()
+            for gid, grp in (ml.groupby('game_id') if not ml.empty else []):
+                try:
+                    grp = grp.copy()
+                    grp['__prank'] = grp['period'].astype(str).map(_period_rank) if 'period' in grp.columns else 9
+                    grp['__bprio'] = grp['book'].astype(str).map(lambda x: (book_order.index(x) if x in book_order else len(book_order)))
+                    grp = grp.sort_values(['__prank','__bprio'])
+                    row = grp.iloc[0]
+                except Exception:
+                    row = grp.iloc[0]
+                ml_price_map[str(gid)] = {
+                    'moneyline_home': pd.to_numeric(row.get('moneyline_home'), errors='coerce') if 'moneyline_home' in grp.columns else None,
+                    'moneyline_away': pd.to_numeric(row.get('moneyline_away'), errors='coerce') if 'moneyline_away' in grp.columns else None,
+                    'book': str(row.get('book') or '')
+                }
+                pk = str(row.get('pair_key') or '').strip().lower()
+                if pk:
+                    ml_price_pair_map[pk] = dict(ml_price_map[str(gid)])
+            # totals
+            try:
+                tot = odds_df[odds_df['market'].astype(str).str.lower() == 'totals'].copy()
+            except Exception:
+                tot = odds_df.iloc[0:0].copy()
+            for gid, grp in (tot.groupby('game_id') if not tot.empty else []):
+                try:
+                    grp = grp.copy()
+                    grp['__prank'] = grp['period'].astype(str).map(_period_rank) if 'period' in grp.columns else 9
+                    grp['__bprio'] = grp['book'].astype(str).map(lambda x: (book_order.index(x) if x in book_order else len(book_order)))
+                    grp = grp.sort_values(['__prank','__bprio'])
+                    row = grp.iloc[0]
+                except Exception:
+                    row = grp.iloc[0]
+                ou_price_map[str(gid)] = {
+                    'total': pd.to_numeric(row.get('total'), errors='coerce') if 'total' in grp.columns else None,
+                    'over_price': pd.to_numeric(row.get('over_price'), errors='coerce') if 'over_price' in grp.columns else None,
+                    'under_price': pd.to_numeric(row.get('under_price'), errors='coerce') if 'under_price' in grp.columns else None,
+                    'book': str(row.get('book') or '')
+                }
+                pk = str(row.get('pair_key') or '').strip().lower()
+                if pk:
+                    ou_price_pair_map[pk] = dict(ou_price_map[str(gid)])
+        # Backfill per-row
+        def _norm_nm(s: str) -> str:
+            s = (s or '').lower().strip()
+            return re.sub(r"[^a-z0-9]","", s)
+        diag_rows_api = []
+        out_rows = []
+        for it in rows:
+            r = dict(it)
+            code = str(r.get('rec_code') or r.get('code') or '').upper()
+            gid = str(r.get('game_id') or '').strip()
+            # Pair key from team names
+            try:
+                hnm = _norm_nm(r.get('home_team') or r.get('home_team_name') or '')
+                anm = _norm_nm(r.get('away_team') or r.get('away_team_name') or '')
+                pair_key = f"{hnm}::{anm}" if (hnm and anm) else None
+            except Exception:
+                pair_key = None
+            line_final = r.get('line')
+            price_final = r.get('price')
+            book_final = r.get('book')
+            # Determine sides
+            sel_raw = str(r.get('selection') or r.get('bet') or '').strip().lower()
+            is_over = sel_raw.startswith('over') or sel_raw.startswith('o')
+            is_under = sel_raw.startswith('under') or sel_raw.startswith('u')
+            side_ou = 'over' if is_over else ('under' if is_under else None)
+            # Derive ATS/ML side by team name
+            try:
+                home_nm = str(r.get('home_team') or '').strip().lower()
+                away_nm = str(r.get('away_team') or '').strip().lower()
+            except Exception:
+                home_nm = ''; away_nm = ''
+            is_home = (home_nm and sel_raw.startswith(home_nm)) or ('home' in sel_raw)
+            is_away = (away_nm and sel_raw.startswith(away_nm)) or ('away' in sel_raw)
+            side_spread = 'home' if is_home else ('away' if is_away else None)
+            side_ml = side_spread
+            # Infer side from projections when ambiguous
+            try:
+                if code == 'OU' and side_ou is None:
+                    pt = float(r.get('pred_total')) if r.get('pred_total') is not None else None
+                    ln = float(line_final) if (line_final is not None and str(line_final).strip()!='') else None
+                    if (pt is not None) and (ln is not None):
+                        side_ou = 'over' if pt > ln else 'under'
+                elif code == 'ATS' and side_spread is None:
+                    pm = r.get('pred_margin')
+                    try:
+                        pmv = float(pm) if (pm is not None and str(pm).strip()!='') else None
+                    except Exception:
+                        pmv = None
+                    if pmv is not None:
+                        side_spread = 'home' if pmv >= 0 else 'away'
+                elif code == 'ML' and side_ml is None:
+                    hv = r.get('home_ml_ev'); av = r.get('away_ml_ev')
+                    try:
+                        hv = float(hv) if (hv is not None and str(hv).strip()!='') else None
+                    except Exception:
+                        hv = None
+                    try:
+                        av = float(av) if (av is not None and str(av).strip()!='') else None
+                    except Exception:
+                        av = None
+                    if (hv is not None) or (av is not None):
+                        side_ml = 'home' if (hv or 0.0) >= (av or 0.0) else 'away'
+            except Exception:
+                pass
+            # Apply backfill per market
+            if code == 'OU':
+                src = ou_price_map.get(gid) or (ou_price_pair_map.get(pair_key) if pair_key else None)
+                if (line_final is None or str(line_final).strip()=='') and src is not None:
+                    v = src.get('total')
+                    if v is not None and not pd.isna(v):
+                        r['line'] = float(v); line_final = r['line']
+                        if not book_final:
+                            r['book'] = src.get('book'); book_final = r['book']
+                if (price_final is None or str(price_final).strip()=='') and src is not None:
+                    key = 'over_price' if side_ou == 'over' else ('under_price' if side_ou == 'under' else None)
+                    if key:
+                        v = src.get(key)
+                        if v is not None and not pd.isna(v):
+                            r['price'] = float(v); price_final = r['price']
+                            if not book_final:
+                                r['book'] = src.get('book'); book_final = r['book']
+            elif code == 'ATS':
+                src = sp_price_map.get(gid) or (sp_price_pair_map.get(pair_key) if pair_key else None)
+                if src is not None:
+                    if (line_final is None or str(line_final).strip()==''):
+                        sel_side = side_spread
+                        key_ln = 'home_spread' if sel_side == 'home' else ('away_spread' if sel_side == 'away' else None)
+                        if key_ln:
+                            v = src.get(key_ln)
+                            if v is not None and not pd.isna(v):
+                                r['line'] = float(v if sel_side=='home' else (0 - v)); line_final = r['line']
+                                if not book_final:
+                                    r['book'] = src.get('book'); book_final = r['book']
+                    if (price_final is None or str(price_final).strip()==''):
+                        sel_side = side_spread
+                        key_pr = 'home_spread_price' if sel_side == 'home' else ('away_spread_price' if sel_side == 'away' else None)
+                        if key_pr:
+                            v = src.get(key_pr)
+                            if v is not None and not pd.isna(v):
+                                r['price'] = float(v); price_final = r['price']
+                                if not book_final:
+                                    r['book'] = src.get('book'); book_final = r['book']
+            elif code == 'ML':
+                src = ml_price_map.get(gid) or (ml_price_pair_map.get(pair_key) if pair_key else None)
+                if src is not None and (price_final is None or str(price_final).strip()==''):
+                    sel_side = side_ml
+                    key_ml = 'moneyline_home' if sel_side == 'home' else ('moneyline_away' if sel_side == 'away' else None)
+                    if key_ml:
+                        v = src.get(key_ml)
+                        if v is not None and not pd.isna(v):
+                            r['price'] = float(v); price_final = r['price']
+                            if not book_final:
+                                r['book'] = src.get('book'); book_final = r['book']
+            # Diagnostics capture for residual gaps
+            try:
+                miss_line = (r.get('line') is None or str(r.get('line')).strip()=='')
+                miss_price = (r.get('price') is None or str(r.get('price')).strip()=='')
+                miss_book = (not r.get('book'))
+                if miss_line or miss_price or miss_book:
+                    diag_rows_api.append({
+                        'date': (request.args.get('date') or ''),
+                        'game_id': gid,
+                        'pair_key': pair_key or '',
+                        'home': str(r.get('home_team') or ''),
+                        'away': str(r.get('away_team') or ''),
+                        'code': code,
+                        'selection': sel_raw,
+                        'line': (r.get('line') if (r.get('line') is not None and str(r.get('line')).strip()!='') else None),
+                        'price': (r.get('price') if (r.get('price') is not None and str(r.get('price')).strip()!='') else None),
+                        'book': (r.get('book') or ''),
+                        'src_used': ('gid' if (gid and ((code=='OU' and gid in ou_price_map) or (code=='ATS' and gid in sp_price_map) or (code=='ML' and gid in ml_price_map))) else ('pair' if (pair_key and ((code=='OU' and pair_key in ou_price_pair_map) or (code=='ATS' and pair_key in sp_price_pair_map) or (code=='ML' and pair_key in ml_price_pair_map))) else '')),
+                    })
+            except Exception:
+                pass
+            out_rows.append(r)
+        rows = out_rows
+        # Append diagnostics to outputs/display_backfill_summary.csv
+        if diag_rows_api:
+            df_diag = pd.DataFrame(diag_rows_api)
+            df_diag['ts'] = pd.Timestamp.utcnow().isoformat()
+            p_out = _P(os.getcwd()) / 'outputs' / 'display_backfill_summary.csv'
+            try:
+                if p_out.exists():
+                    df_diag.to_csv(p_out, mode='a', index=False, header=False)
+                else:
+                    df_diag.to_csv(p_out, mode='w', index=False, header=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
     _resp = jsonify({"rows": len(rows), "data": rows})
     try:
         _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -24110,15 +26752,41 @@ def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None,
         df_e = _safe_read_csv(ep)
         if isinstance(df_e, pd.DataFrame) and not df_e.empty:
             # Keep only spreads, full_game period
+            # Normalize labels when present
             try:
-                df_e['market'] = df_e['market'].astype(str).str.lower()
+                if 'market' in df_e.columns:
+                    df_e['market'] = df_e['market'].astype(str).str.lower()
             except Exception:
                 pass
             try:
-                df_e['period'] = df_e['period'].astype(str).str.lower()
+                if 'period' in df_e.columns:
+                    df_e['period'] = df_e['period'].astype(str).str.lower()
             except Exception:
                 pass
-            mask = (df_e.get('market') == 'spreads') & (df_e.get('period').isin(['full_game','full','game']))
+            # Build mask: allow spread-like rows even when market label is missing
+            try:
+                n = len(df_e)
+            except Exception:
+                n = 0
+            def _nan_series():
+                return pd.Series([False]*n)
+            try:
+                m_mkt = (df_e.get('market') == 'spreads') if 'market' in df_e.columns else pd.Series([False]*n)
+            except Exception:
+                m_mkt = pd.Series([False]*n)
+            try:
+                m_cols = (
+                    (pd.to_numeric(df_e.get('home_spread'), errors='coerce').notna() if 'home_spread' in df_e.columns else _nan_series()) |
+                    (pd.to_numeric(df_e.get('closing_spread_home'), errors='coerce').notna() if 'closing_spread_home' in df_e.columns else _nan_series()) |
+                    (pd.to_numeric(df_e.get('away_spread'), errors='coerce').notna() if 'away_spread' in df_e.columns else _nan_series())
+                )
+            except Exception:
+                m_cols = pd.Series([False]*n)
+            try:
+                m_period = (df_e.get('period').isin(['full_game','full','game'])) if 'period' in df_e.columns else pd.Series([True]*n)
+            except Exception:
+                m_period = pd.Series([True]*n)
+            mask = m_period & (m_mkt | m_cols)
             df_s = df_e[mask] if isinstance(mask, pd.Series) else pd.DataFrame()
             if not df_s.empty:
                 # Ensure basic columns
@@ -24192,6 +26860,115 @@ def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None,
                             'pred_total': None,
                             # Carry predicted margin when available
                             'pred_margin': (float(r.get('pred_margin')) if (r.get('pred_margin') is not None and str(r.get('pred_margin')).strip()!='') else None),
+                            'selection': sel_team, 'game_id': gid, 'date': date_str,
+                            'home_team': home_nm, 'away_team': away_nm,
+                        }
+                        # Branding enrichment
+                        for side in ['home','away']:
+                            nm = str(item.get(f'{side}_team') or '')
+                            key = normalize_name(nm)
+                            b = branding.get(key) or {}
+                            item[f'{side}_key'] = key
+                            item[f'{side}_logo'] = b.get('logo')
+                            item[f'{side}_color'] = b.get('primary') or b.get('secondary')
+                            item[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                        # Derive canonical ISO/site display fields when possible using display snapshot
+                        try:
+                            if ddf is not None and 'game_id' in ddf.columns:
+                                try:
+                                    disp_row = ddf[ddf['game_id'].astype(str) == gid].iloc[0]
+                                    for cname in ('start_time','start_time_iso','start_time_local','start_tz_abbr','display_date','start_time_display'):
+                                        if cname in ddf.columns:
+                                            item[cname] = disp_row.get(cname)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        try:
+                            if not item.get('start_time_iso'):
+                                item['start_time_iso'] = _derive_start_iso(item)
+                        except Exception:
+                            pass
+                        try:
+                            item = _backfill_start_fields(item)
+                        except Exception:
+                            pass
+                        try:
+                            item = _correct_midnight_drift(item, slate_date=str(item.get('date') or date_str or ''))
+                        except Exception:
+                            pass
+                        try:
+                            item = _apply_site_display_global(item)
+                        except Exception:
+                            pass
+                        out_rows.append(item)
+                        seen.add(gid)
+                    except Exception:
+                        continue
+    except Exception:
+        return []
+    return out_rows
+
+def _derive_ml_from_edges(date_str: str, existing_gids: set[str] | None = None, ddf: pd.DataFrame | None = None) -> list[dict]:
+    """Derive simple ML rows from align_period_<date>_edges.csv.
+
+    Uses `pred_margin` to select side and compute a basic edge. If moneyline
+    prices are present, they will be attached; otherwise price is None.
+    Optionally enriches start-time fields using the display snapshot `ddf`.
+    """
+    out_rows: list[dict] = []
+    try:
+        ep = OUT / f"align_period_{date_str}_edges.csv"
+        if not ep.exists():
+            return out_rows
+        df_e = _safe_read_csv(ep)
+        if isinstance(df_e, pd.DataFrame) and not df_e.empty:
+            # Keep only full_game period
+            try:
+                df_e['period'] = df_e['period'].astype(str).str.lower()
+            except Exception:
+                pass
+            mask = df_e.get('period').isin(['full_game','full','game']) if 'period' in df_e.columns else pd.Series([True]*len(df_e))
+            df_fg = df_e[mask] if isinstance(mask, pd.Series) else df_e
+            if not df_fg.empty:
+                # Normalize ids and numeric odds
+                try:
+                    if 'game_id' in df_fg.columns:
+                        df_fg['game_id'] = df_fg['game_id'].astype(str)
+                except Exception:
+                    pass
+                for c in ['moneyline_home','moneyline_away','pred_margin']:
+                    if c in df_fg.columns:
+                        df_fg[c] = pd.to_numeric(df_fg[c], errors='coerce')
+                branding = _load_branding_map()
+                seen: set[str] = set(existing_gids or [])
+                for r in df_fg.to_dict(orient='records'):
+                    try:
+                        gid = str(r.get('game_id') or '')
+                        if not gid or gid in seen:
+                            continue
+                        home_nm = str(r.get('home_team') or r.get('home_team_name') or '')
+                        away_nm = str(r.get('away_team') or r.get('away_team_name') or '')
+                        pm = r.get('pred_margin')
+                        sel_team = home_nm if (pm is not None and not pd.isna(pm) and float(pm) >= 0) else away_nm
+                        # Edge from margin magnitude (scaled, clamped)
+                        try:
+                            edge_v = float(max(0.0, min(2.0, abs(float(pm or 0.0)) / 6.0)))
+                        except Exception:
+                            edge_v = 0.0
+                        # Price from available columns when present
+                        price_v = None
+                        try:
+                            mh = r.get('moneyline_home'); ma = r.get('moneyline_away')
+                            if (mh is not None and not pd.isna(mh)) or (ma is not None and not pd.isna(ma)):
+                                price_v = (mh if sel_team == home_nm else ma)
+                        except Exception:
+                            price_v = None
+                        item = {
+                            'type': 'Moneyline', 'code': 'ML', 'market': 'h2h', 'period': 'full_game',
+                            'bet': f"{sel_team} ML", 'bet_label': f"{sel_team} ML",
+                            'line': None, 'price': price_v, 'edge': edge_v,
+                            'pred_total': None, 'pred_margin': (float(pm) if pm is not None and not pd.isna(pm) else None),
                             'selection': sel_team, 'game_id': gid, 'date': date_str,
                             'home_team': home_nm, 'away_team': away_nm,
                         }

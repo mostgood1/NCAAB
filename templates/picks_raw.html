@@ -31,8 +31,8 @@
       <h1>Expanded Picks</h1>
       <div class="spacer"></div>
       <a href="/">Cards</a>
-      <a href="/recommendations?group=1" class="pill">Grouped</a>
-      <a href="/recommendations" class="pill">Recommendations</a>
+      <a href="/recommendations?group=1{% if date_val %}&date={{ date_val }}{% endif %}" class="pill">Grouped</a>
+      <a href="/recommendations{% if date_val %}?date={{ date_val }}{% endif %}" class="pill">Recommendations</a>
       <a href="/results-archive" class="pill">Daily Recap</a>
       <a href="/accuracy" class="pill">Accuracy</a>
     </div>

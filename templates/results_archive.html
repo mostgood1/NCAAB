@@ -34,7 +34,7 @@
   <header>
     <h1>Results Archive</h1>
     <a href="/">Home</a>
-    <a href="/recommendations?group=1">Recommendations</a>
+    <a href="/recommendations?group=1{% if request.args.get('date') %}&date={{ request.args.get('date') }}{% endif %}">Recommendations</a>
     <a href="/accuracy">Accuracy</a>
   </header>
 

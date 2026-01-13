@@ -28,6 +28,7 @@
     .center{text-align:center}
     .teamCell{display:inline-flex;align-items:center;gap:8px}
     .teamLogo{width:18px;height:18px;border-radius:2px;object-fit:contain}
+    .pill.hr{background:#1f3f2a;border-color:#2b5a3a;color:#bfeecb;font-weight:600}
   </style>
 </head>
 <body>
@@ -61,7 +62,7 @@
       <h1>NCAAB – Recommendations</h1>
       <div class="spacer"></div>
       <a href="/">Cards</a>
-      <a href="/recommendations?group=1" class="pill" title="Grouped view">Grouped</a>
+      <a href="/recommendations?group=1{% if request.args.get('date') %}&date={{ request.args.get('date') }}{% endif %}" class="pill" title="Grouped view">Grouped</a>
       <a href="/results-archive" class="pill" title="Daily recap">Daily Recap</a>
       <a href="/accuracy" class="pill" title="Season accuracy">Accuracy</a>
       <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
@@ -120,7 +121,34 @@
               </div>
             </td>
             <td>{{ r.book if (r.book is defined and r.book is not none) else '' }}</td>
-            <td>{{ r.bet_label if (r.bet_label is defined and r.bet_label) else (r.bet if (r.bet is defined and r.bet is not none) else '') }}</td>
+            <td>
+              {%- set bl = (r.bet_label if (r.bet_label is defined and r.bet_label) else (r.bet if (r.bet is defined and r.bet is not none) else ''))|string -%}
+              {%- set bl_low = bl|lower -%}
+              {# Over/Under: ensure numeric total in label if missing #}
+              {%- if 'total' in bl_low or bl_low.startswith('over') or bl_low.startswith('under') or bl_low.startswith('o ') or bl_low.startswith('u ') -%}
+                {%- set ln = (r.line if (r.line is defined and r.line is not none) else (r.market_total if (r.market_total is defined and r.market_total is not none) else (r.total if (r.total is defined and r.total is not none) else None))) -%}
+                {%- set base = bl_low|replace('over','')|replace('under','')|trim -%}
+                {%- set show_lbl = (bl if base else (bl ~ (' ' ~ ('%.1f' % ln) if ln is not none else ''))) -%}
+                <span class="chip {{ 'over' if (bl_low.startswith('over') or bl_low.startswith('o ')) else 'under' }}">{{ show_lbl }}</span>
+              {%- elif 'spread' in bl_low or 'cover' in bl_low or 'ats' in bl_low -%}
+                {# Spread: synthesize "Team ±x.x" when possible #}
+                {%- set home_name = (r.home_team if (r.home_team is defined and r.home_team) else (r.home_team_name if (r.home_team_name is defined and r.home_team_name) else '')) -%}
+                {%- set away_name = (r.away_team if (r.away_team is defined and r.away_team) else (r.away_team_name if (r.away_team_name is defined and r.away_team_name) else '')) -%}
+                {%- set is_home = ('home' in bl_low) or (home_name and bl_low.startswith(home_name|lower)) -%}
+                {%- set ln_home = (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none) else (r.home_spread if (r.home_spread is defined and r.home_spread is not none) else None)) -%}
+                {%- set ln_away = (r.away_spread if (r.away_spread is defined and r.away_spread is not none) else None) -%}
+                {%- set ln_base = (r.line if (r.line is defined and r.line is not none) else ln_home) -%}
+                {%- set line_val = (ln_base if (ln_base is not none) else (ln_away if (ln_away is not none) else None)) -%}
+                {%- if line_val is not none -%}
+                  {%- set signed = (line_val if is_home else (0 - line_val)) -%}
+                  <span class="chip {{ 'home' if is_home else 'away' }}">{{ (home_name if is_home else away_name) ~ ' ' ~ ('%+.1f' % signed) }}</span>
+                {%- else -%}
+                  <span class="chip {{ 'home' if is_home else 'away' }}">{{ bl }}</span>
+                {%- endif -%}
+              {%- else -%}
+                {{ bl }}
+              {%- endif -%}
+            </td>
             <td>{{ '%.1f' % r.line if (r.line is defined and r.line is not none) else '' }}</td>
             <td>{{ r.price if (r.price is defined and r.price is not none) else '' }}</td>
             <td>{{ '%.1f' % r.pred_total if (r.pred_total is defined and r.pred_total is not none) else '' }}</td>
@@ -146,6 +174,9 @@
               {% set conf = r.confidence if (r.confidence is defined and r.confidence is not none) else 0 %}
               {% set conf_pct = ('%d' % (conf*100)) %}
               <span class="pill" title="Confidence (blended)">{{ conf_pct }}%</span>
+              {% if r.highly_recommended %}
+                <span class="pill hr" title="Top pick">Highly Recommended</span>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}

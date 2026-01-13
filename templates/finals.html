@@ -34,7 +34,7 @@
       <div>
         <a href="/">Cards</a>
         &nbsp;|&nbsp;
-        <a href="/recommendations">Recommendations</a>
+        <a href="/recommendations{% if date_val %}?date={{ date_val }}{% endif %}">Recommendations</a>
         &nbsp;|&nbsp;
         <a href="/display-archive">Archive</a>
       </div>

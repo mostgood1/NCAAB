@@ -11,6 +11,8 @@ services:
         value: "0"
       - key: NCAAB_BOOTSTRAP_ON_START
         value: "0"
+      - key: RECS_FAST_GROUP
+        value: "0"
       - key: NCAAB_THEODDS_API_KEY
         sync: false
         fromSecret: theoddsapi-key

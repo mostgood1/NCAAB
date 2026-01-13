@@ -1,18 +1,21 @@
-game_id,home_team,away_team,pred_total,pred_margin,market_total,display_date,start_time,start_time_local,start_time_iso
-401808906,SE Louisiana Lions,New Orleans Privateers,140.43483,8.762127,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401808938,Northwestern State Demons,UT Rio Grande Valley Vaqueros,75.51622,-3.3037732,,2026-01-12,2026-01-13 00:30:00+00:00,2026-01-12 19:30,2026-01-13T00:30:00Z
-401808969,Stephen F. Austin Lumberjacks,Incarnate Word Cardinals,76.74173,6.801342,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401820164,American University Eagles,Navy Midshipmen,75.93394,0.6876054,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401820478,Lamar Cardinals,Houston Christian Huskies,76.55351,10.715576,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401822769,Coppin State Eagles,South Carolina State Bulldogs,75.30565,4.1444616,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401823047,Norfolk State Spartans,Maryland Eastern Shore Hawks,77.227486,14.776335,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401827024,Bethune-Cookman Wildcats,Southern Jaguars,75.23796,1.1900535,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401827162,Alabama State Hornets,Alcorn State Braves,75.2454,3.7692366,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401827203,Alabama A&M Bulldogs,Jackson State Tigers,74.96671,3.1479328,,2026-01-12,2026-01-13 01:00:00+00:00,2026-01-12 20:00,2026-01-13T01:00:00Z
-401828689,Morgan State Bears,North Carolina Central Eagles,75.26227,-6.466962,,2026-01-12,2026-01-12 23:00:00+00:00,2026-01-12 18:00,2026-01-12T23:00:00Z
-401830239,Howard Bison,Delaware State Hornets,76.38937,11.060919,,2026-01-12,2026-01-13 00:00:00+00:00,2026-01-12 19:00,2026-01-13T00:00:00Z
-401808709,,,76.32351,1.3428501,,,,,
-401808876,,,76.312904,2.8871732,,,,,
-401827049,,,76.10924,8.135205,,,,,
-401827097,,,74.946915,3.6782598,,,,,
-401829500,,,76.9176,22.360123,,,,,
+game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home,start_time_display,start_time_local
+401828689,Morgan State Bears,North Carolina Central Eagles,310.63457999999997,0.0,cal,cal,165.13457999999997,,,,2026-01-12 17:00,2026-01-12 17:00
+401827162,Alabama State Hornets,Alcorn State Braves,327.15604,0.0,cal,cal,173.65604000000002,,,,2026-01-12 18:00,2026-01-12 18:00
+401820164,American University Eagles,Navy Midshipmen,304.23446,0.0,cal,cal,163.98446,,,,2026-01-12 18:00,2026-01-12 18:00
+401827024,Bethune-Cookman Wildcats,Southern Jaguars,329.36796,0.0,cal,cal,176.86795999999998,,,,2026-01-12 18:00,2026-01-12 18:00
+401822769,Coppin State Eagles,South Carolina State Bulldogs,307.37088,0.0,cal,cal,165.37088,,,,2026-01-12 18:00,2026-01-12 18:00
+401827097,Florida A&M Rattlers,Grambling Tigers,301.19435999999996,0.0,cal,cal,160.69435999999996,,,,2026-01-12 18:00,2026-01-12 18:00
+401830239,Howard Bison,Delaware State Hornets,285.2706,0.0,cal,cal,153.7706,,,,2026-01-12 18:00,2026-01-12 18:00
+401820478,Lamar Cardinals,Houston Christian Huskies,286.75753999999995,0.0,cal,cal,152.25753999999995,,,,2026-01-12 18:00,2026-01-12 18:00
+401823047,Norfolk State Spartans,Maryland Eastern Shore Hawks,278.38716,0.0,cal,cal,147.88716,,,,2026-01-12 18:00,2026-01-12 18:00
+401827049,Prairie View A&M Panthers,Arkansas-Pine Bluff Golden Lions,361.243,0.0,cal,cal,194.743,,,,2026-01-12 18:00,2026-01-12 18:00
+401808906,SE Louisiana Lions,New Orleans Privateers,308.14832,0.0,cal,cal,166.14832,,,,2026-01-12 18:00,2026-01-12 18:00
+401808969,Stephen F. Austin Lumberjacks,Incarnate Word Cardinals,303.65052,0.0,cal,cal,163.15051999999997,,,,2026-01-12 18:00,2026-01-12 18:00
+401808709,East Texas A&M Lions,Texas A&M-Corpus Christi Islanders,299.66012,0.0,cal,cal,159.16012,,,,2026-01-12 18:30,2026-01-12 18:30
+401808876,McNeese Cowboys,Nicholls Colonels,318.07099999999997,0.0,cal,cal,171.57099999999997,,,,2026-01-12 18:30,2026-01-12 18:30
+401808938,Northwestern State Demons,UT Rio Grande Valley Vaqueros,313.74519999999995,0.0,cal,cal,168.74519999999995,,,,2026-01-12 18:30,2026-01-12 18:30
+401827203,Alabama A&M Bulldogs,Jackson State Tigers,299.12864,0.0,cal,cal,159.12864000000002,,,,2026-01-12 19:00,2026-01-12 19:00
+401829500,Texas Southern Tigers,Mississippi Valley State Delta Devils,303.20847999999995,0.0,cal,cal,161.20847999999995,,,,2026-01-12 19:00,2026-01-12 19:00
+synthetic:iowastate::syracuse@2026-01-12,Syracuse Orange,Iowa State Cyclones,305.37267,0.0,cal,cal,,,,,,
+synthetic:towson::ucsandiegotritons@2026-01-12,Towson Tigers,UC San Diego Tritons,307.77765999999997,0.0,cal,cal,,,,,,
+synthetic:stfrancisparedflash::troytrojans@2026-01-12,Troy Trojans,Saint Francis (PA) Red Flash,306.85659999999996,0.0,cal,cal,,,,,,
