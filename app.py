@@ -94,7 +94,7 @@ SNAPSHOT_ONLY = (
 DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
 BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
 # Bump-only app revision to trigger deployment image rebuilds when needed
-APP_REV = "2026-01-06.1"
+APP_REV = "2026-01-13.2"
 
 # Reduce memory churn by enabling copy-on-write and disabling chained assignment copies
 try:
@@ -171,7 +171,14 @@ try:
                 if path in ('/recommendations','/recommendations/'):
                     # Render grouped recommendations with client-side fallback to avoid bounce
                     try:
-                        return render_template("recommendations_grouped.html", games=[], total_games=0), 200
+                        _page_empty = render_template("recommendations_grouped.html", games=[], total_games=0)
+                        try:
+                            _resp = make_response(_page_empty)
+                            _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                            _resp.headers['Pragma'] = 'no-cache'
+                            return _resp, 200
+                        except Exception:
+                            return _page_empty, 200
                     except Exception:
                         # If template render fails, return minimal JSON
                         d = (request.args.get('date') or '').strip()
@@ -20601,7 +20608,14 @@ def recommendations():
                             df_diag.to_csv(p_out, mode='w', index=False, header=True)
                 except Exception:
                     pass
-                return render_template("recommendations_grouped.html", games=grouped_fb, total_games=len(grouped_fb))
+                _page_grouped = render_template("recommendations_grouped.html", games=grouped_fb, total_games=len(grouped_fb))
+                try:
+                    _resp = make_response(_page_grouped)
+                    _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                    _resp.headers['Pragma'] = 'no-cache'
+                    return _resp
+                except Exception:
+                    return _page_grouped
     except Exception:
         pass
     # Enrich grouped games with branding (logos/colors/text) as last mile
@@ -22021,7 +22035,14 @@ def recommendations():
             ]
         except Exception:
             pass
-        return render_template("recommendations.html", rows=norm_rows, total_rows=len(norm_rows))
+        _page_std = render_template("recommendations.html", rows=norm_rows, total_rows=len(norm_rows))
+        try:
+            _resp = make_response(_page_std)
+            _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            _resp.headers['Pragma'] = 'no-cache'
+            return _resp
+        except Exception:
+            return _page_std
     # Build grouped view: best per type for each game
     # Filter to target slate date to avoid heavy multi-day grouping when rows lack explicit 'date'
     try:
@@ -23977,10 +23998,24 @@ def recommendations():
     except Exception:
         pass
     try:
-        return render_template("recommendations_grouped.html", games=grouped_games, total_games=len(grouped_games))
+        _page_grouped = render_template("recommendations_grouped.html", games=grouped_games, total_games=len(grouped_games))
+        try:
+            _resp = make_response(_page_grouped)
+            _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            _resp.headers['Pragma'] = 'no-cache'
+            return _resp
+        except Exception:
+            return _page_grouped
     except Exception:
         logging.getLogger('ncaab_app').exception("Grouped recommendations render failed; falling back to empty payload")
-        return render_template("recommendations_grouped.html", games=[], total_games=0)
+        _page_empty = render_template("recommendations_grouped.html", games=[], total_games=0)
+        try:
+            _resp2 = make_response(_page_empty)
+            _resp2.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            _resp2.headers['Pragma'] = 'no-cache'
+            return _resp2
+        except Exception:
+            return _page_empty
 
 
 @app.route("/picks-raw")
