@@ -307,7 +307,7 @@
                 </td>
                 <td class="num">
                   {%- if (it.code|upper == 'ATS') -%}
-                    {%- if it.line is not none -%}
+                    {%- if it.line is not none and it.line == it.line -%}
                       {{ '%.1f' % it.line }}
                     {%- else -%}
                       {%- set ln_home = (it.closing_spread_home if (it.closing_spread_home is defined and it.closing_spread_home is not none) else (it.home_spread if (it.home_spread is defined and it.home_spread is not none) else None)) -%}
@@ -315,63 +315,64 @@
                       {%- set bl = (it.bet_label or it.bet or '')|string -%}
                       {%- set bl_low = bl|lower -%}
                       {%- set is_home = ('home' in bl_low) or (bl_low.startswith((g.home or '')|lower)) -%}
-                      {%- if ln_home is not none -%}
+                      {%- if ln_home is not none and ln_home == ln_home -%}
                         {{ '%.1f' % (ln_home if is_home else (0 - ln_home)) }}
-                      {%- elif ln_away is not none -%}
+                      {%- elif ln_away is not none and ln_away == ln_away -%}
                         {{ '%.1f' % (ln_away if (not is_home) else (0 - ln_away)) }}
                       {%- else -%}
                       {%- endif -%}
                     {%- endif -%}
                   {%- elif (it.code|upper == 'OU') -%}
-                    {%- if it.line is not none -%}
+                    {%- if it.line is not none and it.line == it.line -%}
                       {{ '%.1f' % it.line }}
-                    {%- elif (it.market_total is defined and it.market_total is not none) -%}
+                    {%- elif (it.market_total is defined and it.market_total is not none and it.market_total == it.market_total) -%}
                       {{ '%.1f' % it.market_total }}
-                    {%- elif (it.total is defined and it.total is not none) -%}
+                    {%- elif (it.total is defined and it.total is not none and it.total == it.total) -%}
                       {{ '%.1f' % it.total }}
                     {%- else -%}
                     {%- endif -%}
                   {%- else -%}
-                    {%- if it.line is not none -%}
+                    {%- if it.line is not none and it.line == it.line -%}
                       {{ '%.1f' % it.line }}
                     {%- else -%}
                     {%- endif -%}
                   {%- endif -%}
                 </td>
                 <td class="num">
-                  {%- if it.price is not none -%}
-                    {{ it.price }}
+                  {%- set p = it.price if (it.price is not none and it.price == it.price) else None -%}
+                  {%- if p is not none -%}
+                    {{ p }}
                   {%- else -%}
                     {%- if (it.code|upper == 'OU') -%}
                       {%- set bl = (it.bet_label or it.bet or '')|string -%}
                       {%- set bl_low = bl|lower -%}
-                      {%- if bl_low.startswith('over') and (it.over_price is defined and it.over_price is not none) -%}
+                      {%- if bl_low.startswith('over') and (it.over_price is defined and it.over_price is not none and it.over_price == it.over_price) -%}
                         {{ it.over_price }}
-                      {%- elif bl_low.startswith('under') and (it.under_price is defined and it.under_price is not none) -%}
+                      {%- elif bl_low.startswith('under') and (it.under_price is defined and it.under_price is not none and it.under_price == it.under_price) -%}
                         {{ it.under_price }}
                       {%- endif -%}
                     {%- elif (it.code|upper == 'ATS') -%}
                       {%- set bl = (it.bet_label or it.bet or '')|string -%}
                       {%- set bl_low = bl|lower -%}
                       {%- set is_home = ('home' in bl_low) or (bl_low.startswith((g.home or '')|lower)) -%}
-                      {%- if is_home and (it.home_spread_price is defined and it.home_spread_price is not none) -%}
+                      {%- if is_home and (it.home_spread_price is defined and it.home_spread_price is not none and it.home_spread_price == it.home_spread_price) -%}
                         {{ it.home_spread_price }}
-                      {%- elif (not is_home) and (it.away_spread_price is defined and it.away_spread_price is not none) -%}
+                      {%- elif (not is_home) and (it.away_spread_price is defined and it.away_spread_price is not none and it.away_spread_price == it.away_spread_price) -%}
                         {{ it.away_spread_price }}
                       {%- endif -%}
                     {%- elif (it.code|upper == 'ML') -%}
                       {%- set bl = (it.bet_label or it.bet or '')|string -%}
                       {%- set bl_low = bl|lower -%}
                       {%- set is_home = ('home' in bl_low) or (bl_low.startswith((g.home or '')|lower)) -%}
-                      {%- if is_home and (it.moneyline_home is defined and it.moneyline_home is not none) -%}
+                      {%- if is_home and (it.moneyline_home is defined and it.moneyline_home is not none and it.moneyline_home == it.moneyline_home) -%}
                         {{ it.moneyline_home }}
-                      {%- elif (not is_home) and (it.moneyline_away is defined and it.moneyline_away is not none) -%}
+                      {%- elif (not is_home) and (it.moneyline_away is defined and it.moneyline_away is not none and it.moneyline_away == it.moneyline_away) -%}
                         {{ it.moneyline_away }}
                       {%- endif -%}
                     {%- endif -%}
                   {%- endif -%}
                 </td>
-                <td class="num"><span class="pill">{{ '%.1f' % it.edge if (it.edge is defined and it.edge is not none) else '' }}</span></td>
+                <td class="num"><span class="pill">{{ '%.1f' % it.edge if (it.edge is defined and it.edge is not none and it.edge == it.edge) else '' }}</span></td>
                 <td class="num">
                   {% set conf = it.confidence if (it.confidence is defined and it.confidence is not none) else None %}
                   {% if conf is not none %}<span class="pill" title="Confidence (blended)">{{ '%d' % (conf*100) }}%</span>{% else %}{% endif %}

@@ -20243,7 +20243,11 @@ def recommendations():
                                     price_v = None
                                 too_juiced = (price_v is not None and price_v < 0 and abs(price_v) > float(os.environ.get('HR_PRICE_MAX_ABS','120')))
                                 if codex == 'OU':
-                                    hr_flag_calc = (confidence_final >= float(os.environ.get('HR_CONF_OU','0.72'))) and (abs(edge_final) >= float(os.environ.get('HR_EDGE_OU','3.0'))) and (not too_juiced)
+                                    hr_flag_calc = (
+                                        confidence_final >= float(os.environ.get('HR_CONF_OU','0.84'))
+                                    ) and (
+                                        abs(edge_final) >= float(os.environ.get('HR_EDGE_OU','4.0'))
+                                    ) and (not too_juiced)
                                 elif codex == 'ATS':
                                     hr_flag_calc = (confidence_final >= float(os.environ.get('HR_CONF_ATS','0.68'))) and (abs(edge_final) >= float(os.environ.get('HR_EDGE_ATS','2.0'))) and (not too_juiced)
                                 elif codex == 'ML':
@@ -20299,11 +20303,26 @@ def recommendations():
                                 code_hr = str(it.get('rec_code') or it.get('code') or '').upper()
                                 try:
                                     if code_hr == 'OU':
-                                        hr_flag_calc = bool((conf_use or 0.0) >= 0.72 and abs(edge_final or (it.get('edge_total') or it.get('edge') or 0.0)) >= 3.0)
+                                        hr_conf_ou = float(os.environ.get('HR_CONF_OU','0.84'))
+                                        hr_edge_ou = float(os.environ.get('HR_EDGE_OU','4.0'))
+                                        hr_flag_calc = bool(
+                                            (conf_use or 0.0) >= hr_conf_ou
+                                            and abs(edge_final or (it.get('edge_total') or it.get('edge') or 0.0)) >= hr_edge_ou
+                                        )
                                     elif code_hr == 'ATS':
-                                        hr_flag_calc = bool((conf_use or 0.0) >= 0.68 and abs(edge_final or (it.get('edge_margin') or it.get('edge') or 0.0)) >= 2.0)
+                                        hr_conf_ats = float(os.environ.get('HR_CONF_ATS','0.68'))
+                                        hr_edge_ats = float(os.environ.get('HR_EDGE_ATS','2.0'))
+                                        hr_flag_calc = bool(
+                                            (conf_use or 0.0) >= hr_conf_ats
+                                            and abs(edge_final or (it.get('edge_margin') or it.get('edge') or 0.0)) >= hr_edge_ats
+                                        )
                                     elif code_hr == 'ML':
-                                        hr_flag_calc = bool((conf_use or 0.0) >= 0.70 and abs(edge_final or (it.get('home_ml_ev') or it.get('away_ml_ev') or it.get('edge') or 0.0)) >= 0.03)
+                                        hr_conf_ml = float(os.environ.get('HR_CONF_ML','0.70'))
+                                        hr_ev_ml = float(os.environ.get('HR_EV_ML','0.03'))
+                                        hr_flag_calc = bool(
+                                            (conf_use or 0.0) >= hr_conf_ml
+                                            and abs(edge_final or (it.get('home_ml_ev') or it.get('away_ml_ev') or it.get('edge') or 0.0)) >= hr_ev_ml
+                                        )
                                 except Exception:
                                     pass
                         except Exception:
@@ -26899,6 +26918,134 @@ def api_recommendations():
     except Exception:
         pass
     return _resp
+
+@app.route("/api/hr_diagnostics")
+def api_hr_diagnostics():
+    """Diagnostics for Highly Recommended heuristics.
+
+    Returns, for a given date, counts of total vs HR-eligible recommendations
+    per market (OU/ATS/ML) using the current env-driven HR thresholds and the
+    confidence/edge fields from /api/recommendations.
+
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults match /api/recommendations)
+    """
+    date_q = (request.args.get("date") or "").strip()
+    try:
+        # Reuse /api/recommendations to build the unified rows for the slate
+        path = "/api/recommendations"
+        if date_q:
+            path = f"/api/recommendations?date={date_q}"
+        with app.test_request_context(path):
+            resp = api_recommendations()
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"failed to build recommendations: {e}"}), 500
+    # Unwrap Flask response
+    try:
+        resp_obj = resp[0] if isinstance(resp, tuple) else resp
+        payload = json.loads(resp_obj.get_data(as_text=True))
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"failed to parse recommendations payload: {e}"}), 500
+    rows = []
+    try:
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if isinstance(data, list):
+            rows = data
+    except Exception:
+        rows = []
+    # Resolve effective date from query or first row
+    eff_date = date_q
+    if (not eff_date) and rows:
+        try:
+            eff_date = str(rows[0].get("date") or "").strip() or None
+        except Exception:
+            eff_date = None
+    # HR thresholds (env-tunable, aligned with grouped heuristics)
+    try:
+        hr_conf_ou = float(os.environ.get("HR_CONF_OU", "0.84"))
+    except Exception:
+        hr_conf_ou = 0.84
+    try:
+        hr_edge_ou = float(os.environ.get("HR_EDGE_OU", "4.0"))
+    except Exception:
+        hr_edge_ou = 4.0
+    try:
+        hr_conf_ats = float(os.environ.get("HR_CONF_ATS", "0.68"))
+    except Exception:
+        hr_conf_ats = 0.68
+    try:
+        hr_edge_ats = float(os.environ.get("HR_EDGE_ATS", "2.0"))
+    except Exception:
+        hr_edge_ats = 2.0
+    try:
+        hr_conf_ml = float(os.environ.get("HR_CONF_ML", "0.70"))
+    except Exception:
+        hr_conf_ml = 0.70
+    try:
+        hr_ev_ml = float(os.environ.get("HR_EV_ML", "0.03"))
+    except Exception:
+        hr_ev_ml = 0.03
+    try:
+        hr_price_max = float(os.environ.get("HR_PRICE_MAX_ABS", "120"))
+    except Exception:
+        hr_price_max = 120.0
+    # Aggregate stats by market code
+    stats_by_code: dict[str, dict[str, Any]] = {}
+    total_rows = 0
+    total_hr = 0
+    def _get_stats_bucket(code: str) -> dict:
+        if code not in stats_by_code:
+            stats_by_code[code] = {"total": 0, "calc_hr": 0}
+        return stats_by_code[code]
+    def _as_float(val: Any) -> float | None:
+        try:
+            if val is None:
+                return None
+            s = str(val).strip()
+            if not s or s.lower() in ("nan", "none", "null"):
+                return None
+            v = float(s)
+            if not np.isfinite(v):
+                return None
+            return v
+        except Exception:
+            return None
+    for r in (rows or []):
+        try:
+            code = str(r.get("rec_code") or r.get("code") or "").upper() or "OTHER"
+            bucket = _get_stats_bucket(code)
+            bucket["total"] += 1
+            total_rows += 1
+            conf_v = _as_float(r.get("confidence")) or 0.0
+            edge_v = _as_float(r.get("edge")) or 0.0
+            price_v = _as_float(r.get("price"))
+            too_juiced = bool(price_v is not None and price_v < 0 and abs(price_v) > hr_price_max)
+            calc_hr = False
+            if code == "OU":
+                calc_hr = (conf_v >= hr_conf_ou) and (abs(edge_v) >= hr_edge_ou) and (not too_juiced)
+            elif code == "ATS":
+                calc_hr = (conf_v >= hr_conf_ats) and (abs(edge_v) >= hr_edge_ats) and (not too_juiced)
+            elif code == "ML":
+                calc_hr = (conf_v >= hr_conf_ml) and (abs(edge_v) >= hr_ev_ml) and (not too_juiced)
+            if calc_hr:
+                bucket["calc_hr"] += 1
+                total_hr += 1
+        except Exception:
+            continue
+    payload_out = {
+        "status": "ok",
+        "date": eff_date,
+        "total_rows": total_rows,
+        "total_hr_calc": total_hr,
+        "by_code": stats_by_code,
+        "thresholds": {
+            "OU": {"conf": hr_conf_ou, "edge": hr_edge_ou},
+            "ATS": {"conf": hr_conf_ats, "edge": hr_edge_ats},
+            "ML": {"conf": hr_conf_ml, "edge": hr_ev_ml},
+            "price_max_abs": hr_price_max,
+        },
+    }
+    return jsonify(payload_out), 200
 
 def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None, ddf: pd.DataFrame | None = None) -> list[dict]:
     """Derive simple ATS rows from align_period_<date>_edges.csv.

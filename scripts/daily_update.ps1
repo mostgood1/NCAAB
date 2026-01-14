@@ -1469,9 +1469,12 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
           $atsRows = if ($atsInfoProp) { $atsInfoProp.Value.rows } else { $null }
           $prInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq 'picks_raw.csv' } | Select-Object -First 1
           $prRows = if ($prInfoProp) { $prInfoProp.Value.rows } else { $null }
+          $atsRowsInt = if ($atsRows -ne $null) { [int]$atsRows } else { 0 }
           Write-Host ("[Artifacts] picks_raw_rows={0} ats_picks_rows={1}" -f $prRows, $atsRows) -ForegroundColor Gray
-          if (($atsRows -eq $null -or [int]$atsRows -le 0) -and $displayRows -gt 0) {
+          if (($atsRows -eq $null -or $atsRowsInt -le 0) -and $displayRows -gt 0) {
             Write-Warning "ATS picks artifact missing or empty; API will synthesize spreads fallback, but consider re-generating ats_picks for full coverage."
+          } elseif ($displayRows -gt 0 -and $atsRowsInt -lt $displayRows) {
+            Write-Warning ("ATS picks artifact incomplete: ats_picks_rows={0} < display_rows={1}; topping up from display is recommended." -f $atsRowsInt, $displayRows)
           }
           # Conditional rebuild + re-upload: if server artifacts are empty, (re)build from display/enriched and persist
           try {
@@ -1496,9 +1499,11 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
               } catch { $picksRawLocalRows = 0 }
             }
 
-            # Option A: if ATS picks are missing on Render and locally, synthesize from display snapshot
-            if (([int]$atsRows -le 0) -and ($displayRows -gt 0) -and ($atsLocalRows -le 0)) {
-              Write-Host ("[ATS] Local ats_picks empty; building from display for {0}" -f $todayIso) -ForegroundColor DarkCyan
+            $needAtsTopUp = ($displayRows -gt 0 -and $atsRowsInt -lt $displayRows)
+
+            # Option A (expanded): if ATS picks are missing or incomplete on Render, synthesize full-slate from display snapshot
+            if ($needAtsTopUp -and ($atsLocalRows -lt $displayRows)) {
+              Write-Host ("[ATS] Local ats_picks missing/incomplete; building from display for {0}" -f $todayIso) -ForegroundColor DarkCyan
               try {
                 & $VenvPython scripts/build_ats_picks_from_display.py $todayIso
               } catch {
@@ -1529,12 +1534,12 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
               }
             }
 
-            # Re-upload artifacts when server-side copies are empty but local files are now populated
-            if ((Test-Path -Path $atsLocal -PathType Leaf) -and ($atsLocalRows -gt 0) -and ([int]$atsRows -le 0)) {
+            # Re-upload artifacts when server-side copies are missing or incomplete but local files are now populated
+            if ((Test-Path -Path $atsLocal -PathType Leaf) -and ($atsLocalRows -gt 0) -and $needAtsTopUp) {
               Write-Host ("[Re-upload] Posting ATS picks -> {0}" -f $atsLocal) -ForegroundColor DarkCyan
               Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri ("{0}/api/upload_ats_picks?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $atsLocal -ContentType 'text/csv' | Out-Null
             }
-            if ((Test-Path -Path $picksRawLocal -PathType Leaf) -and ($picksRawLocalRows -gt 0) -and ([int]$prRows -le 0)) {
+            if ((Test-Path -Path $picksRawLocal -PathType Leaf) -and ($picksRawLocalRows -gt 0) -and $needAtsTopUp) {
               Write-Host ("[Re-upload] Posting picks_raw -> {0}" -f $picksRawLocal) -ForegroundColor DarkCyan
               Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri ("{0}/api/upload_picks_raw" -f $baseUrl) -Method Post -InFile $picksRawLocal -ContentType 'text/csv' | Out-Null
             }
