@@ -60,6 +60,3 @@ game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_
 401825445,Washington Huskies,Michigan Wolverines,110.0,-14.716151809692384,cal,blend,0.0,,,,2026-01-14 21:30,2026-01-14 21:30
 401827620,BYU Cougars,TCU Horned Frogs,128.07681274414062,0.4191511154174803,cal,blend,0.0,,,,2026-01-14 22:00,2026-01-14 22:00
 401820666,California Golden Bears,Duke Blue Devils,110.0,-19.48299913406372,cal,blend,0.0,,,,2026-01-14 22:00,2026-01-14 22:00
-synthetic:iowastate::syracuse@2026-01-14,Syracuse Orange,Iowa State Cyclones,305.37267,0.0,cal,cal,,,,,,
-synthetic:towson::ucsandiegotritons@2026-01-14,Towson Tigers,UC San Diego Tritons,307.77765999999997,0.0,cal,cal,,,,,,
-synthetic:stfrancisparedflash::troytrojans@2026-01-14,Troy Trojans,Saint Francis (PA) Red Flash,306.85659999999996,0.0,cal,cal,,,,,,
