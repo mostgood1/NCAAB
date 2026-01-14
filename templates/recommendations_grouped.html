@@ -240,7 +240,9 @@
         })();
       </script>
     {% else %}
-      {% for g in games %}
+      {# Sort games by start_time_iso (then by date/time text) for stable chronological ordering #}
+      {% set _games_sorted = games|sort(attribute='start_time_iso') %}
+      {% for g in _games_sorted %}
         <div class="game">
             <div class="header" style="background: linear-gradient(90deg, {{ g.home_color or '#152042' }}, {{ g.away_color or '#2a3a63' }});">
               <div class="matchup brand">
