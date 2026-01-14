@@ -594,7 +594,9 @@ try {
 
 # Optional redeploy trigger via Render deploy hook
 if ($TriggerRedeploy.IsPresent) {
-    # Force redeploy when TriggerRedeploy is set, regardless of parity checks
+    if (${shouldSkipRedeploy}) {
+        Write-Host "[Skip] TriggerRedeploy suppressed: recommendations already include ATS/ML and sufficient rows." -ForegroundColor Yellow
+    } else {
     function Get-DeployHookUrl {
         param()
         try {
@@ -638,7 +640,7 @@ if ($TriggerRedeploy.IsPresent) {
     if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) {
         Write-Host "[Skip] TriggerRedeploy set but no DeployHookUrl provided, env var set, or .env/scripts fallback found." -ForegroundColor Yellow
     } else {
-        Write-Step "Triggering redeploy via deploy hook (forced)"
+        Write-Step "Triggering redeploy via deploy hook"
         # Capture baseline app version before triggering
         $baselineSha = $null
         $baselineBuildTime = $null
