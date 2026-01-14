@@ -592,7 +592,8 @@ try {
     Write-Host "[Warn] results check failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
-# Optional redeploy trigger via Render deploy hook
+<#
+# Optional redeploy trigger via Render deploy hook (temporarily disabled to avoid regression)
 if ($TriggerRedeploy.IsPresent) {
     if (${shouldSkipRedeploy}) {
         Write-Host "[Skip] TriggerRedeploy suppressed: recommendations already include ATS/ML and sufficient rows." -ForegroundColor Yellow
@@ -741,5 +742,6 @@ if ($TriggerRedeploy.IsPresent) {
         }
     }
 }
+#>
 
 Write-Step "Done."
