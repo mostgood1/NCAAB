@@ -20628,7 +20628,33 @@ def recommendations():
                             df_diag.to_csv(p_out, mode='w', index=False, header=True)
                 except Exception:
                     pass
-                _page_grouped = render_template("recommendations_grouped.html", games=grouped_fb, total_games=len(grouped_fb))
+                # Sort games by start time (ISO when available) so the
+                # recommendations page is ordered chronologically.
+                try:
+                    def _game_sort_key(g: dict) -> tuple:
+                        iso_val = g.get('start_time_iso')
+                        if iso_val:
+                            try:
+                                # ISO strings sort correctly lexicographically
+                                return (str(iso_val),)
+                            except Exception:
+                                pass
+                        # Fallback: attempt to parse date + time_ampm
+                        try:
+                            d_s = str(g.get('date') or '').strip()
+                            t_s = str(g.get('time_ampm') or g.get('time') or '').strip()
+                            if d_s and t_s:
+                                dt_val = pd.to_datetime(f"{d_s} {t_s}", errors='coerce')
+                                if pd.notna(dt_val):
+                                    return (dt_val.isoformat(),)
+                        except Exception:
+                            pass
+                        # Last resort: group key as tiebreaker
+                        return (str(g.get('game_key') or ''),)
+                    grouped_fb_sorted = sorted(grouped_fb, key=_game_sort_key)
+                except Exception:
+                    grouped_fb_sorted = grouped_fb
+                _page_grouped = render_template("recommendations_grouped.html", games=grouped_fb_sorted, total_games=len(grouped_fb_sorted))
                 try:
                     _resp = make_response(_page_grouped)
                     _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
