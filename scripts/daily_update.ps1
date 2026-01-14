@@ -407,6 +407,32 @@ print({'path': str(games_path), 'rows': len(df2)})
     & $VenvPython scripts/select_ats_picks.py --date $todayIso --use-closing --prob-side --prob-side-threshold 0.52
     # Convert ATS picks into picks_raw.csv for uploader/recommendations
     & $VenvPython scripts/make_picks_raw_from_ats.py --date $todayIso --outputs $OutDir
+
+    # If selector produced no ATS picks (or ats_picks is empty), synthesize full-slate ATS from display
+    $atsToday = Join-Path $OutDir ("picks\ats_picks_" + $todayIso + ".csv")
+    $atsRowsLocal = 0
+    if (Test-Path -Path $atsToday -PathType Leaf) {
+      try {
+        $atsRowsLocal = ((Get-Content $atsToday | Measure-Object).Count - 1)
+        if ($atsRowsLocal -lt 0) { $atsRowsLocal = 0 }
+      } catch { $atsRowsLocal = 0 }
+    }
+    if ($atsRowsLocal -le 0) {
+      Write-Host ("[ATS] Selector yielded 0 rows; building fallback from display for {0}" -f $todayIso) -ForegroundColor DarkCyan
+      try {
+        & $VenvPython scripts/build_ats_picks_from_display.py $todayIso
+      } catch {
+        Write-Warning ("build_ats_picks_from_display failed in 6i.b: {0}" -f $_.Exception.Message)
+      }
+      # Rebuild picks_raw from synthesized ATS picks so downstream steps and uploads see ATS
+      if (Test-Path -Path $atsToday -PathType Leaf) {
+        try {
+          & $VenvPython scripts/make_picks_raw_from_ats.py --date $todayIso --outputs $OutDir
+        } catch {
+          Write-Warning ("make_picks_raw_from_ats failed in 6i.b after fallback: {0}" -f $_.Exception.Message)
+        }
+      }
+    }
   } catch { Write-Warning "ATS picks generation failed: $($_)" }
 
   # Normalize odds and enrich backtest for quantile training/selection
@@ -1447,21 +1473,72 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
           if (($atsRows -eq $null -or [int]$atsRows -le 0) -and $displayRows -gt 0) {
             Write-Warning "ATS picks artifact missing or empty; API will synthesize spreads fallback, but consider re-generating ats_picks for full coverage."
           }
-          # Conditional re-upload: if server artifacts are empty, re-post local files to persist
+          # Conditional rebuild + re-upload: if server artifacts are empty, (re)build from display/enriched and persist
           try {
             $baseUrl = "https://ncaab.onrender.com"
             $outsDir = Join-Path $PWD "outputs"
             $atsLocal = Join-Path $outsDir "picks\ats_picks_${todayIso}.csv"
             $picksRawLocal = Join-Path $outsDir "picks_raw.csv"
-            if ((Test-Path -Path $atsLocal -PathType Leaf) -and ([int]$atsRows -le 0)) {
+
+            # Compute local row counts (excluding header) when present
+            $atsLocalRows = 0
+            if (Test-Path -Path $atsLocal -PathType Leaf) {
+              try {
+                $atsLocalRows = ((Get-Content $atsLocal | Measure-Object).Count - 1)
+                if ($atsLocalRows -lt 0) { $atsLocalRows = 0 }
+              } catch { $atsLocalRows = 0 }
+            }
+            $picksRawLocalRows = 0
+            if (Test-Path -Path $picksRawLocal -PathType Leaf) {
+              try {
+                $picksRawLocalRows = ((Get-Content $picksRawLocal | Measure-Object).Count - 1)
+                if ($picksRawLocalRows -lt 0) { $picksRawLocalRows = 0 }
+              } catch { $picksRawLocalRows = 0 }
+            }
+
+            # Option A: if ATS picks are missing on Render and locally, synthesize from display snapshot
+            if (([int]$atsRows -le 0) -and ($displayRows -gt 0) -and ($atsLocalRows -le 0)) {
+              Write-Host ("[ATS] Local ats_picks empty; building from display for {0}" -f $todayIso) -ForegroundColor DarkCyan
+              try {
+                & $VenvPython scripts/build_ats_picks_from_display.py $todayIso
+              } catch {
+                Write-Warning ("build_ats_picks_from_display failed: {0}" -f $_.Exception.Message)
+              }
+              # Refresh local ATS path + row count after rebuild
+              if (Test-Path -Path $atsLocal -PathType Leaf) {
+                try {
+                  $atsLocalRows = ((Get-Content $atsLocal | Measure-Object).Count - 1)
+                  if ($atsLocalRows -lt 0) { $atsLocalRows = 0 }
+                } catch { $atsLocalRows = 0 }
+              }
+            }
+
+            # Ensure picks_raw.csv exists and is non-empty when we have local ATS picks
+            if ($atsLocalRows -gt 0 -and $picksRawLocalRows -le 0) {
+              Write-Host ("[ATS] Rebuilding picks_raw from ats_picks for {0}" -f $todayIso) -ForegroundColor DarkCyan
+              try {
+                & $VenvPython scripts/make_picks_raw_from_ats.py --date $todayIso --outputs $outsDir
+              } catch {
+                Write-Warning ("make_picks_raw_from_ats failed: {0}" -f $_.Exception.Message)
+              }
+              if (Test-Path -Path $picksRawLocal -PathType Leaf) {
+                try {
+                  $picksRawLocalRows = ((Get-Content $picksRawLocal | Measure-Object).Count - 1)
+                  if ($picksRawLocalRows -lt 0) { $picksRawLocalRows = 0 }
+                } catch { $picksRawLocalRows = 0 }
+              }
+            }
+
+            # Re-upload artifacts when server-side copies are empty but local files are now populated
+            if ((Test-Path -Path $atsLocal -PathType Leaf) -and ($atsLocalRows -gt 0) -and ([int]$atsRows -le 0)) {
               Write-Host ("[Re-upload] Posting ATS picks -> {0}" -f $atsLocal) -ForegroundColor DarkCyan
               Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri ("{0}/api/upload_ats_picks?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $atsLocal -ContentType 'text/csv' | Out-Null
             }
-            if ((Test-Path -Path $picksRawLocal -PathType Leaf) -and ([int]$prRows -le 0)) {
+            if ((Test-Path -Path $picksRawLocal -PathType Leaf) -and ($picksRawLocalRows -gt 0) -and ([int]$prRows -le 0)) {
               Write-Host ("[Re-upload] Posting picks_raw -> {0}" -f $picksRawLocal) -ForegroundColor DarkCyan
               Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri ("{0}/api/upload_picks_raw" -f $baseUrl) -Method Post -InFile $picksRawLocal -ContentType 'text/csv' | Out-Null
             }
-          } catch { Write-Warning ("conditional re-upload failed: {0}" -f $_.Exception.Message) }
+          } catch { Write-Warning ("conditional rebuild/re-upload failed: {0}" -f $_.Exception.Message) }
         } catch { Write-Warning ("debug_artifacts check failed: {0}" -f $_.Exception.Message) }
       } catch {
         Write-Warning "recommendations check failed: $($_.Exception.Message)"
