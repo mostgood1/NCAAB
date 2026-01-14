@@ -24652,6 +24652,109 @@ def api_recommendations():
                     picks = extra
         except Exception:
             pass
+    # 1.c) If base picks exist but ATS coverage is sparse, top up from ats_picks_<date>.csv
+    try:
+        if isinstance(picks, pd.DataFrame) and not picks.empty and date_q:
+            # Count existing ATS picks in base frame
+            try:
+                if 'rec_code' in picks.columns:
+                    _mask_ats = picks['rec_code'].astype(str).str.upper().eq('ATS')
+                else:
+                    _mask_ats = pd.Series(False, index=picks.index)
+            except Exception:
+                _mask_ats = pd.Series(False, index=picks.index)
+            try:
+                _n_ats = int(_mask_ats.sum())
+            except Exception:
+                _n_ats = 0
+            ats_path2 = OUT / 'picks' / f'ats_picks_{date_q}.csv'
+            ats_df2 = _safe_read_csv(str(ats_path2)) if ats_path2.exists() else pd.DataFrame()
+            if isinstance(ats_df2, pd.DataFrame) and not ats_df2.empty:
+                # Normalize columns and prefer ats_picks when it has broader coverage than existing ATS
+                try:
+                    if 'game_id' in ats_df2.columns:
+                        ats_df2['game_id'] = ats_df2['game_id'].astype(str)
+                except Exception:
+                    pass
+                try:
+                    _cols2 = {c.lower(): c for c in ats_df2.columns}
+                except Exception:
+                    _cols2 = {}
+                def _getc2(name: str):
+                    try:
+                        key = name.lower()
+                        if key in _cols2:
+                            return ats_df2[_cols2[key]]
+                    except Exception:
+                        pass
+                    return None
+                try:
+                    _rows_ats_file = len(ats_df2)
+                except Exception:
+                    _rows_ats_file = 0
+                # Only override when the ats_picks file provides at least as many rows as existing ATS
+                if _rows_ats_file and (_rows_ats_file >= _n_ats):
+                    _out2 = pd.DataFrame()
+                    _out2['game_id'] = _getc2('game_id')
+                    _out2['date'] = date_q
+                    _out2['home_team'] = _getc2('home_team')
+                    _out2['away_team'] = _getc2('away_team')
+                    _side2 = _getc2('ats_side')
+                    if _side2 is not None:
+                        _out2['bet'] = _side2.astype(str).str.lower()
+                    else:
+                        _out2['bet'] = 'home'
+                    # Derive signed line from closing_spread_home (fallback to spread_home)
+                    try:
+                        _csh2 = pd.to_numeric(_getc2('closing_spread_home'), errors='coerce')
+                    except Exception:
+                        _csh2 = None
+                    try:
+                        _sh2 = pd.to_numeric(_getc2('spread_home'), errors='coerce')
+                    except Exception:
+                        _sh2 = None
+                    def _line_for_row2(idx: int) -> float | None:
+                        try:
+                            ln_home = None
+                            if _csh2 is not None and idx < len(_csh2):
+                                ln_home = float(_csh2.iloc[idx]) if pd.notna(_csh2.iloc[idx]) else None
+                            if (ln_home is None) and (_sh2 is not None) and idx < len(_sh2):
+                                ln_home = float(_sh2.iloc[idx]) if pd.notna(_sh2.iloc[idx]) else None
+                            sel = str(_out2['bet'].iloc[idx]).lower()
+                            if ln_home is None:
+                                return None
+                            return ln_home if sel == 'home' else (0 - ln_home)
+                        except Exception:
+                            return None
+                    _out2['line'] = [_line_for_row2(i) for i in range(len(_out2))]
+                    _out2['price'] = None
+                    try:
+                        _delt2 = pd.to_numeric(_getc2('_delta'), errors='coerce')
+                        _out2['edge'] = _delt2.abs()
+                    except Exception:
+                        _out2['edge'] = None
+                    try:
+                        _pm2 = pd.to_numeric(_getc2('_pred_margin_blend'), errors='coerce')
+                        _out2['pred_margin'] = _pm2
+                    except Exception:
+                        _out2['pred_margin'] = None
+                    _out2['pred_total'] = None
+                    _out2['market'] = 'spreads'
+                    _out2['period'] = 'full_game'
+                    _out2['rec_type'] = 'Spread'
+                    _out2['rec_code'] = 'ATS'
+                    # Drop existing ATS rows from base picks and append canonical ats_picks-derived rows
+                    try:
+                        if 'rec_code' in picks.columns:
+                            picks = picks.loc[~_mask_ats].copy()
+                    except Exception:
+                        pass
+                    try:
+                        picks = pd.concat([picks, _out2], ignore_index=True)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
     # 2) If empty, derive from edges (full_game period)
     if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
         try:
