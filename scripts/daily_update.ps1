@@ -1287,11 +1287,58 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         } catch {
           Write-Warning "Failed to enforce allowlist on staged files: $($_)"
         }
+        # Capture Render baseline version BEFORE pushing, so we can wait for auto-deploy to finish
+        $baseUrl = "https://ncaab.onrender.com"
+        function Get-RenderVersion {
+          param()
+          try {
+            $ts = [int](Get-Date -UFormat %s)
+            return (Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $baseUrl, $ts) -Method Get)
+          } catch { return $null }
+        }
+        function Wait-For-Render-Deploy {
+          param(
+            [object]$baseline,
+            [int]$timeoutSec = 240,
+            [int]$intervalMs = 3000
+          )
+          $deadline = (Get-Date).AddSeconds($timeoutSec)
+          $changed = $false
+          while ((Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds $intervalMs
+            try {
+              $ver = Get-RenderVersion
+              if ($ver) {
+                $sha = $ver.app_sha
+                $bt  = $ver.build_time_utc
+                $bsha = if ($baseline) { $baseline.app_sha } else { $null }
+                $bbt  = if ($baseline) { $baseline.build_time_utc } else { $null }
+                if (($bsha -and $sha -and $sha -ne $bsha) -or ($bbt -and $bt -and $bt -ne $bbt) -or (-not $bbt -and $bt)) { $changed = $true; break }
+              }
+            } catch { }
+          }
+          if ($changed) { Write-Host "[Render] Detected new deployment version." -ForegroundColor Green }
+          else { Write-Host "[Render] Version unchanged within wait window; proceeding." -ForegroundColor Yellow }
+        }
+        $baselineVersion = $null
+        try {
+          $baselineVersion = Get-RenderVersion
+          if ($baselineVersion) {
+            Write-Host ("[Render] Baseline version: sha={0} build_time={1}" -f $baselineVersion.app_sha, $baselineVersion.build_time_utc) -ForegroundColor Gray
+          } else {
+            Write-Host "[Render] Baseline version unavailable (pre-push)." -ForegroundColor Yellow
+          }
+        } catch { Write-Host "[Render] Baseline version check failed." -ForegroundColor Yellow }
+
         $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data+ui): update outputs and UI for $prevDate (today $todayIso)" }
         $status = git status --porcelain
         if ($status) {
           git commit -m $msg
           git push
+          try {
+            Write-Host "[Render] Waiting for auto-deploy to complete before uploads..." -ForegroundColor Gray
+            Wait-For-Render-Deploy -baseline $baselineVersion -timeoutSec 240 -intervalMs 3000
+          } catch { Write-Warning ("Auto-deploy wait failed: {0}" -f $_.Exception.Message) }
         }
         else {
           Write-Host "No data changes to commit." -ForegroundColor Yellow
@@ -1311,8 +1358,8 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       try {
         $uploader = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
         if (Test-Path $uploader) {
-          # Determine redeploy behavior: default true unless explicitly skipped; explicit -TriggerRenderRedeploy forces true
-          $doRedeploy = $true
+          # Determine redeploy behavior: default false unless explicitly requested; explicit -TriggerRenderRedeploy forces true
+          $doRedeploy = $false
           if ($PSBoundParameters.ContainsKey('SkipRenderRedeploy') -and $SkipRenderRedeploy.IsPresent) { $doRedeploy = $false }
           if ($TriggerRenderRedeploy.IsPresent) { $doRedeploy = $true }
           if ($doRedeploy) {

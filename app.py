@@ -19535,7 +19535,8 @@ def recommendations():
     # Early fast-path: for grouped view, build from API payload to avoid rare server-side errors
     try:
         group_req = (str(request.args.get("group") or "1").strip().lower() not in ("0","false","no"))
-        fast_env = str(os.environ.get("RECS_FAST_GROUP","1")).strip().lower() in ("1","true","yes")
+        # Force fast-path on for consistency across environments: always build grouped view from /api/recommendations
+        fast_env = True
         if group_req and fast_env:
             resp = api_recommendations()
             js = None
