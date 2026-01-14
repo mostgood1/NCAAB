@@ -20632,11 +20632,15 @@ def recommendations():
                 # recommendations page is ordered chronologically.
                 try:
                     def _game_sort_key(g: dict) -> tuple:
+                        # Compute an epoch-like numeric key so ordering is true chronological
+                        # even when ISO strings have different offsets or some are missing.
+                        epoch = 2**62
                         iso_val = g.get('start_time_iso')
                         if iso_val:
                             try:
-                                # ISO strings sort correctly lexicographically
-                                return (str(iso_val),)
+                                d = pd.to_datetime(str(iso_val).replace('Z', '+00:00'), errors='coerce', utc=True)
+                                if pd.notna(d):
+                                    epoch = int(d.value)
                             except Exception:
                                 pass
                         # Fallback: attempt to parse date + time_ampm
@@ -20646,11 +20650,15 @@ def recommendations():
                             if d_s and t_s:
                                 dt_val = pd.to_datetime(f"{d_s} {t_s}", errors='coerce')
                                 if pd.notna(dt_val):
-                                    return (dt_val.isoformat(),)
+                                    epoch = int(dt_val.value)
+                        except Exception:
+                            pass
+                        try:
+                            g['start_time_sort'] = epoch
                         except Exception:
                             pass
                         # Last resort: group key as tiebreaker
-                        return (str(g.get('game_key') or ''),)
+                        return (epoch, str(g.get('game_key') or ''))
                     grouped_fb_sorted = sorted(grouped_fb, key=_game_sort_key)
                 except Exception:
                     grouped_fb_sorted = grouped_fb
@@ -23664,6 +23672,11 @@ def recommendations():
             0
         )
     grouped_games.sort(key=_game_sort_key)
+    try:
+        for _g in grouped_games:
+            _g['start_time_sort'] = _game_sort_key(_g)[0]
+    except Exception:
+        pass
     # Diagnostics: log summary for quick visibility
     try:
         total_games = len(grouped_games)

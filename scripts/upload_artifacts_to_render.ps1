@@ -66,6 +66,103 @@ ${needSimRetry} = $false
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
 Write-Step "Outputs dir: $OutputsDir"
 
+function Get-DeployHookUrl {
+    param()
+    try {
+        # Prefer explicit code deploy hook if provided
+        if ($CodeDeployHookUrl -and -not [string]::IsNullOrWhiteSpace($CodeDeployHookUrl)) {
+            return $CodeDeployHookUrl
+        }
+        if ($DeployHookUrl -and -not [string]::IsNullOrWhiteSpace($DeployHookUrl)) {
+            return $DeployHookUrl
+        }
+        $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
+        $envPath = Join-Path $repoRoot '.env'
+        if (Test-Path -LiteralPath $envPath) {
+            $lines = Get-Content -LiteralPath $envPath
+            foreach ($line in $lines) {
+                if ($line -match '^\s*RENDER_CODE_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
+                    $val = $Matches[1].Trim()
+                    if (-not [string]::IsNullOrWhiteSpace($val)) { return $val }
+                }
+                if ($line -match '^\s*RENDER_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
+                    $val2 = $Matches[1].Trim()
+                    if (-not [string]::IsNullOrWhiteSpace($val2)) { return $val2 }
+                }
+            }
+        }
+        $txtPath = Join-Path $repoRoot 'scripts/deploy_hook_url.txt'
+        if (Test-Path -LiteralPath $txtPath) {
+            $txt = Get-Content -LiteralPath $txtPath -TotalCount 1
+            if ($txt -and -not [string]::IsNullOrWhiteSpace($txt)) { return $txt.Trim() }
+        }
+    } catch {}
+    return $null
+}
+
+function Invoke-RedeployAndWait {
+    param(
+        [string]$HookUrl,
+        [int]$PollSeconds,
+        [int]$PollIntervalMs
+    )
+    if ([string]::IsNullOrWhiteSpace($HookUrl)) { return $false }
+    $baselineSha = $null
+    $baselineBuildTime = $null
+    try {
+        $ts0 = [int](Get-Date -UFormat %s)
+        $ver0 = Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $BaseUrl, $ts0) -Method Get
+        if ($ver0) {
+            $baselineSha = $ver0.app_sha
+            $baselineBuildTime = $ver0.build_time_utc
+        }
+        Write-Host ("[Check] Baseline version: sha={0} build_time={1}" -f $baselineSha, $baselineBuildTime) -ForegroundColor White
+    } catch {
+        Write-Host "[Warn] Baseline version check failed; proceeding." -ForegroundColor Yellow
+    }
+
+    Write-Step "Triggering redeploy via deploy hook"
+    try {
+        $null = Invoke-RestMethod -Uri $HookUrl -Method Post
+        Write-Host "[OK] Deploy hook accepted." -ForegroundColor Green
+    } catch {
+        Write-Host ("[Error] Deploy hook POST failed: {0}" -f $_.Exception.Message) -ForegroundColor Red
+        return $false
+    }
+
+    $deadline = (Get-Date).AddSeconds([double]$PollSeconds)
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Milliseconds $PollIntervalMs
+        try {
+            $pollTs = [int](Get-Date -UFormat %s)
+            $ver = Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $BaseUrl, $pollTs) -Method Get
+            if ($ver) {
+                $sha = $ver.app_sha
+                $bt = $ver.build_time_utc
+                Write-Host ("[Poll] Version: sha={0} build_time={1}" -f $sha, $bt) -ForegroundColor Gray
+                if ($baselineSha -and $sha -and $sha -ne $baselineSha) { return $true }
+                if ($baselineBuildTime -and $bt -and $bt -ne $baselineBuildTime) { return $true }
+                if (-not $baselineBuildTime -and $bt) { return $true }
+            }
+        } catch {
+            Write-Host ("[Warn] Version poll failed: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
+        }
+    }
+    return $false
+}
+
+# If requested, redeploy FIRST (redeploy wipes ephemeral disk, so uploads must come after)
+if ($TriggerRedeploy.IsPresent) {
+    $hook = Get-DeployHookUrl
+    if ([string]::IsNullOrWhiteSpace($hook)) {
+        Write-Host "[Warn] TriggerRedeploy set but no deploy hook URL found (env/.env/scripts). Continuing without redeploy." -ForegroundColor Yellow
+    } else {
+        $changed = Invoke-RedeployAndWait -HookUrl $hook -PollSeconds $VersionPollSeconds -PollIntervalMs $VersionPollIntervalMs
+        if ($changed) { Write-Host "[OK] Detected new deployment version; proceeding with uploads." -ForegroundColor Green }
+        else { Write-Host "[Warn] Version unchanged after polling; deploy may still be in progress. Proceeding with uploads anyway." -ForegroundColor Yellow }
+    }
+}
+
 function Get-CsvRowCount {
     param([string]$Path)
     if (-not (Test-Path -LiteralPath $Path)) { return 0 }
@@ -591,157 +688,5 @@ try {
 } catch {
     Write-Host "[Warn] results check failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
-
-<#
-# Optional redeploy trigger via Render deploy hook (temporarily disabled to avoid regression)
-if ($TriggerRedeploy.IsPresent) {
-    if (${shouldSkipRedeploy}) {
-        Write-Host "[Skip] TriggerRedeploy suppressed: recommendations already include ATS/ML and sufficient rows." -ForegroundColor Yellow
-    } else {
-    function Get-DeployHookUrl {
-        param()
-        try {
-            if ($env:RENDER_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_DEPLOY_HOOK_URL)) {
-                return $env:RENDER_DEPLOY_HOOK_URL
-            }
-            if ($env:RENDER_CODE_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_CODE_DEPLOY_HOOK_URL)) {
-                # Prefer explicit code deploy hook if provided
-                return $env:RENDER_CODE_DEPLOY_HOOK_URL
-            }
-            $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
-            $envPath = Join-Path $repoRoot '.env'
-            if (Test-Path -LiteralPath $envPath) {
-                $lines = Get-Content -LiteralPath $envPath
-                foreach ($line in $lines) {
-                    if ($line -match '^\s*RENDER_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
-                        $val = $Matches[1].Trim()
-                        if (-not [string]::IsNullOrWhiteSpace($val)) { return $val }
-                    }
-                    if ($line -match '^\s*RENDER_CODE_DEPLOY_HOOK_URL\s*=\s*(.+)\s*$') {
-                        $val2 = $Matches[1].Trim()
-                        if (-not [string]::IsNullOrWhiteSpace($val2)) { return $val2 }
-                    }
-                }
-            }
-            $txtPath = Join-Path $repoRoot 'scripts/deploy_hook_url.txt'
-            if (Test-Path -LiteralPath $txtPath) {
-                $txt = Get-Content -LiteralPath $txtPath -TotalCount 1
-                if ($txt -and -not [string]::IsNullOrWhiteSpace($txt)) { return $txt.Trim() }
-            }
-        } catch {}
-        return $null
-    }
-    if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) { $DeployHookUrl = Get-DeployHookUrl }
-    # Capture both hook URLs if available: prefer explicit code hook, but fall back to service hook as well
-    $codeHook = $null
-    $serviceHook = $null
-    if ($env:RENDER_CODE_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_CODE_DEPLOY_HOOK_URL)) { $codeHook = $env:RENDER_CODE_DEPLOY_HOOK_URL }
-    if ($env:RENDER_DEPLOY_HOOK_URL -and -not [string]::IsNullOrWhiteSpace($env:RENDER_DEPLOY_HOOK_URL)) { $serviceHook = $env:RENDER_DEPLOY_HOOK_URL }
-    if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) { $DeployHookUrl = if ($codeHook) { $codeHook } else { $serviceHook } }
-    if ([string]::IsNullOrWhiteSpace($DeployHookUrl)) {
-        Write-Host "[Skip] TriggerRedeploy set but no DeployHookUrl provided, env var set, or .env/scripts fallback found." -ForegroundColor Yellow
-    } else {
-        Write-Step "Triggering redeploy via deploy hook"
-        # Capture baseline app version before triggering
-        $baselineSha = $null
-        $baselineBuildTime = $null
-        try {
-            $ts0 = [int](Get-Date -UFormat %s)
-            $ver0 = Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $BaseUrl, $ts0) -Method Get
-            if ($ver0) { $baselineSha = $ver0.app_sha; $baselineBuildTime = $ver0.build_time_utc }
-            Write-Host ("[Check] Baseline version: sha={0} build_time={1}" -f $baselineSha, $baselineBuildTime) -ForegroundColor White
-        } catch { Write-Host "[Warn] Baseline version check failed: $($_.Exception.Message)" -ForegroundColor Yellow }
-        function Invoke-DeployHookAndPoll {
-            param([string]$HookUrl, [datetime]$Deadline, [string]$Label)
-            if ([string]::IsNullOrWhiteSpace($HookUrl)) { return $false }
-            try {
-                $hookResp = Invoke-RestMethod -Uri $HookUrl -Method Post
-                Write-Host ("[OK] {0} hook response received." -f $Label) -ForegroundColor Green
-            } catch {
-                Write-Host ("[Error] {0} hook failed: {1}" -f $Label, $_.Exception.Message) -ForegroundColor Red
-            }
-            $changedLocal = $false
-            while ((Get-Date) -lt $Deadline) {
-                Start-Sleep -Milliseconds $VersionPollIntervalMs
-                try {
-                    # Bust CDN caches by adding a random query parameter
-                    $pollTs = [int](Get-Date -UFormat %s)
-                    $ver = Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $BaseUrl, $pollTs) -Method Get
-                    if ($ver) {
-                        $sha = $ver.app_sha
-                        $bt = $ver.build_time_utc
-                        Write-Host ("[Poll] Version: sha={0} build_time={1}" -f $sha, $bt) -ForegroundColor Gray
-                        if ($baselineSha -and $sha -and $sha -ne $baselineSha) { $changedLocal = $true; break }
-                        if ($baselineBuildTime -and $bt -and $bt -ne $baselineBuildTime) { $changedLocal = $true; break }
-                        if (-not $baselineBuildTime -and $bt) { $changedLocal = $true; break }
-                    }
-                } catch { Write-Host "[Warn] Version poll failed: $($_.Exception.Message)" -ForegroundColor Yellow }
-            }
-            return $changedLocal
-        }
-
-        $deadline1 = (Get-Date).AddSeconds([double]$VersionPollSeconds * 0.6)
-        $deadline2 = (Get-Date).AddSeconds([double]$VersionPollSeconds)
-        $changed = $false
-        # Try code hook first if available
-        if ($codeHook) { $changed = Invoke-DeployHookAndPoll -HookUrl $codeHook -Deadline $deadline1 -Label 'Code deploy' }
-        if (-not $changed) {
-            # Fall back to provided DeployHookUrl (may equal serviceHook) and allow more time
-            $changed = Invoke-DeployHookAndPoll -HookUrl $DeployHookUrl -Deadline $deadline2 -Label 'Service deploy'
-        }
-        if (-not $changed -and $serviceHook -and $DeployHookUrl -ne $serviceHook) {
-            # As a last resort, try the explicit service hook if different
-            $deadline3 = (Get-Date).AddSeconds([double]$VersionPollSeconds * 1.25)
-            $changed = Invoke-DeployHookAndPoll -HookUrl $serviceHook -Deadline $deadline3 -Label 'Service deploy (fallback)'
-        }
-        if ($changed) { Write-Host "[OK] Detected new deployment version." -ForegroundColor Green }
-        else { Write-Host "[Warn] Version unchanged after polling; deployment may still be in progress or using previous image." -ForegroundColor Yellow }
-
-        # Post-deploy: run backtest totals to compute calibration offset, then persist display
-        try {
-            Write-Step "Post-deploy backtest_totals for date $Date"
-            $bt = Invoke-RestMethod -Uri "$BaseUrl/api/backtest-totals?date=$Date" -Method Get
-            if ($bt) {
-                $bias = if ($bt.bias) { $bt.bias } else { $null }
-                $mae = if ($bt.mae) { $bt.mae } else { $null }
-                $rmse = if ($bt.rmse) { $bt.rmse } else { $null }
-                Write-Host ("[OK] backtest_totals: bias={0} mae={1} rmse={2}" -f $bias, $mae, $rmse) -ForegroundColor Green
-            } else {
-                Write-Host "[Warn] backtest_totals returned empty response" -ForegroundColor Yellow
-            }
-        } catch {
-            Write-Host "[Warn] backtest_totals call failed: $($_.Exception.Message)" -ForegroundColor Yellow
-        }
-
-        # After backtest, proactively persist display for the date to enrich snapshot with odds and calibrated totals
-        try {
-            Write-Step "Post-deploy persist_display for date $Date"
-            $pd = Invoke-RestMethod -Uri "$BaseUrl/api/persist_display?date=$Date" -Method Get
-            if ($pd -and $pd.ok) {
-                Write-Host ("[OK] persist_display wrote {0} rows path={1}" -f $pd.rows, $pd.path) -ForegroundColor Green
-            } else {
-                Write-Host "[Warn] persist_display did not return ok=true" -ForegroundColor Yellow
-            }
-        } catch {
-            Write-Host "[Warn] persist_display call failed: $($_.Exception.Message)" -ForegroundColor Yellow
-        }
-
-        # Post-deploy: retry simulation artifact uploads if earlier failed (e.g., 404 before new code deployed)
-        if (${needSimRetry}) {
-            Write-Step "Retrying simulation uploads post-deploy"
-            if (Test-Path -LiteralPath $simQuantilesPath) {
-                $uSimQ2 = Upload-File -Uri "$BaseUrl/api/upload_sim_quantiles" -FilePath $simQuantilesPath -Query @{ date = $Date }
-                if ($uSimQ2) { Write-Host "[OK] sim_quantiles uploaded (retry): rows=$($uSimQ2.rows)" -ForegroundColor Green }
-                else { Write-Host "[Error] sim_quantiles retry failed" -ForegroundColor Red }
-            }
-            if (Test-Path -LiteralPath $simBlendPath) {
-                $uSimB2 = Upload-File -Uri "$BaseUrl/api/upload_sim_blend" -FilePath $simBlendPath -Query @{ date = $Date }
-                if ($uSimB2) { Write-Host "[OK] sim_blend uploaded (retry): rows=$($uSimB2.rows)" -ForegroundColor Green }
-                else { Write-Host "[Error] sim_blend retry failed" -ForegroundColor Red }
-            }
-        }
-    }
-}
-#>
 
 Write-Step "Done."
