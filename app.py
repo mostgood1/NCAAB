@@ -157,6 +157,24 @@ try:
             if path in allowed:
                 return None
             abort(503, description='Snapshot-only mode: endpoint disabled')
+
+        @app.after_request
+        def _no_cache_non_static(_resp):
+            """Avoid stale HTML/API responses after deploys.
+
+            Render/edge caches and browser caches can otherwise serve an older Cards
+            page even when the API is already updated.
+            """
+            try:
+                _path = request.path if request else ''
+                if _path.startswith('/static/'):
+                    return _resp
+                # Don't clobber explicit caching policies set on specific routes.
+                _resp.headers.setdefault('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                _resp.headers.setdefault('Pragma', 'no-cache')
+            except Exception:
+                pass
+            return _resp
 except Exception:
     # If Flask or app isn't available yet, skip gating setup
     pass
