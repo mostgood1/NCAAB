@@ -31170,14 +31170,24 @@ def api_display_predictions():
 
                     # Compute a coherent full-game Blend for cards: Blend = (1-w)*Model + w*Sim.
                     # This prevents nonsensical values when predictions_<date>.csv is in a different scale.
+                    # If blend_weight is missing but sims exist, default to a sensible weight.
                     try:
-                        bw = pd.to_numeric(base.get('blend_weight'), errors='coerce') if 'blend_weight' in base.columns else pd.Series(np.nan, index=base.index)
-                        bw = bw.fillna(0.0).clip(lower=0.0, upper=1.0)
+                        if 'blend_weight' not in base.columns:
+                            base['blend_weight'] = np.nan
 
                         model_pt = _num(base.get('pred_total_model'))
                         model_pm = _num(base.get('pred_margin_model'))
                         sim_pt = _num(base.get('pred_total_sim')) if 'pred_total_sim' in base.columns else pd.Series(np.nan, index=base.index)
                         sim_pm = _num(base.get('pred_margin_sim')) if 'pred_margin_sim' in base.columns else pd.Series(np.nan, index=base.index)
+                        has_sim = sim_pt.notna() & sim_pm.notna()
+
+                        raw_bw = pd.to_numeric(base.get('blend_weight'), errors='coerce')
+                        # Default: 0 when no sim; 0.6 when sim exists but weight missing.
+                        default_w = 0.6
+                        bw = raw_bw.copy()
+                        bw = bw.where(bw.notna(), np.where(has_sim, default_w, 0.0))
+                        bw = pd.Series(bw, index=base.index).clip(lower=0.0, upper=1.0)
+                        base['blend_weight'] = bw
 
                         # Fallback model to snapshot pred_total/pred_margin if needed.
                         if 'pred_total' in base.columns:
@@ -31187,7 +31197,6 @@ def api_display_predictions():
 
                         blend_pt = model_pt
                         blend_pm = model_pm
-                        has_sim = sim_pt.notna() & sim_pm.notna()
                         if has_sim.any():
                             blend_pt = blend_pt.where(~has_sim, (1.0 - bw) * model_pt + bw * sim_pt)
                             blend_pm = blend_pm.where(~has_sim, (1.0 - bw) * model_pm + bw * sim_pm)
@@ -31300,8 +31309,9 @@ def api_display_predictions():
                         base.loc[mask_need_1h, 'pred_margin_sim_1h'] = (sim_home_1h - sim_away_1h).loc[mask_need_1h]
 
                     # 1H blend: Blend = (1-w)*Model_1H + w*Sim_1H (fallback to Model_1H).
+                    # Use the same effective blend_weight computed above.
                     try:
-                        bw = pd.to_numeric(base.get('blend_weight'), errors='coerce') if 'blend_weight' in base.columns else pd.Series(np.nan, index=base.index)
+                        bw = pd.to_numeric(base.get('blend_weight'), errors='coerce') if 'blend_weight' in base.columns else pd.Series(0.0, index=base.index)
                         bw = bw.fillna(0.0).clip(lower=0.0, upper=1.0)
 
                         model_pt1 = _num(base.get('pred_total_model_1h'))
