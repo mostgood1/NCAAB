@@ -22,78 +22,109 @@ def _load_results_for_date(out_dir: Path, date_str: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(p)
         if 'game_id' in df.columns:
-            df['game_id'] = df['game_id'].astype(str)
+            df['game_id'] = df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
         return df
     except Exception:
         return pd.DataFrame()
 
 
-def _load_stake_for_date(out_dir: Path, date_str: str) -> list[tuple[str, pd.DataFrame]]:
+def _load_stake_for_date(out_dir: Path, date_str: str, kinds: list[str]) -> list[tuple[str, pd.DataFrame]]:
     res = []
-    for kind in ('base', 'cal'):
+    for kind in kinds:
         p = out_dir / f'stake_sheet_{date_str}_{kind}.csv'
         if p.exists():
             try:
                 df = pd.read_csv(p)
                 df['__kind__'] = kind
                 if 'game_id' in df.columns:
-                    df['game_id'] = df['game_id'].astype(str)
+                    df['game_id'] = df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
                 res.append((kind, df))
             except Exception:
                 pass
     return res
 
 
-def _settle_row(row: pd.Series, results: pd.DataFrame) -> float:
-    # Expected columns in stake sheet: game_id, market, selection, stake, price_decimal or american
+def _settle_row(row: pd.Series, results: pd.DataFrame) -> tuple[float, bool]:
+    # Expected columns in stake sheet (current):
+    #   game_id, market, selection, line, price (american), stake
+    # Also supports older variants with: target_total/target_margin, price_decimal, price_american.
     gid = str(row.get('game_id')) if 'game_id' in row else None
+    if gid is not None:
+        gid = str(gid).replace('.0', '').strip()
     stake = float(row.get('stake', 0.0) or 0.0)
     if not gid or stake <= 0 or results.empty:
-        return 0.0
+        return 0.0, False
     r = results[results['game_id'].astype(str) == gid]
     if r.empty:
-        return 0.0
+        return 0.0, False
     r = r.iloc[0]
     market = str(row.get('market') or '').lower()
     selection = str(row.get('selection') or '').lower()
+
+    # Price handling (prefer explicit decimal, else derive from american)
     price = row.get('price_decimal')
-    if pd.isna(price) and not pd.isna(row.get('price_american')):
-        try:
-            amer = float(row['price_american'])
-            price = (1 + amer/100.0) if amer > 0 else (1 + 100.0/abs(amer))
-        except Exception:
-            price = np.nan
+    if pd.isna(price):
+        # common column names in this repo
+        amer_raw = row.get('price_american')
+        if pd.isna(amer_raw):
+            amer_raw = row.get('price')
+        if not pd.isna(amer_raw):
+            try:
+                amer = float(amer_raw)
+                price = (1 + amer / 100.0) if amer > 0 else (1 + 100.0 / abs(amer))
+            except Exception:
+                price = np.nan
     try:
         price = float(price)
     except Exception:
         price = np.nan
 
     win = False
+    push = False
     if market.startswith('totals'):
         total = r.get('total_points')
+        if pd.isna(total):
+            total = r.get('actual_total')
         target = row.get('target_total')
+        if pd.isna(target):
+            target = row.get('line')
         if not pd.isna(total) and not pd.isna(target):
             if 'over' in selection:
                 win = float(total) > float(target)
+                push = float(total) == float(target)
             elif 'under' in selection:
                 win = float(total) < float(target)
+                push = float(total) == float(target)
     elif market.startswith('spreads') or market.startswith('ats'):
         margin = r.get('margin')
-        target = row.get('target_margin') if not pd.isna(row.get('target_margin')) else row.get('spread_home')
+        if pd.isna(margin):
+            margin = r.get('actual_margin')
+        target = row.get('target_margin')
+        if pd.isna(target):
+            target = row.get('spread_home')
+        if pd.isna(target):
+            target = row.get('line')
         if not pd.isna(margin) and not pd.isna(target):
             # selection typically 'home' or 'away' with line applied to home
             if 'home' in selection:
-                win = float(margin) + float(target) > 0
+                s = float(margin) + float(target)
+                win = s > 0
+                push = s == 0
             elif 'away' in selection:
-                win = float(-margin) - float(target) > 0
+                s = float(-margin) - float(target)
+                win = s > 0
+                push = s == 0
     # Moneyline could be added when available
 
+    if push:
+        return 0.0, True
+
     if not win:
-        return -stake
+        return -stake, True
     if not np.isfinite(price) or price <= 1.0:
         # default -110 style if missing
         price = 1.9091
-    return stake * (price - 1.0)
+    return stake * (price - 1.0), True
 
 
 def main():
@@ -103,9 +134,34 @@ def main():
     ap.add_argument('--days', type=int)
     ap.add_argument('--outputs-dir', type=str, default='outputs')
     ap.add_argument('--name', type=str, default='latest')
+    ap.add_argument('--kinds', type=str, default='base,cal', help='Comma-separated stake sheet variants to include (default: base,cal)')
     args = ap.parse_args()
 
     out_dir = Path(args.outputs_dir)
+
+    kinds = [k.strip() for k in str(args.kinds).split(',') if k.strip()]
+    if not kinds:
+        kinds = ['base', 'cal']
+
+    # Optional: map game_id -> true slate date (helps when stake sheets are archived under wall-clock date).
+    game_date_map: dict[str, str] = {}
+    try:
+        ga = out_dir / 'games_all.csv'
+        if ga.exists():
+            gdf = pd.read_csv(ga)
+            if {'game_id', 'date'}.issubset(gdf.columns):
+                gdf['game_id'] = gdf['game_id'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+                gdf['date'] = gdf['date'].astype(str).str.strip()
+                game_date_map = dict(zip(gdf['game_id'].tolist(), gdf['date'].tolist()))
+    except Exception:
+        game_date_map = {}
+
+    results_cache: dict[str, pd.DataFrame] = {}
+
+    def _get_results(date_key: str) -> pd.DataFrame:
+        if date_key not in results_cache:
+            results_cache[date_key] = _load_results_for_date(out_dir, date_key)
+        return results_cache[date_key]
     today = datetime.now().date()
     if args.days:
         end = today
@@ -120,7 +176,7 @@ def main():
     for d in _daterange(datetime.combine(end, datetime.min.time()), (end - start).days + 1):
         date_str = d
         results = _load_results_for_date(out_dir, date_str)
-        stake_sets = _load_stake_for_date(out_dir, date_str)
+        stake_sets = _load_stake_for_date(out_dir, date_str, kinds)
         if not stake_sets:
             continue
         for kind, sdf in stake_sets:
@@ -128,8 +184,16 @@ def main():
             risk = 0.0
             for _, r in sdf.iterrows():
                 stake = float(r.get('stake', 0.0) or 0.0)
-                risk += max(0.0, stake)
-                pnl += _settle_row(r, results)
+                pnl_row, settled = _settle_row(r, results)
+                if not settled and game_date_map and 'game_id' in r:
+                    gid = str(r.get('game_id')).replace('.0', '').strip()
+                    alt_date = game_date_map.get(gid)
+                    if alt_date and alt_date != date_str:
+                        alt_results = _get_results(alt_date)
+                        pnl_row, settled = _settle_row(r, alt_results)
+                if settled:
+                    risk += max(0.0, stake)
+                    pnl += pnl_row
             rows.append({'date': date_str, 'kind': kind, 'pnl': pnl, 'risk': risk, 'roi': (pnl / risk) if risk > 0 else None})
 
     if not rows:

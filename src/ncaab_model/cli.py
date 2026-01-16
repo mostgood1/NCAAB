@@ -1100,8 +1100,33 @@ def finalize_day(
             preds = pd.read_csv(predictions_csv)
             if "game_id" in preds.columns:
                 preds["game_id"] = preds["game_id"].astype(str)
+            if not preds.empty and "date" in preds.columns:
+                # Prefer same-slate predictions when a multi-day file is provided.
+                pdate = preds["date"].astype(str)
+                preds_for_date = preds[pdate == date]
+                if not preds_for_date.empty:
+                    preds = preds_for_date
         except Exception:
             preds = pd.DataFrame()
+    # 2) If empty or no matching game_ids, try date-specific predictions_<date>.csv
+    if preds.empty or (not set(games_df.get("game_id", pd.Series(dtype=str)).astype(str)).intersection(set(preds.get("game_id", pd.Series(dtype=str)).astype(str)) )):
+        dated = settings.outputs_dir / f"predictions_{date}.csv"
+        if dated.exists() and dated not in tried_paths:
+            tried_paths.append(dated)
+            try:
+                pdays = pd.read_csv(dated)
+                if "game_id" in pdays.columns:
+                    pdays["game_id"] = pdays["game_id"].astype(str)
+                if not pdays.empty and "date" in pdays.columns:
+                    pdate = pdays["date"].astype(str)
+                    pdays_for_date = pdays[pdate == date]
+                    if not pdays_for_date.empty:
+                        pdays = pdays_for_date
+                if not pdays.empty:
+                    preds = pdays
+                    print(f"[green]Loaded date-specific predictions[/green] {dated} ({len(preds)} rows)")
+            except Exception as _pe_d:
+                print(f"[yellow]Date-specific predictions load failed:[/yellow] {_pe_d}")
     # 2) If empty or no matching game_ids, try predictions_all.csv in outputs
     if preds.empty or (not set(games_df.get("game_id", pd.Series(dtype=str)).astype(str)).intersection(set(preds.get("game_id", pd.Series(dtype=str)).astype(str)) )):
         alt = settings.outputs_dir / "predictions_all.csv"
@@ -3521,6 +3546,384 @@ def fetch_boxscores(
     print(f"[green]Wrote boxscores to[/green] {out} ({len(df)} rows)")
 
 
+@app.command(name="backfill-games")
+def backfill_games(
+    start: str | None = typer.Option(None, help="Start date YYYY-MM-DD (default: end-120 days)"),
+    end: str | None = typer.Option(None, help="End date YYYY-MM-DD (default: today in schedule timezone)"),
+    provider: str = typer.Option(
+        "espn",
+        help="Provider to ingest into games_all/SQLite: espn|ncaa|both|fused (fused prefers ESPN when possible)",
+    ),
+    use_cache: bool = typer.Option(True, help="Use cached scoreboards when available"),
+    sleep_seconds: float = typer.Option(0.0, help="Sleep between per-day fetches (rate-limit friendly)"),
+    max_days: int = typer.Option(0, help="If >0, limit to this many days (debug/smoke)"),
+    append_all: bool = typer.Option(True, help="Append to outputs/games_all.csv (deduping by game_id)"),
+    out_all: Path = typer.Option(settings.outputs_dir / "games_all.csv", help="games_all CSV to update"),
+    ingest: bool = typer.Option(True, help="Upsert rows into SQLite games table"),
+    rebuild_table: bool = typer.Option(False, help="Drop and recreate SQLite games table before ingest"),
+    db: Path = typer.Option(settings.data_dir / "ncaab.sqlite", help="SQLite DB path"),
+):
+    """Backfill historical games into outputs + SQLite.
+
+    Primary purpose: expand ESPN event-id coverage in SQLite so `backfill-boxscores`
+    can fetch a larger completed-game sample for possessions/pace features.
+
+    Notes:
+      - `provider=espn` is recommended for boxscore workflows.
+      - When `provider` includes non-ESPN rows, we set a `source` column and
+        `backfill-boxscores` will filter to ESPN when that column exists.
+    """
+
+    tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = None
+
+    today = _today_local().isoformat()
+    if end is None:
+        end = today
+    if start is None:
+        try:
+            d_end = dt.date.fromisoformat(str(end))
+            start = (d_end - dt.timedelta(days=120)).isoformat()
+        except Exception:
+            start = None
+
+    if start is None:
+        print("[red]Could not resolve a start date. Provide --start YYYY-MM-DD.[/red]")
+        raise typer.Exit(code=1)
+
+    d0 = dt.date.fromisoformat(str(start))
+    d1 = dt.date.fromisoformat(str(end))
+    if d1 < d0:
+        raise typer.BadParameter("end date precedes start date")
+
+    prov = str(provider).strip().lower()
+    if prov not in {"espn", "ncaa", "both", "fused"}:
+        raise typer.BadParameter("provider must be one of: espn|ncaa|both|fused")
+
+    # Collect rows
+    rows: list[dict[str, Any]] = []
+
+    def _add_games(games: list[Any], src: str) -> None:
+        for g in games:
+            d = g.model_dump()
+            d["source"] = src
+            rows.append(d)
+
+    cur = d0
+    one = dt.timedelta(days=1)
+    n_days = 0
+    while cur <= d1:
+        if max_days and int(max_days) > 0 and n_days >= int(max_days):
+            break
+
+        if prov in {"espn", "both", "fused"}:
+            for res in iter_games_espn(cur, cur, use_cache=use_cache):
+                _add_games(res.games, "espn")
+        if prov in {"ncaa", "both", "fused"}:
+            for res in iter_games_ncaa(cur, cur, use_cache=use_cache):
+                _add_games(res.games, "ncaa")
+
+        n_days += 1
+        if sleep_seconds and float(sleep_seconds) > 0:
+            time.sleep(float(sleep_seconds))
+        cur += one
+
+    if not rows:
+        print("[yellow]No games found in range.[/yellow]")
+        raise typer.Exit(code=0)
+
+    df_new = pd.DataFrame(rows)
+    if "game_id" in df_new.columns:
+        df_new["game_id"] = df_new["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+    # Normalize date to YYYY-MM-DD
+    if "date" in df_new.columns:
+        try:
+            df_new["date"] = pd.to_datetime(df_new["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        except Exception:
+            df_new["date"] = df_new["date"].astype(str).str.slice(0, 10)
+
+    # If fused: prefer ESPN rows when both providers have the same matchup
+    if prov == "fused":
+        try:
+            from .data.merge_odds import normalize_name as _norm
+
+            work = df_new.copy()
+            work["_date"] = work.get("date", "").astype(str)
+            work["_home"] = work.get("home_team", "").astype(str).map(_norm)
+            work["_away"] = work.get("away_team", "").astype(str).map(_norm)
+            work["_fuse_key"] = work["_date"] + "|" + work["_home"] + "|" + work["_away"]
+
+            score_cols = [c for c in ["home_score", "away_score", "home_score_1h", "away_score_1h", "home_score_2h", "away_score_2h"] if c in work.columns]
+            work["_score_nonnull"] = work[score_cols].notna().sum(axis=1) if score_cols else 0
+            work["_has_start"] = work.get("start_time").notna() if "start_time" in work.columns else False
+            # Prefer ESPN explicitly, then better completeness.
+            work["_is_espn"] = (work.get("source", "").astype(str).str.lower() == "espn").astype(int)
+            work["_quality"] = work["_is_espn"] * 100 + work["_has_start"].astype(int) * 10 + work["_score_nonnull"].astype(int)
+            work = work.sort_values(["_fuse_key", "_quality"], ascending=[True, False])
+            work = work.drop_duplicates(subset=["_fuse_key"], keep="first")
+            df_new = work.drop(columns=[c for c in work.columns if c.startswith("_")], errors="ignore")
+        except Exception:
+            # If fusing fails, fall back to raw concatenation.
+            pass
+
+    # Update outputs/games_all.csv
+    out_all.parent.mkdir(parents=True, exist_ok=True)
+    df_all = df_new
+    if append_all and out_all.exists():
+        try:
+            prev = pd.read_csv(out_all, low_memory=False)
+            if "game_id" in prev.columns:
+                prev["game_id"] = prev["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+            if "date" in prev.columns:
+                try:
+                    prev["date"] = pd.to_datetime(prev["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                except Exception:
+                    prev["date"] = prev["date"].astype(str).str.slice(0, 10)
+            df_all = pd.concat([prev, df_new], ignore_index=True)
+        except Exception:
+            df_all = df_new
+
+    # De-dupe by game_id with a small quality heuristic.
+    if "game_id" in df_all.columns:
+        score_cols = [c for c in ["home_score", "away_score", "home_score_1h", "away_score_1h", "home_score_2h", "away_score_2h"] if c in df_all.columns]
+        df_all["_score_nonnull"] = df_all[score_cols].notna().sum(axis=1) if score_cols else 0
+        df_all["_has_start"] = df_all.get("start_time").notna() if "start_time" in df_all.columns else False
+        df_all["_quality"] = df_all["_has_start"].astype(int) * 10 + df_all["_score_nonnull"].astype(int)
+        # Prefer ESPN on ties if source exists
+        if "source" in df_all.columns:
+            df_all["_quality"] = df_all["_quality"] + (df_all["source"].astype(str).str.lower() == "espn").astype(int)
+        df_all = df_all.sort_values(["game_id", "_quality"], ascending=[True, False])
+        df_all = df_all.drop_duplicates(subset=["game_id"], keep="first")
+        df_all = df_all.drop(columns=["_score_nonnull", "_has_start", "_quality"], errors="ignore")
+
+    df_all.to_csv(out_all, index=False)
+    print(f"[green]Updated games_all.csv[/green]: {out_all} ({len(df_all)} rows)")
+
+    if ingest:
+        conn = sqlite_connect(db)
+        try:
+            if rebuild_table:
+                try:
+                    conn.execute("DROP TABLE IF EXISTS games")
+                except Exception:
+                    pass
+            n = sqlite_ingest(conn, "games", out_all, ["game_id"])
+            print(f"[green]Upserted {n} rows into SQLite games[/green] ({db})")
+        finally:
+            conn.close()
+
+
+@app.command(name="backfill-boxscores")
+def backfill_boxscores(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (defaults to earliest games date in DB or 30 days ago)"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (defaults to today in schedule timezone)"),
+    games_csv: Path | None = typer.Option(None, help="Optional games CSV to source event IDs (if omitted, uses SQLite games table)"),
+    out: Path = typer.Option(settings.outputs_dir / "boxscores.csv", help="Output CSV (merged, de-duped by game_id)"),
+    use_cache: bool = typer.Option(True, help="Use cached ESPN summaries when available"),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN requests (helps avoid rate limits)") ,
+    max_games: int = typer.Option(0, help="If >0, limit to this many games (debug/smoke)"),
+    completed_only: bool = typer.Option(True, help="If true, only request boxscores for games with non-null final scores when available"),
+    skip_existing: bool = typer.Option(True, help="If true, skip game_ids already present in the output CSV (avoids refetching)") ,
+    ingest: bool = typer.Option(True, help="Upsert results into SQLite boxscores table"),
+    rebuild_table: bool = typer.Option(False, help="Drop and recreate boxscores table before ingest"),
+    db: Path = typer.Option(settings.data_dir / "ncaab.sqlite", help="SQLite DB path"),
+):
+    """Fetch ESPN boxscores over a date range and persist them (CSV + SQLite).
+
+    This is the missing link for pace/possessions/four-factor features and for
+    per-game pace variance in the simulator.
+    """
+
+    tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = None
+
+    # Resolve date bounds
+    today = _today_local().isoformat()
+    if end is None:
+        end = today
+
+    # Collect games to fetch
+    games_df = pd.DataFrame()
+    if games_csv is not None:
+        if not games_csv.exists():
+            print(f"[red]games_csv not found:[/red] {games_csv}")
+            raise typer.Exit(code=1)
+        games_df = pd.read_csv(games_csv)
+    else:
+        try:
+            conn = sqlite_connect(db)
+            try:
+                games_df = pd.read_sql_query(
+                    "SELECT game_id, date, home_team, away_team, source, home_score, away_score FROM games WHERE date IS NOT NULL",
+                    conn,
+                )
+            except Exception:
+                games_df = pd.read_sql_query(
+                    "SELECT game_id, date, home_team, away_team FROM games WHERE date IS NOT NULL",
+                    conn,
+                )
+            conn.close()
+        except Exception as e:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            print(f"[yellow]Could not read games from SQLite:[/yellow] {e}")
+            games_df = pd.DataFrame()
+
+    if games_df.empty or "game_id" not in games_df.columns:
+        print("[red]No games available to backfill boxscores (need games CSV or SQLite games table).[/red]")
+        raise typer.Exit(code=1)
+
+    # If source column exists, restrict strictly to ESPN IDs.
+    # ESPN summaries require ESPN event IDs; including non-ESPN IDs causes wasted requests.
+    if "source" in games_df.columns:
+        try:
+            src = games_df["source"].astype(str).str.lower()
+            games_df = games_df[src == "espn"].copy()
+        except Exception:
+            pass
+
+    # Filter date range when available
+    if "date" in games_df.columns:
+        try:
+            gd = pd.to_datetime(games_df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+            games_df = games_df.assign(date=gd)
+            if start is None:
+                # Default to last 30 days if we have dates
+                try:
+                    d_end = dt.datetime.strptime(end, "%Y-%m-%d").date()
+                    start = (d_end - dt.timedelta(days=30)).isoformat()
+                except Exception:
+                    start = None
+            if start is not None:
+                games_df = games_df[(games_df["date"] >= str(start)) & (games_df["date"] <= str(end))].copy()
+            else:
+                games_df = games_df[games_df["date"] <= str(end)].copy()
+        except Exception:
+            # If dates aren't parseable, just proceed with all game_ids
+            pass
+    else:
+        if start is None:
+            start = "(unknown)"
+
+    # Prefer completed games when we have scoreboard totals.
+    if completed_only and ("home_score" in games_df.columns) and ("away_score" in games_df.columns):
+        try:
+            hs = pd.to_numeric(games_df["home_score"], errors="coerce")
+            as_ = pd.to_numeric(games_df["away_score"], errors="coerce")
+            games_df = games_df[hs.notna() & as_.notna() & ((hs > 0) | (as_ > 0))].copy()
+        except Exception:
+            pass
+
+    # Prefer oldest games first to maximize completed sample when using max_games.
+    if "date" in games_df.columns:
+        try:
+            games_df = games_df.sort_values(["date", "game_id"], ascending=[True, True])
+        except Exception:
+            pass
+
+    # Normalize ids
+    game_ids = games_df["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).tolist()
+
+    # Optionally skip ids already present in the output file.
+    if skip_existing and out.exists():
+        try:
+            prev = pd.read_csv(out, usecols=["game_id"])
+            prev_ids = (
+                pd.to_numeric(prev["game_id"], errors="coerce")
+                .dropna()
+                .astype("int64")
+                .astype(str)
+                .tolist()
+            )
+            prev_set = set(prev_ids)
+            before_n = len(game_ids)
+            game_ids = [gid for gid in game_ids if gid not in prev_set]
+            skipped = before_n - len(game_ids)
+            if skipped > 0:
+                print(f"[green]Skipping {skipped} already-fetched game_ids[/green] (from {out.name})")
+        except Exception:
+            pass
+
+    if max_games and int(max_games) > 0:
+        game_ids = game_ids[: int(max_games)]
+
+    if not game_ids:
+        print(f"[green]No boxscores to fetch[/green] (0 game_ids after filtering; range {start}..{end})")
+        raise typer.Exit(code=0)
+
+    print(f"[green]Fetching ESPN boxscores[/green] for {len(game_ids)} games (range {start}..{end})")
+
+    rows: list[dict[str, Any]] = []
+    fetched = 0
+    for r in iter_boxscores(game_ids, use_cache=use_cache):
+        if r is None:
+            if sleep_seconds and float(sleep_seconds) > 0:
+                time.sleep(float(sleep_seconds))
+            continue
+        rows.append(r.model_dump())
+        fetched += 1
+        if fetched % 50 == 0:
+            print(f"  fetched {fetched}/{len(game_ids)}")
+        if sleep_seconds and float(sleep_seconds) > 0:
+            time.sleep(float(sleep_seconds))
+
+    if not rows:
+        print("[yellow]No boxscores fetched (ESPN may be rate limiting, or game_ids invalid).[/yellow]")
+        raise typer.Exit(code=1)
+
+    df = pd.DataFrame(rows)
+    # Normalize game_id to integer when possible for stable SQLite keys
+    try:
+        df["game_id"] = pd.to_numeric(df["game_id"], errors="coerce")
+        df = df[df["game_id"].notna()].copy()
+        df["game_id"] = df["game_id"].astype("int64")
+    except Exception:
+        pass
+
+    # Merge with existing out CSV if present
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if out.exists():
+        try:
+            prev = pd.read_csv(out)
+            # Normalize ids for dedupe
+            if "game_id" in prev.columns:
+                prev["game_id"] = pd.to_numeric(prev["game_id"], errors="coerce")
+            merged = pd.concat([prev, df], ignore_index=True)
+            if "game_id" in merged.columns:
+                merged = merged.drop_duplicates(subset=["game_id"], keep="last")
+            df_out = merged
+        except Exception:
+            df_out = df
+    else:
+        df_out = df
+
+    df_out.to_csv(out, index=False)
+    print(f"[green]Wrote merged boxscores to[/green] {out} ({len(df_out)} rows)")
+
+    if ingest:
+        conn = sqlite_connect(db)
+        try:
+            if rebuild_table:
+                try:
+                    conn.execute("DROP TABLE IF EXISTS boxscores")
+                except Exception:
+                    pass
+            # Ingest via temp CSV written above (ensures schema stays aligned)
+            n = sqlite_ingest(conn, "boxscores", out, ["game_id"])
+            print(f"[green]Upserted {n} rows into SQLite boxscores[/green] ({db})")
+        finally:
+            conn.close()
+
+
 @app.command(name="predict-segmented-inline")
 def predict_segmented_inline_cmd(
     features_csv: Path = typer.Argument(..., help="Features CSV to score"),
@@ -3621,6 +4024,8 @@ def bankroll_optimize(
     out: Path = typer.Option(settings.outputs_dir / "stake_sheet.csv", help="Output CSV with recommended stakes"),
     calibrate_probabilities: bool = typer.Option(False, help="If true, apply z-score recenter calibration to p_over/p_under when using distributional"),
     calibration_artifact: Path | None = typer.Option(None, help="Path to calibration artifact JSON (defaults to models_dist/calibration_totals.json if omitted)"),
+    isotonic_prob_calibration: bool = typer.Option(False, help="If true, apply isotonic probability calibration from calibration_params.json to distributional probabilities (p_over / p_home_cover)"),
+    isotonic_params_path: Path | None = typer.Option(None, help="Path to isotonic calibration params JSON (default: outputs/calibration_params.json)"),
 ):
     """Generate recommended stakes using fractional Kelly sizing with guardrails.
 
@@ -3671,6 +4076,69 @@ def bankroll_optimize(
     max_pct_per_game = float(np.clip(max_pct_per_game, 0.0, 1.0))
 
     picks: list[dict] = []
+
+    def _row_date(r: pd.Series):
+        # Prefer an explicit date field, but gracefully fall back.
+        # NOTE: avoid `or` with NaN, since `float('nan')` is truthy.
+        for key in ("date", "date_game", "display_date"):
+            try:
+                if key not in r.index:
+                    continue
+                v = r.get(key)
+                if v is None:
+                    continue
+                if isinstance(v, float) and np.isnan(v):
+                    continue
+                s = str(v).strip()
+                if not s or s.lower() == "nan":
+                    continue
+                return s
+            except Exception:
+                continue
+        return np.nan
+
+    # Optional isotonic probability calibration (fit from historical outcomes).
+    iso_params: dict | None = None
+    if isotonic_prob_calibration:
+        try:
+            pth = isotonic_params_path or (settings.outputs_dir / "calibration_params.json")
+            if pth.exists():
+                iso_params = json.loads(pth.read_text(encoding="utf-8"))
+                if not isinstance(iso_params, dict):
+                    iso_params = None
+            else:
+                iso_params = None
+        except Exception:
+            iso_params = None
+
+    def _apply_iso(p: float, key: str) -> float:
+        if iso_params is None:
+            return p
+        par = iso_params.get(key)
+        if not isinstance(par, dict):
+            return p
+        xs = par.get("x")
+        ys = par.get("y")
+        if not isinstance(xs, list) or not isinstance(ys, list) or len(xs) != len(ys) or len(xs) == 0:
+            return p
+        try:
+            pv = float(p)
+        except Exception:
+            return p
+        # Piecewise-constant mapping: choose the last breakpoint with x <= p.
+        idx = 0
+        for i, xv in enumerate(xs):
+            try:
+                if float(xv) <= pv:
+                    idx = i
+                else:
+                    break
+            except Exception:
+                continue
+        try:
+            return float(np.clip(float(ys[idx]), 1e-4, 1.0 - 1e-4))
+        except Exception:
+            return float(np.clip(pv, 1e-4, 1.0 - 1e-4))
 
     # Helper to cap stake
     def cap_stake(raw: float) -> float:
@@ -3753,6 +4221,11 @@ def bankroll_optimize(
                     # Clamp
                     p_over = float(np.clip(p_over, 1e-4, 1.0 - 1e-4))
                     p_under = float(np.clip(p_under, 1e-4, 1.0 - 1e-4))
+
+                    # Optional isotonic calibration on p_over (then complement for under)
+                    if isotonic_prob_calibration:
+                        p_over = _apply_iso(p_over, "p_over")
+                        p_under = float(np.clip(1.0 - p_over, 1e-4, 1.0 - 1e-4))
                     # Prices
                     def american_to_b(odds: float) -> float:
                         if pd.isna(odds):
@@ -3795,7 +4268,7 @@ def bankroll_optimize(
                     mu_like = q50
                     stake = cap_stake(bankroll * kelly_fraction * k * scale)
                     picks.append({
-                        "date": r.get("date") or r.get("date_game") or np.nan,
+                        "date": _row_date(r),
                         "game_id": r.get("game_id"),
                         "event_id": r.get("event_id"),
                         "book": r.get("book"),
@@ -3834,6 +4307,11 @@ def bankroll_optimize(
                 # Clamp for stability
                 p_over = float(np.clip(p_over, 1e-4, 1.0 - 1e-4))
                 p_under = float(np.clip(p_under, 1e-4, 1.0 - 1e-4))
+
+                # Optional isotonic calibration on p_over (then complement for under)
+                if isotonic_prob_calibration:
+                    p_over = _apply_iso(p_over, "p_over")
+                    p_under = float(np.clip(1.0 - p_over, 1e-4, 1.0 - 1e-4))
                 # Prices may be missing in prefetch snapshot; default to -110/-110 so Kelly can still evaluate
                 raw_over = float(r.get("over_price", np.nan)) if "over_price" in r.index else np.nan
                 raw_under = float(r.get("under_price", np.nan)) if "under_price" in r.index else np.nan
@@ -3874,7 +4352,7 @@ def bankroll_optimize(
                 scale = float(sigma_ref / (sig + sigma_ref)) if sigma_ref > 0 else 1.0
                 stake = cap_stake(bankroll * kelly_fraction * k * scale)
                 picks.append({
-                    "date": r.get("date") or r.get("date_game") or np.nan,
+                    "date": _row_date(r),
                     "game_id": r.get("game_id"),
                     "event_id": r.get("event_id"),
                     "book": r.get("book"),
@@ -3911,7 +4389,7 @@ def bankroll_optimize(
                 price = r.get("over_price") if side == "over" else r.get("under_price")
                 stake = cap_stake(bankroll * kelly_fraction * k)
                 picks.append({
-                    "date": r.get("date") or r.get("date_game") or np.nan,
+                    "date": _row_date(r),
                     "game_id": r.get("game_id"),
                     "event_id": r.get("event_id"),
                     "book": r.get("book"),
@@ -3962,6 +4440,11 @@ def bankroll_optimize(
                         F_away = cdf_piece(q10, q50, q90, x=-aspr)
                         p_home = 1.0 - F_home
                         p_away = F_away
+
+                        # Optional isotonic calibration on home-cover probability.
+                        if isotonic_prob_calibration:
+                            p_home = _apply_iso(float(np.clip(p_home, 1e-4, 1.0 - 1e-4)), "p_home_cover_dist")
+                            p_away = float(np.clip(1.0 - p_home, 1e-4, 1.0 - 1e-4))
                         # prices
                         ph = float(r.get("home_spread_price", np.nan)); pa = float(r.get("away_spread_price", np.nan))
                         b_home = american_to_b(ph); b_away = american_to_b(pa)
@@ -3992,7 +4475,7 @@ def bankroll_optimize(
                                 stake = cap_stake(bankroll * kelly_fraction * k * scale)
                                 edge = float(r.get("edge_margin", np.nan))
                                 picks.append({
-                                    "date": r.get("date") or r.get("date_game") or np.nan,
+                                    "date": _row_date(r),
                                     "game_id": r.get("game_id"),
                                     "event_id": r.get("event_id"),
                                     "book": r.get("book"),
@@ -4023,7 +4506,7 @@ def bankroll_optimize(
                 side = "away"; line = r.get("away_spread"); price = r.get("away_spread_price")
             stake = cap_stake(bankroll * kelly_fraction * k_proxy)
             picks.append({
-                "date": r.get("date") or r.get("date_game") or np.nan,
+                "date": _row_date(r),
                 "game_id": r.get("game_id"),
                 "event_id": r.get("event_id"),
                 "book": r.get("book"),
@@ -4071,7 +4554,7 @@ def bankroll_optimize(
                 continue
             stake = cap_stake(bankroll * kelly_fraction * float(k))
             picks.append({
-                "date": r.get("date") or r.get("date_game") or np.nan,
+                "date": _row_date(r),
                 "game_id": r.get("game_id"),
                 "event_id": r.get("event_id"),
                 "book": r.get("book"),
@@ -7956,11 +8439,13 @@ def daily_run(
                             merged_pred["pred_margin_sigma"] = sig_m
                         valid_m = sig_m > 0
                         if valid_m.any():
-                            z_m = (spread_series - pm_series) / sig_m
+                            # Home covers when: margin + spread_home > 0  <=>  margin > -spread_home
+                            thresh = -spread_series
+                            z_m = (thresh - pm_series) / sig_m
                             import math as _m2
                             def _norm_cdf_m(zv: pd.Series) -> pd.Series:
                                 return 0.5 * (1.0 + zv.apply(lambda x: float(_m2.erf(x / _m2.sqrt(2.0))) if pd.notna(x) else np.nan))
-                            p_home_cover = (1.0 - _norm_cdf_m(z_m)).where(valid_m)  # Probability home covers spread (margin > spread)
+                            p_home_cover = (1.0 - _norm_cdf_m(z_m)).where(valid_m)  # Probability home covers (margin > -spread_home)
                             p_home_cover = p_home_cover.clip(lower=1e-4, upper=1.0 - 1e-4)
                             if "p_home_cover_dist" not in merged_pred.columns or merged_pred["p_home_cover_dist"].isna().all():
                                 merged_pred["p_home_cover_dist"] = p_home_cover

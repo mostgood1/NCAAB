@@ -1558,6 +1558,161 @@ def _postprocess_enriched_file(date_q: str):
         # Fallback fill for pred_total/pred_margin
         enr = _fallback_merge_predictions(enr, uni, dis)
 
+        # Merge market lines (spread/total/ML) into the enriched artifact.
+        # This must be done here because the cards/sim downstream depend on
+        # `predictions_unified_enriched_<date>.csv` carrying market columns.
+        try:
+            if enr is not None and not enr.empty and 'game_id' in enr.columns:
+                def _load_odds_csvs(kind: str) -> pd.DataFrame:
+                    # kind: 'last' or 'closing'
+                    cands: list[Path] = []
+                    if kind == 'last':
+                        cands += [out_dir / f'games_with_last_{date_q}.csv', out_dir / 'games_with_last.csv']
+                    else:
+                        cands += [out_dir / f'games_with_closing_{date_q}.csv', out_dir / 'games_with_closing.csv']
+                    frames: list[pd.DataFrame] = []
+                    for p in cands:
+                        try:
+                            if p.exists():
+                                frames.append(pd.read_csv(p))
+                        except Exception:
+                            continue
+                    if not frames:
+                        return pd.DataFrame()
+                    df = pd.concat(frames, ignore_index=True)
+                    # Prefer date_game if available, else display_date/date_line.
+                    try:
+                        if 'date_game' in df.columns:
+                            df['date_game'] = pd.to_datetime(df['date_game'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            df = df[df['date_game'] == str(date_q)]
+                        elif 'display_date' in df.columns:
+                            df['display_date'] = pd.to_datetime(df['display_date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            df = df[df['display_date'] == str(date_q)]
+                        elif 'date_line' in df.columns:
+                            df['date_line'] = pd.to_datetime(df['date_line'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            df = df[df['date_line'] == str(date_q)]
+                    except Exception:
+                        pass
+                    if 'game_id' in df.columns:
+                        df['game_id'] = df['game_id'].astype(str)
+                    return df
+
+                def _agg_lines(df: pd.DataFrame) -> pd.DataFrame:
+                    if df is None or df.empty or 'game_id' not in df.columns:
+                        return pd.DataFrame(columns=['game_id', 'market_total', 'spread_home', 'ml_home'])
+
+                    # Keep only full-game when the column exists.
+                    try:
+                        if 'period' in df.columns:
+                            m = df['period'].astype(str).str.lower().isin(['full_game', 'full', 'game', 'fg'])
+                            if m.any():
+                                df = df[m].copy()
+                    except Exception:
+                        pass
+
+                    def _median_by_market(market_name: str, col: str) -> pd.Series:
+                        try:
+                            if 'market' in df.columns:
+                                sub = df[df['market'].astype(str).str.lower() == market_name].copy()
+                            else:
+                                sub = df
+                            if col not in sub.columns:
+                                return sub.groupby('game_id').size().map(lambda _: np.nan)
+                            return pd.to_numeric(sub[col], errors='coerce').groupby(sub['game_id']).median()
+                        except Exception:
+                            return df.groupby('game_id').size().map(lambda _: np.nan)
+
+                    mt = _median_by_market('totals', 'total')
+                    sh = _median_by_market('spreads', 'home_spread')
+                    ml = _median_by_market('h2h', 'moneyline_home')
+                    out = pd.DataFrame({
+                        'game_id': mt.index.astype(str),
+                        'market_total': mt.values,
+                        'spread_home': sh.reindex(mt.index).values if len(sh.index) else np.nan,
+                        'ml_home': ml.reindex(mt.index).values if len(ml.index) else np.nan,
+                    })
+
+                    # Some games may have spreads/ML but no totals; append them.
+                    try:
+                        extra_ids = set(sh.index.astype(str)).union(set(ml.index.astype(str))) - set(out['game_id'].astype(str))
+                        if extra_ids:
+                            extra = pd.DataFrame({'game_id': list(extra_ids)})
+                            extra['market_total'] = np.nan
+                            extra['spread_home'] = extra['game_id'].map(sh.to_dict()) if len(sh.index) else np.nan
+                            extra['ml_home'] = extra['game_id'].map(ml.to_dict()) if len(ml.index) else np.nan
+                            out = pd.concat([out, extra], ignore_index=True)
+                    except Exception:
+                        pass
+
+                    return out
+
+                odds_last = _load_odds_csvs('last')
+                odds_closing = _load_odds_csvs('closing')
+
+                enr['game_id'] = enr['game_id'].astype(str)
+
+                if not odds_last.empty:
+                    last_lines = _agg_lines(odds_last)
+                    if not last_lines.empty:
+                        enr = enr.merge(last_lines, on='game_id', how='left', suffixes=('', '_odds'))
+                        # Fill canonical market columns.
+                        if 'market_total' not in enr.columns and 'market_total_odds' in enr.columns:
+                            enr['market_total'] = enr['market_total_odds']
+                        if 'spread_home' not in enr.columns and 'spread_home_odds' in enr.columns:
+                            enr['spread_home'] = enr['spread_home_odds']
+                        if 'ml_home' not in enr.columns and 'ml_home_odds' in enr.columns:
+                            enr['ml_home'] = enr['ml_home_odds']
+                        # If columns already exist but are NaN, backfill from odds merge.
+                        for base, odds_col in [
+                            ('market_total', 'market_total_odds'),
+                            ('spread_home', 'spread_home_odds'),
+                            ('ml_home', 'ml_home_odds'),
+                        ]:
+                            try:
+                                if base in enr.columns and odds_col in enr.columns:
+                                    enr[base] = pd.to_numeric(enr[base], errors='coerce')
+                                    enr[odds_col] = pd.to_numeric(enr[odds_col], errors='coerce')
+                                    enr[base] = enr[base].fillna(enr[odds_col])
+                            except Exception:
+                                pass
+                        try:
+                            # Optional compatibility columns used elsewhere.
+                            if 'home_spread' not in enr.columns and 'spread_home' in enr.columns:
+                                enr['home_spread'] = enr['spread_home']
+                        except Exception:
+                            pass
+
+                if not odds_closing.empty:
+                    closing_lines = _agg_lines(odds_closing).rename(columns={
+                        'market_total': 'closing_total',
+                        'spread_home': 'closing_spread_home',
+                        'ml_home': 'closing_ml_home',
+                    })
+                    if not closing_lines.empty:
+                        enr = enr.merge(closing_lines, on='game_id', how='left', suffixes=('', '_closing'))
+                        for base, odds_col in [
+                            ('closing_total', 'closing_total_closing'),
+                            ('closing_spread_home', 'closing_spread_home_closing'),
+                            ('closing_ml_home', 'closing_ml_home_closing'),
+                        ]:
+                            try:
+                                if base in enr.columns and odds_col in enr.columns:
+                                    enr[base] = pd.to_numeric(enr[base], errors='coerce')
+                                    enr[odds_col] = pd.to_numeric(enr[odds_col], errors='coerce')
+                                    enr[base] = enr[base].fillna(enr[odds_col])
+                            except Exception:
+                                pass
+
+                # Drop helper columns from merges to keep artifacts stable.
+                try:
+                    drop_cols = [c for c in enr.columns if c.endswith('_odds') or c.endswith('_closing')]
+                    if drop_cols:
+                        enr = enr.drop(columns=drop_cols, errors='ignore')
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # Row-wise time enrichment anchored to the slate date.
         rows: list[dict[str, Any]] = []
         try:
@@ -4150,9 +4305,10 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
 
     File precedence:
       1) Explicit env var NCAAB_MODEL_PREDICTIONS_FILE (absolute or relative to OUT)
-      2) OUT/predictions_model_<date>.csv when date provided
-      3) OUT/predictions_model_<today>.csv
-      4) Most recently modified OUT/predictions_model_*.csv (fallback)
+            2) OUT/predictions_model_calibrated_<date>.csv or OUT/predictions_model_<date>.csv when date provided
+            3) OUT/predictions_model_calibrated_<today>.csv or OUT/predictions_model_<today>.csv
+            4) Unified/enriched fallbacks for the date/today when explicit model artifacts are missing
+            5) Most recently modified OUT/predictions_model_*.csv (fallback)
     Returns empty DataFrame if none found or all empty.
     Sets global _MODEL_PREDICTIONS_SOURCE_PATH for diagnostics.
     Expected columns (if present): game_id, pred_total_model, pred_margin_model, date
@@ -4172,20 +4328,20 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
         if not p.is_absolute():
             p = OUT / env_path
         candidates.append(p)
-    # 2) Explicit date (prefer unified_enriched -> unified -> enriched -> calibrated model -> raw model)
+    # 2) Explicit date (prefer calibrated model -> raw model; then unified/enriched fallbacks)
     if date_str:
+        candidates.append(OUT / f"predictions_model_calibrated_{date_str}.csv")
+        candidates.append(OUT / f"predictions_model_{date_str}.csv")
         candidates.append(OUT / f"predictions_unified_enriched_{date_str}.csv")
         candidates.append(OUT / f"predictions_unified_{date_str}.csv")
         candidates.append(OUT / f"predictions_enriched_{date_str}.csv")
-        candidates.append(OUT / f"predictions_model_calibrated_{date_str}.csv")
-        candidates.append(OUT / f"predictions_model_{date_str}.csv")
-    # 3) Today (prefer unified_enriched -> unified -> enriched -> calibrated model -> raw model)
+    # 3) Today (prefer calibrated model -> raw model; then unified/enriched fallbacks)
     if today_str and (not date_str or date_str != today_str):
+        candidates.append(OUT / f"predictions_model_calibrated_{today_str}.csv")
+        candidates.append(OUT / f"predictions_model_{today_str}.csv")
         candidates.append(OUT / f"predictions_unified_enriched_{today_str}.csv")
         candidates.append(OUT / f"predictions_unified_{today_str}.csv")
         candidates.append(OUT / f"predictions_enriched_{today_str}.csv")
-        candidates.append(OUT / f"predictions_model_calibrated_{today_str}.csv")
-        candidates.append(OUT / f"predictions_model_{today_str}.csv")
     # 4) Any historical model predictions – choose newest non-empty
     try:
         globbed = list(OUT.glob("predictions_model_calibrated_*.csv")) + list(OUT.glob("predictions_model_*.csv"))
@@ -4200,28 +4356,62 @@ def _load_model_predictions(date_str: str | None = None) -> pd.DataFrame:
             if p.exists():
                 df = pd.read_csv(p)
                 if not df.empty:
-                    # Unified/enriched files already contain display-ready pred_total / pred_margin and basis columns.
-                    # We still populate pred_total_model / pred_margin_model for downstream logic expecting those names.
-                    # Preference order for model totals:
-                    #   1. Explicit pred_total_model
-                    #   2. Calibrated pred_total_calibrated
-                    #   3. Display pred_total
+                    # Unified/enriched files may include pred_*_model columns that are present-but-empty.
+                    # Populate / backfill pred_total_model + pred_margin_model for downstream consumers (cards UI).
+                    # Preference order:
+                    #   1) Explicit pred_*_model when present and non-null
+                    #   2) Calibrated pred_*_calibrated
+                    #   3) Display pred_total/pred_margin
                     if 'pred_total_model' not in df.columns:
-                        if 'pred_total_calibrated' in df.columns:
-                            try:
-                                df['pred_total_model'] = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
-                            except Exception:
-                                df['pred_total_model'] = df['pred_total_calibrated']
-                        elif 'pred_total' in df.columns:
-                            df['pred_total_model'] = pd.to_numeric(df['pred_total'], errors='coerce')
+                        df['pred_total_model'] = pd.to_numeric(df.get('pred_total_model'), errors='coerce')
                     if 'pred_margin_model' not in df.columns:
-                        if 'pred_margin_calibrated' in df.columns:
-                            try:
-                                df['pred_margin_model'] = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
-                            except Exception:
-                                df['pred_margin_model'] = df['pred_margin_calibrated']
-                        elif 'pred_margin' in df.columns:
-                            df['pred_margin_model'] = pd.to_numeric(df['pred_margin'], errors='coerce')
+                        df['pred_margin_model'] = pd.to_numeric(df.get('pred_margin_model'), errors='coerce')
+
+                    try:
+                        ptm = pd.to_numeric(df.get('pred_total_model'), errors='coerce')
+                    except Exception:
+                        ptm = df.get('pred_total_model')
+                    try:
+                        pmm = pd.to_numeric(df.get('pred_margin_model'), errors='coerce')
+                    except Exception:
+                        pmm = df.get('pred_margin_model')
+
+                    # Backfill totals
+                    try:
+                        if isinstance(ptm, pd.Series):
+                            if 'pred_total_calibrated' in df.columns:
+                                pt_cal = pd.to_numeric(df['pred_total_calibrated'], errors='coerce')
+                                ptm = ptm.where(ptm.notna(), pt_cal)
+                            if 'pred_total' in df.columns:
+                                pt = pd.to_numeric(df['pred_total'], errors='coerce')
+                                ptm = ptm.where(ptm.notna(), pt)
+                            df['pred_total_model'] = ptm
+                    except Exception:
+                        pass
+                    # Backfill margins
+                    try:
+                        if isinstance(pmm, pd.Series):
+                            if 'pred_margin_calibrated' in df.columns:
+                                pm_cal = pd.to_numeric(df['pred_margin_calibrated'], errors='coerce')
+                                pmm = pmm.where(pmm.notna(), pm_cal)
+                            if 'pred_margin' in df.columns:
+                                pm = pd.to_numeric(df['pred_margin'], errors='coerce')
+                                pmm = pmm.where(pmm.notna(), pm)
+                            df['pred_margin_model'] = pmm
+                    except Exception:
+                        pass
+
+                    # If still entirely missing, try projection-derived totals/margins.
+                    try:
+                        ptm2 = pd.to_numeric(df.get('pred_total_model'), errors='coerce')
+                        pmm2 = pd.to_numeric(df.get('pred_margin_model'), errors='coerce')
+                        if (ptm2.notna().sum() == 0 or pmm2.notna().sum() == 0) and {'proj_home','proj_away'}.issubset(df.columns):
+                            ph = pd.to_numeric(df.get('proj_home'), errors='coerce')
+                            pa = pd.to_numeric(df.get('proj_away'), errors='coerce')
+                            df['pred_total_model'] = ptm2.where(ptm2.notna(), ph + pa)
+                            df['pred_margin_model'] = pmm2.where(pmm2.notna(), ph - pa)
+                    except Exception:
+                        pass
                     _MODEL_PREDICTIONS_SOURCE_PATH = str(p)
                     logger.info("Loaded model/unified predictions from: %s (rows=%s, cols=%s)", p, len(df), list(df.columns))
                     return df
@@ -5374,13 +5564,22 @@ def index():
         force_api = (request.args.get("force_api") or request.args.get("cards") or "").strip().lower() in ("1","true","yes")
     except Exception:
         force_api = False
+    # SIM-only mode: force cards to render from /api/display_predictions so we can
+    # cleanly overlay simulation-driven totals/margins without touching snapshots.
+    try:
+        sim_only_env = str(os.environ.get("NCAAB_SIM_ONLY", "0")).strip().lower() in ("1","true","yes")
+        sim_only_q = (str(request.args.get("sim_only") or "").strip().lower() in ("1","true","yes"))
+        if sim_only_env or sim_only_q:
+            force_api = True
+    except Exception:
+        pass
     if force_api:
         try:
             # Ensure the API call uses the requested date if provided
             _api_date_force = (request.args.get("date") or date_q or "").strip()
             if _api_date_force:
                 try:
-                    with app.test_request_context(f"/api/display_predictions?date={_api_date_force}"):
+                    with app.test_request_context(f"/api/display_predictions?date={_api_date_force}&view=cards"):
                         resp = api_display_predictions()
                 except Exception:
                     resp = api_display_predictions()
@@ -5497,7 +5696,7 @@ def index():
                 api_date = None
         if api_date:
             try:
-                with app.test_request_context(f"/api/display_predictions?date={api_date}"):
+                with app.test_request_context(f"/api/display_predictions?date={api_date}&view=cards"):
                     resp = api_display_predictions()
             except Exception:
                 resp = api_display_predictions()
@@ -24274,6 +24473,13 @@ def api_recommendations():
     # Optional components flag: include per-row confidence breakdown when requested
     components_q = (str(request.args.get("components") or request.args.get("debug") or "").strip().lower() in ("1","true","yes","debug"))
     date_q = (request.args.get("date") or "").strip()
+    # SIM-only toggle: env or query-param
+    try:
+        sim_only_env = str(os.environ.get("NCAAB_SIM_ONLY", "0")).strip().lower() in ("1","true","yes")
+        sim_only_q = (str(request.args.get("sim_only") or "").strip().lower() in ("1","true","yes"))
+        sim_only = bool(sim_only_env or sim_only_q)
+    except Exception:
+        sim_only = False
     # Helper: resolve OU gating thresholds. Only gate when explicitly configured.
     def _get_ou_thresholds() -> tuple[float | None, float | None]:
         try:
@@ -24359,6 +24565,406 @@ def api_recommendations():
                 date_q = dt.datetime.utcnow().date().isoformat()
             except Exception:
                 date_q = dt.date.today().isoformat()
+
+    # ------------------------------------------------------------------
+    # SIM-only mode: build OU/ATS/ML rows from simulation quantiles and market lines
+    # ------------------------------------------------------------------
+    if sim_only and date_q:
+        try:
+            import math as _math
+            def _norm_cdf(z: float) -> float:
+                try:
+                    return 0.5 * (1.0 + _math.erf(z / _math.sqrt(2.0)))
+                except Exception:
+                    return 0.5
+            def _p_over_from_mu_sigma(mu: float, sigma: float, line: float) -> float:
+                try:
+                    if sigma <= 0:
+                        return 1.0 if mu > line else 0.0
+                    z = (line - mu) / sigma
+                    return float(max(0.0, min(1.0, 1.0 - _norm_cdf(z))))
+                except Exception:
+                    return 0.5
+            def _sigma_from_q10_q90(q10: float | None, q90: float | None) -> float | None:
+                try:
+                    if q10 is None or q90 is None:
+                        return None
+                    if (not np.isfinite(q10)) or (not np.isfinite(q90)):
+                        return None
+                    # z0.9 = 1.2815515655446004
+                    denom = 2.0 * 1.2815515655446004
+                    s = float((q90 - q10) / denom)
+                    return s if (s > 1e-6) else None
+                except Exception:
+                    return None
+            def _implied_prob_from_american(odds: float | int | None) -> float | None:
+                try:
+                    if odds is None:
+                        return None
+                    o = float(odds)
+                    if not np.isfinite(o) or o == 0:
+                        return None
+                    if o > 0:
+                        return 100.0 / (o + 100.0)
+                    return (-o) / ((-o) + 100.0)
+                except Exception:
+                    return None
+            def _parse_float(v: Any) -> float | None:
+                try:
+                    if v is None:
+                        return None
+                    s = str(v).strip()
+                    if s == '' or s.lower() in ('nan','none','null'):
+                        return None
+                    f = float(s)
+                    return f if np.isfinite(f) else None
+                except Exception:
+                    return None
+            def _parse_int(v: Any) -> int | None:
+                try:
+                    if v is None:
+                        return None
+                    s = str(v).strip()
+                    if s == '' or s.lower() in ('nan','none','null'):
+                        return None
+                    return int(float(s))
+                except Exception:
+                    return None
+
+            # Load sim quantiles
+            sq_path = OUT / f"sim_quantiles_{date_q}.csv"
+            sq = _safe_read_csv(sq_path) if sq_path.exists() else pd.DataFrame()
+            if isinstance(sq, pd.DataFrame) and not sq.empty and 'game_id' in sq.columns:
+                try:
+                    sq['game_id'] = sq['game_id'].astype(str)
+                except Exception:
+                    pass
+            else:
+                sq = pd.DataFrame()
+
+            # Load meta (teams/time) from enriched snapshot first, else display
+            meta = pd.DataFrame()
+            try:
+                p_en = OUT / f"predictions_unified_enriched_{date_q}.csv"
+                meta = _safe_read_csv(p_en) if p_en.exists() else pd.DataFrame()
+            except Exception:
+                meta = pd.DataFrame()
+            if meta.empty:
+                try:
+                    p_disp = OUT / f"predictions_display_{date_q}.csv"
+                    meta = _safe_read_csv(p_disp) if p_disp.exists() else pd.DataFrame()
+                except Exception:
+                    meta = pd.DataFrame()
+            if isinstance(meta, pd.DataFrame) and not meta.empty and 'game_id' in meta.columns:
+                try:
+                    meta['game_id'] = meta['game_id'].astype(str)
+                except Exception:
+                    pass
+
+            # Load market lines/odds: pick the candidate with best coverage for the requested date.
+            odds_df = pd.DataFrame()
+            try:
+                from pathlib import Path as _P
+                cands = [
+                    _P(os.getcwd()) / 'outputs' / f'games_with_last_{date_q}.csv',
+                    _P(os.getcwd()) / 'outputs' / f'games_with_odds_{date_q}.csv',
+                    _P(os.getcwd()) / 'outputs' / f'games_with_closing_{date_q}.csv',
+                    _P(os.getcwd()) / 'outputs' / 'games_with_last_today.csv',
+                    _P(os.getcwd()) / 'outputs' / 'games_with_odds_today.csv',
+                    _P(os.getcwd()) / 'outputs' / 'games_with_closing_today.csv',
+                    _P(os.getcwd()) / 'outputs' / 'games_with_last.csv',
+                    _P(os.getcwd()) / 'outputs' / 'games_with_odds.csv',
+                    _P(os.getcwd()) / 'outputs' / 'games_with_closing.csv',
+                ]
+                best_score = -1
+                best_df = None
+                for p in cands:
+                    try:
+                        if not p.exists():
+                            continue
+                        tmp = pd.read_csv(p, dtype=str, low_memory=False)
+                        if not isinstance(tmp, pd.DataFrame) or tmp.empty or ('game_id' not in tmp.columns):
+                            continue
+                        tmp = tmp.copy()
+                        try:
+                            tmp['game_id'] = tmp['game_id'].astype(str)
+                        except Exception:
+                            pass
+                        # Filter to target date when possible
+                        tmp_f = tmp
+                        try:
+                            date_cols = [c for c in ['display_date','odds_date','date','date_game','date_line','game_date'] if c in tmp.columns]
+                            if date_cols:
+                                dc = date_cols[0]
+                                ds = pd.to_datetime(tmp[dc], errors='coerce').dt.strftime('%Y-%m-%d')
+                                tmp_f = tmp[ds.astype(str) == str(date_q)].copy()
+                        except Exception:
+                            tmp_f = tmp
+                        if tmp_f.empty:
+                            continue
+                        # Score by unique game_id coverage (not raw row counts)
+                        cand_total = next((c for c in ['total','closing_total','market_total','total_median'] if c in tmp_f.columns), None)
+                        cand_spread = next((c for c in ['spread','spread_home','closing_spread_home','home_spread','home_spread_line'] if c in tmp_f.columns), None)
+                        cand_ml_h = next((c for c in ['moneyline_home','ml_home','home_moneyline'] if c in tmp_f.columns), None)
+                        cand_ml_a = next((c for c in ['moneyline_away','ml_away','away_moneyline'] if c in tmp_f.columns), None)
+                        score = 0
+                        try:
+                            gb = tmp_f.groupby('game_id', dropna=False)
+                        except Exception:
+                            gb = None
+                        for cc in [cand_total, cand_spread, cand_ml_h, cand_ml_a]:
+                            if cc and cc in tmp_f.columns:
+                                try:
+                                    if gb is not None:
+                                        ser = gb[cc].apply(lambda s: pd.to_numeric(s, errors='coerce').notna().any())
+                                        score += int(ser.sum())
+                                    else:
+                                        score += int(pd.to_numeric(tmp_f[cc], errors='coerce').notna().sum())
+                                except Exception:
+                                    try:
+                                        if gb is not None:
+                                            ser2 = gb[cc].apply(lambda s: s.notna().any())
+                                            score += int(ser2.sum())
+                                        else:
+                                            score += int(tmp_f[cc].notna().sum())
+                                    except Exception:
+                                        pass
+                        # Prefer larger coverage; tie-breaker prefers games_with_last
+                        if (score > best_score) or (score == best_score and best_df is not None and ('games_with_last' in str(p) and 'games_with_last' not in str(getattr(best_df, '_src', '')))):
+                            best_score = score
+                            best_df = tmp_f
+                            try:
+                                setattr(best_df, '_src', str(p))
+                            except Exception:
+                                pass
+                    except Exception:
+                        continue
+                odds_df = best_df if isinstance(best_df, pd.DataFrame) else pd.DataFrame()
+            except Exception:
+                odds_df = pd.DataFrame()
+            if isinstance(odds_df, pd.DataFrame) and not odds_df.empty and 'game_id' in odds_df.columns:
+                try:
+                    odds_df['game_id'] = odds_df['game_id'].astype(str)
+                except Exception:
+                    pass
+
+            # Build a master per-game frame
+            base = pd.DataFrame()
+            if not sq.empty and 'game_id' in sq.columns:
+                keep_sq = [
+                    'game_id','date','home_team','away_team','start_time_iso','start_time_local','start_tz_abbr','venue','neutral_site',
+                    'market_total','spread_home',
+                    'moneyline_home','moneyline_away','home_spread_price','away_spread_price','over_price','under_price',
+                    'mu_total','mu_margin','q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin','p_over_market','sim_ok'
+                ]
+                keep_sq = [c for c in keep_sq if c in sq.columns]
+                base = sq[keep_sq].drop_duplicates('game_id').copy() if keep_sq else sq[['game_id']].drop_duplicates('game_id').copy()
+            elif not meta.empty and 'game_id' in meta.columns:
+                keep = [c for c in ['game_id','date','display_date','home_team','away_team','start_time_iso','start_time','start_tz_abbr','market_total','spread_home'] if c in meta.columns]
+                base = meta[keep].copy() if keep else meta[['game_id']].copy()
+            elif not odds_df.empty and 'game_id' in odds_df.columns:
+                keep = [c for c in ['game_id','date','home_team','away_team','start_time_iso','start_time','start_tz_abbr'] if c in odds_df.columns]
+                base = odds_df[keep].copy() if keep else odds_df[['game_id']].copy()
+
+            if base.empty and not sq.empty and 'game_id' in sq.columns:
+                base = sq[['game_id']].drop_duplicates('game_id').copy()
+
+            if 'date' not in base.columns:
+                base['date'] = date_q
+
+            # Attach market fields from odds (aggregate across multiple market/book rows per game)
+            if not odds_df.empty and 'game_id' in base.columns:
+                cand_total = next((c for c in ['total','closing_total','market_total','total_median'] if c in odds_df.columns), None)
+                cand_spread = next((c for c in ['spread','spread_home','closing_spread_home','home_spread','home_spread_line'] if c in odds_df.columns), None)
+                cand_ml_h = next((c for c in ['moneyline_home','ml_home','home_moneyline'] if c in odds_df.columns), None)
+                cand_ml_a = next((c for c in ['moneyline_away','ml_away','away_moneyline'] if c in odds_df.columns), None)
+                cand_over = next((c for c in ['over_price','over_odds','total_over_price'] if c in odds_df.columns), None)
+                cand_under = next((c for c in ['under_price','under_odds','total_under_price'] if c in odds_df.columns), None)
+                cand_sp_h_p = next((c for c in ['home_spread_price','spread_price_home','home_spread_odds'] if c in odds_df.columns), None)
+                cand_sp_a_p = next((c for c in ['away_spread_price','spread_price_away','away_spread_odds'] if c in odds_df.columns), None)
+
+                keep_o = [c for c in ['game_id', cand_total, cand_spread, cand_ml_h, cand_ml_a, cand_over, cand_under, cand_sp_h_p, cand_sp_a_p] if c]
+                if keep_o:
+                    od0 = odds_df[keep_o].copy()
+                    ren = {}
+                    if cand_total and cand_total != 'total': ren[cand_total] = 'total'
+                    if cand_spread and cand_spread != 'spread': ren[cand_spread] = 'spread'
+                    if cand_ml_h and cand_ml_h != 'moneyline_home': ren[cand_ml_h] = 'moneyline_home'
+                    if cand_ml_a and cand_ml_a != 'moneyline_away': ren[cand_ml_a] = 'moneyline_away'
+                    if cand_over and cand_over != 'over_price': ren[cand_over] = 'over_price'
+                    if cand_under and cand_under != 'under_price': ren[cand_under] = 'under_price'
+                    if cand_sp_h_p and cand_sp_h_p != 'home_spread_price': ren[cand_sp_h_p] = 'home_spread_price'
+                    if cand_sp_a_p and cand_sp_a_p != 'away_spread_price': ren[cand_sp_a_p] = 'away_spread_price'
+                    if ren:
+                        od0 = od0.rename(columns=ren)
+                    def _first_non_null(s: pd.Series):
+                        try:
+                            s2 = s.dropna()
+                            if len(s2) == 0:
+                                return None
+                            for v in s2.tolist():
+                                sv = str(v).strip().lower()
+                                if sv and sv not in ('nan','none','null'):
+                                    return v
+                            return None
+                        except Exception:
+                            return None
+                    agg = {c: _first_non_null for c in ['total','spread','moneyline_home','moneyline_away','over_price','under_price','home_spread_price','away_spread_price'] if c in od0.columns}
+                    od = od0.groupby('game_id', as_index=False).agg(agg) if agg else od0.drop_duplicates('game_id')
+                    base = base.merge(od, on='game_id', how='left')
+
+            # Compute rec rows
+            branding = _load_branding_map()
+            p_be_spread = float(os.environ.get('SIM_ONLY_BE_SPREAD', '0.5238'))
+            p_be_total = float(os.environ.get('SIM_ONLY_BE_TOTAL', '0.5238'))
+
+            out_rows: list[dict[str, Any]] = []
+            for rr in base.to_dict(orient='records'):
+                gid = str(rr.get('game_id') or '').strip()
+                if not gid:
+                    continue
+                home = rr.get('home_team') or rr.get('home_team_name')
+                away = rr.get('away_team') or rr.get('away_team_name')
+
+                # Pull sim params
+                mu_t = _parse_float(rr.get('q50_total')) or _parse_float(rr.get('mu_total'))
+                mu_m = _parse_float(rr.get('q50_margin')) or _parse_float(rr.get('mu_margin'))
+                sig_t = _sigma_from_q10_q90(_parse_float(rr.get('q10_total')), _parse_float(rr.get('q90_total')))
+                sig_m = _sigma_from_q10_q90(_parse_float(rr.get('q10_margin')), _parse_float(rr.get('q90_margin')))
+
+                # Lines
+                line_total = _parse_float(rr.get('total')) or _parse_float(rr.get('market_total')) or _parse_float(rr.get('market_total_sim'))
+                line_spread_home = _parse_float(rr.get('spread')) or _parse_float(rr.get('spread_home'))
+
+                # OU
+                if (mu_t is not None) and (sig_t is not None) and (line_total is not None) and home and away:
+                    p_over = _p_over_from_mu_sigma(mu_t, sig_t, line_total)
+                    p_under = 1.0 - p_over
+                    side = 'Over' if p_over >= p_under else 'Under'
+                    p_side = p_over if side == 'Over' else p_under
+                    # Prefer market price when available (games_with_last.csv style), else assume -110
+                    px = _parse_int(rr.get('over_price') if side == 'Over' else rr.get('under_price'))
+                    if px is None:
+                        px = -110
+                    imp = _implied_prob_from_american(px)
+                    edge = (p_side - imp) if (imp is not None) else (p_side - p_be_total)
+                    bet_label = f"{side} {float(line_total):.1f}"
+                    out_rows.append({
+                        'type': 'Totals', 'code': 'OU', 'rec_code': 'OU', 'rec_type': 'Totals',
+                        'market': 'totals', 'period': 'full_game',
+                        'book': 'SIM',
+                        'bet': bet_label, 'bet_label': bet_label, 'selection': side,
+                        'line': float(line_total), 'price': px,
+                        'prob': float(p_side), 'edge': float(edge),
+                        'pred_total': float(mu_t), 'pred_margin': float(mu_m) if mu_m is not None else None,
+                        'game_id': gid, 'date': rr.get('date') or date_q,
+                        'home_team': home, 'away_team': away,
+                        'start_time_iso': rr.get('start_time_iso') or rr.get('start_time'),
+                        'start_tz_abbr': rr.get('start_tz_abbr'),
+                    })
+
+                # ATS
+                if (mu_m is not None) and (sig_m is not None) and (line_spread_home is not None) and home and away:
+                    # Home covers if margin + spread_home > 0  => margin > -spread_home
+                    thresh = 0.0 - float(line_spread_home)
+                    p_home_cover = 1.0 - _norm_cdf((thresh - float(mu_m)) / float(sig_m))
+                    p_home_cover = float(max(0.0, min(1.0, p_home_cover)))
+                    p_away_cover = 1.0 - p_home_cover
+                    side_team = home if p_home_cover >= p_away_cover else away
+                    # Represent line signed for chosen team
+                    line_signed = float(line_spread_home) if side_team == home else (0.0 - float(line_spread_home))
+                    p_side = p_home_cover if side_team == home else p_away_cover
+                    # Prefer market price when available; else assume -110
+                    px = _parse_int(rr.get('home_spread_price') if side_team == home else rr.get('away_spread_price'))
+                    if px is None:
+                        px = -110
+                    imp = _implied_prob_from_american(px)
+                    edge = (p_side - imp) if (imp is not None) else (p_side - p_be_spread)
+                    bet_label = f"{side_team} {line_signed:+.1f}"
+                    out_rows.append({
+                        'type': 'Spread', 'code': 'ATS', 'rec_code': 'ATS', 'rec_type': 'Spread',
+                        'market': 'spreads', 'period': 'full_game',
+                        'book': 'SIM',
+                        'bet': bet_label, 'bet_label': bet_label, 'selection': side_team,
+                        'line': float(line_signed), 'price': px,
+                        'prob': float(p_side), 'edge': float(edge),
+                        'pred_total': float(mu_t) if mu_t is not None else None, 'pred_margin': float(mu_m),
+                        'game_id': gid, 'date': rr.get('date') or date_q,
+                        'home_team': home, 'away_team': away,
+                        'start_time_iso': rr.get('start_time_iso') or rr.get('start_time'),
+                        'start_tz_abbr': rr.get('start_tz_abbr'),
+                    })
+
+                # ML
+                if (mu_m is not None) and (sig_m is not None) and home and away:
+                    p_home_win = 1.0 - _norm_cdf((0.0 - float(mu_m)) / float(sig_m))
+                    p_home_win = float(max(0.0, min(1.0, p_home_win)))
+                    p_away_win = 1.0 - p_home_win
+                    ml_h = _parse_int(rr.get('moneyline_home'))
+                    ml_a = _parse_int(rr.get('moneyline_away'))
+                    # Choose side by edge vs implied probability when odds exist; otherwise choose higher win prob
+                    imp_h = _implied_prob_from_american(ml_h)
+                    imp_a = _implied_prob_from_american(ml_a)
+                    edge_h = (p_home_win - imp_h) if (imp_h is not None) else None
+                    edge_a = (p_away_win - imp_a) if (imp_a is not None) else None
+                    if edge_h is not None and edge_a is not None:
+                        side_team = home if edge_h >= edge_a else away
+                        p_side = p_home_win if side_team == home else p_away_win
+                        price = ml_h if side_team == home else ml_a
+                        edge = edge_h if side_team == home else edge_a
+                    else:
+                        side_team = home if p_home_win >= p_away_win else away
+                        p_side = p_home_win if side_team == home else p_away_win
+                        price = ml_h if side_team == home else ml_a
+                        # Without odds, default edge to distance from 0.5
+                        edge = float(abs(p_side - 0.5))
+                    bet_label = f"{side_team} ML"
+                    out_rows.append({
+                        'type': 'Moneyline', 'code': 'ML', 'rec_code': 'ML', 'rec_type': 'Moneyline',
+                        'market': 'h2h', 'period': 'full_game',
+                        'book': 'SIM',
+                        'bet': bet_label, 'bet_label': bet_label, 'selection': side_team,
+                        'line': None, 'price': price,
+                        'prob': float(p_side), 'edge': (float(edge) if edge is not None else None),
+                        'pred_total': float(mu_t) if mu_t is not None else None, 'pred_margin': float(mu_m),
+                        'game_id': gid, 'date': rr.get('date') or date_q,
+                        'home_team': home, 'away_team': away,
+                        'start_time_iso': rr.get('start_time_iso') or rr.get('start_time'),
+                        'start_tz_abbr': rr.get('start_tz_abbr'),
+                    })
+
+            # Branding injection for grouped UI
+            def _enr_brand(row: dict[str, Any]) -> dict[str, Any]:
+                try:
+                    for side in ['home','away']:
+                        t = str(row.get(f'{side}_team') or '')
+                        b = branding.get(normalize_name(t), {}) if t else {}
+                        row[f'{side}_logo'] = b.get('logo')
+                        row[f'{side}_color'] = b.get('primary') or b.get('secondary')
+                        row[f'{side}_text_color'] = b.get('text') or '#ffffff'
+                    return row
+                except Exception:
+                    return row
+            out_rows = [_enr_brand(r) for r in out_rows]
+
+            # Ensure abs_edge for sort consumers
+            for r in out_rows:
+                try:
+                    ev = r.get('edge')
+                    r['abs_edge'] = float(abs(float(ev))) if (ev is not None and str(ev).strip()!='') else None
+                except Exception:
+                    r['abs_edge'] = r.get('edge')
+
+            resp = jsonify({'status': 'ok', 'date': date_q, 'data': out_rows, 'sim_only': True})
+            try:
+                resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                resp.headers['Pragma'] = 'no-cache'
+            except Exception:
+                pass
+            return resp
+        except Exception:
+            # If sim-only fails, fall back to the normal pipeline
+            pass
     # 1) Base picks_raw
     try:
         raw_path = OUT / 'picks_raw.csv'
@@ -28473,6 +29079,62 @@ def api_upload_sim_quantiles():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@app.route("/api/upload_sim_calibration", methods=["POST"])
+def api_upload_sim_calibration():
+    """Upload global simulation calibration JSON.
+
+    Body: multipart 'file' or raw JSON text.
+    Writes to outputs/sim_calibration.json.
+
+    This file is optional; if present it is applied by the sim engine when
+    generating sim quantiles (local pipeline) and is useful for diagnostics.
+    """
+    try:
+        body_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            body_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            body_bytes = data if data else None
+        if not body_bytes:
+            return jsonify({"status": "error", "message": "no JSON content provided"}), 400
+
+        try:
+            payload = json.loads(body_bytes.decode('utf-8', errors='ignore'))
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid JSON: {e}"}), 400
+
+        if not isinstance(payload, dict):
+            return jsonify({"status": "error", "message": "payload must be a JSON object"}), 400
+
+        out_path = OUT / "sim_calibration.json"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding='utf-8')
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        return jsonify({"status": "ok", "path": str(out_path), "keys": list(payload.keys())})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/sim_calibration")
+def api_sim_calibration():
+    """Return the currently active sim calibration JSON (if present)."""
+    try:
+        p = OUT / "sim_calibration.json"
+        if not p.exists():
+            return jsonify({"status": "missing", "path": str(p)}), 404
+        payload = json.loads(p.read_text(encoding='utf-8'))
+        if not isinstance(payload, dict):
+            return jsonify({"status": "error", "message": "invalid payload type", "path": str(p)}), 500
+        return jsonify({"status": "ok", "path": str(p), "calibration": payload})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/api/upload_sim_blend", methods=["POST"])
 def api_upload_sim_blend():
     """Upload per-date blended simulation probabilities CSV.
@@ -28507,6 +29169,49 @@ def api_upload_sim_blend():
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
         return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/upload_sim_inputs_diagnostic", methods=["POST"])
+def api_upload_sim_inputs_diagnostic():
+    """Upload per-date simulation input diagnostics JSON.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw JSON text.
+    Writes to outputs/sim_inputs_diagnostic_<date>.json.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        body_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            body_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            body_bytes = data if data else None
+        if not body_bytes:
+            return jsonify({"status": "error", "message": "no JSON content provided"}), 400
+        # Validate JSON
+        try:
+            payload = json.loads(body_bytes.decode('utf-8', errors='ignore'))
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid JSON: {e}"}), 400
+        out_path = OUT / f"sim_inputs_diagnostic_{date_q}.json"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(body_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        # Return minimal metadata
+        rows = None
+        try:
+            rows = payload.get('rows') if isinstance(payload, dict) else None
+        except Exception:
+            rows = None
+        return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "rows": rows})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -28589,6 +29294,24 @@ def api_debug_artifacts():
             resp["artifacts"][f"sim_blend_{date_q}.csv"] = {"exists": sb_date.exists(), "rows": int(len(sbdf)) if not sbdf.empty else 0, "path": str(sb_date)}
         except Exception as e:
             resp["artifacts"][f"sim_blend_{date_q}.csv"] = {"error": str(e)}
+
+        # Simulation input diagnostics
+        try:
+            sd_date = OUT / f"sim_inputs_diagnostic_{date_q}.json"
+            if sd_date.exists():
+                try:
+                    payload = json.loads(sd_date.read_text(encoding='utf-8'))
+                except Exception:
+                    payload = None
+                resp["artifacts"][f"sim_inputs_diagnostic_{date_q}.json"] = {
+                    "exists": True,
+                    "rows": (payload.get('rows') if isinstance(payload, dict) else None),
+                    "path": str(sd_date),
+                }
+            else:
+                resp["artifacts"][f"sim_inputs_diagnostic_{date_q}.json"] = {"exists": False, "path": str(sd_date)}
+        except Exception as e:
+            resp["artifacts"][f"sim_inputs_diagnostic_{date_q}.json"] = {"error": str(e)}
         # Daily results
         try:
             dr_date = OUT / "daily_results" / f"results_{date_q}.csv"
@@ -28596,6 +29319,24 @@ def api_debug_artifacts():
             resp["artifacts"][f"results_{date_q}.csv"] = {"exists": dr_date.exists(), "rows": int(len(drdf)) if not drdf.empty else 0, "path": str(dr_date)}
         except Exception as e:
             resp["artifacts"][f"results_{date_q}.csv"] = {"error": str(e)}
+
+    # Global sim calibration
+    try:
+        sc = OUT / "sim_calibration.json"
+        if sc.exists():
+            try:
+                payload = json.loads(sc.read_text(encoding='utf-8'))
+            except Exception:
+                payload = None
+            resp["artifacts"]["sim_calibration.json"] = {
+                "exists": True,
+                "keys": (list(payload.keys()) if isinstance(payload, dict) else None),
+                "path": str(sc),
+            }
+        else:
+            resp["artifacts"]["sim_calibration.json"] = {"exists": False, "path": str(sc)}
+    except Exception as e:
+        resp["artifacts"]["sim_calibration.json"] = {"error": str(e)}
     return jsonify(resp)
 
 
@@ -29399,6 +30140,14 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
     try:
         if isinstance(norm, pd.DataFrame) and not norm.empty:
             work = norm.copy()
+            # Resolve a stable default display timezone for persisted artifacts.
+            # NOTE: _get_display_tz_name() depends on an active request context.
+            try:
+                _disp_tz_name = os.getenv("DISPLAY_TZ") or os.getenv("SCHEDULE_TZ") or "America/Chicago"
+                _disp_tz = ZoneInfo(_disp_tz_name)
+            except Exception:
+                _disp_tz_name = "America/Chicago"
+                _disp_tz = ZoneInfo("America/Chicago")
             # display_date: prefer existing display_date/_slate_date, else date.
             if 'display_date' not in work.columns:
                 disp_date = None
@@ -29426,8 +30175,13 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
                     disp_time = df['start_time']
                 if disp_time is not None:
                     try:
-                        ser = pd.to_datetime(disp_time, errors='coerce')
-                        work['display_time_str'] = ser.dt.strftime('%Y-%m-%d %H:%M %Z')
+                        # Parse as UTC when possible, then convert to configured display timezone.
+                        ser = pd.to_datetime(disp_time, errors='coerce', utc=True)
+                        try:
+                            ser_loc = ser.dt.tz_convert(_disp_tz)
+                        except Exception:
+                            ser_loc = ser
+                        work['display_time_str'] = ser_loc.dt.strftime('%Y-%m-%d %I:%M %p %Z')
                     except Exception:
                         work['display_time_str'] = disp_time.astype(str)
             norm = work
@@ -29592,12 +30346,30 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
 @app.route('/api/display_predictions')
 def api_display_predictions():
     date_q = (request.args.get('date') or '').strip()
-    # Resolve target timezone: query param 'tz' wins, else cookie 'tz', else UTC
-    tz_q = (request.args.get('tz') or request.cookies.get('tz') or 'UTC').strip()
+    # View toggle: default keeps snapshot parity; view=cards emits richer fields for the game cards UI
+    try:
+        view_q = (request.args.get('view') or '').strip().lower()
+        cards_view = view_q in ('cards', 'card', 'ui', 'new')
+    except Exception:
+        cards_view = False
+    # SIM-only toggle: env or query-param
+    try:
+        sim_only_env = str(os.environ.get('NCAAB_SIM_ONLY', '0')).strip().lower() in ('1','true','yes')
+        sim_only_q = (str(request.args.get('sim_only') or '').strip().lower() in ('1','true','yes'))
+        sim_only = bool(sim_only_env or sim_only_q)
+    except Exception:
+        sim_only = False
+    # Resolve target timezone for display. Default is Central (America/Chicago),
+    # driven by query param/cookie/env via _get_display_tz_name().
+    try:
+        tz_q = (_get_display_tz_name() or 'America/Chicago').strip()
+    except Exception:
+        tz_q = 'America/Chicago'
     try:
         tzinfo = ZoneInfo(tz_q)
     except Exception:
-        tzinfo = ZoneInfo('UTC')
+        tz_q = 'America/Chicago'
+        tzinfo = ZoneInfo('America/Chicago')
     # Infer date if not provided: prefer latest available display snapshot, then last_index_df, else today
     if not date_q:
         try:
@@ -30036,13 +30808,612 @@ def api_display_predictions():
             digest = hasher.hexdigest()
         except Exception:
             digest = 'hash_error'
-        # Mirror snapshot exactly for API payload to ensure parity
+        # Mirror snapshot exactly for API payload to ensure parity by default
+        # (unless sim-only is enabled, or a richer cards view is requested)
         try:
-            if isinstance(df_full, pd.DataFrame) and not df_full.empty:
+            if (not cards_view) and (not sim_only) and isinstance(df_full, pd.DataFrame) and not df_full.empty:
                 df = df_full.copy()
         except Exception:
             pass
+
+        # SIM-only fallback: if snapshot mapping yields no rows, build from sim_quantiles directly
+        try:
+            if sim_only and (not isinstance(df, pd.DataFrame) or df.empty):
+                sq_path0 = OUT / f"sim_quantiles_{date_q}.csv"
+                sq0 = _safe_read_csv(sq_path0) if sq_path0.exists() else pd.DataFrame()
+                if isinstance(sq0, pd.DataFrame) and (not sq0.empty) and ("game_id" in sq0.columns):
+                    try:
+                        sq0["game_id"] = sq0["game_id"].astype(str)
+                    except Exception:
+                        pass
+                    s_total0 = pd.to_numeric(sq0.get("q50_total") if "q50_total" in sq0.columns else sq0.get("mu_total"), errors="coerce")
+                    s_margin0 = pd.to_numeric(sq0.get("q50_margin") if "q50_margin" in sq0.columns else sq0.get("mu_margin"), errors="coerce")
+                    df = pd.DataFrame({
+                        "game_id": sq0["game_id"],
+                        "home_team": sq0.get("home_team"),
+                        "away_team": sq0.get("away_team"),
+                        "pred_total": s_total0,
+                        "pred_margin": s_margin0,
+                        "market_total": sq0.get("market_total"),
+                        "spread_home": sq0.get("spread_home"),
+                        "start_time": sq0.get("start_time_iso") if "start_time_iso" in sq0.columns else sq0.get("start_time"),
+                        "date": sq0.get("date") if "date" in sq0.columns else date_q,
+                        "display_date": sq0.get("date") if "date" in sq0.columns else date_q,
+                    })
+                    df["pred_total_basis"] = "sim_q50"
+                    df["pred_margin_basis"] = "sim_q50"
+        except Exception:
+            pass
+
+        # Cards view: build a compact but richer frame for UI cards (Market + Model/Sim/Blend, Full + 1H)
+        try:
+            if cards_view:
+                base = (df_full.copy() if isinstance(df_full, pd.DataFrame) and not df_full.empty else df.copy())
+                if isinstance(base, pd.DataFrame) and not base.empty and 'game_id' in base.columns:
+                    try:
+                        base['game_id'] = base['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+                    def _map_from(df_src: pd.DataFrame, src_col: str, dst_col: str | None = None, numeric: bool = True) -> None:
+                        try:
+                            if not isinstance(df_src, pd.DataFrame) or df_src.empty or ('game_id' not in df_src.columns):
+                                return
+                            if src_col not in df_src.columns:
+                                return
+                            dst = dst_col or src_col
+                            if dst not in base.columns:
+                                base[dst] = np.nan
+                            s = df_src[['game_id', src_col]].copy()
+                            try:
+                                s['game_id'] = s['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                            except Exception:
+                                pass
+                            s = s.drop_duplicates('game_id').set_index('game_id')[src_col]
+                            if numeric:
+                                s = pd.to_numeric(s, errors='coerce')
+                                base[dst] = pd.to_numeric(base[dst], errors='coerce')
+                                base[dst] = base[dst].where(base[dst].notna(), base['game_id'].map(s))
+                            else:
+                                # string-ish columns
+                                base[dst] = base[dst].where(base[dst].notna() & (base[dst].astype(str).str.len() > 0), base['game_id'].map(s))
+                        except Exception:
+                            return
+
+                    # Enriched fields (blend, projections, venue/meta, market lines)
+                    e = _safe_read_csv(OUT / f"predictions_unified_enriched_{date_q}.csv")
+                    if isinstance(e, pd.DataFrame) and (not e.empty):
+                        for c in ['venue','city','state']:
+                            _map_from(e, c, c, numeric=False)
+                        _map_from(e, 'neutral_site', 'neutral_site', numeric=False)
+                        # NOTE: unified_enriched is primarily for market/metadata/projections; do not treat its
+                        # pred_* columns as model/blend outputs (those come from predictions_<date>.csv).
+                        for c in ['market_total','closing_total','spread_home','closing_spread_home','ml_home','ml_away',
+                                  'market_total_1h','closing_total_1h','spread_home_1h','closing_spread_home_1h','ml_home_1h','ml_away_1h',
+                                  'proj_home','proj_away','proj_home_1h','proj_away_1h']:
+                            _map_from(e, c, c, numeric=True)
+                        _map_from(e, 'start_time', 'start_time', numeric=False)
+                        _map_from(e, 'date', 'date', numeric=False)
+
+                    # Model + blended predictions (full + 1H) come from the main predictions artifact.
+                    # This fixes the historical ambiguity where unified_enriched may carry market-derived placeholders.
+                    pdf = _safe_read_csv(OUT / f"predictions_{date_q}.csv")
+                    if isinstance(pdf, pd.DataFrame) and (not pdf.empty):
+                        for c in ['pred_total','pred_margin','pred_total_blend','pred_margin_blend','blend_weight',
+                                  'pred_total_1h','pred_margin_1h',
+                                  'proj_home','proj_away','proj_home_1h','proj_away_1h']:
+                            _map_from(pdf, c, c, numeric=True)
+
+                    # Authoritative model-only predictions (or unified/calibrated fallbacks).
+                    # This ensures the cards "Model" row has numbers even when projections are missing.
+                    try:
+                        mp = _load_model_predictions(date_q)
+                    except Exception:
+                        mp = pd.DataFrame()
+                    if isinstance(mp, pd.DataFrame) and (not mp.empty):
+                        for c in [
+                            'pred_total_model','pred_margin_model',
+                            'pred_total_model_1h','pred_margin_model_1h',
+                            'proj_home','proj_away','proj_home_1h','proj_away_1h',
+                            'start_time','date'
+                        ]:
+                            _map_from(mp, c, c, numeric=(c not in ('start_time','date')))
+
+                    # Optional: raw model artifact (kept for debugging; not the primary "Model" row on cards)
+                    mdf = _safe_read_csv(OUT / f"predictions_model_{date_q}.csv")
+                    if isinstance(mdf, pd.DataFrame) and (not mdf.empty):
+                        _map_from(mdf, 'pred_total_model', 'pred_total_model_raw', numeric=True)
+                        _map_from(mdf, 'pred_margin_model', 'pred_margin_model_raw', numeric=True)
+
+                    # Sim full-game quantiles and market lines (often includes both ML sides)
+                    sq = _safe_read_csv(OUT / f"sim_quantiles_{date_q}.csv")
+                    if isinstance(sq, pd.DataFrame) and (not sq.empty):
+                        _map_from(sq, 'mu_home', 'mu_home', numeric=True)
+                        _map_from(sq, 'mu_away', 'mu_away', numeric=True)
+                        _map_from(sq, 'mu_home_1h', 'mu_home_1h', numeric=True)
+                        _map_from(sq, 'mu_away_1h', 'mu_away_1h', numeric=True)
+                        # Prefer mean (mu_*) for the card display: it is unique per game and avoids
+                        # the "everything looks the same" effect from integer-tied medians.
+                        _map_from(sq, 'mu_total', 'pred_total_sim', numeric=True)
+                        _map_from(sq, 'mu_margin', 'pred_margin_sim', numeric=True)
+                        # Keep medians as optional/debug columns for downstream consumers.
+                        _map_from(sq, 'q50_total', 'pred_total_sim_q50', numeric=True)
+                        _map_from(sq, 'q50_margin', 'pred_margin_sim_q50', numeric=True)
+                        # Probabilities / intervals (used by cards UI when available)
+                        for c in (
+                            'sim_ok',
+                            'p_home_win', 'p_cover_home', 'p_over_market',
+                            'q10_total', 'q90_total', 'q10_margin', 'q90_margin',
+                            'p_over_market_1h', 'p_cover_home_1h',
+                            'q10_total_1h', 'q90_total_1h', 'q10_margin_1h', 'q90_margin_1h',
+                        ):
+                            _map_from(sq, c, c, numeric=True)
+                        # 1H sim (newer sim_quantiles include explicit 1H quantiles)
+                        _map_from(sq, 'mu_total_1h', 'pred_total_sim_1h', numeric=True)
+                        _map_from(sq, 'mu_margin_1h', 'pred_margin_sim_1h', numeric=True)
+                        _map_from(sq, 'q50_total_1h', 'pred_total_sim_1h_q50', numeric=True)
+                        _map_from(sq, 'q50_margin_1h', 'pred_margin_sim_1h_q50', numeric=True)
+                        _map_from(sq, 'market_total', 'market_total', numeric=True)
+                        _map_from(sq, 'spread_home', 'spread_home', numeric=True)
+                        _map_from(sq, 'moneyline_home', 'ml_home', numeric=True)
+                        _map_from(sq, 'moneyline_away', 'ml_away', numeric=True)
+                        _map_from(sq, 'start_time_iso', 'start_time_iso', numeric=False)
+                        _map_from(sq, 'start_time_local', 'start_time_local', numeric=False)
+                        _map_from(sq, 'start_tz_abbr', 'start_tz_abbr', numeric=False)
+
+                    # Fair vs Market (Moneyline): populate card-level fair_price / implied_prob / ev.
+                    # Source: align_period_<date>_edges.csv (per-book, already includes fair/market probs and EV).
+                    try:
+                        ap_edges = _safe_read_csv(OUT / f"align_period_{date_q}_edges.csv")
+                        if isinstance(ap_edges, pd.DataFrame) and (not ap_edges.empty) and ('game_id' in ap_edges.columns):
+                            ed = ap_edges.copy()
+                            try:
+                                ed['game_id'] = ed['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                            except Exception:
+                                pass
+                            # Filter to moneyline rows (prefer full_game period when present, but don't
+                            # accidentally drop all rows when the provider labels ML as 2h/1h).
+                            try:
+                                if 'market' in ed.columns:
+                                    ed['_market_norm'] = ed['market'].astype(str).str.lower().str.strip()
+                                else:
+                                    ed['_market_norm'] = 'h2h'
+                            except Exception:
+                                ed['_market_norm'] = 'h2h'
+                            try:
+                                if 'period' in ed.columns:
+                                    ed['_period_norm'] = ed['period'].astype(str).str.lower().str.strip()
+                                else:
+                                    ed['_period_norm'] = 'full_game'
+                            except Exception:
+                                ed['_period_norm'] = 'full_game'
+
+                            try:
+                                ed = ed[ed['_market_norm'].isin(['h2h', 'moneyline'])]
+                            except Exception:
+                                pass
+
+                            # Prefer full_game over other periods within each game_id
+                            try:
+                                _rank = {
+                                    'full_game': 0, 'full': 0, 'fg': 0,
+                                    '1h': 1, 'first_half': 1,
+                                    '2h': 2, 'second_half': 2,
+                                }
+                                ed['_period_rank'] = ed['_period_norm'].map(_rank).fillna(3)
+                                best_rank = ed.groupby('game_id')['_period_rank'].transform('min')
+                                ed = ed[ed['_period_rank'] == best_rank]
+                            except Exception:
+                                pass
+
+                            # Build a descriptive basis label for the UI (e.g., h2h:full_game, h2h:2h)
+                            try:
+                                if 'market_basis' not in ed.columns:
+                                    ed['market_basis'] = np.nan
+                                mb = ed['_market_norm'].astype(str)
+                                pb = ed['_period_norm'].astype(str)
+                                ed['market_basis'] = mb + ':' + pb
+                            except Exception:
+                                pass
+
+                            need_num = [
+                                'moneyline_home', 'moneyline_away',
+                                'home_ml_ev', 'away_ml_ev',
+                                'home_ml_prob_fair', 'away_ml_prob_fair',
+                                'home_ml_prob_market', 'away_ml_prob_market',
+                            ]
+                            for c in need_num:
+                                if c in ed.columns:
+                                    ed[c] = pd.to_numeric(ed[c], errors='coerce')
+
+                            # Aggregate across books (median numeric; first non-empty book label)
+                            agg_num = {c: 'median' for c in need_num if c in ed.columns}
+                            agg_book = None
+                            for bc in ('book_name', 'book'):
+                                if bc in ed.columns:
+                                    agg_book = bc
+                                    break
+                            if agg_book:
+                                agg_num[agg_book] = 'first'
+                            if 'market_basis' in ed.columns:
+                                agg_num['market_basis'] = 'first'
+                            if agg_num:
+                                g = ed.groupby('game_id', as_index=False).agg(agg_num)
+                            else:
+                                g = ed[['game_id']].drop_duplicates('game_id')
+
+                            def _american_to_prob(price: float) -> float:
+                                try:
+                                    if price is None or (isinstance(price, float) and np.isnan(price)):
+                                        return np.nan
+                                    p = float(price)
+                                    if p > 0:
+                                        return 100.0 / (p + 100.0)
+                                    return (-p) / ((-p) + 100.0)
+                                except Exception:
+                                    return np.nan
+
+                            def _prob_to_american(prob: float) -> float:
+                                try:
+                                    if prob is None or (isinstance(prob, float) and np.isnan(prob)):
+                                        return np.nan
+                                    p = float(prob)
+                                    # clamp away from 0/1 to avoid infinities
+                                    p = max(1e-6, min(1.0 - 1e-6, p))
+                                    if p >= 0.5:
+                                        return -100.0 * p / (1.0 - p)
+                                    return 100.0 * (1.0 - p) / p
+                                except Exception:
+                                    return np.nan
+
+                            # Choose the better EV side per game
+                            if 'home_ml_ev' in g.columns or 'away_ml_ev' in g.columns:
+                                hev = pd.to_numeric(g.get('home_ml_ev'), errors='coerce') if 'home_ml_ev' in g.columns else pd.Series(np.nan, index=g.index)
+                                aev = pd.to_numeric(g.get('away_ml_ev'), errors='coerce') if 'away_ml_ev' in g.columns else pd.Series(np.nan, index=g.index)
+                                choose_home = hev.fillna(-1e9) >= aev.fillna(-1e9)
+                            else:
+                                choose_home = pd.Series(True, index=g.index)
+
+                            # Market price for the chosen side
+                            mh = pd.to_numeric(g.get('moneyline_home'), errors='coerce') if 'moneyline_home' in g.columns else pd.Series(np.nan, index=g.index)
+                            ma = pd.to_numeric(g.get('moneyline_away'), errors='coerce') if 'moneyline_away' in g.columns else pd.Series(np.nan, index=g.index)
+                            g['market_price'] = mh.where(choose_home, ma)
+
+                            # Implied probability: prefer provided market probs, else compute from price
+                            iph = pd.to_numeric(g.get('home_ml_prob_market'), errors='coerce') if 'home_ml_prob_market' in g.columns else pd.Series(np.nan, index=g.index)
+                            ipa = pd.to_numeric(g.get('away_ml_prob_market'), errors='coerce') if 'away_ml_prob_market' in g.columns else pd.Series(np.nan, index=g.index)
+                            g['implied_prob'] = iph.where(choose_home, ipa)
+                            miss_imp = pd.to_numeric(g['implied_prob'], errors='coerce').isna()
+                            if miss_imp.any():
+                                g.loc[miss_imp, 'implied_prob'] = g.loc[miss_imp, 'market_price'].map(_american_to_prob)
+
+                            # Fair probability and fair price
+                            fph = pd.to_numeric(g.get('home_ml_prob_fair'), errors='coerce') if 'home_ml_prob_fair' in g.columns else pd.Series(np.nan, index=g.index)
+                            fpa = pd.to_numeric(g.get('away_ml_prob_fair'), errors='coerce') if 'away_ml_prob_fair' in g.columns else pd.Series(np.nan, index=g.index)
+                            fair_prob = fph.where(choose_home, fpa)
+                            g['fair_price'] = fair_prob.map(_prob_to_american)
+
+                            # EV (per-unit) for chosen side
+                            g['ev'] = hev.where(choose_home, aev)
+
+                            # Book and market basis for grouping
+                            if agg_book and agg_book in g.columns:
+                                g['book_name'] = g[agg_book]
+                            if 'market_basis' not in g.columns:
+                                g['market_basis'] = 'h2h'
+                            g['fair_delta'] = pd.to_numeric(g['fair_price'], errors='coerce') - pd.to_numeric(g['market_price'], errors='coerce')
+
+                            # Merge into base
+                            base = base.merge(
+                                g[['game_id', 'market_price', 'fair_price', 'implied_prob', 'ev', 'fair_delta', 'market_basis', 'book_name']]
+                                .drop_duplicates('game_id'),
+                                on='game_id',
+                                how='left',
+                            )
+                    except Exception:
+                        pass
+
+                    # Normalize numeric columns & coalesce market lines
+                    def _num(series):
+                        try:
+                            return pd.to_numeric(series, errors='coerce')
+                        except Exception:
+                            return pd.Series(np.nan, index=base.index)
+
+                    for c in ['market_total','closing_total','spread_home','closing_spread_home','ml_home','ml_away',
+                              'market_total_1h','closing_total_1h','spread_home_1h','closing_spread_home_1h','ml_home_1h','ml_away_1h',
+                              'pred_total_model','pred_margin_model','pred_total_model_raw','pred_margin_model_raw','pred_total_sim','pred_margin_sim',
+                              'pred_total_sim_q50','pred_margin_sim_q50','pred_total_sim_1h_q50','pred_margin_sim_1h_q50',
+                              'pred_total_blend','pred_margin_blend','pred_total','pred_margin',
+                              'pred_total_1h','pred_margin_1h','proj_home','proj_away','proj_home_1h','proj_away_1h']:
+                        if c in base.columns:
+                            base[c] = _num(base[c])
+
+                    # Define the cards "Model" row from point-scale projections when available.
+                    # IMPORTANT: some raw model artifacts (pred_total_model) can be in a different
+                    # scale/space; projections are what the card scoreline is based on.
+                    if 'pred_total_model' not in base.columns:
+                        base['pred_total_model'] = np.nan
+                    if 'pred_margin_model' not in base.columns:
+                        base['pred_margin_model'] = np.nan
+                    try:
+                        # If the snapshot has point-scale predictions, prefer them when the model artifact
+                        # looks off-scale relative to the snapshot (common when model artifacts are in a
+                        # different space).
+                        if 'pred_total' in base.columns and 'pred_margin' in base.columns:
+                            snap_pt = _num(base.get('pred_total'))
+                            snap_pm = _num(base.get('pred_margin'))
+                            cur_pt = _num(base.get('pred_total_model'))
+                            cur_pm = _num(base.get('pred_margin_model'))
+                            snap_ok = snap_pt.notna() & (snap_pt >= 80.0) & (snap_pt <= 220.0)
+                            # Override if current model is missing or far from snapshot.
+                            use_snap = snap_ok & (cur_pt.isna() | ((cur_pt - snap_pt).abs() > 15.0))
+                            if use_snap.any():
+                                base.loc[use_snap, 'pred_total_model'] = snap_pt.loc[use_snap]
+                                # Only overwrite margin when snapshot margin is present.
+                                snap_pm_ok = snap_pm.notna()
+                                use_snap_m = use_snap & snap_pm_ok
+                                if use_snap_m.any():
+                                    base.loc[use_snap_m, 'pred_margin_model'] = snap_pm.loc[use_snap_m]
+
+                        if ('proj_home' in base.columns) and ('proj_away' in base.columns):
+                            ph = _num(base['proj_home'])
+                            pa = _num(base['proj_away'])
+                            proj_total = ph + pa
+                            proj_margin = ph - pa
+                            # Only override when projections look like real points.
+                            use_proj = proj_total.notna() & (proj_total >= 80.0) & (proj_total <= 220.0)
+                            if use_proj.any():
+                                base.loc[use_proj, 'pred_total_model'] = proj_total.loc[use_proj]
+                                base.loc[use_proj, 'pred_margin_model'] = proj_margin.loc[use_proj]
+                    except Exception:
+                        pass
+
+                    # Compute a coherent full-game Blend for cards: Blend = (1-w)*Model + w*Sim.
+                    # This prevents nonsensical values when predictions_<date>.csv is in a different scale.
+                    try:
+                        bw = pd.to_numeric(base.get('blend_weight'), errors='coerce') if 'blend_weight' in base.columns else pd.Series(np.nan, index=base.index)
+                        bw = bw.fillna(0.0).clip(lower=0.0, upper=1.0)
+
+                        model_pt = _num(base.get('pred_total_model'))
+                        model_pm = _num(base.get('pred_margin_model'))
+                        sim_pt = _num(base.get('pred_total_sim')) if 'pred_total_sim' in base.columns else pd.Series(np.nan, index=base.index)
+                        sim_pm = _num(base.get('pred_margin_sim')) if 'pred_margin_sim' in base.columns else pd.Series(np.nan, index=base.index)
+
+                        # Fallback model to snapshot pred_total/pred_margin if needed.
+                        if 'pred_total' in base.columns:
+                            model_pt = model_pt.where(model_pt.notna(), _num(base.get('pred_total')))
+                        if 'pred_margin' in base.columns:
+                            model_pm = model_pm.where(model_pm.notna(), _num(base.get('pred_margin')))
+
+                        blend_pt = model_pt
+                        blend_pm = model_pm
+                        has_sim = sim_pt.notna() & sim_pm.notna()
+                        if has_sim.any():
+                            blend_pt = blend_pt.where(~has_sim, (1.0 - bw) * model_pt + bw * sim_pt)
+                            blend_pm = blend_pm.where(~has_sim, (1.0 - bw) * model_pm + bw * sim_pm)
+
+                        base['pred_total_blend'] = blend_pt
+                        base['pred_margin_blend'] = blend_pm
+                        # Effective when we actually used w>0 and had sim values.
+                        base['blend_effective'] = ((bw > 0) & has_sim)
+                    except Exception:
+                        pass
+
+                    # Coalesce market_total/spread to tolerate snapshots that only have closing_* names
+                    if 'market_total' not in base.columns:
+                        base['market_total'] = np.nan
+                    if 'spread_home' not in base.columns:
+                        base['spread_home'] = np.nan
+                    if 'ml_home' not in base.columns:
+                        base['ml_home'] = np.nan
+                    if 'ml_away' not in base.columns:
+                        base['ml_away'] = np.nan
+                    if 'market_total_1h' not in base.columns:
+                        base['market_total_1h'] = np.nan
+                    if 'spread_home_1h' not in base.columns:
+                        base['spread_home_1h'] = np.nan
+                    if 'ml_home_1h' not in base.columns:
+                        base['ml_home_1h'] = np.nan
+                    if 'ml_away_1h' not in base.columns:
+                        base['ml_away_1h'] = np.nan
+                    if 'closing_total' in base.columns:
+                        base['market_total'] = base['market_total'].where(base['market_total'].notna(), base['closing_total'])
+                    if 'closing_spread_home' in base.columns:
+                        base['spread_home'] = base['spread_home'].where(base['spread_home'].notna(), base['closing_spread_home'])
+                    if 'closing_total_1h' in base.columns:
+                        base['market_total_1h'] = base['market_total_1h'].where(base['market_total_1h'].notna(), base['closing_total_1h'])
+                    if 'closing_spread_home_1h' in base.columns:
+                        base['spread_home_1h'] = base['spread_home_1h'].where(base['spread_home_1h'].notna(), base['closing_spread_home_1h'])
+
+                    # Derive 1H market totals/spreads when provider lines are missing
+                    try:
+                        mt_full = _num(base.get('market_total'))
+                        sp_full = _num(base.get('spread_home'))
+                        # projection-based halftime scoring ratio when available; else 0.5
+                        denom = _num(base.get('proj_home')) + _num(base.get('proj_away'))
+                        numer = _num(base.get('proj_home_1h')) + _num(base.get('proj_away_1h'))
+                        hratio = (numer / denom.replace(0, np.nan)) if isinstance(denom, pd.Series) else pd.Series(np.nan, index=base.index)
+                        hratio = hratio.clip(lower=0.35, upper=0.65).fillna(0.5)
+                        base['market_total_1h'] = _num(base.get('market_total_1h')).where(_num(base.get('market_total_1h')).notna(), mt_full * hratio)
+                        base['spread_home_1h'] = _num(base.get('spread_home_1h')).where(_num(base.get('spread_home_1h')).notna(), sp_full * 0.5)
+                    except Exception:
+                        pass
+
+                    # Derive 1H Model/SIM/Blend
+                    # Prefer projection-derived 1H totals/margins for the "Model" row; otherwise scale
+                    # full-game Model using a halftime ratio (projection-based when available, else 0.5).
+                    base['pred_total_model_1h'] = np.nan
+                    base['pred_margin_model_1h'] = np.nan
+                    try:
+                        ph1 = _num(base.get('proj_home_1h')) if 'proj_home_1h' in base.columns else pd.Series(np.nan, index=base.index)
+                        pa1 = _num(base.get('proj_away_1h')) if 'proj_away_1h' in base.columns else pd.Series(np.nan, index=base.index)
+                        use_proj_1h = ph1.notna() & pa1.notna()
+                        if use_proj_1h.any():
+                            base.loc[use_proj_1h, 'pred_total_model_1h'] = (ph1 + pa1).loc[use_proj_1h]
+                            base.loc[use_proj_1h, 'pred_margin_model_1h'] = (ph1 - pa1).loc[use_proj_1h]
+
+                        # Fallback: scale from full-game model
+                        need_1h = pd.to_numeric(base['pred_total_model_1h'], errors='coerce').isna()
+                        if need_1h.any():
+                            # Use same hratio logic as market 1H derivation
+                            denom = _num(base.get('proj_home')) + _num(base.get('proj_away'))
+                            numer = _num(base.get('proj_home_1h')) + _num(base.get('proj_away_1h'))
+                            hratio = (numer / denom.replace(0, np.nan)) if isinstance(denom, pd.Series) else pd.Series(np.nan, index=base.index)
+                            hratio = hratio.clip(lower=0.35, upper=0.65).fillna(0.5)
+
+                            pt_full = _num(base.get('pred_total_model'))
+                            pm_full = _num(base.get('pred_margin_model'))
+                            base.loc[need_1h, 'pred_total_model_1h'] = (pt_full * hratio).loc[need_1h]
+                            base.loc[need_1h, 'pred_margin_model_1h'] = (pm_full * 0.5).loc[need_1h]
+                    except Exception:
+                        pass
+
+                    # 1H sim from team-level fractions when available
+                    frac_home = None
+                    frac_away = None
+                    if ('proj_home' in base.columns) and ('proj_home_1h' in base.columns):
+                        denom = base['proj_home'].replace(0, np.nan)
+                        frac_home = (base['proj_home_1h'] / denom).clip(lower=0.0, upper=1.0)
+                    if ('proj_away' in base.columns) and ('proj_away_1h' in base.columns):
+                        denom = base['proj_away'].replace(0, np.nan)
+                        frac_away = (base['proj_away_1h'] / denom).clip(lower=0.0, upper=1.0)
+                    # Fallback to 0.5 if fractions missing
+                    if frac_home is None:
+                        frac_home = pd.Series(0.5, index=base.index)
+                    else:
+                        frac_home = frac_home.fillna(0.5)
+                    if frac_away is None:
+                        frac_away = pd.Series(0.5, index=base.index)
+                    else:
+                        frac_away = frac_away.fillna(0.5)
+
+                    # If the simulator provides 1H directly, keep it; otherwise fall back to team-fraction scaling.
+                    if 'pred_total_sim_1h' not in base.columns:
+                        base['pred_total_sim_1h'] = np.nan
+                    if 'pred_margin_sim_1h' not in base.columns:
+                        base['pred_margin_sim_1h'] = np.nan
+                    mask_need_1h = pd.to_numeric(base['pred_total_sim_1h'], errors='coerce').isna()
+                    if mask_need_1h.any() and ('mu_home' in base.columns) and ('mu_away' in base.columns):
+                        sim_home_1h = base['mu_home'] * frac_home
+                        sim_away_1h = base['mu_away'] * frac_away
+                        base.loc[mask_need_1h, 'pred_total_sim_1h'] = (sim_home_1h + sim_away_1h).loc[mask_need_1h]
+                        base.loc[mask_need_1h, 'pred_margin_sim_1h'] = (sim_home_1h - sim_away_1h).loc[mask_need_1h]
+
+                    # 1H blend: Blend = (1-w)*Model_1H + w*Sim_1H (fallback to Model_1H).
+                    try:
+                        bw = pd.to_numeric(base.get('blend_weight'), errors='coerce') if 'blend_weight' in base.columns else pd.Series(np.nan, index=base.index)
+                        bw = bw.fillna(0.0).clip(lower=0.0, upper=1.0)
+
+                        model_pt1 = _num(base.get('pred_total_model_1h'))
+                        model_pm1 = _num(base.get('pred_margin_model_1h'))
+                        sim_pt1 = _num(base.get('pred_total_sim_1h')) if 'pred_total_sim_1h' in base.columns else pd.Series(np.nan, index=base.index)
+                        sim_pm1 = _num(base.get('pred_margin_sim_1h')) if 'pred_margin_sim_1h' in base.columns else pd.Series(np.nan, index=base.index)
+
+                        blend_pt1 = model_pt1
+                        blend_pm1 = model_pm1
+                        has_sim1 = sim_pt1.notna() & sim_pm1.notna()
+                        if has_sim1.any():
+                            blend_pt1 = blend_pt1.where(~has_sim1, (1.0 - bw) * model_pt1 + bw * sim_pt1)
+                            blend_pm1 = blend_pm1.where(~has_sim1, (1.0 - bw) * model_pm1 + bw * sim_pm1)
+
+                        base['pred_total_blend_1h'] = blend_pt1
+                        base['pred_margin_blend_1h'] = blend_pm1
+                    except Exception:
+                        base['pred_total_blend_1h'] = base.get('pred_total_model_1h')
+                        base['pred_margin_blend_1h'] = base.get('pred_margin_model_1h')
+
+                    # Ensure start_time present for downstream AM/PM conversion
+                    if 'start_time' not in base.columns:
+                        base['start_time'] = base.get('start_time_display')
+                    else:
+                        # fill empty start_time from snapshot display columns
+                        try:
+                            st = base['start_time']
+                            if 'start_time_display' in base.columns:
+                                base['start_time'] = st.where(st.notna() & (st.astype(str).str.len() > 0), base['start_time_display'])
+                        except Exception:
+                            pass
+
+                    df = base
+        except Exception:
+            pass
+
         keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','date','display_date','display_time_str']
+        if cards_view:
+            keep_cols = [
+                'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site',
+                'market_total','spread_home','ml_home','ml_away',
+                'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
+                'market_total_1h','spread_home_1h','ml_home_1h','ml_away_1h',
+                'mu_home','mu_away','mu_home_1h','mu_away_1h',
+                'pred_total_model','pred_margin_model','pred_total_sim','pred_margin_sim','pred_total_blend','pred_margin_blend',
+                'p_home_win','p_cover_home','p_over_market',
+                'q10_total','q90_total','q10_margin','q90_margin',
+                'pred_total_model_1h','pred_margin_model_1h','pred_total_sim_1h','pred_margin_sim_1h','pred_total_blend_1h','pred_margin_blend_1h',
+                'p_over_market_1h','p_cover_home_1h',
+                'q10_total_1h','q90_total_1h','q10_margin_1h','q90_margin_1h',
+                'proj_home','proj_away','proj_home_1h','proj_away_1h',
+                'pred_total_basis','pred_margin_basis','blend_weight','blend_effective','display_time_str','display_date','edge_total','edge_ats',
+            ]
+        try:
+            if sim_only and isinstance(df, pd.DataFrame) and not df.empty and 'game_id' in df.columns:
+                sq_path = OUT / f"sim_quantiles_{date_q}.csv"
+                sq = _safe_read_csv(sq_path) if sq_path.exists() else pd.DataFrame()
+                if isinstance(sq, pd.DataFrame) and not sq.empty and 'game_id' in sq.columns:
+                    try:
+                        sq['game_id'] = sq['game_id'].astype(str)
+                        df['game_id'] = df['game_id'].astype(str)
+                    except Exception:
+                        pass
+                    # Prefer q50 as the central sim estimate; fallback to mu_*
+                    def _pick_series(sdf: pd.DataFrame, cands: list[str]) -> pd.Series | None:
+                        for c in cands:
+                            if c in sdf.columns:
+                                return pd.to_numeric(sdf[c], errors='coerce')
+                        return None
+                    s_total = _pick_series(sq, ['q50_total','mu_total'])
+                    s_margin = _pick_series(sq, ['q50_margin','mu_margin'])
+                    j = pd.DataFrame({'game_id': sq['game_id']})
+                    if s_total is not None:
+                        j['pred_total_sim'] = s_total
+                    if s_margin is not None:
+                        j['pred_margin_sim'] = s_margin
+                    # Carry quantiles if present (useful for UI/debug)
+                    for c in [
+                        'q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin',
+                        'q10_total_1h','q50_total_1h','q90_total_1h','q10_margin_1h','q50_margin_1h','q90_margin_1h',
+                        'sim_ok','market_total','p_over_market','market_total_1h','p_over_market_1h','spread_home_1h','p_cover_home_1h'
+                    ]:
+                        if c in sq.columns:
+                            j[c] = sq[c]
+                    j = j.drop_duplicates('game_id')
+                    df = df.merge(j, on='game_id', how='left')
+                    if 'pred_total_sim' in df.columns:
+                        df['pred_total'] = pd.to_numeric(df['pred_total_sim'], errors='coerce').where(pd.to_numeric(df['pred_total_sim'], errors='coerce').notna(), pd.to_numeric(df.get('pred_total'), errors='coerce'))
+                    if 'pred_margin_sim' in df.columns:
+                        df['pred_margin'] = pd.to_numeric(df['pred_margin_sim'], errors='coerce').where(pd.to_numeric(df['pred_margin_sim'], errors='coerce').notna(), pd.to_numeric(df.get('pred_margin'), errors='coerce'))
+                    # Basis flags for transparency
+                    df['pred_total_basis'] = 'sim_q50'
+                    df['pred_margin_basis'] = 'sim_q50'
+        except Exception:
+            pass
+        keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','date','display_date','display_time_str']
+        if cards_view:
+            keep_cols = [
+                'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site',
+                'market_total','spread_home','ml_home','ml_away',
+                'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
+                'market_total_1h','spread_home_1h','ml_home_1h','ml_away_1h',
+                'mu_home','mu_away','mu_home_1h','mu_away_1h',
+                'pred_total_model','pred_margin_model','pred_total_sim','pred_margin_sim','pred_total_blend','pred_margin_blend',
+                'p_home_win','p_cover_home','p_over_market',
+                'q10_total','q90_total','q10_margin','q90_margin',
+                'pred_total_model_1h','pred_margin_model_1h','pred_total_sim_1h','pred_margin_sim_1h','pred_total_blend_1h','pred_margin_blend_1h',
+                'p_over_market_1h','p_cover_home_1h',
+                'q10_total_1h','q90_total_1h','q10_margin_1h','q90_margin_1h',
+                'proj_home','proj_away','proj_home_1h','proj_away_1h',
+                'pred_total_basis','pred_margin_basis','blend_weight','blend_effective','display_time_str','display_date','edge_total','edge_ats',
+            ]
         rows: list[dict[str, Any]] = []
         for _, r in df.iterrows():
             item = {}
@@ -30051,7 +31422,7 @@ def api_display_predictions():
                     item[c] = r.get(c)
             # Add AM/PM local time derived from start_time/display_time_str
             try:
-                ts = item.get('start_time') or item.get('display_time_str')
+                ts = item.get('start_time_iso') or item.get('start_time') or item.get('display_time_str')
                 dt_obj = None
                 if isinstance(ts, str) and ts:
                     try:
@@ -30059,9 +31430,13 @@ def api_display_predictions():
                     except Exception:
                         dt_obj = None
                 if dt_obj is not None:
+                    # If parsed datetime is naive, assume UTC (best-effort fallback).
+                    if dt_obj.tzinfo is None:
+                        dt_obj = dt_obj.replace(tzinfo=dt.timezone.utc)
                     dt_local = dt_obj.astimezone(tzinfo)
                     item['display_time_ampm'] = dt_local.strftime('%I:%M %p')
                     item['display_date_local'] = dt_local.strftime('%Y-%m-%d')
+                    item['start_tz_abbr'] = dt_local.strftime('%Z')
                 # If we lack display_date, derive it from date or display_date_local
                 if 'display_date' not in item or not item.get('display_date'):
                     item['display_date'] = item.get('date') or item.get('display_date_local')
@@ -30248,7 +31623,7 @@ def cards_safe():
                 date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
         # Fetch display payload directly via internal function call
         try:
-            with app.test_request_context(f"/api/display_predictions?date={date_q}"):
+            with app.test_request_context(f"/api/display_predictions?date={date_q}&view=cards"):
                 resp = api_display_predictions()
         except Exception:
             resp = api_display_predictions()
@@ -31002,7 +32377,6 @@ def api_results_by_date():
                 return pd.Series([None] * len(df))
         if 'home_team' in df.columns:
             df['home_logo'] = _brand_field(df['home_team'], 'logo')
-            df['home_color'] = _brand_field(df['home_team'], 'primary')
             df['home_text'] = _brand_field(df['home_team'], 'text')
         if 'away_team' in df.columns:
             df['away_logo'] = _brand_field(df['away_team'], 'logo')

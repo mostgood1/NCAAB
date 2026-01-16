@@ -1172,7 +1172,7 @@
         ) %}
         {% set _has_ml = (r.ml_home is defined and r.ml_home is not none) %}
         {% set _market_avail = (1 if (_has_total or _has_spread or _has_ml) else 0) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else '')) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}">
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -1228,7 +1228,8 @@
               {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
               {% set ampm = r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '') %}
               {% if ampm %}
-                <span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-iso="" data-slate="{{ disp_date }}" data-rollover="{{ '1' if is_rollover else '0' }}" title="Time shown in {{ tz or 'local' }}">{{ ampm }}</span>
+                {% set iso0 = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined and r.start_time) else '')) %}
+                <span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-iso="{{ iso0 }}" data-slate="{{ disp_date }}" data-rollover="{{ '1' if is_rollover else '0' }}" title="Time shown in {{ tz or 'local' }}">{{ ampm }}</span>
                 <button type="button" class="pill small copy-time" title="Copy time details" aria-label="Copy time details">Copy</button>
               {% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
@@ -1236,6 +1237,278 @@
               {% if r.neutral_site %}<span class="pill neutral">Neutral Site</span>{% endif %}
             </div>
           </div>
+          {% set _cards_view = (r.pred_total_model is defined) or (r.pred_total_sim is defined) or (r.pred_total_blend is defined) or (r.pred_total_model_1h is defined) or (r.pred_total_blend_1h is defined) %}
+          {% if _cards_view %}
+            {% set home_disp = home_header or r.home_team or 'Home' %}
+            {% set away_disp = away_header or r.away_team or 'Away' %}
+            {% set mt = (r.market_total if (r.market_total is defined and r.market_total is not none and r.market_total == r.market_total) else (r.closing_total if (r.closing_total is defined and r.closing_total is not none and r.closing_total == r.closing_total) else None)) %}
+            {% set spr = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else None)) %}
+            {% set mlh = (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else None) %}
+            {% set mla = (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else None) %}
+
+            <div class="game-body">
+              <div class="section-block">
+                <div class="section-title">Market</div>
+                <div class="market-grid">
+                  <div class="pill">ML: {% if mla is not none %}{{ away_disp }} {{ '%.0f' % mla }}{% else %}{{ away_disp }} –{% endif %} / {% if mlh is not none %}{{ home_disp }} {{ '%.0f' % mlh }}{% else %}{{ home_disp }} –{% endif %}</div>
+                  <div class="pill">ATS: {% if spr is not none %}{{ home_disp }} {% if spr > 0 %}+{% endif %}{{ '%.1f' % spr }}{% else %}–{% endif %}</div>
+                  <div class="pill">Total: {% if mt is not none %}{{ '%.1f' % mt }}{% else %}–{% endif %}</div>
+                </div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-title">Full Game</div>
+                <div class="mini-table">
+                  <div class="mini-head">Source</div><div class="mini-head">Winner</div><div class="mini-head">ATS</div><div class="mini-head">Total</div><div class="mini-head">Score</div>
+
+                  {% for src in [
+                    {'k':'Model', 't':(r.pred_total_model|default(none)), 'm':(r.pred_margin_model|default(none))},
+                    {'k':'Sim', 't':(r.pred_total_sim|default(none)), 'm':(r.pred_margin_sim|default(none))},
+                    {'k':'Blend', 't':((r.pred_total_blend if (r.pred_total_blend is defined and r.pred_total_blend is not none and r.pred_total_blend==r.pred_total_blend) else (r.pred_total|default(none)))), 'm':((r.pred_margin_blend if (r.pred_margin_blend is defined and r.pred_margin_blend is not none and r.pred_margin_blend==r.pred_margin_blend) else (r.pred_margin|default(none)))), 'w':(r.blend_weight|default(none))}
+                  ] %}
+                    {% set t = (src.t if (src.t is not none and src.t == src.t) else None) %}
+                    {% set m = (src.m if (src.m is not none and src.m == src.m) else None) %}
+                    {% set winner = (home_disp if (m is not none and m > 0) else (away_disp if (m is not none and m < 0) else ('Push' if (m is not none and m == 0) else '–'))) %}
+
+                    {# Sim-only: prefer win probability when available #}
+                    {% set winner_prob = none %}
+                    {% if src.k == 'Sim' %}
+                      {% set pwin = (r.p_home_win if (r.p_home_win is defined and r.p_home_win is not none and r.p_home_win == r.p_home_win) else none) %}
+                      {% if pwin is not none %}
+                        {% if pwin >= 0.5 %}
+                          {% set winner = home_disp %}
+                          {% set winner_prob = pwin %}
+                        {% else %}
+                          {% set winner = away_disp %}
+                          {% set winner_prob = (1.0 - pwin) %}
+                        {% endif %}
+                      {% endif %}
+                    {% endif %}
+
+                    {% set win_edge = m %}
+
+                    {% set ats_pick = '–' %}
+                    {% if (m is not none) and (spr is not none) %}
+                      {% set diff = (m + spr) %}
+                      {% if diff > 0 %}
+                        {% set ats_pick = home_disp ~ ' ' ~ ((('+' if spr > 0 else '') ~ ('%.1f' % spr))) %}
+                      {% elif diff < 0 %}
+                        {% set asp = (-spr) %}
+                        {% set ats_pick = away_disp ~ ' ' ~ ((('+' if asp > 0 else '') ~ ('%.1f' % asp))) %}
+                      {% else %}
+                        {% set ats_pick = 'Push' %}
+                      {% endif %}
+                    {% endif %}
+
+                    {# Sim-only: prefer ATS cover probability when available #}
+                    {% set ats_prob = none %}
+                    {% if src.k == 'Sim' %}
+                      {% set pcov = (r.p_cover_home if (r.p_cover_home is defined and r.p_cover_home is not none and r.p_cover_home == r.p_cover_home) else none) %}
+                      {% if (pcov is not none) and (spr is not none) %}
+                        {% if pcov >= 0.5 %}
+                          {% set ats_pick = home_disp ~ ' ' ~ ((('+' if spr > 0 else '') ~ ('%.1f' % spr))) %}
+                          {% set ats_prob = pcov %}
+                        {% else %}
+                          {% set asp = (-spr) %}
+                          {% set ats_pick = away_disp ~ ' ' ~ ((('+' if asp > 0 else '') ~ ('%.1f' % asp))) %}
+                          {% set ats_prob = (1.0 - pcov) %}
+                        {% endif %}
+                      {% endif %}
+                    {% endif %}
+
+                    {% set ou_pick = '' %}
+                    {% if (t is not none) and (mt is not none) %}
+                      {% if t > mt %}{% set ou_pick = 'Over ' ~ ('%.1f' % mt) %}{% elif t < mt %}{% set ou_pick = 'Under ' ~ ('%.1f' % mt) %}{% else %}{% set ou_pick = 'Push' %}{% endif %}
+                    {% endif %}
+
+                    {# Sim-only: prefer OU probability when available #}
+                    {% set ou_prob = none %}
+                    {% if src.k == 'Sim' %}
+                      {% set pover = (r.p_over_market if (r.p_over_market is defined and r.p_over_market is not none and r.p_over_market == r.p_over_market) else none) %}
+                      {% if (pover is not none) and (mt is not none) %}
+                        {% if pover >= 0.5 %}
+                          {% set ou_pick = 'Over ' ~ ('%.1f' % mt) %}
+                          {% set ou_prob = pover %}
+                        {% else %}
+                          {% set ou_pick = 'Under ' ~ ('%.1f' % mt) %}
+                          {% set ou_prob = (1.0 - pover) %}
+                        {% endif %}
+                      {% endif %}
+                    {% endif %}
+
+                    {# Sim-only: 80% interval for total when available #}
+                    {% set t_lo = (r.q10_total if (src.k == 'Sim' and r.q10_total is defined and r.q10_total is not none and r.q10_total == r.q10_total) else none) %}
+                    {% set t_hi = (r.q90_total if (src.k == 'Sim' and r.q90_total is defined and r.q90_total is not none and r.q90_total == r.q90_total) else none) %}
+
+                    {% set tot_edge = (t - mt) if (t is not none and mt is not none) else None %}
+
+                    {# Predicted score (Away/Home) per source #}
+                    {% set home_pts = none %}
+                    {% set away_pts = none %}
+                    {% if src.k == 'Model' %}
+                      {% if r.proj_home is defined and r.proj_away is defined and r.proj_home is not none and r.proj_away is not none and r.proj_home==r.proj_home and r.proj_away==r.proj_away %}
+                        {% set home_pts = r.proj_home %}
+                        {% set away_pts = r.proj_away %}
+                      {% elif (t is not none) and (m is not none) %}
+                        {% set home_pts = (t + m) / 2.0 %}
+                        {% set away_pts = (t - m) / 2.0 %}
+                      {% endif %}
+                    {% elif src.k == 'Sim' %}
+                      {% if r.mu_home is defined and r.mu_away is defined and r.mu_home is not none and r.mu_away is not none and r.mu_home==r.mu_home and r.mu_away==r.mu_away %}
+                        {% set home_pts = r.mu_home %}
+                        {% set away_pts = r.mu_away %}
+                      {% elif (t is not none) and (m is not none) %}
+                        {% set home_pts = (t + m) / 2.0 %}
+                        {% set away_pts = (t - m) / 2.0 %}
+                      {% endif %}
+                    {% else %}
+                      {# Blend: prefer projecting from model projections + blend deltas when available #}
+                      {% if r.proj_home is defined and r.proj_away is defined and r.pred_total_model is defined and r.pred_margin_model is defined and r.proj_home is not none and r.proj_away is not none and r.pred_total_model is not none and r.pred_margin_model is not none and r.proj_home==r.proj_home and r.proj_away==r.proj_away and r.pred_total_model==r.pred_total_model and r.pred_margin_model==r.pred_margin_model and (t is not none) and (m is not none) %}
+                        {% set dt = (t - r.pred_total_model) %}
+                        {% set dm = (m - r.pred_margin_model) %}
+                        {% set dh = 0.5 * (dt + dm) %}
+                        {% set da = 0.5 * (dt - dm) %}
+                        {% set home_pts = r.proj_home + dh %}
+                        {% set away_pts = r.proj_away + da %}
+                      {% elif (t is not none) and (m is not none) %}
+                        {% set home_pts = (t + m) / 2.0 %}
+                        {% set away_pts = (t - m) / 2.0 %}
+                      {% endif %}
+                    {% endif %}
+
+                    <div class="mini-cell source">{{ src.k }}{% if src.k == 'Blend' and src.w is defined and src.w is not none and src.w == src.w %}<span class="muted"> (w {{ '%.2f' % src.w }})</span>{% endif %}</div>
+                    <div class="mini-cell">{{ winner }}{% if src.k == 'Sim' and winner_prob is not none %}<span class="muted"> ({{ '%.0f' % (winner_prob*100) }}%)</span>{% elif win_edge is not none %}<span class="muted"> ({{ '+' if win_edge > 0 else '' }}{{ '%.1f' % win_edge }})</span>{% endif %}</div>
+                    <div class="mini-cell">{{ ats_pick }}{% if src.k == 'Sim' and ats_prob is not none %}<span class="muted"> ({{ '%.0f' % (ats_prob*100) }}%)</span>{% elif (m is not none) and (spr is not none) %}<span class="muted"> (edge {{ '+' if diff > 0 else '' }}{{ '%.1f' % diff }})</span>{% endif %}</div>
+                    <div class="mini-cell">{% if t is not none %}{{ '%.1f' % t }}{% else %}–{% endif %}{% if src.k == 'Sim' and (t_lo is not none) and (t_hi is not none) %}<span class="muted"> (80% {{ '%.1f' % t_lo }}–{{ '%.1f' % t_hi }})</span>{% endif %}{% if ou_pick %}<span class="muted"> ({{ ou_pick }}{% if src.k == 'Sim' and ou_prob is not none %}; {{ '%.0f' % (ou_prob*100) }}%{% endif %}{% if tot_edge is not none %}; edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }}{% endif %})</span>{% elif tot_edge is not none %}<span class="muted"> (edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }})</span>{% endif %}</div>
+                    <div class="mini-cell" title="{{ away_disp }} @ {{ home_disp }}">
+                      {% if (home_pts is not none) and (away_pts is not none) %}
+                        A {{ '%.0f' % away_pts }} · H {{ '%.0f' % home_pts }}
+                      {% else %}
+                        –
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-title">1H</div>
+                {% set mt1 = (r.market_total_1h if (r.market_total_1h is defined and r.market_total_1h is not none and r.market_total_1h == r.market_total_1h) else None) %}
+                {% set spr1 = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
+                {% set mlh1 = (r.ml_home_1h if (r.ml_home_1h is defined and r.ml_home_1h is not none and r.ml_home_1h == r.ml_home_1h) else None) %}
+                {% set mla1 = (r.ml_away_1h if (r.ml_away_1h is defined and r.ml_away_1h is not none and r.ml_away_1h == r.ml_away_1h) else None) %}
+                <div class="market-grid market-grid-sub">
+                  <div class="pill">1H ATS: {% if spr1 is not none %}{{ home_disp }} {% if spr1 > 0 %}+{% endif %}{{ '%.1f' % spr1 }}{% else %}–{% endif %}</div>
+                  <div class="pill">1H Total: {% if mt1 is not none %}{{ '%.1f' % mt1 }}{% else %}–{% endif %}</div>
+                  {% if (mla1 is not none) or (mlh1 is not none) %}
+                    <div class="pill">1H ML: {% if mla1 is not none %}{{ away_disp }} {{ '%.0f' % mla1 }}{% else %}{{ away_disp }} –{% endif %} / {% if mlh1 is not none %}{{ home_disp }} {{ '%.0f' % mlh1 }}{% else %}{{ home_disp }} –{% endif %}</div>
+                  {% endif %}
+                </div>
+                <div class="mini-table">
+                  <div class="mini-head">Source</div><div class="mini-head">Winner</div><div class="mini-head">ATS</div><div class="mini-head">Total</div><div class="mini-head">Score</div>
+                  {% for src in [
+                    {'k':'Model', 't':(r.pred_total_model_1h|default(none)), 'm':(r.pred_margin_model_1h|default(none))},
+                    {'k':'Sim', 't':(r.pred_total_sim_1h|default(none)), 'm':(r.pred_margin_sim_1h|default(none))},
+                    {'k':'Blend', 't':(r.pred_total_blend_1h|default(none)), 'm':(r.pred_margin_blend_1h|default(none)), 'w':(r.blend_weight|default(none))}
+                  ] %}
+                    {% set t = (src.t if (src.t is not none and src.t == src.t) else None) %}
+                    {% set m = (src.m if (src.m is not none and src.m == src.m) else None) %}
+                    {% set winner = (home_disp if (m is not none and m > 0) else (away_disp if (m is not none and m < 0) else ('Push' if (m is not none and m == 0) else '–'))) %}
+
+                    {% set win_edge = m %}
+
+                    {% set ats_pick = '–' %}
+                    {% if (m is not none) and (spr1 is not none) %}
+                      {% set diff = (m + spr1) %}
+                      {% if diff > 0 %}
+                        {% set ats_pick = home_disp ~ ' ' ~ ((('+' if spr1 > 0 else '') ~ ('%.1f' % spr1))) %}
+                      {% elif diff < 0 %}
+                        {% set asp = (-spr1) %}
+                        {% set ats_pick = away_disp ~ ' ' ~ ((('+' if asp > 0 else '') ~ ('%.1f' % asp))) %}
+                      {% else %}
+                        {% set ats_pick = 'Push' %}
+                      {% endif %}
+                    {% endif %}
+
+                    {% set ou_pick = '' %}
+                    {% if (t is not none) and (mt1 is not none) %}
+                      {% if t > mt1 %}{% set ou_pick = 'Over ' ~ ('%.1f' % mt1) %}{% elif t < mt1 %}{% set ou_pick = 'Under ' ~ ('%.1f' % mt1) %}{% else %}{% set ou_pick = 'Push' %}{% endif %}
+                    {% endif %}
+
+                    {% set tot_edge = (t - mt1) if (t is not none and mt1 is not none) else None %}
+
+                    {# Predicted 1H score (Away/Home) per source #}
+                    {% set home_pts = none %}
+                    {% set away_pts = none %}
+                    {% if src.k == 'Model' %}
+                      {% if r.proj_home_1h is defined and r.proj_away_1h is defined and r.proj_home_1h is not none and r.proj_away_1h is not none and r.proj_home_1h==r.proj_home_1h and r.proj_away_1h==r.proj_away_1h %}
+                        {% set home_pts = r.proj_home_1h %}
+                        {% set away_pts = r.proj_away_1h %}
+                      {% elif (t is not none) and (m is not none) %}
+                        {% set home_pts = (t + m) / 2.0 %}
+                        {% set away_pts = (t - m) / 2.0 %}
+                      {% endif %}
+                    {% elif src.k == 'Sim' %}
+                      {% if r.mu_home_1h is defined and r.mu_away_1h is defined and r.mu_home_1h is not none and r.mu_away_1h is not none and r.mu_home_1h==r.mu_home_1h and r.mu_away_1h==r.mu_away_1h %}
+                        {% set home_pts = r.mu_home_1h %}
+                        {% set away_pts = r.mu_away_1h %}
+                      {% elif (t is not none) and (m is not none) %}
+                        {% set home_pts = (t + m) / 2.0 %}
+                        {% set away_pts = (t - m) / 2.0 %}
+                      {% endif %}
+                    {% else %}
+                      {% if (t is not none) and (m is not none) %}
+                        {% set home_pts = (t + m) / 2.0 %}
+                        {% set away_pts = (t - m) / 2.0 %}
+                      {% endif %}
+                    {% endif %}
+
+                    <div class="mini-cell source">{{ src.k }}{% if src.k == 'Blend' and src.w is defined and src.w is not none and src.w == src.w %}<span class="muted"> (w {{ '%.2f' % src.w }})</span>{% endif %}</div>
+                    <div class="mini-cell">{{ winner }}{% if win_edge is not none %}<span class="muted"> ({{ '+' if win_edge > 0 else '' }}{{ '%.1f' % win_edge }})</span>{% endif %}</div>
+                    <div class="mini-cell">{{ ats_pick }}{% if (m is not none) and (spr1 is not none) %}<span class="muted"> (edge {{ '+' if diff > 0 else '' }}{{ '%.1f' % diff }})</span>{% endif %}</div>
+                    <div class="mini-cell">{% if t is not none %}{{ '%.1f' % t }}{% else %}–{% endif %}{% if ou_pick %}<span class="muted"> ({{ ou_pick }}{% if tot_edge is not none %}; edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }}{% endif %})</span>{% elif tot_edge is not none %}<span class="muted"> (edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }})</span>{% endif %}</div>
+                    <div class="mini-cell" title="{{ away_disp }} @ {{ home_disp }} (1H)">
+                      {% if (home_pts is not none) and (away_pts is not none) %}
+                        A {{ '%.0f' % away_pts }} · H {{ '%.0f' % home_pts }}
+                      {% else %}
+                        –
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+                <div class="note muted">1H scores use 1H totals/margins (sim uses 1H sim quantiles when available; otherwise falls back to proportional scaling).</div>
+              </div>
+
+              <div class="section-block section-block-wide">
+                <div class="section-title">Recommendation</div>
+                {% set rec_t = ((r.pred_total_blend if (r.pred_total_blend is defined and r.pred_total_blend is not none and r.pred_total_blend==r.pred_total_blend) else (r.pred_total_model if (r.pred_total_model is defined and r.pred_total_model is not none and r.pred_total_model==r.pred_total_model) else (r.pred_total|default(none))))) %}
+                {% set rec_m = ((r.pred_margin_blend if (r.pred_margin_blend is defined and r.pred_margin_blend is not none and r.pred_margin_blend==r.pred_margin_blend) else (r.pred_margin_model if (r.pred_margin_model is defined and r.pred_margin_model is not none and r.pred_margin_model==r.pred_margin_model) else (r.pred_margin|default(none))))) %}
+                {% set rec_w = (home_disp if (rec_m is not none and rec_m > 0) else (away_disp if (rec_m is not none and rec_m < 0) else ('Push' if (rec_m is not none and rec_m == 0) else '–'))) %}
+                {% set rec_ats = '–' %}
+                {% if (rec_m is not none) and (spr is not none) %}
+                  {% set diff = (rec_m + spr) %}
+                  {% if diff > 0 %}
+                    {% set rec_ats = home_disp ~ ' ' ~ ((('+' if spr > 0 else '') ~ ('%.1f' % spr))) %}
+                  {% elif diff < 0 %}
+                    {% set asp = (-spr) %}
+                    {% set rec_ats = away_disp ~ ' ' ~ ((('+' if asp > 0 else '') ~ ('%.1f' % asp))) %}
+                  {% else %}
+                    {% set rec_ats = 'Push' %}
+                  {% endif %}
+                {% endif %}
+                {% set rec_ou = '–' %}
+                {% if (rec_t is not none) and (mt is not none) %}
+                  {% if rec_t > mt %}{% set rec_ou = 'Over ' ~ ('%.1f' % mt) %}{% elif rec_t < mt %}{% set rec_ou = 'Under ' ~ ('%.1f' % mt) %}{% else %}{% set rec_ou = 'Push' %}{% endif %}
+                {% endif %}
+
+                <div class="rec-grid">
+                  <div class="pill strong">Winner: {{ rec_w }}</div>
+                  <div class="pill strong">ATS: {{ rec_ats }}</div>
+                  <div class="pill strong">Total: {{ rec_ou }}</div>
+                </div>
+              </div>
+            </div>
+          {% else %}
           <div class="kpi">
             {% if r.pred_synthetic_hidden %}
               <div class="pill accent" title="Awaiting real model predictions ingestion for this date">Predictions Pending</div>
@@ -1844,6 +2117,7 @@
             </div>
           {% endif %}
           {# ATS / Moneyline section removed to reduce duplication #}
+          {% endif %}
         </div>
       {% endfor %}
     </div>
@@ -1892,18 +2166,27 @@
         }catch(e){ return null; }
       }
       function applyTzMode(mode){
-        // Hard lock: do NOT convert server-rendered Central times.
-        // Preserve server text; only set informative titles.
         var tzName = '';
         try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch(e){}
         document.querySelectorAll('.time-local').forEach(function(el){
-          var serverText = (el.textContent || '').trim();
-          el.dataset.server = serverText;
-          // Keep displayed text exactly as provided by server (Central).
-          // Build a debug title showing browser timezone for context.
-          var iso = el.getAttribute('data-iso') || '';
-          var dbg = 'Server: ' + serverText + (iso ? (' | ISO: ' + iso) : '') + (tzName ? (' | Browser TZ: ' + tzName) : '');
-          el.title = dbg;
+          var currentText = (el.textContent || '').trim();
+          if(!el.dataset.server){ el.dataset.server = currentText; }
+          var serverText = (el.dataset.server || '').trim();
+
+          var iso = (el.getAttribute('data-iso') || '').trim();
+          if(mode === 'local'){
+            var out = formatLocalISO(iso) || parseServerTimeToLocal(serverText);
+            if(out && out.text){
+              el.textContent = out.text;
+              el.title = 'Local: ' + out.text + (iso ? (' | ISO: ' + iso) : '') + (tzName ? (' | Browser TZ: ' + tzName) : '');
+            } else {
+              el.textContent = serverText;
+              el.title = 'Server: ' + serverText + (iso ? (' | ISO: ' + iso) : '') + (tzName ? (' | Browser TZ: ' + tzName) : '');
+            }
+          } else {
+            el.textContent = serverText;
+            el.title = 'Server: ' + serverText + (iso ? (' | ISO: ' + iso) : '') + (tzName ? (' | Browser TZ: ' + tzName) : '');
+          }
         });
               // Helper to add days in YYYY-MM-DD
               function _addDays(ymd, delta){
@@ -1928,16 +2211,17 @@
       }
       var selTz = document.getElementById('tzMode');
       var prefKey = 'ncaab:tzMode';
-      // Force server timezone display; dropdown is informational only.
-      var pref = 'server';
-      try{ localStorage.setItem(prefKey, pref); }catch(e){}
-      if(selTz){ selTz.value = 'server'; }
-      applyTzMode('server');
+      var pref = 'local';
+      try{
+        var stored = localStorage.getItem(prefKey);
+        if(stored === 'server' || stored === 'local'){ pref = stored; }
+      }catch(e){}
+      if(selTz){ selTz.value = pref; }
+      applyTzMode(pref);
       if(selTz){
         selTz.addEventListener('change', function(){
-          // Store preference but do not change rendering (server-locked)
           try{ localStorage.setItem(prefKey, selTz.value); }catch(e){}
-          applyTzMode('server');
+          applyTzMode(selTz.value);
         });
       }
     } catch(e) { /* noop */ }

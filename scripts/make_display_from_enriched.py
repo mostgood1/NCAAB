@@ -152,17 +152,103 @@ def make_display(date: str) -> dict:
         keep_cols = ['game_id','home_team','away_team']
         keep_cols = [c for c in keep_cols if c in df.columns]
         df = df.drop_duplicates(subset=keep_cols) if keep_cols else df
+    # Prefer true full-game odds lines from games_with_last.csv when available.
+    try:
+        gwl_path = OUT / 'games_with_last.csv'
+        if gwl_path.exists() and 'game_id' in df.columns:
+            gwl = pd.read_csv(gwl_path)
+            if 'game_id' in gwl.columns:
+                gwl['game_id'] = gwl['game_id'].astype(str)
+            # Filter to the target date when present
+            for dcol in ('date_game', 'date'):
+                if dcol in gwl.columns:
+                    gwl = gwl[gwl[dcol].astype(str) == date]
+                    break
+            # Totals (full game)
+            try:
+                tot = gwl.copy()
+                if 'market' in tot.columns:
+                    tot = tot[tot['market'].astype(str).str.lower() == 'totals']
+                if 'period' in tot.columns:
+                    tot = tot[tot['period'].astype(str).str.lower().isin(['full_game','fg','full'])]
+                if {'game_id','total'}.issubset(tot.columns):
+                    tot['total'] = pd.to_numeric(tot['total'], errors='coerce')
+                    mt_map = tot.groupby('game_id')['total'].median()
+                    df['game_id'] = df['game_id'].astype(str)
+                    df['_mt_from_last'] = df['game_id'].map(mt_map)
+                    # Prefer odds-derived totals whenever present (override placeholder values).
+                    if 'market_total' not in df.columns:
+                        df['market_total'] = pd.NA
+                    mt_existing = pd.to_numeric(df['market_total'], errors='coerce')
+                    mt_from_last = pd.to_numeric(df['_mt_from_last'], errors='coerce')
+                    df['market_total'] = mt_existing.where(mt_from_last.isna(), mt_from_last)
+            except Exception:
+                pass
+            # Spreads (full game, home perspective)
+            try:
+                spr = gwl.copy()
+                if 'market' in spr.columns:
+                    spr = spr[spr['market'].astype(str).str.lower() == 'spreads']
+                if 'period' in spr.columns:
+                    spr = spr[spr['period'].astype(str).str.lower().isin(['full_game','fg','full'])]
+                if {'game_id','home_spread'}.issubset(spr.columns):
+                    spr['home_spread'] = pd.to_numeric(spr['home_spread'], errors='coerce')
+                    sp_map = spr.groupby('game_id')['home_spread'].median()
+                    df['_sp_from_last'] = df['game_id'].map(sp_map)
+                    # Prefer odds-derived spreads whenever present (override placeholder values).
+                    if 'spread_home' not in df.columns:
+                        df['spread_home'] = pd.NA
+                    sp_existing = pd.to_numeric(df['spread_home'], errors='coerce')
+                    sp_from_last = pd.to_numeric(df['_sp_from_last'], errors='coerce')
+                    df['spread_home'] = sp_existing.where(sp_from_last.isna(), sp_from_last)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Derive half-market line fallbacks for UI (provider often lacks true 1H markets)
+    try:
+        mt_full = pd.to_numeric(df.get('market_total'), errors='coerce') if 'market_total' in df.columns else None
+        sp_full = pd.to_numeric(df.get('spread_home'), errors='coerce') if 'spread_home' in df.columns else None
+
+        # Prefer projection-based halftime ratio when available; else default ~0.485.
+        if {"proj_home","proj_away","proj_home_1h","proj_away_1h"}.issubset(df.columns):
+            denom = pd.to_numeric(df['proj_home'], errors='coerce') + pd.to_numeric(df['proj_away'], errors='coerce')
+            numer = pd.to_numeric(df['proj_home_1h'], errors='coerce') + pd.to_numeric(df['proj_away_1h'], errors='coerce')
+            hratio = (numer / denom.replace(0, pd.NA)).astype(float).clip(lower=0.35, upper=0.65).fillna(0.485)
+        else:
+            hratio = pd.Series(0.485, index=df.index)
+
+        if mt_full is not None:
+            if 'market_total_1h' not in df.columns:
+                df['market_total_1h'] = pd.NA
+            mt1 = pd.to_numeric(df.get('market_total_1h'), errors='coerce')
+            df['market_total_1h'] = mt1.where(mt1.notna(), mt_full * hratio)
+            if 'market_total_2h' not in df.columns:
+                df['market_total_2h'] = pd.NA
+            mt2 = pd.to_numeric(df.get('market_total_2h'), errors='coerce')
+            df['market_total_2h'] = mt2.where(mt2.notna(), mt_full - pd.to_numeric(df['market_total_1h'], errors='coerce'))
+
+        if sp_full is not None:
+            if 'spread_home_1h' not in df.columns:
+                df['spread_home_1h'] = pd.NA
+            sp1 = pd.to_numeric(df.get('spread_home_1h'), errors='coerce')
+            df['spread_home_1h'] = sp1.where(sp1.notna(), sp_full * 0.5)
+    except Exception:
+        pass
+
     # Minimal columns expected by index snapshot block
     cols_keep = [
         'game_id','home_team','away_team','pred_total','pred_margin',
         'pred_total_basis','pred_margin_basis','market_total','spread_home',
+        'market_total_1h','spread_home_1h','market_total_2h',
         'display_date','display_time_str','start_time','start_time_display'
     ]
     # Enrich basis + display fields
     df = infer_basis(df)
     df = derive_display_fields(df, date)
     # Coerce numeric where appropriate
-    for c in ['pred_total','pred_margin','market_total','spread_home']:
+    for c in ['pred_total','pred_margin','market_total','spread_home','market_total_1h','spread_home_1h','market_total_2h']:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce')
     disp = df[[c for c in cols_keep if c in df.columns]].copy()

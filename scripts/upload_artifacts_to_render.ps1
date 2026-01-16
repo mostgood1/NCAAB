@@ -3,6 +3,7 @@ param(
     [string]$BaseUrl = 'https://ncaab.onrender.com',
     [string]$OutputsDir = "$PSScriptRoot/../outputs",
     [switch]$TriggerRedeploy,
+    [switch]$SlimSimOnly,
     [string]$DeployHookUrl = $env:RENDER_DEPLOY_HOOK_URL,
     [string]$CodeDeployHookUrl = $env:RENDER_CODE_DEPLOY_HOOK_URL,
     [int]$VersionPollSeconds = 240,
@@ -33,7 +34,9 @@ function Upload-File {
         $content = New-Object System.Net.Http.MultipartFormDataContent
         $fs = [System.IO.File]::OpenRead($FilePath)
         $fileContent = New-Object System.Net.Http.StreamContent($fs)
-        $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse('text/csv')
+        $ext = ([System.IO.Path]::GetExtension($FilePath) | ForEach-Object { $_.ToLowerInvariant() })
+        $ct = if ($ext -eq '.json') { 'application/json' } elseif ($ext -eq '.csv') { 'text/csv' } else { 'application/octet-stream' }
+        $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse($ct)
         $fileName = [System.IO.Path]::GetFileName($FilePath)
         $content.Add($fileContent, 'file', $fileName)
         $resp = $client.PostAsync($target, $content).Result
@@ -41,6 +44,13 @@ function Upload-File {
         try { $fs.Dispose() } catch {}
         try { $client.Dispose() } catch {}
         if (-not $resp.IsSuccessStatusCode) {
+            # Optional endpoints may not exist on older deployments; treat as skip.
+            $code = $null
+            try { $code = [int]$resp.StatusCode } catch { $code = $null }
+            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration')) {
+                Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
+                return @{ status = 'skipped'; code = 404; uri = $Uri }
+            }
             Write-Host "[Error] Upload HTTP $($resp.StatusCode): $text" -ForegroundColor Red
             return $null
         }
@@ -61,6 +71,8 @@ $enrichedPath  = Join-Path -Path $OutputsDir -ChildPath ("predictions_unified_en
 $resultsPath   = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
 $simQuantilesPath = Join-Path -Path $OutputsDir -ChildPath ("sim_quantiles_{0}.csv" -f $Date)
 $simBlendPath     = Join-Path -Path $OutputsDir -ChildPath ("sim_blend_{0}.csv" -f $Date)
+$simDiagPath      = Join-Path -Path $OutputsDir -ChildPath ("sim_inputs_diagnostic_{0}.json" -f $Date)
+$simCalibPath     = Join-Path -Path $OutputsDir -ChildPath 'sim_calibration.json'
 ${needSimRetry} = $false
 
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
@@ -131,15 +143,22 @@ function Invoke-RedeployAndWait {
     }
 
     $deadline = (Get-Date).AddSeconds([double]$PollSeconds)
+    $startedAt = Get-Date
+    $pollCount = 0
     while ((Get-Date) -lt $deadline) {
         Start-Sleep -Milliseconds $PollIntervalMs
+        $pollCount += 1
         try {
             $pollTs = [int](Get-Date -UFormat %s)
             $ver = Invoke-RestMethod -Uri ("{0}/api/version?t={1}" -f $BaseUrl, $pollTs) -Method Get
             if ($ver) {
                 $sha = $ver.app_sha
                 $bt = $ver.build_time_utc
-                Write-Host ("[Poll] Version: sha={0} build_time={1}" -f $sha, $bt) -ForegroundColor Gray
+                if (($pollCount % 5) -eq 0) {
+                    $elapsed = [math]::Round(((Get-Date) - $startedAt).TotalSeconds)
+                    $remaining = [math]::Max(0, [math]::Round(($deadline - (Get-Date)).TotalSeconds))
+                    Write-Host ("[Poll] Version: sha={0} build_time={1} (elapsed={2}s remaining~{3}s)" -f $sha, $bt, $elapsed, $remaining) -ForegroundColor Gray
+                }
                 if ($baselineSha -and $sha -and $sha -ne $baselineSha) { return $true }
                 if ($baselineBuildTime -and $bt -and $bt -ne $baselineBuildTime) { return $true }
                 if (-not $baselineBuildTime -and $bt) { return $true }
@@ -148,6 +167,7 @@ function Invoke-RedeployAndWait {
             Write-Host ("[Warn] Version poll failed: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
         }
     }
+    Write-Host ("[Warn] Gave up waiting for version change after ~{0}s; continuing." -f $PollSeconds) -ForegroundColor Yellow
     return $false
 }
 
@@ -427,13 +447,17 @@ try {
         $displayToUpload = $usePath
     }
 } catch {}
-$u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayToUpload -Query @{ date = $Date }
-if ($u3) {
-    $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
-    $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
-    $sha = if ($u3.sha) { $u3.sha } else { $null }
-    $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
-    Write-Host ("[OK] display uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+if (-not $SlimSimOnly.IsPresent) {
+    $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayToUpload -Query @{ date = $Date }
+    if ($u3) {
+        $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
+        $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
+        $sha = if ($u3.sha) { $u3.sha } else { $null }
+        $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+        Write-Host ("[OK] display uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+    }
+} else {
+    Write-Host "[Skip] SlimSimOnly: skipping predictions_display upload" -ForegroundColor Yellow
 }
 
 # Upload enriched predictions snapshot for recommendations parity
@@ -465,13 +489,17 @@ try {
     }
 } catch {}
 
-$u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedToUpload -Query @{ date = $Date }
-if ($u3b) {
-    $rv = if ($u3b.rows_verified) { $u3b.rows_verified } elseif ($u3b.rows) { $u3b.rows } else { $null }
-    $ru = if ($u3b.rows_uploaded) { $u3b.rows_uploaded } else { $null }
-    $sha = if ($u3b.sha) { $u3b.sha } else { $null }
-    $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
-    Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+if (-not $SlimSimOnly.IsPresent) {
+    $u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedToUpload -Query @{ date = $Date }
+    if ($u3b) {
+        $rv = if ($u3b.rows_verified) { $u3b.rows_verified } elseif ($u3b.rows) { $u3b.rows } else { $null }
+        $ru = if ($u3b.rows_uploaded) { $u3b.rows_uploaded } else { $null }
+        $sha = if ($u3b.sha) { $u3b.sha } else { $null }
+        $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+        Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+    }
+} else {
+    Write-Host "[Skip] SlimSimOnly: skipping predictions_enriched upload" -ForegroundColor Yellow
 }
 
 # Upload simulation artifacts if present
@@ -493,6 +521,26 @@ if (Test-Path -LiteralPath $simBlendPath) {
     else { ${needSimRetry} = $true }
 } else {
     Write-Host "[Skip] sim_blend_$Date.csv missing" -ForegroundColor Yellow
+}
+
+# Upload simulation input diagnostics JSON if present
+if (Test-Path -LiteralPath $simDiagPath) {
+    $uSimD = Upload-File -Uri "$BaseUrl/api/upload_sim_inputs_diagnostic" -FilePath $simDiagPath -Query @{ date = $Date }
+    if ($uSimD -and ($uSimD.status -eq 'ok')) { Write-Host "[OK] sim_inputs_diagnostic uploaded" -ForegroundColor Green }
+    elseif ($uSimD -and ($uSimD.status -eq 'skipped')) { Write-Host "[Skip] sim_inputs_diagnostic endpoint unavailable" -ForegroundColor Yellow }
+    else { Write-Host "[Warn] sim_inputs_diagnostic upload failed" -ForegroundColor Yellow }
+} else {
+    Write-Host "[Skip] sim_inputs_diagnostic_$Date.json missing" -ForegroundColor Yellow
+}
+
+# Upload global simulation calibration JSON if present
+if (Test-Path -LiteralPath $simCalibPath) {
+    $uSimC = Upload-File -Uri "$BaseUrl/api/upload_sim_calibration" -FilePath $simCalibPath
+    if ($uSimC -and ($uSimC.status -eq 'ok')) { Write-Host "[OK] sim_calibration uploaded" -ForegroundColor Green }
+    elseif ($uSimC -and ($uSimC.status -eq 'skipped')) { Write-Host "[Skip] sim_calibration endpoint unavailable" -ForegroundColor Yellow }
+    else { Write-Host "[Warn] sim_calibration upload failed" -ForegroundColor Yellow }
+} else {
+    Write-Host "[Skip] sim_calibration.json missing" -ForegroundColor Yellow
 }
 
 # Upload quantile artifacts if present

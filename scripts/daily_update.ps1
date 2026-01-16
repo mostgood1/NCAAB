@@ -27,6 +27,14 @@ param(
   [string]$QuantileRetrainDay = 'Sunday',
   [int]$QuantileMaxAgeDays = 6,
   [string]$GitCommitMessage,
+  # Simulation calibration (global mean/sigma adjustments applied by sim engine)
+  [switch]$SkipSimCalibrationFit,
+  [int]$SimCalibrationLookbackDays = 21,
+  [int]$SimCalibrationMinGames = 80,
+  # Probability calibration (isotonic mapping applied during distributional stake sizing)
+  [switch]$SkipProbCalibrationFit,
+  [int]$ProbCalibrationLookbackDays = 60,
+  [int]$ProbCalibrationMinRows = 500,
   # Render upload integration
   [switch]$UploadToRender,
   [switch]$TriggerRenderRedeploy,
@@ -292,6 +300,70 @@ print({'path': str(games_path), 'rows': len(df2)})
     Write-Warning "compute_daily_accuracy failed for ${prevDate}: $($_)"
   }
 
+  # 3f) Evaluate simulation outputs vs finalized results (proper scoring)
+  Write-Section "3f) Evaluate simulation metrics for $prevDate"
+  try {
+    $simEvalOut = (& $VenvPython scripts/evaluate_sim_metrics.py $prevDate --outputs $OutDir) | Out-String
+    $metricsDir = Join-Path $OutDir 'metrics'
+    New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+    $simEvalPath = Join-Path $metricsDir ("sim_metrics_summary_" + $prevDate + ".json")
+    $simEvalOut.Trim() | Out-File -FilePath $simEvalPath -Encoding UTF8
+    Write-Host "[metrics] Wrote $simEvalPath"
+  } catch {
+    Write-Warning "evaluate_sim_metrics failed for ${prevDate}: $($_)"
+  }
+
+  # 3e) Fit global simulation calibration (from recent finalized results + existing sim outputs)
+  # This writes outputs/sim_calibration.json which is applied automatically by the sim engine
+  # when generating today's sim quantiles.
+  if (-not $SkipSimCalibrationFit) {
+    Write-Section "3e) Fit simulation calibration (lookback=$SimCalibrationLookbackDays days, min_games=$SimCalibrationMinGames)"
+    try {
+      $prevDt = [datetime]::ParseExact($prevDate, 'yyyy-MM-dd', $null)
+      $lookback = $SimCalibrationLookbackDays
+      if ($env:SIM_CALIB_LOOKBACK_DAYS) {
+        try { $lookback = [int]$env:SIM_CALIB_LOOKBACK_DAYS } catch {}
+      }
+      if ($lookback -lt 1) { $lookback = 1 }
+      $startDt = $prevDt.AddDays(-1 * ($lookback - 1))
+      $startIso = $startDt.ToString('yyyy-MM-dd')
+      $fitOut = (& $VenvPython scripts/fit_sim_calibration.py --outputs $OutDir --start $startIso --end $prevDate --min-games $SimCalibrationMinGames) | Out-String
+      if ($fitOut) {
+        Write-Host ($fitOut.Trim())
+      }
+    } catch {
+      Write-Warning "fit_sim_calibration failed: $($_)"
+    }
+  } else {
+    Write-Host '[skip] Simulation calibration fit' -ForegroundColor Yellow
+  }
+
+  # 3f) Fit isotonic probability calibration (p_over / p_home_cover_dist)
+  # Writes outputs/calibration_params.json used by bankroll-optimize when --isotonic-prob-calibration is set.
+  if (-not $SkipProbCalibrationFit) {
+    Write-Section "3f) Fit isotonic probability calibration (lookback=$ProbCalibrationLookbackDays days, min_rows=$ProbCalibrationMinRows)"
+    try {
+      $prevDt = [datetime]::ParseExact($prevDate, 'yyyy-MM-dd', $null)
+      $lookback = $ProbCalibrationLookbackDays
+      if ($env:PROB_CALIB_LOOKBACK_DAYS) {
+        try { $lookback = [int]$env:PROB_CALIB_LOOKBACK_DAYS } catch {}
+      }
+      if ($lookback -lt 7) { $lookback = 7 }
+      $startDt = $prevDt.AddDays(-1 * ($lookback - 1))
+      $startIso = $startDt.ToString('yyyy-MM-dd')
+      $minRows = $ProbCalibrationMinRows
+      if ($env:PROB_CALIB_MIN_ROWS) {
+        try { $minRows = [int]$env:PROB_CALIB_MIN_ROWS } catch {}
+      }
+      $probOut = (& $VenvPython scripts/calibrate_probs_history.py --outputs $OutDir --start $startIso --end $prevDate --min-rows $minRows) | Out-String
+      if ($probOut) { Write-Host ($probOut.Trim()) }
+    } catch {
+      Write-Warning "probability calibration fit failed: $($_)"
+    }
+  } else {
+    Write-Host '[skip] Probability calibration fit' -ForegroundColor Yellow
+  }
+
   Write-Section '4) Update model tuning from recent daily results'
   & $VenvPython -m ncaab_model.cli update-tuning --results-dir (Join-Path $OutDir 'daily_results') --window-days 7 --min-valid-games 10 --cap-abs-bias 25 --out (Join-Path $OutDir 'model_tuning.json')
 
@@ -459,17 +531,6 @@ print({'path': str(games_path), 'rows': len(df2)})
     Write-Warning "select_quantiles_multi.py failed: $($_). Falling back to simple residual-based selection."
     try { & $VenvPython scripts/select_quantiles.py --window-days 28 --target-coverage 0.8 } catch { Write-Warning "select_quantiles.py failed: $($_)" }
   }
-
-  # Monte Carlo simulations for OU/margins and blend with model quantiles
-  Write-Section '6j.s) Monte Carlo simulations + blend'
-  try {
-    & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir
-  } catch { Write-Warning "run_game_simulations.py failed: $($_)" }
-  try {
-    $BlendSimWeight = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
-    Write-Host "Blending simulations with weight $BlendSimWeight"
-    & $VenvPython scripts/blend_sim_quantiles.py $todayIso $OutDir $BlendSimWeight
-  } catch { Write-Warning "blend_sim_quantiles.py failed: $($_)" }
 
   # Tune OU segment thresholds over trailing 28 days before generating totals picks
   Write-Section '6j.a) Tune OU segment thresholds (28 days)'
@@ -663,6 +724,29 @@ sys.exit(1 if nan_count>0 else 0)
   try {
     & $VenvPython scripts/apply_market_blend.py --date $todayIso --w-market-total 0.8 --w-market-margin 0.7 --thr-total 20 --thr-margin 8
   } catch { Write-Warning "apply_market_blend.py failed: $($_)" }
+
+  # Monte Carlo simulations for OU/margins and blend with model quantiles
+  # NOTE: this must run after daily-run + force-fill promotion + sigma/blend so it sees populated enriched preds.
+  if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') {
+    $env:NCAAB_SIM_SEED = $todayIso.Replace('-','')
+    Write-Host "NCAAB_SIM_SEED not set; defaulting to $($env:NCAAB_SIM_SEED)" -ForegroundColor DarkGray
+  } else {
+    Write-Host "Using NCAAB_SIM_SEED=$($env:NCAAB_SIM_SEED)" -ForegroundColor DarkGray
+  }
+  Write-Section '6a.post.d.s) Monte Carlo simulations + blend'
+  try {
+    & $VenvPython scripts/validate_sim_inputs.py $todayIso $OutDir
+  } catch {
+    Write-Warning "validate_sim_inputs.py failed (continuing): $($_)"
+  }
+  try {
+    & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir
+  } catch { Write-Warning "run_game_simulations.py failed: $($_)" }
+  try {
+    $BlendSimWeight = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
+    Write-Host "Blending simulations with weight $BlendSimWeight"
+    & $VenvPython scripts/blend_sim_quantiles.py $todayIso $OutDir $BlendSimWeight
+  } catch { Write-Warning "blend_sim_quantiles.py failed: $($_)" }
 
   # Feature parity check against trained meta probability schemas (post sigma+blend)
   Write-Section '6a.post.e) Feature parity checks (meta probs)'
@@ -1000,6 +1084,19 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
       }
     } catch { Write-Warning "Display-from-edges fallback failed: $($_)" }
 
+    # Determine the actual slate date for stake sheet archiving.
+    # In some runs (timezone / late-night windows), $todayIso can differ from the date inside align edges.
+    $slateIso = $todayIso
+    try {
+      if (Test-Path -LiteralPath $alignEdges) {
+        $rows = @(Import-Csv -LiteralPath $alignEdges -ErrorAction Stop)
+        if ($rows -and $rows.Count -gt 0 -and ($rows[0].PSObject.Properties.Name -contains 'date')) {
+          $g = $rows | Group-Object -Property date | Sort-Object Count -Descending | Select-Object -First 1
+          if ($g -and $g.Name) { $slateIso = [string]$g.Name }
+        }
+      }
+    } catch { Write-Warning "Failed inferring slateIso from align edges: $($_)" }
+
     Write-Section "8) Generate baseline stake sheet (edge-based Kelly)"
     $stakeBase = Join-Path $OutDir 'stake_sheet_today.csv'
     try {
@@ -1013,7 +1110,22 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
   $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
   $calArtifact = Join-Path $OutDir 'models_dist\calibration_totals.json'
   $qselForCli = Join-Path $OutDir 'quantiles_selected.csv'
-  $distributionalArgs = @('--merged-csv', $alignEdges, '--out', $stakeCal, '--bankroll', '1000', '--kelly-fraction', '0.5', '--include-markets', 'totals,spreads', '--use-distributional', '--calibrate-probabilities')
+  # "cal" keeps the existing behavior: distributional + z-recenter probability calibration (from calibration_totals.json)
+  # Keep risk controls aligned with baseline.
+  $distributionalArgs = @(
+    '--merged-csv', $alignEdges,
+    '--out', $stakeCal,
+    '--bankroll', '1000',
+    '--kelly-fraction', '0.5',
+    '--include-markets', 'totals,spreads',
+    '--use-distributional',
+    '--calibrate-probabilities',
+    '--min-edge-total', '0.5',
+    '--min-edge-margin', '0.5',
+    '--min-kelly', '0.01',
+    '--max-pct-per-bet', '0.03',
+    '--max-daily-risk-pct', '0.10'
+  )
     if (Test-Path $qselForCli) { $distributionalArgs += @('--quantiles-csv', $qselForCli) }
     if (Test-Path $calArtifact) { $distributionalArgs += @('--calibration-artifact', $calArtifact) }
     try {
@@ -1021,6 +1133,34 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
     }
     catch {
       Write-Warning "bankroll-optimize distributional failed: $($_)"
+    }
+
+    Write-Section "9b) Generate isotonic probability-calibrated stake sheet (distributional + isotonic probs)"
+    $stakeIso = Join-Path $OutDir 'stake_sheet_today_iso.csv'
+    # "iso" adds isotonic probability calibration on top of distributional sizing.
+    # Keep risk controls aligned with baseline.
+    $isoArgs = @(
+      '--merged-csv', $alignEdges,
+      '--out', $stakeIso,
+      '--bankroll', '1000',
+      '--kelly-fraction', '0.5',
+      '--include-markets', 'totals,spreads',
+      '--use-distributional',
+      '--calibrate-probabilities',
+      '--isotonic-prob-calibration',
+      '--min-edge-total', '0.5',
+      '--min-edge-margin', '0.5',
+      '--min-kelly', '0.01',
+      '--max-pct-per-bet', '0.03',
+      '--max-daily-risk-pct', '0.10'
+    )
+    if (Test-Path $qselForCli) { $isoArgs += @('--quantiles-csv', $qselForCli) }
+    if (Test-Path $calArtifact) { $isoArgs += @('--calibration-artifact', $calArtifact) }
+    try {
+      & $VenvPython -m ncaab_model.cli bankroll-optimize @isoArgs
+    }
+    catch {
+      Write-Warning "bankroll-optimize isotonic failed: $($_)"
     }
 
     # Enrich stake sheets with quantile columns if available
@@ -1032,14 +1172,14 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
 import pandas as pd
 from pathlib import Path
 out_dir = Path(r'$OutDir')
-today = '$todayIso'
+slate = '$slateIso'
 q = pd.read_csv(out_dir/'quantiles_selected.csv')
 q['game_id'] = q['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
 if 'date' in q.columns:
-    q = q[q['date'].astype(str) == today]
+    q = q[q['date'].astype(str) == slate]
 keep = ['game_id','q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin']
 q = q[[c for c in keep if c in q.columns]].drop_duplicates('game_id')
-for name in ['stake_sheet_today.csv','stake_sheet_today_cal.csv']:
+for name in ['stake_sheet_today.csv','stake_sheet_today_cal.csv','stake_sheet_today_iso.csv']:
     p = out_dir/name
     try:
         df = pd.read_csv(p)
@@ -1052,6 +1192,9 @@ for name in ['stake_sheet_today.csv','stake_sheet_today_cal.csv']:
     # Drop existing quantile columns to avoid duplicate suffix conflicts
     df = df[[c for c in df.columns if c not in {'q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin'}]]
     merged = df.merge(q, on='game_id', how='left')
+    # Ensure a date column exists for backtests/inspection
+    if 'date' not in merged.columns or merged['date'].isna().all():
+      merged['date'] = slate
     merged.to_csv(p, index=False)
 print('Annotated stake sheets with quantiles (if matched by game_id).')
 "@
@@ -1063,8 +1206,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
 
     # Archive dated copies of stake sheets for ROI backtests
     try {
-      if (Test-Path $stakeBase) { Copy-Item $stakeBase (Join-Path $OutDir ("stake_sheet_" + $todayIso + "_base.csv")) -Force }
-      if (Test-Path $stakeCal)  { Copy-Item $stakeCal  (Join-Path $OutDir ("stake_sheet_" + $todayIso + "_cal.csv")) -Force }
+      if (Test-Path $stakeBase) { Copy-Item $stakeBase (Join-Path $OutDir ("stake_sheet_" + $slateIso + "_base.csv")) -Force }
+      if (Test-Path $stakeCal)  { Copy-Item $stakeCal  (Join-Path $OutDir ("stake_sheet_" + $slateIso + "_cal.csv")) -Force }
+      if (Test-Path $stakeIso)  { Copy-Item $stakeIso  (Join-Path $OutDir ("stake_sheet_" + $slateIso + "_iso.csv")) -Force }
     } catch { Write-Warning "Failed archiving dated stake sheets: $($_)" }
 
     if ((Test-Path $stakeBase) -and (Test-Path $stakeCal)) {

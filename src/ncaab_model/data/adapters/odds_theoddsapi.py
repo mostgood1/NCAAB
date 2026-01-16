@@ -139,10 +139,23 @@ class TheOddsAPIAdapter:
 
     @staticmethod
     def _infer_period_from_key(market_key: str) -> str:
-        key = (market_key or "").lower()
-        if "1st" in key or "first_half" in key or "1h" in key or "_1st_half" in key:
+        key = (market_key or "").lower().strip()
+
+        # Prefer explicit half markers first.
+        if any(tok in key for tok in ("_1st_half", "1st_half", "first_half", "1st", "_1h", "1h_")):
             return "1h"
-        if "2nd" in key or "second_half" in key or "2h" in key or "_2nd_half" in key:
+        if any(tok in key for tok in ("_2nd_half", "2nd_half", "second_half", "2nd", "_2h", "2h_")):
+            return "2h"
+
+        # Special-case common full-game market keys to avoid substring false positives.
+        # Example: "h2h" contains "2h" but is a full-game moneyline market.
+        if key in {"h2h", "spreads", "totals"}:
+            return "full_game"
+
+        # Conservative defaults.
+        if "first_half" in key or "1st_half" in key or "1h" in key:
+            return "1h"
+        if "second_half" in key or "2nd_half" in key or "2h" in key:
             return "2h"
         return "full_game"
 
@@ -260,15 +273,23 @@ class TheOddsAPIAdapter:
             try:
                 resp.raise_for_status()
                 return resp
-            except requests.HTTPError as e:
+            except requests.HTTPError:
                 status = getattr(resp, "status_code", None)
+                # Some plans reject the `date` parameter. Retry without `date` but keep requested markets.
                 if status in (400, 422):
                     p2 = dict(p)
                     p2.pop("date", None)
-                    p2["markets"] = "h2h,spreads,totals"
-                    resp2 = requests.get(url, params=p2, timeout=30)
-                    resp2.raise_for_status()
-                    return resp2
+                    try:
+                        resp2 = requests.get(url, params=p2, timeout=30)
+                        resp2.raise_for_status()
+                        return resp2
+                    except requests.HTTPError:
+                        # As a last resort, fall back to core markets only.
+                        p3 = dict(p2)
+                        p3["markets"] = "h2h,spreads,totals"
+                        resp3 = requests.get(url, params=p3, timeout=30)
+                        resp3.raise_for_status()
+                        return resp3
                 raise
 
         r = do_request(params)

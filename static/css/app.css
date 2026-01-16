@@ -97,3 +97,28 @@
 .high-contrast .kpi-conf{background:#06c;color:#fff}
 .high-contrast .kpi-delta{background:#c60;color:#fff}
 .high-contrast .kpi-ev{background:#63c;color:#fff}
+
+/* New game-card layout (Market + Full/1H + Recommendation) */
+.game-body{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+.section-block{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:10px}
+.section-title{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;margin-bottom:8px}
+.market-grid{display:flex;flex-wrap:wrap;gap:6px}
+.market-grid-sub{margin-bottom:8px}
+.mini-table{display:grid;grid-template-columns:70px 1fr 1.2fr 1fr 1fr;gap:6px;align-items:center}
+.mini-head{font-size:11px;opacity:.75;font-weight:700}
+.mini-cell{font-size:12px;line-height:16px}
+.mini-cell.source{font-weight:800}
+.muted{opacity:.75}
+.note{font-size:11px;margin-top:6px}
+.rec-grid{display:flex;flex-wrap:wrap;gap:6px}
+.pill.strong{font-weight:800}
+
+@media (min-width: 860px){
+  .game-body{grid-template-columns:1fr 1fr}
+  .section-block-wide{grid-column:1 / -1}
+}
+
+.cards-compact .game-body{gap:8px;margin-top:8px}
+.cards-compact .section-block{padding:8px}
+.cards-compact .mini-table{grid-template-columns:62px 1fr 1fr 1fr 1fr}
+.cards-compact .mini-cell{font-size:11px}

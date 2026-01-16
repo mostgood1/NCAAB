@@ -40,6 +40,18 @@ def load_snapshots(input_paths: list[Path]) -> pd.DataFrame:
     if not frames:
         return pd.DataFrame()
     df = pd.concat(frames, ignore_index=True)
+
+    # Legacy repair: older odds normalization mistakenly inferred period="2h" for market="h2h".
+    # TheOddsAPI half moneylines are typically not present for NCAAB in our feed; treat these as full-game.
+    try:
+        if {"market", "period"}.issubset(df.columns):
+            m = df["market"].astype(str).str.lower()
+            p = df["period"].astype(str).str.lower()
+            fix = (m == "h2h") & (p == "2h")
+            if fix.any():
+                df.loc[fix, "period"] = "full_game"
+    except Exception:
+        pass
     return df
 
 

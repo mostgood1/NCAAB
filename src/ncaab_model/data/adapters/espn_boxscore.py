@@ -4,6 +4,8 @@ import datetime as dt
 from typing import Optional, Iterable, List
 import requests
 import numpy as np
+import re
+import time
 
 from ..cache import cache_path, read_json, write_json
 from ..schemas import BoxScoreRow
@@ -20,27 +22,73 @@ def _safe_float(x) -> Optional[float]:
         return None
 
 
-def _get_stat(stats: list[dict], name: str) -> Optional[float]:
-    # ESPN uses ids and displayNames; try both
+def _norm_stat_key(v: object) -> str:
+    s = str(v or "").strip().lower()
+    return re.sub(r"[^a-z0-9]+", "", s)
+
+
+def _safe_stat_value(s: dict) -> Optional[float]:
+    # ESPN summary boxscore.team.statistics typically uses displayValue (strings)
+    # rather than numeric value.
+    if not isinstance(s, dict):
+        return None
+    v = s.get("value")
+    if v is None or str(v).strip() == "":
+        v = s.get("displayValue")
+    return _safe_float(v)
+
+
+def _split_made_attempted(display_value: object) -> tuple[Optional[float], Optional[float]]:
+    try:
+        s = str(display_value or "").strip()
+        if "-" not in s:
+            return None, None
+        a, b = s.split("-", 1)
+        made = _safe_float(a)
+        att = _safe_float(b)
+        return made, att
+    except Exception:
+        return None, None
+
+
+def _find_stat(stats: list[dict], needle: str) -> Optional[dict]:
+    n = _norm_stat_key(needle)
     for s in stats or []:
-        key = (s.get("name") or s.get("id") or s.get("displayName") or "").lower()
-        if name in key:
-            return _safe_float(s.get("value"))
+        key = _norm_stat_key(s.get("name") or s.get("id") or s.get("displayName") or s.get("label"))
+        if n and n in key:
+            return s
     return None
+
+
+def _get_stat(stats: list[dict], name: str) -> Optional[float]:
+    s = _find_stat(stats, name)
+    return _safe_stat_value(s) if s is not None else None
+
+
+def _get_made_attempted(stats: list[dict], key: str) -> tuple[float, float]:
+    """Return (made, attempted) for combined stats like '32-71'.
+
+    ESPN uses names like:
+      - fieldGoalsMade-fieldGoalsAttempted
+      - threePointFieldGoalsMade-threePointFieldGoalsAttempted
+      - freeThrowsMade-freeThrowsAttempted
+    """
+    s = _find_stat(stats, f"{key}made{key}attempted")
+    if s is None:
+        return 0.0, 0.0
+    made, att = _split_made_attempted(s.get("displayValue"))
+    return float(made or 0.0), float(att or 0.0)
 
 
 def _compute_four_factors(team_stats: dict, opp_stats: dict) -> dict:
     # Extract core counts
-    fga = _get_stat(team_stats, "fieldgoalsattempted") or 0.0
-    fgm = _get_stat(team_stats, "fieldgoalsmade") or 0.0
-    tpa = _get_stat(team_stats, "threepointfieldgoalsattempted") or 0.0
-    tpm = _get_stat(team_stats, "threepointfieldgoalsmade") or 0.0
-    fta = _get_stat(team_stats, "freethrowattempts") or 0.0
-    ftm = _get_stat(team_stats, "freethrowsmade") or 0.0
-    orb = _get_stat(team_stats, "offensiverebounds") or 0.0
-    to = _get_stat(team_stats, "turnovers") or 0.0
+    fgm, fga = _get_made_attempted(team_stats, "fieldgoals")
+    tpm, tpa = _get_made_attempted(team_stats, "threepointfieldgoals")
+    ftm, fta = _get_made_attempted(team_stats, "freethrows")
+    orb = _get_stat(team_stats, "offensiveRebounds") or 0.0
+    to = (_get_stat(team_stats, "turnovers") or _get_stat(team_stats, "totalTurnovers") or 0.0)
 
-    opp_drb = (_get_stat(opp_stats, "defensiverebounds") or 0.0)
+    opp_drb = (_get_stat(opp_stats, "defensiveRebounds") or 0.0)
 
     # Possessions estimate (Dean Oliver commonly 0.475 or 0.44 multiplier for FTA)
     ft_mult = 0.475
@@ -73,10 +121,8 @@ def _compute_shooting_metrics(team_stats: dict) -> dict:
       - 2pt_rate, 2pt_pct
       - pip (points in paint), fbp (fast break points), scp (second chance points)
     """
-    fga = _get_stat(team_stats, "fieldgoalsattempted") or 0.0
-    fgm = _get_stat(team_stats, "fieldgoalsmade") or 0.0
-    tpa = _get_stat(team_stats, "threepointfieldgoalsattempted") or 0.0
-    tpm = _get_stat(team_stats, "threepointfieldgoalsmade") or 0.0
+    fgm, fga = _get_made_attempted(team_stats, "fieldgoals")
+    tpm, tpa = _get_made_attempted(team_stats, "threepointfieldgoals")
     two_a = max(fga - tpa, 0.0)
     two_m = max(fgm - tpm, 0.0)
     three_rate = (tpa / fga) if fga > 0 else None
@@ -84,9 +130,9 @@ def _compute_shooting_metrics(team_stats: dict) -> dict:
     two_rate = (two_a / fga) if fga > 0 else None
     two_pct = (two_m / two_a) if two_a > 0 else None
     # ESPN optional team stats names: use lowercase substring matching
-    pip = _get_stat(team_stats, "pointsinpaint")
-    fbp = _get_stat(team_stats, "fastbreakpoints")
-    scp = _get_stat(team_stats, "secondchancepoints")
+    pip = _get_stat(team_stats, "pointsInPaint")
+    fbp = _get_stat(team_stats, "fastBreakPoints")
+    scp = _get_stat(team_stats, "secondChancePoints")
     return {
         "3pt_rate": three_rate,
         "3pt_pct": three_pct,
@@ -101,20 +147,61 @@ def _compute_shooting_metrics(team_stats: dict) -> dict:
 def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRow]:
     cache_file = cache_path("espn_summary", f"{event_id}.json")
     data = None
+    data_from_cache = False
     if use_cache and cache_file.exists():
         try:
             data = read_json(cache_file)
+            data_from_cache = data is not None
         except Exception:
             data = None
+
+    # If we loaded a cached response that was captured pregame/in-progress (or is malformed),
+    # refresh from network so completed games can be backfilled later.
+    if data_from_cache and isinstance(data, dict):
+        try:
+            comp0_status = ((data.get("header") or {}).get("competitions") or [{}])[0]
+            st = (comp0_status.get("status") or {}).get("type") or {}
+            completed = st.get("completed")
+            # Also refresh when boxscore teams are missing.
+            comps = (data.get("boxscore") or {}).get("teams") or []
+            if completed is False or len(comps) < 2:
+                data = None
+        except Exception:
+            pass
     if data is None:
         url = SUMMARY_URL.format(EVENT_ID=event_id)
-        try:
-            r = requests.get(url, timeout=20)
-            r.raise_for_status()
-            data = r.json()
-            write_json(cache_file, data)
-        except Exception:
+        # ESPN will rate-limit bursts; do a small retry loop with backoff.
+        max_attempts = 4
+        for attempt in range(max_attempts):
+            try:
+                r = requests.get(url, timeout=20)
+                if getattr(r, "status_code", None) == 429:
+                    try:
+                        retry_after = int(r.headers.get("Retry-After", "0") or 0)
+                    except Exception:
+                        retry_after = 0
+                    wait_s = float(retry_after) if retry_after > 0 else float(1.5 * (2 ** attempt))
+                    time.sleep(min(wait_s, 30.0))
+                    continue
+                r.raise_for_status()
+                data = r.json()
+                write_json(cache_file, data)
+                break
+            except Exception:
+                if attempt < (max_attempts - 1):
+                    time.sleep(float(1.5 * (2 ** attempt)))
+                    continue
+                return None
+
+    # If the event isn't completed, ESPN often returns placeholder team season averages
+    # in boxscore.teams.statistics. Skip those entirely.
+    try:
+        comp0_status = ((data.get("header") or {}).get("competitions") or [{}])[0]
+        st = (comp0_status.get("status") or {}).get("type") or {}
+        if st.get("completed") is False:
             return None
+    except Exception:
+        pass
 
     # Parse teams and statistics
     comps = (data.get("boxscore") or {}).get("teams") or []
@@ -139,9 +226,9 @@ def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRo
 
     # ESPN boxscore.teams ordering varies; capture both and then assign based on homeAway
     b0, b1 = comps[0], comps[1]
-    # Determine home/away names from summary competitions if available
+    # Determine home/away names from header competitions if available
     try:
-        comp0 = ((data.get("summary") or {}).get("competitions") or [{}])[0]
+        comp0 = ((data.get("header") or {}).get("competitions") or [{}])[0]
         competitors = comp0.get("competitors", [])
         home_comp = next((c for c in competitors if (c.get("homeAway") or "").lower() == "home"), None)
         away_comp = next((c for c in competitors if (c.get("homeAway") or "").lower() == "away"), None)
@@ -197,7 +284,7 @@ def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRo
     home_score_1h = away_score_1h = None
     home_score_2h = away_score_2h = None
     try:
-        comp_root = ((data.get("summary") or {}).get("competitions") or [{}])[0]
+        comp_root = ((data.get("header") or {}).get("competitions") or [{}])[0]
         competitors_ls = comp_root.get("competitors", [])
         # Each competitor may have linescores list: [{"value": <points>}, ...] per period
         def _linescores(block: dict) -> list[float]:
@@ -240,7 +327,7 @@ def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRo
 
     # Parse date if present
     try:
-        date_str = ((data.get("summary") or {}).get("header") or {}).get("competitions", [{}])[0].get("date")
+        date_str = ((data.get("header") or {}).get("competitions", [{}])[0] or {}).get("date")
         date = dt.datetime.fromisoformat(date_str.replace("Z", "+00:00")) if date_str else None
     except Exception:
         date = None
