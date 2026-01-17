@@ -94,10 +94,110 @@ def _to_game_id_str(v) -> Optional[str]:
     return s if s else None
 
 
-def _resolve_mean_total_margin(row: pd.Series) -> Tuple[Optional[float], Optional[float]]:
-    # Choose a preferred mean total/margin from available model/blend columns.
-    # Use market lines only as a *guardrail* to avoid rare-but-deadly wrong-scale values,
-    # not as a primary selector (which would implicitly hug the market).
+def _resolve_mean_total_margin_from_features(row: pd.Series) -> Tuple[Optional[float], Optional[float]]:
+    # Feature-only mean construction (no model/blend required):
+    # - possessions from pace/poss estimates
+    # - per-team PPP from either rolling PPP columns or off/def ratings
+    poss = _resolve_pace_mu(row)
+    if poss is None:
+        return None, None
+    poss = float(np.clip(float(poss), PACE_MIN, PACE_MAX))
+
+    # Prefer PPP-style means when present (points per possession)
+    def _ppp(side: str) -> Optional[float]:
+        own = row.get(f"{side}_ppp_mu")
+        opp_allow = row.get(("away_ppp_allowed_mu" if side == "home" else "home_ppp_allowed_mu"))
+        vals: list[float] = []
+        for v in [own, opp_allow]:
+            if v is not None and pd.notna(v):
+                try:
+                    fv = float(v)
+                    if fv > 0:
+                        vals.append(fv)
+                except Exception:
+                    continue
+        if not vals:
+            return None
+        p = float(np.mean(vals))
+        # Typical college PPP range
+        return float(np.clip(p, 0.75, 1.35))
+
+    ppp_home = _ppp("home")
+    ppp_away = _ppp("away")
+
+    if ppp_home is None or ppp_away is None:
+        # Fallback: opponent-adjusted off/def ratings (per 100 possessions)
+        ho = row.get("home_off_rating")
+        ao = row.get("away_off_rating")
+        hd = row.get("home_def_rating")
+        ad = row.get("away_def_rating")
+        if all(v is not None and pd.notna(v) for v in [ho, ao, hd, ad]):
+            try:
+                ho_f = float(ho)
+                ao_f = float(ao)
+                hd_f = float(hd)
+                ad_f = float(ad)
+
+                # In this codebase, `src/ncaab_model/features/ratings.py` produces opponent-adjusted
+                # Off/Def ratings as centered deltas (mean ~0), where:
+                #   off_eff ≈ (BASE + O_home - D_away)
+                # not simply (O_home - D_away).
+                # If values look like deltas, add a league baseline in points/100 possessions.
+                is_delta_scale = (
+                    max(abs(ho_f), abs(ao_f), abs(hd_f), abs(ad_f)) < 40.0
+                )
+                if is_delta_scale:
+                    base_off_eff = 102.0  # ~1.02 PPP baseline; keeps totals on realistic scale
+                    home_off_eff = base_off_eff + ho_f - ad_f
+                    away_off_eff = base_off_eff + ao_f - hd_f
+                else:
+                    # If ratings are already on an absolute efficiency scale (points/100),
+                    # approximate matchup efficiency as mean of offense and opponent defense.
+                    home_off_eff = 0.5 * (ho_f + ad_f)
+                    away_off_eff = 0.5 * (ao_f + hd_f)
+
+                ppp_home = float(np.clip(home_off_eff / 100.0, 0.75, 1.35))
+                ppp_away = float(np.clip(away_off_eff / 100.0, 0.75, 1.35))
+            except Exception:
+                ppp_home, ppp_away = None, None
+
+    if ppp_home is None or ppp_away is None:
+        return None, None
+
+    mu_home = float(poss) * float(ppp_home)
+    mu_away = float(poss) * float(ppp_away)
+    total = float(mu_home + mu_away)
+    margin = float(mu_home - mu_away)
+
+    if not (70.0 <= total <= 250.0) or not (-80.0 <= margin <= 80.0):
+        return None, None
+    return total, margin
+
+
+def _resolve_mean_total_margin(
+    row: pd.Series,
+    mean_source: str = "auto",
+    allow_market_guardrails: bool = True,
+) -> Tuple[Optional[float], Optional[float]]:
+    # Mean selection is intentionally configurable:
+    # - auto (default): prefers blend/model columns and applies market guardrails
+    # - features: uses pace + PPP/off/def ratings only
+    # - market: uses market_total + spread_home only
+    src = (mean_source or "auto").strip().lower()
+    features_strict = False
+    if src in {"features_strict", "features-only", "features_only", "features!"}:
+        src = "features"
+        features_strict = True
+
+    if src == "features":
+        total, margin = _resolve_mean_total_margin_from_features(row)
+        if total is not None and margin is not None:
+            return total, margin
+        if features_strict:
+            return None, None
+        # If feature inputs are missing, fall back to auto so the pipeline stays robust.
+        src = "auto"
+
     market_total = _resolve_market_total(row)
 
     spread_home = None
@@ -110,19 +210,62 @@ def _resolve_mean_total_margin(row: pd.Series) -> Tuple[Optional[float], Optiona
                 continue
     market_margin = (-float(spread_home)) if spread_home is not None else None
 
+    if src == "market":
+        total = float(market_total) if market_total is not None else None
+        margin = float(market_margin) if market_margin is not None else None
+        return total, margin
+
+    if src == "blend":
+        total_cols = ["pred_total_blend", "pred_total_base", "pred_total"]
+        margin_cols = ["pred_margin_blend", "pred_margin_base", "pred_margin"]
+    elif src == "model":
+        total_cols = [
+            "pred_total_model_unified",
+            "pred_total_model",
+            "pred_total_calibrated",
+            "pred_total",
+            "pred_total_raw",
+            "pred_total_seg",
+            "pred_total_interval_mean",
+            "total_pred",
+        ]
+        margin_cols = [
+            "pred_margin_model",
+            "pred_margin_calibrated",
+            "pred_margin",
+            "pred_margin_seg",
+            "pred_margin_interval_mean",
+            "margin_pred",
+        ]
+    else:
+        # auto: Choose a preferred mean total/margin from available model/blend columns.
+        # Use market lines only as a *guardrail* to avoid rare-but-deadly wrong-scale values,
+        # not as a primary selector (which would implicitly hug the market).
+        total_cols = [
+            "pred_total_blend",
+            "pred_total_base",
+            "pred_total_model_unified",
+            "pred_total_model",
+            "pred_total_calibrated",
+            "pred_total",
+            "pred_total_raw",
+            "pred_total_seg",
+            "pred_total_interval_mean",
+            "total_pred",
+        ]
+        margin_cols = [
+            "pred_margin_blend",
+            "pred_margin_base",
+            "pred_margin_model",
+            "pred_margin_calibrated",
+            "pred_margin",
+            "pred_margin_seg",
+            "pred_margin_interval_mean",
+            "margin_pred",
+        ]
+
     total_candidates: list[tuple[str, float]] = []
-    for tot_col in [
-        "pred_total_blend",
-        "pred_total_base",
-        "pred_total_model_unified",
-        "pred_total_model",
-        "pred_total_calibrated",
-        "pred_total",
-        "pred_total_raw",
-        "pred_total_seg",
-        "pred_total_interval_mean",
-        "total_pred",
-    ]:
+    for tot_col in total_cols:
         if tot_col in row and pd.notna(row[tot_col]):
             try:
                 v = float(row[tot_col])
@@ -132,10 +275,8 @@ def _resolve_mean_total_margin(row: pd.Series) -> Tuple[Optional[float], Optiona
                 total_candidates.append((tot_col, v))
 
     if total_candidates:
-        # Preferred candidate is the first in our ordered list.
         total = total_candidates[0][1]
-        # Guardrail: if wildly off market, try the first candidate within tolerance; else anchor.
-        if market_total is not None and abs(float(total) - float(market_total)) > 35.0:
+        if allow_market_guardrails and market_total is not None and abs(float(total) - float(market_total)) > 35.0:
             alt = next((v for _, v in total_candidates if abs(float(v) - float(market_total)) <= 35.0), None)
             if alt is not None:
                 total = float(alt)
@@ -145,16 +286,7 @@ def _resolve_mean_total_margin(row: pd.Series) -> Tuple[Optional[float], Optiona
         total = None
 
     margin_candidates: list[tuple[str, float]] = []
-    for mar_col in [
-        "pred_margin_blend",
-        "pred_margin_base",
-        "pred_margin_model",
-        "pred_margin_calibrated",
-        "pred_margin",
-        "pred_margin_seg",
-        "pred_margin_interval_mean",
-        "margin_pred",
-    ]:
+    for mar_col in margin_cols:
         if mar_col in row and pd.notna(row[mar_col]):
             try:
                 v = float(row[mar_col])
@@ -165,7 +297,7 @@ def _resolve_mean_total_margin(row: pd.Series) -> Tuple[Optional[float], Optiona
 
     if margin_candidates:
         margin = margin_candidates[0][1]
-        if market_margin is not None and abs(float(margin) - float(market_margin)) > 25.0:
+        if allow_market_guardrails and market_margin is not None and abs(float(margin) - float(market_margin)) > 25.0:
             alt = next((v for _, v in margin_candidates if abs(float(v) - float(market_margin)) <= 25.0), None)
             if alt is not None:
                 margin = float(alt)
@@ -538,15 +670,24 @@ def simulate_game_row(
     injury_overrides: Optional[Dict[str, dict]] = None,
     sim_calibration: Optional[dict] = None,
     rng: Optional[np.random.Generator] = None,
+    mean_source: str = "auto",
+    allow_market_guardrails: bool = True,
 ) -> dict:
     if rng is None:
         rng = np.random.default_rng()
-    total_mean, margin_mean = _resolve_mean_total_margin(row)
+    mean_source_used = (mean_source or "auto").strip().lower() or "auto"
+    total_mean, margin_mean = _resolve_mean_total_margin(
+        row,
+        mean_source=mean_source_used,
+        allow_market_guardrails=bool(allow_market_guardrails),
+    )
     if total_mean is None or margin_mean is None:
         return {
             "sim_ok": False,
             "mu_total": total_mean,
             "mu_margin": margin_mean,
+            "mean_source": (mean_source or "auto"),
+            "mean_source_used": mean_source_used,
         }
     sigma_total = _resolve_total_sigma(row)
     sigma_margin = _resolve_margin_sigma(row)
@@ -592,7 +733,20 @@ def simulate_game_row(
 
     # 1H mean targets when present; otherwise scale full-game.
     half_frac = _resolve_half_frac(row)
-    total_mean_1h, margin_mean_1h = _resolve_mean_total_margin_1h(row)
+    # 1H mean targets when present; otherwise scale full-game.
+    # For feature-only mean mode, always scale full-game (keeps it independent from
+    # any downstream prediction columns that might be present on the row).
+    total_mean_1h, margin_mean_1h = (None, None)
+    if mean_source_used not in {"features", "market"}:
+        total_mean_1h, margin_mean_1h = _resolve_mean_total_margin_1h(row)
+    elif mean_source_used == "market":
+        try:
+            mt1 = _resolve_market_total_1h(row)
+            sp1 = _resolve_spread_home_1h(row)
+            total_mean_1h = float(mt1) if mt1 is not None else None
+            margin_mean_1h = (-float(sp1)) if sp1 is not None else None
+        except Exception:
+            total_mean_1h, margin_mean_1h = (None, None)
     if total_mean_1h is None:
         total_mean_1h = float(total_mean) * half_frac
     if margin_mean_1h is None:
@@ -676,7 +830,13 @@ def simulate_game_row(
         mu_home = float(mu_home)
         mu_away = float(mu_away)
     except Exception:
-        return {"sim_ok": False, "mu_total": total_mean, "mu_margin": margin_mean}
+        return {
+            "sim_ok": False,
+            "mu_total": total_mean,
+            "mu_margin": margin_mean,
+            "mean_source": (mean_source or "auto"),
+            "mean_source_used": mean_source_used,
+        }
     mu_home = float(max(mu_home, 0.0))
     mu_away = float(max(mu_away, 0.0))
 
@@ -894,6 +1054,8 @@ def simulate_game_row(
         return {
             "sim_ok": True,
             "sim_method": "pace",
+            "mean_source": (mean_source or "auto"),
+            "mean_source_used": mean_source_used,
             "pace_mu": pace_mu_used,
             "pace_sigma": pace_sigma_used,
             "rho_used": None,
@@ -1102,6 +1264,8 @@ def simulate_game_row(
     return {
         "sim_ok": True,
         "sim_method": "points",
+        "mean_source": (mean_source or "auto"),
+        "mean_source_used": mean_source_used,
         "rho_used": rho_used,
         "sigma_total": float(sigma_total),
         "sigma_margin": float(sigma_margin) if sigma_margin is not None else None,
@@ -1156,7 +1320,9 @@ def run_simulations_for_date(out_dir: Path, date: str,
                              use_pace: Optional[bool] = None,
                              pace_sigma: float = DEFAULT_PACE_SIGMA,
                              injuries_path: Optional[Path] = None,
-                             seed: Optional[int] = None) -> Path:
+                             seed: Optional[int] = None,
+                             mean_source: str = "auto",
+                             allow_market_guardrails: bool = True) -> Path:
     out_dir = Path(out_dir)
     # Simulation inputs default to the unified enriched rows for a given date.
     # Those rows carry the market-derived mean total + spread-derived margin plus
@@ -1438,6 +1604,8 @@ def run_simulations_for_date(out_dir: Path, date: str,
             injury_overrides=injury_overrides,
             sim_calibration=sim_calibration,
             rng=rng,
+            mean_source=mean_source,
+            allow_market_guardrails=allow_market_guardrails,
         )
         out = {
             "date": date,
@@ -1486,6 +1654,8 @@ def run_simulations_for_date(out_dir: Path, date: str,
             "pace_sigma": float(pace_sigma),
             "injuries_path": str(injuries_path) if injuries_path is not None else None,
             "sim_calibration": sim_calibration,
+            "mean_source": str(mean_source),
+            "allow_market_guardrails": bool(allow_market_guardrails),
         }
         import json
 

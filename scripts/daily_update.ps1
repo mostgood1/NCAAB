@@ -734,6 +734,9 @@ sys.exit(1 if nan_count>0 else 0)
     Write-Host "Using NCAAB_SIM_SEED=$($env:NCAAB_SIM_SEED)" -ForegroundColor DarkGray
   }
   Write-Section '6a.post.d.s) Monte Carlo simulations + blend'
+  # Force simulation means to be feature-based (independent of model/blend).
+  # This is intentionally strict: if feature rows are missing, sims may be marked sim_ok=false.
+  $env:NCAAB_SIM_MEAN_SOURCE = 'features_strict'
   try {
     & $VenvPython scripts/validate_sim_inputs.py $todayIso $OutDir
   } catch {

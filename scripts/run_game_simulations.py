@@ -42,6 +42,13 @@ def main():
         injuries_env = (__import__("os").environ.get("NCAAB_INJURIES_FILE") or "").strip()
         injuries_path = Path(injuries_env) if injuries_env else (ROOT / "data" / "injuries_overrides.csv")
 
+        mean_source = (__import__("os").environ.get("NCAAB_SIM_MEAN_SOURCE") or "").strip() or "auto"
+        guard_env = (__import__("os").environ.get("NCAAB_SIM_MARKET_GUARDRAILS") or "").strip().lower()
+        if guard_env in {"0", "false", "no", "n"}:
+            allow_market_guardrails = False
+        else:
+            allow_market_guardrails = True
+
         out_path = run_simulations_for_date(
             out_dir,
             date,
@@ -49,6 +56,8 @@ def main():
             pace_sigma=pace_sigma if pace_sigma is not None else 3.5,
             injuries_path=injuries_path,
             seed=args.seed,
+            mean_source=mean_source,
+            allow_market_guardrails=allow_market_guardrails,
         )
         print(json.dumps({"date": date, "sim_path": str(out_path)}))
         return 0
