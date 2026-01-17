@@ -31269,8 +31269,11 @@ def api_display_predictions():
                     # Derive 1H Model/SIM/Blend
                     # Prefer projection-derived 1H totals/margins for the "Model" row; otherwise scale
                     # full-game Model using a halftime ratio (projection-based when available, else 0.5).
-                    base['pred_total_model_1h'] = np.nan
-                    base['pred_margin_model_1h'] = np.nan
+                    # IMPORTANT: do not wipe out existing *_model_1h values if a model artifact already provided them.
+                    if 'pred_total_model_1h' not in base.columns:
+                        base['pred_total_model_1h'] = np.nan
+                    if 'pred_margin_model_1h' not in base.columns:
+                        base['pred_margin_model_1h'] = np.nan
                     try:
                         ph1 = _num(base.get('proj_home_1h')) if 'proj_home_1h' in base.columns else pd.Series(np.nan, index=base.index)
                         pa1 = _num(base.get('proj_away_1h')) if 'proj_away_1h' in base.columns else pd.Series(np.nan, index=base.index)
