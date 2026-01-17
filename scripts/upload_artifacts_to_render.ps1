@@ -600,6 +600,10 @@ try {
 Write-Step "Verifying debug_artifacts and recommendations"
 $debug = $null
 $recs = $null
+$local_picks_rows = Get-CsvRowCount -Path $picksPath
+$local_ats_rows = Get-CsvRowCount -Path $picksAtsPath
+$local_edges_rows = Get-CsvRowCount -Path $edgesPath
+$local_display_rows = Get-CsvRowCount -Path $displayPath
 try {
     $debug = Invoke-RestMethod -Uri "$BaseUrl/api/debug_artifacts?date=$Date" -Method Get
     $art = $debug.artifacts
@@ -624,6 +628,54 @@ try {
     $d_rows = if ($d_val) { $d_val.rows } else { $null }
     $ap_rows = if ($ap_val) { $ap_val.rows } else { $null }
     Write-Host "[Debug] picks_raw_rows=$p_rows ats_picks_rows=$ap_rows edges_rows=$e_rows display_rows=$d_rows" -ForegroundColor White
+
+    # If a redeploy is still in progress, uploads can land on the old instance and then get wiped.
+    # Compare local row counts to remote and retry once for critical artifacts.
+    $remote_edges_rows = if ($null -ne $e_rows) { [int]$e_rows } else { 0 }
+    $remote_display_rows = if ($null -ne $d_rows) { [int]$d_rows } else { 0 }
+    $remote_ats_rows = if ($null -ne $ap_rows) { [int]$ap_rows } else { 0 }
+    $needsRetry = $false
+    if ($local_edges_rows -gt 0 -and $remote_edges_rows -ne $local_edges_rows) { $needsRetry = $true }
+    if ($local_display_rows -gt 0 -and $remote_display_rows -ne $local_display_rows) { $needsRetry = $true }
+    if ($local_ats_rows -gt 0 -and $remote_ats_rows -ne $local_ats_rows) { $needsRetry = $true }
+
+    if ($needsRetry) {
+        Write-Host ("[Warn] Remote artifacts don't match local rows (local edges={0} display={1} ats={2}; remote edges={3} display={4} ats={5}). Retrying uploads once..." -f $local_edges_rows, $local_display_rows, $local_ats_rows, $remote_edges_rows, $remote_display_rows, $remote_ats_rows) -ForegroundColor Yellow
+        Start-Sleep -Seconds 10
+        if ($local_ats_rows -gt 0 -and $remote_ats_rows -ne $local_ats_rows) {
+            $null = Upload-File -Uri "$BaseUrl/api/upload_ats_picks" -FilePath $picksAtsPath -Query @{ date = $Date }
+        }
+        if ($local_edges_rows -gt 0 -and $remote_edges_rows -ne $local_edges_rows) {
+            $null = Upload-File -Uri "$BaseUrl/api/upload_align_edges" -FilePath $edgesPath -Query @{ date = $Date }
+        }
+        if ($local_display_rows -gt 0 -and $remote_display_rows -ne $local_display_rows) {
+            $san = Sanitize-DisplayCsv -Path $displayPath
+            if (-not $san) { $san = $displayPath }
+            $null = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $san -Query @{ date = $Date }
+            try {
+                $tsPersist2 = [int](Get-Date -UFormat %s)
+                $null = Invoke-RestMethod -Uri ("{0}/api/persist_display?date={1}&t={2}" -f $BaseUrl, $Date, $tsPersist2) -Method Get
+            } catch {}
+        }
+        # Re-check debug after retry
+        $debug2 = Invoke-RestMethod -Uri "$BaseUrl/api/debug_artifacts?date=$Date" -Method Get
+        $art2 = $debug2.artifacts
+        $e_val2 = Get-ArtifactValue -obj $art2 -name $e_key
+        $d_val2 = Get-ArtifactValue -obj $art2 -name $d_key
+        $ap_val2 = Get-ArtifactValue -obj $art2 -name $ap_key
+        $e_rows2 = if ($e_val2) { [int]$e_val2.rows } else { 0 }
+        $d_rows2 = if ($d_val2) { [int]$d_val2.rows } else { 0 }
+        $ap_rows2 = if ($ap_val2) { [int]$ap_val2.rows } else { 0 }
+        Write-Host "[Debug] (after retry) ats_picks_rows=$ap_rows2 edges_rows=$e_rows2 display_rows=$d_rows2" -ForegroundColor White
+        $stillBad = $false
+        if ($local_edges_rows -gt 0 -and $e_rows2 -ne $local_edges_rows) { $stillBad = $true }
+        if ($local_display_rows -gt 0 -and $d_rows2 -ne $local_display_rows) { $stillBad = $true }
+        if ($local_ats_rows -gt 0 -and $ap_rows2 -ne $local_ats_rows) { $stillBad = $true }
+        if ($stillBad) {
+            Write-Host "[Error] Remote artifacts still out of sync after retry; failing upload script." -ForegroundColor Red
+            exit 1
+        }
+    }
 } catch {
     Write-Host "[Warn] debug_artifacts check failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
