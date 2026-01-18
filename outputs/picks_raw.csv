@@ -1,0 +1,25 @@
+game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,pred_total,rec_type,rec_code
+401828181,2026-01-18,Temple Owls,Florida Atlantic Owls,spreads,full_game,away,-4.5,,,-4.544934564488326,,Spread,ATS
+401825454,2026-01-18,Maryland Terrapins,Penn State Nittany Lions,spreads,full_game,away,-7.0,,,-7.02289525938258,,Spread,ATS
+401826819,2026-01-18,Army Black Knights,American University Eagles,spreads,full_game,away,-1.5,,,-1.665436243239247,,Spread,ATS
+401828184,2026-01-18,South Florida Bulls,Wichita State Shockers,spreads,full_game,home,-8.0,,,7.913756502186876,,Spread,ATS
+401828180,2026-01-18,East Carolina Pirates,Charlotte 49ers,spreads,full_game,home,-1.5,,,1.3138060377745182,,Spread,ATS
+401817630,2026-01-18,Green Bay Phoenix,Oakland Golden Grizzlies,spreads,full_game,away,-0.5,,,-0.4247909666312293,,Spread,ATS
+401817629,2026-01-18,Purdue Fort Wayne Mastodons,Milwaukee Panthers,spreads,full_game,home,-3.0,,,2.929550889739854,,Spread,ATS
+401843145,2026-01-18,Eastern Illinois Panthers,Blackburn Beavers,spreads,full_game,away,-10.5,,,-10.31327999518764,,Spread,ATS
+401828179,2026-01-18,UAB Blazers,Tulsa Golden Hurricane,spreads,full_game,away,-3.0,,,-3.191415086627295,,Spread,ATS
+401828183,2026-01-18,Tulane Green Wave,North Texas Mean Green,spreads,full_game,away,-7.0,,,-6.878450414963997,,Spread,ATS
+401828182,2026-01-18,Memphis Tigers,UTSA Roadrunners,spreads,full_game,home,-1.0,,,1.0763711542782914,,Spread,ATS
+401827631,2026-01-18,Houston Cougars,Arizona State Sun Devils,spreads,full_game,away,-4.5,,,-4.253351686034274,,Spread,ATS
+401829207,2026-01-18,San Francisco Dons,Washington State Cougars,spreads,full_game,away,-5.0,,,-5.160287044890691,,Spread,ATS
+401828181,2026-01-18,Temple Owls,Florida Atlantic Owls,totals,full_game,under,151.5,,10.08094174986786,,141.41905825013214,Total,OU
+401825454,2026-01-18,Maryland Terrapins,Penn State Nittany Lions,totals,full_game,under,147.5,,5.351242127453418,,142.14875787254658,Total,OU
+401828184,2026-01-18,South Florida Bulls,Wichita State Shockers,totals,full_game,under,157.5,,15.983211963695624,,141.51678803630438,Total,OU
+401828180,2026-01-18,East Carolina Pirates,Charlotte 49ers,totals,full_game,under,141.5,,2.1239857167132072,,143.6239857167132,Total,OU
+401817630,2026-01-18,Green Bay Phoenix,Oakland Golden Grizzlies,totals,full_game,under,155.5,,12.486354594656715,,143.01364540534328,Total,OU
+401817629,2026-01-18,Purdue Fort Wayne Mastodons,Milwaukee Panthers,totals,full_game,under,149.5,,5.940920166629752,,143.55907983337025,Total,OU
+401828179,2026-01-18,UAB Blazers,Tulsa Golden Hurricane,totals,full_game,under,158.5,,17.341465787797176,,141.15853421220282,Total,OU
+401828183,2026-01-18,Tulane Green Wave,North Texas Mean Green,totals,full_game,under,136.0,,3.81277561092395,,139.81277561092395,Total,OU
+401828182,2026-01-18,Memphis Tigers,UTSA Roadrunners,totals,full_game,under,148.5,,5.444563051796905,,143.0554369482031,Total,OU
+401827631,2026-01-18,Houston Cougars,Arizona State Sun Devils,totals,full_game,under,143.5,,3.6657438965509073,,139.8342561034491,Total,OU
+401829207,2026-01-18,San Francisco Dons,Washington State Cougars,totals,full_game,under,146.0,,5.610119721732673,,140.38988027826733,Total,OU

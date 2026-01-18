@@ -21,6 +21,40 @@ import re
 _META_PRELOAD_DONE = False
 _META_FEATURES_CACHE = {"cover": {}, "over": {}}
 
+
+def _sanitize_json_obj_strict(_obj):
+    """Convert non-finite floats (NaN/Inf) into None recursively.
+
+    This is used to ensure API responses never emit NaN/Infinity tokens.
+    """
+    try:
+        if _obj is None:
+            return None
+        if isinstance(_obj, (str, bool, int)):
+            return _obj
+        if isinstance(_obj, float):
+            return _obj if math.isfinite(_obj) else None
+        # numpy/pandas scalar -> python scalar
+        if hasattr(_obj, "item"):
+            try:
+                return _sanitize_json_obj_strict(_obj.item())
+            except Exception:
+                pass
+        if isinstance(_obj, dict):
+            out = {}
+            for k, v in _obj.items():
+                if isinstance(k, (str, int, float, bool)) or k is None:
+                    kk = k
+                else:
+                    kk = str(k)
+                out[kk] = _sanitize_json_obj_strict(v)
+            return out
+        if isinstance(_obj, (list, tuple, set)):
+            return [_sanitize_json_obj_strict(v) for v in _obj]
+        return _obj
+    except Exception:
+        return None
+
 def _read_json_safe(_path: str):
     try:
         if not _path:
@@ -169,9 +203,29 @@ try:
                 _path = request.path if request else ''
                 if _path.startswith('/static/'):
                     return _resp
-                # Don't clobber explicit caching policies set on specific routes.
-                _resp.headers.setdefault('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-                _resp.headers.setdefault('Pragma', 'no-cache')
+                # For API responses, be explicit: some intermediaries will cache unless
+                # Cache-Control is a hard no-store/no-cache.
+                if _path.startswith('/api/'):
+                    _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                    _resp.headers['Pragma'] = 'no-cache'
+
+                    # Enforce strict JSON: never emit NaN/Infinity tokens.
+                    try:
+                        _mt = (_resp.mimetype or '').lower()
+                        if _mt == 'application/json':
+                            _txt = _resp.get_data(as_text=True)
+                            if _txt and re.search(r"(?i)\b(nan|inf|infinity)\b", _txt):
+                                _payload = _json.loads(_txt)
+                                _payload2 = _sanitize_json_obj_strict(_payload)
+                                _out = _json.dumps(_payload2, allow_nan=False)
+                                _resp.set_data(_out)
+                                _resp.headers['Content-Length'] = str(len(_out.encode('utf-8')))
+                    except Exception:
+                        pass
+                else:
+                    # Don't clobber explicit caching policies set on specific routes.
+                    _resp.headers.setdefault('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                    _resp.headers.setdefault('Pragma', 'no-cache')
             except Exception:
                 pass
             return _resp
@@ -1585,7 +1639,21 @@ def _postprocess_enriched_file(date_q: str):
                     # kind: 'last' or 'closing'
                     cands: list[Path] = []
                     if kind == 'last':
-                        cands += [out_dir / f'games_with_last_{date_q}.csv', out_dir / 'games_with_last.csv']
+                        cands += [
+                            # Legacy artifacts (may not exist for newer pipelines)
+                            out_dir / f'games_with_last_{date_q}.csv',
+                            out_dir / 'games_with_last.csv',
+                            # Current artifacts produced by daily-run
+                            out_dir / f'games_with_odds_{date_q}.csv',
+                            out_dir / 'games_with_odds_today.csv',
+                            # Period-aligned odds/edges (often uploaded to Render)
+                            out_dir / f'align_period_{date_q}_edges.csv',
+                            out_dir / f'align_period_{date_q}.csv',
+                            # Raw odds snapshots (may lack game metadata but include game_id)
+                            out_dir / f'odds_{date_q}.csv',
+                            out_dir / 'odds.csv',
+                            out_dir / 'odds_history' / f'odds_{date_q}.csv',
+                        ]
                     else:
                         cands += [out_dir / f'games_with_closing_{date_q}.csv', out_dir / 'games_with_closing.csv']
                     frames: list[pd.DataFrame] = []
@@ -1609,6 +1677,10 @@ def _postprocess_enriched_file(date_q: str):
                         elif 'date_line' in df.columns:
                             df['date_line'] = pd.to_datetime(df['date_line'], errors='coerce').dt.strftime('%Y-%m-%d')
                             df = df[df['date_line'] == str(date_q)]
+                        elif 'date' in df.columns:
+                            # Some sources use `date` (YYYY-MM-DD) directly.
+                            df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            df = df[df['date'] == str(date_q)]
                     except Exception:
                         pass
                     if 'game_id' in df.columns:
@@ -1617,7 +1689,7 @@ def _postprocess_enriched_file(date_q: str):
 
                 def _agg_lines(df: pd.DataFrame) -> pd.DataFrame:
                     if df is None or df.empty or 'game_id' not in df.columns:
-                        return pd.DataFrame(columns=['game_id', 'market_total', 'spread_home', 'ml_home'])
+                        return pd.DataFrame(columns=['game_id', 'market_total', 'spread_home', 'ml_home', 'ml_away'])
 
                     # Keep only full-game when the column exists.
                     try:
@@ -1628,39 +1700,59 @@ def _postprocess_enriched_file(date_q: str):
                     except Exception:
                         pass
 
-                    def _median_by_market(market_name: str, col: str) -> pd.Series:
+                    def _pick_col(candidates: list[str]) -> str | None:
+                        for c in candidates:
+                            if c in df.columns:
+                                return c
+                        return None
+
+                    def _group_median(sub: pd.DataFrame, col: str | None) -> pd.Series:
+                        if sub is None or sub.empty or not col or col not in sub.columns:
+                            return pd.Series(dtype=float)
+                        s = pd.to_numeric(sub[col], errors='coerce')
+                        return s.groupby(sub['game_id']).median()
+
+                    def _submarket(market_name: str) -> pd.DataFrame:
                         try:
                             if 'market' in df.columns:
-                                sub = df[df['market'].astype(str).str.lower() == market_name].copy()
-                            else:
-                                sub = df
-                            if col not in sub.columns:
-                                return sub.groupby('game_id').size().map(lambda _: np.nan)
-                            return pd.to_numeric(sub[col], errors='coerce').groupby(sub['game_id']).median()
+                                return df[df['market'].astype(str).str.lower() == market_name].copy()
                         except Exception:
-                            return df.groupby('game_id').size().map(lambda _: np.nan)
+                            pass
+                        return df
 
-                    mt = _median_by_market('totals', 'total')
-                    sh = _median_by_market('spreads', 'home_spread')
-                    ml = _median_by_market('h2h', 'moneyline_home')
-                    out = pd.DataFrame({
-                        'game_id': mt.index.astype(str),
-                        'market_total': mt.values,
-                        'spread_home': sh.reindex(mt.index).values if len(sh.index) else np.nan,
-                        'ml_home': ml.reindex(mt.index).values if len(ml.index) else np.nan,
-                    })
+                    total_col = _pick_col(['total', 'market_total', 'closing_total', 'total_median'])
+                    spread_col = _pick_col(['home_spread', 'spread_home', 'spread'])
+                    ml_home_col = _pick_col(['moneyline_home', 'ml_home', 'home_ml'])
+                    ml_away_col = _pick_col(['moneyline_away', 'ml_away', 'away_ml'])
 
-                    # Some games may have spreads/ML but no totals; append them.
-                    try:
-                        extra_ids = set(sh.index.astype(str)).union(set(ml.index.astype(str))) - set(out['game_id'].astype(str))
-                        if extra_ids:
-                            extra = pd.DataFrame({'game_id': list(extra_ids)})
-                            extra['market_total'] = np.nan
-                            extra['spread_home'] = extra['game_id'].map(sh.to_dict()) if len(sh.index) else np.nan
-                            extra['ml_home'] = extra['game_id'].map(ml.to_dict()) if len(ml.index) else np.nan
-                            out = pd.concat([out, extra], ignore_index=True)
-                    except Exception:
-                        pass
+                    mt = _group_median(_submarket('totals'), total_col)
+                    sh = _group_median(_submarket('spreads'), spread_col)
+                    mlh = _group_median(_submarket('h2h'), ml_home_col)
+                    mla = _group_median(_submarket('h2h'), ml_away_col)
+
+                    # Some sources don't label market; treat as a single combined snapshot.
+                    if mt.empty and sh.empty and mlh.empty and mla.empty:
+                        mt = _group_median(df, total_col)
+                        sh = _group_median(df, spread_col)
+                        mlh = _group_median(df, ml_home_col)
+                        mla = _group_median(df, ml_away_col)
+
+                    ids: list[str] = sorted(set(mt.index.astype(str)).union(set(sh.index.astype(str))).union(set(mlh.index.astype(str))).union(set(mla.index.astype(str))))
+                    out = pd.DataFrame({'game_id': ids})
+                    if ids:
+                        mt_map = mt.to_dict() if not mt.empty else {}
+                        sh_map = sh.to_dict() if not sh.empty else {}
+                        mlh_map = mlh.to_dict() if not mlh.empty else {}
+                        mla_map = mla.to_dict() if not mla.empty else {}
+                        out['market_total'] = out['game_id'].map(mt_map)
+                        out['spread_home'] = out['game_id'].map(sh_map)
+                        out['ml_home'] = out['game_id'].map(mlh_map)
+                        out['ml_away'] = out['game_id'].map(mla_map)
+                    else:
+                        out['market_total'] = np.nan
+                        out['spread_home'] = np.nan
+                        out['ml_home'] = np.nan
+                        out['ml_away'] = np.nan
 
                     return out
 
@@ -1680,11 +1772,14 @@ def _postprocess_enriched_file(date_q: str):
                             enr['spread_home'] = enr['spread_home_odds']
                         if 'ml_home' not in enr.columns and 'ml_home_odds' in enr.columns:
                             enr['ml_home'] = enr['ml_home_odds']
+                        if 'ml_away' not in enr.columns and 'ml_away_odds' in enr.columns:
+                            enr['ml_away'] = enr['ml_away_odds']
                         # If columns already exist but are NaN, backfill from odds merge.
                         for base, odds_col in [
                             ('market_total', 'market_total_odds'),
                             ('spread_home', 'spread_home_odds'),
                             ('ml_home', 'ml_home_odds'),
+                            ('ml_away', 'ml_away_odds'),
                         ]:
                             try:
                                 if base in enr.columns and odds_col in enr.columns:
@@ -1726,6 +1821,34 @@ def _postprocess_enriched_file(date_q: str):
                     drop_cols = [c for c in enr.columns if c.endswith('_odds') or c.endswith('_closing')]
                     if drop_cols:
                         enr = enr.drop(columns=drop_cols, errors='ignore')
+                except Exception:
+                    pass
+
+                # After market line backfill, ensure derived edge columns exist.
+                # (These are used by cards/recommendations and can remain NaN if
+                # the market columns were populated after earlier computations.)
+                try:
+                    if {'pred_total', 'market_total'}.issubset(enr.columns):
+                        pt = pd.to_numeric(enr['pred_total'], errors='coerce')
+                        mt = pd.to_numeric(enr['market_total'], errors='coerce')
+                        if 'edge_total' not in enr.columns:
+                            enr['edge_total'] = np.nan
+                        et = pd.to_numeric(enr['edge_total'], errors='coerce')
+                        fill = et.isna() & pt.notna() & mt.notna()
+                        if fill.any():
+                            enr.loc[fill, 'edge_total'] = (pt - mt).loc[fill]
+                except Exception:
+                    pass
+                try:
+                    if {'pred_margin', 'spread_home'}.issubset(enr.columns):
+                        pm = pd.to_numeric(enr['pred_margin'], errors='coerce')
+                        sh = pd.to_numeric(enr['spread_home'], errors='coerce')
+                        if 'edge_ats' not in enr.columns:
+                            enr['edge_ats'] = np.nan
+                        ea = pd.to_numeric(enr['edge_ats'], errors='coerce')
+                        fill = ea.isna() & pm.notna() & sh.notna()
+                        if fill.any():
+                            enr.loc[fill, 'edge_ats'] = (-pm - sh).loc[fill]
                 except Exception:
                     pass
         except Exception:
@@ -31474,6 +31597,39 @@ def api_display_predictions():
             except Exception:
                 pass
             rows.append(item)
+
+        def _sanitize_scalar(v: Any) -> Any:
+            try:
+                if v is None:
+                    return None
+                # Normalize numpy scalar types
+                try:
+                    if isinstance(v, (np.floating, np.integer, np.bool_)):
+                        v = v.item()
+                except Exception:
+                    pass
+                # Eliminate NaN/Inf
+                if isinstance(v, float):
+                    try:
+                        if (not np.isfinite(v)):
+                            return None
+                    except Exception:
+                        return None
+                    return float(v)
+                if isinstance(v, str):
+                    s = v.strip()
+                    if s.lower() in ('nan', 'none', 'null'):
+                        return ''
+                    return v
+                return v
+            except Exception:
+                return None
+
+        try:
+            rows = [{k: _sanitize_scalar(v) for k, v in it.items()} for it in rows]
+        except Exception:
+            pass
+
         _resp = jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
         # Add display-only equality breaker for totals
         try:
@@ -31496,6 +31652,10 @@ def api_display_predictions():
                     it['pred_total_view'] = it.get('pred_total')
                 return it
             rows = [_add_view_item(it) for it in rows]
+            try:
+                rows = [{k: _sanitize_scalar(v) for k, v in it.items()} for it in rows]
+            except Exception:
+                pass
             _resp = jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
         except Exception:
             pass

@@ -1230,6 +1230,17 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
     Write-Host "SkipStakeSheets flag set; skipping stake sheet generation." -ForegroundColor Yellow
   }
 
+  # Enforce invariant: no NaN/Inf tokens anywhere in persisted outputs
+  Write-Section '10.z) Sanitize outputs (eliminate NaN/Inf)'
+  try {
+    & $VenvPython -m ncaab_model.cli sanitize-artifacts --date $todayIso --date $prevDate --outputs-dir $OutDir
+    if ($LASTEXITCODE -ne 0) {
+      Add-CriticalFailure "sanitize-artifacts failed (exit=$LASTEXITCODE)"
+    }
+  } catch {
+    Add-CriticalFailure "sanitize-artifacts crashed: $($_)"
+  }
+
     if (-not $SkipGitPush) {
       Write-Section "11) Commit and push updated data files"
       # Add a small, curated set of whitelisted artifacts per .gitignore
@@ -1390,57 +1401,74 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       if (Test-Path $statusJson) { $toStage += $statusJson }
 
       if ($toStage.Count -gt 0) {
-        # Use force-add for critical daily snapshots in case .gitignore blocks outputs
-        foreach ($p in $toStage) {
-          if (
-            $p -like "*predictions_display_*.csv" -or 
-            $p -like "*predictions_unified_enriched_*.csv" -or 
-            $p -like "*outputs\\archive\\*predictions_display_*.csv" -or 
-            $p -like "*outputs\\metrics\\*.json" -or 
-            $p -like "*outputs\\diagnostics\\*" -or 
-            $p -like "*outputs\\picks_raw.csv" -or 
-            $p -like "*outputs\\picks\\ats_picks_*.csv" -or 
-            $p -like "*outputs\\align_period_*_edges.csv" -or 
-            $p -like "*outputs\\daily_results\\results_*.csv"
-          ) {
-            git add -f $p
+        function Add-PathSmart {
+          param(
+            [Parameter(Mandatory=$true)][string]$Path
+          )
+          if (-not (Test-Path -LiteralPath $Path)) { return }
+          $ignored = $false
+          try {
+            git check-ignore -q -- $Path
+            if ($LASTEXITCODE -eq 0) { $ignored = $true }
+          } catch { $ignored = $false }
+
+          if ($ignored) {
+            git add -f -- $Path
           } else {
-            git add $p
+            git add -- $Path
           }
         }
-        # Also stage core frontend/backend files if modified today
+
+        # Stage curated artifacts (force-add if ignored)
+        foreach ($p in $toStage) { if ($p) { Add-PathSmart -Path $p } }
+
+        # Also stage core code paths if they exist (so code fixes ship with Option A)
         $codePaths = @(
           (Join-Path $RepoRoot 'app.py'),
+          (Join-Path $RepoRoot 'render.yaml'),
+          (Join-Path $RepoRoot 'scripts\daily_update.ps1'),
+          (Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'),
           (Join-Path $RepoRoot 'scripts\persist_odds_into_daily_results.py'),
           (Join-Path $RepoRoot 'templates\index.html'),
           (Join-Path $RepoRoot 'static\css\app.css'),
-          (Join-Path $RepoRoot 'render.yaml')
+          (Join-Path $RepoRoot 'src\ncaab_model\cli.py'),
+          (Join-Path $RepoRoot 'src\simulation\game_sim.py')
         )
-        foreach ($cp in $codePaths) { if (Test-Path $cp) { git add $cp } }
+        foreach ($cp in $codePaths) { if ($cp) { Add-PathSmart -Path $cp } }
         # Optionally stage variance diagnostics if produced today
         $varTotalPath = Join-Path $OutDir ("variance/variance_total_" + $todayIso + ".json")
         $varMarginPath = Join-Path $OutDir ("variance/variance_margin_" + $todayIso + ".json")
-        if (Test-Path $varTotalPath) { git add $varTotalPath }
-        if (Test-Path $varMarginPath) { git add $varMarginPath }
+        if (Test-Path $varTotalPath) { Add-PathSmart -Path $varTotalPath }
+        if (Test-Path $varMarginPath) { Add-PathSmart -Path $varMarginPath }
   # Inference variance summary (produced earlier in step 5d) if present
   $infVarSummaryPath = Join-Path $OutDir ("variance/inference_variance_" + $todayIso + ".json")
-  if (Test-Path $infVarSummaryPath) { git add $infVarSummaryPath }
+  if (Test-Path $infVarSummaryPath) { Add-PathSmart -Path $infVarSummaryPath }
         # Guard: Unstage any files not explicitly allowlisted to keep repo lean
         try {
           $stagedRel = git diff --name-only --cached
           $allowedRel = @()
-          foreach ($p in $toStage) {
-            if ($p) { $allowedRel += ($p -replace [regex]::Escape($RepoRoot + '\\'), '') }
+          $repoRootFull = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\\','/')
+          function Get-RelPath {
+            param([string]$Full)
+            if (-not $Full) { return $null }
+            $full2 = [System.IO.Path]::GetFullPath($Full)
+            $r1 = $repoRootFull.ToLowerInvariant()
+            $r2 = $full2.ToLowerInvariant()
+            if ($r2.StartsWith($r1)) {
+              return ($full2.Substring($repoRootFull.Length)).TrimStart('\\','/') -replace '\\', '/'
+            }
+            return ($full2 -replace '\\', '/').Trim()
           }
-          foreach ($cp in $codePaths) {
-            if ($cp) { $allowedRel += ($cp -replace [regex]::Escape($RepoRoot + '\\'), '') }
-          }
-          if (Test-Path $varTotalPath) { $allowedRel += ($varTotalPath -replace [regex]::Escape($RepoRoot + '\\'), '') }
-          if (Test-Path $varMarginPath) { $allowedRel += ($varMarginPath -replace [regex]::Escape($RepoRoot + '\\'), '') }
-          if (Test-Path $infVarSummaryPath) { $allowedRel += ($infVarSummaryPath -replace [regex]::Escape($RepoRoot + '\\'), '') }
+
+          foreach ($p in $toStage) { $rel = Get-RelPath -Full $p; if ($rel) { $allowedRel += $rel } }
+          foreach ($cp in $codePaths) { $rel = Get-RelPath -Full $cp; if ($rel) { $allowedRel += $rel } }
+          if (Test-Path $varTotalPath) { $allowedRel += (Get-RelPath -Full $varTotalPath) }
+          if (Test-Path $varMarginPath) { $allowedRel += (Get-RelPath -Full $varMarginPath) }
+          if (Test-Path $infVarSummaryPath) { $allowedRel += (Get-RelPath -Full $infVarSummaryPath) }
+
           # Normalize and trim paths for reliable comparison with git output
-          $allowedRel = $allowedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() }
-          $stagedRel = $stagedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() }
+          $allowedRel = $allowedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() } | Where-Object { $_ }
+          $stagedRel = $stagedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() } | Where-Object { $_ }
           foreach ($s in $stagedRel) {
             # Never unstage core daily UI/data snapshots even if comparison fails
             if (
@@ -1504,17 +1532,21 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         } catch { Write-Host "[Render] Baseline version check failed." -ForegroundColor Yellow }
 
         $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data+ui): update outputs and UI for $prevDate (today $todayIso)" }
-        $status = git status --porcelain
-        if ($status) {
-          git commit -m $msg
-          git push
+        $stagedNow = git diff --name-only --cached
+        if ($stagedNow) {
+          try {
+            git commit -m $msg
+            git push
+          } catch {
+            Add-CriticalFailure "git commit/push failed: $($_)"
+          }
           try {
             Write-Host "[Render] Waiting for auto-deploy to complete before uploads..." -ForegroundColor Gray
             Wait-For-Render-Deploy -baseline $baselineVersion -timeoutSec 240 -intervalMs 3000
           } catch { Write-Warning ("Auto-deploy wait failed: {0}" -f $_.Exception.Message) }
         }
         else {
-          Write-Host "No data changes to commit." -ForegroundColor Yellow
+          Write-Host "No staged changes to commit." -ForegroundColor Yellow
         }
       }
       else {

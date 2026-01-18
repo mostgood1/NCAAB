@@ -1473,24 +1473,66 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     "spread_home_1h",
                 ]
 
+                def _needs_fill(col: str, numeric: bool) -> bool:
+                    if col not in preds.columns:
+                        return True
+                    try:
+                        s = preds[col]
+                        if numeric:
+                            return int(pd.to_numeric(s, errors="coerce").notna().sum()) == 0
+                        # string-ish: consider empty/"nan" as missing
+                        sv = s.astype(str).str.strip()
+                        sv = sv.replace({"nan": "", "NaN": "", "None": "", "NULL": "", "null": ""})
+                        return int((sv != "").sum()) == 0
+                    except Exception:
+                        return True
+
                 select_fields: list[str] = []
                 agg_spec: dict[str, object] = {}
 
+                rename_map: dict[str, str] = {}
                 for c in first_fields:
-                    if c not in preds.columns and c in market_df.columns:
+                    if c in market_df.columns and _needs_fill(c, numeric=False):
                         select_fields.append(c)
                         agg_spec[c] = _agg_first
+                        if c in preds.columns:
+                            rename_map[c] = f"{c}__mkt"
 
                 for c in num_fields:
-                    if c not in preds.columns and c in market_df.columns:
+                    if c in market_df.columns and _needs_fill(c, numeric=True):
                         select_fields.append(c)
                         agg_spec[c] = _agg_median_num
+                        if c in preds.columns:
+                            rename_map[c] = f"{c}__mkt"
 
                 if select_fields:
                     m = market_df[["game_id"] + select_fields].copy()
                     m = m.dropna(subset=["game_id"])
                     m = m.groupby("game_id", as_index=False).agg(agg_spec)
+                    if rename_map:
+                        m = m.rename(columns=rename_map)
                     preds = preds.merge(m, on="game_id", how="left")
+                    # Fill any existing-but-empty fields from market-derived columns
+                    for src, dst in rename_map.items():
+                        if (src in preds.columns) and (dst in preds.columns):
+                            try:
+                                if src in num_fields:
+                                    base = pd.to_numeric(preds[src], errors="coerce")
+                                    alt = pd.to_numeric(preds[dst], errors="coerce")
+                                    preds[src] = base.where(base.notna(), alt)
+                                else:
+                                    base = preds[src]
+                                    alt = preds[dst]
+                                    preds[src] = base.where(base.notna() & (base.astype(str).str.strip() != ""), alt)
+                            except Exception:
+                                pass
+                    # Drop helper columns
+                    try:
+                        for dst in rename_map.values():
+                            if dst in preds.columns:
+                                preds = preds.drop(columns=[dst])
+                    except Exception:
+                        pass
             else:
                 # Fallback: join on team names if both sources have them
                 id_p, home_p, away_p = _resolve_keys(preds)
@@ -1639,7 +1681,11 @@ def run_simulations_for_date(out_dir: Path, date: str,
 
     sim_df = pd.DataFrame(results)
     out_path = out_dir / f"sim_quantiles_{date}.csv"
-    sim_df.to_csv(out_path, index=False)
+    try:
+        sim_df = sim_df.replace([np.inf, -np.inf], np.nan)
+    except Exception:
+        pass
+    sim_df.to_csv(out_path, index=False, na_rep="")
 
     try:
         meta_path = out_dir / f"sim_meta_{date}.json"

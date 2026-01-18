@@ -10169,6 +10169,350 @@ def synthetic_e2e(
     if summary.get("mean_edge_total") is not None and abs(summary["mean_edge_total"]) > max_mean_edge_total:
         raise typer.Exit(code=5)
 
+
+@app.command(name="sanitize-artifacts")
+def sanitize_artifacts(
+    date: list[str] = typer.Option([], "--date", help="Target date(s) YYYY-MM-DD. Repeat --date for multiple days."),
+    outputs_dir: Path = typer.Option(settings.outputs_dir, help="Outputs directory (default: project outputs/)."),
+    include_master: bool = typer.Option(True, help="Also sanitize non-dated master artifacts (games_all, predictions_all, picks_raw, etc.)."),
+    all_outputs: bool = typer.Option(False, help="Sanitize all CSV/JSON files under outputs_dir recursively (ignores --date matching)."),
+    dry_run: bool = typer.Option(False, help="Scan and report, but do not rewrite files."),
+):
+    """Rewrite output CSV/JSON artifacts to eliminate NaN/Inf tokens.
+
+    This is an invariants step for deployment + UI parity:
+      - CSVs are rewritten with blank cells instead of NaN/Inf.
+      - JSONs are rewritten with null instead of NaN/Inf (and dumped with allow_nan=False).
+
+    Notes:
+      - We do NOT invent values; missing numerics become blank (CSV) / null (JSON).
+      - This is safe to run repeatedly (idempotent).
+    """
+
+    import re as _re
+
+    outputs_dir = Path(outputs_dir)
+    if not outputs_dir.exists():
+        print(f"[red]outputs_dir not found: {outputs_dir}[/red]")
+        raise typer.Exit(code=2)
+
+    if (not all_outputs) and (not date):
+        print("[red]Provide at least one --date, or pass --all-outputs.[/red]")
+        raise typer.Exit(code=2)
+
+    def _sanitize_json_obj(obj: Any) -> Any:
+        try:
+            if obj is None:
+                return None
+            if isinstance(obj, (np.floating, np.integer, np.bool_)):
+                obj = obj.item()
+            if isinstance(obj, float):
+                return None if (not math.isfinite(obj)) else float(obj)
+            if isinstance(obj, (dt.datetime, dt.date)):
+                return obj.isoformat()
+            if isinstance(obj, dict):
+                return {str(k): _sanitize_json_obj(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_sanitize_json_obj(v) for v in obj]
+            if isinstance(obj, str):
+                s = obj.strip()
+                if s.lower() in ("nan", "none", "null"):
+                    return ""
+                return obj
+            return obj
+        except Exception:
+            return None
+
+    def _sanitize_csv_file(p: Path) -> tuple[bool, str]:
+        df = None
+        last_err: Exception | None = None
+        for kwargs in (
+            dict(low_memory=False),
+            dict(low_memory=False, engine="python"),
+            dict(low_memory=False, encoding="utf-8-sig"),
+        ):
+            try:
+                df = pd.read_csv(p, **kwargs)
+                break
+            except Exception as e:
+                last_err = e
+                df = None
+
+        if df is None:
+            # Last-resort: text-level rewrite to remove literal NaN/Inf cell tokens.
+            try:
+                txt = p.read_text(encoding="utf-8", errors="ignore")
+                txt2 = _re.sub(r"(?i)(^|,)(nan|inf|infinity|-inf|-infinity)(?=,|\r?\n|$)", r"\1", txt)
+                if (not dry_run) and (txt2 != txt):
+                    p.write_text(txt2, encoding="utf-8")
+                return True, "text_rewrite"
+            except Exception:
+                return False, f"read_failed: {last_err}"
+
+        try:
+            df = df.replace([np.inf, -np.inf], np.nan)
+        except Exception:
+            pass
+
+        # Treat common string placeholders as missing
+        try:
+            for c in df.columns:
+                if df[c].dtype == object:
+                    df[c] = df[c].replace({"nan": np.nan, "NaN": np.nan, "None": np.nan, "NULL": np.nan, "null": np.nan})
+        except Exception:
+            pass
+
+        if dry_run:
+            # Detect any remaining NaN/Inf in memory
+            try:
+                has_bad = bool(df.isna().any().any())
+            except Exception:
+                has_bad = True
+            return True, ("would_rewrite" if has_bad else "ok")
+
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        try:
+            df.to_csv(tmp, index=False, na_rep="")
+            tmp.replace(p)
+            return True, "rewrote"
+        except Exception as e:
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except Exception:
+                pass
+            return False, f"write_failed: {e}"
+
+    def _sanitize_json_file(p: Path) -> tuple[bool, str]:
+        # Read in a BOM-tolerant way. `json.loads` will accept NaN/Infinity tokens
+        # (non-standard JSON) so we can sanitize them and re-write strict JSON.
+        try:
+            txt = p.read_text(encoding="utf-8-sig")
+        except Exception as e:
+            try:
+                txt = p.read_text(encoding="utf-8")
+            except Exception:
+                return False, f"read_failed: {e}"
+
+        def _extract_json_payload(s: str) -> str:
+            # Find the first balanced JSON object/array and return it.
+            def _matching_end(start: int) -> int | None:
+                opener = s[start]
+                closer = "}" if opener == "{" else "]"
+                stack: list[str] = [opener]
+                in_str = False
+                esc = False
+
+                for j in range(start + 1, len(s)):
+                    ch = s[j]
+                    if in_str:
+                        if esc:
+                            esc = False
+                        elif ch == "\\":
+                            esc = True
+                        elif ch == '"':
+                            in_str = False
+                        continue
+
+                    if ch == '"':
+                        in_str = True
+                        continue
+
+                    if ch in "{[":
+                        stack.append(ch)
+                        continue
+
+                    if ch in "}]":
+                        if not stack:
+                            return None
+                        top = stack[-1]
+                        if (top == "{" and ch == "}") or (top == "[" and ch == "]"):
+                            stack.pop()
+                            if not stack:
+                                return j
+                        else:
+                            return None
+
+                return None
+
+            for i, ch in enumerate(s):
+                if ch not in "{[":
+                    continue
+                end = _matching_end(i)
+                if end is None:
+                    continue
+                payload = s[i : end + 1]
+                try:
+                    json.loads(payload)
+                    return payload
+                except Exception:
+                    continue
+
+            raise ValueError("no parseable JSON object/array found")
+
+        if not (txt or '').strip():
+            if dry_run:
+                return True, "would_rewrite_empty"
+            try:
+                with p.open("w", encoding="utf-8") as f:
+                    json.dump({}, f, indent=2, sort_keys=True, allow_nan=False)
+                return True, "rewrote_empty"
+            except Exception as e:
+                return False, f"write_failed: {e}"
+
+        try:
+            data = json.loads(txt)
+        except Exception:
+            try:
+                payload = _extract_json_payload(txt)
+                data = json.loads(payload)
+            except Exception as e:
+                # Some legacy metrics were written as Python repr (single quotes, None, etc.).
+                try:
+                    import ast
+
+                    data = ast.literal_eval(txt.strip())
+                except Exception:
+                    # Final fallback: file isn't valid JSON; rewrite to empty object.
+                    if dry_run:
+                        return True, "would_rewrite_unparseable"
+                    try:
+                        with p.open("w", encoding="utf-8") as f:
+                            json.dump({}, f, indent=2, sort_keys=True, allow_nan=False)
+                        return True, "rewrote_unparseable"
+                    except Exception as e2:
+                        return False, f"read_failed: {e}; write_failed: {e2}"
+
+        data2 = _sanitize_json_obj(data)
+        if dry_run:
+            return True, "would_rewrite"
+
+        try:
+            with p.open("w", encoding="utf-8") as f:
+                json.dump(data2, f, indent=2, sort_keys=True, allow_nan=False)
+            return True, "rewrote"
+        except Exception as e:
+            return False, f"write_failed: {e}"
+
+    def _json_has_nonfinite(obj: Any) -> bool:
+        try:
+            if obj is None:
+                return False
+            if isinstance(obj, (np.floating, np.integer, np.bool_)):
+                obj = obj.item()
+            if isinstance(obj, float):
+                return not math.isfinite(obj)
+            if isinstance(obj, dict):
+                return any(_json_has_nonfinite(v) for v in obj.values())
+            if isinstance(obj, (list, tuple)):
+                return any(_json_has_nonfinite(v) for v in obj)
+            return False
+        except Exception:
+            return False
+
+    def _has_nan_tokens(p: Path) -> bool:
+        # For JSON, only flag actual non-finite numeric values (not strings containing "NaN").
+        if p.suffix.lower() == ".json":
+            try:
+                try:
+                    txt = p.read_text(encoding="utf-8-sig")
+                except Exception:
+                    txt = p.read_text(encoding="utf-8", errors="ignore")
+
+                data = json.loads(txt)
+                return _json_has_nonfinite(data)
+            except Exception:
+                return False
+
+        # For CSV, flag literal cell tokens (nan/inf) only.
+        try:
+            txt = p.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            return False
+        return bool(_re.search(r"(?i)(^|,)(nan|inf|infinity|-inf|-infinity)(?=,|\r?\n|$)", txt))
+
+    # Collect candidate paths
+    candidates: set[Path] = set()
+    if all_outputs:
+        candidates |= set(outputs_dir.glob("**/*.csv"))
+        candidates |= set(outputs_dir.glob("**/*.json"))
+    else:
+        for d in date:
+            d = str(d).strip()
+            if not d:
+                continue
+            candidates |= set(outputs_dir.glob(f"*{d}*.csv"))
+            candidates |= set(outputs_dir.glob(f"*{d}*.json"))
+            candidates |= set(outputs_dir.glob(f"**/*{d}*.csv"))
+            candidates |= set(outputs_dir.glob(f"**/*{d}*.json"))
+
+    if include_master:
+        for fn in (
+            "games_all.csv",
+            "predictions_all.csv",
+            "picks_raw.csv",
+            "picks_clean.csv",
+            "games_with_last.csv",
+            "games_with_closing.csv",
+            "predictions_history_enriched.csv",
+            "meta_probs_metrics.json",
+            "meta_probs_metrics_lgbm.json",
+            "meta_calibration.json",
+            "meta_ece.json",
+        ):
+            p = outputs_dir / fn
+            if p.exists():
+                candidates.add(p)
+
+    # Filter to files we know how to sanitize
+    paths = sorted([p for p in candidates if p.is_file() and p.suffix.lower() in (".csv", ".json")])
+    if not paths:
+        print("[yellow]No candidate artifacts found for the provided dates.[/yellow]")
+        raise typer.Exit(code=0)
+
+    ok_n = 0
+    bad_n = 0
+    rewrote_n = 0
+    still_bad: list[str] = []
+    failed: list[str] = []
+
+    print(f"[sanitize] candidates={len(paths)} dry_run={dry_run} include_master={include_master} all_outputs={all_outputs}")
+    for p in paths:
+        if p.suffix.lower() == ".csv":
+            ok, msg = _sanitize_csv_file(p)
+        else:
+            ok, msg = _sanitize_json_file(p)
+        if ok:
+            ok_n += 1
+            if msg in ("rewrote", "would_rewrite"):
+                rewrote_n += 1
+        else:
+            bad_n += 1
+            failed.append(f"{p} :: {msg}")
+        # Post-check for literal NaN/Inf tokens
+        if (not dry_run) and _has_nan_tokens(p):
+            still_bad.append(str(p))
+
+    print({
+        "ok": ok_n,
+        "failed": bad_n,
+        "rewrote": rewrote_n,
+        "still_has_nan_tokens": len(still_bad),
+    })
+
+    if failed:
+        print("[yellow]Some artifacts failed to sanitize:[/yellow]")
+        for s in failed[:25]:
+            print(" - " + s)
+
+    if still_bad:
+        print("[red]Some artifacts still contain NaN/Inf tokens after rewrite:[/red]")
+        for s in still_bad[:25]:
+            print(" - " + s)
+        raise typer.Exit(code=3)
+    if bad_n > 0:
+        raise typer.Exit(code=1)
+
 if __name__ == "__main__":
     app()
 

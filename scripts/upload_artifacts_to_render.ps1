@@ -592,6 +592,18 @@ try {
     } else {
         Write-Host "[Warn] persist_display did not return ok=true (upload-only)" -ForegroundColor Yellow
     }
+
+    # IMPORTANT: On older deployments, server-side persist_display can overwrite the
+    # previously uploaded predictions_display_<date>.csv, dropping locally-derived
+    # columns (e.g., edge_total/edge_ats). Re-upload display after persist_display
+    # so the artifact on disk matches the local snapshot.
+    if (-not $SlimSimOnly.IsPresent) {
+        $sanPost = Sanitize-DisplayCsv -Path $displayPath
+        if (-not $sanPost) { $sanPost = $displayPath }
+        if (Test-Path -LiteralPath $sanPost) {
+            $null = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $sanPost -Query @{ date = $Date }
+        }
+    }
 } catch {
     Write-Host "[Warn] persist_display (upload-only) call failed: $($_.Exception.Message)" -ForegroundColor Yellow
 }
@@ -655,6 +667,15 @@ try {
             try {
                 $tsPersist2 = [int](Get-Date -UFormat %s)
                 $null = Invoke-RestMethod -Uri ("{0}/api/persist_display?date={1}&t={2}" -f $BaseUrl, $Date, $tsPersist2) -Method Get
+            } catch {}
+
+            # Re-upload display again in case persist_display overwrote it.
+            try {
+                $sanPost2 = Sanitize-DisplayCsv -Path $displayPath
+                if (-not $sanPost2) { $sanPost2 = $displayPath }
+                if (Test-Path -LiteralPath $sanPost2) {
+                    $null = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $sanPost2 -Query @{ date = $Date }
+                }
             } catch {}
         }
         # Re-check debug after retry
