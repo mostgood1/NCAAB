@@ -1479,6 +1479,67 @@
                 <div class="note muted">1H scores use 1H totals/margins (sim uses 1H sim quantiles when available; otherwise falls back to proportional scaling).</div>
               </div>
 
+              {% if r.has_segments_5min is defined and r.has_segments_5min and (r.segments_5min is defined) and r.segments_5min %}
+                <div class="section-block">
+                  <details>
+                    <summary class="section-title">5-min Trajectory</summary>
+                    <div class="muted m4v8">
+                      Cum total (q50) at end-minute:
+                      {% for s in r.segments_5min %}
+                        {% if (s.end_min is defined and s.end_min is not none) and (s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end) %}
+                          {% set _tag = ('1H' if (s.end_min == 20) else ('G' if (s.end_min == 40) else '')) %}
+                          <span class="pill small">{{ s.end_min }}{% if _tag %} ({{ _tag }}){% endif %}: {{ '%.0f' % s.q50_total_score_end }}</span>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                    {% if r.segments_rollup is defined and r.segments_rollup %}
+                      <div class="muted m4v8">
+                        Boxscore μ rollup:
+                        <span class="pill small" title="1H totals from 5-min segments">
+                          1H poss {% if r.segments_rollup.mu_total_poss_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_poss_1h }}{% else %}–{% endif %}
+                          · tov {% if r.segments_rollup.mu_total_tov_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_tov_1h }}{% else %}–{% endif %}
+                          · fta {% if r.segments_rollup.mu_total_fta_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fta_1h }}{% else %}–{% endif %}
+                          · 2pa {% if r.segments_rollup.mu_total_fga2_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga2_1h }}{% else %}–{% endif %}
+                          · 3pa {% if r.segments_rollup.mu_total_fga3_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga3_1h }}{% else %}–{% endif %}
+                        </span>
+                        <span class="pill small" title="Full game totals from 5-min segments">
+                          G poss {% if r.segments_rollup.mu_total_poss_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_poss_g }}{% else %}–{% endif %}
+                          · tov {% if r.segments_rollup.mu_total_tov_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_tov_g }}{% else %}–{% endif %}
+                          · fta {% if r.segments_rollup.mu_total_fta_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fta_g }}{% else %}–{% endif %}
+                          · 2pa {% if r.segments_rollup.mu_total_fga2_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga2_g }}{% else %}–{% endif %}
+                          · 3pa {% if r.segments_rollup.mu_total_fga3_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga3_g }}{% else %}–{% endif %}
+                        </span>
+                      </div>
+                    {% endif %}
+                    <div class="detailed-only">
+                      <div class="mini-table">
+                        <div class="mini-head">Seg</div><div class="mini-head">Tot pts (μ)</div><div class="mini-head">Tot pts (q10–q90)</div><div class="mini-head">Cum tot (μ)</div><div class="mini-head">Cum tot (q50)</div><div class="mini-head">Poss</div><div class="mini-head">TOV</div><div class="mini-head">FTA</div><div class="mini-head">2PA</div><div class="mini-head">3PA</div>
+                        {% for s in r.segments_5min %}
+                          {% set seg_label = ( (s.start_min|string) ~ '–' ~ (s.end_min|string) ) if (s.start_min is defined and s.end_min is defined and s.start_min is not none and s.end_min is not none) else ('Seg ' ~ (s.segment|string)) %}
+                          <div class="mini-cell source">{{ seg_label }}</div>
+                          <div class="mini-cell">{% if s.mu_total_pts_seg is defined and s.mu_total_pts_seg is not none and s.mu_total_pts_seg == s.mu_total_pts_seg %}{{ '%.1f' % s.mu_total_pts_seg }}{% else %}–{% endif %}</div>
+                          <div class="mini-cell">
+                            {% if (s.q10_total_pts_seg is defined and s.q10_total_pts_seg is not none and s.q10_total_pts_seg == s.q10_total_pts_seg) and (s.q90_total_pts_seg is defined and s.q90_total_pts_seg is not none and s.q90_total_pts_seg == s.q90_total_pts_seg) %}
+                              {{ '%.1f' % s.q10_total_pts_seg }}–{{ '%.1f' % s.q90_total_pts_seg }}
+                            {% else %}
+                              –
+                            {% endif %}
+                          </div>
+                          <div class="mini-cell">{% if s.mu_total_score_end is defined and s.mu_total_score_end is not none and s.mu_total_score_end == s.mu_total_score_end %}{{ '%.1f' % s.mu_total_score_end }}{% else %}–{% endif %}</div>
+                          <div class="mini-cell">{% if s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end %}{{ '%.1f' % s.q50_total_score_end }}{% else %}–{% endif %}</div>
+                          <div class="mini-cell">{% if s.mu_total_poss_seg is defined and s.mu_total_poss_seg is not none and s.mu_total_poss_seg == s.mu_total_poss_seg %}{{ '%.1f' % s.mu_total_poss_seg }}{% else %}–{% endif %}</div>
+                          <div class="mini-cell">{% if s.mu_total_tov_seg is defined and s.mu_total_tov_seg is not none and s.mu_total_tov_seg == s.mu_total_tov_seg %}{{ '%.1f' % s.mu_total_tov_seg }}{% else %}–{% endif %}</div>
+                          <div class="mini-cell">{% if s.mu_total_fta_seg is defined and s.mu_total_fta_seg is not none and s.mu_total_fta_seg == s.mu_total_fta_seg %}{{ '%.1f' % s.mu_total_fta_seg }}{% else %}–{% endif %}</div>
+                          <div class="mini-cell">{% if s.mu_total_fga2_seg is defined and s.mu_total_fga2_seg is not none and s.mu_total_fga2_seg == s.mu_total_fga2_seg %}{{ '%.1f' % s.mu_total_fga2_seg }}{% else %}–{% endif %}</div>
+                          <div class="mini-cell">{% if s.mu_total_fga3_seg is defined and s.mu_total_fga3_seg is not none and s.mu_total_fga3_seg == s.mu_total_fga3_seg %}{{ '%.1f' % s.mu_total_fga3_seg }}{% else %}–{% endif %}</div>
+                        {% endfor %}
+                      </div>
+                      <div class="note muted">Alignment: per-sample 5-min segments sum to 1H and full-game totals (so Cum Tot at 20m == 1H, and Cum Tot at 40m == Full). Note: segment quantiles (q10/q90) are not additive; use cumulative columns for rollups.</div>
+                    </div>
+                  </details>
+                </div>
+              {% endif %}
+
               <div class="section-block section-block-wide">
                 <div class="section-title">Recommendation</div>
                 {% set rec_t = ((r.pred_total_blend if (r.pred_total_blend is defined and r.pred_total_blend is not none and r.pred_total_blend==r.pred_total_blend) else (r.pred_total_model if (r.pred_total_model is defined and r.pred_total_model is not none and r.pred_total_model==r.pred_total_model) else (r.pred_total|default(none))))) %}

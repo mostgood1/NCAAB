@@ -366,6 +366,194 @@ def backtest_walkforward(
         json.dump(summary, f, indent=2)
     print(f"[green]Backtest complete[/green] -> {out_json} | {out_csv}")
 
+
+@app.command(name="backtest-sim-engine")
+def backtest_sim_engine(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive). Defaults to earliest available results_*.csv"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (inclusive). Defaults to latest available results_*.csv"),
+    recent: int = typer.Option(None, help="If set, backtest only the most recent N result-dates"),
+    engine: str = typer.Option("events", help="Simulation engine: events|normal|auto"),
+    samples: int = typer.Option(5000, help="Monte Carlo samples per game"),
+    rho: float = typer.Option(0.25, help="Total/margin correlation used by non-event fallback pieces"),
+    recompute: bool = typer.Option(False, help="Recompute sim_quantiles_<date>.csv even if it already exists"),
+    out_prefix: str = typer.Option("sim_engine", help="Outputs/backtests/<prefix>_<start>_<end>.*"),
+):
+    """Backtest the simulation engine against reality (results_*.csv).
+
+    Uses outputs/daily_results/results_<date>.csv as the ground truth and compares to outputs/sim_quantiles_<date>.csv.
+    Produces per-game CSV + per-date CSV + summary JSON under outputs/backtests/.
+
+    Important: the sim feature builder is leakage-safe (uses only boxscores strictly before the date).
+    """
+    try:
+        from src.simulation.sim_backtest import SimBacktestConfig, run_sim_backtest
+
+        cfg = SimBacktestConfig(
+            out_dir=settings.outputs_dir,
+            start=start,
+            end=end,
+            recent=recent,
+            engine=engine,
+            samples=int(samples),
+            rho=float(rho),
+            recompute=bool(recompute),
+            out_prefix=out_prefix,
+        )
+        res = run_sim_backtest(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]backtest-sim-engine failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="backtest-accuracy")
+def backtest_accuracy(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive). Defaults to earliest available results_*.csv"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (inclusive). Defaults to latest available results_*.csv"),
+    recent: int = typer.Option(None, help="If set, backtest only the most recent N result-dates"),
+    out_prefix: str = typer.Option("accuracy", help="Outputs/backtests/<prefix>_<start>_<end>.*"),
+):
+    """Backtest prediction accuracy (winners/totals/ATS) over historical finalized days.
+
+    Uses outputs/daily_results/results_<date>.csv as ground truth and joins against
+    outputs/predictions_display_<date>.csv. Writes per-game CSV + per-date CSV +
+    summary JSON under outputs/backtests/.
+    """
+    try:
+        from src.backtests.accuracy_backtest import AccuracyBacktestConfig, run_accuracy_backtest
+
+        cfg = AccuracyBacktestConfig(
+            out_dir=settings.outputs_dir,
+            start=start,
+            end=end,
+            recent=recent,
+            out_prefix=out_prefix,
+        )
+        res = run_accuracy_backtest(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]backtest-accuracy failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="backtest-sim-accuracy")
+def backtest_sim_accuracy(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive). Defaults to earliest available results_*.csv"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (inclusive). Defaults to latest available results_*.csv"),
+    recent: int = typer.Option(None, help="If set, backtest only the most recent N result-dates"),
+    engine: str = typer.Option("events", help="Simulation engine: events|normal|auto"),
+    samples: int = typer.Option(2000, help="Monte Carlo samples per game (used when recomputing sims)"),
+    rho: float = typer.Option(0.25, help="Total/margin correlation used by non-event fallback pieces"),
+    recompute: bool = typer.Option(False, help="Recompute sim_quantiles_<date>.csv even if it already exists"),
+    out_prefix: str = typer.Option("sim_accuracy", help="Outputs/backtests/<prefix>_<start>_<end>.*"),
+):
+    """Backtest sim-driven hit rates (winners/totals/ATS) across historical finalized days.
+
+    Uses outputs/daily_results/results_<date>.csv as ground truth and outputs/sim_quantiles_<date>.csv
+    for predictions (prefers q50_* when available).
+    """
+    try:
+        from src.backtests.sim_accuracy_backtest import SimAccuracyBacktestConfig, run_sim_accuracy_backtest
+
+        cfg = SimAccuracyBacktestConfig(
+            out_dir=settings.outputs_dir,
+            start=start,
+            end=end,
+            recent=recent,
+            engine=engine,
+            samples=int(samples),
+            rho=float(rho),
+            recompute=bool(recompute),
+            out_prefix=out_prefix,
+        )
+        res = run_sim_accuracy_backtest(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]backtest-sim-accuracy failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="backtest-segments-5min")
+def backtest_segments_5min(
+    start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
+    end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
+    engine: str = typer.Option("events", help="Simulation engine used to (re)compute sims when needed: events|normal|auto"),
+    samples: int = typer.Option(2000, help="Monte Carlo samples per game (used when recomputing sims)"),
+    rho: float = typer.Option(0.25, help="Total/margin correlation used by non-event fallback pieces"),
+    recompute_sims: bool = typer.Option(False, help="Recompute sim_quantiles/sim_segments even if they already exist"),
+    use_cache: bool = typer.Option(True, help="Use cached ESPN play-by-play responses when available"),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests (rate-limit friendly)"),
+    max_games: int = typer.Option(0, help="If >0, limit the number of games processed (debug/smoke)"),
+    out_prefix: str = typer.Option("segments_5min", help="Outputs/backtests/<prefix>_<start>_to_<end>.*"),
+):
+    """Backtest 5-minute cumulative score checkpoints (5..40) vs ESPN play-by-play.
+
+    Compares the simulator's cumulative distributions from outputs/sim_segments_<date>.csv
+    (q10/q50/q90 for total_score_end at each 5-minute endpoint) to the realized cumulative
+    totals derived from ESPN play-by-play.
+
+    If sim_segments_<date>.csv is missing (or recompute_sims=true), this command will call
+    the simulator to regenerate it for that date.
+    """
+    try:
+        from src.backtests.segments_5min_backtest import Segments5MinBacktestConfig, run_segments_5min_backtest
+
+        cfg = Segments5MinBacktestConfig(
+            out_dir=settings.outputs_dir,
+            start=start,
+            end=end,
+            engine=str(engine),
+            samples=int(samples),
+            rho=float(rho),
+            recompute_sims=bool(recompute_sims),
+            use_cache=bool(use_cache),
+            sleep_seconds=float(sleep_seconds),
+            max_games=int(max_games),
+            out_prefix=str(out_prefix),
+        )
+        res = run_segments_5min_backtest(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]backtest-segments-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="tune-segment-weights-5min")
+def tune_segment_weights_5min(
+    start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
+    end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
+    use_cache: bool = typer.Option(True, help="Use cached ESPN play-by-play responses when available"),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests"),
+    max_games: int = typer.Option(0, help="If >0, limit the number of games used (debug/smoke)"),
+    shrink_to_uniform: float = typer.Option(0.10, help="Shrinkage toward uniform weights (0..1)"),
+    out: Path = typer.Option(settings.outputs_dir / "segment_weights.json", help="Output JSON path"),
+):
+    """Tune 5-minute segment allocation weights from historical play-by-play.
+
+    Produces probabilities for the 4x 5-min segments within each half (half1/half2).
+    These weights are then consumed by the simulator when generating sim_segments_<date>.csv.
+
+    By default, writes outputs/segment_weights.json.
+    """
+    try:
+        from src.backtests.segments_5min_tune import TuneSegments5MinConfig, tune_segment_weights
+
+        cfg = TuneSegments5MinConfig(
+            out_dir=settings.outputs_dir,
+            start=start,
+            end=end,
+            use_cache=bool(use_cache),
+            sleep_seconds=float(sleep_seconds),
+            max_games=int(max_games),
+            shrink_to_uniform=float(shrink_to_uniform),
+            out_path=Path(out),
+        )
+        res = tune_segment_weights(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]tune-segment-weights-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
 @app.command(name="write-risk-config")
 def write_risk_config(
     daily_loss_cap: float = typer.Option(None, help="Daily loss cap in units (optional)"),

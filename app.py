@@ -31509,6 +31509,128 @@ def api_display_predictions():
                 'proj_home','proj_away','proj_home_1h','proj_away_1h',
                 'pred_total_basis','pred_margin_basis','blend_weight','blend_effective','display_time_str','display_date','edge_total','edge_ats',
             ]
+
+        # Optional: attach 5-minute segment trajectory + boxscore-grid summaries.
+        # Source: outputs/sim_segments_<date>.csv produced by the simulator.
+        seg_map: dict[str, list[dict[str, Any]]] = {}
+        seg_rollup_map: dict[str, dict[str, Any]] = {}
+        try:
+            seg_path = OUT / f"sim_segments_{date_q}.csv"
+            if cards_view and seg_path.exists():
+                seg_df = _safe_read_csv(seg_path)
+                if isinstance(seg_df, pd.DataFrame) and (not seg_df.empty) and ('game_id' in seg_df.columns):
+                    try:
+                        seg_df['game_id'] = seg_df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+                    try:
+                        seg_df['segment'] = pd.to_numeric(seg_df.get('segment'), errors='coerce')
+                    except Exception:
+                        pass
+                    try:
+                        seg_df = seg_df.sort_values(['game_id', 'segment'])
+                    except Exception:
+                        pass
+
+                    def _sf(v: Any) -> float | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return float(x)
+                        except Exception:
+                            return None
+
+                    def _si(v: Any) -> int | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return int(x)
+                        except Exception:
+                            return None
+
+                    want_cols = [
+                        'segment', 'half', 'start_min', 'end_min',
+                        # points
+                        'mu_total_pts_seg', 'q10_total_pts_seg', 'q50_total_pts_seg', 'q90_total_pts_seg',
+                        'mu_total_score_end', 'q10_total_score_end', 'q50_total_score_end', 'q90_total_score_end',
+                        # boxscore-ish totals (combined)
+                        'mu_total_poss_seg', 'mu_total_tov_seg', 'mu_total_fta_seg', 'mu_total_fga2_seg', 'mu_total_fga3_seg',
+                    ]
+
+                    for gid, g in seg_df.groupby('game_id'):
+                        try:
+                            rows_seg: list[dict[str, Any]] = []
+                            for _, rr in g.iterrows():
+                                o: dict[str, Any] = {}
+                                for c in want_cols:
+                                    if c not in g.columns:
+                                        continue
+                                    if c in ('segment', 'half', 'start_min', 'end_min'):
+                                        o[c] = _si(rr.get(c))
+                                    else:
+                                        o[c] = _sf(rr.get(c))
+                                # Keep only valid segment rows
+                                if o.get('segment') is None:
+                                    continue
+                                rows_seg.append(o)
+                            if rows_seg:
+                                gid_s = str(gid)
+                                seg_map[gid_s] = rows_seg
+
+                                def _sum_where(key: str, pred) -> float | None:
+                                    try:
+                                        vals: list[float] = []
+                                        for s in rows_seg:
+                                            try:
+                                                if not pred(s):
+                                                    continue
+                                                v = s.get(key)
+                                                if v is None:
+                                                    continue
+                                                x = float(v)
+                                                if np.isfinite(x):
+                                                    vals.append(float(x))
+                                            except Exception:
+                                                continue
+                                        if not vals:
+                                            return None
+                                        return float(sum(vals))
+                                    except Exception:
+                                        return None
+
+                                roll = {
+                                    # By half
+                                    'mu_total_poss_1h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_tov_1h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_fta_1h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_fga2_1h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_fga3_1h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_poss_2h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_tov_2h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_fta_2h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_fga2_2h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_fga3_2h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 2),
+                                    # Full game
+                                    'mu_total_poss_g': _sum_where('mu_total_poss_seg', lambda s: True),
+                                    'mu_total_tov_g': _sum_where('mu_total_tov_seg', lambda s: True),
+                                    'mu_total_fta_g': _sum_where('mu_total_fta_seg', lambda s: True),
+                                    'mu_total_fga2_g': _sum_where('mu_total_fga2_seg', lambda s: True),
+                                    'mu_total_fga3_g': _sum_where('mu_total_fga3_seg', lambda s: True),
+                                }
+                                # Only keep if at least one metric exists
+                                if any(v is not None for v in roll.values()):
+                                    seg_rollup_map[gid_s] = roll
+                        except Exception:
+                            continue
+        except Exception:
+            seg_map = {}
+            seg_rollup_map = {}
         try:
             if sim_only and isinstance(df, pd.DataFrame) and not df.empty and 'game_id' in df.columns:
                 sq_path = OUT / f"sim_quantiles_{date_q}.csv"
@@ -31596,22 +31718,43 @@ def api_display_predictions():
                     item['display_date'] = item.get('date') or item.get('display_date_local')
             except Exception:
                 pass
+
+            # Attach 5-minute segments if available (cards view only)
+            try:
+                gid = str(item.get('game_id') or '')
+                if cards_view and gid and (gid in seg_map):
+                    item['segments_5min'] = seg_map.get(gid) or []
+                    item['segments_rollup'] = seg_rollup_map.get(gid) or {}
+                    item['has_segments_5min'] = True
+                else:
+                    item['segments_5min'] = []
+                    item['segments_rollup'] = {}
+                    item['has_segments_5min'] = False
+            except Exception:
+                item['segments_5min'] = []
+                item['segments_rollup'] = {}
+                item['has_segments_5min'] = False
             rows.append(item)
 
-        def _sanitize_scalar(v: Any) -> Any:
+        def _sanitize(v: Any) -> Any:
+            """Recursively sanitize values for JSON/template safety.
+
+            - Converts numpy scalars to python scalars
+            - Replaces NaN/Inf with None
+            - Cleans string 'nan'/'none'/'null' to ''
+            - Recurses into dict/list to ensure nested payloads (like segments) are safe
+            """
             try:
                 if v is None:
                     return None
-                # Normalize numpy scalar types
                 try:
                     if isinstance(v, (np.floating, np.integer, np.bool_)):
                         v = v.item()
                 except Exception:
                     pass
-                # Eliminate NaN/Inf
                 if isinstance(v, float):
                     try:
-                        if (not np.isfinite(v)):
+                        if not np.isfinite(v):
                             return None
                     except Exception:
                         return None
@@ -31621,12 +31764,16 @@ def api_display_predictions():
                     if s.lower() in ('nan', 'none', 'null'):
                         return ''
                     return v
+                if isinstance(v, dict):
+                    return {str(k): _sanitize(val) for k, val in v.items()}
+                if isinstance(v, (list, tuple)):
+                    return [_sanitize(x) for x in v]
                 return v
             except Exception:
                 return None
 
         try:
-            rows = [{k: _sanitize_scalar(v) for k, v in it.items()} for it in rows]
+            rows = [{k: _sanitize(v) for k, v in it.items()} for it in rows]
         except Exception:
             pass
 
@@ -31653,7 +31800,7 @@ def api_display_predictions():
                 return it
             rows = [_add_view_item(it) for it in rows]
             try:
-                rows = [{k: _sanitize_scalar(v) for k, v in it.items()} for it in rows]
+                rows = [{k: _sanitize(v) for k, v in it.items()} for it in rows]
             except Exception:
                 pass
             _resp = jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})

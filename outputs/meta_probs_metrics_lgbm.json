@@ -5,7 +5,6 @@
   },
   "features_used": [
     "edge_total",
-    "edge_total_1h",
     "edge_total_agg",
     "edge_total_agg.1",
     "edge_total_agg.10",
@@ -110,11 +109,12 @@
     "pred_total_model_unified",
     "pred_total_model_y",
     "pred_total_pick",
+    "pred_total_q90",
     "pred_total_sigma_bootstrap"
   ],
   "over": {
     "auc": null,
-    "rows": 4849
+    "rows": 4911
   },
-  "rows_total": 4849
+  "rows_total": 4911
 }

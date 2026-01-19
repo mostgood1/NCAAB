@@ -31,6 +31,21 @@ param(
   [switch]$SkipSimCalibrationFit,
   [int]$SimCalibrationLookbackDays = 21,
   [int]$SimCalibrationMinGames = 80,
+  # Simulation engine backtesting (historical join vs daily_results/results_*.csv)
+  [switch]$RunSimBacktest,
+  [int]$SimBacktestRecent = 30,
+  [int]$SimBacktestSamples = 1000,
+  [string]$SimBacktestEngine = 'events',
+  [switch]$SimBacktestRecompute,
+  # Accuracy backtesting (winners / totals / ATS across historical finalized days)
+  [switch]$RunAccuracyBacktest,
+  [int]$AccuracyBacktestRecent = 30,
+  # Sim accuracy backtesting (winners / totals / ATS using sim_quantiles_* predictions)
+  [switch]$RunSimAccuracyBacktest,
+  [int]$SimAccuracyBacktestRecent = 30,
+  [int]$SimAccuracyBacktestSamples = 2000,
+  [string]$SimAccuracyBacktestEngine = 'events',
+  [switch]$SimAccuracyBacktestRecompute,
   # Probability calibration (isotonic mapping applied during distributional stake sizing)
   [switch]$SkipProbCalibrationFit,
   [int]$ProbCalibrationLookbackDays = 60,
@@ -256,6 +271,19 @@ print({'path': str(games_path), 'rows': len(df2)})
     catch {
       Write-Warning "fetch-boxscores failed for ${prevDate}: $($_)"
     }
+
+    # Merge fresh boxscores into the consolidated artifact so downstream feature refreshes
+    # (team_features + sim event-rate rolling stats) always have the latest games.
+    try {
+      $base = Join-Path $OutDir 'boxscores.csv'
+      $new = Join-Path $OutDir 'boxscores_prev.csv'
+      if (Test-Path $new) {
+        $mergeOut = (& $VenvPython scripts/merge_boxscores.py --base $base --new $new --out $base) | Out-String
+        if ($mergeOut) { Write-Host ($mergeOut.Trim()) }
+      }
+    } catch {
+      Write-Warning "merge_boxscores failed: $($_)"
+    }
     Write-Section "3b) Finalize previous day (refresh + fallback + overrides)"
     try {
       # Force provider refresh; finalize-day will also try secondary/fused providers and apply outputs/scores_override_<date>.csv if present.
@@ -311,6 +339,110 @@ print({'path': str(games_path), 'rows': len(df2)})
     Write-Host "[metrics] Wrote $simEvalPath"
   } catch {
     Write-Warning "evaluate_sim_metrics failed for ${prevDate}: $($_)"
+  }
+
+  # 3f.i) Evaluate sim accuracy (winners/totals/ATS) for previous day and persist JSON
+  if ($RunSimAccuracyBacktest.IsPresent) {
+    Write-Section "3f.i) Evaluate sim accuracy for $prevDate (winners/totals/ATS)"
+    try {
+      $args = @('backtest-sim-accuracy', '--start', "$prevDate", '--end', "$prevDate", '--engine', "$SimAccuracyBacktestEngine", '--samples', "$SimAccuracyBacktestSamples")
+      if ($SimAccuracyBacktestRecompute.IsPresent) { $args += '--recompute' }
+      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      if ($btOut) { Write-Host ($btOut.Trim()) }
+
+      $metricsDir = Join-Path $OutDir 'metrics'
+      New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+      $btDir = Join-Path $OutDir 'backtests'
+      if (Test-Path $btDir) {
+        $latest = Get-ChildItem $btDir -File -Filter "sim_accuracy_${prevDate}_${prevDate}_summary.json" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) {
+          Copy-Item -LiteralPath $latest.FullName -Destination (Join-Path $metricsDir ("sim_accuracy_" + $prevDate + ".json")) -Force
+          Copy-Item -LiteralPath $latest.FullName -Destination (Join-Path $metricsDir 'sim_accuracy_latest.json') -Force
+          Write-Host "[metrics] Wrote $(Join-Path $metricsDir ("sim_accuracy_" + $prevDate + ".json"))"
+        }
+      }
+    } catch {
+      Write-Warning "sim accuracy backtest failed: $($_)"
+    }
+  } else {
+    Write-Host '[skip] Sim accuracy backtest' -ForegroundColor Yellow
+  }
+
+  # 3g) Backtest sim engine across recent finalized days (heavier, optional)
+  if ($RunSimBacktest.IsPresent) {
+    Write-Section "3g) Backtest sim engine (recent=$SimBacktestRecent, engine=$SimBacktestEngine, samples=$SimBacktestSamples)"
+    try {
+      $args = @('backtest-sim-engine', '--recent', "$SimBacktestRecent", '--engine', "$SimBacktestEngine", '--samples', "$SimBacktestSamples")
+      if ($SimBacktestRecompute.IsPresent) { $args += '--recompute' }
+      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      if ($btOut) { Write-Host ($btOut.Trim()) }
+
+      # Copy newest summary into metrics as a "latest" snapshot for quick inspection.
+      $metricsDir = Join-Path $OutDir 'metrics'
+      New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+      $btDir = Join-Path $OutDir 'backtests'
+      if (Test-Path $btDir) {
+        $latest = Get-ChildItem $btDir -File -Filter 'sim_engine_*_summary.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) {
+          Copy-Item -LiteralPath $latest.FullName -Destination (Join-Path $metricsDir 'sim_engine_backtest_latest.json') -Force
+          Write-Host "[metrics] Wrote $(Join-Path $metricsDir 'sim_engine_backtest_latest.json')"
+        }
+      }
+    } catch {
+      Write-Warning "sim engine backtest failed: $($_)"
+    }
+  } else {
+    Write-Host '[skip] Sim engine backtest' -ForegroundColor Yellow
+  }
+
+  # 3h) Backtest prediction accuracy across recent finalized days (optional)
+  if ($RunAccuracyBacktest.IsPresent) {
+    Write-Section "3h) Backtest accuracy (recent=$AccuracyBacktestRecent)"
+    try {
+      $args = @('backtest-accuracy', '--recent', "$AccuracyBacktestRecent")
+      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      if ($btOut) { Write-Host ($btOut.Trim()) }
+
+      # Copy newest summary into metrics as a "latest" snapshot.
+      $metricsDir = Join-Path $OutDir 'metrics'
+      New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+      $btDir = Join-Path $OutDir 'backtests'
+      if (Test-Path $btDir) {
+        $latest = Get-ChildItem $btDir -File -Filter 'accuracy_*_summary.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) {
+          Copy-Item -LiteralPath $latest.FullName -Destination (Join-Path $metricsDir 'accuracy_backtest_latest.json') -Force
+          Write-Host "[metrics] Wrote $(Join-Path $metricsDir 'accuracy_backtest_latest.json')"
+        }
+      }
+    } catch {
+      Write-Warning "accuracy backtest failed: $($_)"
+    }
+  } else {
+    Write-Host '[skip] Accuracy backtest' -ForegroundColor Yellow
+  }
+
+  # 3h.i) Backtest sim accuracy across recent finalized days (optional)
+  if ($RunSimAccuracyBacktest.IsPresent) {
+    Write-Section "3h.i) Backtest sim accuracy (recent=$SimAccuracyBacktestRecent, engine=$SimAccuracyBacktestEngine, samples=$SimAccuracyBacktestSamples)"
+    try {
+      $args = @('backtest-sim-accuracy', '--recent', "$SimAccuracyBacktestRecent", '--engine', "$SimAccuracyBacktestEngine", '--samples', "$SimAccuracyBacktestSamples")
+      if ($SimAccuracyBacktestRecompute.IsPresent) { $args += '--recompute' }
+      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      if ($btOut) { Write-Host ($btOut.Trim()) }
+
+      $metricsDir = Join-Path $OutDir 'metrics'
+      New-Item -ItemType Directory -Path $metricsDir -Force | Out-Null
+      $btDir = Join-Path $OutDir 'backtests'
+      if (Test-Path $btDir) {
+        $latest = Get-ChildItem $btDir -File -Filter 'sim_accuracy_*_summary.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) {
+          Copy-Item -LiteralPath $latest.FullName -Destination (Join-Path $metricsDir 'sim_accuracy_backtest_latest.json') -Force
+          Write-Host "[metrics] Wrote $(Join-Path $metricsDir 'sim_accuracy_backtest_latest.json')"
+        }
+      }
+    } catch {
+      Write-Warning "sim accuracy rolling backtest failed: $($_)"
+    }
   }
 
   # 3e) Fit global simulation calibration (from recent finalized results + existing sim outputs)

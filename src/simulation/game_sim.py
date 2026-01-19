@@ -15,6 +15,16 @@ DEFAULT_RHO = 0.3  # positive correlation between team scores
 DEFAULT_TOTAL_SIGMA = 14.0  # fallback spread of total points
 DEFAULT_SAMPLES = 4000
 
+# Event-driven simulation defaults (possession -> event -> points)
+DEFAULT_EVENT_TO_RATE = 0.175
+DEFAULT_EVENT_FT_TRIP_RATE = 0.115  # P(trip to line | non-turnover)
+DEFAULT_EVENT_3PA_RATE = 0.36       # P(3PA | non-TO, non-FT)
+
+# Reasonable college shooting baselines
+BASE_FT_PCT = 0.72
+BASE_2P_PCT = 0.50
+BASE_3P_PCT = 0.34
+
 # Pace/possessions modeling (used when tempo/pace inputs are present)
 DEFAULT_PACE = 69.0
 DEFAULT_PACE_SIGMA = 3.5
@@ -92,6 +102,511 @@ def _to_game_id_str(v) -> Optional[str]:
         return None
     s = str(v).strip()
     return s if s else None
+
+
+def _resolve_sim_engine(engine: str, mean_source_used: str) -> str:
+    e = (engine or "auto").strip().lower() or "auto"
+    if e in {"auto", "default"}:
+        # When we're explicitly feature-driven, default to the ground-up engine.
+        return "events" if mean_source_used == "features" else "normal"
+    if e in {"events", "event", "pbp", "play_by_play", "play-by-play"}:
+        return "events"
+    return "normal"
+
+
+def _safe_bool(v: object) -> bool:
+    try:
+        if v is None:
+            return False
+        if isinstance(v, (bool, np.bool_)):
+            return bool(v)
+        s = str(v).strip().lower()
+        return s in {"1", "true", "yes", "y", "t"}
+    except Exception:
+        return False
+
+
+def _safe_float(v: object) -> Optional[float]:
+    try:
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return None
+        if isinstance(v, (int, float, np.floating, np.integer)):
+            return float(v)
+        s = str(v).strip()
+        if not s:
+            return None
+        return float(s)
+    except Exception:
+        return None
+
+
+def _clip01(x: float) -> float:
+    return float(np.clip(float(x), 0.0, 1.0))
+
+
+def _derive_event_rates(row: pd.Series, side: str) -> tuple[float, float, float]:
+    """Return (to_rate, ft_trip_rate, three_rate) for a team-side."""
+    to_rate = float(DEFAULT_EVENT_TO_RATE)
+    ft_trip = float(DEFAULT_EVENT_FT_TRIP_RATE)
+    three_rate = float(DEFAULT_EVENT_3PA_RATE)
+
+    # Prefer learned rates from boxscore-derived rolling features when present.
+    # These are merged in `run_simulations_for_date` as:
+    #   <side>_team_event_to_rate, <side>_team_event_3p_rate, <side>_team_event_fta_rate
+    try:
+        lr_to = _safe_float(row.get(f"{side}_team_event_to_rate"))
+        if lr_to is not None:
+            to_rate = float(lr_to)
+    except Exception:
+        pass
+    try:
+        lr_3p = _safe_float(row.get(f"{side}_team_event_3p_rate"))
+        if lr_3p is not None:
+            three_rate = float(lr_3p)
+    except Exception:
+        pass
+    try:
+        lr_fta = _safe_float(row.get(f"{side}_team_event_fta_rate"))
+        if lr_fta is not None and lr_fta > 0:
+            # Approx trips/poss ≈ (FTA/2)/poss = 0.5*fta_rate; convert to conditional rate.
+            trips_per_poss = 0.5 * float(lr_fta)
+            denom = max(1e-6, 1.0 - float(to_rate))
+            ft_trip = float(trips_per_poss / denom)
+    except Exception:
+        pass
+
+    # Light feature hooks when available.
+    # These columns exist in some pipelines; when absent, we stick to defaults.
+    b2b = _safe_bool(row.get(f"{side}_team_back_to_back")) or _safe_bool(row.get(f"b2b_{side}"))
+    rest = _safe_float(row.get(f"{side}_team_rest_days"))
+    if rest is None:
+        rest = _safe_float(row.get(f"rest_{side}"))
+
+    if b2b:
+        to_rate += 0.010
+        ft_trip -= 0.005
+    if rest is not None:
+        if rest >= 5:
+            to_rate -= 0.010
+        elif rest <= 1:
+            to_rate += 0.005
+
+    # Keep within sensible bounds
+    to_rate = float(np.clip(to_rate, 0.11, 0.25))
+    ft_trip = float(np.clip(ft_trip, 0.06, 0.18))
+    three_rate = float(np.clip(three_rate, 0.25, 0.50))
+    return to_rate, ft_trip, three_rate
+
+
+def _calibrate_shooting_to_ppp(
+    ppp_target: float,
+    to_rate: float,
+    ft_trip: float,
+    three_rate: float,
+) -> tuple[float, float, float]:
+    """Choose (ft_pct, p2, p3) so the implied expected PPP is close to ppp_target."""
+    ppp_t = float(np.clip(float(ppp_target), 0.75, 1.35))
+    ft_pct = float(np.clip(BASE_FT_PCT + (ppp_t - 1.0) * 0.06, 0.62, 0.82))
+    p2 = float(BASE_2P_PCT)
+    p3 = float(BASE_3P_PCT)
+
+    # Expected points per possession under the simple event model.
+    # Events are conditioned on not being a turnover.
+    base_e = (1.0 - to_rate) * (
+        ft_trip * (2.0 * ft_pct)
+        + (1.0 - ft_trip)
+        * (
+            three_rate * (3.0 * p3)
+            + (1.0 - three_rate) * (2.0 * p2)
+        )
+    )
+    if base_e <= 1e-9:
+        return ft_pct, p2, p3
+
+    k = float(np.clip(ppp_t / base_e, 0.70, 1.35))
+    # Scale makes modestly; keep FT less volatile.
+    p2 = float(np.clip(p2 * k, 0.35, 0.72))
+    p3 = float(np.clip(p3 * k, 0.25, 0.52))
+    ft_pct = float(np.clip(ft_pct * (0.5 + 0.5 * k), 0.60, 0.86))
+    return ft_pct, p2, p3
+
+
+def _simulate_team_points(
+    poss: int,
+    to_rate: float,
+    ft_trip: float,
+    three_rate: float,
+    ft_pct: float,
+    p2: float,
+    p3: float,
+    rng: np.random.Generator,
+) -> tuple[int, dict]:
+    """Simulate one team's points over `poss` possessions and return (points, stats)."""
+    if poss <= 0:
+        return 0, {"poss": 0, "tov": 0, "fta": 0, "fga2": 0, "fga3": 0}
+
+    u = rng.random(poss)
+    is_to = u < to_rate
+
+    u2 = rng.random(poss)
+    is_ft = (~is_to) & (u2 < ft_trip)
+    is_shot = (~is_to) & (~is_ft)
+
+    u3 = rng.random(poss)
+    is_3 = is_shot & (u3 < three_rate)
+    is_2 = is_shot & (~is_3)
+
+    # FT trips: 2 shots (simplified)
+    n_ft = int(is_ft.sum())
+    ft_made = rng.binomial(2, _clip01(ft_pct), size=n_ft).sum() if n_ft else 0
+
+    n2 = int(is_2.sum())
+    n3 = int(is_3.sum())
+    two_made = int((rng.random(n2) < _clip01(p2)).sum()) if n2 else 0
+    three_made = int((rng.random(n3) < _clip01(p3)).sum()) if n3 else 0
+
+    pts = int(2 * two_made + 3 * three_made + ft_made)
+    stats = {
+        "poss": int(poss),
+        "tov": int(is_to.sum()),
+        "fta": int(2 * n_ft),
+        "fga2": int(n2),
+        "fga3": int(n3),
+    }
+    return pts, stats
+
+
+def _simulate_events_samples(
+    row: pd.Series,
+    samples: int,
+    pace_mu: float,
+    pace_sigma: float,
+    half_frac: float,
+    mu_home: float,
+    mu_away: float,
+    rng: np.random.Generator,
+) -> dict:
+    """Ground-up simulation via possessions and shot/FT/TO events."""
+    poss_mu = float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))
+    poss_sigma = float(max(0.25, float(pace_sigma)))
+
+    # Shared possessions per game creates realistic total correlation.
+    poss_game = rng.normal(loc=poss_mu, scale=poss_sigma, size=int(samples))
+    poss_game = np.clip(np.round(poss_game), PACE_MIN, PACE_MAX).astype(int)
+    poss_1h = rng.binomial(poss_game, float(np.clip(half_frac, 0.35, 0.65)))
+    poss_2h = poss_game - poss_1h
+
+    ppp_home = float(np.clip(float(mu_home) / max(1.0, poss_mu), 0.75, 1.35))
+    ppp_away = float(np.clip(float(mu_away) / max(1.0, poss_mu), 0.75, 1.35))
+
+    to_h, ft_h, three_h = _derive_event_rates(row, "home")
+    to_a, ft_a, three_a = _derive_event_rates(row, "away")
+    ft_pct_h, p2_h, p3_h = _calibrate_shooting_to_ppp(ppp_home, to_h, ft_h, three_h)
+    ft_pct_a, p2_a, p3_a = _calibrate_shooting_to_ppp(ppp_away, to_a, ft_a, three_a)
+
+    home = np.zeros(int(samples), dtype=float)
+    away = np.zeros(int(samples), dtype=float)
+    home_1h = np.zeros(int(samples), dtype=float)
+    away_1h = np.zeros(int(samples), dtype=float)
+
+    # Per-sample boxscore-like aggregates (game + 1H). These are integer counts.
+    home_tov = np.zeros(int(samples), dtype=int)
+    away_tov = np.zeros(int(samples), dtype=int)
+    home_fta = np.zeros(int(samples), dtype=int)
+    away_fta = np.zeros(int(samples), dtype=int)
+    home_fga2 = np.zeros(int(samples), dtype=int)
+    away_fga2 = np.zeros(int(samples), dtype=int)
+    home_fga3 = np.zeros(int(samples), dtype=int)
+    away_fga3 = np.zeros(int(samples), dtype=int)
+    home_poss = np.zeros(int(samples), dtype=int)
+    away_poss = np.zeros(int(samples), dtype=int)
+
+    home_tov_1h = np.zeros(int(samples), dtype=int)
+    away_tov_1h = np.zeros(int(samples), dtype=int)
+    home_fta_1h = np.zeros(int(samples), dtype=int)
+    away_fta_1h = np.zeros(int(samples), dtype=int)
+    home_fga2_1h = np.zeros(int(samples), dtype=int)
+    away_fga2_1h = np.zeros(int(samples), dtype=int)
+    home_fga3_1h = np.zeros(int(samples), dtype=int)
+    away_fga3_1h = np.zeros(int(samples), dtype=int)
+    home_poss_1h = np.zeros(int(samples), dtype=int)
+    away_poss_1h = np.zeros(int(samples), dtype=int)
+
+    # Light aggregation of event stats (means over samples)
+    agg = {
+        "poss_game_mean": float(np.mean(poss_game)),
+        "home_to_rate": float(to_h),
+        "away_to_rate": float(to_a),
+        "home_ft_trip_rate": float(ft_h),
+        "away_ft_trip_rate": float(ft_a),
+        "home_3pa_rate": float(three_h),
+        "away_3pa_rate": float(three_a),
+        "home_ft_pct": float(ft_pct_h),
+        "away_ft_pct": float(ft_pct_a),
+        "home_p2": float(p2_h),
+        "away_p2": float(p2_a),
+        "home_p3": float(p3_h),
+        "away_p3": float(p3_a),
+    }
+
+    for i in range(int(samples)):
+        h1, hs1 = _simulate_team_points(int(poss_1h[i]), to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h, rng)
+        a1, as1 = _simulate_team_points(int(poss_1h[i]), to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a, rng)
+        h2, hs2 = _simulate_team_points(int(poss_2h[i]), to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h, rng)
+        a2, as2 = _simulate_team_points(int(poss_2h[i]), to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a, rng)
+        home_1h[i] = float(h1)
+        away_1h[i] = float(a1)
+        home[i] = float(h1 + h2)
+        away[i] = float(a1 + a2)
+
+        # Store aggregates (game and 1H)
+        home_tov_1h[i] = int(hs1.get("tov", 0))
+        away_tov_1h[i] = int(as1.get("tov", 0))
+        home_fta_1h[i] = int(hs1.get("fta", 0))
+        away_fta_1h[i] = int(as1.get("fta", 0))
+        home_fga2_1h[i] = int(hs1.get("fga2", 0))
+        away_fga2_1h[i] = int(as1.get("fga2", 0))
+        home_fga3_1h[i] = int(hs1.get("fga3", 0))
+        away_fga3_1h[i] = int(as1.get("fga3", 0))
+        home_poss_1h[i] = int(hs1.get("poss", 0))
+        away_poss_1h[i] = int(as1.get("poss", 0))
+
+        home_tov[i] = int(hs1.get("tov", 0)) + int(hs2.get("tov", 0))
+        away_tov[i] = int(as1.get("tov", 0)) + int(as2.get("tov", 0))
+        home_fta[i] = int(hs1.get("fta", 0)) + int(hs2.get("fta", 0))
+        away_fta[i] = int(as1.get("fta", 0)) + int(as2.get("fta", 0))
+        home_fga2[i] = int(hs1.get("fga2", 0)) + int(hs2.get("fga2", 0))
+        away_fga2[i] = int(as1.get("fga2", 0)) + int(as2.get("fga2", 0))
+        home_fga3[i] = int(hs1.get("fga3", 0)) + int(hs2.get("fga3", 0))
+        away_fga3[i] = int(as1.get("fga3", 0)) + int(as2.get("fga3", 0))
+        home_poss[i] = int(hs1.get("poss", 0)) + int(hs2.get("poss", 0))
+        away_poss[i] = int(as1.get("poss", 0)) + int(as2.get("poss", 0))
+
+    return {
+        "home": home,
+        "away": away,
+        "home_1h": home_1h,
+        "away_1h": away_1h,
+        "home_tov": home_tov,
+        "away_tov": away_tov,
+        "home_fta": home_fta,
+        "away_fta": away_fta,
+        "home_fga2": home_fga2,
+        "away_fga2": away_fga2,
+        "home_fga3": home_fga3,
+        "away_fga3": away_fga3,
+        "home_poss": home_poss,
+        "away_poss": away_poss,
+        "home_tov_1h": home_tov_1h,
+        "away_tov_1h": away_tov_1h,
+        "home_fta_1h": home_fta_1h,
+        "away_fta_1h": away_fta_1h,
+        "home_fga2_1h": home_fga2_1h,
+        "away_fga2_1h": away_fga2_1h,
+        "home_fga3_1h": home_fga3_1h,
+        "away_fga3_1h": away_fga3_1h,
+        "home_poss_1h": home_poss_1h,
+        "away_poss_1h": away_poss_1h,
+        "agg": agg,
+    }
+
+
+def _segment_5min_quantiles_from_points(
+    home_pts: np.ndarray,
+    away_pts: np.ndarray,
+    home_1h: np.ndarray,
+    away_1h: np.ndarray,
+    rng: np.random.Generator,
+    seg_probs_half1: Optional[np.ndarray] = None,
+    seg_probs_half2: Optional[np.ndarray] = None,
+    home_stats: Optional[dict[str, np.ndarray]] = None,
+    away_stats: Optional[dict[str, np.ndarray]] = None,
+) -> list[dict]:
+    """Derive 5-minute segment scoring distributions that roll up to 1H/full.
+
+    This is intentionally light-weight: we take the already-simulated team points
+    for 1H and full game and split them into 4x 5-min segments per half using a
+    multinomial allocation. This guarantees that:
+      - segment sums equal 1H and full-game points per sample
+      - segment cumulative at 20 min matches 1H distributions
+    """
+
+    def _to_nonneg_int(x: float) -> int:
+        try:
+            if not np.isfinite(x):
+                return 0
+            return int(max(0, int(np.rint(float(x)))))
+        except Exception:
+            return 0
+
+    home_pts = np.asarray(home_pts, dtype=float)
+    away_pts = np.asarray(away_pts, dtype=float)
+    home_1h = np.asarray(home_1h, dtype=float)
+    away_1h = np.asarray(away_1h, dtype=float)
+    n = int(len(home_pts))
+    if n <= 0 or int(len(away_pts)) != n or int(len(home_1h)) != n or int(len(away_1h)) != n:
+        return []
+
+    def _norm_probs(v: Optional[np.ndarray]) -> np.ndarray:
+        if v is None:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        try:
+            a = np.asarray(v, dtype=float).reshape(-1)
+        except Exception:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        if a.size != 4:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        a = np.where(np.isfinite(a), a, 0.0)
+        a = np.clip(a, 0.0, None)
+        s = float(a.sum())
+        if s <= 0:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        return (a / s).astype(float)
+
+    # 40-minute game in 8 segments of 5 minutes each (4 per half)
+    probs_1h = _norm_probs(seg_probs_half1)
+    probs_2h = _norm_probs(seg_probs_half2)
+
+    home_seg_pts = np.zeros((n, 8), dtype=int)
+    away_seg_pts = np.zeros((n, 8), dtype=int)
+
+    metrics = ["poss", "tov", "fta", "fga2", "fga3"]
+    home_seg_metrics: dict[str, np.ndarray] = {}
+    away_seg_metrics: dict[str, np.ndarray] = {}
+    if home_stats is not None and away_stats is not None:
+        for m in metrics:
+            if (m in home_stats and f"{m}_1h" in home_stats) and (m in away_stats and f"{m}_1h" in away_stats):
+                home_seg_metrics[m] = np.zeros((n, 8), dtype=int)
+                away_seg_metrics[m] = np.zeros((n, 8), dtype=int)
+
+    for i in range(n):
+        h1_pts = _to_nonneg_int(home_1h[i])
+        a1_pts = _to_nonneg_int(away_1h[i])
+        h_full_pts = _to_nonneg_int(home_pts[i])
+        a_full_pts = _to_nonneg_int(away_pts[i])
+
+        h2_pts = max(0, h_full_pts - h1_pts)
+        a2_pts = max(0, a_full_pts - a1_pts)
+
+        home_seg_pts[i, 0:4] = rng.multinomial(h1_pts, probs_1h)
+        away_seg_pts[i, 0:4] = rng.multinomial(a1_pts, probs_1h)
+        home_seg_pts[i, 4:8] = rng.multinomial(h2_pts, probs_2h)
+        away_seg_pts[i, 4:8] = rng.multinomial(a2_pts, probs_2h)
+
+        if home_seg_metrics:
+            for m, hseg in home_seg_metrics.items():
+                full_h = _to_nonneg_int(float(home_stats.get(m)[i]))
+                one_h = _to_nonneg_int(float(home_stats.get(f"{m}_1h")[i]))
+                full_a = _to_nonneg_int(float(away_stats.get(m)[i]))
+                one_a = _to_nonneg_int(float(away_stats.get(f"{m}_1h")[i]))
+
+                two_h = max(0, full_h - one_h)
+                two_a = max(0, full_a - one_a)
+
+                hseg[i, 0:4] = rng.multinomial(one_h, probs_1h)
+                away_seg_metrics[m][i, 0:4] = rng.multinomial(one_a, probs_1h)
+                hseg[i, 4:8] = rng.multinomial(two_h, probs_2h)
+                away_seg_metrics[m][i, 4:8] = rng.multinomial(two_a, probs_2h)
+
+    home_cum = np.cumsum(home_seg_pts, axis=1)
+    away_cum = np.cumsum(away_seg_pts, axis=1)
+    total_cum = home_cum + away_cum
+    margin_cum = home_cum - away_cum
+
+    rows: list[dict] = []
+    for seg_idx in range(8):
+        start_min = int(seg_idx * 5)
+        end_min = int((seg_idx + 1) * 5)
+        half = 1 if seg_idx < 4 else 2
+
+        h_seg = home_seg_pts[:, seg_idx].astype(float)
+        a_seg = away_seg_pts[:, seg_idx].astype(float)
+        t_seg = h_seg + a_seg
+        m_seg = h_seg - a_seg
+
+        h_end = home_cum[:, seg_idx].astype(float)
+        a_end = away_cum[:, seg_idx].astype(float)
+        t_end = total_cum[:, seg_idx].astype(float)
+        m_end = margin_cum[:, seg_idx].astype(float)
+
+        def _q(arr: np.ndarray) -> tuple[float, float, float]:
+            qq = np.quantile(arr, [0.10, 0.50, 0.90])
+            return float(qq[0]), float(qq[1]), float(qq[2])
+
+        q_h_seg = _q(h_seg)
+        q_a_seg = _q(a_seg)
+        q_t_seg = _q(t_seg)
+        q_m_seg = _q(m_seg)
+        q_h_end = _q(h_end)
+        q_a_end = _q(a_end)
+        q_t_end = _q(t_end)
+        q_m_end = _q(m_end)
+
+        extra: dict[str, float] = {}
+        if home_seg_metrics:
+            for m in metrics:
+                if m not in home_seg_metrics:
+                    continue
+                h_m = home_seg_metrics[m][:, seg_idx].astype(float)
+                a_m = away_seg_metrics[m][:, seg_idx].astype(float)
+                t_m = h_m + a_m
+                q_t_m = _q(t_m)
+                extra.update(
+                    {
+                        f"mu_home_{m}_seg": float(np.mean(h_m)),
+                        f"mu_away_{m}_seg": float(np.mean(a_m)),
+                        f"mu_total_{m}_seg": float(np.mean(t_m)),
+                        f"q10_total_{m}_seg": float(q_t_m[0]),
+                        f"q50_total_{m}_seg": float(q_t_m[1]),
+                        f"q90_total_{m}_seg": float(q_t_m[2]),
+                    }
+                )
+
+        rows.append(
+            {
+                "segment": int(seg_idx + 1),
+                "half": int(half),
+                "start_min": int(start_min),
+                "end_min": int(end_min),
+                # Segment points
+                "mu_home_pts_seg": float(np.mean(h_seg)),
+                "mu_away_pts_seg": float(np.mean(a_seg)),
+                "mu_total_pts_seg": float(np.mean(t_seg)),
+                "mu_margin_pts_seg": float(np.mean(m_seg)),
+                "q10_home_pts_seg": q_h_seg[0],
+                "q50_home_pts_seg": q_h_seg[1],
+                "q90_home_pts_seg": q_h_seg[2],
+                "q10_away_pts_seg": q_a_seg[0],
+                "q50_away_pts_seg": q_a_seg[1],
+                "q90_away_pts_seg": q_a_seg[2],
+                "q10_total_pts_seg": q_t_seg[0],
+                "q50_total_pts_seg": q_t_seg[1],
+                "q90_total_pts_seg": q_t_seg[2],
+                "q10_margin_pts_seg": q_m_seg[0],
+                "q50_margin_pts_seg": q_m_seg[1],
+                "q90_margin_pts_seg": q_m_seg[2],
+                # Cumulative score through segment end
+                "mu_home_score_end": float(np.mean(h_end)),
+                "mu_away_score_end": float(np.mean(a_end)),
+                "mu_total_score_end": float(np.mean(t_end)),
+                "mu_margin_score_end": float(np.mean(m_end)),
+                "q10_home_score_end": q_h_end[0],
+                "q50_home_score_end": q_h_end[1],
+                "q90_home_score_end": q_h_end[2],
+                "q10_away_score_end": q_a_end[0],
+                "q50_away_score_end": q_a_end[1],
+                "q90_away_score_end": q_a_end[2],
+                "q10_total_score_end": q_t_end[0],
+                "q50_total_score_end": q_t_end[1],
+                "q90_total_score_end": q_t_end[2],
+                "q10_margin_score_end": q_m_end[0],
+                "q50_margin_score_end": q_m_end[1],
+                "q90_margin_score_end": q_m_end[2],
+                **extra,
+            }
+        )
+
+    return rows
 
 
 def _resolve_mean_total_margin_from_features(row: pd.Series) -> Tuple[Optional[float], Optional[float]]:
@@ -672,10 +1187,14 @@ def simulate_game_row(
     rng: Optional[np.random.Generator] = None,
     mean_source: str = "auto",
     allow_market_guardrails: bool = True,
+    engine: str = "auto",
+    segment_probs_half1: Optional[np.ndarray] = None,
+    segment_probs_half2: Optional[np.ndarray] = None,
 ) -> dict:
     if rng is None:
         rng = np.random.default_rng()
     mean_source_used = (mean_source or "auto").strip().lower() or "auto"
+    engine_used = _resolve_sim_engine(engine, "features" if mean_source_used in {"features", "features_strict", "features-only", "features_only", "features!"} else mean_source_used)
     total_mean, margin_mean = _resolve_mean_total_margin(
         row,
         mean_source=mean_source_used,
@@ -846,6 +1365,198 @@ def simulate_game_row(
     #   - per-team scoring = possessions * PPP + (noise scaled by possessions)
     #   - an additional shared (or anti-shared) shock is used to match the target
     #     covariance implied by (sigma_total, sigma_margin)
+    if engine_used == "events":
+        # Event sim needs a possessions estimate. If we have pace columns but they're
+        # NaN (common early in the day), fall back to a sane default rather than
+        # failing the simulation.
+        if pace_mu is None or pace_mu <= 0:
+            pace_mu = float(DEFAULT_PACE)
+
+        ev = _simulate_events_samples(
+            row=row,
+            samples=int(samples),
+            pace_mu=float(pace_mu),
+            pace_sigma=float(pace_sigma) if pace_sigma is not None else DEFAULT_PACE_SIGMA,
+            half_frac=float(half_frac),
+            mu_home=float(mu_home),
+            mu_away=float(mu_away),
+            rng=rng,
+        )
+        home_pts = ev["home"]
+        away_pts = ev["away"]
+        home_1h = ev["home_1h"]
+        away_1h = ev["away_1h"]
+        totals = home_pts + away_pts
+        margins = home_pts - away_pts
+        totals_1h = home_1h + away_1h
+        margins_1h = home_1h - away_1h
+
+        q10_t = float(np.quantile(totals, 0.10))
+        q50_t = float(np.quantile(totals, 0.50))
+        q90_t = float(np.quantile(totals, 0.90))
+        q10_m = float(np.quantile(margins, 0.10))
+        q50_m = float(np.quantile(margins, 0.50))
+        q90_m = float(np.quantile(margins, 0.90))
+
+        q10_t1 = float(np.quantile(totals_1h, 0.10))
+        q50_t1 = float(np.quantile(totals_1h, 0.50))
+        q90_t1 = float(np.quantile(totals_1h, 0.90))
+        q10_m1 = float(np.quantile(margins_1h, 0.10))
+        q50_m1 = float(np.quantile(margins_1h, 0.50))
+        q90_m1 = float(np.quantile(margins_1h, 0.90))
+
+        # Derive 2H as residual
+        totals_2h = totals - totals_1h
+        margins_2h = margins - margins_1h
+        q10_t2 = float(np.quantile(totals_2h, 0.10))
+        q50_t2 = float(np.quantile(totals_2h, 0.50))
+        q90_t2 = float(np.quantile(totals_2h, 0.90))
+        q10_m2 = float(np.quantile(margins_2h, 0.10))
+        q50_m2 = float(np.quantile(margins_2h, 0.50))
+        q90_m2 = float(np.quantile(margins_2h, 0.90))
+
+        market_total = _resolve_market_total(row)
+        p_over_market = float(np.mean(totals > market_total)) if market_total is not None else None
+        market_total_1h = _resolve_market_total_1h(row)
+        p_over_market_1h = float(np.mean(totals_1h > market_total_1h)) if market_total_1h is not None else None
+
+        spread_home_1h = _resolve_spread_home_1h(row)
+        p_cover_home_1h = float(np.mean(margins_1h + float(spread_home_1h) > 0)) if spread_home_1h is not None else None
+
+        spread_home = None
+        try:
+            for scol in ["spread_home", "closing_spread_home", "home_spread"]:
+                if scol in row and pd.notna(row[scol]):
+                    spread_home = float(row[scol])
+                    break
+        except Exception:
+            spread_home = None
+        p_cover_home = float(np.mean(margins + float(spread_home) > 0)) if spread_home is not None else None
+
+        try:
+            p_home_win = float(np.mean(margins > 0))
+        except Exception:
+            p_home_win = None
+        try:
+            p_home_win_1h = float(np.mean(margins_1h > 0))
+        except Exception:
+            p_home_win_1h = None
+
+        sigma_total_s = float(max(1e-6, float(np.std(totals, ddof=1))))
+        sigma_margin_s = float(max(1e-6, float(np.std(margins, ddof=1))))
+        sigma_total_1h_s = float(max(1e-6, float(np.std(totals_1h, ddof=1))))
+        sigma_margin_1h_s = float(max(1e-6, float(np.std(margins_1h, ddof=1))))
+        sigma_total_2h_s = float(max(1e-6, float(np.std(totals_2h, ddof=1))))
+        sigma_margin_2h_s = float(max(1e-6, float(np.std(margins_2h, ddof=1))))
+
+        segment_rows = _segment_5min_quantiles_from_points(
+            home_pts=home_pts,
+            away_pts=away_pts,
+            home_1h=home_1h,
+            away_1h=away_1h,
+            seg_probs_half1=segment_probs_half1,
+            seg_probs_half2=segment_probs_half2,
+            home_stats={
+                "poss": ev.get("home_poss"),
+                "tov": ev.get("home_tov"),
+                "fta": ev.get("home_fta"),
+                "fga2": ev.get("home_fga2"),
+                "fga3": ev.get("home_fga3"),
+                "poss_1h": ev.get("home_poss_1h"),
+                "tov_1h": ev.get("home_tov_1h"),
+                "fta_1h": ev.get("home_fta_1h"),
+                "fga2_1h": ev.get("home_fga2_1h"),
+                "fga3_1h": ev.get("home_fga3_1h"),
+            },
+            away_stats={
+                "poss": ev.get("away_poss"),
+                "tov": ev.get("away_tov"),
+                "fta": ev.get("away_fta"),
+                "fga2": ev.get("away_fga2"),
+                "fga3": ev.get("away_fga3"),
+                "poss_1h": ev.get("away_poss_1h"),
+                "tov_1h": ev.get("away_tov_1h"),
+                "fta_1h": ev.get("away_fta_1h"),
+                "fga2_1h": ev.get("away_fga2_1h"),
+                "fga3_1h": ev.get("away_fga3_1h"),
+            },
+            rng=rng,
+        )
+
+        poss_mu_used = float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))
+        return {
+            "sim_ok": True,
+            "sim_method": "events",
+            "sim_engine": "events",
+            "mean_source": (mean_source or "auto"),
+            "mean_source_used": mean_source_used,
+            "pace_mu": poss_mu_used,
+            "pace_sigma": float(pace_sigma) if pace_sigma is not None else DEFAULT_PACE_SIGMA,
+            "rho_used": None,
+            "sigma_total": sigma_total_s,
+            "sigma_margin": sigma_margin_s,
+            "mu_home": float(np.mean(home_pts)),
+            "mu_away": float(np.mean(away_pts)),
+            "ppp_home_mu": float(np.mean(home_pts)) / float(max(poss_mu_used, 1e-6)),
+            "ppp_away_mu": float(np.mean(away_pts)) / float(max(poss_mu_used, 1e-6)),
+            "cov_target": None,
+            "cov_from_possessions": None,
+            "cov_residual": None,
+            "mu_total": float(np.mean(totals)),
+            "mu_margin": float(np.mean(margins)),
+            "q10_total": q10_t,
+            "q50_total": q50_t,
+            "q90_total": q90_t,
+            "q10_margin": q10_m,
+            "q50_margin": q50_m,
+            "q90_margin": q90_m,
+            "pace_mu_1h": float(poss_mu_used) * float(half_frac),
+            "pace_sigma_1h": float((pace_sigma if pace_sigma is not None else DEFAULT_PACE_SIGMA) * float(np.sqrt(max(half_frac, 1e-6)))),
+            "sigma_total_1h": sigma_total_1h_s,
+            "sigma_margin_1h": sigma_margin_1h_s,
+            "mu_home_1h": float(np.mean(home_1h)),
+            "mu_away_1h": float(np.mean(away_1h)),
+            "mu_total_1h": float(np.mean(totals_1h)),
+            "mu_margin_1h": float(np.mean(margins_1h)),
+            "q10_total_1h": q10_t1,
+            "q50_total_1h": q50_t1,
+            "q90_total_1h": q90_t1,
+            "q10_margin_1h": q10_m1,
+            "q50_margin_1h": q50_m1,
+            "q90_margin_1h": q90_m1,
+            "sigma_total_2h": sigma_total_2h_s,
+            "sigma_margin_2h": sigma_margin_2h_s,
+            "mu_total_2h": float(np.mean(totals_2h)),
+            "mu_margin_2h": float(np.mean(margins_2h)),
+            "q10_total_2h": q10_t2,
+            "q50_total_2h": q50_t2,
+            "q90_total_2h": q90_t2,
+            "q10_margin_2h": q10_m2,
+            "q50_margin_2h": q50_m2,
+            "q90_margin_2h": q90_m2,
+            "p_over_market_1h": p_over_market_1h,
+            "market_total_1h": market_total_1h,
+            "p_cover_home_1h": p_cover_home_1h,
+            "spread_home_1h": spread_home_1h,
+            "p_over_market": p_over_market,
+            "market_total": market_total,
+            "p_cover_home": p_cover_home,
+            "spread_home": spread_home,
+            "p_home_win": p_home_win,
+            "p_home_win_1h": p_home_win_1h,
+            "override_delta_total": float(applied.get("delta_total", 0.0)) if applied else 0.0,
+            "override_delta_margin": float(applied.get("delta_margin", 0.0)) if applied else 0.0,
+            "override_sigma_total_mult": float(applied.get("sigma_total_mult", 1.0)) if applied else 1.0,
+            "override_sigma_margin_mult": float(applied.get("sigma_margin_mult", 1.0)) if applied else 1.0,
+            "override_pace_mult": float(applied.get("pace_mult", 1.0)) if applied else 1.0,
+            "calib_delta_total": float(calib_applied.get("delta_total", 0.0)) if calib_applied else 0.0,
+            "calib_delta_margin": float(calib_applied.get("delta_margin", 0.0)) if calib_applied else 0.0,
+            "calib_sigma_total_mult": float(calib_applied.get("sigma_total_mult", 1.0)) if calib_applied else 1.0,
+            "calib_sigma_margin_mult": float(calib_applied.get("sigma_margin_mult", 1.0)) if calib_applied else 1.0,
+            "_segments_rows": segment_rows,
+            **{f"event_{k}": v for k, v in (ev.get("agg") or {}).items()},
+        }
+
     if use_pace and pace_mu is not None and pace_mu > 0:
         def _sim_half_from_possessions(
             poss_half: np.ndarray,
@@ -1322,7 +2033,8 @@ def run_simulations_for_date(out_dir: Path, date: str,
                              injuries_path: Optional[Path] = None,
                              seed: Optional[int] = None,
                              mean_source: str = "auto",
-                             allow_market_guardrails: bool = True) -> Path:
+                             allow_market_guardrails: bool = True,
+                             engine: str = "auto") -> Path:
     out_dir = Path(out_dir)
     # Simulation inputs default to the unified enriched rows for a given date.
     # Those rows carry the market-derived mean total + spread-derived margin plus
@@ -1365,16 +2077,227 @@ def run_simulations_for_date(out_dir: Path, date: str,
         # Predictable default: stable seed per date.
         seed = _stable_u32_from_str(f"date:{date}")
 
+    if engine is None or str(engine).strip() == "":
+        engine = "auto"
+    try:
+        import os
+        env_engine = (os.environ.get("NCAAB_SIM_ENGINE") or "").strip()
+        if env_engine:
+            engine = env_engine
+    except Exception:
+        pass
+
+    used_fallback_preds = False
     if not preds_path.exists():
-        raise FileNotFoundError(f"Predictions file not found: {preds_path}")
+        # Backtest/regeneration robustness: historical runs may not have the
+        # full unified-enriched file persisted, but will often still have the
+        # unified predictions artifact for that date.
+        if preds_path == enr_path:
+            fallback_candidates = [
+                out_dir / f"predictions_unified_{date}.csv",
+                out_dir / f"predictions_enriched_{date}.csv",
+                out_dir / f"predictions_{date}.csv",
+            ]
+            alt = next((p for p in fallback_candidates if p.exists()), None)
+            if alt is not None:
+                preds_path = alt
+                used_fallback_preds = True
+            else:
+                raise FileNotFoundError(
+                    f"Predictions file not found: {enr_path} (also tried {', '.join(str(p) for p in fallback_candidates)})"
+                )
+        else:
+            raise FileNotFoundError(f"Predictions file not found: {preds_path}")
 
     preds = pd.read_csv(preds_path)
     if "date" in preds.columns:
         preds = preds[preds["date"].astype(str) == str(date)]
 
+    # If we had to fall back, persist a copy at the expected path so downstream
+    # tooling (and future runs) can find it.
+    if used_fallback_preds and preds_path != enr_path:
+        try:
+            preds.to_csv(enr_path, index=False)
+        except Exception:
+            pass
+
     # Normalize id dtype for stable merges/output
     if "game_id" in preds.columns:
         preds["game_id"] = preds["game_id"].map(_to_game_id_str)
+
+    # Enrich with per-team features when available (drives feature-based/event sims)
+    tf_path = out_dir / "team_features.csv"
+    if tf_path.exists() and {"home_team", "away_team"}.issubset(preds.columns):
+        try:
+            tf = pd.read_csv(tf_path)
+            if "date" in tf.columns:
+                tf = tf[tf["date"].astype(str) == str(date)]
+            if "team" in tf.columns:
+                tf["_team_norm"] = tf["team"].map(_norm_team_key)
+            preds["_home_norm"] = preds["home_team"].map(_norm_team_key)
+            preds["_away_norm"] = preds["away_team"].map(_norm_team_key)
+
+            keep_tf = [
+                "_team_norm",
+                "season_off_ppg",
+                "season_def_ppg",
+                "season_margin_std",
+                "season_total_std",
+                "rest_days",
+                "back_to_back",
+                "ewm_off_ppg",
+                "ewm_def_ppg",
+                "ewm_margin_avg",
+            ]
+            keep_tf = [c for c in keep_tf if c in tf.columns]
+            tf_small = tf[keep_tf].drop_duplicates(subset=["_team_norm"]) if keep_tf else None
+            if tf_small is not None and not tf_small.empty:
+                home_tf = tf_small.rename(columns={c: f"home_team_{c}" for c in tf_small.columns if c != "_team_norm"})
+                home_tf["_home_norm"] = tf_small["_team_norm"].values
+                away_tf = tf_small.rename(columns={c: f"away_team_{c}" for c in tf_small.columns if c != "_team_norm"})
+                away_tf["_away_norm"] = tf_small["_team_norm"].values
+                preds = preds.merge(home_tf, on="_home_norm", how="left")
+                preds = preds.merge(away_tf, on="_away_norm", how="left")
+
+            # Derive PPP-style columns expected by the feature-only mean constructor.
+            # Use the best available possession estimate.
+            poss = None
+            for c in ["pace_game_est", "possessions_game_est"]:
+                if c in preds.columns:
+                    poss = pd.to_numeric(preds[c], errors="coerce")
+                    break
+            if poss is None:
+                ph = pd.to_numeric(preds.get("possessions_home_est"), errors="coerce")
+                pa = pd.to_numeric(preds.get("possessions_away_est"), errors="coerce")
+                if ph is not None and pa is not None:
+                    poss = (ph + pa) / 2.0
+            if poss is not None:
+                poss = poss.clip(lower=PACE_MIN, upper=PACE_MAX)
+
+                def _pick_ppg(prefix: str, which: str) -> pd.Series:
+                    for k in [f"{prefix}_ewm_{which}", f"{prefix}_season_{which}"]:
+                        if k in preds.columns:
+                            return pd.to_numeric(preds[k], errors="coerce")
+                    return pd.Series(np.nan, index=preds.index)
+
+                home_off = _pick_ppg("home_team", "off_ppg")
+                away_off = _pick_ppg("away_team", "off_ppg")
+                home_def = _pick_ppg("home_team", "def_ppg")
+                away_def = _pick_ppg("away_team", "def_ppg")
+
+                # PPP means
+                preds["home_ppp_mu"] = (home_off / poss).clip(lower=0.75, upper=1.35)
+                preds["away_ppp_mu"] = (away_off / poss).clip(lower=0.75, upper=1.35)
+                preds["home_ppp_allowed_mu"] = (home_def / poss).clip(lower=0.75, upper=1.35)
+                preds["away_ppp_allowed_mu"] = (away_def / poss).clip(lower=0.75, upper=1.35)
+        except Exception:
+            pass
+
+    # Derive rolling event-rate features from historical boxscores when available.
+    # This feeds the event-driven simulator with empirical TO/3P/FTA distributions.
+    try:
+        import os
+        from src.augment_features import augment_boxscores
+
+        lookback_games = 15
+        try:
+            lg = (os.environ.get("NCAAB_SIM_EVENT_LOOKBACK_GAMES") or "").strip()
+            if lg:
+                lookback_games = int(lg)
+        except Exception:
+            lookback_games = 15
+        lookback_games = int(np.clip(lookback_games, 5, 60))
+
+        bs_path = None
+        for cand in [out_dir / "boxscores.csv", out_dir / "boxscores_last2.csv"]:
+            if cand.exists():
+                bs_path = cand
+                break
+
+        if bs_path is not None and {"home_team", "away_team"}.issubset(preds.columns):
+            bs = pd.read_csv(bs_path)
+            if "date" in bs.columns:
+                bs["date"] = pd.to_datetime(bs["date"], errors="coerce")
+            aug = augment_boxscores(bs)
+            if not aug.empty and "date" in aug.columns:
+                aug["date"] = pd.to_datetime(aug["date"], errors="coerce")
+                cutoff = pd.to_datetime(date, errors="coerce")
+                if pd.notna(cutoff):
+                    # IMPORTANT: avoid same-day leakage. When simulating date D,
+                    # only use boxscores strictly before D.
+                    aug = aug[aug["date"] < cutoff]
+
+            def _longify(side: str) -> pd.DataFrame:
+                cols = {
+                    "team": f"{side}_team",
+                    "pace": f"{side}_pace",
+                    "to_rate": f"{side}_to_rate",
+                    "3p_rate": f"{side}_3p_rate",
+                    "fta_rate": f"{side}_fta_rate",
+                }
+                base_cols = ["date", "home_team", "away_team"]
+                use = [c for c in base_cols if c in aug.columns]
+                for k in cols.values():
+                    if k in aug.columns:
+                        use.append(k)
+                sub = aug[use].copy() if use else pd.DataFrame()
+                if sub.empty or cols["team"] not in sub.columns:
+                    return pd.DataFrame()
+                out = pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(sub.get("date"), errors="coerce"),
+                        "team": sub[cols["team"]].map(_norm_team_key),
+                        "pace": pd.to_numeric(sub.get(cols["pace"]), errors="coerce"),
+                        "to_rate": pd.to_numeric(sub.get(cols["to_rate"]), errors="coerce"),
+                        "three_rate": pd.to_numeric(sub.get(cols["3p_rate"]), errors="coerce"),
+                        "fta_rate": pd.to_numeric(sub.get(cols["fta_rate"]), errors="coerce"),
+                    }
+                )
+                return out.dropna(subset=["team"]).copy()
+
+            long = pd.concat([_longify("home"), _longify("away")], ignore_index=True)
+            if not long.empty:
+                long = long.sort_values(["team", "date"])
+                def _tail_mean(g: pd.DataFrame) -> pd.Series:
+                    gg = g.tail(lookback_games)
+                    return pd.Series(
+                        {
+                            "event_pace": float(pd.to_numeric(gg["pace"], errors="coerce").dropna().mean()) if "pace" in gg.columns else np.nan,
+                            "event_to_rate": float(pd.to_numeric(gg["to_rate"], errors="coerce").dropna().mean()) if "to_rate" in gg.columns else np.nan,
+                            "event_3p_rate": float(pd.to_numeric(gg["three_rate"], errors="coerce").dropna().mean()) if "three_rate" in gg.columns else np.nan,
+                            "event_fta_rate": float(pd.to_numeric(gg["fta_rate"], errors="coerce").dropna().mean()) if "fta_rate" in gg.columns else np.nan,
+                            "event_games": int(len(gg)),
+                        }
+                    )
+
+                team_rates = long.groupby("team", dropna=True).apply(_tail_mean).reset_index()
+                preds["_home_norm"] = preds["home_team"].map(_norm_team_key)
+                preds["_away_norm"] = preds["away_team"].map(_norm_team_key)
+
+                h = team_rates.rename(
+                    columns={
+                        "team": "_home_norm",
+                        "event_pace": "home_team_event_pace",
+                        "event_to_rate": "home_team_event_to_rate",
+                        "event_3p_rate": "home_team_event_3p_rate",
+                        "event_fta_rate": "home_team_event_fta_rate",
+                        "event_games": "home_team_event_games",
+                    }
+                )
+                a = team_rates.rename(
+                    columns={
+                        "team": "_away_norm",
+                        "event_pace": "away_team_event_pace",
+                        "event_to_rate": "away_team_event_to_rate",
+                        "event_3p_rate": "away_team_event_3p_rate",
+                        "event_fta_rate": "away_team_event_fta_rate",
+                        "event_games": "away_team_event_games",
+                    }
+                )
+                preds = preds.merge(h, on="_home_norm", how="left")
+                preds = preds.merge(a, on="_away_norm", how="left")
+    except Exception:
+        pass
 
     # If we still don't have team metadata, try games_<date>.csv.
     if ("home_team" not in preds.columns or "away_team" not in preds.columns) and games_path.exists():
@@ -1621,6 +2544,42 @@ def run_simulations_for_date(out_dir: Path, date: str,
 
     # Simulate per row
     results = []
+    segment_rows_all: list[dict] = []
+
+    # Optional tuned 5-min segment weights (probabilities for 4 segments per half)
+    seg_probs_half1 = None
+    seg_probs_half2 = None
+    try:
+        import os
+
+        wpath = (os.environ.get("NCAAB_SEGMENT_WEIGHTS_PATH") or "").strip()
+        candidates: list[Path] = []
+        if wpath:
+            try:
+                candidates.append(Path(wpath))
+            except Exception:
+                pass
+        candidates.extend([Path(out_dir) / "segment_weights.json", Path("data") / "segment_weights.json"])
+
+        wobj = None
+        for p in candidates:
+            try:
+                if p.exists():
+                    wobj = json.loads(p.read_text(encoding="utf-8"))
+                    break
+            except Exception:
+                continue
+
+        if isinstance(wobj, dict):
+            h1 = wobj.get("half1")
+            h2 = wobj.get("half2")
+            if isinstance(h1, list) and len(h1) == 4:
+                seg_probs_half1 = np.asarray(h1, dtype=float)
+            if isinstance(h2, list) and len(h2) == 4:
+                seg_probs_half2 = np.asarray(h2, dtype=float)
+    except Exception:
+        seg_probs_half1 = None
+        seg_probs_half2 = None
     id_col, home_col, away_col = _resolve_keys(preds)
     for _, r in preds.iterrows():
 
@@ -1648,7 +2607,30 @@ def run_simulations_for_date(out_dir: Path, date: str,
             rng=rng,
             mean_source=mean_source,
             allow_market_guardrails=allow_market_guardrails,
+            engine=engine,
+            segment_probs_half1=seg_probs_half1,
+            segment_probs_half2=seg_probs_half2,
         )
+
+        seg_rows = None
+        try:
+            seg_rows = sim_res.pop("_segments_rows", None)
+        except Exception:
+            seg_rows = None
+
+        if seg_rows:
+            base_seg = {
+                "date": date,
+                "game_id": gid_s,
+                "home_team": r.get("home_team") if "home_team" in preds.columns else r.get(home_col),
+                "away_team": r.get("away_team") if "away_team" in preds.columns else r.get(away_col),
+                "start_time_local": r.get("start_time_local"),
+                "start_time_iso": r.get("start_time_iso"),
+                "start_tz_abbr": r.get("start_tz_abbr"),
+            }
+            for sr in seg_rows:
+                if isinstance(sr, dict):
+                    segment_rows_all.append({**base_seg, **sr})
         out = {
             "date": date,
             "game_id": gid_s,
@@ -1686,6 +2668,18 @@ def run_simulations_for_date(out_dir: Path, date: str,
     except Exception:
         pass
     sim_df.to_csv(out_path, index=False, na_rep="")
+
+    if segment_rows_all:
+        try:
+            seg_df = pd.DataFrame(segment_rows_all)
+            seg_path = out_dir / f"sim_segments_{date}.csv"
+            try:
+                seg_df = seg_df.replace([np.inf, -np.inf], np.nan)
+            except Exception:
+                pass
+            seg_df.to_csv(seg_path, index=False, na_rep="")
+        except Exception:
+            pass
 
     try:
         meta_path = out_dir / f"sim_meta_{date}.json"
