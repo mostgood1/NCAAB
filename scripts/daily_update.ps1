@@ -1447,7 +1447,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
         try {
           $stagedRel = git diff --name-only --cached
           $allowedRel = @()
-          $repoRootFull = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\\','/')
+          $repoRootFull = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\','/')
           function Get-RelPath {
             param([string]$Full)
             if (-not $Full) { return $null }
@@ -1455,7 +1455,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
             $r1 = $repoRootFull.ToLowerInvariant()
             $r2 = $full2.ToLowerInvariant()
             if ($r2.StartsWith($r1)) {
-              return ($full2.Substring($repoRootFull.Length)).TrimStart('\\','/') -replace '\\', '/'
+              return ($full2.Substring($repoRootFull.Length)).TrimStart('\','/') -replace '\\', '/'
             }
             return ($full2 -replace '\\', '/').Trim()
           }

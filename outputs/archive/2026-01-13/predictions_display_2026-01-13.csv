@@ -35,5 +35,5 @@ game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_
 401829201,San Francisco Dons,Saint Mary's Gaels,149.43978881835938,-19.94362068176269,cal,blend,0.0,,,,2026-01-13 22:00,2026-01-13 22:00
 401823823,UNLV Rebels,Boise State Broncos,145.41046142578125,-2.048463821411133,cal,blend,0.0,,,,2026-01-13 22:00,2026-01-13 22:00
 synthetic:iowastate::syracuse@2026-01-13,Syracuse Orange,Iowa State Cyclones,305.37267,0.0,cal,cal,,,,,,
-synthetic:towson::ucsandiegotritons@2026-01-13,Towson Tigers,UC San Diego Tritons,307.77765999999997,0.0,cal,cal,,,,,,
-synthetic:stfrancisparedflash::troytrojans@2026-01-13,Troy Trojans,Saint Francis (PA) Red Flash,306.85659999999996,0.0,cal,cal,,,,,,
+synthetic:towson::ucsandiegotritons@2026-01-13,Towson Tigers,UC San Diego Tritons,307.77766,0.0,cal,cal,,,,,,
+synthetic:stfrancisparedflash::troytrojans@2026-01-13,Troy Trojans,Saint Francis (PA) Red Flash,306.8566,0.0,cal,cal,,,,,,
