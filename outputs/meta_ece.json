@@ -1,20 +1,20 @@
 {
   "brier_cover_cal": null,
   "brier_cover_raw": null,
-  "brier_over_cal": 0.0001582025103137612,
-  "brier_over_raw": 0.13341131325377006,
+  "brier_over_cal": 0.00017310327872085507,
+  "brier_over_raw": 0.1376463934250381,
   "ece_cover_cal": null,
   "ece_cover_raw": null,
-  "ece_over_cal": 0.004984983408572181,
-  "ece_over_raw": 0.19038818636086502,
+  "ece_over_cal": 0.005422221884925798,
+  "ece_over_raw": 0.19647305388499867,
   "p_col_cover_cal": "p_home_cover_meta_cal",
   "p_col_cover_raw": "p_home_cover_meta",
   "p_col_over_cal": "p_over_meta_cal",
   "p_col_over_raw": "p_over_meta",
   "rows_cover_cal": 0,
   "rows_cover_raw": 0,
-  "rows_over_cal": 254,
-  "rows_over_raw": 715,
+  "rows_over_cal": 232,
+  "rows_over_raw": 693,
   "status": "ok",
-  "timestamp_utc": "2026-01-18T22:58:30.167425"
+  "timestamp_utc": "2026-01-19T14:04:56.000048"
 }

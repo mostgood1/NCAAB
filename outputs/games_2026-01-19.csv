@@ -1,0 +1,42 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401812018,2026,2026-01-19,2026-01-19 16:00:00+00:00,2026-01-19 11:00,EST,Monmouth Hawks,Northeastern Huskies,0,0,,,,,False,OceanFirst Bank Center
+401812391,2026,2026-01-19,2026-01-19 17:00:00+00:00,2026-01-19 12:00,EST,Saint Francis Red Flash,Stonehill Skyhawks,0,0,,,,,False,DeGol Arena
+401812125,2026,2026-01-19,2026-01-19 18:00:00+00:00,2026-01-19 13:00,EST,UAlbany Great Danes,Vermont Catamounts,0,0,,,,,False,Broadview Center
+401812019,2026,2026-01-19,2026-01-19 18:00:00+00:00,2026-01-19 13:00,EST,Towson Tigers,Drexel Dragons,0,0,,,,,False,SECU Arena
+401823848,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Saint Peter's Peacocks,Iona Gaels,0,0,,,,,False,Yanitelli Center
+401823732,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Rider Broncs,Sacred Heart Pioneers,0,0,,,,,False,Alumni Gymnasium (Rider)
+401818559,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Brown Bears,Cornell Big Red,0,0,,,,,False,Pizzitola Sports Center
+401818310,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Yale Bulldogs,Columbia Lions,0,0,,,,,False,John J. Lee Amphitheater
+401813426,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Siena Saints,Fairfield Stags,0,0,,,,,False,MVP Arena
+401813387,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Niagara Purple Eagles,Mount St. Mary's Mountaineers,0,0,,,,,False,Gallagher Center
+401813334,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Marist Red Foxes,Merrimack Warriors,0,0,,,,,False,McCann Arena
+401813313,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Quinnipiac Bobcats,Manhattan Jaspers,0,0,,,,,False,M&T Bank Arena
+401812654,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Mercyhurst Lakers,Central Connecticut Blue Devils,0,0,,,,,False,Mercyhurst Athletic Center
+401812588,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Harvard Crimson,Pennsylvania Quakers,0,0,,,,,False,Lavietes Pavilion
+401812320,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Fairleigh Dickinson Knights,Wagner Seahawks,0,0,,,,,False,Bogota Savings Bank Center
+401812124,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Maine Black Bears,New Hampshire Wildcats,0,0,,,,,False,Skip Chappelle Court in Memorial Gymnasium
+401812123,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,Binghamton Bearcats,UMBC Retrievers,0,0,,,,,False,Events Center (Binghamton)
+401812122,2026,2026-01-19,2026-01-19 19:00:00+00:00,2026-01-19 14:00,EST,NJIT Highlanders,Bryant Bulldogs,0,0,,,,,False,Joel & Diane Bloom Wellness and Events Center
+401828381,2026,2026-01-19,2026-01-19 20:00:00+00:00,2026-01-19 15:00,EST,VCU Rams,Saint Joseph's Hawks,0,0,,,,,False,Siegel Center
+401827051,2026,2026-01-19,2026-01-19 20:00:00+00:00,2026-01-19 15:00,EST,Alcorn State Braves,Prairie View A&M Panthers,0,0,,,,,False,Davey L. Whitney Complex
+401812339,2026,2026-01-19,2026-01-19 20:00:00+00:00,2026-01-19 15:00,EST,Le Moyne Dolphins,Long Island University Sharks,0,0,,,,,False,Ted Grant Court
+401830241,2026,2026-01-19,2026-01-19 21:00:00+00:00,2026-01-19 16:00,EST,Howard Bison,Morehouse Maroon Tigers,0,0,,,,,False,Burr Gymnasium
+401808878,2026,2026-01-19,2026-01-19 21:00:00+00:00,2026-01-19 16:00,EST,Texas A&M-Corpus Christi Islanders,McNeese Cowboys,0,0,,,,,False,American Bank Center
+401828380,2026,2026-01-19,2026-01-19 22:00:00+00:00,2026-01-19 17:00,EST,George Mason Patriots,George Washington Revolutionaries,0,0,,,,,False,EagleBank Arena
+401827163,2026,2026-01-19,2026-01-19 22:00:00+00:00,2026-01-19 17:00,EST,Alabama State Hornets,Alabama A&M Bulldogs,0,0,,,,,True,Mitchell Center
+401826865,2026,2026-01-19,2026-01-19 23:00:00+00:00,2026-01-19 18:00,EST,Dartmouth Big Green,Princeton Tigers,0,0,,,,,False,Leede Arena
+401822907,2026,2026-01-19,2026-01-19 23:00:00+00:00,2026-01-19 18:00,EST,Marquette Golden Eagles,Providence Friars,0,0,,,,,False,Fiserv Forum
+401808711,2026,2026-01-19,2026-01-19 23:00:00+00:00,2026-01-19 18:00,EST,Incarnate Word Cardinals,East Texas A&M Lions,0,0,,,,,False,McDermott Center
+401827141,2026,2026-01-19,2026-01-19 23:30:00+00:00,2026-01-19 18:30,EST,Arkansas-Pine Bluff Golden Lions,Bethune-Cookman Wildcats,0,0,,,,,False,H.O. Clemmons Arena
+401828727,2026,2026-01-19,2026-01-20 00:00:00+00:00,2026-01-19 19:00,EST,Norfolk State Spartans,Elizabeth City State Vikings,0,0,,,,,False,Joseph G. Echols Hall
+401822348,2026,2026-01-19,2026-01-20 00:00:00+00:00,2026-01-19 19:00,EST,Chicago State Cougars,New Haven Chargers,0,0,,,,,False,Jones Convocation Center
+401820199,2026,2026-01-19,2026-01-20 00:00:00+00:00,2026-01-19 19:00,EST,Lehigh Mountain Hawks,Loyola Maryland Greyhounds,0,0,,,,,False,Stabler Arena
+401808959,2026,2026-01-19,2026-01-20 00:30:00+00:00,2026-01-19 19:30,EST,UT Rio Grande Valley Vaqueros,SE Louisiana Lions,0,0,,,,,False,UTRGV Fieldhouse
+401808924,2026,2026-01-19,2026-01-20 00:30:00+00:00,2026-01-19 19:30,EST,Nicholls Colonels,Stephen F. Austin Lumberjacks,0,0,,,,,False,David R. Stopher Gymnasium
+401830344,2026,2026-01-19,2026-01-20 01:00:00+00:00,2026-01-19 20:00,EST,Mississippi Valley State Delta Devils,Florida A&M Rattlers,0,0,,,,,False,R.W. Harrison HPER Complex
+401828664,2026,2026-01-19,2026-01-20 01:00:00+00:00,2026-01-19 20:00,EST,Jackson State Tigers,Texas Southern Tigers,0,0,,,,,False,Lee E. Williams Athletics and Assembly Center
+401808940,2026,2026-01-19,2026-01-20 01:00:00+00:00,2026-01-19 20:00,EST,Houston Christian Huskies,Northwestern State Demons,0,0,,,,,False,Sharp Gymnasium
+401808908,2026,2026-01-19,2026-01-20 01:00:00+00:00,2026-01-19 20:00,EST,New Orleans Privateers,Lamar Cardinals,0,0,,,,,False,Lakefront Arena
+401808515,2026,2026-01-19,2026-01-20 01:00:00+00:00,2026-01-19 20:00,EST,Northern Colorado Bears,Montana State Bobcats,0,0,,,,,False,Bank of Colorado Arena
+401808504,2026,2026-01-19,2026-01-20 01:00:00+00:00,2026-01-19 20:00,EST,Northern Arizona Lumberjacks,Montana Grizzlies,0,0,,,,,False,J. Lawrence Walkup Skydome
+401812023,2026,2026-01-19,2026-01-20 02:00:00+00:00,2026-01-19 21:00,EST,Hampton Pirates,North Carolina A&T Aggies,0,0,,,,,False,Convocation Center (VA)
