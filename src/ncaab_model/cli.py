@@ -554,6 +554,132 @@ def tune_segment_weights_5min(
         print(f"[red]tune-segment-weights-5min failed:[/red] {e}")
         raise typer.Exit(code=1)
 
+
+@app.command(name="fit-segment-bias-5min")
+def fit_segment_bias_5min(
+    backtest_csv: Path = typer.Option(..., help="Path to outputs/backtests/segments_5min_<start>_to_<end>.csv"),
+    out: Path = typer.Option(settings.outputs_dir / "segment_bias_5min.json", help="Output JSON path"),
+    start: str = typer.Option(None, help="Optional start date YYYY-MM-DD to filter rows"),
+    end: str = typer.Option(None, help="Optional end date YYYY-MM-DD to filter rows"),
+):
+    """Fit additive bias correction for cumulative 5-minute endpoints.
+
+    Writes a JSON mapping of end_min -> mean(pred_q50 - actual_total).
+    If present at outputs/segment_bias_5min.json, the simulator will apply this
+    correction when writing sim_segments_<date>.csv.
+    """
+    try:
+        from src.backtests.segments_5min_bias_fit import FitSegments5MinBiasConfig, fit_segments_5min_bias
+
+        cfg = FitSegments5MinBiasConfig(
+            backtest_csv=Path(backtest_csv),
+            out_path=Path(out),
+            start=str(start) if start else None,
+            end=str(end) if end else None,
+        )
+        res = fit_segments_5min_bias(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]fit-segment-bias-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="fit-segment-calibration-5min")
+def fit_segment_calibration_5min(
+    backtest_csv: Path = typer.Option(..., help="Path to outputs/backtests/segments_5min_<start>_to_<end>.csv"),
+    out: Path = typer.Option(settings.outputs_dir / "segment_calibration_5min.json", help="Output JSON path"),
+    start: str = typer.Option(None, help="Optional start date YYYY-MM-DD to filter rows"),
+    end: str = typer.Option(None, help="Optional end date YYYY-MM-DD to filter rows"),
+    pred_col: str = typer.Option("pred_q50", help="Prediction column to calibrate (default pred_q50)"),
+    min_a: float = typer.Option(0.35, help="Minimum slope a per endpoint"),
+    max_a: float = typer.Option(1.30, help="Maximum slope a per endpoint"),
+    min_rows_per_end_min: int = typer.Option(250, help="Minimum rows per end_min to fit a,b"),
+):
+    """Fit affine calibration for cumulative 5-minute endpoints (per end_min).
+
+    Fits actual_total ~= a*pred + b separately for each end_min using least squares.
+    If present at outputs/segment_calibration_5min.json, the simulator will apply this
+    correction when writing sim_segments_<date>.csv.
+    """
+    try:
+        from src.backtests.segments_5min_calibration_fit import (
+            FitSegments5MinCalibrationConfig,
+            fit_segments_5min_calibration,
+        )
+
+        cfg = FitSegments5MinCalibrationConfig(
+            backtest_csv=Path(backtest_csv),
+            out_path=Path(out),
+            start=str(start) if start else None,
+            end=str(end) if end else None,
+            pred_col=str(pred_col),
+            min_a=float(min_a),
+            max_a=float(max_a),
+            min_rows_per_end_min=int(min_rows_per_end_min),
+        )
+        res = fit_segments_5min_calibration(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]fit-segment-calibration-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="profile-late-game-2min")
+def profile_late_game_2min(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive) to filter cached ESPN summaries"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (inclusive) to filter cached ESPN summaries"),
+    out_prefix: str = typer.Option("late_game_2min_profile", help="Outputs/backtests/<prefix>_<start>_to_<end>.*"),
+):
+    """Profile last-2-minute (2H) scoring from cached ESPN summary play-by-play.
+
+    Reads data/cache/espn_summary/*.json, extracts the score at the start of the last
+    2:00 of regulation (2H) and the final regulation score, then reports last-2-minute
+    points as a function of the 2:00 margin.
+
+    This is intended to tune end-game clock/fouling heuristics in the possession-timeline
+    5-minute segmentation for the events engine.
+    """
+    try:
+        from src.backtests.late_game_profile_2min import default_config, run_late_game_2min_profile
+
+        cfg = default_config(start=str(start) if start else None, end=str(end) if end else None, out_prefix=str(out_prefix))
+        res = run_late_game_2min_profile(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]profile-late-game-2min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="sweep-late-game-2min")
+def sweep_late_game_2min(
+    empirical_profile_json: Path = typer.Option(
+        None,
+        help="Empirical profile JSON from profile-late-game-2min (defaults to the holdout artifact if present)",
+    ),
+    out_prefix: str = typer.Option("late_game_2min_sweep", help="outputs/backtests/sweep/<prefix>.*"),
+    sims_per_bucket: int = typer.Option(20000, help="Monte Carlo samples per margin bucket for sweep scoring"),
+    seed: int = typer.Option(1337, help="Random seed base"),
+):
+    """Sweep endgame heuristic parameters vs the empirical last-2-minute profile.
+
+    Produces a ranked CSV and a JSON summary containing a suggested set of env vars
+    (NCAAB_LATE_*) that can be used for an apples-to-apples segments backtest.
+    """
+    try:
+        from src.backtests.late_game_sweep_2min import default_config, run_late_game_2min_sweep
+
+        cfg = default_config(
+            empirical_profile_json=Path(empirical_profile_json) if empirical_profile_json else None,
+            out_prefix=str(out_prefix),
+            sims_per_bucket=int(sims_per_bucket),
+            seed=int(seed),
+        )
+        res = run_late_game_2min_sweep(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]sweep-late-game-2min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
 @app.command(name="write-risk-config")
 def write_risk_config(
     daily_loss_cap: float = typer.Option(None, help="Daily loss cap in units (optional)"),

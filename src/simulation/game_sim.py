@@ -1,7 +1,10 @@
 import json
+import os
 
 import numpy as np
 import pandas as pd
+
+from ncaab_model.data.cache import read_json
 
 import hashlib
 from pathlib import Path
@@ -409,6 +412,248 @@ def _simulate_events_samples(
         "away_poss_1h": away_poss_1h,
         "agg": agg,
     }
+
+
+def _simulate_single_possession_points(
+    to_rate: float,
+    ft_trip: float,
+    three_rate: float,
+    ft_pct: float,
+    p2: float,
+    p3: float,
+    rng: np.random.Generator,
+) -> int:
+    u = float(rng.random())
+    if u < float(to_rate):
+        return 0
+    u2 = float(rng.random())
+    if u2 < float(ft_trip):
+        # 2-shot trip (simplified)
+        return int(rng.binomial(2, _clip01(ft_pct)))
+    u3 = float(rng.random())
+    if u3 < float(three_rate):
+        return 3 if float(rng.random()) < _clip01(p3) else 0
+    return 2 if float(rng.random()) < _clip01(p2) else 0
+
+
+def _segment_5min_quantiles_from_events_timeline(
+    poss_1h: np.ndarray,
+    poss_2h: np.ndarray,
+    home_params: tuple[float, float, float, float, float, float],
+    away_params: tuple[float, float, float, float, float, float],
+    rng: np.random.Generator,
+    enable_late_foul: bool = True,
+) -> list[dict]:
+    """Derive 5-min cumulative endpoints by simulating a possession timeline.
+
+    This is still "pregame" (no live inputs), but it is ground-up in the sense that
+    points occur on sequential possessions with a simple clock model. This naturally
+    produces halftime and end-of-game endpoints, and makes end-of-half behavior tunable.
+    """
+
+    # Endpoints in minutes
+    end_mins = [5, 10, 15, 20, 25, 30, 35, 40]
+    n = int(len(poss_1h))
+    home_cum = np.zeros((n, len(end_mins)), dtype=float)
+    away_cum = np.zeros((n, len(end_mins)), dtype=float)
+
+    to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h = home_params
+    to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a = away_params
+
+    # Late-game heuristic parameters (tunable via env for sweeps)
+    late_foul_time_s = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_TIME_SEC")) or 120.0, 30.0, 240.0))
+    close_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_CLOSE_DT_MULT")) or 0.92, 0.60, 1.10))
+    trail_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_DT_MULT")) or 0.85, 0.50, 1.10))
+    lead_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_DT_MULT")) or 0.75, 0.50, 1.10))
+    trail_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_3PA_DELTA")) or 0.04, 0.00, 0.20))
+    lead_ft_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_FT_DELTA")) or 0.06, 0.00, 0.30))
+    lead_to_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_TO_DELTA")) or -0.01, -0.10, 0.10))
+    lead_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_3PA_DELTA")) or -0.03, -0.20, 0.20))
+
+    margin_thresh = int(_safe_float(os.getenv("NCAAB_LATE_MARGIN_THRESH")) or 3)
+    close_margin = int(_safe_float(os.getenv("NCAAB_LATE_CLOSE_MARGIN")) or 2)
+
+    for i in range(n):
+        # Possessions per team per half
+        p1 = int(max(0, int(poss_1h[i])))
+        p2 = int(max(0, int(poss_2h[i])))
+
+        # Combined possessions in a half are roughly 2x per-team possessions.
+        npos_1h = int(2 * p1)
+        npos_2h = int(2 * p2)
+
+        # Simulate 1H timeline
+        t = 0.0
+        home = 0
+        away = 0
+        # mean seconds per combined possession
+        mean_s_1h = 1200.0 / float(max(1, npos_1h))
+        shape = 2.0
+        scale_1h = float(max(1.0, mean_s_1h / shape))
+        next_ep_idx = 0
+        # Alternate possessions starting randomly
+        home_ball = bool(rng.random() < 0.5)
+        for _ in range(npos_1h):
+            # Possession duration
+            dt = float(rng.gamma(shape, scale_1h))
+            dt = float(np.clip(dt, 4.0, 40.0))
+            t += dt
+
+            if home_ball:
+                home += _simulate_single_possession_points(to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h, rng)
+            else:
+                away += _simulate_single_possession_points(to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a, rng)
+            home_ball = not home_ball
+
+            # Record any crossed endpoints within 1H
+            while next_ep_idx < 4 and t >= end_mins[next_ep_idx] * 60.0:
+                home_cum[i, next_ep_idx] = float(home)
+                away_cum[i, next_ep_idx] = float(away)
+                next_ep_idx += 1
+            if t >= 1200.0:
+                break
+
+        # Fill any remaining 1H endpoints with final 1H totals
+        while next_ep_idx < 4:
+            home_cum[i, next_ep_idx] = float(home)
+            away_cum[i, next_ep_idx] = float(away)
+            next_ep_idx += 1
+
+        # Simulate 2H timeline, continuing the cumulative totals
+        t = 0.0
+        mean_s_2h = 1200.0 / float(max(1, npos_2h))
+        scale_2h = float(max(1.0, mean_s_2h / shape))
+        home_ball = bool(rng.random() < 0.5)
+        next_ep_idx = 4
+
+        for _ in range(npos_2h):
+            time_remaining = 1200.0 - t
+            margin = home - away
+
+            # Simple late-foul / clock effects in last 2 minutes of 2H.
+            adj_home = (to_h, ft_h, three_h)
+            adj_away = (to_a, ft_a, three_a)
+            dt_mult = 1.0
+            if enable_late_foul and time_remaining <= late_foul_time_s:
+                # Make adjustments conditional on BOTH margin and who has the ball.
+                # Heuristic intent:
+                # - Trailing offense plays faster + shoots more 3s.
+                # - Trailing defense fouls more, which increases FT-trip for the LEADING offense.
+                # - Leading offense tends to burn clock.
+
+                # Close games: modestly faster possessions.
+                if abs(margin) <= close_margin:
+                    dt_mult = close_dt_mult
+
+                # Home has ball
+                if home_ball:
+                    if margin <= -margin_thresh:
+                        # Home trailing on offense: faster + more 3s.
+                        adj_home = (
+                            to_h,
+                            ft_h,
+                            min(0.48, three_h + trail_three_delta),
+                        )
+                        dt_mult = min(dt_mult, trail_dt_mult)
+                    elif margin >= margin_thresh:
+                        # Home leading on offense: away may foul -> more FTs for home; clock stoppages.
+                        adj_home = (
+                            float(np.clip(to_h + lead_to_delta, 0.11, 0.25)),
+                            float(np.clip(ft_h + lead_ft_delta, 0.06, 0.18)),
+                            float(np.clip(three_h + lead_three_delta, 0.25, 0.50)),
+                        )
+                        dt_mult = min(dt_mult, lead_dt_mult)
+
+                # Away has ball
+                else:
+                    if margin >= margin_thresh:
+                        # Away trailing on offense: faster + more 3s.
+                        adj_away = (
+                            to_a,
+                            ft_a,
+                            min(0.48, three_a + trail_three_delta),
+                        )
+                        dt_mult = min(dt_mult, trail_dt_mult)
+                    elif margin <= -margin_thresh:
+                        # Away leading on offense: home may foul -> more FTs for away; clock stoppages.
+                        adj_away = (
+                            float(np.clip(to_a + lead_to_delta, 0.11, 0.25)),
+                            float(np.clip(ft_a + lead_ft_delta, 0.06, 0.18)),
+                            float(np.clip(three_a + lead_three_delta, 0.25, 0.50)),
+                        )
+                        dt_mult = min(dt_mult, lead_dt_mult)
+
+            dt = float(rng.gamma(shape, scale_2h))
+            dt = float(np.clip(dt * dt_mult, 4.0, 40.0))
+            t += dt
+
+            if home_ball:
+                th, fh, trh = adj_home
+                home += _simulate_single_possession_points(th, fh, trh, ft_pct_h, p2_h, p3_h, rng)
+            else:
+                ta, fa, tra = adj_away
+                away += _simulate_single_possession_points(ta, fa, tra, ft_pct_a, p2_a, p3_a, rng)
+            home_ball = not home_ball
+
+            # Record any crossed endpoints within game
+            while next_ep_idx < 8 and t >= (end_mins[next_ep_idx] - 20) * 60.0:
+                home_cum[i, next_ep_idx] = float(home)
+                away_cum[i, next_ep_idx] = float(away)
+                next_ep_idx += 1
+            if t >= 1200.0:
+                break
+
+        # Fill any remaining endpoints with final game totals
+        while next_ep_idx < 8:
+            home_cum[i, next_ep_idx] = float(home)
+            away_cum[i, next_ep_idx] = float(away)
+            next_ep_idx += 1
+
+    total_cum = home_cum + away_cum
+    margin_cum = home_cum - away_cum
+
+    def _q(v: np.ndarray) -> tuple[float, float, float]:
+        return (
+            float(np.quantile(v, 0.10)),
+            float(np.quantile(v, 0.50)),
+            float(np.quantile(v, 0.90)),
+        )
+
+    rows: list[dict] = []
+    for j, end_min in enumerate(end_mins):
+        h_end = home_cum[:, j].astype(float)
+        a_end = away_cum[:, j].astype(float)
+        t_end = total_cum[:, j].astype(float)
+        m_end = margin_cum[:, j].astype(float)
+        q_h_end = _q(h_end)
+        q_a_end = _q(a_end)
+        q_t_end = _q(t_end)
+        q_m_end = _q(m_end)
+        rows.append(
+            {
+                "start_min": int(end_min - 5),
+                "end_min": int(end_min),
+                "half": 1 if int(end_min) <= 20 else 2,
+                "mu_home_score_end": float(np.mean(h_end)),
+                "mu_away_score_end": float(np.mean(a_end)),
+                "mu_total_score_end": float(np.mean(t_end)),
+                "mu_margin_score_end": float(np.mean(m_end)),
+                "q10_home_score_end": q_h_end[0],
+                "q50_home_score_end": q_h_end[1],
+                "q90_home_score_end": q_h_end[2],
+                "q10_away_score_end": q_a_end[0],
+                "q50_away_score_end": q_a_end[1],
+                "q90_away_score_end": q_a_end[2],
+                "q10_total_score_end": q_t_end[0],
+                "q50_total_score_end": q_t_end[1],
+                "q90_total_score_end": q_t_end[2],
+                "q10_margin_score_end": q_m_end[0],
+                "q50_margin_score_end": q_m_end[1],
+                "q90_margin_score_end": q_m_end[2],
+            }
+        )
+
+    return rows
 
 
 def _segment_5min_quantiles_from_points(
@@ -1449,39 +1694,73 @@ def simulate_game_row(
         sigma_total_2h_s = float(max(1e-6, float(np.std(totals_2h, ddof=1))))
         sigma_margin_2h_s = float(max(1e-6, float(np.std(margins_2h, ddof=1))))
 
-        segment_rows = _segment_5min_quantiles_from_points(
-            home_pts=home_pts,
-            away_pts=away_pts,
-            home_1h=home_1h,
-            away_1h=away_1h,
-            seg_probs_half1=segment_probs_half1,
-            seg_probs_half2=segment_probs_half2,
-            home_stats={
-                "poss": ev.get("home_poss"),
-                "tov": ev.get("home_tov"),
-                "fta": ev.get("home_fta"),
-                "fga2": ev.get("home_fga2"),
-                "fga3": ev.get("home_fga3"),
-                "poss_1h": ev.get("home_poss_1h"),
-                "tov_1h": ev.get("home_tov_1h"),
-                "fta_1h": ev.get("home_fta_1h"),
-                "fga2_1h": ev.get("home_fga2_1h"),
-                "fga3_1h": ev.get("home_fga3_1h"),
-            },
-            away_stats={
-                "poss": ev.get("away_poss"),
-                "tov": ev.get("away_tov"),
-                "fta": ev.get("away_fta"),
-                "fga2": ev.get("away_fga2"),
-                "fga3": ev.get("away_fga3"),
-                "poss_1h": ev.get("away_poss_1h"),
-                "tov_1h": ev.get("away_tov_1h"),
-                "fta_1h": ev.get("away_fta_1h"),
-                "fga2_1h": ev.get("away_fga2_1h"),
-                "fga3_1h": ev.get("away_fga3_1h"),
-            },
-            rng=rng,
-        )
+        use_time_aware_segments = True
+        try:
+            # Set NCAAB_SEGMENTS_TIME_AWARE=0 to revert to the old multinomial split.
+            v = (os.environ.get("NCAAB_SEGMENTS_TIME_AWARE") or "").strip()
+            if v:
+                use_time_aware_segments = _safe_bool(v)
+        except Exception:
+            use_time_aware_segments = True
+
+        if use_time_aware_segments:
+            # Recompute event params here to avoid threading through ev payload.
+            to_h, ft_h, three_h = _derive_event_rates(row, "home")
+            to_a, ft_a, three_a = _derive_event_rates(row, "away")
+            ft_pct_h, p2_h, p3_h = _calibrate_shooting_to_ppp(
+                float(np.clip(float(mu_home) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35)),
+                to_h,
+                ft_h,
+                three_h,
+            )
+            ft_pct_a, p2_a, p3_a = _calibrate_shooting_to_ppp(
+                float(np.clip(float(mu_away) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35)),
+                to_a,
+                ft_a,
+                three_a,
+            )
+            segment_rows = _segment_5min_quantiles_from_events_timeline(
+                poss_1h=ev.get("home_poss_1h") if ev.get("home_poss_1h") is not None else np.zeros(int(samples), dtype=int),
+                poss_2h=(ev.get("home_poss") - ev.get("home_poss_1h")) if (ev.get("home_poss") is not None and ev.get("home_poss_1h") is not None) else np.zeros(int(samples), dtype=int),
+                home_params=(to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h),
+                away_params=(to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a),
+                rng=rng,
+                enable_late_foul=True,
+            )
+        else:
+            segment_rows = _segment_5min_quantiles_from_points(
+                home_pts=home_pts,
+                away_pts=away_pts,
+                home_1h=home_1h,
+                away_1h=away_1h,
+                seg_probs_half1=segment_probs_half1,
+                seg_probs_half2=segment_probs_half2,
+                home_stats={
+                    "poss": ev.get("home_poss"),
+                    "tov": ev.get("home_tov"),
+                    "fta": ev.get("home_fta"),
+                    "fga2": ev.get("home_fga2"),
+                    "fga3": ev.get("home_fga3"),
+                    "poss_1h": ev.get("home_poss_1h"),
+                    "tov_1h": ev.get("home_tov_1h"),
+                    "fta_1h": ev.get("home_fta_1h"),
+                    "fga2_1h": ev.get("home_fga2_1h"),
+                    "fga3_1h": ev.get("home_fga3_1h"),
+                },
+                away_stats={
+                    "poss": ev.get("away_poss"),
+                    "tov": ev.get("away_tov"),
+                    "fta": ev.get("away_fta"),
+                    "fga2": ev.get("away_fga2"),
+                    "fga3": ev.get("away_fga3"),
+                    "poss_1h": ev.get("away_poss_1h"),
+                    "tov_1h": ev.get("away_tov_1h"),
+                    "fta_1h": ev.get("away_fta_1h"),
+                    "fga2_1h": ev.get("away_fga2_1h"),
+                    "fga3_1h": ev.get("away_fga3_1h"),
+                },
+                rng=rng,
+            )
 
         poss_mu_used = float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))
         return {
@@ -2675,6 +2954,102 @@ def run_simulations_for_date(out_dir: Path, date: str,
             seg_path = out_dir / f"sim_segments_{date}.csv"
             try:
                 seg_df = seg_df.replace([np.inf, -np.inf], np.nan)
+            except Exception:
+                pass
+
+            # Optional post-hoc calibration of cumulative segment endpoints.
+            # Prefer outputs/segment_calibration_5min.json (affine per endpoint minute: a*value+b).
+            # Fall back to outputs/segment_bias_5min.json (additive bias per endpoint minute).
+            try:
+                if "end_min" in seg_df.columns:
+                    try:
+                        import os
+
+                        disable_cal = (os.environ.get("NCAAB_DISABLE_SEGMENT_CALIB") or "").strip().lower()
+                        if disable_cal in {"1", "true", "yes"}:
+                            disable_cal = "1"
+                        else:
+                            disable_cal = "0"
+                    except Exception:
+                        disable_cal = "0"
+
+                    if disable_cal == "1":
+                        raise RuntimeError("Segment calibration disabled via NCAAB_DISABLE_SEGMENT_CALIB")
+
+                    seg_df["end_min"] = pd.to_numeric(seg_df["end_min"], errors="coerce")
+
+                    cols = [
+                        c
+                        for c in (
+                            "mu_total_score_end",
+                            "q10_total_score_end",
+                            "q50_total_score_end",
+                            "q90_total_score_end",
+                        )
+                        if c in seg_df.columns
+                    ]
+                    for col in cols:
+                        seg_df[col] = pd.to_numeric(seg_df[col], errors="coerce")
+
+                    calib_path = out_dir / "segment_calibration_5min.json"
+                    bias_path = out_dir / "segment_bias_5min.json"
+
+                    if calib_path.exists() and cols:
+                        calib = read_json(calib_path)
+                        a_map = calib.get("a_by_end_min") if isinstance(calib, dict) else None
+                        b_map = calib.get("b_by_end_min") if isinstance(calib, dict) else None
+                        if isinstance(a_map, dict) and isinstance(b_map, dict) and a_map:
+                            norm_a = {}
+                            norm_b = {}
+                            for k, v in a_map.items():
+                                try:
+                                    kk = float(k)
+                                    vv = float(v)
+                                except Exception:
+                                    continue
+                                if np.isfinite(kk) and np.isfinite(vv):
+                                    norm_a[kk] = vv
+                            for k, v in b_map.items():
+                                try:
+                                    kk = float(k)
+                                    vv = float(v)
+                                except Exception:
+                                    continue
+                                if np.isfinite(kk) and np.isfinite(vv):
+                                    norm_b[kk] = vv
+
+                            if norm_a:
+                                seg_df["_a_hat"] = seg_df["end_min"].map(norm_a)
+                                seg_df["_b_hat"] = seg_df["end_min"].map(norm_b).fillna(0.0)
+                                for col in cols:
+                                    seg_df[col] = seg_df["_a_hat"] * seg_df[col] + seg_df["_b_hat"]
+                                seg_df = seg_df.drop(columns=["_a_hat", "_b_hat"], errors="ignore")
+
+                    elif bias_path.exists() and cols:
+                        bias_payload = read_json(bias_path)
+                        bias_map = bias_payload.get("bias_by_end_min") if isinstance(bias_payload, dict) else None
+                        if isinstance(bias_map, dict) and bias_map:
+                            norm_bias = {}
+                            for k, v in bias_map.items():
+                                try:
+                                    kk = float(k)
+                                    vv = float(v)
+                                except Exception:
+                                    continue
+                                if np.isfinite(kk) and np.isfinite(vv):
+                                    norm_bias[kk] = vv
+
+                            if norm_bias:
+                                seg_df["_bias_hat"] = seg_df["end_min"].map(norm_bias)
+                                for col in cols:
+                                    seg_df[col] = seg_df[col] - seg_df["_bias_hat"]
+                                seg_df = seg_df.drop(columns=["_bias_hat"], errors="ignore")
+
+                    # Enforce monotonicity within each game for cumulative columns.
+                    if cols and "game_id" in seg_df.columns:
+                        seg_df = seg_df.sort_values(["game_id", "end_min"], kind="mergesort")
+                        for col in cols:
+                            seg_df[col] = seg_df.groupby("game_id")[col].cummax()
             except Exception:
                 pass
             seg_df.to_csv(seg_path, index=False, na_rep="")

@@ -1,0 +1,37 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401856166,2026,2026-01-20,2026-01-20 23:00:00+00:00,2026-01-20 18:00,EST,Morgan State Bears,Virginia-Lynchburg Dragons,0,0,,,,,False,Hill Field House
+401814533,2026,2026-01-20,2026-01-20 23:00:00+00:00,2026-01-20 18:00,EST,Massachusetts Minutemen,Toledo Rockets,0,0,,,,,False,Mullins Center
+401825457,2026,2026-01-20,2026-01-20 23:30:00+00:00,2026-01-20 18:30,EST,Ohio State Buckeyes,Minnesota Golden Gophers,0,0,,,,,False,Value City Arena
+401814528,2026,2026-01-20,2026-01-20 23:30:00+00:00,2026-01-20 18:30,EST,Buffalo Bulls,Akron Zips,0,0,,,,,False,Alumni Arena
+401825456,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Michigan Wolverines,Indiana Hoosiers,0,0,,,,,False,Crisler Center
+401827634,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Iowa State Cyclones,UCF Knights,0,0,,,,,False,Hilton Coliseum
+401808189,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Florida Gators,LSU Tigers,0,0,,,,,False,Stephen C. O'Connell Center
+401820685,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Clemson Tigers,NC State Wolfpack,0,0,,,,,False,Littlejohn Coliseum
+401828382,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Duquesne Dukes,Saint Louis Billikens,0,0,,,,,False,UPMC Cooper Fieldhouse
+401814531,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Kent State Golden Flashes,Miami (OH) RedHawks,0,0,,,,,False,M.A.C. Center
+401829285,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,South Carolina State Bulldogs,Mid-Atlantic Christian Mustangs,0,0,,,,,False,Smith-Hammond-Middleton Memorial Center
+401828383,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,St. Bonaventure Bonnies,Loyola Chicago Ramblers,0,0,,,,,False,Reilly Center
+401822909,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,St. John's Red Storm,Seton Hall Pirates,0,0,,,,,False,Madison Square Garden
+401820686,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Miami Hurricanes,Florida State Seminoles,0,0,,,,,False,Watsco Center
+401814532,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Ohio Bobcats,Northern Illinois Huskies,0,0,,,,,False,Convocation Center (OH)
+401814530,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Western Michigan Broncos,Bowling Green Falcons,0,0,,,,,False,University Arena (MI)
+401814529,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,Central Michigan Chippewas,Ball State Cardinals,0,0,,,,,False,McGuirk Arena
+401808191,2026,2026-01-20,2026-01-21 00:00:00+00:00,2026-01-20 19:00,EST,South Carolina Gamecocks,Oklahoma Sooners,0,0,,,,,False,Colonial Life Arena
+401822908,2026,2026-01-20,2026-01-21 00:30:00+00:00,2026-01-20 19:30,EST,Butler Bulldogs,DePaul Blue Demons,0,0,,,,,False,Hinkle Fieldhouse
+401830274,2026,2026-01-20,2026-01-21 01:00:00+00:00,2026-01-20 20:00,EST,UIC Flames,Evansville Purple Aces,0,0,,,,,False,Credit Union 1 Arena
+401827636,2026,2026-01-20,2026-01-21 01:00:00+00:00,2026-01-20 20:00,EST,TCU Horned Frogs,Oklahoma State Cowboys,0,0,,,,,False,Schollmaier Arena
+401825455,2026,2026-01-20,2026-01-21 01:30:00+00:00,2026-01-20 20:30,EST,Iowa Hawkeyes,Rutgers Scarlet Knights,0,0,,,,,False,Carver-Hawkeye Arena
+401823825,2026,2026-01-20,2026-01-21 01:30:00+00:00,2026-01-20 20:30,EST,Wyoming Cowboys,Boise State Broncos,0,0,,,,,False,Arena-Auditorium
+401806447,2026,2026-01-20,2026-01-21 01:30:00+00:00,2026-01-20 20:30,EST,Southeast Missouri State Redhawks,UT Martin Skyhawks,0,0,,,,,False,Show Me Center
+401825458,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Oregon Ducks,Michigan State Spartans,0,0,,,,,False,Matthew Knight Arena
+401827632,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Baylor Bears,Texas Tech Red Raiders,0,0,,,,,False,Foster Pavilion
+401808188,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Arkansas Razorbacks,Vanderbilt Commodores,0,0,,,,,False,Bud Walton Arena
+401808190,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Missouri Tigers,Georgia Bulldogs,0,0,,,,,False,Mizzou Arena
+401827635,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Kansas State Wildcats,Utah Utes,0,0,,,,,False,Bramlage Coliseum
+401820683,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Wake Forest Demon Deacons,SMU Mustangs,0,0,,,,,False,LJVM Coliseum
+401820564,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Colorado State Rams,Air Force Falcons,0,0,,,,,False,Moby Arena
+401808186,2026,2026-01-20,2026-01-21 02:00:00+00:00,2026-01-20 21:00,EST,Ole Miss Rebels,Auburn Tigers,0,0,,,,,False,The Sandy and John Black Pavilion at Ole Miss
+401825459,2026,2026-01-20,2026-01-21 03:00:00+00:00,2026-01-20 22:00,EST,UCLA Bruins,Purdue Boilermakers,0,0,,,,,False,Pauley Pavilion
+401829315,2026,2026-01-20,2026-01-21 03:00:00+00:00,2026-01-20 22:00,EST,Nevada Wolf Pack,San José State Spartans,0,0,,,,,False,Lawlor Events Center
+401827633,2026,2026-01-20,2026-01-21 04:00:00+00:00,2026-01-20 23:00,EST,Colorado Buffaloes,Kansas Jayhawks,0,0,,,,,False,CU Events Center
+401827948,2026,2026-01-20,2026-01-21 04:00:00+00:00,2026-01-20 23:00,EST,Utah State Aggies,UNLV Rebels,0,0,,,,,False,Dee Glen Smith Spectrum
