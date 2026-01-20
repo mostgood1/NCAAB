@@ -462,13 +462,14 @@ def _segment_5min_quantiles_from_events_timeline(
 
     # Late-game heuristic parameters (tunable via env for sweeps)
     late_foul_time_s = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_TIME_SEC")) or 120.0, 30.0, 240.0))
-    close_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_CLOSE_DT_MULT")) or 0.92, 0.60, 1.10))
-    trail_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_DT_MULT")) or 0.85, 0.50, 1.10))
-    lead_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_DT_MULT")) or 0.75, 0.50, 1.10))
-    trail_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_3PA_DELTA")) or 0.04, 0.00, 0.20))
-    lead_ft_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_FT_DELTA")) or 0.06, 0.00, 0.30))
-    lead_to_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_TO_DELTA")) or -0.01, -0.10, 0.10))
-    lead_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_3PA_DELTA")) or -0.03, -0.20, 0.20))
+    # Defaults are tuned against empirical last-2-minute scoring profile; can be overridden via env.
+    close_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_CLOSE_DT_MULT")) or 0.88, 0.60, 1.10))
+    trail_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_DT_MULT")) or 0.80, 0.50, 1.10))
+    lead_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_DT_MULT")) or 0.65, 0.50, 1.10))
+    trail_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_3PA_DELTA")) or 0.06, 0.00, 0.20))
+    lead_ft_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_FT_DELTA")) or 0.10, 0.00, 0.30))
+    lead_to_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_TO_DELTA")) or -0.02, -0.10, 0.10))
+    lead_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_3PA_DELTA")) or -0.05, -0.20, 0.20))
 
     margin_thresh = int(_safe_float(os.getenv("NCAAB_LATE_MARGIN_THRESH")) or 3)
     close_margin = int(_safe_float(os.getenv("NCAAB_LATE_CLOSE_MARGIN")) or 2)
@@ -1440,11 +1441,29 @@ def simulate_game_row(
         rng = np.random.default_rng()
     mean_source_used = (mean_source or "auto").strip().lower() or "auto"
     engine_used = _resolve_sim_engine(engine, "features" if mean_source_used in {"features", "features_strict", "features-only", "features_only", "features!"} else mean_source_used)
-    total_mean, margin_mean = _resolve_mean_total_margin(
-        row,
-        mean_source=mean_source_used,
-        allow_market_guardrails=bool(allow_market_guardrails),
-    )
+
+    # IMPORTANT: For the possession/event simulator, we strongly prefer feature-derived
+    # mean total/margin when the caller hasn't explicitly chosen a mean source.
+    # Rationale: historical slates often have sparse market lines, and model/blend
+    # columns can be missing or overly compressed, which makes per-game segment
+    # trajectories nearly constant and degrades 5-minute backtests.
+    if engine_used == "events" and mean_source_used == "auto":
+        ft_total, ft_margin = _resolve_mean_total_margin_from_features(row)
+        if ft_total is not None and ft_margin is not None:
+            total_mean, margin_mean = ft_total, ft_margin
+            mean_source_used = "features_auto"
+        else:
+            total_mean, margin_mean = _resolve_mean_total_margin(
+                row,
+                mean_source=mean_source_used,
+                allow_market_guardrails=bool(allow_market_guardrails),
+            )
+    else:
+        total_mean, margin_mean = _resolve_mean_total_margin(
+            row,
+            mean_source=mean_source_used,
+            allow_market_guardrails=bool(allow_market_guardrails),
+        )
     if total_mean is None or margin_mean is None:
         return {
             "sim_ok": False,
@@ -2621,7 +2640,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
     # Try to enrich with market lines/odds (optional)
     if lines_path.exists():
         try:
-            market_df = pd.read_csv(lines_path)
+            market_df = pd.read_csv(lines_path, low_memory=False)
 
             if "date" in market_df.columns:
                 market_df = market_df[market_df["date"].astype(str) == str(date)]

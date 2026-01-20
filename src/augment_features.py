@@ -64,6 +64,13 @@ def _compute_team_features(row: pd.Series, side: str) -> Dict[str, float]:
     if poss_col in row.index or to_rate_col in row.index or orb_rate_col in row.index:
         poss = float(row.get(poss_col) or 0.0)
         to_rate = float(row.get(to_rate_col) or np.nan)
+        # If a compatible FTA column exists, derive a per-possession FTA rate.
+        fta_col = _find_col(row.to_frame().T, f"{side}", STAT_SUFFIXES["fta"])
+        try:
+            fta = float(row.get(fta_col, np.nan)) if fta_col else np.nan
+        except Exception:
+            fta = np.nan
+        fta_rate = (fta / poss) if (poss and poss > 0 and not np.isnan(fta)) else np.nan
         # Approximate team DRB% as 1 - opponent ORB%
         opp_orb_rate = float(row.get(f"{opp}_orb_rate") or np.nan)
         drb_rate = (1.0 - opp_orb_rate) if not np.isnan(opp_orb_rate) else np.nan
@@ -73,6 +80,7 @@ def _compute_team_features(row: pd.Series, side: str) -> Dict[str, float]:
             f'{side}_ts': np.nan,  # not derivable without FGA/FTA
             f'{side}_3p_rate': np.nan,
             f'{side}_to_rate': to_rate,
+            f'{side}_fta_rate': fta_rate,
             f'{side}_drb_rate': drb_rate,
         }
     def gv(prefix: str, key: str) -> float:
@@ -95,6 +103,7 @@ def _compute_team_features(row: pd.Series, side: str) -> Dict[str, float]:
     ts = (pts / ts_denom) if ts_denom > 0 else np.nan
     three_rate = (tpa / fga) if fga > 0 else np.nan
     to_rate = (tov / poss) if poss > 0 else np.nan
+    fta_rate = (fta / poss) if poss > 0 else np.nan
     drb_rate = drb / (drb + opp_orb) if (drb + opp_orb) > 0 else np.nan
     return {
         f'{side}_poss': poss,
@@ -102,6 +111,7 @@ def _compute_team_features(row: pd.Series, side: str) -> Dict[str, float]:
         f'{side}_ts': ts,
         f'{side}_3p_rate': three_rate,
         f'{side}_to_rate': to_rate,
+        f'{side}_fta_rate': fta_rate,
         f'{side}_drb_rate': drb_rate,
     }
 
@@ -168,7 +178,9 @@ def augment_boxscores(boxscores: pd.DataFrame) -> pd.DataFrame:
     # Keep a compact set
     keep = [GAME_ID, DATE_KEY, 'home_team','away_team',
             'home_pace','home_ts','home_3p_rate','home_to_rate','home_drb_rate',
+            'home_fta_rate',
             'away_pace','away_ts','away_3p_rate','away_to_rate','away_drb_rate',
+            'away_fta_rate',
             'home_days_since','home_b2b','away_days_since','away_b2b',
             'tz_offset_hours','home_adv']
     for k in list(keep):

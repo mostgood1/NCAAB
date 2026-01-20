@@ -110,6 +110,24 @@ def main() -> int:
     outputs_dir = Path(args.outputs)
     out_path = Path(args.out) if args.out else (outputs_dir / "sim_calibration.json")
 
+    # If sims were produced with an existing calibration file and we are NOT rebuilding
+    # sims without it, then the mu/sigma columns already reflect that prior calibration.
+    # To avoid oscillation (writing tiny deltas that effectively delete the prior calib),
+    # accumulate updates on top of the prior.
+    prior = {}
+    if not args.rebuild_sims:
+        try:
+            if out_path.exists():
+                prior = json.loads(out_path.read_text(encoding="utf-8"))
+                if not isinstance(prior, dict):
+                    prior = {}
+        except Exception:
+            prior = {}
+    prior_delta_total = float(prior.get("delta_total", 0.0) or 0.0) if prior else 0.0
+    prior_delta_margin = float(prior.get("delta_margin", 0.0) or 0.0) if prior else 0.0
+    prior_sigma_total_mult = float(prior.get("sigma_total_mult", 1.0) or 1.0) if prior else 1.0
+    prior_sigma_margin_mult = float(prior.get("sigma_margin_mult", 1.0) or 1.0) if prior else 1.0
+
     dates = _list_dates(outputs_dir)
     start = _parse_date(args.start) if args.start else None
     end = _parse_date(args.end) if args.end else None
@@ -169,6 +187,11 @@ def main() -> int:
         sim["game_id"] = _normalize_game_id(sim["game_id"])
         res["game_id"] = _normalize_game_id(res["game_id"])
 
+        # Ensure each game contributes once. Some artifacts can contain duplicate rows
+        # per game_id (e.g., joins/snapshots); calibration should not overweight those.
+        sim = sim.drop_duplicates(subset=["game_id"])
+        res = res.drop_duplicates(subset=["game_id"])
+
         keep_sim = [c for c in [
             "date",
             "game_id",
@@ -215,23 +238,41 @@ def main() -> int:
     df = pd.concat(all_rows, ignore_index=True)
 
     # numeric
-    for c in ["actual_total", "actual_margin", "mu_total", "mu_margin", "sigma_total", "sigma_margin"]:
+    for c in ["home_score", "away_score", "actual_total", "actual_margin", "mu_total", "mu_margin", "sigma_total", "sigma_margin"]:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
+    # Filter to real finals and derive actual_total/actual_margin from the final score columns.
+    # Some results rows can contain placeholder 0/0 scores; those must not influence calibration.
+    if "home_score" in df.columns and "away_score" in df.columns:
+        hs = df["home_score"]
+        as_ = df["away_score"]
+        final_mask = hs.notna() & as_.notna() & ((hs > 0) | (as_ > 0))
+        df = df.loc[final_mask].copy()
+        df["actual_total"] = (hs.loc[final_mask].to_numpy() + as_.loc[final_mask].to_numpy())
+        df["actual_margin"] = (hs.loc[final_mask].to_numpy() - as_.loc[final_mask].to_numpy())
+    else:
+        if "actual_total" in df.columns:
+            df = df[df["actual_total"].notna() & (df["actual_total"] > 0)].copy()
+
     df = df.dropna(subset=["actual_total", "actual_margin", "mu_total", "mu_margin", "sigma_total"])
+    df = df[df["actual_total"] > 0]
     df = df[df["sigma_total"] > 0]
 
     if len(df) < int(args.min_games):
         print(json.dumps({"error": "too_few_games", "n_games": int(len(df)), "min_games": int(args.min_games)}))
         return 2
 
-    # Mean shifts
-    delta_total = float(np.mean((df["actual_total"] - df["mu_total"]).astype(float)))
-    delta_margin = float(np.mean((df["actual_margin"] - df["mu_margin"]).astype(float)))
+    # Mean shifts (residual-on-current outputs); accumulate on top of any prior calibration.
+    delta_total_resid = float(np.mean((df["actual_total"] - df["mu_total"]).astype(float)))
+    delta_margin_resid = float(np.mean((df["actual_margin"] - df["mu_margin"]).astype(float)))
+    delta_total = float(prior_delta_total + delta_total_resid)
+    delta_margin = float(prior_delta_margin + delta_margin_resid)
 
     # Sigma inflation: use absolute normalized residuals
-    z_total = ((df["actual_total"] - (df["mu_total"] + delta_total)) / df["sigma_total"]).astype(float)
+    # Compute z on *current* sigma columns (may already include prior inflation)
+    # and then scale multipliers on top of prior multipliers.
+    z_total = ((df["actual_total"] - (df["mu_total"] + delta_total_resid)) / df["sigma_total"]).astype(float)
     z_total = z_total.replace([np.inf, -np.inf], np.nan).dropna()
     if len(z_total) == 0:
         sigma_total_mult = 1.0
@@ -239,17 +280,21 @@ def main() -> int:
         q = float(np.quantile(np.abs(z_total), 0.80))
         sigma_total_mult = float(max(0.5, min(5.0, q / Z_80)))
 
+    sigma_total_mult = float(prior_sigma_total_mult * sigma_total_mult)
+
     # Margin inflation only if sigma_margin exists
     sigma_margin_mult = 1.0
     if "sigma_margin" in df.columns:
         dm = df.dropna(subset=["sigma_margin"]).copy()
         dm = dm[dm["sigma_margin"] > 0]
         if len(dm) > 0:
-            z_margin = ((dm["actual_margin"] - (dm["mu_margin"] + delta_margin)) / dm["sigma_margin"]).astype(float)
+            z_margin = ((dm["actual_margin"] - (dm["mu_margin"] + delta_margin_resid)) / dm["sigma_margin"]).astype(float)
             z_margin = z_margin.replace([np.inf, -np.inf], np.nan).dropna()
             if len(z_margin) > 0:
                 q = float(np.quantile(np.abs(z_margin), 0.80))
                 sigma_margin_mult = float(max(0.5, min(5.0, q / Z_80)))
+
+    sigma_margin_mult = float(prior_sigma_margin_mult * sigma_margin_mult)
 
     calib = {
         "start": dates[0],

@@ -1492,6 +1492,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   if (Test-Path $predDisplay) { $toStage += $predDisplay }
   $predEnriched = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
   if (Test-Path $predEnriched) { $toStage += $predEnriched }
+  # 5-min trajectory artifact (used by game cards UI)
+  $simSegmentsToday = Join-Path $OutDir ("sim_segments_" + $todayIso + ".csv")
+  if (Test-Path $simSegmentsToday) { $toStage += $simSegmentsToday }
   # Archive copy of today's display snapshot for lightweight historical browsing
   $predDisplayArchive = Join-Path $OutDir ("archive\" + $todayIso + "\predictions_display_" + $todayIso + ".csv")
   if (Test-Path $predDisplayArchive) { $toStage += $predDisplayArchive }

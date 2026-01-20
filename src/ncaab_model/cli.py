@@ -591,7 +591,7 @@ def fit_segment_calibration_5min(
     start: str = typer.Option(None, help="Optional start date YYYY-MM-DD to filter rows"),
     end: str = typer.Option(None, help="Optional end date YYYY-MM-DD to filter rows"),
     pred_col: str = typer.Option("pred_q50", help="Prediction column to calibrate (default pred_q50)"),
-    min_a: float = typer.Option(0.35, help="Minimum slope a per endpoint"),
+    min_a: float = typer.Option(0.0, help="Minimum slope a per endpoint"),
     max_a: float = typer.Option(1.30, help="Maximum slope a per endpoint"),
     min_rows_per_end_min: int = typer.Option(250, help="Minimum rows per end_min to fit a,b"),
 ):

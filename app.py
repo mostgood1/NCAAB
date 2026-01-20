@@ -5776,6 +5776,7 @@ def index():
                     archive_dates=[],
                     show_bootstrap=False,
                     compact_mode=True,
+                    _cards_view=True,
                     bootstrap_url=None,
                     show_diag=False,
                     diag_url=None,
@@ -5894,6 +5895,7 @@ def index():
                 archive_dates=[],
                 show_bootstrap=False,
                 compact_mode=True,
+                _cards_view=True,
                 bootstrap_url=None,
                 show_diag=False,
                 diag_url=None,
@@ -18260,6 +18262,184 @@ def index():
                     r['pred_total_basis'] = totals_mode
     except Exception:
         pass
+
+    # Attach 5-minute segment trajectory to main page cards (if available).
+    # Source: outputs/sim_segments_<date>.csv produced by the simulator.
+    try:
+        seg_path = OUT / f"sim_segments_{date_q}.csv"
+        seg_map: dict[str, list[dict[str, Any]]] = {}
+        seg_rollup_map: dict[str, dict[str, Any]] = {}
+
+        if seg_path.exists():
+            seg_df = _safe_read_csv(seg_path)
+            if isinstance(seg_df, pd.DataFrame) and (not seg_df.empty) and ('game_id' in seg_df.columns):
+                try:
+                    seg_df['game_id'] = seg_df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                except Exception:
+                    pass
+                # Some segment CSVs may omit an explicit 'segment' index.
+                # Derive it from minutes (end_min preferred; 0-5 => 1, ..., 35-40 => 8).
+                try:
+                    if 'segment' not in seg_df.columns:
+                        seg_df['segment'] = np.nan
+                    seg_series = pd.to_numeric(seg_df.get('segment'), errors='coerce')
+                    if seg_series.isna().all():
+                        if 'end_min' in seg_df.columns:
+                            seg_series = pd.to_numeric(seg_df.get('end_min'), errors='coerce') / 5.0
+                        elif 'start_min' in seg_df.columns:
+                            seg_series = (pd.to_numeric(seg_df.get('start_min'), errors='coerce') + 5.0) / 5.0
+                    seg_df['segment'] = seg_series.round()
+                except Exception:
+                    pass
+                try:
+                    seg_df['segment'] = pd.to_numeric(seg_df.get('segment'), errors='coerce')
+                except Exception:
+                    pass
+                try:
+                    seg_df = seg_df.sort_values(['game_id', 'segment'])
+                except Exception:
+                    pass
+
+                # Derive per-segment total points from cumulative endpoints when not provided.
+                # Many sim_segments_<date>.csv files only include *_total_score_end.
+                try:
+                    # Ensure numeric cumulative columns
+                    _end_cols = [
+                        ('mu_total_score_end', 'mu_total_pts_seg'),
+                        ('q10_total_score_end', 'q10_total_pts_seg'),
+                        ('q50_total_score_end', 'q50_total_pts_seg'),
+                        ('q90_total_score_end', 'q90_total_pts_seg'),
+                    ]
+                    for c_end, c_seg in _end_cols:
+                        if c_end not in seg_df.columns:
+                            continue
+                        need = (c_seg not in seg_df.columns) or pd.to_numeric(seg_df.get(c_seg), errors='coerce').isna().all()
+                        if not need:
+                            continue
+                        end_v = pd.to_numeric(seg_df[c_end], errors='coerce')
+                        prev = end_v.groupby(seg_df['game_id']).shift(1)
+                        seg_v = (end_v - prev.fillna(0.0)).clip(lower=0.0)
+                        seg_df[c_seg] = seg_v
+                except Exception:
+                    pass
+
+                def _sf(v: Any) -> float | None:
+                    try:
+                        if v is None:
+                            return None
+                        x = float(v)
+                        if not np.isfinite(x):
+                            return None
+                        return float(x)
+                    except Exception:
+                        return None
+
+                def _si(v: Any) -> int | None:
+                    try:
+                        if v is None:
+                            return None
+                        x = float(v)
+                        if not np.isfinite(x):
+                            return None
+                        return int(x)
+                    except Exception:
+                        return None
+
+                want_cols = [
+                    'segment', 'half', 'start_min', 'end_min',
+                    # points
+                    'mu_total_pts_seg', 'q10_total_pts_seg', 'q50_total_pts_seg', 'q90_total_pts_seg',
+                    'mu_total_score_end', 'q10_total_score_end', 'q50_total_score_end', 'q90_total_score_end',
+                    # boxscore-ish totals (combined)
+                    'mu_total_poss_seg', 'mu_total_tov_seg', 'mu_total_fta_seg', 'mu_total_fga2_seg', 'mu_total_fga3_seg',
+                ]
+
+                for gid, g in seg_df.groupby('game_id'):
+                    try:
+                        rows_seg: list[dict[str, Any]] = []
+                        for _, rr in g.iterrows():
+                            o: dict[str, Any] = {}
+                            for c in want_cols:
+                                if c not in g.columns:
+                                    continue
+                                if c in ('segment', 'half', 'start_min', 'end_min'):
+                                    o[c] = _si(rr.get(c))
+                                else:
+                                    o[c] = _sf(rr.get(c))
+                            if o.get('segment') is None:
+                                continue
+                            rows_seg.append(o)
+                        if rows_seg:
+                            gid_s = str(gid)
+                            seg_map[gid_s] = rows_seg
+
+                            def _sum_where(key: str, pred) -> float | None:
+                                try:
+                                    vals: list[float] = []
+                                    for s in rows_seg:
+                                        try:
+                                            if not pred(s):
+                                                continue
+                                            v = s.get(key)
+                                            if v is None:
+                                                continue
+                                            x = float(v)
+                                            if np.isfinite(x):
+                                                vals.append(float(x))
+                                        except Exception:
+                                            continue
+                                    if not vals:
+                                        return None
+                                    return float(sum(vals))
+                                except Exception:
+                                    return None
+
+                            roll = {
+                                'mu_total_poss_1h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 1),
+                                'mu_total_tov_1h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 1),
+                                'mu_total_fta_1h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 1),
+                                'mu_total_fga2_1h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 1),
+                                'mu_total_fga3_1h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 1),
+                                'mu_total_poss_2h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 2),
+                                'mu_total_tov_2h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 2),
+                                'mu_total_fta_2h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 2),
+                                'mu_total_fga2_2h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 2),
+                                'mu_total_fga3_2h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 2),
+                                'mu_total_poss_g': _sum_where('mu_total_poss_seg', lambda s: True),
+                                'mu_total_tov_g': _sum_where('mu_total_tov_seg', lambda s: True),
+                                'mu_total_fta_g': _sum_where('mu_total_fta_seg', lambda s: True),
+                                'mu_total_fga2_g': _sum_where('mu_total_fga2_seg', lambda s: True),
+                                'mu_total_fga3_g': _sum_where('mu_total_fga3_seg', lambda s: True),
+                            }
+                            if any(v is not None for v in roll.values()):
+                                seg_rollup_map[gid_s] = roll
+                    except Exception:
+                        continue
+
+        for r in safe_rows:
+            try:
+                gid = str(r.get('game_id') or '')
+                if gid and (gid in seg_map):
+                    r['segments_5min'] = seg_map.get(gid) or []
+                    r['segments_rollup'] = seg_rollup_map.get(gid) or {}
+                    r['has_segments_5min'] = True
+                else:
+                    r['segments_5min'] = []
+                    r['segments_rollup'] = {}
+                    r['has_segments_5min'] = False
+            except Exception:
+                r['segments_5min'] = []
+                r['segments_rollup'] = {}
+                r['has_segments_5min'] = False
+    except Exception:
+        # Never fail page render due to optional segments.
+        try:
+            for r in safe_rows:
+                r['segments_5min'] = []
+                r['segments_rollup'] = {}
+                r['has_segments_5min'] = False
+        except Exception:
+            pass
     # Write a post-normalization debug snapshot based on safe_rows to reflect final display state
     try:
         today_str = _today_local().strftime("%Y-%m-%d")
@@ -29221,6 +29401,44 @@ def api_upload_sim_quantiles():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/upload_sim_segments", methods=["POST"])
+def api_upload_sim_segments():
+    """Upload per-date 5-minute simulation segments CSV.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/sim_segments_<date>.csv for 5-min trajectory UI.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / f"sim_segments_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/upload_sim_calibration", methods=["POST"])
 def api_upload_sim_calibration():
     """Upload global simulation calibration JSON.
@@ -31523,12 +31741,47 @@ def api_display_predictions():
                         seg_df['game_id'] = seg_df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
                     except Exception:
                         pass
+                    # Some segment CSVs may omit an explicit 'segment' index.
+                    # Derive it from minutes (end_min preferred; 0-5 => 1, ..., 35-40 => 8).
+                    try:
+                        if 'segment' not in seg_df.columns:
+                            seg_df['segment'] = np.nan
+                        seg_series = pd.to_numeric(seg_df.get('segment'), errors='coerce')
+                        if seg_series.isna().all():
+                            if 'end_min' in seg_df.columns:
+                                seg_series = pd.to_numeric(seg_df.get('end_min'), errors='coerce') / 5.0
+                            elif 'start_min' in seg_df.columns:
+                                seg_series = (pd.to_numeric(seg_df.get('start_min'), errors='coerce') + 5.0) / 5.0
+                        seg_df['segment'] = seg_series.round()
+                    except Exception:
+                        pass
                     try:
                         seg_df['segment'] = pd.to_numeric(seg_df.get('segment'), errors='coerce')
                     except Exception:
                         pass
                     try:
                         seg_df = seg_df.sort_values(['game_id', 'segment'])
+                    except Exception:
+                        pass
+
+                    # Derive per-segment total points from cumulative endpoints when not provided.
+                    try:
+                        _end_cols = [
+                            ('mu_total_score_end', 'mu_total_pts_seg'),
+                            ('q10_total_score_end', 'q10_total_pts_seg'),
+                            ('q50_total_score_end', 'q50_total_pts_seg'),
+                            ('q90_total_score_end', 'q90_total_pts_seg'),
+                        ]
+                        for c_end, c_seg in _end_cols:
+                            if c_end not in seg_df.columns:
+                                continue
+                            need = (c_seg not in seg_df.columns) or pd.to_numeric(seg_df.get(c_seg), errors='coerce').isna().all()
+                            if not need:
+                                continue
+                            end_v = pd.to_numeric(seg_df[c_end], errors='coerce')
+                            prev = end_v.groupby(seg_df['game_id']).shift(1)
+                            seg_v = (end_v - prev.fillna(0.0)).clip(lower=0.0)
+                            seg_df[c_seg] = seg_v
                     except Exception:
                         pass
 

@@ -16,6 +16,7 @@ def main():
     ap.add_argument("date", help="Slate date YYYY-MM-DD")
     ap.add_argument("outputs_dir", nargs="?", default="outputs", help="Outputs directory (default: outputs)")
     ap.add_argument("--seed", type=int, default=None, help="Deterministic simulation seed (overrides env NCAAB_SIM_SEED)")
+    ap.add_argument("--engine", type=str, default=None, help="Simulation engine: events|normal|auto (default: env NCAAB_SIM_ENGINE or auto)")
     args = ap.parse_args(sys.argv[1:])
 
     date = args.date
@@ -43,6 +44,9 @@ def main():
         injuries_path = Path(injuries_env) if injuries_env else (ROOT / "data" / "injuries_overrides.csv")
 
         mean_source = (__import__("os").environ.get("NCAAB_SIM_MEAN_SOURCE") or "").strip() or "auto"
+        engine = args.engine
+        if not engine:
+            engine = (__import__("os").environ.get("NCAAB_SIM_ENGINE") or "").strip() or "auto"
         guard_env = (__import__("os").environ.get("NCAAB_SIM_MARKET_GUARDRAILS") or "").strip().lower()
         if guard_env in {"0", "false", "no", "n"}:
             allow_market_guardrails = False
@@ -58,6 +62,7 @@ def main():
             seed=args.seed,
             mean_source=mean_source,
             allow_market_guardrails=allow_market_guardrails,
+            engine=engine,
         )
         print(json.dumps({"date": date, "sim_path": str(out_path)}))
         return 0

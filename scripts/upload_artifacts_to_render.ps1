@@ -47,7 +47,7 @@ function Upload-File {
             # Optional endpoints may not exist on older deployments; treat as skip.
             $code = $null
             try { $code = [int]$resp.StatusCode } catch { $code = $null }
-            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration')) {
+            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments')) {
                 Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                 return @{ status = 'skipped'; code = 404; uri = $Uri }
             }
@@ -71,6 +71,7 @@ $enrichedPath  = Join-Path -Path $OutputsDir -ChildPath ("predictions_unified_en
 $resultsPath   = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
 $simQuantilesPath = Join-Path -Path $OutputsDir -ChildPath ("sim_quantiles_{0}.csv" -f $Date)
 $simBlendPath     = Join-Path -Path $OutputsDir -ChildPath ("sim_blend_{0}.csv" -f $Date)
+$simSegmentsPath  = Join-Path -Path $OutputsDir -ChildPath ("sim_segments_{0}.csv" -f $Date)
 $simDiagPath      = Join-Path -Path $OutputsDir -ChildPath ("sim_inputs_diagnostic_{0}.json" -f $Date)
 $simCalibPath     = Join-Path -Path $OutputsDir -ChildPath 'sim_calibration.json'
 ${needSimRetry} = $false
@@ -514,6 +515,20 @@ if (Test-Path -LiteralPath $simQuantilesPath) {
     }
 } else {
     Write-Host "[Skip] sim_quantiles_$Date.csv missing" -ForegroundColor Yellow
+}
+
+# Upload simulation 5-min segments if present
+if (Test-Path -LiteralPath $simSegmentsPath) {
+    $segRows = Get-CsvRowCount -Path $simSegmentsPath
+    if ($segRows -gt 0) {
+        $uSimS = Upload-File -Uri "$BaseUrl/api/upload_sim_segments" -FilePath $simSegmentsPath -Query @{ date = $Date }
+        if ($uSimS) { Write-Host "[OK] sim_segments uploaded: rows=$($uSimS.rows)" -ForegroundColor Green }
+        else { ${needSimRetry} = $true }
+    } else {
+        Write-Host "[Skip] sim_segments_$Date.csv empty (header-only); not uploading" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[Skip] sim_segments_$Date.csv missing" -ForegroundColor Yellow
 }
 if (Test-Path -LiteralPath $simBlendPath) {
     $uSimB = Upload-File -Uri "$BaseUrl/api/upload_sim_blend" -FilePath $simBlendPath -Query @{ date = $Date }
