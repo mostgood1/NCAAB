@@ -926,8 +926,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401823567,2026-01-21,Villanova Wildcats,Wisconsin Badgers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401830877,2026-01-21,Western Kentucky Hilltoppers,Wichita State Shockers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401826883,2026-01-21,Wichita State Shockers,Wofford Terriers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
-401824368,2026-01-21,Boston University Terriers,Lafayette Leopards,totals,full_game,over,,,,,,Total,OU
-401823921,2026-01-21,South Carolina Upstate Spartans,UNC Asheville Bulldogs,totals,full_game,over,,,,,,Total,OU
+401824368,2026-01-21,Boston University Terriers,Lafayette Leopards,totals,full_game,under,,,,,,Total,OU
+401823921,2026-01-21,South Carolina Upstate Spartans,UNC Asheville Bulldogs,totals,full_game,under,,,,,,Total,OU
 401809337,2026-01-21,Wofford Terriers,Samford Bulldogs,totals,full_game,under,,,,,,Total,OU
 401809336,2026-01-21,VMI Keydets,UNC Greensboro Spartans,totals,full_game,under,,,,,,Total,OU
-401828385,2026-01-21,La Salle Explorers,Dayton Flyers,totals,full_game,over,,,,,,Total,OU
+401828385,2026-01-21,La Salle Explorers,Dayton Flyers,totals,full_game,under,,,,,,Total,OU

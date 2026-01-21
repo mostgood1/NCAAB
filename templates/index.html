@@ -12,6 +12,7 @@
     .basis-provider{background:#1b6d85;color:#fff;}
     .badge{display:inline-block;padding:0 4px;margin-left:4px;border-radius:3px;font-size:10px;line-height:14px;background:#444;color:#fff;vertical-align:middle;cursor:default;}
     .badge.cal{background:#0b7285;}
+    .badge.stake{background:#862e9c;}
     .badge.raw{background:#5c940d;}
     .badge.adj{background:#d9480f;}
     .badge.toggle-raw{background:#495057;cursor:pointer;}
@@ -1215,6 +1216,10 @@
               {% set is_cal_card = (r.pred_total_basis in ['model_calibrated','model_calibrated_bias','cal']) or (r.pred_margin_basis in ['model_calibrated','model_calibrated_bias','cal']) %}
               {% if is_cal_card %}
                 <span class="badge cal" title="Calibrated predictions">CAL</span>
+              {% endif %}
+              {% if r.on_stake_sheet is defined and r.on_stake_sheet %}
+                {% set _ss_stake = (r.stake_sheet_total_stake if (r.stake_sheet_total_stake is defined and r.stake_sheet_total_stake is not none and r.stake_sheet_total_stake == r.stake_sheet_total_stake) else none) %}
+                <span class="badge stake" title="{{ (r.stake_sheet_title if (r.stake_sheet_title is defined and r.stake_sheet_title) else 'On stake sheet') }}">STAKE{% if _ss_stake is not none %} ${{ '%.0f' % _ss_stake }}{% endif %}</span>
               {% endif %}
               {# Meta diagnostics badges: volatility and edge confidence if available #}
               {% if r.volatility_tag is defined and r.volatility_tag %}

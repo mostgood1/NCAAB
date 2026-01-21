@@ -31884,6 +31884,75 @@ def api_display_predictions():
         except Exception:
             seg_map = {}
             seg_rollup_map = {}
+
+        # Optional: attach stake-sheet callouts to cards.
+        # Source: outputs/stake_sheet_<date>_{cal|iso|base}.csv
+        stake_variant: str | None = None
+        stake_entries_map: dict[str, list[dict[str, Any]]] = {}
+        try:
+            if cards_view:
+                def _norm_gid(v: Any) -> str:
+                    try:
+                        s = str(v)
+                        return s.replace('.0', '').strip()
+                    except Exception:
+                        return str(v)
+
+                def _sf(v: Any) -> float | None:
+                    try:
+                        if v is None:
+                            return None
+                        x = float(v)
+                        if not np.isfinite(x):
+                            return None
+                        return float(x)
+                    except Exception:
+                        return None
+
+                def _ss_load(path: Path, variant: str) -> dict[str, list[dict[str, Any]]]:
+                    ss = _safe_read_csv(path)
+                    if not isinstance(ss, pd.DataFrame) or ss.empty or ('game_id' not in ss.columns):
+                        return {}
+                    try:
+                        ss = ss.copy()
+                        ss['game_id'] = ss['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+                    out: dict[str, list[dict[str, Any]]] = {}
+                    for gid, g in ss.groupby('game_id'):
+                        try:
+                            entries: list[dict[str, Any]] = []
+                            for _, rr in g.iterrows():
+                                entries.append({
+                                    'variant': variant,
+                                    'market': (str(rr.get('market')) if rr.get('market') is not None else ''),
+                                    'selection': (str(rr.get('selection')) if rr.get('selection') is not None else ''),
+                                    'line': _sf(rr.get('line')),
+                                    'price': _sf(rr.get('price')),
+                                    'edge': _sf(rr.get('edge')),
+                                    'stake': _sf(rr.get('stake')),
+                                })
+                            if entries:
+                                out[_norm_gid(gid)] = entries
+                        except Exception:
+                            continue
+                    return out
+
+                for _variant, _fname in (
+                    ('cal', f"stake_sheet_{date_q}_cal.csv"),
+                    ('iso', f"stake_sheet_{date_q}_iso.csv"),
+                    ('base', f"stake_sheet_{date_q}_base.csv"),
+                ):
+                    p = OUT / _fname
+                    if p.exists():
+                        m = _ss_load(p, _variant)
+                        if m:
+                            stake_variant = _variant
+                            stake_entries_map = m
+                            break
+        except Exception:
+            stake_variant = None
+            stake_entries_map = {}
         try:
             if sim_only and isinstance(df, pd.DataFrame) and not df.empty and 'game_id' in df.columns:
                 sq_path = OUT / f"sim_quantiles_{date_q}.csv"
@@ -31987,6 +32056,60 @@ def api_display_predictions():
                 item['segments_5min'] = []
                 item['segments_rollup'] = {}
                 item['has_segments_5min'] = False
+
+            # Attach stake-sheet marker/details (cards view only)
+            try:
+                gid = str(item.get('game_id') or '').replace('.0', '').strip()
+                entries = stake_entries_map.get(gid) if (cards_view and gid) else None
+                if entries:
+                    item['on_stake_sheet'] = True
+                    item['stake_sheet_variant'] = stake_variant
+                    item['stake_sheet_entries'] = entries
+                    try:
+                        total_stake = 0.0
+                        for e in entries:
+                            s = e.get('stake')
+                            if s is None:
+                                continue
+                            x = float(s)
+                            if np.isfinite(x):
+                                total_stake += float(x)
+                        item['stake_sheet_total_stake'] = total_stake
+                    except Exception:
+                        item['stake_sheet_total_stake'] = None
+                    try:
+                        parts: list[str] = []
+                        for e in entries:
+                            mkt = (e.get('market') or '').strip()
+                            sel = (e.get('selection') or '').strip()
+                            line = e.get('line')
+                            stake = e.get('stake')
+                            edge = e.get('edge')
+                            p = mkt or 'bet'
+                            if sel:
+                                p += f" {sel}"
+                            if line is not None:
+                                p += f" {line:+.1f}" if (mkt == 'spreads' and isinstance(line, (int, float))) else f" {line:.1f}"
+                            if stake is not None:
+                                p += f" stake {stake:.0f}"
+                            if edge is not None:
+                                p += f" edge {edge:+.2f}"
+                            parts.append(p.strip())
+                        item['stake_sheet_title'] = '; '.join([p for p in parts if p])
+                    except Exception:
+                        item['stake_sheet_title'] = 'On stake sheet'
+                else:
+                    item['on_stake_sheet'] = False
+                    item['stake_sheet_variant'] = None
+                    item['stake_sheet_entries'] = []
+                    item['stake_sheet_total_stake'] = None
+                    item['stake_sheet_title'] = ''
+            except Exception:
+                item['on_stake_sheet'] = False
+                item['stake_sheet_variant'] = None
+                item['stake_sheet_entries'] = []
+                item['stake_sheet_total_stake'] = None
+                item['stake_sheet_title'] = ''
             rows.append(item)
 
         def _sanitize(v: Any) -> Any:

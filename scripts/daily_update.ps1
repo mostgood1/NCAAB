@@ -1402,9 +1402,13 @@ for name in ['stake_sheet_today.csv','stake_sheet_today_cal.csv','stake_sheet_to
     # Drop existing quantile columns to avoid duplicate suffix conflicts
     df = df[[c for c in df.columns if c not in {'q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin'}]]
     merged = df.merge(q, on='game_id', how='left')
-    # Ensure a date column exists for backtests/inspection
+    # Ensure a date column exists for backtests/inspection.
+    # Keep the stake sheet's existing date values (they should line up with daily_results/results_<date>.csv).
+    # Only fill when missing/all-NA; add slate_date for rollover debugging.
     if 'date' not in merged.columns or merged['date'].isna().all():
       merged['date'] = slate
+    elif 'slate_date' not in merged.columns:
+      merged['slate_date'] = slate
     merged.to_csv(p, index=False)
 print('Annotated stake sheets with quantiles (if matched by game_id).')
 "@
@@ -1416,9 +1420,22 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
 
     # Archive dated copies of stake sheets for ROI backtests
     try {
-      if (Test-Path $stakeBase) { Copy-Item $stakeBase (Join-Path $OutDir ("stake_sheet_" + $slateIso + "_base.csv")) -Force }
-      if (Test-Path $stakeCal)  { Copy-Item $stakeCal  (Join-Path $OutDir ("stake_sheet_" + $slateIso + "_cal.csv")) -Force }
-      if (Test-Path $stakeIso)  { Copy-Item $stakeIso  (Join-Path $OutDir ("stake_sheet_" + $slateIso + "_iso.csv")) -Force }
+      # Infer archive slate date from the stake sheet itself (more reliable than align_edges on rollover slates).
+      $stakeSlateIso = $slateIso
+      try {
+        $probe = @($stakeCal, $stakeBase, $stakeIso) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+        if ($probe) {
+          $rows = @(Import-Csv -LiteralPath $probe -ErrorAction Stop)
+          if ($rows -and $rows.Count -gt 0 -and ($rows[0].PSObject.Properties.Name -contains 'date')) {
+            $g = $rows | Group-Object -Property date | Sort-Object Count -Descending | Select-Object -First 1
+            if ($g -and $g.Name) { $stakeSlateIso = [string]$g.Name }
+          }
+        }
+      } catch { Write-Warning "Failed inferring stakeSlateIso from stake sheet: $($_)" }
+
+      if (Test-Path $stakeBase) { Copy-Item $stakeBase (Join-Path $OutDir ("stake_sheet_" + $stakeSlateIso + "_base.csv")) -Force }
+      if (Test-Path $stakeCal)  { Copy-Item $stakeCal  (Join-Path $OutDir ("stake_sheet_" + $stakeSlateIso + "_cal.csv")) -Force }
+      if (Test-Path $stakeIso)  { Copy-Item $stakeIso  (Join-Path $OutDir ("stake_sheet_" + $stakeSlateIso + "_iso.csv")) -Force }
     } catch { Write-Warning "Failed archiving dated stake sheets: $($_)" }
 
     if ((Test-Path $stakeBase) -and (Test-Path $stakeCal)) {
