@@ -68,6 +68,16 @@ def _coalesce_numeric(df: pd.DataFrame, col: str) -> pd.Series:
     return out
 
 
+def _num_series(df: pd.DataFrame, col: str) -> pd.Series:
+    """Return a numeric Series for df[col], or a NaN-filled Series if missing.
+
+    This avoids pandas/numpy scalar NaNs that break boolean indexing.
+    """
+    if col in df.columns:
+        return pd.to_numeric(df[col], errors="coerce")
+    return pd.Series(np.nan, index=df.index)
+
+
 def _load_results(out_dir: Path, date: str) -> pd.DataFrame:
     p = out_dir / "daily_results" / f"results_{date}.csv"
     if not p.exists():
@@ -155,13 +165,13 @@ def run_accuracy_backtest(cfg: AccuracyBacktestConfig) -> dict[str, Any]:
         actual_total = pd.to_numeric(df.get("actual_total"), errors="coerce")
 
         # Lines
-        market_total = pd.to_numeric(df.get("market_total"), errors="coerce")
-        closing_total = pd.to_numeric(df.get("closing_total"), errors="coerce")
+        market_total = _num_series(df, "market_total")
+        closing_total = _num_series(df, "closing_total")
         line_total = market_total.copy()
         line_total[line_total.isna()] = closing_total[line_total.isna()]
 
-        spread_home = pd.to_numeric(df.get("spread_home"), errors="coerce")
-        closing_spread_home = pd.to_numeric(df.get("closing_spread_home"), errors="coerce")
+        spread_home = _num_series(df, "spread_home")
+        closing_spread_home = _num_series(df, "closing_spread_home")
         line_spread = spread_home.copy()
         line_spread[line_spread.isna()] = closing_spread_home[line_spread.isna()]
 

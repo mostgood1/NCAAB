@@ -446,6 +446,20 @@ def backtest_sim_accuracy(
     rho: float = typer.Option(0.25, help="Total/margin correlation used by non-event fallback pieces"),
     recompute: bool = typer.Option(False, help="Recompute sim_quantiles_<date>.csv even if it already exists"),
     out_prefix: str = typer.Option("sim_accuracy", help="Outputs/backtests/<prefix>_<start>_<end>.*"),
+    sim_quantiles_prefix: str = typer.Option(
+        "sim_quantiles_",
+        help=(
+            "Prefix for outputs/<prefix><date>.csv quantiles files (default sim_quantiles_). "
+            "Use this for controlled A/B runs without overwriting sim_quantiles_<date>.csv."
+        ),
+    ),
+    sim_meta_prefix: str = typer.Option(
+        "sim_meta_",
+        help=(
+            "Prefix for outputs/<prefix><date>.json meta files (default sim_meta_). "
+            "Only used when recomputing sims."
+        ),
+    ),
 ):
     """Backtest sim-driven hit rates (winners/totals/ATS) across historical finalized days.
 
@@ -465,6 +479,8 @@ def backtest_sim_accuracy(
             rho=float(rho),
             recompute=bool(recompute),
             out_prefix=out_prefix,
+            sim_quantiles_prefix=str(sim_quantiles_prefix),
+            sim_meta_prefix=str(sim_meta_prefix),
         )
         res = run_sim_accuracy_backtest(cfg)
         print(res)
@@ -485,6 +501,27 @@ def backtest_segments_5min(
     sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests (rate-limit friendly)"),
     max_games: int = typer.Option(0, help="If >0, limit the number of games processed (debug/smoke)"),
     out_prefix: str = typer.Option("segments_5min", help="Outputs/backtests/<prefix>_<start>_to_<end>.*"),
+    sim_segments_prefix: str = typer.Option(
+        "sim_segments_",
+        help=(
+            "Prefix for outputs/<prefix><date>.csv segment files (default sim_segments_). "
+            "Use this for controlled A/B runs without overwriting the daily sim_segments_<date>.csv."
+        ),
+    ),
+    sim_quantiles_prefix: str = typer.Option(
+        "sim_quantiles_",
+        help=(
+            "Prefix for outputs/<prefix><date>.csv quantiles files (default sim_quantiles_). "
+            "Only used when recomputing sims."
+        ),
+    ),
+    sim_meta_prefix: str = typer.Option(
+        "sim_meta_",
+        help=(
+            "Prefix for outputs/<prefix><date>.json meta files (default sim_meta_). "
+            "Only used when recomputing sims."
+        ),
+    ),
 ):
     """Backtest 5-minute cumulative score checkpoints (5..40) vs ESPN play-by-play.
 
@@ -510,6 +547,9 @@ def backtest_segments_5min(
             sleep_seconds=float(sleep_seconds),
             max_games=int(max_games),
             out_prefix=str(out_prefix),
+            sim_segments_prefix=str(sim_segments_prefix),
+            sim_quantiles_prefix=str(sim_quantiles_prefix),
+            sim_meta_prefix=str(sim_meta_prefix),
         )
         res = run_segments_5min_backtest(cfg)
         print(res)

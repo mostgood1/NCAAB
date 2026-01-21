@@ -2332,7 +2332,10 @@ def run_simulations_for_date(out_dir: Path, date: str,
                              seed: Optional[int] = None,
                              mean_source: str = "auto",
                              allow_market_guardrails: bool = True,
-                             engine: str = "auto") -> Path:
+                             engine: str = "auto",
+                             quantiles_out_prefix: str = "sim_quantiles_",
+                             segments_out_prefix: str = "sim_segments_",
+                             meta_out_prefix: str = "sim_meta_") -> Path:
     out_dir = Path(out_dir)
     # Simulation inputs default to the unified enriched rows for a given date.
     # Those rows carry the market-derived mean total + spread-derived margin plus
@@ -2625,7 +2628,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
 
     # If no predictions for the date, write a header-only CSV to avoid empty-file parse errors downstream
     if preds.shape[0] == 0:
-        out_path = out_dir / f"sim_quantiles_{date}.csv"
+        out_path = out_dir / f"{quantiles_out_prefix}{date}.csv"
         header_cols = [
             "date","game_id","home_team","away_team",
             "sim_ok","mu_total","mu_margin",
@@ -2960,7 +2963,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
         results.append(out)
 
     sim_df = pd.DataFrame(results)
-    out_path = out_dir / f"sim_quantiles_{date}.csv"
+    out_path = out_dir / f"{quantiles_out_prefix}{date}.csv"
     try:
         sim_df = sim_df.replace([np.inf, -np.inf], np.nan)
     except Exception:
@@ -2970,7 +2973,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
     if segment_rows_all:
         try:
             seg_df = pd.DataFrame(segment_rows_all)
-            seg_path = out_dir / f"sim_segments_{date}.csv"
+            seg_path = out_dir / f"{segments_out_prefix}{date}.csv"
             try:
                 seg_df = seg_df.replace([np.inf, -np.inf], np.nan)
             except Exception:
@@ -3012,7 +3015,9 @@ def run_simulations_for_date(out_dir: Path, date: str,
 
                     calib_path = out_dir / "segment_calibration_5min.json"
                     bias_path = out_dir / "segment_bias_5min.json"
+                    stage2_path = out_dir / "segment_calibration_stage2_5min.json"
 
+                    stage1_affine_applied = False
                     if calib_path.exists() and cols:
                         calib = read_json(calib_path)
                         a_map = calib.get("a_by_end_min") if isinstance(calib, dict) else None
@@ -3043,8 +3048,10 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                 for col in cols:
                                     seg_df[col] = seg_df["_a_hat"] * seg_df[col] + seg_df["_b_hat"]
                                 seg_df = seg_df.drop(columns=["_a_hat", "_b_hat"], errors="ignore")
+                                stage1_affine_applied = True
 
-                    elif bias_path.exists() and cols:
+                    # Stage1 fallback: simple bias-only correction (older artifact).
+                    if (not stage1_affine_applied) and bias_path.exists() and cols:
                         bias_payload = read_json(bias_path)
                         bias_map = bias_payload.get("bias_by_end_min") if isinstance(bias_payload, dict) else None
                         if isinstance(bias_map, dict) and bias_map:
@@ -3064,6 +3071,31 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                     seg_df[col] = seg_df[col] - seg_df["_bias_hat"]
                                 seg_df = seg_df.drop(columns=["_bias_hat"], errors="ignore")
 
+                    # Optional second-stage residual bias correction (typically endgame endpoints like 35/40).
+                    if stage1_affine_applied and stage2_path.exists() and cols:
+                        import os
+
+                        disable_stage2 = (os.environ.get("NCAAB_DISABLE_SEGMENT_CALIB_STAGE2") or "").strip().lower()
+                        if disable_stage2 not in {"1", "true", "yes"}:
+                            stage2 = read_json(stage2_path)
+                            bias_map = stage2.get("bias_by_end_min") if isinstance(stage2, dict) else None
+                            if isinstance(bias_map, dict) and bias_map:
+                                norm_bias2 = {}
+                                for k, v in bias_map.items():
+                                    try:
+                                        kk = float(k)
+                                        vv = float(v)
+                                    except Exception:
+                                        continue
+                                    if np.isfinite(kk) and np.isfinite(vv):
+                                        norm_bias2[kk] = vv
+
+                                if norm_bias2:
+                                    seg_df["_bias2_hat"] = seg_df["end_min"].map(norm_bias2).fillna(0.0)
+                                    for col in cols:
+                                        seg_df[col] = seg_df[col] - seg_df["_bias2_hat"]
+                                    seg_df = seg_df.drop(columns=["_bias2_hat"], errors="ignore")
+
                     # Enforce monotonicity within each game for cumulative columns.
                     if cols and "game_id" in seg_df.columns:
                         seg_df = seg_df.sort_values(["game_id", "end_min"], kind="mergesort")
@@ -3076,7 +3108,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
             pass
 
     try:
-        meta_path = out_dir / f"sim_meta_{date}.json"
+        meta_path = out_dir / f"{meta_out_prefix}{date}.json"
         meta = {
             "date": date,
             "sim_seed": int(seed) if seed is not None else None,

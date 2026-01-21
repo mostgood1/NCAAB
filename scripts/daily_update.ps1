@@ -46,6 +46,14 @@ param(
   [int]$SimAccuracyBacktestSamples = 2000,
   [string]$SimAccuracyBacktestEngine = 'events',
   [switch]$SimAccuracyBacktestRecompute,
+  # Daily 5-min segment reconciliation + calibration refresh
+  [switch]$SkipSegment5MinRecon,
+  [int]$Segment5MinBacktestSamples = 2000,
+  [string]$Segment5MinBacktestEngine = 'events',
+  [int]$Segment5MinCalibrationLookbackDays = 45,
+  [int]$Segment5MinCalibrationMinRowsPerEndMin = 150,
+  [int]$Segment5MinCalibrationMinRowsUsed = 800,
+  [int]$Segment5MinCalibrationMinEndpoints = 4,
   # Probability calibration (isotonic mapping applied during distributional stake sizing)
   [switch]$SkipProbCalibrationFit,
   [int]$ProbCalibrationLookbackDays = 60,
@@ -339,6 +347,73 @@ print({'path': str(games_path), 'rows': len(df2)})
     Write-Host "[metrics] Wrote $simEvalPath"
   } catch {
     Write-Warning "evaluate_sim_metrics failed for ${prevDate}: $($_)"
+  }
+
+  # 3f.g) Reconcile 5-min cumulative endpoints (5..40) vs ESPN play-by-play, and refresh calibration
+  if (-not $SkipSegment5MinRecon.IsPresent) {
+    Write-Section "3f.g) Reconcile 5-min endpoints + refresh segment calibration for $prevDate"
+    try {
+      $segPrefix = 'segments_5min_daily'
+      $btArgs = @(
+        'backtest-segments-5min',
+        '--start', "$prevDate",
+        '--end', "$prevDate",
+        '--engine', "$Segment5MinBacktestEngine",
+        '--samples', "$Segment5MinBacktestSamples",
+        '--out-prefix', "$segPrefix",
+        '--sleep-seconds', '0.10'
+      )
+      $segBtOut = (& $VenvPython -m ncaab_model.cli @btArgs) | Out-String
+      if ($segBtOut) { Write-Host ($segBtOut.Trim()) }
+
+      $btDir = Join-Path $OutDir 'backtests'
+      $dailyCsv = Join-Path $btDir ("${segPrefix}_${prevDate}_to_${prevDate}.csv")
+      $masterCsv = Join-Path $btDir 'segments_5min_master.csv'
+
+      if (Test-Path $dailyCsv) {
+        $upsertOut = (& $VenvPython scripts/upsert_segments_5min_master.py --daily $dailyCsv --master $masterCsv) | Out-String
+        if ($upsertOut) { Write-Host ($upsertOut.Trim()) }
+
+        if (Test-Path $masterCsv) {
+          $calStart = $todayDate.AddDays(-[int]$Segment5MinCalibrationLookbackDays).ToString('yyyy-MM-dd')
+          $calOut = (& $VenvPython scripts/refresh_segment_calibration_5min.py `
+            --backtest-csv $masterCsv `
+            --out (Join-Path $OutDir 'segment_calibration_5min.json') `
+            --start $calStart `
+            --end $prevDate `
+            --min-rows-per-end-min $Segment5MinCalibrationMinRowsPerEndMin `
+            --min-rows-used $Segment5MinCalibrationMinRowsUsed `
+            --min-endpoints $Segment5MinCalibrationMinEndpoints
+          ) | Out-String
+          if ($calOut) { Write-Host ($calOut.Trim()) }
+
+          # Stage 2: late-game residual bias correction (applied after affine calibration)
+          try {
+            $stage2Out = (& $VenvPython scripts/fit_segment_stage2_bias_5min.py `
+              --backtest-csv $masterCsv `
+              --stage1-calibration (Join-Path $OutDir 'segment_calibration_5min.json') `
+              --out (Join-Path $OutDir 'segment_calibration_stage2_5min.json') `
+              --end $prevDate `
+              --window-days 14 `
+              --end-mins '35,40' `
+              --min-rows-per-end-min $Segment5MinCalibrationMinRowsPerEndMin `
+              --min-endpoints 2 `
+              --min-rows-used ([int]$Segment5MinCalibrationMinRowsPerEndMin * 2) `
+              --stat mean
+            ) | Out-String
+            if ($stage2Out) { Write-Host ($stage2Out.Trim()) }
+          } catch {
+            Write-Warning "segments-5min stage2 bias fit failed for ${prevDate}: $($_)"
+          }
+        }
+      } else {
+        Write-Warning "[segments-5min] Daily backtest CSV not found: $dailyCsv"
+      }
+    } catch {
+      Write-Warning "segments-5min reconciliation/calibration failed for ${prevDate}: $($_)"
+    }
+  } else {
+    Write-Host "SkipSegment5MinRecon flag set; skipping 5-min segments reconciliation/calibration." -ForegroundColor Yellow
   }
 
   # 3f.i) Evaluate sim accuracy (winners/totals/ATS) for previous day and persist JSON
@@ -1495,6 +1570,16 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   # 5-min trajectory artifact (used by game cards UI)
   $simSegmentsToday = Join-Path $OutDir ("sim_segments_" + $todayIso + ".csv")
   if (Test-Path $simSegmentsToday) { $toStage += $simSegmentsToday }
+
+  # Rolling 5-min reconciliation + calibration artifacts
+  $segCalib = Join-Path $OutDir 'segment_calibration_5min.json'
+  if (Test-Path $segCalib) { $toStage += $segCalib }
+  $segCalib2 = Join-Path $OutDir 'segment_calibration_stage2_5min.json'
+  if (Test-Path $segCalib2) { $toStage += $segCalib2 }
+  $segMaster = Join-Path $OutDir 'backtests\segments_5min_master.csv'
+  if (Test-Path $segMaster) { $toStage += $segMaster }
+  $segDailyPrev = Join-Path $OutDir ("backtests\segments_5min_daily_" + $prevDate + "_to_" + $prevDate + ".csv")
+  if (Test-Path $segDailyPrev) { $toStage += $segDailyPrev }
   # Archive copy of today's display snapshot for lightweight historical browsing
   $predDisplayArchive = Join-Path $OutDir ("archive\" + $todayIso + "\predictions_display_" + $todayIso + ".csv")
   if (Test-Path $predDisplayArchive) { $toStage += $predDisplayArchive }
@@ -1563,6 +1648,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
           (Join-Path $RepoRoot 'render.yaml'),
           (Join-Path $RepoRoot 'scripts\daily_update.ps1'),
           (Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'),
+          (Join-Path $RepoRoot 'scripts\upsert_segments_5min_master.py'),
+          (Join-Path $RepoRoot 'scripts\refresh_segment_calibration_5min.py'),
+          (Join-Path $RepoRoot 'scripts\fit_segment_stage2_bias_5min.py'),
           (Join-Path $RepoRoot 'scripts\persist_odds_into_daily_results.py'),
           (Join-Path $RepoRoot 'templates\index.html'),
           (Join-Path $RepoRoot 'static\css\app.css'),

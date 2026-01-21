@@ -29,6 +29,9 @@ class Segments5MinBacktestConfig:
     sleep_seconds: float = 0.15
     max_games: int = 0
     out_prefix: str = "segments_5min"
+    sim_segments_prefix: str = "sim_segments_"
+    sim_quantiles_prefix: str = "sim_quantiles_"
+    sim_meta_prefix: str = "sim_meta_"
 
 
 def _date_range(start_iso: str, end_iso: str) -> Iterable[dt.date]:
@@ -50,7 +53,7 @@ def _pinball(q: float, y: float, tau: float) -> float:
 
 def _ensure_sim_segments_for_date(cfg: Segments5MinBacktestConfig, date_iso: str) -> Optional[Path]:
     out_dir = Path(cfg.out_dir)
-    seg_path = out_dir / f"sim_segments_{date_iso}.csv"
+    seg_path = out_dir / f"{cfg.sim_segments_prefix}{date_iso}.csv"
 
     if seg_path.exists() and not cfg.recompute_sims:
         return seg_path
@@ -64,6 +67,9 @@ def _ensure_sim_segments_for_date(cfg: Segments5MinBacktestConfig, date_iso: str
             samples=int(cfg.samples),
             rho=float(cfg.rho),
             engine=str(cfg.engine),
+            quantiles_out_prefix=str(cfg.sim_quantiles_prefix),
+            segments_out_prefix=str(cfg.sim_segments_prefix),
+            meta_out_prefix=str(cfg.sim_meta_prefix),
         )
     except Exception:
         return None

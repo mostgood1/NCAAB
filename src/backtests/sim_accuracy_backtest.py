@@ -38,6 +38,8 @@ class SimAccuracyBacktestConfig:
     rho: float = 0.25
     recompute: bool = False
     out_prefix: str = "sim_accuracy"
+    sim_quantiles_prefix: str = "sim_quantiles_"
+    sim_meta_prefix: str = "sim_meta_"
 
 
 def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
@@ -71,7 +73,7 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
         return (n, float(cc.mean()))
 
     for d in dates:
-        sim_path = cfg.out_dir / f"sim_quantiles_{d}.csv"
+        sim_path = cfg.out_dir / f"{cfg.sim_quantiles_prefix}{d}.csv"
         if cfg.recompute or (not sim_path.exists()):
             run_simulations_for_date(
                 cfg.out_dir,
@@ -79,6 +81,8 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 samples=int(cfg.samples),
                 rho=float(cfg.rho),
                 engine=str(cfg.engine),
+                quantiles_out_prefix=str(cfg.sim_quantiles_prefix),
+                meta_out_prefix=str(cfg.sim_meta_prefix),
             )
 
         sim = _load_sim_for_date(cfg.out_dir, d)
