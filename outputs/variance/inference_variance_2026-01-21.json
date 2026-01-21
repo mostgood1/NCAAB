@@ -1,0 +1,15 @@
+{
+  "date": "2026-01-21",
+  "margin_max": 20.171291411019507,
+  "margin_mean": 5.73,
+  "margin_min": 0.7413307297302693,
+  "margin_std": 4.025,
+  "margin_var": 16.2003,
+  "rows": 54,
+  "timestamp_utc": "2026-01-21T14:03:56.4281141Z",
+  "total_max": 80.09114032675092,
+  "total_mean": 71.13,
+  "total_min": 61.34763453135639,
+  "total_std": 5.1218,
+  "total_var": 26.2325
+}
