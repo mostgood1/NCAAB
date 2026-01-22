@@ -2060,6 +2060,20 @@ def simulate_game_row(
         except Exception:
             p_home_win_1h = None
 
+        segment_rows = None
+        try:
+            segment_rows = _segment_5min_quantiles_from_points(
+                home_pts=home_pts,
+                away_pts=away_pts,
+                home_1h=home_1h,
+                away_1h=away_1h,
+                seg_probs_half1=segment_probs_half1,
+                seg_probs_half2=segment_probs_half2,
+                rng=rng,
+            )
+        except Exception:
+            segment_rows = None
+
         return {
             "sim_ok": True,
             "sim_method": "pace",
@@ -2128,6 +2142,7 @@ def simulate_game_row(
             "calib_delta_margin": float(calib_applied.get("delta_margin", 0.0)) if calib_applied else 0.0,
             "calib_sigma_total_mult": float(calib_applied.get("sigma_total_mult", 1.0)) if calib_applied else 1.0,
             "calib_sigma_margin_mult": float(calib_applied.get("sigma_margin_mult", 1.0)) if calib_applied else 1.0,
+            "_segments_rows": segment_rows,
         }
 
     if sigma_margin is not None:
@@ -2270,6 +2285,20 @@ def simulate_game_row(
     if spread_home_1h is not None:
         p_cover_home_1h = float(np.mean(margins_1h + float(spread_home_1h) > 0))
 
+    segment_rows = None
+    try:
+        segment_rows = _segment_5min_quantiles_from_points(
+            home_pts=home_pts,
+            away_pts=away_pts,
+            home_1h=home_1h,
+            away_1h=away_1h,
+            seg_probs_half1=segment_probs_half1,
+            seg_probs_half2=segment_probs_half2,
+            rng=rng,
+        )
+    except Exception:
+        segment_rows = None
+
     return {
         "sim_ok": True,
         "sim_method": "points",
@@ -2318,6 +2347,7 @@ def simulate_game_row(
         "calib_delta_margin": float(calib_applied.get("delta_margin", 0.0)) if calib_applied else 0.0,
         "calib_sigma_total_mult": float(calib_applied.get("sigma_total_mult", 1.0)) if calib_applied else 1.0,
         "calib_sigma_margin_mult": float(calib_applied.get("sigma_margin_mult", 1.0)) if calib_applied else 1.0,
+        "_segments_rows": segment_rows,
     }
 
 

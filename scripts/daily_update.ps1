@@ -48,6 +48,10 @@ param(
   [switch]$SimAccuracyBacktestRecompute,
   # Daily 5-min segment reconciliation + calibration refresh
   [switch]$SkipSegment5MinRecon,
+  # Auto-refresh 5-min segment weights used by simulator (outputs/segment_weights.json)
+  [switch]$SkipSegmentWeights5Min,
+  # Daily 5-min interval actuals artifact (ESPN play-by-play -> outputs/interval_actuals_5min_<date>.csv)
+  [switch]$SkipIntervalActuals5Min,
   [int]$Segment5MinBacktestSamples = 2000,
   [string]$Segment5MinBacktestEngine = 'events',
   [int]$Segment5MinCalibrationLookbackDays = 45,
@@ -149,6 +153,24 @@ try {
     )
   )
   Write-Host "[quantile-gating] day=$dow targetDay=$QuantileRetrainDay ageDays=$([Math]::Round($artifactAgeDays,2)) runHeavy=$RunHeavyQuantiles" -ForegroundColor DarkGray
+
+  # 0.weights) Refresh 5-min segment weights from season master backtest (fast, no network)
+  Write-Section "0.weights) Refresh 5-min segment weights (from master backtest)"
+  try {
+    if ($SkipSegmentWeights5Min.IsPresent) {
+      Write-Host "[segment-weights] Skipped via -SkipSegmentWeights5Min" -ForegroundColor DarkGray
+    } else {
+      $master = Join-Path $OutDir 'backtests\segments_5min_master.csv'
+      $outW = Join-Path $OutDir 'segment_weights.json'
+      if (Test-Path $master) {
+        & $VenvPython scripts\update_segment_weights_from_master.py --master $master --out $outW --shrink-to-uniform 0.10 --min-games 200
+      } else {
+        Write-Host "[segment-weights] Master not found ($master); leaving existing weights as-is." -ForegroundColor DarkGray
+      }
+    }
+  } catch {
+    Write-Warning "segment weights refresh failed: $($_)"
+  }
 
   # 0) Ensure ESPN cache + TBD patch + subset parity before the rest of the flow
   Write-Section "0) ESPN schedule refresh + TBD patch + parity"
@@ -414,6 +436,26 @@ print({'path': str(games_path), 'rows': len(df2)})
     }
   } else {
     Write-Host "SkipSegment5MinRecon flag set; skipping 5-min segments reconciliation/calibration." -ForegroundColor Yellow
+  }
+
+  # 3f.h) Build interval actuals CSV for UI reconciliation (team scores at 5..40)
+  if (-not $SkipIntervalActuals5Min.IsPresent) {
+    Write-Section "3f.h) Build interval actuals (5-min) for $prevDate"
+    try {
+      $iaArgs = @(
+        'build-interval-actuals-5min',
+        '--date', "$prevDate",
+        '--sleep-seconds', '0.10'
+      )
+      if ($NoCache.IsPresent) { $iaArgs += '--no-use-cache' }
+
+      $iaOut = (& $VenvPython -m ncaab_model.cli @iaArgs) | Out-String
+      if ($iaOut) { Write-Host ($iaOut.Trim()) }
+    } catch {
+      Write-Warning "build-interval-actuals-5min failed for ${prevDate}: $($_)"
+    }
+  } else {
+    Write-Host "SkipIntervalActuals5Min flag set; skipping 5-min interval actuals build." -ForegroundColor Yellow
   }
 
   # 3f.i) Evaluate sim accuracy (winners/totals/ATS) for previous day and persist JSON

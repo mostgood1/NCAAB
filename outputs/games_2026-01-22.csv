@@ -1,8 +1,8 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401808633,2026,2026-01-22,2026-01-22 17:00:00+00:00,2026-01-22 12:00,EST,Marshall Thundering Herd,UL Monroe Warhawks,0,0,,,,,False,Cam Henderson Center
-401808628,2026,2026-01-22,2026-01-22 17:00:00+00:00,2026-01-22 12:00,EST,App State Mountaineers,Louisiana Ragin' Cajuns,0,0,,,,,False,Holmes Convocation Center
-401807702,2026,2026-01-22,2026-01-22 18:00:00+00:00,2026-01-22 13:00,EST,Lipscomb Bisons,Stetson Hatters,0,0,,,,,False,Allen Arena
-401807701,2026,2026-01-22,2026-01-22 18:00:00+00:00,2026-01-22 13:00,EST,Austin Peay Governors,Florida Gulf Coast Eagles,0,0,,,,,False,F&M Bank Arena
+401808633,2026,2026-01-22,2026-01-22 17:00:00+00:00,2026-01-22 12:00,EST,Marshall Thundering Herd,UL Monroe Warhawks,115,60,65.0,36.0,50.0,24.0,False,Cam Henderson Center
+401808628,2026,2026-01-22,2026-01-22 17:00:00+00:00,2026-01-22 12:00,EST,App State Mountaineers,Louisiana Ragin' Cajuns,72,58,31.0,30.0,41.0,28.0,False,Holmes Convocation Center
+401807702,2026,2026-01-22,2026-01-22 18:00:00+00:00,2026-01-22 13:00,EST,Lipscomb Bisons,Stetson Hatters,79,74,34.0,29.0,34.0,39.0,False,Allen Arena
+401807701,2026,2026-01-22,2026-01-22 18:00:00+00:00,2026-01-22 13:00,EST,Austin Peay Governors,Florida Gulf Coast Eagles,83,62,41.0,29.0,42.0,33.0,False,F&M Bank Arena
 401807699,2026,2026-01-22,2026-01-22 22:30:00+00:00,2026-01-22 17:30,EST,West Georgia Wolves,Central Arkansas Bears,0,0,,,,,False,The Coliseum
 401812129,2026,2026-01-22,2026-01-22 23:00:00+00:00,2026-01-22 18:00,EST,UMass Lowell River Hawks,Vermont Catamounts,0,0,,,,,False,Kennedy Family Athletic Complex
 401812128,2026,2026-01-22,2026-01-22 23:00:00+00:00,2026-01-22 18:00,EST,UMBC Retrievers,NJIT Highlanders,0,0,,,,,False,Chesapeake Employers Insurance Arena

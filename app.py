@@ -31961,6 +31961,7 @@ def api_display_predictions():
         # Source: outputs/sim_segments_<date>.csv produced by the simulator.
         seg_map: dict[str, list[dict[str, Any]]] = {}
         seg_rollup_map: dict[str, dict[str, Any]] = {}
+        interval_actuals_map: dict[str, list[dict[str, Any]]] = {}
         try:
             seg_path = OUT / f"sim_segments_{date_q}.csv"
             if cards_view and seg_path.exists():
@@ -32113,6 +32114,71 @@ def api_display_predictions():
         except Exception:
             seg_map = {}
             seg_rollup_map = {}
+
+        # Optional: attach realized 5-minute interval cumulative team scores from cached ESPN PBP.
+        # Source: outputs/interval_actuals_5min_<date>.csv produced by `build-interval-actuals-5min`.
+        try:
+            ia_path = OUT / f"interval_actuals_5min_{date_q}.csv"
+            if cards_view and ia_path.exists():
+                ia = _safe_read_csv(ia_path)
+                if isinstance(ia, pd.DataFrame) and (not ia.empty) and ('game_id' in ia.columns):
+                    try:
+                        ia = ia.copy()
+                        ia['game_id'] = ia['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+                    for c in ('end_min', 'actual_home_score_end', 'actual_away_score_end', 'actual_total_score_end'):
+                        if c in ia.columns:
+                            ia[c] = pd.to_numeric(ia[c], errors='coerce')
+                    try:
+                        ia = ia.dropna(subset=['end_min'])
+                        ia = ia.sort_values(['game_id', 'end_min'], kind='mergesort')
+                    except Exception:
+                        pass
+
+                    def _sf(v: Any) -> float | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return float(x)
+                        except Exception:
+                            return None
+
+                    def _si(v: Any) -> int | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return int(x)
+                        except Exception:
+                            return None
+
+                    for gid, g in ia.groupby('game_id'):
+                        try:
+                            rows_ia: list[dict[str, Any]] = []
+                            for _, rr in g.iterrows():
+                                end_min = _si(rr.get('end_min'))
+                                if end_min is None:
+                                    continue
+                                rows_ia.append(
+                                    {
+                                        'end_min': end_min,
+                                        'actual_home_score_end': _si(rr.get('actual_home_score_end')),
+                                        'actual_away_score_end': _si(rr.get('actual_away_score_end')),
+                                        'actual_total_score_end': _si(rr.get('actual_total_score_end')),
+                                    }
+                                )
+                            if rows_ia:
+                                interval_actuals_map[str(gid)] = rows_ia
+                        except Exception:
+                            continue
+        except Exception:
+            interval_actuals_map = {}
 
         # Optional: attach stake-sheet callouts to cards.
         # Source: outputs/stake_sheet_<date>_{cal|iso|base}.csv
@@ -32287,6 +32353,99 @@ def api_display_predictions():
                 item['segments_5min'] = []
                 item['segments_rollup'] = {}
                 item['has_segments_5min'] = False
+
+            # Attach realized 5-minute cumulative scores (cards view only)
+            try:
+                gid = str(item.get('game_id') or '').replace('.0', '').strip()
+                ia = interval_actuals_map.get(gid) if (cards_view and gid) else None
+                if ia:
+                    item['intervals_5min_actual'] = ia
+                    item['has_intervals_5min_actual'] = True
+                else:
+                    item['intervals_5min_actual'] = []
+                    item['has_intervals_5min_actual'] = False
+            except Exception:
+                item['intervals_5min_actual'] = []
+                item['has_intervals_5min_actual'] = False
+
+            # Merge segments + actuals into a single per-endpoint recon list
+            try:
+                merged: list[dict[str, Any]] = []
+                segs = item.get('segments_5min') if cards_view else None
+                acts = item.get('intervals_5min_actual') if cards_view else None
+                if isinstance(segs, list) and segs and isinstance(acts, list) and acts:
+                    a_by = {}
+                    for a in acts:
+                        try:
+                            em = a.get('end_min')
+                            if em is None:
+                                continue
+                            a_by[int(em)] = a
+                        except Exception:
+                            continue
+                    for s in segs:
+                        try:
+                            em = s.get('end_min')
+                            if em is None:
+                                continue
+                            em_i = int(em)
+                            a = a_by.get(em_i)
+                            if not a:
+                                continue
+                            pred_total = s.get('q50_total_score_end') if s.get('q50_total_score_end') is not None else s.get('mu_total_score_end')
+                            pred_home = s.get('q50_home_score_end') if s.get('q50_home_score_end') is not None else s.get('mu_home_score_end')
+                            pred_away = s.get('q50_away_score_end') if s.get('q50_away_score_end') is not None else s.get('mu_away_score_end')
+                            act_total = a.get('actual_total_score_end')
+                            act_home = a.get('actual_home_score_end')
+                            act_away = a.get('actual_away_score_end')
+                            def _f(x):
+                                try:
+                                    if x is None:
+                                        return None
+                                    v = float(x)
+                                    return float(v) if np.isfinite(v) else None
+                                except Exception:
+                                    return None
+                            def _i(x):
+                                try:
+                                    if x is None:
+                                        return None
+                                    v = float(x)
+                                    return int(v) if np.isfinite(v) else None
+                                except Exception:
+                                    return None
+                            pt = _f(pred_total)
+                            ph = _f(pred_home)
+                            pa = _f(pred_away)
+                            at = _i(act_total)
+                            ah = _i(act_home)
+                            aa = _i(act_away)
+                            merged.append(
+                                {
+                                    'end_min': em_i,
+                                    'start_min': s.get('start_min'),
+                                    'half': s.get('half'),
+                                    'pred_q50_total_score_end': pt,
+                                    'pred_q50_home_score_end': ph,
+                                    'pred_q50_away_score_end': pa,
+                                    'pred_q10_total_score_end': _f(s.get('q10_total_score_end')),
+                                    'pred_q90_total_score_end': _f(s.get('q90_total_score_end')),
+                                    'actual_total_score_end': at,
+                                    'actual_home_score_end': ah,
+                                    'actual_away_score_end': aa,
+                                    'err_total': (pt - float(at)) if (pt is not None and at is not None) else None,
+                                    'err_home': (ph - float(ah)) if (ph is not None and ah is not None) else None,
+                                    'err_away': (pa - float(aa)) if (pa is not None and aa is not None) else None,
+                                }
+                            )
+                        except Exception:
+                            continue
+                    merged.sort(key=lambda x: int(x.get('end_min') or 0))
+                item['segments_5min_recon'] = merged
+                item['has_segments_5min_recon'] = bool(merged)
+            except Exception:
+                item['segments_5min_recon'] = []
+                item['has_segments_5min_recon'] = False
 
             # Attach stake-sheet marker/details (cards view only)
             try:

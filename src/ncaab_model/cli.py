@@ -595,6 +595,42 @@ def tune_segment_weights_5min(
         raise typer.Exit(code=1)
 
 
+@app.command(name="build-interval-actuals-5min")
+def build_interval_actuals_5min(
+    date: str = typer.Option(..., help="Date YYYY-MM-DD"),
+    use_cache: bool = typer.Option(True, help="Use cached ESPN play-by-play responses when available"),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests"),
+    max_games: int = typer.Option(0, help="If >0, limit the number of games processed (debug/smoke)"),
+    out_prefix: str = typer.Option("interval_actuals_5min_", help="Output prefix under outputs/<prefix><date>.csv"),
+):
+    """Build 5-minute cumulative *team* scores (5..40) from ESPN play-by-play.
+
+    Writes outputs/interval_actuals_5min_<date>.csv containing:
+    - actual_home_score_end / actual_away_score_end at each end_min in {5,10,...,40}
+
+    This powers historic card reconciliation against outputs/sim_segments_<date>.csv.
+    """
+    try:
+        from src.ncaab_model.data.interval_actuals_5min import (
+            BuildIntervalActuals5MinConfig,
+            build_interval_actuals_5min_for_date,
+        )
+
+        cfg = BuildIntervalActuals5MinConfig(
+            out_dir=settings.outputs_dir,
+            date=str(date),
+            use_cache=bool(use_cache),
+            sleep_seconds=float(sleep_seconds),
+            max_games=int(max_games),
+            out_prefix=str(out_prefix),
+        )
+        p = build_interval_actuals_5min_for_date(cfg)
+        print({"wrote": str(p)})
+    except Exception as e:
+        print(f"[red]build-interval-actuals-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command(name="fit-segment-bias-5min")
 def fit_segment_bias_5min(
     backtest_csv: Path = typer.Option(..., help="Path to outputs/backtests/segments_5min_<start>_to_<end>.csv"),

@@ -1,24 +1,24 @@
 {
   "actual_col": "actual_total",
   "bias_by_end_min": {
-    "35": 1.0060648765280407,
-    "40": 0.9085521626637376
+    "35": 1.945462926657437,
+    "40": 2.093359501714912
   },
-  "end": "2026-01-10",
+  "end": "2026-01-21",
   "end_mins": [
     35,
     40
   ],
-  "generated_at": "2026-01-21T02:44:33.690532Z",
+  "generated_at": "2026-01-22T21:40:15.665329Z",
   "kind": "stage2_residual_bias_by_end_min",
-  "min_rows_per_end_min": 250,
+  "min_rows_per_end_min": 150,
   "pred_col": "pred_q50",
   "rows_by_end_min": {
-    "35": 751,
-    "40": 751
+    "35": 696,
+    "40": 696
   },
-  "rows_used": 1502,
-  "source_backtest_csv": "outputs\\backtests\\segments_5min_2025-11-03_to_2026-01-19.csv",
-  "stage1_calibration_json": "outputs\\segment_calibration_5min.json",
-  "start": "2025-12-28"
+  "rows_used": 1392,
+  "source_backtest_csv": "C:\\Users\\mostg\\OneDrive\\Coding\\NCAAB\\outputs\\backtests\\segments_5min_master.csv",
+  "stage1_calibration_json": "C:\\Users\\mostg\\OneDrive\\Coding\\NCAAB\\outputs\\segment_calibration_5min.json",
+  "start": "2026-01-08"
 }

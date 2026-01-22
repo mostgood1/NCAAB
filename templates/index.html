@@ -1513,6 +1513,28 @@
                         {% endif %}
                       {% endfor %}
                     </div>
+
+                    {% if r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon %}
+                      <div class="muted m4v8">
+                        Actual cum (H/A) + Δ(total) at end-minute:
+                        {% for x in r.segments_5min_recon %}
+                          {% if (x.end_min is defined and x.end_min is not none) and (x.actual_total_score_end is defined and x.actual_total_score_end is not none) %}
+                            {% set _tag = ('1H' if (x.end_min == 20) else ('G' if (x.end_min == 40) else '')) %}
+                            <span class="pill small">
+                              {{ x.end_min }}{% if _tag %} ({{ _tag }}){% endif %}:
+                              H {{ x.actual_home_score_end if x.actual_home_score_end is not none else '–' }} · A {{ x.actual_away_score_end if x.actual_away_score_end is not none else '–' }}
+                              {% if x.err_total is defined and x.err_total is not none and x.err_total == x.err_total %}
+                                <span class="muted"> · Δ {{ '+' if x.err_total > 0 else '' }}{{ '%.0f' % x.err_total }}</span>
+                              {% endif %}
+                            </span>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                      <div class="note muted">Δ is (Sim q50 cumulative total) − (Actual cumulative total) at each 5-min endpoint (from cached ESPN play-by-play).</div>
+                    {% else %}
+                      <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD</span> (uses cached ESPN PBP when available).</div>
+                    {% endif %}
+
                     {% if r.segments_rollup is defined and r.segments_rollup %}
                       <div class="muted m4v8">
                         Boxscore μ rollup:

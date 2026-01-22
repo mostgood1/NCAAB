@@ -1,421 +1,325 @@
 {
   "critical_failures": [],
   "date": "2026-01-22",
-  "elapsed_seconds": 784.12,
-  "finished": "2026-01-22T10:06:31.1119272-06:00",
+  "elapsed_seconds": 433.24,
+  "finished": "2026-01-22T12:09:27.6543804-06:00",
   "steps": [
     {
       "errors": {},
       "section": "0) ESPN schedule refresh + TBD patch + parity",
-      "start": "2026-01-22T09:53:27.0413909-06:00",
+      "start": "2026-01-22T12:02:14.4529823-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "0.pre) Fetch today's slate + normalize display times",
-      "start": "2026-01-22T09:53:34.9345240-06:00",
+      "start": "2026-01-22T12:02:22.9059406-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "0.pre.b) Canonical start times",
-      "start": "2026-01-22T09:53:37.3198313-06:00",
+      "start": "2026-01-22T12:02:24.9081681-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "1) Fetch previous day's games (2026-01-21)",
-      "start": "2026-01-22T09:53:37.8250129-06:00",
+      "start": "2026-01-22T12:02:25.3521200-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "2) Fetch odds snapshots for 2026-01-21 and build last/closing lines",
-      "start": "2026-01-22T09:53:39.5141103-06:00",
+      "start": "2026-01-22T12:02:26.7725946-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "3) Build daily results (reconcile vs finals) for 2026-01-21",
-      "start": "2026-01-22T09:54:27.1402862-06:00",
+      "start": "2026-01-22T12:03:13.6996588-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "3c) Evaluate previous-day accuracy vs odds",
-      "start": "2026-01-22T09:54:28.8730089-06:00",
+      "start": "2026-01-22T12:03:15.2758986-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "3a) Fetch previous day raw scores (no cache) and boxscores",
-      "start": "2026-01-22T09:54:29.4898513-06:00",
+      "start": "2026-01-22T12:03:15.7429445-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "3b) Finalize previous day (refresh + fallback + overrides)",
-      "start": "2026-01-22T09:54:36.5873561-06:00",
+      "start": "2026-01-22T12:03:22.9028670-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "3d) Compute daily accuracy for 2026-01-21 (winners/totals/ATS)",
-      "start": "2026-01-22T09:54:40.1776538-06:00",
+      "start": "2026-01-22T12:03:26.2700239-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "3f) Evaluate simulation metrics for 2026-01-21",
-      "start": "2026-01-22T09:54:40.6865563-06:00",
+      "start": "2026-01-22T12:03:26.7099433-06:00",
       "status": "ok"
     },
     {
       "errors": {},
-      "section": "3f.g) Reconcile 5-min endpoints + refresh segment calibration for 2026-01-21",
-      "start": "2026-01-22T09:54:41.1938063-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "3e) Fit simulation calibration (lookback=21 days, min_games=80)",
-      "start": "2026-01-22T09:54:47.0965947-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "3f) Fit isotonic probability calibration (lookback=60 days, min_rows=500)",
-      "start": "2026-01-22T09:54:47.8135058-06:00",
+      "section": "3f.h) Build interval actuals (5-min) for 2026-01-21",
+      "start": "2026-01-22T12:03:27.1406169-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "4) Update model tuning from recent daily results",
-      "start": "2026-01-22T09:54:48.6052236-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "5) Retrain baseline models on latest features_all.csv",
-      "start": "2026-01-22T09:54:50.2918538-06:00",
+      "start": "2026-01-22T12:03:31.0188591-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "5b) Generate/refresh team-level historical features (pre-inference)",
-      "start": "2026-01-22T09:54:55.5218379-06:00",
+      "start": "2026-01-22T12:03:32.4962009-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "5d) Run model inference harness (forced refresh)",
-      "start": "2026-01-22T09:55:04.3410345-06:00",
+      "start": "2026-01-22T12:03:41.8905675-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "5e) Calibrate model predictions (forced refresh)",
-      "start": "2026-01-22T09:55:07.8253595-06:00",
+      "start": "2026-01-22T12:03:45.1560870-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "5f) Generate prediction intervals (forced refresh)",
-      "start": "2026-01-22T09:55:08.3048568-06:00",
+      "start": "2026-01-22T12:03:45.8219612-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6i) Rolling backtest (28 days)",
-      "start": "2026-01-22T09:55:09.2319129-06:00",
+      "start": "2026-01-22T12:03:46.9203065-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6i.b) Generate ATS picks (today)",
-      "start": "2026-01-22T09:55:10.1714163-06:00",
+      "start": "2026-01-22T12:03:48.1198038-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6i.a) Normalize odds and enrich backtest (rest/travel/market)",
-      "start": "2026-01-22T09:55:11.1338003-06:00",
+      "start": "2026-01-22T12:03:48.9334943-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6j) Quantile selection (28d window, 80% coverage)",
-      "start": "2026-01-22T09:55:12.3635482-06:00",
+      "start": "2026-01-22T12:03:50.0879564-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6j.a) Tune OU segment thresholds (28 days)",
-      "start": "2026-01-22T09:55:12.8252763-06:00",
+      "start": "2026-01-22T12:03:50.4933771-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6j.b) Generate OU picks (policy)",
-      "start": "2026-01-22T09:55:13.4754933-06:00",
+      "start": "2026-01-22T12:03:51.3361288-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6j.ii) Daily quantile retrain + scoring",
-      "start": "2026-01-22T09:55:14.0093670-06:00",
+      "start": "2026-01-22T12:03:51.7772559-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6j.iii) Quantile CRPS metrics + trends",
-      "start": "2026-01-22T09:55:15.2694226-06:00",
+      "start": "2026-01-22T12:03:52.5837655-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6j.iv) Weekly drift summary",
-      "start": "2026-01-22T09:55:16.7446397-06:00",
+      "start": "2026-01-22T12:03:54.0677799-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6k) Synthetic pipeline (calibrate + intervals + stake sizing)",
-      "start": "2026-01-22T09:55:17.3364357-06:00",
+      "start": "2026-01-22T12:03:54.5136407-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6) Fetch today's schedule, odds, and run predictions/picks",
-      "start": "2026-01-22T09:55:18.9424757-06:00",
+      "start": "2026-01-22T12:03:56.5674088-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.pre) Ensure full game & prediction coverage (force-fill)",
-      "start": "2026-01-22T09:55:30.6768440-06:00",
+      "start": "2026-01-22T12:04:08.0098741-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post) Normalize start fields and persist _start_dt",
-      "start": "2026-01-22T09:55:31.5364937-06:00",
+      "start": "2026-01-22T12:04:08.7859801-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.i) Persist display snapshot for today if missing",
-      "start": "2026-01-22T09:55:32.0012187-06:00",
+      "start": "2026-01-22T12:04:09.1949066-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.ii) Safeguard: remove No Market (Unposted) games",
-      "start": "2026-01-22T09:55:32.4278108-06:00",
+      "start": "2026-01-22T12:04:09.6188431-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.b) Enrich meta probabilities (aligned)",
-      "start": "2026-01-22T09:55:32.8623065-06:00",
+      "start": "2026-01-22T12:04:09.9946723-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.c) Inject sigma and adjusted Kelly",
-      "start": "2026-01-22T09:55:34.1300792-06:00",
+      "start": "2026-01-22T12:04:11.0666975-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.d) Market-aware blend + guardrails",
-      "start": "2026-01-22T09:55:34.5911274-06:00",
+      "start": "2026-01-22T12:04:11.5107424-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.d.s) Monte Carlo simulations + blend",
-      "start": "2026-01-22T09:55:35.0588268-06:00",
+      "start": "2026-01-22T12:04:11.9073785-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.e) Feature parity checks (meta probs)",
-      "start": "2026-01-22T09:58:35.0884481-06:00",
+      "start": "2026-01-22T12:07:07.2076038-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.f) Tune OU/ATS thresholds vs odds",
-      "start": "2026-01-22T09:58:35.5407427-06:00",
+      "start": "2026-01-22T12:07:07.6266376-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.f.i) Tune OU selection policy (>=75% acc)",
-      "start": "2026-01-22T09:58:36.4591564-06:00",
+      "start": "2026-01-22T12:07:08.5052846-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.f.ii) Evaluate OU policy (coverage + accuracy)",
-      "start": "2026-01-22T09:58:38.6273423-06:00",
+      "start": "2026-01-22T12:07:10.6705205-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.f.iii) Tune ATS selection policy (>=75% acc)",
-      "start": "2026-01-22T09:58:39.8814477-06:00",
+      "start": "2026-01-22T12:07:11.9304667-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.f.iv) Evaluate ATS policy (coverage + accuracy)",
-      "start": "2026-01-22T09:58:41.4836736-06:00",
+      "start": "2026-01-22T12:07:13.5152377-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a.post.g) Evaluate overall OU/ATS accuracy (all games)",
-      "start": "2026-01-22T09:58:42.3873571-06:00",
+      "start": "2026-01-22T12:07:14.4598879-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6b) Refresh team-level historical features post-ingestion",
-      "start": "2026-01-22T09:58:43.3466643-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "6b.i) Run model integrity tests",
-      "start": "2026-01-22T09:58:51.8574458-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "6c) Train/refresh model-first total & margin predictors (LightGBM/XGBoost)",
-      "start": "2026-01-22T09:58:53.4357150-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "6d) Prediction variance diagnostics",
-      "start": "2026-01-22T09:59:01.2168172-06:00",
+      "start": "2026-01-22T12:07:15.3991724-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6e) Train meta probability models (cover/over)",
-      "start": "2026-01-22T09:59:07.8999199-06:00",
+      "start": "2026-01-22T12:07:27.1107402-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6f) Probability distribution stability (JS divergence)",
-      "start": "2026-01-22T09:59:14.2910438-06:00",
+      "start": "2026-01-22T12:07:34.1624232-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6g) Auto-refresh probability calibration (ECE/drift/age)",
-      "start": "2026-01-22T09:59:14.8043905-06:00",
+      "start": "2026-01-22T12:07:34.5932116-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6g.i) Meta probability reliability + calibration",
-      "start": "2026-01-22T09:59:15.2889987-06:00",
+      "start": "2026-01-22T12:07:35.0235457-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6h) Explain meta models (feature contributions)",
-      "start": "2026-01-22T09:59:17.1245380-06:00",
+      "start": "2026-01-22T12:07:36.5084364-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "6a) Restore full games_with_last.csv (historical) after daily-run",
-      "start": "2026-01-22T09:59:18.3505310-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "7) Filter merged last odds to today's slate (with closing fallback)",
-      "start": "2026-01-22T09:59:43.3789593-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "7b) Align predictions to period and compute edges",
-      "start": "2026-01-22T09:59:44.1912379-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "8) Generate baseline stake sheet (edge-based Kelly)",
-      "start": "2026-01-22T09:59:46.0118562-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "9) Generate calibrated distributional stake sheet (if distributional columns present)",
-      "start": "2026-01-22T09:59:47.8372300-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "9b) Generate isotonic probability-calibrated stake sheet (distributional + isotonic probs)",
-      "start": "2026-01-22T09:59:49.3949970-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "9a) Annotate stake sheets with quantiles (q10/q50/q90)",
-      "start": "2026-01-22T09:59:50.9043440-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "10) Compare baseline vs calibrated stake sheets",
-      "start": "2026-01-22T09:59:51.3487736-06:00",
+      "start": "2026-01-22T12:07:37.5934353-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "10.z) Sanitize outputs (eliminate NaN/Inf)",
-      "start": "2026-01-22T09:59:51.7611440-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "11) Commit and push updated data files",
-      "start": "2026-01-22T09:59:57.9739127-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "10b) ROI backtest (28 days)",
-      "start": "2026-01-22T09:59:58.4143355-06:00",
-      "status": "ok"
-    },
-    {
-      "errors": {},
-      "section": "11b) Upload artifacts to Render + verify (2026-01-22)",
-      "start": "2026-01-22T10:04:15.3873838-06:00",
+      "start": "2026-01-22T12:08:19.0691504-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "11c) Render health verification (2026-01-22)",
-      "start": "2026-01-22T10:05:26.1838169-06:00",
+      "start": "2026-01-22T12:08:27.3670404-06:00",
       "status": "ok"
     },
     {
       "errors": {},
       "section": "DONE",
-      "start": "2026-01-22T10:06:31.1048562-06:00",
+      "start": "2026-01-22T12:09:27.6456015-06:00",
       "status": "ok"
     }
   ]

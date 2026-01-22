@@ -5,13 +5,20 @@ import json
 from pathlib import Path
 
 import pandas as pd
+from pandas.errors import EmptyDataError
 
 
 REQUIRED_COLS = ["date", "game_id", "end_min"]
 
 
 def _read_csv(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
+    path = Path(path)
+    try:
+        if path.exists() and path.stat().st_size == 0:
+            return pd.DataFrame()
+        df = pd.read_csv(path)
+    except EmptyDataError:
+        return pd.DataFrame()
     if df.empty:
         return df
 
