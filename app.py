@@ -27877,6 +27877,216 @@ def api_recommendations():
                 pass
     except Exception:
         pass
+    # ------------------------------------------------------------------
+    # Strip/per-game mode: compact to a single best pick per game.
+    # Also ensure `selection` is populated for UI consumers.
+    # ------------------------------------------------------------------
+    try:
+        per_game_q = (str(request.args.get("per_game") or request.args.get("strip") or "").strip().lower() in ("1", "true", "yes"))
+    except Exception:
+        per_game_q = False
+
+    # Guardrail: avoid recommending extremely large ML underdogs in strip mode.
+    # Default chosen to be conservative; override with query or env.
+    try:
+        ml_dog_max = None
+        qv = (request.args.get("ml_dog_max") or "").strip()
+        if qv:
+            ml_dog_max = float(qv)
+        if ml_dog_max is None:
+            ev = (os.environ.get("NCAAB_ML_DOG_MAX") or "").strip()
+            if ev:
+                ml_dog_max = float(ev)
+        if ml_dog_max is None or (not np.isfinite(ml_dog_max)):
+            ml_dog_max = 450.0
+    except Exception:
+        ml_dog_max = 450.0
+
+    def _as_float(val: Any) -> float | None:
+        try:
+            if val is None:
+                return None
+            s = str(val).strip()
+            if (not s) or (s.lower() in ("nan", "none", "null")):
+                return None
+            v = float(s)
+            return v if np.isfinite(v) else None
+        except Exception:
+            return None
+
+    def _infer_selection(code: str, bet_label: Any, bet: Any) -> str:
+        try:
+            c = str(code or "").upper()
+            lbl = str(bet_label or "").strip()
+            b = str(bet or "").strip()
+            s = lbl or b
+            if not s:
+                return ""
+            if c == "OU":
+                sl = s.lower()
+                if sl.startswith("over"):
+                    return "Over"
+                if sl.startswith("under"):
+                    return "Under"
+                # Fallback: first token
+                return (s.split(" ")[0] if s else "")
+            if c == "ML":
+                # "Team ML" -> "Team"
+                if s.upper().endswith(" ML"):
+                    return s[:-3].strip()
+                return s.split(" ML")[0].strip() if " ML" in s else s
+            if c == "ATS":
+                # "Team -3.5" -> "Team"
+                parts = s.split()
+                if len(parts) >= 2:
+                    return " ".join(parts[:-1]).strip()
+                return s
+            return s
+        except Exception:
+            return ""
+
+    try:
+        # Ensure selection field exists for the UI pills
+        normalized = []
+        for r in (rows or []):
+            rr = dict(r)
+            code = str(rr.get("rec_code") or rr.get("code") or "").upper()
+            if not rr.get("selection"):
+                rr["selection"] = _infer_selection(code, rr.get("bet_label"), rr.get("bet"))
+            # Ensure abs_edge is present as a numeric when possible
+            if rr.get("abs_edge") is None:
+                ev = _as_float(rr.get("edge"))
+                rr["abs_edge"] = abs(ev) if ev is not None else None
+            normalized.append(rr)
+        rows = normalized
+    except Exception:
+        pass
+
+    # If the client requested a specific date, constrain recommendations to that slate's games.
+    # This prevents season-wide picks_raw leakage from flooding the recommendations strip.
+    try:
+        req_date = (request.args.get('date') or '').strip()
+        if req_date:
+            disp_path = OUT / f"predictions_display_{req_date}.csv"
+            if disp_path.exists():
+                ddf = _safe_read_csv(disp_path)
+                if isinstance(ddf, pd.DataFrame) and (not ddf.empty) and ('game_id' in ddf.columns):
+                    try:
+                        ddf['game_id'] = ddf['game_id'].astype(str)
+                    except Exception:
+                        pass
+                    slate_ids = set(ddf['game_id'].astype(str).tolist())
+                    if slate_ids:
+                        rows = [r for r in rows if str(r.get('game_id') or '').strip() in slate_ids]
+    except Exception:
+        pass
+
+    if per_game_q and rows:
+        try:
+            def _ml_is_huge_underdog(r: dict) -> bool:
+                try:
+                    code = str(r.get("rec_code") or r.get("code") or "").upper()
+                    if code != "ML":
+                        return False
+                    pr = _as_float(r.get("price"))
+                    if pr is None:
+                        return False
+                    # American odds: large underdog = large positive number
+                    return bool(pr > 0 and pr > float(ml_dog_max))
+                except Exception:
+                    return False
+
+            def _rank_score(r: dict) -> float:
+                try:
+                    edge_v = _as_float(r.get("edge"))
+                    abs_edge = abs(edge_v) if edge_v is not None else (_as_float(r.get("abs_edge")) or 0.0)
+                    conf_v = _as_float(r.get("confidence"))
+                    if conf_v is None:
+                        conf_v = 0.0
+                    # Confidence is expected in [0,1] but sometimes comes in as [0,100].
+                    conf01 = min(1.0, max(0.0, conf_v if conf_v <= 1.5 else (conf_v / 100.0)))
+                    code = str(r.get("rec_code") or r.get("code") or "").upper()
+                    has_line = (_as_float(r.get("line")) is not None)
+                    has_price = (_as_float(r.get("price")) is not None)
+
+                    # Base score: edge scaled by confidence (0.5..1.5 multiplier)
+                    score = float(abs_edge) * float(0.5 + conf01)
+
+                    # Prefer markets with better support in the data.
+                    # (This reduces speculative ML dominance when ML prices are missing.)
+                    if code == "OU":
+                        score += 0.05
+                    elif code == "ATS":
+                        score += 0.04
+                    elif code == "ML":
+                        score += 0.02
+
+                    # Prefer picks that have a line/price filled in; penalize missing price.
+                    if has_line:
+                        score += 0.02
+                    if has_price:
+                        score += 0.06
+                    else:
+                        score -= 0.03
+
+                    return float(score)
+                except Exception:
+                    return 0.0
+
+            # Group by game so we can prefer non-ML priced markets when available.
+            by_game: dict[str, list[dict]] = {}
+            for r in rows:
+                gid = str(r.get("game_id") or "").strip()
+                if not gid:
+                    continue
+                if _ml_is_huge_underdog(r):
+                    continue
+                by_game.setdefault(gid, []).append(r)
+
+            best_by_game: dict[str, dict] = {}
+            for gid, cand in by_game.items():
+                if not cand:
+                    continue
+                # Helper selectors
+                def _code(rr: dict) -> str:
+                    return str(rr.get("rec_code") or rr.get("code") or "").upper()
+                def _has_price(rr: dict) -> bool:
+                    return _as_float(rr.get("price")) is not None
+
+                # Prefer: any priced non-ML (OU/ATS) if present.
+                priced_non_ml = [rr for rr in cand if (_code(rr) in ("OU", "ATS")) and _has_price(rr)]
+                priced_any = [rr for rr in cand if _has_price(rr)]
+                non_ml_any = [rr for rr in cand if _code(rr) in ("OU", "ATS")]
+
+                pool = priced_non_ml or priced_any or non_ml_any or cand
+
+                # If we have any non-ML option in the pool, require ML to be priced to compete.
+                if any(_code(rr) in ("OU", "ATS") for rr in pool):
+                    pool = [rr for rr in pool if (_code(rr) != "ML") or _has_price(rr)]
+                    if not pool:
+                        pool = cand
+
+                best = None
+                best_s = None
+                for rr in pool:
+                    s = _rank_score(rr)
+                    if best is None or (best_s is None) or (s > best_s):
+                        best = rr
+                        best_s = s
+                if best is not None:
+                    best_by_game[gid] = best
+
+            # Safety fallback: first-seen per game
+            if not best_by_game:
+                for r in rows:
+                    gid = str(r.get("game_id") or "").strip()
+                    if gid and gid not in best_by_game:
+                        best_by_game[gid] = r
+
+            rows = list(best_by_game.values())
+        except Exception:
+            pass
+
     _resp = jsonify({"rows": len(rows), "data": rows})
     try:
         _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -31329,6 +31539,23 @@ def api_display_predictions():
                                 ed['game_id'] = ed['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
                             except Exception:
                                 pass
+
+                            # --- Bet sizing helpers (OU/ATS/ML Kelly + prices) ---
+                            # Pull per-game bet sizing helpers across markets without filtering.
+                            try:
+                                k_cols = [
+                                    'kelly_fraction_total', 'kelly_fraction_ml_home', 'kelly_fraction_ml_away',
+                                    'over_price', 'under_price', 'home_spread_price', 'away_spread_price',
+                                ]
+                                for c in k_cols:
+                                    if c in ed.columns:
+                                        ed[c] = pd.to_numeric(ed[c], errors='coerce')
+                                agg_k = {c: 'median' for c in k_cols if c in ed.columns}
+                                if agg_k:
+                                    gk = ed.groupby('game_id', as_index=False).agg(agg_k)
+                                    base = base.merge(gk.drop_duplicates('game_id'), on='game_id', how='left')
+                            except Exception:
+                                pass
                             # Filter to moneyline rows (prefer full_game period when present, but don't
                             # accidentally drop all rows when the provider labels ML as 2h/1h).
                             try:
@@ -31716,6 +31943,8 @@ def api_display_predictions():
                 'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site',
                 'market_total','spread_home','ml_home','ml_away',
                 'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
+                'kelly_fraction_total','kelly_fraction_ml_home','kelly_fraction_ml_away',
+                'over_price','under_price','home_spread_price','away_spread_price',
                 'market_total_1h','spread_home_1h','ml_home_1h','ml_away_1h',
                 'mu_home','mu_away','mu_home_1h','mu_away_1h',
                 'pred_total_model','pred_margin_model','pred_total_sim','pred_margin_sim','pred_total_blend','pred_margin_blend',
@@ -32001,6 +32230,8 @@ def api_display_predictions():
                 'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site',
                 'market_total','spread_home','ml_home','ml_away',
                 'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
+                'kelly_fraction_total','kelly_fraction_ml_home','kelly_fraction_ml_away',
+                'over_price','under_price','home_spread_price','away_spread_price',
                 'market_total_1h','spread_home_1h','ml_home_1h','ml_away_1h',
                 'mu_home','mu_away','mu_home_1h','mu_away_1h',
                 'pred_total_model','pred_margin_model','pred_total_sim','pred_margin_sim','pred_total_blend','pred_margin_blend',
