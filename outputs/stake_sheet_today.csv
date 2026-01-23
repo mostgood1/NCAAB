@@ -1,2 +1,2 @@
 date,game_id,event_id,book,market,period,selection,line,price,edge,kelly,fractional,stake,q10_total,q50_total,q90_total,q10_margin,q50_margin,q90_margin,slate_date
-2026-01-23,401823923,a1883f6fcc66fb2e1d2d64f4bafaf16b,BetMGM,spreads,full_game,home,7.5,-110.0,10.148715496063232,0.6765810330708821,0.5,30.0,,,,,,,2026-01-23
+2026-01-23,401823922,1dab5e1a5a584352b5398d751825e852,BetOnline.ag,spreads,full_game,home,1.5,-105.0,2.6446549892425537,0.8815516630808512,0.5,30.0,,,,,,,2026-01-23

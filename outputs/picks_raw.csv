@@ -926,3 +926,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401823567,2026-01-23,Villanova Wildcats,Wisconsin Badgers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401830877,2026-01-23,Western Kentucky Hilltoppers,Wichita State Shockers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401826883,2026-01-23,Wichita State Shockers,Wofford Terriers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401808634,2026-01-23,App State Mountaineers,UL Monroe Warhawks,totals,full_game,under,,,,,,Total,OU
+401828191,2026-01-23,North Texas Mean Green,East Carolina Pirates,totals,full_game,over,,,,,,Total,OU
+401820217,2026-01-23,New Haven Chargers,Mercyhurst Lakers,totals,full_game,under,,,,,,Total,OU
+401807708,2026-01-23,Austin Peay Governors,Stetson Hatters,totals,full_game,under,,,,,,Total,OU
+401807706,2026-01-23,Lipscomb Bisons,Florida Gulf Coast Eagles,totals,full_game,under,,,,,,Total,OU
