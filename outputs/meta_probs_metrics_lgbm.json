@@ -109,12 +109,11 @@
     "pred_total_model_unified",
     "pred_total_model_y",
     "pred_total_pick",
-    "pred_total_q90",
     "pred_total_sigma_bootstrap"
   ],
   "over": {
     "auc": null,
-    "rows": 5033
+    "rows": 5264
   },
-  "rows_total": 5033
+  "rows_total": 5264
 }
