@@ -1,107 +1,107 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401809342,2026,2026-01-24,2026-01-24 16:00:00+00:00,2026-01-24 11:00,EST,Wofford Terriers,Mercer Bears,0,0,,,,,False,Jerry Richardson Indoor Stadium
-401808194,2026,2026-01-24,2026-01-24 16:00:00+00:00,2026-01-24 11:00,EST,Kentucky Wildcats,Ole Miss Rebels,0,0,,,,,False,Rupp Arena
-401807703,2026,2026-01-24,2026-01-24 16:00:00+00:00,2026-01-24 11:00,EST,North Florida Ospreys,Bellarmine Knights,0,0,,,,,False,UNF Arena
-401820689,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Duke Blue Devils,Wake Forest Demon Deacons,0,0,,,,,False,Cameron Indoor Stadium
-401825467,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Minnesota Golden Gophers,Nebraska Cornhuskers,0,0,,,,,False,Williams Arena
-401825466,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Michigan State Spartans,Maryland Terrapins,0,0,,,,,False,Breslin Center
-401820697,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Virginia Cavaliers,North Carolina Tar Heels,0,0,,,,,False,John Paul Jones Arena
-401808195,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Mississippi State Bulldogs,Vanderbilt Commodores,0,0,,,,,False,Humphrey Coliseum
-401820690,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Georgia Tech Yellow Jackets,Clemson Tigers,0,0,,,,,False,McCamish Pavilion
-401824389,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Holy Cross Crusaders,American University Eagles,0,0,,,,,False,Hart Center
-401820693,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Pittsburgh Panthers,NC State Wolfpack,0,0,,,,,False,Petersen Events Center
-401818560,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Princeton Tigers,Brown Bears,0,0,,,,,False,Jadwin Gymnasium
-401813389,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Sacred Heart Pioneers,Niagara Purple Eagles,0,0,,,,,False,William H. Pitt Center
-401812035,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Hampton Pirates,UNC Wilmington Seahawks,0,0,,,,,False,Convocation Center (VA)
-401812034,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Charleston Cougars,Elon Phoenix,0,0,,,,,False,TD Arena
-401812033,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,North Carolina A&T Aggies,Towson Tigers,0,0,,,,,False,Corbett Sports Center
-401812032,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Campbell Fighting Camels,Monmouth Hawks,0,0,,,,,False,John W. Pope Jr. Convocation Center
-401812031,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,William & Mary Tribe,Hofstra Pride,0,0,,,,,False,Kaplan Arena
-401822913,2026,2026-01-24,2026-01-24 17:30:00+00:00,2026-01-24 12:30,EST,UConn Huskies,Villanova Wildcats,0,0,,,,,False,PeoplesBank Arena
-401822916,2026,2026-01-24,2026-01-24 17:30:00+00:00,2026-01-24 12:30,EST,Providence Friars,Georgetown Hoyas,0,0,,,,,False,Amica Mutual Pavilion
-401806453,2026,2026-01-24,2026-01-24 17:30:00+00:00,2026-01-24 12:30,EST,Morehead State Eagles,Eastern Illinois Panthers,0,0,,,,,False,Ellis T. Johnson Arena
-401808198,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Texas Longhorns,Georgia Bulldogs,0,0,,,,,False,Moody Center
-401830278,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Indiana State Sycamores,Drake Bulldogs,0,0,,,,,False,Hulman Center
-401830207,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Belmont Bruins,Illinois State Redbirds,0,0,,,,,False,Curb Event Center Arena
-401828193,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,UTSA Roadrunners,Temple Owls,0,0,,,,,False,UTSA Convocation Center
-401817638,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Wright State Raiders,Northern Kentucky Norse,0,0,,,,,False,Nutter Center
-401817637,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Youngstown State Penguins,Milwaukee Panthers,0,0,,,,,False,Beeghly Center
-401817636,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Robert Morris Colonials,Green Bay Phoenix,0,0,,,,,False,UPMC Events Center
-401813336,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Marist Red Foxes,Quinnipiac Bobcats,0,0,,,,,False,McCann Arena
-401812133,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Bryant Bulldogs,Vermont Catamounts,0,0,,,,,False,Chace Athletic Center
-401812132,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,UMBC Retrievers,UMass Lowell River Hawks,0,0,,,,,False,Chesapeake Employers Insurance Arena
-401808638,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,James Madison Dukes,Texas State Bobcats,0,0,,,,,False,Atlantic Union Bank Center
-401808635,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Coastal Carolina Chanticleers,Southern Miss Golden Eagles,0,0,,,,,False,The HTC Center
-401808197,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Texas A&M Aggies,South Carolina Gamecocks,0,0,,,,,False,Reed Arena
-401804900,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Liberty Flames,Delaware Blue Hens,0,0,,,,,False,Liberty Arena (VA)
-401822914,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Xavier Musketeers,St. John's Red Storm,0,0,,,,,False,Cintas Center
-401822771,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Norfolk State Spartans,Coppin State Eagles,0,0,,,,,False,Joseph G. Echols Hall
-401820167,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Navy Midshipmen,Army Black Knights,0,0,,,,,False,Alumni Hall (Navy)
-401809341,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Western Carolina Catamounts,VMI Keydets,0,0,,,,,False,Ramsey Center
-401827639,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Arizona Wildcats,West Virginia Mountaineers,0,0,,,,,False,McKale Memorial Center
-401827646,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Texas Tech Red Raiders,Houston Cougars,0,0,,,,,False,United Supermarkets Arena
-401828691,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Howard Bison,Morgan State Bears,0,0,,,,,False,Burr Gymnasium
-401828391,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Rhode Island Rams,George Mason Patriots,0,0,,,,,False,Thomas M. Ryan Center
-401828390,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Loyola Chicago Ramblers,Duquesne Dukes,0,0,,,,,False,Gentile Arena
-401828389,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Saint Joseph's Hawks,Dayton Flyers,0,0,,,,,False,Michael J. Hagan '85 Arena
-401824369,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Colgate Raiders,Boston University Terriers,0,0,,,,,False,Cotterell Court
-401823925,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Presbyterian Blue Hose,Winthrop Eagles,0,0,,,,,False,Templeton Center
-401820696,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Syracuse Orange,Miami Hurricanes,0,0,,,,,False,JMA Wireless Dome
-401820200,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Loyola Maryland Greyhounds,Bucknell Bison,0,0,,,,,False,Reitz Arena
-401818541,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Dartmouth Big Green,Columbia Lions,0,0,,,,,False,Leede Arena
-401818400,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,South Dakota Coyotes,St. Thomas-Minnesota Tommies,0,0,,,,,False,Sanford Coyote Sports Center
-401818398,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Oral Roberts Golden Eagles,North Dakota State Bison,0,0,,,,,False,Mabee Center
-401814539,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Ball State Cardinals,Northern Illinois Huskies,0,0,,,,,False,Worthen Arena
-401812616,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Harvard Crimson,Cornell Big Red,0,0,,,,,False,Lavietes Pavilion
-401812589,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Pennsylvania Quakers,Yale Bulldogs,0,0,,,,,False,The Palestra
-401812131,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Maine Black Bears,Binghamton Bearcats,0,0,,,,,False,Skip Chappelle Court in Memorial Gymnasium
-401812130,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,New Hampshire Wildcats,UAlbany Great Danes,0,0,,,,,False,Lundholm Gymnasium
-401812030,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Drexel Dragons,Northeastern Huskies,0,0,,,,,False,Daskalakis Athletic Center
-401809339,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Samford Bulldogs,Chattanooga Mocs,0,0,,,,,False,Pete Hanna Center
-401808637,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Georgia State Panthers,Arkansas State Red Wolves,0,0,,,,,False,GSU Convocation Center
-401808459,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Eastern Washington Eagles,Sacramento State Hornets,0,0,,,,,False,Reese Court
-401808196,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Missouri Tigers,Oklahoma Sooners,0,0,,,,,False,Mizzou Arena
-401804898,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,New Mexico State Aggies,Florida International Panthers,0,0,,,,,False,Pan American Center
-401804896,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Sam Houston Bearkats,Western Kentucky Hilltoppers,0,0,,,,,False,Bernard G. Johnson Coliseum
-401820691,2026,2026-01-24,2026-01-24 19:15:00+00:00,2026-01-24 14:15,EST,Louisville Cardinals,Virginia Tech Hokies,0,0,,,,,False,KFC Yum! Center
-401808925,2026,2026-01-24,2026-01-24 19:30:00+00:00,2026-01-24 14:30,EST,SE Louisiana Lions,Nicholls Colonels,0,0,,,,,False,University Center
-401807707,2026,2026-01-24,2026-01-24 19:30:00+00:00,2026-01-24 14:30,EST,West Georgia Wolves,Queens University Royals,0,0,,,,,False,The Coliseum
-401806456,2026,2026-01-24,2026-01-24 19:30:00+00:00,2026-01-24 14:30,EST,SIU Edwardsville Cougars,Tennessee Tech Golden Eagles,0,0,,,,,False,First Community Arena
-401825468,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Purdue Boilermakers,Illinois Fighting Illini,0,0,,,,,False,Mackey Arena
-401827645,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Oklahoma State Cowboys,Iowa State Cyclones,0,0,,,,,False,Gallagher-Iba Arena
-401828392,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,George Washington Revolutionaries,Richmond Spiders,0,0,,,,,False,Charles E. Smith Center
-401827643,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Colorado Buffaloes,UCF Knights,0,0,,,,,False,CU Events Center
-401823849,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Merrimack Warriors,Saint Peter's Peacocks,0,0,,,,,False,Lawler Arena
-401817639,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Detroit Mercy Titans,Oakland Golden Grizzlies,0,0,,,,,False,Calihan Hall
-401808636,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Georgia Southern Eagles,Troy Trojans,0,0,,,,,False,Jack and Ruth Ann Hill Convocation Center
-401807705,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Jacksonville Dolphins,Eastern Kentucky Colonels,0,0,,,,,False,Swisher Gymnasium
-401827204,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,Texas Southern Tigers,Alabama A&M Bulldogs,0,0,,,,,False,H&PE Arena
-401814537,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,Eastern Michigan Eagles,Kent State Golden Flashes,0,0,,,,,False,Gervin GameAbove Center
-401808879,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,McNeese Cowboys,New Orleans Privateers,0,0,,,,,False,Townsley Law Arena
-401806454,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,Lindenwood Lions,Tennessee State Tigers,0,0,,,,,False,Hyland Arena
-401808193,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Florida Gators,Auburn Tigers,0,0,,,,,False,Stephen C. O'Connell Center
-401830279,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Northern Iowa Panthers,Murray State Racers,0,0,,,,,False,McLeod Center
-401829329,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Wyoming Cowboys,San José State Spartans,0,0,,,,,False,Arena-Auditorium
-401828192,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Wichita State Shockers,Memphis Tigers,0,0,,,,,False,Charles Koch Arena
-401827117,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Bethune-Cookman Wildcats,Jackson State Tigers,0,0,,,,,False,Moore Gymnasium (FL)
-401823777,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,UNLV Rebels,San Diego State Aztecs,0,0,,,,,False,Thomas & Mack Center
-401820694,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,SMU Mustangs,Florida State Seminoles,0,0,,,,,False,Moody Coliseum (Dallas)
-401820565,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Boise State Broncos,Air Force Falcons,0,0,,,,,False,ExtraMile Arena
-401818397,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Denver Pioneers,North Dakota Fighting Hawks,0,0,,,,,False,Hamilton Gymnasium
-401813413,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Mount St. Mary's Mountaineers,Rider Broncs,0,0,,,,,False,Knott Arena
-401808970,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Lamar Cardinals,Stephen F. Austin Lumberjacks,0,0,,,,,False,Montagne Center
-401804899,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,UTEP Miners,Missouri State Bears,0,0,,,,,False,Don Haskins Center
-401828196,2026,2026-01-24,2026-01-24 21:30:00+00:00,2026-01-24 16:30,EST,Rice Owls,Tulsa Golden Hurricane,0,0,,,,,False,Tudor Fieldhouse
-401820491,2026,2026-01-24,2026-01-24 21:30:00+00:00,2026-01-24 16:30,EST,Incarnate Word Cardinals,Texas A&M-Corpus Christi Islanders,0,0,,,,,False,McDermott Center
-401808979,2026,2026-01-24,2026-01-24 21:30:00+00:00,2026-01-24 16:30,EST,Houston Christian Huskies,UT Rio Grande Valley Vaqueros,0,0,,,,,False,Sharp Gymnasium
-401808192,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Arkansas Razorbacks,LSU Tigers,0,0,,,,,False,Bud Walton Arena
-401828388,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Davidson Wildcats,VCU Rams,0,0,,,,,False,John M. Belk Arena
-401822915,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,DePaul Blue Demons,Seton Hall Pirates,0,0,,,,,False,Wintrust Arena
-401814535,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Toledo Rockets,Bowling Green Falcons,0,0,,,,,False,Savage Arena
-401809129,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,UC Davis Aggies,UC Riverside Highlanders,0,0,,,,,False,University Credit Union Center
-401808476,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Idaho Vandals,Portland State Vikings,0,0,,,,,False,ICCU Arena
+401808193,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Florida Gators,Auburn Tigers,34,48,28.0,43.0,6.0,5.0,False,Stephen C. O'Connell Center
+401808192,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Arkansas Razorbacks,LSU Tigers,23,24,23.0,24.0,,,False,Bud Walton Arena
+401823849,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Merrimack Warriors,Saint Peter's Peacocks,67,59,33.0,16.0,34.0,43.0,False,Lawler Arena
+401807705,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Jacksonville Dolphins,Eastern Kentucky Colonels,81,76,33.0,37.0,35.0,31.0,False,Swisher Gymnasium
+401827204,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,Texas Southern Tigers,Alabama A&M Bulldogs,72,67,32.0,42.0,40.0,25.0,False,H&PE Arena
+401814537,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,Eastern Michigan Eagles,Kent State Golden Flashes,58,58,23.0,31.0,35.0,27.0,False,Gervin GameAbove Center
+401808879,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,McNeese Cowboys,New Orleans Privateers,82,61,42.0,34.0,40.0,27.0,False,Townsley Law Arena
+401806454,2026,2026-01-24,2026-01-24 20:30:00+00:00,2026-01-24 15:30,EST,Lindenwood Lions,Tennessee State Tigers,86,96,39.0,43.0,47.0,53.0,False,Hyland Arena
+401830279,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Northern Iowa Panthers,Murray State Racers,56,52,37.0,38.0,19.0,14.0,False,McLeod Center
+401829329,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Wyoming Cowboys,San José State Spartans,42,40,31.0,23.0,11.0,17.0,False,Arena-Auditorium
+401828192,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Wichita State Shockers,Memphis Tigers,46,24,40.0,22.0,6.0,2.0,False,Charles Koch Arena
+401827117,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Bethune-Cookman Wildcats,Jackson State Tigers,60,39,48.0,29.0,12.0,10.0,False,Moore Gymnasium (FL)
+401823777,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,UNLV Rebels,San Diego State Aztecs,36,42,34.0,39.0,2.0,3.0,False,Thomas & Mack Center
+401820694,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,SMU Mustangs,Florida State Seminoles,49,47,46.0,34.0,3.0,13.0,False,Moody Coliseum (Dallas)
+401820565,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Boise State Broncos,Air Force Falcons,65,37,48.0,29.0,17.0,8.0,False,ExtraMile Arena
+401818397,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Denver Pioneers,North Dakota Fighting Hawks,56,60,46.0,45.0,10.0,15.0,False,Hamilton Gymnasium
+401813413,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Mount St. Mary's Mountaineers,Rider Broncs,47,40,33.0,33.0,14.0,7.0,False,Knott Arena
+401808970,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,Lamar Cardinals,Stephen F. Austin Lumberjacks,47,50,41.0,43.0,6.0,7.0,False,Montagne Center
+401804899,2026,2026-01-24,2026-01-24 21:00:00+00:00,2026-01-24 16:00,EST,UTEP Miners,Missouri State Bears,43,42,31.0,21.0,12.0,21.0,False,Don Haskins Center
+401828196,2026,2026-01-24,2026-01-24 21:30:00+00:00,2026-01-24 16:30,EST,Rice Owls,Tulsa Golden Hurricane,31,51,31.0,51.0,,,False,Tudor Fieldhouse
+401820491,2026,2026-01-24,2026-01-24 21:30:00+00:00,2026-01-24 16:30,EST,Incarnate Word Cardinals,Texas A&M-Corpus Christi Islanders,22,37,22.0,37.0,0.0,0.0,False,McDermott Center
+401808979,2026,2026-01-24,2026-01-24 21:30:00+00:00,2026-01-24 16:30,EST,Houston Christian Huskies,UT Rio Grande Valley Vaqueros,27,33,24.0,31.0,3.0,2.0,False,Sharp Gymnasium
+401828388,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Davidson Wildcats,VCU Rams,27,20,27.0,20.0,,,False,John M. Belk Arena
+401822915,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,DePaul Blue Demons,Seton Hall Pirates,14,5,14.0,5.0,,,False,Wintrust Arena
+401814535,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Toledo Rockets,Bowling Green Falcons,23,26,23.0,26.0,,,False,Savage Arena
+401809129,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,UC Davis Aggies,UC Riverside Highlanders,24,8,24.0,8.0,,,False,University Credit Union Center
+401808476,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Idaho Vandals,Portland State Vikings,19,25,19.0,25.0,,,False,ICCU Arena
+401808459,2026,2026-01-24,2026-01-24 22:00:00+00:00,2026-01-24 17:00,EST,Eastern Washington Eagles,Sacramento State Hornets,24,22,24.0,22.0,,,False,Reese Court
+401827639,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Arizona Wildcats,West Virginia Mountaineers,88,53,43.0,23.0,45.0,30.0,False,McKale Memorial Center
+401822913,2026,2026-01-24,2026-01-24 17:30:00+00:00,2026-01-24 12:30,EST,UConn Huskies,Villanova Wildcats,75,67,27.0,31.0,34.0,30.0,False,PeoplesBank Arena
+401825468,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Purdue Boilermakers,Illinois Fighting Illini,82,88,43.0,39.0,39.0,49.0,False,Mackey Arena
+401820689,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Duke Blue Devils,Wake Forest Demon Deacons,90,69,42.0,31.0,48.0,38.0,False,Cameron Indoor Stadium
+401827646,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Texas Tech Red Raiders,Houston Cougars,90,86,55.0,49.0,35.0,37.0,False,United Supermarkets Arena
+401825467,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Minnesota Golden Gophers,Nebraska Cornhuskers,57,76,36.0,30.0,21.0,46.0,False,Williams Arena
+401827645,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Oklahoma State Cowboys,Iowa State Cyclones,71,84,21.0,51.0,50.0,33.0,False,Gallagher-Iba Arena
+401825466,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Michigan State Spartans,Maryland Terrapins,91,48,46.0,23.0,45.0,25.0,False,Breslin Center
+401820697,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Virginia Cavaliers,North Carolina Tar Heels,80,85,43.0,34.0,37.0,51.0,False,John Paul Jones Arena
+401808195,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Mississippi State Bulldogs,Vanderbilt Commodores,56,88,30.0,51.0,26.0,37.0,False,Humphrey Coliseum
+401820690,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Georgia Tech Yellow Jackets,Clemson Tigers,63,77,33.0,35.0,30.0,42.0,False,McCamish Pavilion
+401808198,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Texas Longhorns,Georgia Bulldogs,87,67,30.0,37.0,57.0,30.0,False,Moody Center
+401820691,2026,2026-01-24,2026-01-24 19:15:00+00:00,2026-01-24 14:15,EST,Louisville Cardinals,Virginia Tech Hokies,85,71,37.0,22.0,48.0,49.0,False,KFC Yum! Center
+401809342,2026,2026-01-24,2026-01-24 16:00:00+00:00,2026-01-24 11:00,EST,Wofford Terriers,Mercer Bears,80,77,36.0,43.0,44.0,34.0,False,Jerry Richardson Indoor Stadium
+401808194,2026,2026-01-24,2026-01-24 16:00:00+00:00,2026-01-24 11:00,EST,Kentucky Wildcats,Ole Miss Rebels,72,63,29.0,23.0,43.0,40.0,False,Rupp Arena
+401807703,2026,2026-01-24,2026-01-24 16:00:00+00:00,2026-01-24 11:00,EST,North Florida Ospreys,Bellarmine Knights,117,114,50.0,47.0,52.0,55.0,False,UNF Arena
+401824389,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Holy Cross Crusaders,American University Eagles,67,76,27.0,41.0,40.0,35.0,False,Hart Center
+401820693,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Pittsburgh Panthers,NC State Wolfpack,72,81,33.0,34.0,39.0,47.0,False,Petersen Events Center
+401818560,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Princeton Tigers,Brown Bears,63,53,27.0,27.0,36.0,26.0,False,Jadwin Gymnasium
+401813389,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Sacred Heart Pioneers,Niagara Purple Eagles,71,70,34.0,36.0,37.0,34.0,False,William H. Pitt Center
+401812035,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Hampton Pirates,UNC Wilmington Seahawks,67,75,37.0,38.0,30.0,37.0,False,Convocation Center (VA)
+401812034,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Charleston Cougars,Elon Phoenix,80,70,35.0,27.0,45.0,43.0,False,TD Arena
+401812033,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,North Carolina A&T Aggies,Towson Tigers,80,73,35.0,36.0,45.0,37.0,False,Corbett Sports Center
+401812032,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,Campbell Fighting Camels,Monmouth Hawks,73,88,40.0,42.0,33.0,46.0,False,John W. Pope Jr. Convocation Center
+401812031,2026,2026-01-24,2026-01-24 17:00:00+00:00,2026-01-24 12:00,EST,William & Mary Tribe,Hofstra Pride,89,82,42.0,37.0,47.0,45.0,False,Kaplan Arena
+401822916,2026,2026-01-24,2026-01-24 17:30:00+00:00,2026-01-24 12:30,EST,Providence Friars,Georgetown Hoyas,78,81,43.0,25.0,35.0,56.0,False,Amica Mutual Pavilion
+401806453,2026,2026-01-24,2026-01-24 17:30:00+00:00,2026-01-24 12:30,EST,Morehead State Eagles,Eastern Illinois Panthers,73,68,35.0,35.0,38.0,33.0,False,Ellis T. Johnson Arena
+401830278,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Indiana State Sycamores,Drake Bulldogs,62,76,24.0,26.0,38.0,50.0,False,Hulman Center
+401830207,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Belmont Bruins,Illinois State Redbirds,80,69,44.0,36.0,36.0,33.0,False,Curb Event Center Arena
+401828193,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,UTSA Roadrunners,Temple Owls,64,70,33.0,31.0,31.0,39.0,False,UTSA Convocation Center
+401817638,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Wright State Raiders,Northern Kentucky Norse,88,80,48.0,36.0,40.0,44.0,False,Nutter Center
+401817637,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Youngstown State Penguins,Milwaukee Panthers,64,65,30.0,32.0,34.0,33.0,False,Beeghly Center
+401817636,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Robert Morris Colonials,Green Bay Phoenix,67,71,33.0,40.0,34.0,31.0,False,UPMC Events Center
+401813336,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Marist Red Foxes,Quinnipiac Bobcats,71,64,43.0,28.0,28.0,36.0,False,McCann Arena
+401812133,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Bryant Bulldogs,Vermont Catamounts,52,62,17.0,30.0,35.0,32.0,False,Chace Athletic Center
+401812132,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,UMBC Retrievers,UMass Lowell River Hawks,79,56,46.0,35.0,33.0,21.0,False,Chesapeake Employers Insurance Arena
+401808638,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,James Madison Dukes,Texas State Bobcats,82,57,47.0,28.0,35.0,29.0,False,Atlantic Union Bank Center
+401808635,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Coastal Carolina Chanticleers,Southern Miss Golden Eagles,85,67,39.0,25.0,46.0,42.0,False,The HTC Center
+401808197,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Texas A&M Aggies,South Carolina Gamecocks,92,69,46.0,25.0,46.0,44.0,False,Reed Arena
+401804900,2026,2026-01-24,2026-01-24 18:00:00+00:00,2026-01-24 13:00,EST,Liberty Flames,Delaware Blue Hens,67,51,34.0,28.0,33.0,23.0,False,Liberty Arena (VA)
+401822914,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Xavier Musketeers,St. John's Red Storm,83,88,49.0,37.0,34.0,51.0,False,Cintas Center
+401822771,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Norfolk State Spartans,Coppin State Eagles,103,76,49.0,36.0,54.0,40.0,False,Joseph G. Echols Hall
+401820167,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Navy Midshipmen,Army Black Knights,84,56,46.0,34.0,38.0,22.0,False,Alumni Hall (Navy)
+401809341,2026,2026-01-24,2026-01-24 18:30:00+00:00,2026-01-24 13:30,EST,Western Carolina Catamounts,VMI Keydets,88,58,39.0,33.0,49.0,25.0,False,Ramsey Center
+401828691,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Howard Bison,Morgan State Bears,77,78,42.0,36.0,35.0,42.0,False,Burr Gymnasium
+401828391,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Rhode Island Rams,George Mason Patriots,74,65,32.0,33.0,42.0,32.0,False,Thomas M. Ryan Center
+401828390,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Loyola Chicago Ramblers,Duquesne Dukes,59,71,28.0,34.0,31.0,37.0,False,Gentile Arena
+401828389,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Saint Joseph's Hawks,Dayton Flyers,81,74,38.0,36.0,43.0,38.0,False,Michael J. Hagan '85 Arena
+401824369,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Colgate Raiders,Boston University Terriers,80,79,27.0,30.0,39.0,36.0,False,Cotterell Court
+401823925,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Presbyterian Blue Hose,Winthrop Eagles,72,82,28.0,36.0,44.0,46.0,False,Templeton Center
+401820696,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Syracuse Orange,Miami Hurricanes,76,85,36.0,41.0,40.0,44.0,False,JMA Wireless Dome
+401820200,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Loyola Maryland Greyhounds,Bucknell Bison,67,62,31.0,23.0,36.0,39.0,False,Reitz Arena
+401818541,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Dartmouth Big Green,Columbia Lions,69,79,31.0,31.0,38.0,48.0,False,Leede Arena
+401818400,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,South Dakota Coyotes,St. Thomas-Minnesota Tommies,78,90,39.0,37.0,39.0,53.0,False,Sanford Coyote Sports Center
+401814539,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Ball State Cardinals,Northern Illinois Huskies,58,53,29.0,22.0,29.0,31.0,False,Worthen Arena
+401812616,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Harvard Crimson,Cornell Big Red,79,86,44.0,36.0,35.0,50.0,False,Lavietes Pavilion
+401812589,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Pennsylvania Quakers,Yale Bulldogs,60,77,30.0,40.0,30.0,37.0,False,The Palestra
+401812131,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Maine Black Bears,Binghamton Bearcats,79,63,37.0,36.0,42.0,27.0,False,Skip Chappelle Court in Memorial Gymnasium
+401812130,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,New Hampshire Wildcats,UAlbany Great Danes,80,72,30.0,30.0,50.0,42.0,False,Lundholm Gymnasium
+401812030,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Drexel Dragons,Northeastern Huskies,83,78,33.0,28.0,50.0,50.0,False,Daskalakis Athletic Center
+401809339,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Samford Bulldogs,Chattanooga Mocs,75,64,32.0,32.0,43.0,32.0,False,Pete Hanna Center
+401808637,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Georgia State Panthers,Arkansas State Red Wolves,82,81,38.0,36.0,44.0,45.0,False,GSU Convocation Center
+401808196,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Missouri Tigers,Oklahoma Sooners,88,87,36.0,37.0,45.0,44.0,False,Mizzou Arena
+401804898,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,New Mexico State Aggies,Florida International Panthers,78,81,31.0,40.0,47.0,41.0,False,Pan American Center
+401804896,2026,2026-01-24,2026-01-24 19:00:00+00:00,2026-01-24 14:00,EST,Sam Houston Bearkats,Western Kentucky Hilltoppers,73,58,38.0,21.0,35.0,37.0,False,Bernard G. Johnson Coliseum
+401808925,2026,2026-01-24,2026-01-24 19:30:00+00:00,2026-01-24 14:30,EST,SE Louisiana Lions,Nicholls Colonels,67,61,28.0,32.0,39.0,29.0,False,University Center
+401807707,2026,2026-01-24,2026-01-24 19:30:00+00:00,2026-01-24 14:30,EST,West Georgia Wolves,Queens University Royals,74,66,34.0,28.0,40.0,38.0,False,The Coliseum
+401806456,2026,2026-01-24,2026-01-24 19:30:00+00:00,2026-01-24 14:30,EST,SIU Edwardsville Cougars,Tennessee Tech Golden Eagles,62,58,27.0,24.0,35.0,34.0,False,First Community Arena
+401828392,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,George Washington Revolutionaries,Richmond Spiders,85,69,52.0,32.0,33.0,37.0,False,Charles E. Smith Center
+401827643,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Colorado Buffaloes,UCF Knights,86,95,47.0,49.0,39.0,46.0,False,CU Events Center
+401818398,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Oral Roberts Golden Eagles,North Dakota State Bison,58,86,26.0,50.0,32.0,36.0,False,Mabee Center
+401817639,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Detroit Mercy Titans,Oakland Golden Grizzlies,87,95,45.0,46.0,42.0,49.0,False,Calihan Hall
+401808636,2026,2026-01-24,2026-01-24 20:00:00+00:00,2026-01-24 15:00,EST,Georgia Southern Eagles,Troy Trojans,78,83,38.0,47.0,40.0,36.0,False,Jack and Ruth Ann Hill Convocation Center
 401827642,2026,2026-01-24,2026-01-24 22:30:00+00:00,2026-01-24 17:30,EST,BYU Cougars,Utah Utes,0,0,,,,,False,Marriott Center
-401827052,2026,2026-01-24,2026-01-24 22:30:00+00:00,2026-01-24 17:30,EST,Prairie View A&M Panthers,Alabama State Hornets,0,0,,,,,False,William Nicks Building
+401827052,2026,2026-01-24,2026-01-24 22:30:00+00:00,2026-01-24 17:30,EST,Prairie View A&M Panthers,Alabama State Hornets,7,14,7.0,14.0,,,False,William Nicks Building
 401829687,2026,2026-01-24,2026-01-24 23:00:00+00:00,2026-01-24 18:00,EST,Florida A&M Rattlers,Alcorn State Braves,0,0,,,,,False,Al Lawson Center
 401829212,2026,2026-01-24,2026-01-24 23:00:00+00:00,2026-01-24 18:00,EST,Washington State Cougars,Pepperdine Waves,0,0,,,,,False,Beasley Coliseum
 401827641,2026,2026-01-24,2026-01-24 23:00:00+00:00,2026-01-24 18:00,EST,Baylor Bears,TCU Horned Frogs,0,0,,,,,False,Foster Pavilion

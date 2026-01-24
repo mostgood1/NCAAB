@@ -700,6 +700,178 @@ def fit_segment_calibration_5min(
         raise typer.Exit(code=1)
 
 
+@app.command(name="report-segment-retune-5min")
+def report_segment_retune_5min(
+    backtest_csv: Path = typer.Option(
+        settings.outputs_dir / "backtests" / "segments_5min_master.csv",
+        help="Backtest CSV (default outputs/backtests/segments_5min_master.csv)",
+    ),
+    games_csv: Path = typer.Option(
+        settings.outputs_dir / "games_hist_fused.csv",
+        help="Games CSV with team names (default outputs/games_hist_fused.csv)",
+    ),
+    out_dir: Path = typer.Option(
+        settings.outputs_dir / "diagnostics",
+        help="Output directory (default outputs/diagnostics)",
+    ),
+    start: str = typer.Option(None, help="Optional start date YYYY-MM-DD to filter rows"),
+    end: str = typer.Option(None, help="Optional end date YYYY-MM-DD to filter rows"),
+    min_games_team: int = typer.Option(10, help="Minimum games per team+endpoint"),
+    min_games_conference: int = typer.Option(30, help="Minimum games per conference+endpoint"),
+    shrink_k: float = typer.Option(20.0, help="Shrinkage strength (higher => more shrink to 0)"),
+):
+    """Generate season-scale 5-minute segment retune diagnostics.
+
+    Produces ranked bias/MAE/coverage tables by team, conference, and predicted-total buckets,
+    plus a short list of worst games at key endpoints (20,40).
+    """
+    try:
+        from src.backtests.segments_5min_retune_report import (
+            SegmentRetuneReport5MinConfig,
+            build_segment_retune_report_5min,
+        )
+
+        cfg = SegmentRetuneReport5MinConfig(
+            backtest_csv=Path(backtest_csv),
+            games_csv=Path(games_csv),
+            out_dir=Path(out_dir),
+            start=str(start) if start else None,
+            end=str(end) if end else None,
+            min_games_team=int(min_games_team),
+            min_games_conference=int(min_games_conference),
+            shrink_k=float(shrink_k),
+        )
+        res = build_segment_retune_report_5min(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]report-segment-retune-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="rank-segment-retune-5min")
+def rank_segment_retune_5min(
+    report: str = typer.Option("team", help="Which report to rank: team|conference|buckets"),
+    out_dir: Path = typer.Option(
+        settings.outputs_dir / "diagnostics",
+        help="Directory containing segment_retune_*.csv files (default outputs/diagnostics)",
+    ),
+    report_csv: Path = typer.Option(
+        None,
+        help="Optional explicit report CSV path. If omitted, uses start/end naming or the newest matching file in out_dir.",
+    ),
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (used to locate file when report_csv not provided)"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (used to locate file when report_csv not provided)"),
+    end_min: int = typer.Option(40, help="Endpoint minute to rank (e.g., 20 or 40)"),
+    top_n: int = typer.Option(25, help="Number of rows to print"),
+    min_games: int = typer.Option(None, help="Optional additional minimum n_games filter"),
+    out: Path = typer.Option(None, help="Optional output CSV path for the ranked table"),
+    format: str = typer.Option("csv", help="Output format for --out and console: csv|json"),
+    print_output: bool = typer.Option(True, "--print/--no-print", help="Print output to console"),
+):
+    """Rank offenders from the segment retune diagnostics.
+
+    Prints the top N rows at a given end_min, sorted by |mean_err_q50|.
+    """
+
+    report = str(report or "").strip().lower()
+    if report not in {"team", "conference", "buckets"}:
+        print("[red]Invalid --report. Use team|conference|buckets[/red]")
+        raise typer.Exit(code=2)
+
+    format = str(format or "").strip().lower()
+    if format not in {"csv", "json"}:
+        print("[red]Invalid --format. Use csv|json[/red]")
+        raise typer.Exit(code=2)
+
+    out_dir = Path(out_dir)
+    if report_csv is not None:
+        path = Path(report_csv)
+    else:
+        if start and end:
+            stem = f"segment_retune_{report}_{start}_to_{end}.csv"
+            path = out_dir / stem
+        else:
+            try:
+                pattern = f"segment_retune_{report}_*.csv"
+                cands = sorted(out_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+                path = cands[0] if cands else None
+            except Exception:
+                path = None
+
+    if not path or not Path(path).exists():
+        hint = f"No report found. Try passing --report-csv or --start/--end. (looked in {out_dir})"
+        print(f"[red]{hint}[/red]")
+        raise typer.Exit(code=1)
+
+    df = pd.read_csv(Path(path))
+    if df.empty:
+        print(f"[yellow]Report is empty:[/yellow] {path}")
+        raise typer.Exit(code=0)
+
+    if "end_min" in df.columns:
+        df = df[pd.to_numeric(df["end_min"], errors="coerce") == int(end_min)].copy()
+    if min_games is not None and "n_games" in df.columns:
+        df = df[pd.to_numeric(df["n_games"], errors="coerce") >= int(min_games)].copy()
+
+    if df.empty:
+        print("[yellow]No rows after filtering[/yellow]")
+        raise typer.Exit(code=0)
+
+    if "mean_err_q50" not in df.columns:
+        print("[red]Report missing mean_err_q50 column[/red]")
+        raise typer.Exit(code=1)
+
+    df["mean_err_q50"] = pd.to_numeric(df["mean_err_q50"], errors="coerce")
+    df = df.dropna(subset=["mean_err_q50"]).copy()
+    df["abs_mean_err_q50"] = df["mean_err_q50"].abs()
+    df = df.sort_values(["abs_mean_err_q50"], ascending=[False]).head(int(top_n))
+
+    if report == "team":
+        cols = [c for c in ["team", "conference", "n_games", "mean_err_q50", "mae_q50", "cov80", "suggested_adjustment_shrunk"] if c in df.columns]
+    elif report == "conference":
+        cols = [c for c in ["conference", "n_games", "mean_err_q50", "mae_q50", "cov80", "suggested_adjustment_shrunk"] if c in df.columns]
+    else:
+        cols = [c for c in ["pred_full_bucket", "n_games", "mean_err_q50", "mae_q50", "cov80", "suggested_adjustment_shrunk"] if c in df.columns]
+
+    if not cols:
+        out_df = df.head(int(top_n)).copy()
+    else:
+        out_df = df[cols].copy()
+
+    payload: dict[str, Any] = {
+        "report": report,
+        "end_min": int(end_min),
+        "source_file": str(path),
+        "rows": int(out_df.shape[0]),
+    }
+
+    if out is not None:
+        out_path = Path(out)
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+
+        if format == "csv":
+            out_df.to_csv(out_path, index=False)
+            print(f"[green]Wrote ranked table:[/green] {out_path}")
+        else:
+            # Convert NaN/NA to None so we can emit strict JSON.
+            clean = out_df.replace({np.nan: None}).to_dict(orient="records")
+            payload["data"] = clean
+            out_path.write_text(json.dumps(payload, indent=2, allow_nan=False), encoding="utf-8")
+            print(f"[green]Wrote ranked JSON:[/green] {out_path}")
+
+    if print_output:
+        print(f"[bold]Ranking:[/bold] report={report} end_min={int(end_min)} file={path}")
+        if format == "json":
+            if "data" not in payload:
+                payload["data"] = out_df.replace({np.nan: None}).to_dict(orient="records")
+            print(json.dumps(payload, indent=2, allow_nan=False))
+        else:
+            print(out_df.to_string(index=False))
+
+
 @app.command(name="profile-late-game-2min")
 def profile_late_game_2min(
     start: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive) to filter cached ESPN summaries"),

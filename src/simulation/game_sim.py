@@ -1442,28 +1442,34 @@ def simulate_game_row(
     mean_source_used = (mean_source or "auto").strip().lower() or "auto"
     engine_used = _resolve_sim_engine(engine, "features" if mean_source_used in {"features", "features_strict", "features-only", "features_only", "features!"} else mean_source_used)
 
-    # IMPORTANT: For the possession/event simulator, we strongly prefer feature-derived
-    # mean total/margin when the caller hasn't explicitly chosen a mean source.
-    # Rationale: historical slates often have sparse market lines, and model/blend
-    # columns can be missing or overly compressed, which makes per-game segment
-    # trajectories nearly constant and degrades 5-minute backtests.
-    if engine_used == "events" and mean_source_used == "auto":
+    def _infer_first_matching_col(row: pd.Series, candidates: list[str], selected: float) -> Optional[str]:
+        try:
+            sel = float(selected)
+        except Exception:
+            return None
+        for c in candidates:
+            try:
+                if c in row and pd.notna(row[c]):
+                    v = float(row[c])
+                    if np.isfinite(v) and abs(v - sel) <= 1e-6:
+                        return c
+            except Exception:
+                continue
+        return None
+
+    # For the possession/event simulator, default to the same mean-selection policy
+    # as other engines (model/blend first, with market guardrails). If those inputs
+    # are missing, fall back to feature-derived means.
+    total_mean, margin_mean = _resolve_mean_total_margin(
+        row,
+        mean_source=mean_source_used,
+        allow_market_guardrails=bool(allow_market_guardrails),
+    )
+    if (total_mean is None or margin_mean is None) and engine_used == "events" and mean_source_used == "auto":
         ft_total, ft_margin = _resolve_mean_total_margin_from_features(row)
         if ft_total is not None and ft_margin is not None:
             total_mean, margin_mean = ft_total, ft_margin
             mean_source_used = "features_auto"
-        else:
-            total_mean, margin_mean = _resolve_mean_total_margin(
-                row,
-                mean_source=mean_source_used,
-                allow_market_guardrails=bool(allow_market_guardrails),
-            )
-    else:
-        total_mean, margin_mean = _resolve_mean_total_margin(
-            row,
-            mean_source=mean_source_used,
-            allow_market_guardrails=bool(allow_market_guardrails),
-        )
     if total_mean is None or margin_mean is None:
         return {
             "sim_ok": False,
@@ -1472,6 +1478,128 @@ def simulate_game_row(
             "mean_source": (mean_source or "auto"),
             "mean_source_used": mean_source_used,
         }
+
+    # Trace the mean-selection path for diagnostics (helps debug guardrail overrides).
+    try:
+        market_total_dbg = _resolve_market_total(row)
+        spread_home_dbg = None
+        for scol in ["spread_home", "closing_spread_home", "home_spread", "closing_spread"]:
+            if scol in row and pd.notna(row[scol]):
+                try:
+                    spread_home_dbg = float(row[scol])
+                    break
+                except Exception:
+                    continue
+        market_margin_dbg = (-float(spread_home_dbg)) if spread_home_dbg is not None else None
+
+        # Candidate ordering should mirror _resolve_mean_total_margin
+        src_dbg = (mean_source_used or "auto").strip().lower() or "auto"
+        if src_dbg == "blend":
+            total_cols_dbg = ["pred_total_blend", "pred_total_base", "pred_total"]
+            margin_cols_dbg = ["pred_margin_blend", "pred_margin_base", "pred_margin"]
+        elif src_dbg == "model":
+            total_cols_dbg = [
+                "pred_total_model_unified",
+                "pred_total_model",
+                "pred_total_calibrated",
+                "pred_total",
+                "pred_total_raw",
+                "pred_total_seg",
+                "pred_total_interval_mean",
+                "total_pred",
+            ]
+            margin_cols_dbg = [
+                "pred_margin_model",
+                "pred_margin_calibrated",
+                "pred_margin",
+                "pred_margin_seg",
+                "pred_margin_interval_mean",
+                "margin_pred",
+            ]
+        else:
+            total_cols_dbg = [
+                "pred_total_blend",
+                "pred_total_base",
+                "pred_total_model_unified",
+                "pred_total_model",
+                "pred_total_calibrated",
+                "pred_total",
+                "pred_total_raw",
+                "pred_total_seg",
+                "pred_total_interval_mean",
+                "total_pred",
+            ]
+            margin_cols_dbg = [
+                "pred_margin_blend",
+                "pred_margin_base",
+                "pred_margin_model",
+                "pred_margin_calibrated",
+                "pred_margin",
+                "pred_margin_seg",
+                "pred_margin_interval_mean",
+                "margin_pred",
+            ]
+
+        # First raw candidate (pre-guardrail), if present.
+        first_total_val = None
+        first_total_col = None
+        for c in total_cols_dbg:
+            if c in row and pd.notna(row[c]):
+                try:
+                    vv = float(row[c])
+                except Exception:
+                    continue
+                if 70.0 <= vv <= 250.0:
+                    first_total_val = float(vv)
+                    first_total_col = c
+                    break
+
+        first_margin_val = None
+        first_margin_col = None
+        for c in margin_cols_dbg:
+            if c in row and pd.notna(row[c]):
+                try:
+                    vv = float(row[c])
+                except Exception:
+                    continue
+                if -80.0 <= vv <= 80.0:
+                    first_margin_val = float(vv)
+                    first_margin_col = c
+                    break
+
+        mean_total_col = _infer_first_matching_col(row, total_cols_dbg, float(total_mean))
+        mean_margin_col = _infer_first_matching_col(row, margin_cols_dbg, float(margin_mean))
+
+        guardrail_total_applied = False
+        try:
+            if first_total_val is not None and abs(float(first_total_val) - float(total_mean)) > 1e-6:
+                guardrail_total_applied = True
+        except Exception:
+            guardrail_total_applied = False
+
+        guardrail_margin_applied = False
+        try:
+            if first_margin_val is not None and abs(float(first_margin_val) - float(margin_mean)) > 1e-6:
+                guardrail_margin_applied = True
+        except Exception:
+            guardrail_margin_applied = False
+
+        mean_trace = {
+            "mean_total_selected": float(total_mean),
+            "mean_margin_selected": float(margin_mean),
+            "mean_total_first_candidate": float(first_total_val) if first_total_val is not None else None,
+            "mean_margin_first_candidate": float(first_margin_val) if first_margin_val is not None else None,
+            "mean_total_first_col": first_total_col,
+            "mean_margin_first_col": first_margin_col,
+            "mean_total_col_used": mean_total_col,
+            "mean_margin_col_used": mean_margin_col,
+            "market_total_resolved": float(market_total_dbg) if market_total_dbg is not None else None,
+            "market_margin_resolved": float(market_margin_dbg) if market_margin_dbg is not None else None,
+            "mean_total_guardrail_applied": bool(guardrail_total_applied),
+            "mean_margin_guardrail_applied": bool(guardrail_margin_applied),
+        }
+    except Exception:
+        mean_trace = {}
     sigma_total = _resolve_total_sigma(row)
     sigma_margin = _resolve_margin_sigma(row)
 
@@ -1501,6 +1629,13 @@ def simulate_game_row(
             sigma_margin,
             sim_calibration,
         )
+
+    # Preserve trace of what ultimately became the targets.
+    try:
+        mean_trace["mean_total_after_overrides_calib"] = float(total_mean)
+        mean_trace["mean_margin_after_overrides_calib"] = float(margin_mean)
+    except Exception:
+        pass
 
     # Allow sim calibration to override rho for the fallback path that infers
     # per-team sigma from total sigma.
@@ -1788,6 +1923,7 @@ def simulate_game_row(
             "sim_engine": "events",
             "mean_source": (mean_source or "auto"),
             "mean_source_used": mean_source_used,
+            **mean_trace,
             "pace_mu": poss_mu_used,
             "pace_sigma": float(pace_sigma) if pace_sigma is not None else DEFAULT_PACE_SIGMA,
             "rho_used": None,
@@ -2079,6 +2215,7 @@ def simulate_game_row(
             "sim_method": "pace",
             "mean_source": (mean_source or "auto"),
             "mean_source_used": mean_source_used,
+            **mean_trace,
             "pace_mu": pace_mu_used,
             "pace_sigma": pace_sigma_used,
             "rho_used": None,
@@ -2304,6 +2441,7 @@ def simulate_game_row(
         "sim_method": "points",
         "mean_source": (mean_source or "auto"),
         "mean_source_used": mean_source_used,
+        **mean_trace,
         "rho_used": rho_used,
         "sigma_total": float(sigma_total),
         "sigma_margin": float(sigma_margin) if sigma_margin is not None else None,
@@ -2373,8 +2511,20 @@ def run_simulations_for_date(out_dir: Path, date: str,
     enr_path = out_dir / f"predictions_unified_enriched_{date}.csv"
     games_path = out_dir / f"games_{date}.csv"
 
+    # Prefer the primary per-date predictions artifact when present.
+    # In practice, the unified/display artifacts can be heavily sanitized (near-constant
+    # means across the slate), which collapses per-game segment trajectories and breaks
+    # 5-minute backtests.
+    default_preds_path = out_dir / f"predictions_{date}.csv"
+
     if preds_path is None:
-        preds_path = enr_path
+        # Choose the best available default inputs.
+        for cand in [default_preds_path, enr_path]:
+            if cand.exists():
+                preds_path = cand
+                break
+        if preds_path is None:
+            preds_path = enr_path
     if lines_path is None:
         # Use rolling last-odds file by default; per-date odds can be sparse.
         lines_path = out_dir / "games_with_last.csv"
@@ -2420,37 +2570,29 @@ def run_simulations_for_date(out_dir: Path, date: str,
 
     used_fallback_preds = False
     if not preds_path.exists():
-        # Backtest/regeneration robustness: historical runs may not have the
-        # full unified-enriched file persisted, but will often still have the
-        # unified predictions artifact for that date.
-        if preds_path == enr_path:
-            fallback_candidates = [
-                out_dir / f"predictions_unified_{date}.csv",
-                out_dir / f"predictions_enriched_{date}.csv",
-                out_dir / f"predictions_{date}.csv",
-            ]
-            alt = next((p for p in fallback_candidates if p.exists()), None)
-            if alt is not None:
-                preds_path = alt
-                used_fallback_preds = True
-            else:
-                raise FileNotFoundError(
-                    f"Predictions file not found: {enr_path} (also tried {', '.join(str(p) for p in fallback_candidates)})"
-                )
+        # Backtest/regeneration robustness: historical runs may not have all
+        # intermediate artifacts persisted.
+        fallback_candidates = [
+            default_preds_path,
+            enr_path,
+            out_dir / f"predictions_unified_{date}.csv",
+            out_dir / f"predictions_enriched_{date}.csv",
+        ]
+        alt = next((p for p in fallback_candidates if p.exists()), None)
+        if alt is not None:
+            preds_path = alt
+            used_fallback_preds = True
         else:
-            raise FileNotFoundError(f"Predictions file not found: {preds_path}")
+            raise FileNotFoundError(
+                f"Predictions file not found for date={date}. Tried: {', '.join(str(p) for p in fallback_candidates)}"
+            )
 
     preds = pd.read_csv(preds_path)
     if "date" in preds.columns:
         preds = preds[preds["date"].astype(str) == str(date)]
 
-    # If we had to fall back, persist a copy at the expected path so downstream
-    # tooling (and future runs) can find it.
-    if used_fallback_preds and preds_path != enr_path:
-        try:
-            preds.to_csv(enr_path, index=False)
-        except Exception:
-            pass
+    # If we had to fall back from a missing default, do not overwrite the
+    # unified-enriched artifact: it may intentionally contain additional columns.
 
     # Normalize id dtype for stable merges/output
     if "game_id" in preds.columns:
@@ -3061,7 +3203,9 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                     vv = float(v)
                                 except Exception:
                                     continue
-                                if np.isfinite(kk) and np.isfinite(vv):
+                                # Guardrail: extremely small slopes collapse per-game variance.
+                                # Skip those entries rather than destroying signal.
+                                if np.isfinite(kk) and np.isfinite(vv) and vv >= 0.50:
                                     norm_a[kk] = vv
                             for k, v in b_map.items():
                                 try:
