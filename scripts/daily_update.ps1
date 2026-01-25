@@ -1216,6 +1216,32 @@ if df_today.empty and ('date' in df.columns):
   # Secondary filter by date only if gid-based yielded nothing
   df['date'] = df['date'].astype(str)
   df_today = df[df['date'] == target].copy()
+# Backfill schedule start times (and related display fields) from today's games file.
+try:
+  if (not df_today.empty) and ('game_id' in df_today.columns):
+    # Drop any stray rows that don't correspond to a scheduled game
+    df_today['game_id'] = df_today['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+    df_today = df_today[df_today['game_id'].notna() & (df_today['game_id'].astype(str) != '')].copy()
+    try:
+      gc = pd.read_csv(games_curr)
+      if 'game_id' in gc.columns:
+        gc['game_id'] = gc['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+      keep_cols = [c for c in ['game_id','start_time','start_time_iso','start_time_local','start_tz_abbr'] if c in gc.columns]
+      if keep_cols:
+        gc_small = gc[keep_cols].drop_duplicates(subset=['game_id'])
+        df_today = df_today.merge(gc_small, on='game_id', how='left', suffixes=('','_sched'))
+        for c in ['start_time','start_time_iso','start_time_local','start_tz_abbr']:
+          sc = c + '_sched'
+          if (c in df_today.columns) and (sc in df_today.columns):
+            df_today[c] = df_today[c].where(df_today[c].notna() & (df_today[c].astype(str) != ''), df_today[sc])
+            df_today.drop(columns=[sc], inplace=True, errors='ignore')
+          elif (c not in df_today.columns) and (sc in df_today.columns):
+            df_today[c] = df_today[sc]
+            df_today.drop(columns=[sc], inplace=True, errors='ignore')
+    except Exception as e:
+      print('[warn] schedule backfill failed: ' + str(e))
+except Exception:
+  pass
 # Debug: show unique dates and gid_today size, avoid f-strings to prevent parser issues
 try:
   udates = sorted(set(df['date'].astype(str)))[:5] if 'date' in df.columns else []
@@ -1270,6 +1296,31 @@ else:
 if df_today.empty and ('date' in df.columns):
   df['date'] = df['date'].astype(str)
   df_today = df[df['date'] == target].copy()
+# Backfill schedule start times (and related display fields) from today's games file.
+try:
+  if (not df_today.empty) and ('game_id' in df_today.columns):
+    df_today['game_id'] = df_today['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+    df_today = df_today[df_today['game_id'].notna() & (df_today['game_id'].astype(str) != '')].copy()
+    try:
+      gc = pd.read_csv(games_curr)
+      if 'game_id' in gc.columns:
+        gc['game_id'] = gc['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
+      keep_cols = [c for c in ['game_id','start_time','start_time_iso','start_time_local','start_tz_abbr'] if c in gc.columns]
+      if keep_cols:
+        gc_small = gc[keep_cols].drop_duplicates(subset=['game_id'])
+        df_today = df_today.merge(gc_small, on='game_id', how='left', suffixes=('','_sched'))
+        for c in ['start_time','start_time_iso','start_time_local','start_tz_abbr']:
+          sc = c + '_sched'
+          if (c in df_today.columns) and (sc in df_today.columns):
+            df_today[c] = df_today[c].where(df_today[c].notna() & (df_today[c].astype(str) != ''), df_today[sc])
+            df_today.drop(columns=[sc], inplace=True, errors='ignore')
+          elif (c not in df_today.columns) and (sc in df_today.columns):
+            df_today[c] = df_today[sc]
+            df_today.drop(columns=[sc], inplace=True, errors='ignore')
+    except Exception as e:
+      print('[warn] schedule backfill failed (closing): ' + str(e))
+except Exception:
+  pass
 # Debug: show unique dates and gid_today size, avoid f-strings to prevent parser issues
 try:
   udates = sorted(set(df['date'].astype(str)))[:5] if 'date' in df.columns else []

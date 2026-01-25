@@ -5928,8 +5928,21 @@ def merge_predictions_odds(
         print("[red]odds file missing team name columns/pair_key; cannot construct key.")
         raise typer.Exit(code=1)
 
-    # Merge odds -> games (attach game_id,date)
-    games_sub = games[[c for c in ("game_id", "date", "pair_key") if c in games.columns]].copy()
+    # Merge odds -> games (attach game_id/date + schedule start time fields when available)
+    games_sub_cols = [
+        c
+        for c in (
+            "game_id",
+            "date",
+            "pair_key",
+            "start_time",
+            "start_time_iso",
+            "start_time_local",
+            "start_tz_abbr",
+        )
+        if c in games.columns
+    ]
+    games_sub = games[games_sub_cols].copy()
     if "game_id" in games_sub.columns:
         games_sub["game_id"] = games_sub["game_id"].astype(str)
     merged = odds.merge(games_sub, on="pair_key", how="left")
