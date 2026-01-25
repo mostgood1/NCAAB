@@ -1,8 +1,8 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401828195,2026,2026-01-25,2026-01-25 18:00:00+00:00,2026-01-25 13:00,EST,South Florida Bulls,Florida Atlantic Owls,0,0,,,,,False,Yuengling Center
-401820218,2026,2026-01-25,2026-01-25 19:00:00+00:00,2026-01-25 14:00,EST,Mercyhurst Lakers,Chicago State Cougars,0,0,,,,,False,Mercyhurst Athletic Center
-401825470,2026,2026-01-25,2026-01-25 20:00:00+00:00,2026-01-25 15:00,EST,Washington Huskies,Oregon Ducks,0,0,,,,,False,Alaska Airlines Arena
-401830280,2026,2026-01-25,2026-01-25 21:00:00+00:00,2026-01-25 16:00,EST,Evansville Purple Aces,Southern Illinois Salukis,0,0,,,,,False,Ford Center
-401825471,2026,2026-01-25,2026-01-25 21:00:00+00:00,2026-01-25 16:00,EST,Wisconsin Badgers,USC Trojans,0,0,,,,,False,Kohl Center
+401825471,2026,2026-01-25,2026-01-25 21:00:00+00:00,2026-01-25 16:00,EST,Wisconsin Badgers,USC Trojans,58,50,41.0,39.0,17.0,11.0,False,Kohl Center
+401828195,2026,2026-01-25,2026-01-25 18:00:00+00:00,2026-01-25 13:00,EST,South Florida Bulls,Florida Atlantic Owls,89,75,33.0,36.0,56.0,39.0,False,Yuengling Center
+401825470,2026,2026-01-25,2026-01-25 20:00:00+00:00,2026-01-25 15:00,EST,Washington Huskies,Oregon Ducks,72,57,34.0,19.0,38.0,38.0,False,Alaska Airlines Arena
+401820218,2026,2026-01-25,2026-01-25 20:00:00+00:00,2026-01-25 15:00,EST,Mercyhurst Lakers,Chicago State Cougars,61,59,26.0,28.0,35.0,31.0,False,Mercyhurst Athletic Center
 401812393,2026,2026-01-25,2026-01-25 18:00:00+00:00,2026-01-25 13:00,EST,New Haven Chargers,Saint Francis Red Flash,0,0,,,,,False,Jeffery P. Hazell Athletics Center
 401817640,2026,2026-01-25,2026-01-25 19:00:00+00:00,2026-01-25 14:00,EST,IU Indianapolis Jaguars,Purdue Fort Wayne Mastodons,0,0,,,,,False,The Jungle
+401830280,2026,2026-01-25,2026-01-25 21:00:00+00:00,2026-01-25 16:00,EST,Evansville Purple Aces,Southern Illinois Salukis,0,0,,,,,False,Ford Center

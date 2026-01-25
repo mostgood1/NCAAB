@@ -1257,6 +1257,37 @@
               {% if venue %}<span class="pill venue">{{ venue }}{% if r.city and r.state %} – {{ r.city }}, {{ r.state }}{% elif r.city %} – {{ r.city }}{% endif %}</span>{% endif %}
               {% if r.neutral_site %}<span class="pill neutral">Neutral Site</span>{% endif %}
             </div>
+
+            {# Card-level reconciliation strip (historic actuals): ATS / OU / ML correctness at a glance #}
+            {% if r.has_actuals is defined and r.has_actuals %}
+              {% set has_spread = (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) %}
+              {% set has_total  = (r.market_total is defined and r.market_total is not none and r.market_total == r.market_total) %}
+              {% set eval_ats = (r.eval_ats_ok if (r.eval_ats_ok is defined and r.eval_ats_ok is not none and r.eval_ats_ok == r.eval_ats_ok) else none) %}
+              {% set eval_ml  = (r.eval_ml_ok  if (r.eval_ml_ok  is defined and r.eval_ml_ok  is not none and r.eval_ml_ok  == r.eval_ml_ok ) else none) %}
+              {% set ats_cls = (('ok' if eval_ats else 'bad') if (eval_ats is not none) else 'neutral') %}
+              {% set ml_cls  = (('ok' if eval_ml  else 'bad') if (eval_ml  is not none) else 'neutral') %}
+
+              {% set ou_actual2 = none %}
+              {% if r.ou_result_full is defined and r.ou_result_full is not none %}
+                {% set _ou_txt = (r.ou_result_full ~ '') %}
+                {% if _ou_txt and _ou_txt not in ['nan','None','none','null'] %}{% set ou_actual2 = _ou_txt %}{% endif %}
+              {% endif %}
+              {% if ou_actual2 is none %}
+                {% set ou_actual2 = ( 'Over' if (r.actual_total is not none and r.market_total is not none and r.actual_total > r.market_total) else ( 'Under' if (r.actual_total is not none and r.market_total is not none and r.actual_total < r.market_total) else ('Push' if (r.actual_total is not none and r.market_total is not none and r.actual_total == r.market_total) else none))) %}
+              {% endif %}
+              {% set lean_ou2 = (r.lean_ou_side if (r.lean_ou_side is defined and r.lean_ou_side) else none) %}
+              {% set ou_cls2 = 'neutral' if (ou_actual2 is none or ou_actual2 == 'Push' or lean_ou2 is none) else ('ok' if lean_ou2 == ou_actual2 else 'bad') %}
+
+              {% set ats_lbl = 'ATS: ' ~ ('n/a' if not has_spread else ('W' if ats_cls == 'ok' else ('L' if ats_cls == 'bad' else '–'))) %}
+              {% set ou_lbl  = 'OU: '  ~ ('n/a' if not has_total  else ('W' if ou_cls2 == 'ok' else ('L' if ou_cls2 == 'bad' else '–'))) %}
+              {% set ml_lbl  = 'ML: '  ~ ('W' if ml_cls == 'ok' else ('L' if ml_cls == 'bad' else '–')) %}
+
+              <div class="kpi recon-kpi" aria-label="Reconciliation summary">
+                <span class="pill {{ ats_cls }}" title="{% if has_spread %}ATS result: {{ (r.ats_result ~ '') if (r.ats_result is defined and r.ats_result is not none) else '–' }}{% else %}ATS market line unavailable{% endif %}">{{ ats_lbl }}</span>
+                <span class="pill {{ ou_cls2 }}" title="{% if has_total %}OU result: {{ ou_actual2 or '–' }} | Model lean: {{ lean_ou2 or '–' }}{% else %}OU market total unavailable{% endif %}">{{ ou_lbl }}</span>
+                <span class="pill {{ ml_cls }}" title="Winner: {{ (r.ml_result ~ '') if (r.ml_result is defined and r.ml_result is not none) else '–' }}">{{ ml_lbl }}</span>
+              </div>
+            {% endif %}
           </div>
           {% set _cards_view = (r.pred_total_model is defined) or (r.pred_total_sim is defined) or (r.pred_total_blend is defined) or (r.pred_total_model_1h is defined) or (r.pred_total_blend_1h is defined) %}
           {% if _cards_view %}
@@ -2045,7 +2076,9 @@
             {% if r.has_actuals is defined and r.has_actuals %}
             <div class="line-row actuals-row section-actuals">
               <div class="seg label">Actuals</div>
-              {% set cls_ats_full = 'neutral' if (r.ats_result == 'Push') else ('ok' if r.eval_ats_ok else ('bad' if r.ats_result else 'neutral')) %}
+              {# Only show ok/bad when eval_ats_ok is explicitly present; otherwise keep neutral #}
+              {% set eval_ats = (r.eval_ats_ok if (r.eval_ats_ok is defined and r.eval_ats_ok is not none) else none) %}
+              {% set cls_ats_full = 'neutral' if (r.ats_result == 'Push') else (('ok' if eval_ats else 'bad') if (eval_ats is not none) else 'neutral') %}
               {# Coerce ats_result to string to avoid TypeError when NaN/float #}
               {% set ats_text = (r.ats_result ~ '') %}
               {% set ats_team_full = (home_disp if ('Home' in ats_text) else (away_disp if ('Away' in ats_text) else ('Push' if ats_text == 'Push' else None))) %}
@@ -2053,7 +2086,9 @@
               {# Safe ML winner extraction: coerce ml_result to string to avoid TypeError on NaN/None #}
               {% set ml_text = (r.ml_result ~ '') %}
               {% set winner_team = home_disp if 'Home' in ml_text else (away_disp if 'Away' in ml_text else ('Push' if ml_text == 'Push' else None)) %}
-              {% set cls_ml_full = 'neutral' if (winner_team == 'Push') else ('ok' if r.eval_ml_ok else ('bad' if winner_team else 'neutral')) %}
+              {# Only show ok/bad when eval_ml_ok is explicitly present; otherwise keep neutral #}
+              {% set eval_ml = (r.eval_ml_ok if (r.eval_ml_ok is defined and r.eval_ml_ok is not none) else none) %}
+              {% set cls_ml_full = 'neutral' if (winner_team == 'Push') else (('ok' if eval_ml else 'bad') if (eval_ml is not none) else 'neutral') %}
               <div class="seg {{ cls_ml_full }}">Winner: {{ winner_team or '–' }}</div>
               <div class="seg">Team Totals: {% if r.home_score is not none and r.away_score is not none %}{{ away_disp or '–' }} {{ r.away_score }} / {{ home_disp or '–' }} {{ r.home_score }}{% else %}–{% endif %}</div>
               {% set ou_actual = ( 'Over' if (r.actual_total is not none and r.market_total is not none and r.actual_total > r.market_total) else ( 'Under' if (r.actual_total is not none and r.market_total is not none and r.actual_total < r.market_total) else ('Push' if (r.actual_total is not none and r.market_total is not none and r.actual_total == r.market_total) else None))) %}

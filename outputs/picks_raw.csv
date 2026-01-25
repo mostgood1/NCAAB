@@ -926,8 +926,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401823567,2026-01-25,Villanova Wildcats,Wisconsin Badgers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401830877,2026-01-25,Western Kentucky Hilltoppers,Wichita State Shockers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401826883,2026-01-25,Wichita State Shockers,Wofford Terriers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
-401828195,2026-01-25,South Florida Bulls,Florida Atlantic Owls,totals,full_game,under,,,,,,Total,OU
-401812393,2026-01-25,New Haven Chargers,Saint Francis Red Flash,totals,full_game,under,,,,,,Total,OU
-401820218,2026-01-25,Mercyhurst Lakers,Chicago State Cougars,totals,full_game,under,,,,,,Total,OU
-401825470,2026-01-25,Washington Huskies,Oregon Ducks,totals,full_game,under,,,,,,Total,OU
-401830280,2026-01-25,Evansville Purple Aces,Southern Illinois Salukis,totals,full_game,under,,,,,,Total,OU
+401828195,2026-01-25,South Florida Bulls,Florida Atlantic Owls,totals,full_game,under,166.5,,24.23795948318974,,142.26204051681026,Total,OU
+401820218,2026-01-25,Mercyhurst Lakers,Chicago State Cougars,totals,full_game,under,131.0,,9.032059371522024,,140.03205937152202,Total,OU
+401825470,2026-01-25,Washington Huskies,Oregon Ducks,totals,full_game,under,143.5,,2.9712858345058635,,140.52871416549414,Total,OU
+401830280,2026-01-25,Evansville Purple Aces,Southern Illinois Salukis,totals,full_game,under,140.5,,2.0440634659099146,,142.54406346590991,Total,OU
+401825471,2026-01-25,Wisconsin Badgers,USC Trojans,totals,full_game,under,159.0,,19.73677893922502,,139.26322106077498,Total,OU

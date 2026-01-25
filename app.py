@@ -1630,6 +1630,76 @@ def _postprocess_enriched_file(date_q: str):
         # Fallback fill for pred_total/pred_margin
         enr = _fallback_merge_predictions(enr, uni, dis)
 
+        # Attach authoritative schedule time fields (prevents missing start_time_local
+        # in predictions_display when the model artifacts omit time columns).
+        try:
+            if enr is not None and not enr.empty and 'game_id' in enr.columns:
+                gpath = out_dir / f'games_{date_q}.csv'
+                if gpath.exists():
+                    g = pd.read_csv(gpath)
+                    if g is not None and not g.empty and 'game_id' in g.columns:
+                        enr['game_id'] = enr['game_id'].astype(str)
+                        g['game_id'] = g['game_id'].astype(str)
+                        keep_cols = [
+                            c for c in [
+                                'game_id',
+                                'date',
+                                'start_time',
+                                'start_time_local',
+                                'start_tz_abbr',
+                                'commence_time',
+                                'venue_tz',
+                                'venue',
+                            ]
+                            if c in g.columns
+                        ]
+                        if keep_cols:
+                            g = g[keep_cols].drop_duplicates(subset=['game_id'])
+                            enr = enr.merge(g, on='game_id', how='left', suffixes=('', '_sched'))
+                            # Fill missing/blank values from schedule.
+                            for col in ['start_time', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue', 'date']:
+                                sched_col = f'{col}_sched'
+                                if col in enr.columns and sched_col in enr.columns:
+                                    try:
+                                        # If the base column was all-NaN, pandas may have inferred float dtype.
+                                        # Cast to object so schedule strings don't get coerced back to NaN.
+                                        if enr[col].dtype != object:
+                                            enr[col] = enr[col].astype(object)
+                                        base = enr[col]
+                                        if base.dtype == object:
+                                            bad = (
+                                                base.isna()
+                                                | base.astype(str).str.strip().eq('')
+                                                | base.astype(str).str.strip().str.lower().isin(['nan', 'none', 'null'])
+                                            )
+                                        else:
+                                            bad = base.isna()
+                                        if bad.any():
+                                            enr.loc[bad, col] = enr.loc[bad, sched_col]
+                                    except Exception:
+                                        pass
+
+                            # If tz was defaulted (often CST/CDT) but schedule provides a
+                            # more authoritative abbr for the game, prefer schedule.
+                            try:
+                                if 'start_tz_abbr' in enr.columns and 'start_tz_abbr_sched' in enr.columns:
+                                    base = enr['start_tz_abbr'].astype(str).str.strip()
+                                    sched = enr['start_tz_abbr_sched'].astype(str).str.strip()
+                                    sched_good = sched.ne('') & ~sched.str.lower().isin(['nan', 'none', 'null'])
+                                    base_bad = base.eq('') | base.str.lower().isin(['nan', 'none', 'null'])
+                                    base_default = base.str.upper().isin(['CST', 'CDT']) & (sched.str.upper().ne(base.str.upper()))
+                                    override = sched_good & (base_bad | base_default)
+                                    if override.any():
+                                        enr.loc[override, 'start_tz_abbr'] = enr.loc[override, 'start_tz_abbr_sched']
+                            except Exception:
+                                pass
+                            # Drop helper columns.
+                            drop_cols = [c for c in enr.columns if c.endswith('_sched')]
+                            if drop_cols:
+                                enr = enr.drop(columns=drop_cols, errors='ignore')
+        except Exception:
+            pass
+
         # Merge market lines (spread/total/ML) into the enriched artifact.
         # This must be done here because the cards/sim downstream depend on
         # `predictions_unified_enriched_<date>.csv` carrying market columns.
@@ -1643,6 +1713,8 @@ def _postprocess_enriched_file(date_q: str):
                             # Legacy artifacts (may not exist for newer pipelines)
                             out_dir / f'games_with_last_{date_q}.csv',
                             out_dir / 'games_with_last.csv',
+                            # Filtered to today's slate (often contains the best available partial coverage)
+                            out_dir / 'games_with_last_today.csv',
                             # Current artifacts produced by daily-run
                             out_dir / f'games_with_odds_{date_q}.csv',
                             out_dir / 'games_with_odds_today.csv',
@@ -2221,6 +2293,22 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
       - Prefer venue-local fields when available on enriched artifacts.
     """
 
+    def _is_missing(v: Any) -> bool:
+        try:
+            if v is None:
+                return True
+            if isinstance(v, str) and v.strip().lower() in {'', 'nan', 'none', 'null'}:
+                return True
+            # Covers numpy.nan, pandas NA, NaT, etc.
+            try:
+                if bool(pd.isna(v)):
+                    return True
+            except Exception:
+                pass
+            return False
+        except Exception:
+            return v is None
+
     slate_raw = r.get('_slate_date') or r.get('date') or r.get('slate_date')
     slate_dt = None
     if slate_raw:
@@ -2246,57 +2334,70 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
     if utc_source is not None and pd.notna(utc_source):
         if not iso_val:
             r['start_time_iso'] = utc_source.strftime('%Y-%m-%dT%H:%M:%SZ')
-        if not r.get('start_time_local') or not r.get('start_tz_abbr'):
+        missing_local = _is_missing(r.get('start_time_local'))
+        missing_abbr = _is_missing(r.get('start_tz_abbr'))
+        if missing_local or missing_abbr:
             try:
-                eastern_dt = utc_source.astimezone(ZoneInfo('America/New_York'))
-                r.setdefault('start_time_local', eastern_dt.strftime('%Y-%m-%d %H:%M'))
-                r.setdefault('start_tz_abbr', eastern_dt.tzname())
+                eastern_dt = pd.to_datetime(utc_source, errors='coerce', utc=True)
+                eastern_dt = eastern_dt.tz_convert('America/New_York')
+                if missing_local:
+                    r['start_time_local'] = eastern_dt.strftime('%Y-%m-%d %H:%M')
+                    # If we derived the local time, ensure the abbr matches it.
+                    r['start_tz_abbr'] = eastern_dt.tzname()
+                elif missing_abbr:
+                    r['start_tz_abbr'] = eastern_dt.tzname()
             except Exception:
                 try:
-                    r.setdefault('start_time_local', utc_source.strftime('%Y-%m-%d %H:%M'))
-                    r.setdefault('start_tz_abbr', 'UTC')
+                    if missing_local:
+                        r['start_time_local'] = utc_source.strftime('%Y-%m-%d %H:%M')
+                    if missing_local:
+                        r['start_tz_abbr'] = 'UTC'
+                    elif missing_abbr:
+                        r['start_tz_abbr'] = 'UTC'
                 except Exception:
                     pass
         # Prefer venue-local if present on input row
         try:
             vloc = r.get('start_time_local_venue')
             vtz = r.get('start_tz_abbr_venue')
-            if vloc and vtz:
+            if (not _is_missing(vloc)) and (not _is_missing(vtz)):
                 r['start_time_local'] = vloc
                 r['start_tz_abbr'] = vtz
         except Exception:
             pass
         # Default abbr to CST for display pipeline when missing
         try:
-            if not r.get('start_tz_abbr'):
+            if _is_missing(r.get('start_tz_abbr')):
                 r['start_tz_abbr'] = 'CST'
         except Exception:
             pass
         # Persist stable UTC start datetime for downstream consumers
         try:
-            if not r.get('_start_dt'):
+            if _is_missing(r.get('_start_dt')):
                 r['_start_dt'] = utc_source
         except Exception:
             pass
         if slate_dt is not None:
             try:
                 if utc_source.date() == (slate_dt + dt.timedelta(days=1)):
-                    eastern_dt2 = utc_source.astimezone(ZoneInfo('America/New_York'))
+                    eastern_dt2 = pd.to_datetime(utc_source, errors='coerce', utc=True).tz_convert('America/New_York')
                     if eastern_dt2.date() == slate_dt:
                         r['display_date'] = slate_dt.strftime('%Y-%m-%d')
             except Exception:
                 pass
     # Final fallback: set display_date to slate date when still missing
     try:
-        if slate_dt is not None and not r.get('display_date'):
+        if slate_dt is not None and _is_missing(r.get('display_date')):
             r['display_date'] = slate_dt.strftime('%Y-%m-%d')
     except Exception:
         pass
     # Ultimate fallback: if `_start_dt` still missing but local+abbr present, derive UTC
     try:
-        if not r.get('_start_dt'):
-            loc = str(r.get('start_time_local') or '').strip()
-            abbr = str(r.get('start_tz_abbr') or '').upper().strip()
+        if _is_missing(r.get('_start_dt')):
+            loc_raw = r.get('start_time_local')
+            abbr_raw = r.get('start_tz_abbr')
+            loc = '' if _is_missing(loc_raw) else str(loc_raw).strip()
+            abbr = '' if _is_missing(abbr_raw) else str(abbr_raw).upper().strip()
             if loc and abbr and abbr in _TZ_ABBR_MAP:
                 parts = loc.split()
                 if len(parts) >= 2:
@@ -30939,6 +31040,53 @@ def api_display_predictions():
     except Exception:
         tz_q = 'America/Chicago'
         tzinfo = ZoneInfo('America/Chicago')
+
+    def _sort_rows_chrono(_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        try:
+            def _parse_dt(v: Any) -> dt.datetime | None:
+                try:
+                    if v is None:
+                        return None
+                    if isinstance(v, dt.datetime):
+                        d = v
+                    else:
+                        s = str(v).strip()
+                        if not s or s.lower() in ('nan', 'none', 'null'):
+                            return None
+                        try:
+                            d = dt.datetime.fromisoformat(s.replace('Z', '+00:00'))
+                        except Exception:
+                            try:
+                                d = pd.to_datetime(s, utc=True, errors='coerce').to_pydatetime()
+                            except Exception:
+                                return None
+                    if d is None:
+                        return None
+                    if getattr(d, 'tzinfo', None) is None:
+                        d = d.replace(tzinfo=dt.timezone.utc)
+                    return d.astimezone(dt.timezone.utc)
+                except Exception:
+                    return None
+
+            def _sort_key(it: dict[str, Any]) -> tuple[dt.datetime, str]:
+                gid = str(it.get('game_id') or '').replace('.0', '').strip()
+                for k in ('start_time_iso', 'start_time', 'display_time_str'):
+                    d = _parse_dt(it.get(k))
+                    if d is not None:
+                        return (d, gid)
+                try:
+                    dd = (it.get('display_date') or it.get('date') or date_q)
+                    ampm = (it.get('display_time_ampm') or '').strip()
+                    if dd and ampm:
+                        dloc = dt.datetime.strptime(f"{dd} {ampm}", '%Y-%m-%d %I:%M %p').replace(tzinfo=tzinfo)
+                        return (dloc.astimezone(dt.timezone.utc), gid)
+                except Exception:
+                    pass
+                return (dt.datetime.max.replace(tzinfo=dt.timezone.utc), gid)
+
+            return sorted(_rows, key=_sort_key)
+        except Exception:
+            return _rows
     # Infer date if not provided: prefer latest available display snapshot, then last_index_df, else today
     if not date_q:
         try:
@@ -31690,11 +31838,131 @@ def api_display_predictions():
 
                             # Merge into base
                             base = base.merge(
-                                g[['game_id', 'market_price', 'fair_price', 'implied_prob', 'ev', 'fair_delta', 'market_basis', 'book_name']]
+                                g[['game_id', 'market_price', 'fair_price', 'implied_prob', 'ev', 'fair_delta', 'market_basis', 'book_name',
+                                   'moneyline_home', 'moneyline_away']]
                                 .drop_duplicates('game_id'),
                                 on='game_id',
                                 how='left',
                             )
+
+                            # Also populate per-side ML lines for the Market grid when missing.
+                            try:
+                                if 'ml_home' not in base.columns:
+                                    base['ml_home'] = np.nan
+                                if 'ml_away' not in base.columns:
+                                    base['ml_away'] = np.nan
+                                if 'moneyline_home' in base.columns:
+                                    mh = pd.to_numeric(base.get('ml_home'), errors='coerce')
+                                    alt = pd.to_numeric(base.get('moneyline_home'), errors='coerce')
+                                    base['ml_home'] = mh.where(mh.notna(), alt)
+                                if 'moneyline_away' in base.columns:
+                                    ma = pd.to_numeric(base.get('ml_away'), errors='coerce')
+                                    alt = pd.to_numeric(base.get('moneyline_away'), errors='coerce')
+                                    base['ml_away'] = ma.where(ma.notna(), alt)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                    # Fallback: raw provider odds snapshot (by team slugs) for games where
+                    # unified_enriched/sim/edges could not supply market lines.
+                    # Source: outputs/odds_<date>.csv (home/away naming may differ, so we use canonical slugs).
+                    try:
+                        odds_path = OUT / f"odds_{date_q}.csv"
+                        odf = _safe_read_csv(odds_path) if odds_path.exists() else pd.DataFrame()
+                        if isinstance(odf, pd.DataFrame) and (not odf.empty):
+                            # Normalize numeric columns
+                            for c in ('moneyline_home', 'moneyline_away', 'spread', 'total'):
+                                if c in odf.columns:
+                                    odf[c] = pd.to_numeric(odf[c], errors='coerce')
+
+                            # Canonicalize team names
+                            hname = 'home_team_name' if 'home_team_name' in odf.columns else ('home_team' if 'home_team' in odf.columns else None)
+                            aname = 'away_team_name' if 'away_team_name' in odf.columns else ('away_team' if 'away_team' in odf.columns else None)
+                            if hname and aname:
+                                odf['_hslug'] = odf[hname].astype(str).map(_canon_slug)
+                                odf['_aslug'] = odf[aname].astype(str).map(_canon_slug)
+                                odf['_key_dir'] = odf['_hslug'].astype(str) + '::' + odf['_aslug'].astype(str)
+
+                                agg = {}
+                                if 'total' in odf.columns:
+                                    agg['total'] = 'median'
+                                if 'spread' in odf.columns:
+                                    agg['spread'] = 'median'
+                                if 'moneyline_home' in odf.columns:
+                                    agg['moneyline_home'] = 'median'
+                                if 'moneyline_away' in odf.columns:
+                                    agg['moneyline_away'] = 'median'
+
+                                if agg:
+                                    g_odds = odf.groupby('_key_dir', as_index=False).agg(agg)
+                                    ren = {
+                                        'total': 'market_total_odds',
+                                        'spread': 'spread_home_odds',
+                                        'moneyline_home': 'ml_home_odds',
+                                        'moneyline_away': 'ml_away_odds',
+                                    }
+                                    g_odds = g_odds.rename(columns={k: v for k, v in ren.items() if k in g_odds.columns})
+
+                                    # Build directional keys on base
+                                    if 'home_team' in base.columns and 'away_team' in base.columns:
+                                        base['_hslug'] = base['home_team'].astype(str).map(_canon_slug)
+                                        base['_aslug'] = base['away_team'].astype(str).map(_canon_slug)
+                                        base['_key_dir'] = base['_hslug'].astype(str) + '::' + base['_aslug'].astype(str)
+                                        base['_key_rev'] = base['_aslug'].astype(str) + '::' + base['_hslug'].astype(str)
+
+                                        # Direct orientation merge
+                                        base = base.merge(g_odds.drop_duplicates('_key_dir'), on='_key_dir', how='left')
+
+                                        # Reverse orientation merge (swapped home/away)
+                                        g_rev = g_odds.rename(columns={
+                                            'market_total_odds': 'market_total_odds_rev',
+                                            'spread_home_odds': 'spread_home_odds_rev',
+                                            'ml_home_odds': 'ml_home_odds_rev',
+                                            'ml_away_odds': 'ml_away_odds_rev',
+                                        })
+                                        base = base.merge(g_rev.drop_duplicates('_key_dir'), left_on='_key_rev', right_on='_key_dir', how='left', suffixes=('', '_revkey'))
+
+                                        # Coalesce into canonical columns
+                                        for c in ('market_total', 'spread_home', 'ml_home', 'ml_away'):
+                                            if c not in base.columns:
+                                                base[c] = np.nan
+                                        mt0 = pd.to_numeric(base.get('market_total'), errors='coerce')
+                                        sp0 = pd.to_numeric(base.get('spread_home'), errors='coerce')
+                                        mh0 = pd.to_numeric(base.get('ml_home'), errors='coerce')
+                                        ma0 = pd.to_numeric(base.get('ml_away'), errors='coerce')
+
+                                        mt_dir = pd.to_numeric(base.get('market_total_odds'), errors='coerce')
+                                        sp_dir = pd.to_numeric(base.get('spread_home_odds'), errors='coerce')
+                                        mh_dir = pd.to_numeric(base.get('ml_home_odds'), errors='coerce')
+                                        ma_dir = pd.to_numeric(base.get('ml_away_odds'), errors='coerce')
+
+                                        mt_rev = pd.to_numeric(base.get('market_total_odds_rev'), errors='coerce')
+                                        sp_rev = pd.to_numeric(base.get('spread_home_odds_rev'), errors='coerce')
+                                        mh_rev = pd.to_numeric(base.get('ml_home_odds_rev'), errors='coerce')
+                                        ma_rev = pd.to_numeric(base.get('ml_away_odds_rev'), errors='coerce')
+
+                                        # totals are symmetric; spreads/moneylines need swap/negate on reverse
+                                        base['market_total'] = mt0.where(mt0.notna(), mt_dir)
+                                        base['market_total'] = pd.to_numeric(base['market_total'], errors='coerce').where(pd.to_numeric(base['market_total'], errors='coerce').notna(), mt_rev)
+
+                                        base['spread_home'] = sp0.where(sp0.notna(), sp_dir)
+                                        base['spread_home'] = pd.to_numeric(base['spread_home'], errors='coerce').where(pd.to_numeric(base['spread_home'], errors='coerce').notna(), -sp_rev)
+
+                                        base['ml_home'] = mh0.where(mh0.notna(), mh_dir)
+                                        base['ml_home'] = pd.to_numeric(base['ml_home'], errors='coerce').where(pd.to_numeric(base['ml_home'], errors='coerce').notna(), ma_rev)
+
+                                        base['ml_away'] = ma0.where(ma0.notna(), ma_dir)
+                                        base['ml_away'] = pd.to_numeric(base['ml_away'], errors='coerce').where(pd.to_numeric(base['ml_away'], errors='coerce').notna(), mh_rev)
+
+                                        # Clean up temp/join columns
+                                        drop_cols = [
+                                            '_hslug', '_aslug', '_key_dir', '_key_rev',
+                                            'market_total_odds', 'spread_home_odds', 'ml_home_odds', 'ml_away_odds',
+                                            'market_total_odds_rev', 'spread_home_odds_rev', 'ml_home_odds_rev', 'ml_away_odds_rev',
+                                            '_key_dir_revkey',
+                                        ]
+                                        base = base.drop(columns=[c for c in drop_cols if c in base.columns], errors='ignore')
                     except Exception:
                         pass
 
@@ -31937,6 +32205,164 @@ def api_display_predictions():
         except Exception:
             pass
 
+        # Reconciliation for historical cards: merge finalized results (scores/outcomes) and compute
+        # correctness flags so the UI can color W/L clearly.
+        try:
+            if cards_view and isinstance(df, pd.DataFrame) and (not df.empty) and ('game_id' in df.columns):
+                dr = _load_daily_results_for(date_q)
+                if isinstance(dr, pd.DataFrame) and (not dr.empty) and ('game_id' in dr.columns):
+                    try:
+                        df = df.copy()
+                        df['game_id'] = df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+                    try:
+                        dr = dr.copy()
+                        dr['game_id'] = dr['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+
+                    # Keep only a stable set of results columns (schema may vary over time).
+                    dr_keep = [
+                        'game_id',
+                        'status',
+                        'home_score', 'away_score',
+                        'actual_total', 'actual_margin',
+                        # If prediction/odds artifacts are missing market lines for a game,
+                        # the results artifact can still carry the closing/market lines.
+                        'market_total', 'spread_home',
+                        'home_score_1h', 'away_score_1h', 'actual_total_1h',
+                        'home_score_2h', 'away_score_2h', 'actual_total_2h',
+                        'ats_result', 'ats_result_1h', 'ats_result_2h',
+                        'ml_result',
+                        'ou_result_full', 'ou_result_1h', 'ou_result_2h',
+                    ]
+                    dr_keep = [c for c in dr_keep if c in dr.columns]
+                    if dr_keep:
+                        dr_small = dr[dr_keep].drop_duplicates('game_id').copy()
+                        # Rename market lines to avoid clobbering existing snapshot columns.
+                        ren = {}
+                        if 'market_total' in dr_small.columns:
+                            ren['market_total'] = 'market_total_results'
+                        if 'spread_home' in dr_small.columns:
+                            ren['spread_home'] = 'spread_home_results'
+                        if ren:
+                            dr_small = dr_small.rename(columns=ren)
+                        df = df.merge(dr_small, on='game_id', how='left')
+
+                        # Coalesce missing market lines from results when snapshot/enriched odds are blank.
+                        try:
+                            if 'market_total' not in df.columns:
+                                df['market_total'] = np.nan
+                            if 'spread_home' not in df.columns:
+                                df['spread_home'] = np.nan
+                            if 'market_total_results' in df.columns:
+                                base_mt = pd.to_numeric(df.get('market_total'), errors='coerce')
+                                alt_mt = pd.to_numeric(df.get('market_total_results'), errors='coerce')
+                                df['market_total'] = base_mt.where(base_mt.notna(), alt_mt)
+                            if 'spread_home_results' in df.columns:
+                                base_sp = pd.to_numeric(df.get('spread_home'), errors='coerce')
+                                alt_sp = pd.to_numeric(df.get('spread_home_results'), errors='coerce')
+                                df['spread_home'] = base_sp.where(base_sp.notna(), alt_sp)
+                        except Exception:
+                            pass
+
+                    # Normalize numeric score/actual columns.
+                    for c in [
+                        'home_score', 'away_score', 'actual_total', 'actual_margin',
+                        'home_score_1h', 'away_score_1h', 'actual_total_1h',
+                        'home_score_2h', 'away_score_2h', 'actual_total_2h',
+                    ]:
+                        if c in df.columns:
+                            df[c] = pd.to_numeric(df[c], errors='coerce')
+
+                    # has_actuals flag
+                    if 'has_actuals' not in df.columns:
+                        df['has_actuals'] = False
+                    try:
+                        hs = pd.to_numeric(df.get('home_score'), errors='coerce') if 'home_score' in df.columns else pd.Series(np.nan, index=df.index)
+                        aas = pd.to_numeric(df.get('away_score'), errors='coerce') if 'away_score' in df.columns else pd.Series(np.nan, index=df.index)
+                        at = pd.to_numeric(df.get('actual_total'), errors='coerce') if 'actual_total' in df.columns else pd.Series(np.nan, index=df.index)
+                        df['has_actuals'] = (at.notna()) | ((hs.notna()) & (aas.notna()) & ((hs > 0) | (aas > 0)))
+                    except Exception:
+                        pass
+
+                    # Derive ML result from scores when missing (some results CSVs omit ml_result)
+                    try:
+                        if 'ml_result' not in df.columns:
+                            df['ml_result'] = None
+                        if 'home_score' in df.columns and 'away_score' in df.columns:
+                            hs2 = pd.to_numeric(df.get('home_score'), errors='coerce')
+                            as2 = pd.to_numeric(df.get('away_score'), errors='coerce')
+                            need = df['ml_result'].isna() if hasattr(df.get('ml_result'), 'isna') else pd.Series(True, index=df.index)
+                            # Only fill where we have scores
+                            has_scores = hs2.notna() & as2.notna()
+                            fill_mask = has_scores & need
+                            if fill_mask.any():
+                                df.loc[fill_mask, 'ml_result'] = np.where(
+                                    hs2.loc[fill_mask] > as2.loc[fill_mask],
+                                    'Home Win',
+                                    np.where(hs2.loc[fill_mask] < as2.loc[fill_mask], 'Away Win', 'Push')
+                                )
+                    except Exception:
+                        pass
+
+                    # OU lean vs market_total using Model totals when present.
+                    try:
+                        if 'lean_ou_side' not in df.columns:
+                            df['lean_ou_side'] = None
+                        if 'lean_ou_edge_abs' not in df.columns:
+                            df['lean_ou_edge_abs'] = np.nan
+                        if 'pred_total_model' in df.columns:
+                            ptm = pd.to_numeric(df.get('pred_total_model'), errors='coerce')
+                        elif 'pred_total' in df.columns:
+                            ptm = pd.to_numeric(df.get('pred_total'), errors='coerce')
+                        else:
+                            ptm = pd.Series(np.nan, index=df.index)
+                        if 'market_total' in df.columns:
+                            mt = pd.to_numeric(df.get('market_total'), errors='coerce')
+                        elif 'closing_total' in df.columns:
+                            mt = pd.to_numeric(df.get('closing_total'), errors='coerce')
+                        else:
+                            mt = pd.Series(np.nan, index=df.index)
+                        diff = ptm - mt
+                        df['lean_ou_side'] = np.where(diff > 0, 'Over', np.where(diff < 0, 'Under', None))
+                        df['lean_ou_edge_abs'] = diff.abs()
+                    except Exception:
+                        pass
+
+                    # ATS correctness vs final ATS result.
+                    try:
+                        if 'eval_ats_ok' not in df.columns:
+                            df['eval_ats_ok'] = np.nan
+                        if {'pred_margin_model', 'ats_result'}.issubset(df.columns) and (('spread_home' in df.columns) or ('closing_spread_home' in df.columns)):
+                            pm = pd.to_numeric(df['pred_margin_model'], errors='coerce')
+                            sh = pd.to_numeric(df.get('spread_home'), errors='coerce') if 'spread_home' in df.columns else pd.Series(np.nan, index=df.index)
+                            if sh.isna().all() and ('closing_spread_home' in df.columns):
+                                sh = pd.to_numeric(df.get('closing_spread_home'), errors='coerce')
+                            # Predicted cover based on model margin vs spread.
+                            pred_cover = np.where(pm > -sh, 'Home Cover', np.where(pm < -sh, 'Away Cover', 'Push'))
+                            r_ats = df['ats_result'].astype(str)
+                            ok = np.where((r_ats == 'Push') | (pred_cover == 'Push') | r_ats.isna(), np.nan, (pred_cover == r_ats))
+                            df['eval_ats_ok'] = ok
+                    except Exception:
+                        pass
+
+                    # ML correctness based on sign of model margin.
+                    try:
+                        if 'eval_ml_ok' not in df.columns:
+                            df['eval_ml_ok'] = np.nan
+                        if {'pred_margin_model', 'ml_result'}.issubset(df.columns):
+                            pm = pd.to_numeric(df['pred_margin_model'], errors='coerce')
+                            pred_ml = np.where(pm > 0, 'Home Win', np.where(pm < 0, 'Away Win', 'Push'))
+                            r_ml = df['ml_result'].astype(str)
+                            ok_ml = np.where((pred_ml == 'Push') | (r_ml == 'Push') | r_ml.isna(), np.nan, (pred_ml == r_ml))
+                            df['eval_ml_ok'] = ok_ml
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
         keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','date','display_date','display_time_str']
         if cards_view:
             keep_cols = [
@@ -31955,6 +32381,11 @@ def api_display_predictions():
                 'q10_total_1h','q90_total_1h','q10_margin_1h','q90_margin_1h',
                 'proj_home','proj_away','proj_home_1h','proj_away_1h',
                 'pred_total_basis','pred_margin_basis','blend_weight','blend_effective','display_time_str','display_date','edge_total','edge_ats',
+                # Reconciliation (when results available)
+                'has_actuals','status',
+                'home_score','away_score','actual_total','actual_margin',
+                'ats_result','ml_result','ou_result_full',
+                'eval_ats_ok','eval_ml_ok','lean_ou_side','lean_ou_edge_abs',
             ]
 
         # Optional: attach 5-minute segment trajectory + boxscore-grid summaries.
@@ -32308,6 +32739,12 @@ def api_display_predictions():
                 'q10_total_1h','q90_total_1h','q10_margin_1h','q90_margin_1h',
                 'proj_home','proj_away','proj_home_1h','proj_away_1h',
                 'pred_total_basis','pred_margin_basis','blend_weight','blend_effective','display_time_str','display_date','edge_total','edge_ats',
+
+                # Reconciliation (when results available)
+                'has_actuals','status',
+                'home_score','away_score','actual_total','actual_margin',
+                'ats_result','ml_result','ou_result_full',
+                'eval_ats_ok','eval_ml_ok','lean_ou_side','lean_ou_edge_abs',
             ]
         rows: list[dict[str, Any]] = []
         for _, r in df.iterrows():
@@ -32502,6 +32939,11 @@ def api_display_predictions():
                 item['stake_sheet_title'] = ''
             rows.append(item)
 
+        try:
+            rows = _sort_rows_chrono(rows)
+        except Exception:
+            pass
+
         def _sanitize(v: Any) -> Any:
             """Recursively sanitize values for JSON/template safety.
 
@@ -32681,6 +33123,11 @@ def api_display_predictions():
         except Exception:
             pass
         rows.append(item)
+
+    try:
+        rows = _sort_rows_chrono(rows)
+    except Exception:
+        pass
     _resp = jsonify({'date': date_q, 'count': len(rows), 'hash': digest, 'rows': rows, 'tz': tz_q})
     # Add display-only equality breaker for totals in rebuilt path
     try:
