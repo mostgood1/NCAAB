@@ -926,8 +926,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401823567,2026-01-26,Villanova Wildcats,Wisconsin Badgers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401830877,2026-01-26,Western Kentucky Hilltoppers,Wichita State Shockers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401826883,2026-01-26,Wichita State Shockers,Wofford Terriers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
-401812322,2026-01-26,Fairleigh Dickinson Knights,Le Moyne Dolphins,totals,full_game,over,,,,,,Total,OU
-401820698,2026-01-26,Duke Blue Devils,Louisville Cardinals,totals,full_game,over,,,,,,Total,OU
-401828692,2026-01-26,Norfolk State Spartans,Morgan State Bears,totals,full_game,over,,,,,,Total,OU
-401828665,2026-01-26,Florida A&M Rattlers,Jackson State Tigers,totals,full_game,over,,,,,,Total,OU
-401827118,2026-01-26,Bethune-Cookman Wildcats,Alcorn State Braves,totals,full_game,over,,,,,,Total,OU
+401812322,2026-01-26,Fairleigh Dickinson Knights,Le Moyne Dolphins,totals,full_game,under,,,,,,Total,OU
+401820698,2026-01-26,Duke Blue Devils,Louisville Cardinals,totals,full_game,under,,,,,,Total,OU
+401828692,2026-01-26,Norfolk State Spartans,Morgan State Bears,totals,full_game,under,,,,,,Total,OU
+401828665,2026-01-26,Florida A&M Rattlers,Jackson State Tigers,totals,full_game,under,,,,,,Total,OU
+401827118,2026-01-26,Bethune-Cookman Wildcats,Alcorn State Braves,totals,full_game,under,,,,,,Total,OU
