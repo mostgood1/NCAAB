@@ -1,8 +1,8 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401858319,2026,2026-01-27,2026-01-27 19:00:00+00:00,2026-01-27 14:00,EST,Prairie View A&M Panthers,Alabama A&M Bulldogs,0,0,,,,,False,William Nicks Building
-401827164,2026,2026-01-27,2026-01-27 19:00:00+00:00,2026-01-27 14:00,EST,Texas Southern Tigers,Alabama State Hornets,0,0,,,,,False,H&PE Arena
-401808941,2026,2026-01-27,2026-01-27 21:00:00+00:00,2026-01-27 16:00,EST,Stephen F. Austin Lumberjacks,Northwestern State Demons,0,0,,,,,False,William R. Johnson Coliseum
-401808909,2026,2026-01-27,2026-01-27 21:30:00+00:00,2026-01-27 16:30,EST,Nicholls Colonels,New Orleans Privateers,0,0,,,,,False,David R. Stopher Gymnasium
+401808941,2026,2026-01-27,2026-01-27 21:00:00+00:00,2026-01-27 16:00,EST,Stephen F. Austin Lumberjacks,Northwestern State Demons,53,44,37.0,32.0,16.0,12.0,False,William R. Johnson Coliseum
+401808909,2026,2026-01-27,2026-01-27 21:30:00+00:00,2026-01-27 16:30,EST,Nicholls Colonels,New Orleans Privateers,29,39,29.0,39.0,,,False,David R. Stopher Gymnasium
+401858319,2026,2026-01-27,2026-01-27 19:00:00+00:00,2026-01-27 14:00,EST,Prairie View A&M Panthers,Alabama A&M Bulldogs,60,80,36.0,46.0,24.0,34.0,False,William Nicks Building
+401827164,2026,2026-01-27,2026-01-27 19:00:00+00:00,2026-01-27 14:00,EST,Texas Southern Tigers,Alabama State Hornets,96,64,43.0,29.0,53.0,35.0,False,H&PE Arena
 401820704,2026,2026-01-27,2026-01-27 23:00:00+00:00,2026-01-27 18:00,EST,Pittsburgh Panthers,Wake Forest Demon Deacons,0,0,,,,,False,Petersen Events Center
 401825475,2026,2026-01-27,2026-01-27 23:30:00+00:00,2026-01-27 18:30,EST,Rutgers Scarlet Knights,Michigan State Spartans,0,0,,,,,False,Jersey Mike’s Arena
 401825474,2026,2026-01-27,2026-01-28 00:00:00+00:00,2026-01-27 19:00,EST,Michigan Wolverines,Nebraska Cornhuskers,0,0,,,,,False,Crisler Center
