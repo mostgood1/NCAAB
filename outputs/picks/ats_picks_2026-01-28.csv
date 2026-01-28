@@ -1,5 +1,55 @@
-date,game_id,home_team,away_team,closing_spread_home,spread_home,ats_side,ats_reason,_delta,_pred_margin_blend,_mkt_margin,_p_cover,ats_side.1,ats_reason.1,_delta.1,_pred_margin_blend.1,_mkt_margin.1,_p_cover.1
-2026-01-28,401807709,Eastern Kentucky Colonels,Austin Peay Governors,-7.5,-7.5,home,prob,-7.5,0.0,7.5,0.6425122792397029,home,prob,-7.5,0.0,7.5,0.6425122792397029
-2026-01-28,401830208,Valparaiso Beacons,Belmont Bruins,-10.5,-10.5,home,prob,-10.5,0.0,10.5,0.6954137483209153,home,prob,-10.5,0.0,10.5,0.6954137483209153
-2026-01-28,synthetic:iowastate::syracuse@2026-01-28,Syracuse Orange,Iowa State Cyclones,-15.0,-15.0,home,prob,-14.238947487242909,0.7610525127570936,15.0,0.7559418357016938,home,prob,-14.238947487242909,0.7610525127570936,15.0,0.7559418357016938
-2026-01-28,401804904,Kennesaw State Owls,Western Kentucky Hilltoppers,-7.5,-7.5,home,prob,-7.5,0.0,7.5,0.6425122792397029,home,prob,-7.5,0.0,7.5,0.6425122792397029
+game_id,home_team,away_team,ats_side,closing_spread_home,spread_home,_pred_margin_blend
+401820201,Loyola Maryland Greyhounds,American University Eagles,home,-0.0,-0.0,0.0
+401827099,Grambling Tigers,Arkansas-Pine Bluff Golden Lions,home,-0.0,-0.0,0.0
+401808641,Arkansas State Red Wolves,Old Dominion Monarchs,home,-0.0,-0.0,0.0
+401826827,Army Black Knights,Lehigh Mountain Hawks,home,-0.0,-0.0,0.0
+401808200,Auburn Tigers,Texas Longhorns,home,-0.0,-0.0,0.0
+401807709,Eastern Kentucky Colonels,Austin Peay Governors,home,-0.0,-0.0,0.0
+401827649,Cincinnati Bearcats,Baylor Bears,home,-0.0,-0.0,0.0
+401807711,Bellarmine Knights,West Georgia Wolves,home,-0.0,-0.0,0.0
+401830208,Valparaiso Beacons,Belmont Bruins,home,-0.0,-0.0,0.0
+401820168,Boston University Terriers,Navy Midshipmen,home,-0.0,-0.0,0.0
+401829398,Lafayette Leopards,Bucknell Bison,home,-0.0,-0.0,0.0
+401822919,St. John's Red Storm,Butler Bulldogs,home,-0.0,-0.0,0.0
+401820700,Florida State Seminoles,California Golden Bears,home,-0.0,-0.0,0.0
+401807710,Queens University Royals,Central Arkansas Bears,home,-0.0,-0.0,0.0
+401828198,Temple Owls,Charlotte 49ers,home,-0.0,-0.0,0.0
+401824390,Colgate Raiders,Holy Cross Crusaders,home,-0.0,-0.0,0.0
+401830830,San Diego State Aztecs,Colorado State Rams,home,-0.0,-0.0,0.0
+401828397,George Mason Patriots,Davidson Wildcats,home,-0.0,-0.0,0.0
+401804905,New Mexico State Aggies,Delaware Blue Hens,home,-0.0,-0.0,0.0
+401818402,Kansas City Roos,Denver Pioneers,home,-0.0,-0.0,0.0
+401822920,Georgetown Hoyas,DePaul Blue Demons,home,-0.0,-0.0,0.0
+401830282,Drake Bulldogs,Evansville Purple Aces,home,-0.0,-0.0,0.0
+401828398,Duquesne Dukes,St. Bonaventure Bonnies,home,-0.0,-0.0,0.0
+401828199,East Carolina Pirates,Rice Owls,home,-0.0,-0.0,0.0
+401808203,South Carolina Gamecocks,Florida Gators,home,-0.0,-0.0,0.0
+401804906,Florida International Panthers,Jacksonville State Gamecocks,home,-0.0,-0.0,0.0
+401828399,Fordham Rams,La Salle Explorers,home,-0.0,-0.0,0.0
+401808201,Georgia Bulldogs,Tennessee Volunteers,home,-0.0,-0.0,0.0
+401827650,TCU Horned Frogs,Houston Cougars,home,-0.0,-0.0,0.0
+401830283,Murray State Racers,Illinois State Redbirds,home,-0.0,-0.0,0.0
+401825476,Iowa Hawkeyes,USC Trojans,home,-0.0,-0.0,0.0
+401817641,Robert Morris Colonials,IU Indianapolis Jaguars,home,-0.0,-0.0,0.0
+401804904,Kennesaw State Owls,Western Kentucky Hilltoppers,home,-0.0,-0.0,0.0
+401808202,LSU Tigers,Mississippi State Bulldogs,home,-0.0,-0.0,0.0
+401804902,UTEP Miners,Louisiana Tech Bulldogs,home,-0.0,-0.0,0.0
+401829217,Loyola Marymount Lions,Oregon State Beavers,home,-0.0,-0.0,0.0
+401808642,Texas State Bobcats,Marshall Thundering Herd,home,-0.0,-0.0,0.0
+401820701,Miami Hurricanes,Stanford Cardinal,home,-0.0,-0.0,0.0
+401825478,Wisconsin Badgers,Minnesota Golden Gophers,home,-0.0,-0.0,0.0
+401827027,Southern Jaguars,Mississippi Valley State Delta Devils,home,-0.0,-0.0,0.0
+401804903,Missouri State Bears,Sam Houston Bearkats,home,-0.0,-0.0,0.0
+401830284,Southern Illinois Salukis,Northern Iowa Panthers,home,-0.0,-0.0,0.0
+401828200,Tulsa Golden Hurricane,North Texas Mean Green,home,-0.0,-0.0,0.0
+401817642,Purdue Fort Wayne Mastodons,Oakland Golden Grizzlies,home,-0.0,-0.0,0.0
+401818401,Omaha Mavericks,South Dakota State Jackrabbits,home,-0.0,-0.0,0.0
+401825477,Oregon Ducks,UCLA Bruins,home,-0.0,-0.0,0.0
+401829218,Pacific Tigers,Portland Pilots,home,-0.0,-0.0,0.0
+401829219,Pepperdine Waves,San Diego Toreros,home,-0.0,-0.0,0.0
+401829220,Santa Clara Broncos,San Francisco Dons,home,-0.0,-0.0,0.0
+401829221,Washington State Cougars,Seattle U Redhawks,home,-0.0,-0.0,0.0
+401822921,Seton Hall Pirates,Xavier Musketeers,home,-0.0,-0.0,0.0
+401828201,Tulane Green Wave,South Florida Bulls,home,-0.0,-0.0,0.0
+401828197,UTSA Roadrunners,UAB Blazers,home,-0.0,-0.0,0.0
+401830824,Utah State Aggies,Wyoming Cowboys,home,-0.0,-0.0,0.0

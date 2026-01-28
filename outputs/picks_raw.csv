@@ -1,10 +1,65 @@
 game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,pred_total,rec_type,rec_code
-401807709,2026-01-28,Eastern Kentucky Colonels,Austin Peay Governors,spreads,full_game,home,-7.5,,7.5,0.0,,Spread,ATS
-401830208,2026-01-28,Valparaiso Beacons,Belmont Bruins,spreads,full_game,home,-10.5,,10.5,0.0,,Spread,ATS
-synthetic:iowastate::syracuse@2026-01-28,2026-01-28,Syracuse Orange,Iowa State Cyclones,spreads,full_game,home,-15.0,,14.238947487242909,0.7610525127570936,,Spread,ATS
-401804904,2026-01-28,Kennesaw State Owls,Western Kentucky Hilltoppers,spreads,full_game,home,-7.5,,7.5,0.0,,Spread,ATS
-synthetic:iowastate::syracuse@2026-01-28,2026-01-28,Syracuse Orange,Iowa State Cyclones,totals,full_game,under,154.5,,12.466199999999986,,142.0338,Total,OU
-401807709,2026-01-28,Eastern Kentucky Colonels,Austin Peay Governors,totals,full_game,under,153.75,,,,,Total,OU
-401830208,2026-01-28,Valparaiso Beacons,Belmont Bruins,totals,full_game,under,149.5,,,,,Total,OU
-401829398,2026-01-28,Lafayette Leopards,Bucknell Bison,totals,full_game,over,137.75,,,,,Total,OU
-401822919,2026-01-28,St. John's Red Storm,Butler Bulldogs,totals,full_game,under,164.5,,,,,Total,OU
+401820201,2026-01-28,Loyola Maryland Greyhounds,American University Eagles,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401827099,2026-01-28,Grambling Tigers,Arkansas-Pine Bluff Golden Lions,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401808641,2026-01-28,Arkansas State Red Wolves,Old Dominion Monarchs,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401826827,2026-01-28,Army Black Knights,Lehigh Mountain Hawks,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401808200,2026-01-28,Auburn Tigers,Texas Longhorns,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401807709,2026-01-28,Eastern Kentucky Colonels,Austin Peay Governors,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401827649,2026-01-28,Cincinnati Bearcats,Baylor Bears,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401807711,2026-01-28,Bellarmine Knights,West Georgia Wolves,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401830208,2026-01-28,Valparaiso Beacons,Belmont Bruins,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401820168,2026-01-28,Boston University Terriers,Navy Midshipmen,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401829398,2026-01-28,Lafayette Leopards,Bucknell Bison,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401822919,2026-01-28,St. John's Red Storm,Butler Bulldogs,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401820700,2026-01-28,Florida State Seminoles,California Golden Bears,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401807710,2026-01-28,Queens University Royals,Central Arkansas Bears,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828198,2026-01-28,Temple Owls,Charlotte 49ers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401824390,2026-01-28,Colgate Raiders,Holy Cross Crusaders,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401830830,2026-01-28,San Diego State Aztecs,Colorado State Rams,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828397,2026-01-28,George Mason Patriots,Davidson Wildcats,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401804905,2026-01-28,New Mexico State Aggies,Delaware Blue Hens,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401818402,2026-01-28,Kansas City Roos,Denver Pioneers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401822920,2026-01-28,Georgetown Hoyas,DePaul Blue Demons,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401830282,2026-01-28,Drake Bulldogs,Evansville Purple Aces,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828398,2026-01-28,Duquesne Dukes,St. Bonaventure Bonnies,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828199,2026-01-28,East Carolina Pirates,Rice Owls,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401808203,2026-01-28,South Carolina Gamecocks,Florida Gators,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401804906,2026-01-28,Florida International Panthers,Jacksonville State Gamecocks,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828399,2026-01-28,Fordham Rams,La Salle Explorers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401808201,2026-01-28,Georgia Bulldogs,Tennessee Volunteers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401827650,2026-01-28,TCU Horned Frogs,Houston Cougars,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401830283,2026-01-28,Murray State Racers,Illinois State Redbirds,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401825476,2026-01-28,Iowa Hawkeyes,USC Trojans,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401817641,2026-01-28,Robert Morris Colonials,IU Indianapolis Jaguars,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401804904,2026-01-28,Kennesaw State Owls,Western Kentucky Hilltoppers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401808202,2026-01-28,LSU Tigers,Mississippi State Bulldogs,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401804902,2026-01-28,UTEP Miners,Louisiana Tech Bulldogs,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401829217,2026-01-28,Loyola Marymount Lions,Oregon State Beavers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401808642,2026-01-28,Texas State Bobcats,Marshall Thundering Herd,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401820701,2026-01-28,Miami Hurricanes,Stanford Cardinal,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401825478,2026-01-28,Wisconsin Badgers,Minnesota Golden Gophers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401827027,2026-01-28,Southern Jaguars,Mississippi Valley State Delta Devils,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401804903,2026-01-28,Missouri State Bears,Sam Houston Bearkats,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401830284,2026-01-28,Southern Illinois Salukis,Northern Iowa Panthers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828200,2026-01-28,Tulsa Golden Hurricane,North Texas Mean Green,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401817642,2026-01-28,Purdue Fort Wayne Mastodons,Oakland Golden Grizzlies,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401818401,2026-01-28,Omaha Mavericks,South Dakota State Jackrabbits,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401825477,2026-01-28,Oregon Ducks,UCLA Bruins,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401829218,2026-01-28,Pacific Tigers,Portland Pilots,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401829219,2026-01-28,Pepperdine Waves,San Diego Toreros,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401829220,2026-01-28,Santa Clara Broncos,San Francisco Dons,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401829221,2026-01-28,Washington State Cougars,Seattle U Redhawks,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401822921,2026-01-28,Seton Hall Pirates,Xavier Musketeers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828201,2026-01-28,Tulane Green Wave,South Florida Bulls,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828197,2026-01-28,UTSA Roadrunners,UAB Blazers,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401830824,2026-01-28,Utah State Aggies,Wyoming Cowboys,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401807709,2026-01-28,Eastern Kentucky Colonels,Austin Peay Governors,totals,full_game,under,153.75,,6.478749999999991,,160.22875,Total,OU
+401830208,2026-01-28,Valparaiso Beacons,Belmont Bruins,totals,full_game,over,149.5,,2.1754999999999995,,151.6755,Total,OU
+401829398,2026-01-28,Lafayette Leopards,Bucknell Bison,totals,full_game,over,137.75,,15.255750000000006,,153.00575,Total,OU
+401822919,2026-01-28,St. John's Red Storm,Butler Bulldogs,totals,full_game,under,164.5,,4.072000000000003,,160.428,Total,OU
+401804905,2026-01-28,New Mexico State Aggies,Delaware Blue Hens,totals,full_game,over,135.5,,15.498999999999995,,150.999,Total,OU
+401804904,2026-01-28,Kennesaw State Owls,Western Kentucky Hilltoppers,totals,full_game,under,163.5,,2.6285000000000025,,166.1285,Total,OU
+401829217,2026-01-28,Loyola Marymount Lions,Oregon State Beavers,totals,full_game,over,140.0,,13.528500000000008,,153.5285,Total,OU
+401825478,2026-01-28,Wisconsin Badgers,Minnesota Golden Gophers,totals,full_game,under,146.5,,10.403250000000014,,156.90325,Total,OU
+401829218,2026-01-28,Pacific Tigers,Portland Pilots,totals,full_game,over,145.0,,11.093500000000006,,156.0935,Total,OU
+401829219,2026-01-28,Pepperdine Waves,San Diego Toreros,totals,full_game,over,149.5,,7.410249999999991,,156.91025,Total,OU
