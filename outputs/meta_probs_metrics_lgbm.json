@@ -85,7 +85,6 @@
     "pred_margin_model",
     "pred_margin_model_basis",
     "pred_margin_model_new",
-    "pred_margin_orig",
     "pred_margin_seg",
     "pred_margin_sigma",
     "pred_margin_sigma_bootstrap",
@@ -109,11 +108,12 @@
     "pred_total_model_unified",
     "pred_total_model_y",
     "pred_total_pick",
+    "pred_total_sigma",
     "pred_total_sigma_bootstrap"
   ],
   "over": {
     "auc": null,
-    "rows": 5250
+    "rows": 5332
   },
-  "rows_total": 5250
+  "rows_total": 5332
 }

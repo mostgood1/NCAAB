@@ -1,0 +1,5 @@
+date,game_id,home_team,away_team,closing_spread_home,spread_home,ats_side,ats_reason,_delta,_pred_margin_blend,_mkt_margin,_p_cover,ats_side.1,ats_reason.1,_delta.1,_pred_margin_blend.1,_mkt_margin.1,_p_cover.1
+2026-01-28,401807709,Eastern Kentucky Colonels,Austin Peay Governors,-7.5,-7.5,home,prob,-7.5,0.0,7.5,0.6425122792397029,home,prob,-7.5,0.0,7.5,0.6425122792397029
+2026-01-28,401830208,Valparaiso Beacons,Belmont Bruins,-10.5,-10.5,home,prob,-10.5,0.0,10.5,0.6954137483209153,home,prob,-10.5,0.0,10.5,0.6954137483209153
+2026-01-28,synthetic:iowastate::syracuse@2026-01-28,Syracuse Orange,Iowa State Cyclones,-15.0,-15.0,home,prob,-14.238947487242909,0.7610525127570936,15.0,0.7559418357016938,home,prob,-14.238947487242909,0.7610525127570936,15.0,0.7559418357016938
+2026-01-28,401804904,Kennesaw State Owls,Western Kentucky Hilltoppers,-7.5,-7.5,home,prob,-7.5,0.0,7.5,0.6425122792397029,home,prob,-7.5,0.0,7.5,0.6425122792397029

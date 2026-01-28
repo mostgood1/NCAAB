@@ -2,11 +2,11 @@
   "brier_cover_cal": null,
   "brier_cover_raw": null,
   "brier_over_cal": 7.834194466509724e-06,
-  "brier_over_raw": 0.18031811866661326,
+  "brier_over_raw": 0.18029229060141488,
   "ece_cover_cal": null,
   "ece_cover_raw": null,
   "ece_over_cal": 0.0008496092665975284,
-  "ece_over_raw": 0.2575178047410713,
+  "ece_over_raw": 0.25777364294363564,
   "p_col_cover_cal": "p_home_cover_meta_cal",
   "p_col_cover_raw": "p_home_cover_meta",
   "p_col_over_cal": "p_over_meta_cal",
@@ -14,7 +14,7 @@
   "rows_cover_cal": 0,
   "rows_cover_raw": 0,
   "rows_over_cal": 68,
-  "rows_over_raw": 529,
+  "rows_over_raw": 535,
   "status": "ok",
-  "timestamp_utc": "2026-01-27T22:37:22.819289"
+  "timestamp_utc": "2026-01-28T14:08:20.156316"
 }

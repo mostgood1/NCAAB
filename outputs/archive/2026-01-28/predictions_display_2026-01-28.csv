@@ -1,0 +1,58 @@
+game_id,home_team,away_team,pred_total,pred_margin,pred_total_basis,pred_margin_basis,edge_total,edge_ats,closing_total,closing_spread_home,start_time_display,start_time_local
+401827027,Southern Jaguars,Mississippi Valley State Delta Devils,143.11,0.0,cal,cal,0.0,,,,2026-01-28 12:00,2026-01-28 12:00
+401827099,Grambling Tigers,Arkansas-Pine Bluff Golden Lions,141.2,0.0,cal,cal,0.0,,,,2026-01-28 13:00,2026-01-28 13:00
+401826827,Army Black Knights,Lehigh Mountain Hawks,140.105,0.0,cal,cal,0.0,,,,2026-01-28 16:00,2026-01-28 16:00
+401827649,Cincinnati Bearcats,Baylor Bears,148.0092,0.0,cal,cal,1.0091999999999928,,,,2026-01-28 16:30,2026-01-28 16:30
+401808200,Auburn Tigers,Texas Longhorns,141.035,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401807711,Bellarmine Knights,West Georgia Wolves,140.165,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401820168,Boston University Terriers,Navy Midshipmen,143.2,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401824390,Colgate Raiders,Holy Cross Crusaders,142.56,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401828398,Duquesne Dukes,St. Bonaventure Bonnies,139.235,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401828199,East Carolina Pirates,Rice Owls,139.895,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401807709,Eastern Kentucky Colonels,Austin Peay Governors,152.9328,0.0,cal,reconstructed_from_edge,-0.8172000000000139,7.5,153.75,-7.5,2026-01-28 17:00,2026-01-28 17:00
+401804906,Florida International Panthers,Jacksonville State Gamecocks,143.59,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401820700,Florida State Seminoles,California Golden Bears,140.58,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401828399,Fordham Rams,La Salle Explorers,139.175,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401828397,George Mason Patriots,Davidson Wildcats,140.785,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401808201,Georgia Bulldogs,Tennessee Volunteers,143.76,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401825476,Iowa Hawkeyes,USC Trojans,140.37,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401804904,Kennesaw State Owls,Western Kentucky Hilltoppers,164.8792,0.0,cal,reconstructed_from_edge,1.379199999999997,7.5,163.5,-7.5,2026-01-28 17:00,2026-01-28 17:00
+401808202,LSU Tigers,Mississippi State Bulldogs,143.045,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401829398,Lafayette Leopards,Bucknell Bison,138.79,0.0,cal,reconstructed_from_edge,1.039999999999992,2.5,137.75,-2.5,2026-01-28 17:00,2026-01-28 17:00
+401820201,Loyola Maryland Greyhounds,American University Eagles,142.72,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401817642,Purdue Fort Wayne Mastodons,Oakland Golden Grizzlies,142.635,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401807710,Queens University Royals,Central Arkansas Bears,139.74,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401817641,Robert Morris Colonials,IU Indianapolis Jaguars,142.405,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401830284,Southern Illinois Salukis,Northern Iowa Panthers,140.005,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401822919,St. John's Red Storm,Butler Bulldogs,163.7372,0.0,cal,reconstructed_from_edge,-0.7627999999999986,-4.5,164.5,4.5,2026-01-28 17:00,2026-01-28 17:00
+401828198,Temple Owls,Charlotte 49ers,140.99,0.0,cal,cal,0.0,,,,2026-01-28 17:00,2026-01-28 17:00
+401830282,Drake Bulldogs,Evansville Purple Aces,140.105,0.0,cal,cal,0.0,,,,2026-01-28 17:30,2026-01-28 17:30
+401822921,Seton Hall Pirates,Xavier Musketeers,143.79,0.0,cal,cal,0.0,,,,2026-01-28 17:30,2026-01-28 17:30
+401808641,Arkansas State Red Wolves,Old Dominion Monarchs,139.14,0.0,cal,cal,0.0,,,,2026-01-28 18:00,2026-01-28 18:00
+401818402,Kansas City Roos,Denver Pioneers,139.855,0.0,cal,cal,0.0,,,,2026-01-28 18:00,2026-01-28 18:00
+401804903,Missouri State Bears,Sam Houston Bearkats,141.06,0.0,cal,cal,0.0,,,,2026-01-28 18:00,2026-01-28 18:00
+401818401,Omaha Mavericks,South Dakota State Jackrabbits,141.68,0.0,cal,cal,0.0,,,,2026-01-28 18:00,2026-01-28 18:00
+401808642,Texas State Bobcats,Marshall Thundering Herd,143.68,0.0,cal,cal,0.0,,,,2026-01-28 18:00,2026-01-28 18:00
+401828200,Tulsa Golden Hurricane,North Texas Mean Green,143.61,0.0,cal,cal,0.0,,,,2026-01-28 18:00,2026-01-28 18:00
+401828197,UTSA Roadrunners,UAB Blazers,141.84,0.0,cal,cal,0.0,,,,2026-01-28 18:00,2026-01-28 18:00
+401830208,Valparaiso Beacons,Belmont Bruins,148.5848,0.0,cal,reconstructed_from_edge,-0.9151999999999988,10.5,149.5,-10.5,2026-01-28 18:00,2026-01-28 18:00
+401822920,Georgetown Hoyas,DePaul Blue Demons,143.4748,0.0,cal,reconstructed_from_edge,-1.0252000000000123,2.5,144.5,-2.5,2026-01-28 18:30,2026-01-28 18:30
+401820701,Miami Hurricanes,Stanford Cardinal,139.305,0.0,cal,cal,0.0,,,,2026-01-28 19:00,2026-01-28 19:00
+401830283,Murray State Racers,Illinois State Redbirds,142.205,0.0,cal,cal,0.0,,,,2026-01-28 19:00,2026-01-28 19:00
+401804905,New Mexico State Aggies,Delaware Blue Hens,135.0008,0.0,cal,reconstructed_from_edge,-0.4992000000000018,-5.0,135.5,5.0,2026-01-28 19:00,2026-01-28 19:00
+401829219,Pepperdine Waves,San Diego Toreros,147.9992,0.0,cal,reconstructed_from_edge,-1.500799999999998,4.5,149.5,-4.5,2026-01-28 19:00,2026-01-28 19:00
+401808203,South Carolina Gamecocks,Florida Gators,139.835,0.0,cal,cal,0.0,,,,2026-01-28 19:00,2026-01-28 19:00
+401827650,TCU Horned Frogs,Houston Cougars,142.79,0.0,cal,cal,0.0,,,,2026-01-28 19:00,2026-01-28 19:00
+401828201,Tulane Green Wave,South Florida Bulls,140.28,0.0,cal,cal,0.0,,,,2026-01-28 19:00,2026-01-28 19:00
+401804902,UTEP Miners,Louisiana Tech Bulldogs,139.91,0.0,cal,cal,0.0,,,,2026-01-28 19:00,2026-01-28 19:00
+401830824,Utah State Aggies,Wyoming Cowboys,139.04,0.0,cal,cal,0.0,,,,2026-01-28 19:00,2026-01-28 19:00
+401825478,Wisconsin Badgers,Minnesota Golden Gophers,145.8504,0.0,cal,reconstructed_from_edge,-0.6495999999999924,-1.5,146.5,1.5,2026-01-28 19:00,2026-01-28 19:00
+401829221,Washington State Cougars,Seattle U Redhawks,142.62,0.0,cal,cal,0.0,,,,2026-01-28 19:30,2026-01-28 19:30
+401829217,Loyola Marymount Lions,Oregon State Beavers,140.8096,0.0,cal,reconstructed_from_edge,0.809599999999989,-1.5,140.0,1.5,2026-01-28 20:00,2026-01-28 20:00
+401829218,Pacific Tigers,Portland Pilots,145.6304,0.0,cal,reconstructed_from_edge,0.6304000000000087,-2.5,145.0,2.5,2026-01-28 20:00,2026-01-28 20:00
+401830830,San Diego State Aztecs,Colorado State Rams,140.325,0.0,cal,cal,0.0,,,,2026-01-28 20:30,2026-01-28 20:30
+401825477,Oregon Ducks,UCLA Bruins,140.365,0.0,cal,cal,0.0,,,,2026-01-28 21:00,2026-01-28 21:00
+401829220,Santa Clara Broncos,San Francisco Dons,140.695,0.0,cal,cal,0.0,,,,2026-01-28 21:00,2026-01-28 21:00
+synthetic:iowastate::syracuse@2026-01-28,Syracuse Orange,Iowa State Cyclones,142.0338,0.7610525127570936,cal,cal,-12.466199999999986,14.238947487242909,154.5,-15.0,,
+synthetic:towson::ucsandiegotritons@2026-01-28,Towson Tigers,UC San Diego Tritons,143.1524,0.7610525127570936,cal,cal,0.0,,,,,
+synthetic:stfrancisparedflash::troytrojans@2026-01-28,Troy Trojans,Saint Francis (PA) Red Flash,142.724,0.7610525127570936,cal,cal,0.0,,,,,

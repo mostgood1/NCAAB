@@ -1,0 +1,57 @@
+{
+  "date": "2026-01-28",
+  "models": {
+    "cover": {
+      "features_used": [
+        "p_home_cover",
+        "p_home_cover_dist",
+        "p_home_cover_ensemble"
+      ],
+      "intercept": 0.4925797628647827,
+      "mean_abs_contribution": {
+        "p_home_cover": 0.04969036623384628,
+        "p_home_cover_dist": 0.10399304451670598,
+        "p_home_cover_ensemble": 0.8920023736675537
+      },
+      "mean_signed_contribution": {
+        "p_home_cover": 0.04969036623384628,
+        "p_home_cover_dist": 0.10399304451670598,
+        "p_home_cover_ensemble": -0.8920023736675537
+      },
+      "n_rows": 57,
+      "top_abs_contributions": [
+        [
+          "p_home_cover_ensemble",
+          0.8920023736675537
+        ],
+        [
+          "p_home_cover_dist",
+          0.10399304451670598
+        ],
+        [
+          "p_home_cover",
+          0.04969036623384628
+        ]
+      ]
+    },
+    "over": {
+      "features_used": [
+        "p_over_dist"
+      ],
+      "intercept": -0.34762859374642135,
+      "mean_abs_contribution": {
+        "p_over_dist": 0.3295764833870734
+      },
+      "mean_signed_contribution": {
+        "p_over_dist": 0.3295764833870734
+      },
+      "n_rows": 57,
+      "top_abs_contributions": [
+        [
+          "p_over_dist",
+          0.3295764833870734
+        ]
+      ]
+    }
+  }
+}
