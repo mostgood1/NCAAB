@@ -31571,6 +31571,19 @@ def api_display_predictions():
                         base['game_id'] = base['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
                     except Exception:
                         pass
+                    # Drop synthetic/unmatched placeholder rows from cards view.
+                    try:
+                        _gid = base['game_id'].astype(str)
+                        base = base[~(_gid.str.startswith('synthetic:') | _gid.str.startswith('odds:'))]
+                    except Exception:
+                        pass
+                    try:
+                        if {'home_team', 'away_team'}.issubset(base.columns):
+                            _ht = base['home_team'].astype(str).str.strip().str.lower()
+                            _at = base['away_team'].astype(str).str.strip().str.lower()
+                            base = base[~(_ht.isin(['home', 'away']) | _at.isin(['home', 'away']))]
+                    except Exception:
+                        pass
                     def _map_from(df_src: pd.DataFrame, src_col: str, dst_col: str | None = None, numeric: bool = True) -> None:
                         try:
                             if not isinstance(df_src, pd.DataFrame) or df_src.empty or ('game_id' not in df_src.columns):
@@ -31610,6 +31623,19 @@ def api_display_predictions():
                             _map_from(e, c, c, numeric=True)
                         _map_from(e, 'start_time', 'start_time', numeric=False)
                         _map_from(e, 'date', 'date', numeric=False)
+
+                    # Schedule fallback: ensure start times are present even when model/sim artifacts omit them.
+                    # Source: outputs/games_<date>.csv (if present).
+                    try:
+                        gpath = OUT / f"games_{date_q}.csv"
+                        if gpath.exists():
+                            g = _safe_read_csv(gpath)
+                            if isinstance(g, pd.DataFrame) and (not g.empty):
+                                for c in ['date', 'start_time', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue']:
+                                    if c in g.columns:
+                                        _map_from(g, c, c, numeric=False)
+                    except Exception:
+                        pass
 
                     # Model + blended predictions (full + 1H) come from the main predictions artifact.
                     # This fixes the historical ambiguity where unified_enriched may carry market-derived placeholders.
@@ -31876,6 +31902,13 @@ def api_display_predictions():
                                 if c in odf.columns:
                                     odf[c] = pd.to_numeric(odf[c], errors='coerce')
 
+                            # Also keep commence_time as a fallback source for start_time_iso
+                            if 'commence_time' in odf.columns:
+                                try:
+                                    odf['_commence_dt'] = pd.to_datetime(odf['commence_time'], errors='coerce', utc=True)
+                                except Exception:
+                                    odf['_commence_dt'] = pd.NaT
+
                             # Canonicalize team names
                             hname = 'home_team_name' if 'home_team_name' in odf.columns else ('home_team' if 'home_team' in odf.columns else None)
                             aname = 'away_team_name' if 'away_team_name' in odf.columns else ('away_team' if 'away_team' in odf.columns else None)
@@ -31904,6 +31937,16 @@ def api_display_predictions():
                                     }
                                     g_odds = g_odds.rename(columns={k: v for k, v in ren.items() if k in g_odds.columns})
 
+                                    # If we have commence_time, aggregate earliest per matchup
+                                    try:
+                                        if '_commence_dt' in odf.columns:
+                                            g_ct = odf.groupby('_key_dir', as_index=False).agg({'_commence_dt': 'min'})
+                                            g_ct['start_time_iso_odds'] = pd.to_datetime(g_ct['_commence_dt'], errors='coerce', utc=True).dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                                            g_ct = g_ct.drop(columns=['_commence_dt'], errors='ignore')
+                                            g_odds = g_odds.merge(g_ct, on='_key_dir', how='left')
+                                    except Exception:
+                                        pass
+
                                     # Build directional keys on base
                                     if 'home_team' in base.columns and 'away_team' in base.columns:
                                         base['_hslug'] = base['home_team'].astype(str).map(_canon_slug)
@@ -31920,6 +31963,7 @@ def api_display_predictions():
                                             'spread_home_odds': 'spread_home_odds_rev',
                                             'ml_home_odds': 'ml_home_odds_rev',
                                             'ml_away_odds': 'ml_away_odds_rev',
+                                            'start_time_iso_odds': 'start_time_iso_odds_rev',
                                         })
                                         base = base.merge(g_rev.drop_duplicates('_key_dir'), left_on='_key_rev', right_on='_key_dir', how='left', suffixes=('', '_revkey'))
 
@@ -31955,14 +31999,108 @@ def api_display_predictions():
                                         base['ml_away'] = ma0.where(ma0.notna(), ma_dir)
                                         base['ml_away'] = pd.to_numeric(base['ml_away'], errors='coerce').where(pd.to_numeric(base['ml_away'], errors='coerce').notna(), mh_rev)
 
+                                        # Time fallback from odds commence_time
+                                        try:
+                                            if 'start_time_iso' not in base.columns:
+                                                base['start_time_iso'] = np.nan
+                                            iso0 = base.get('start_time_iso')
+                                            iso0s = iso0.astype(str) if hasattr(iso0, 'astype') else iso0
+                                            iso0_bad = (
+                                                pd.to_numeric(iso0, errors='coerce').isna()
+                                                | (iso0s.astype(str).str.strip().eq(''))
+                                                | (iso0s.astype(str).str.lower().isin(['nan', 'none', 'null']))
+                                            )
+                                            iso_dir = base.get('start_time_iso_odds')
+                                            iso_rev = base.get('start_time_iso_odds_rev')
+                                            iso_dir_s = iso_dir.astype(str) if hasattr(iso_dir, 'astype') else iso_dir
+                                            iso_rev_s = iso_rev.astype(str) if hasattr(iso_rev, 'astype') else iso_rev
+                                            iso_dir_good = iso_dir.notna() & ~(iso_dir_s.astype(str).str.strip().eq('')) & ~(iso_dir_s.astype(str).str.lower().isin(['nan','none','null']))
+                                            iso_rev_good = iso_rev.notna() & ~(iso_rev_s.astype(str).str.strip().eq('')) & ~(iso_rev_s.astype(str).str.lower().isin(['nan','none','null']))
+                                            fill_dir = iso0_bad & iso_dir_good
+                                            if hasattr(fill_dir, 'any') and fill_dir.any():
+                                                base.loc[fill_dir, 'start_time_iso'] = base.loc[fill_dir, 'start_time_iso_odds']
+                                            # If still missing, fill from reverse match
+                                            iso0_bad2 = (
+                                                pd.to_numeric(base.get('start_time_iso'), errors='coerce').isna()
+                                                | (base.get('start_time_iso').astype(str).str.strip().eq(''))
+                                                | (base.get('start_time_iso').astype(str).str.lower().isin(['nan','none','null']))
+                                            )
+                                            fill_rev = iso0_bad2 & iso_rev_good
+                                            if hasattr(fill_rev, 'any') and fill_rev.any():
+                                                base.loc[fill_rev, 'start_time_iso'] = base.loc[fill_rev, 'start_time_iso_odds_rev']
+                                        except Exception:
+                                            pass
+
                                         # Clean up temp/join columns
                                         drop_cols = [
                                             '_hslug', '_aslug', '_key_dir', '_key_rev',
                                             'market_total_odds', 'spread_home_odds', 'ml_home_odds', 'ml_away_odds',
                                             'market_total_odds_rev', 'spread_home_odds_rev', 'ml_home_odds_rev', 'ml_away_odds_rev',
+                                            'start_time_iso_odds', 'start_time_iso_odds_rev',
                                             '_key_dir_revkey',
                                         ]
                                         base = base.drop(columns=[c for c in drop_cols if c in base.columns], errors='ignore')
+                    except Exception:
+                        pass
+
+                    # Finalize time fields: derive start_time_iso from commence_time/start_time when possible.
+                    try:
+                        if 'start_time_iso' not in base.columns:
+                            base['start_time_iso'] = np.nan
+                        iso_ser = base.get('start_time_iso')
+                        iso_s = iso_ser.astype(str) if hasattr(iso_ser, 'astype') else iso_ser
+                        mask_iso_missing = (
+                            pd.to_numeric(iso_ser, errors='coerce').isna()
+                            | (iso_s.astype(str).str.strip().eq(''))
+                            | (iso_s.astype(str).str.lower().isin(['nan', 'none', 'null']))
+                        )
+
+                        # Prefer commence_time if present
+                        cand1 = None
+                        if 'commence_time' in base.columns:
+                            try:
+                                cand1 = pd.to_datetime(base['commence_time'], errors='coerce', utc=True).dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                            except Exception:
+                                cand1 = None
+                        cand2 = None
+                        if 'start_time' in base.columns:
+                            try:
+                                st_raw = base['start_time'].astype(str).str.replace('Z', '+00:00', regex=False)
+                                cand2 = pd.to_datetime(st_raw, errors='coerce', utc=True).dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                            except Exception:
+                                cand2 = None
+
+                        if hasattr(mask_iso_missing, 'any') and mask_iso_missing.any():
+                            if cand1 is not None:
+                                ok1 = pd.to_datetime(cand1, errors='coerce', utc=True).notna()
+                                fill1 = mask_iso_missing & ok1
+                                if fill1.any():
+                                    base.loc[fill1, 'start_time_iso'] = cand1.loc[fill1]
+                            # fill remainder from start_time parse
+                            iso_ser2 = base.get('start_time_iso')
+                            iso_s2 = iso_ser2.astype(str)
+                            mask2 = (
+                                pd.to_numeric(iso_ser2, errors='coerce').isna()
+                                | iso_s2.str.strip().eq('')
+                                | iso_s2.str.lower().isin(['nan', 'none', 'null'])
+                            )
+                            if cand2 is not None:
+                                ok2 = pd.to_datetime(cand2, errors='coerce', utc=True).notna()
+                                fill2 = mask2 & ok2
+                                if fill2.any():
+                                    base.loc[fill2, 'start_time_iso'] = cand2.loc[fill2]
+
+                        # Ensure start_time has something usable for UI derivations
+                        if 'start_time' not in base.columns:
+                            base['start_time'] = base.get('start_time_display')
+                        st_ser = base.get('start_time')
+                        try:
+                            st_s = st_ser.astype(str)
+                            st_bad = st_ser.isna() | st_s.str.strip().eq('') | st_s.str.lower().isin(['nan','none','null'])
+                            if st_bad.any():
+                                base.loc[st_bad, 'start_time'] = base.loc[st_bad, 'start_time_iso']
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 

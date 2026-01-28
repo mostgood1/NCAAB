@@ -137,6 +137,10 @@ def join_games_with_closing(
     remaining = g[~g["game_id"].astype(str).isin(matched_game_ids)].copy() if "game_id" in g.columns else g.iloc[0:0]
     if remaining.empty:
         return merged
+
+    # Columns that should come from the game row on partial matches. Without this,
+    # partial rows can lose schedule fields (e.g., start_time) and look like "missing start times".
+    game_cols_in_output = [c for c in merged.columns if c in g.columns]
     # Build team slug columns
     def _canon(x: str) -> str:
         return normalize_name(str(x))
@@ -157,8 +161,17 @@ def join_games_with_closing(
         # Tag partial
         cand2 = cand.copy()
         cand2["game_id"] = gr.get("game_id")
-        cand2["home_team_game"] = gr.get("home_team")
-        cand2["away_team_game"] = gr.get("away_team")
+        # Preserve original game-side columns (including start_time) so downstream artifacts stay consistent.
+        for col in game_cols_in_output:
+            try:
+                cand2[col] = gr.get(col)
+            except Exception:
+                cand2[col] = None
+        # Optional extra clarity fields (won't override game-side home_team/away_team if present)
+        if "home_team_game" not in cand2.columns:
+            cand2["home_team_game"] = gr.get("home_team")
+        if "away_team_game" not in cand2.columns:
+            cand2["away_team_game"] = gr.get("away_team")
         # Set date columns and apply day tolerance filter similar to exact matches
         cand2["date_game"] = pd.to_datetime(gr.get("date"), errors="coerce").date() if pd.notna(gr.get("date")) else pd.NaT
         # date_line already computed as 'date' in prepare_closing_keys; rename/copy for consistency

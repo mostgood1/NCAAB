@@ -39,6 +39,8 @@ h1{margin:0 0 8px 0;font-size:24px}
 .pill.edge-strong{background:#0b4c6d;border-color:#0d6ea5;color:#c6ecff}
 .pill.edge-extreme{background:#074e3a;border-color:#0f8a62;color:#d0ffe9}
 .kpi{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+.recon-kpi{margin-top:6px;gap:8px}
+.recon-kpi .pill{padding:2px 7px;font-size:11px;letter-spacing:0.2px}
 .section{margin-top:10px}
 .section .title{font-size:12px;color:var(--muted);margin-bottom:6px}
 .pred{display:flex;gap:10px;margin-top:6px;align-items:center}

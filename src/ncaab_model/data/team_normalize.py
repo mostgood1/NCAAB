@@ -60,6 +60,8 @@ ALIAS_MAP: Dict[str, str] = {
     "ucirvine": "californiairvine",
     "ucriverside": "californiariverside",
     "ucmerced": "californiamerced",
+    # App State naming variants
+    "appalachianstate": "appstate",
     # Directional/state variants
     "southernmississippi": "southernmiss",
     "southernmiss": "southernmiss",

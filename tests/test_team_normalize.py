@@ -19,3 +19,7 @@ def test_alias_san_jose_state():
 
 def test_alias_east_tennessee_state():
     assert canonical_slug("East Tennessee St Buccaneers") == canonical_slug("East Tennessee State Buccaneers")
+
+
+def test_alias_app_state_appalachian_state():
+    assert canonical_slug("App State Mountaineers") == canonical_slug("Appalachian St Mountaineers")
