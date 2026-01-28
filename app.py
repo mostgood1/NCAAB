@@ -31038,8 +31038,13 @@ def api_display_predictions():
     try:
         tzinfo = ZoneInfo(tz_q)
     except Exception:
-        tz_q = 'America/Chicago'
-        tzinfo = ZoneInfo('America/Chicago')
+        try:
+            tz_q = 'America/Chicago'
+            tzinfo = ZoneInfo('America/Chicago')
+        except Exception:
+            # Ultimate fallback (e.g., tzdata missing): still render a stable UI in UTC.
+            tz_q = 'UTC'
+            tzinfo = dt.timezone.utc
 
     def _sort_rows_chrono(_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         try:
@@ -32892,21 +32897,64 @@ def api_display_predictions():
                     item[c] = r.get(c)
             # Add AM/PM local time derived from start_time/display_time_str
             try:
-                ts = item.get('start_time_iso') or item.get('start_time') or item.get('display_time_str')
-                dt_obj = None
-                if isinstance(ts, str) and ts:
+                def _is_missing_str(v: Any) -> bool:
                     try:
-                        dt_obj = dt.datetime.fromisoformat(ts.replace('Z','+00:00'))
+                        if v is None:
+                            return True
+                        if isinstance(v, str) and v.strip().lower() in ('', 'nan', 'none', 'null'):
+                            return True
+                        try:
+                            if bool(pd.isna(v)):
+                                return True
+                        except Exception:
+                            pass
+                        return False
                     except Exception:
-                        dt_obj = None
-                if dt_obj is not None:
-                    # If parsed datetime is naive, assume UTC (best-effort fallback).
-                    if dt_obj.tzinfo is None:
-                        dt_obj = dt_obj.replace(tzinfo=dt.timezone.utc)
-                    dt_local = dt_obj.astimezone(tzinfo)
+                        return v is None
+
+                # Ensure we have an authoritative UTC ISO timestamp.
+                iso0 = item.get('start_time_iso')
+                if _is_missing_str(iso0):
+                    try:
+                        derived = _derive_start_iso(item)
+                        if derived:
+                            item['start_time_iso'] = derived
+                            iso0 = derived
+                    except Exception:
+                        pass
+
+                # Parse to a tz-aware UTC datetime (robust to string/Timestamp).
+                dt_utc = None
+                try:
+                    if not _is_missing_str(iso0):
+                        dt_utc = pd.to_datetime(str(iso0).replace('Z', '+00:00'), errors='coerce', utc=True)
+                    if (dt_utc is None) or pd.isna(dt_utc):
+                        # Fall back to commence_time/start_time/display_time_str if ISO missing.
+                        ts = item.get('commence_time') or item.get('start_time') or item.get('display_time_str')
+                        if not _is_missing_str(ts):
+                            dt_utc = pd.to_datetime(str(ts).replace('Z', '+00:00'), errors='coerce', utc=True)
+                except Exception:
+                    dt_utc = None
+
+                if dt_utc is not None and pd.notna(dt_utc):
+                    try:
+                        dt_local = dt_utc.to_pydatetime().astimezone(tzinfo)
+                    except Exception:
+                        # If tz conversion fails, stick with UTC.
+                        dt_local = dt_utc.to_pydatetime().replace(tzinfo=dt.timezone.utc)
+
                     item['display_time_ampm'] = dt_local.strftime('%I:%M %p')
                     item['display_date_local'] = dt_local.strftime('%Y-%m-%d')
                     item['start_tz_abbr'] = dt_local.strftime('%Z')
+
+                    # Provide a stable display_time_str if missing.
+                    if _is_missing_str(item.get('display_time_str')):
+                        item['display_time_str'] = dt_local.strftime('%Y-%m-%d %I:%M %p')
+
+                    # Ensure `start_time` has something usable for downstream tooling.
+                    if _is_missing_str(item.get('start_time')):
+                        item['start_time'] = item.get('start_time_iso') or item.get('display_time_str')
+
                 # If we lack display_date, derive it from date or display_date_local
                 if 'display_date' not in item or not item.get('display_date'):
                     item['display_date'] = item.get('date') or item.get('display_date_local')
