@@ -1,0 +1,57 @@
+game_id,home_team,away_team,ats_side,closing_spread_home,spread_home,_pred_margin_blend
+401804901,Middle Tennessee Blue Raiders,Liberty Flames,home,-2.0,-2.0,2.224901899139198
+401805181,Abilene Christian Wildcats,Utah Tech Trailblazers,home,-5.0,-5.0,5.193311182891435
+401805182,Tarleton State Texans,Utah Valley Wolverines,home,-5.0,-5.0,5.145226170086928
+401805183,UT Arlington Mavericks,Southern Utah Thunderbirds,home,-3.0,-3.0,2.87101086373592
+401806461,Tennessee State Tigers,Little Rock Trojans,home,-3.5,-3.5,3.3896417673427903
+401806462,Morehead State Eagles,SIU Edwardsville Cougars,home,-5.0,-5.0,4.994003369594346
+401806463,Western Illinois Leathernecks,Southeast Missouri State Redhawks,home,-2.5,-2.5,2.3863606566903552
+401807712,Jacksonville Dolphins,Lipscomb Bisons,home,-4.5,-4.5,4.749709247442474
+401807713,Florida Gulf Coast Eagles,North Alabama Lions,home,-4.0,-4.0,4.095417243720702
+401807714,North Florida Ospreys,Stetson Hatters,home,-5.5,-5.5,5.3396895510590525
+401808460,Northern Arizona Lumberjacks,Eastern Washington Eagles,home,-2.0,-2.0,2.069045182611553
+401808477,Northern Colorado Bears,Idaho Vandals,home,-2.0,-2.0,1.8970312058906509
+401808506,Portland State Vikings,Montana Grizzlies,home,-2.0,-2.0,1.8367212284672845
+401808517,Sacramento State Hornets,Montana State Bobcats,home,-3.0,-3.0,3.0692371953100173
+401808643,Southern Miss Golden Eagles,App State Mountaineers,home,-2.5,-2.5,2.461346756609635
+401808644,South Alabama Jaguars,Coastal Carolina Chanticleers,home,-3.5,-3.5,3.584610804486803
+401808645,Louisiana Ragin' Cajuns,Georgia State Panthers,home,-2.0,-2.0,2.197445256788291
+401808646,UL Monroe Warhawks,Georgia Southern Eagles,home,-3.0,-3.0,3.0040287271042243
+401808647,Troy Trojans,James Madison Dukes,home,-3.0,-3.0,3.1408340859922785
+401809094,UC San Diego Tritons,UC Santa Barbara Gauchos,home,-4.0,-4.0,4.199480070773819
+401809113,UC Irvine Anteaters,Hawai'i Rainbow Warriors,home,-2.0,-2.0,1.8979515025153195
+401809130,Cal State Northridge Matadors,UC Davis Aggies,home,-4.5,-4.5,4.602176804627211
+401809159,Cal State Bakersfield Roadrunners,Cal Poly Mustangs,home,-2.5,-2.5,2.5491896809067645
+401809343,Chattanooga Mocs,Wofford Terriers,home,-5.0,-5.0,5.211367933303572
+401809344,East Tennessee State Buccaneers,Western Carolina Catamounts,home,-5.5,-5.5,5.6362768808033925
+401809345,Furman Paladins,Samford Bulldogs,home,-4.0,-4.0,4.137498507751886
+401809346,Mercer Bears,UNC Greensboro Spartans,home,-5.0,-5.0,4.907034898700815
+401809347,The Citadel Bulldogs,VMI Keydets,home,-6.0,-6.0,5.752652851101304
+401812036,Hofstra Pride,Charleston Cougars,home,-3.5,-3.5,3.3840949574147463
+401812037,Towson Tigers,UNC Wilmington Seahawks,home,-4.5,-4.5,4.493161651168329
+401812038,Monmouth Hawks,North Carolina A&T Aggies,home,-5.0,-5.0,4.791929904146114
+401812039,Drexel Dragons,Hampton Pirates,home,-4.5,-4.5,4.577644740557645
+401812040,Elon Phoenix,William & Mary Tribe,home,-5.0,-5.0,5.191664225182556
+401812041,Campbell Fighting Camels,Stony Brook Seawolves,home,-5.0,-5.0,5.070389019241634
+401812134,Binghamton Bearcats,Bryant Bulldogs,home,-5.0,-5.0,5.001054297527215
+401812135,Vermont Catamounts,UMBC Retrievers,home,-2.5,-2.5,2.6697226711274347
+401812136,New Hampshire Wildcats,UMass Lowell River Hawks,home,-5.5,-5.5,5.35820801184983
+401812137,UAlbany Great Danes,NJIT Highlanders,home,-2.5,-2.5,2.3444883833776564
+401812323,Stonehill Skyhawks,Fairleigh Dickinson Knights,home,-3.0,-3.0,2.9725206636979267
+401812341,Long Island University Sharks,Le Moyne Dolphins,home,-2.0,-2.0,2.0840413930931048
+401812394,Chicago State Cougars,Saint Francis Red Flash,home,-5.5,-5.5,5.633447788661762
+401812414,Wagner Seahawks,Central Connecticut Blue Devils,home,-2.5,-2.5,2.3420347662737355
+401818403,St. Thomas-Minnesota Tommies,North Dakota Fighting Hawks,home,-2.5,-2.5,2.618534946872716
+401818404,South Dakota Coyotes,Oral Roberts Golden Eagles,home,-2.0,-2.0,2.1283705051948454
+401820219,Mercyhurst Lakers,New Haven Chargers,home,-5.5,-5.5,5.398021282186718
+401822363,Eastern Illinois Panthers,UT Martin Skyhawks,home,-4.5,-4.5,4.580005953427444
+401822398,Southern Indiana Screaming Eagles,Lindenwood Lions,home,-3.0,-3.0,2.9676126723306737
+401823338,UC Riverside Highlanders,Long Beach State Beach,home,-2.5,-2.5,2.632970154366867
+401823926,UNC Asheville Bulldogs,Gardner-Webb Runnin' Bulldogs,home,-2.0,-2.0,2.1115101766006275
+401823927,South Carolina Upstate Spartans,Longwood Lancers,home,-2.5,-2.5,2.430155559931104
+401823928,High Point Panthers,Presbyterian Blue Hose,home,-5.5,-5.5,5.443124748862125
+401823929,Charleston Southern Buccaneers,Radford Highlanders,home,-5.0,-5.0,4.971115500151876
+401825479,Illinois Fighting Illini,Washington Huskies,home,-4.5,-4.5,4.570360622818732
+401825480,Northwestern Wildcats,Penn State Nittany Lions,home,-4.5,-4.5,4.689313969282144
+401827651,Iowa State Cyclones,Colorado Buffaloes,home,-3.0,-3.0,3.0305260557645344
+401828202,Memphis Tigers,Florida Atlantic Owls,home,-2.5,-2.5,2.252906424656917

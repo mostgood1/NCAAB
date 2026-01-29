@@ -2457,7 +2457,7 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
                 if not df_sched.empty:
                     if 'game_id' in df_sched.columns:
                         for rr in df_sched.to_dict('records'):
-                            gid = str(rr.get('game_id') or '').strip()
+                            gid = str(rr.get('game_id') or '').strip().replace('.0', '')
                             if gid:
                                 gid_map[gid] = rr
                     # Most of our artifacts use home_team/away_team
@@ -2524,7 +2524,7 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
             gid_map, name_map = _get_sched_maps(date_q)
             row_s = None
             try:
-                gid = str(r.get('game_id') or '').strip()
+                gid = str(r.get('game_id') or '').strip().replace('.0', '')
                 if gid and gid in gid_map:
                     row_s = gid_map.get(gid)
             except Exception:
@@ -2585,7 +2585,7 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
             gid_map, name_map = _get_sched_maps(date_q)
             row_s = None
             try:
-                gid = str(r.get('game_id') or '').strip()
+                gid = str(r.get('game_id') or '').strip().replace('.0', '')
                 if gid and gid in gid_map:
                     row_s = gid_map.get(gid)
             except Exception:
@@ -33410,6 +33410,24 @@ def api_display_predictions():
                     item[c] = r.get(c)
             # Add AM/PM local time derived from start_time/display_time_str
             try:
+                # Normalize game_id for all downstream joins/backfills
+                try:
+                    if 'game_id' in item and item.get('game_id') is not None:
+                        item['game_id'] = str(item.get('game_id')).strip().replace('.0', '')
+                except Exception:
+                    pass
+
+                # Critical: reconcile against schedule to avoid stale/incorrect snapshot start_time_iso
+                # (this is what causes many cards to collapse to 12:00 PM).
+                try:
+                    item = _backfill_start_fields(item)
+                except Exception:
+                    pass
+                try:
+                    item = _apply_site_display_global(item, tz_name=tz_q)
+                except Exception:
+                    pass
+
                 def _is_missing_str(v: Any) -> bool:
                     try:
                         if v is None:
