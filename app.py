@@ -979,16 +979,94 @@ def _apply_site_display_global(r: dict, tz_name: str | None = None) -> dict:
         # If the row already carries a finalized display string from a
         # persisted artifact (e.g., predictions_display_<date>.csv), honor
         # that as-is and just back-fill display_date/date when missing.
-        existing_disp = str(r.get('start_time_display') or r.get('display_time_str') or '').strip()
+        existing_disp_val = r.get('start_time_display') or r.get('display_time_str')
+        existing_disp = ''
+        try:
+            if existing_disp_val is None or (isinstance(existing_disp_val, float) and pd.isna(existing_disp_val)):
+                existing_disp = ''
+            else:
+                existing_disp = str(existing_disp_val).strip()
+                if existing_disp.lower() in ('nan', 'none', 'null'):
+                    existing_disp = ''
+        except Exception:
+            existing_disp = ''
         if existing_disp:
-            parts = existing_disp.split()
-            if len(parts) >= 2:
-                date_part = parts[0]
-                r['display_date'] = r.get('display_date') or date_part
-                r['date'] = r.get('date') or date_part
-            r['display_time_str'] = existing_disp
-            r['start_time_display'] = existing_disp
-            return r
+            # Only honor persisted display strings when we don't have a reliable
+            # canonical instant, or when the persisted string matches it.
+            try:
+                tz_name_eff = tz_name or _get_display_tz_name()
+            except Exception:
+                tz_name_eff = os.getenv("DISPLAY_TZ") or os.getenv("SCHEDULE_TZ") or "America/Chicago"
+            try:
+                site_tz = ZoneInfo(tz_name_eff)
+            except Exception:
+                site_tz = dt.timezone.utc
+
+            ts_can = None
+            try:
+                _sd = r.get('_start_dt')
+                if _sd is not None and not (isinstance(_sd, float) and pd.isna(_sd)):
+                    ts_can = pd.to_datetime(str(_sd).replace('Z', '+00:00'), errors='coerce', utc=True)
+            except Exception:
+                ts_can = None
+            if ts_can is None or pd.isna(ts_can):
+                try:
+                    iso0 = r.get('start_time_iso')
+                    if iso0 and re.search(r'(Z|[+-]\d{2}:?\d{2})$', str(iso0)):
+                        ts_can = pd.to_datetime(str(iso0).replace('Z', '+00:00'), errors='coerce', utc=True)
+                except Exception:
+                    ts_can = None
+
+            def _parse_existing_disp(s: str) -> dt.datetime | None:
+                try:
+                    m1 = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*([AP]M)\b', s, flags=re.IGNORECASE)
+                    if m1:
+                        d0 = dt.datetime.strptime(m1.group(1) + ' ' + m1.group(2) + ' ' + m1.group(3).upper(), '%Y-%m-%d %I:%M %p')
+                        return d0.replace(tzinfo=site_tz)
+                    m2 = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\b', s)
+                    if m2:
+                        d0 = dt.datetime.strptime(m2.group(1) + ' ' + m2.group(2), '%Y-%m-%d %H:%M')
+                        return d0.replace(tzinfo=site_tz)
+                except Exception:
+                    return None
+                return None
+
+            keep_existing = False
+            if ts_can is None or pd.isna(ts_can):
+                keep_existing = True
+            else:
+                try:
+                    dt_can = pd.to_datetime(ts_can, errors='coerce', utc=True).tz_convert(site_tz).to_pydatetime()
+                    dt_existing = _parse_existing_disp(existing_disp)
+                    if dt_existing is not None:
+                        keep_existing = abs((dt_existing - dt_can).total_seconds()) <= 300
+                    else:
+                        keep_existing = False
+                except Exception:
+                    keep_existing = True
+
+            if keep_existing:
+                parts = existing_disp.split()
+                if len(parts) >= 2:
+                    date_part = parts[0]
+                    r['display_date'] = r.get('display_date') or date_part
+                    r['date'] = r.get('date') or date_part
+                r['display_time_str'] = existing_disp
+                r['start_time_display'] = existing_disp
+                # Best-effort time-only string for the time pill.
+                try:
+                    s0 = existing_disp
+                    m1 = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*([AP]M)\b', s0, flags=re.IGNORECASE)
+                    if m1:
+                        dt0 = dt.datetime.strptime(m1.group(1) + ' ' + m1.group(2) + ' ' + m1.group(3).upper(), '%Y-%m-%d %I:%M %p')
+                        r['display_time_ampm'] = dt0.strftime('%I:%M %p').lstrip('0')
+                    else:
+                        m2 = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\b', s0)
+                        if m2:
+                            r['display_time_ampm'] = m2.group(2)
+                except Exception:
+                    pass
+                return r
 
         try:
             tz_name_eff = tz_name or _get_display_tz_name()
@@ -1042,27 +1120,6 @@ def _apply_site_display_global(r: dict, tz_name: str | None = None) -> dict:
                         'EST': -5, 'EDT': -4,
                     }
                     label_abbr = abbr if abbr else 'UTC'
-                    @app.route('/api/health/meta')
-                    def api_health_meta():
-                        try:
-                            cover = _META_FEATURES_CACHE.get("cover") if isinstance(_META_FEATURES_CACHE, dict) else None
-                            over = _META_FEATURES_CACHE.get("over") if isinstance(_META_FEATURES_CACHE, dict) else None
-                            return jsonify({
-                                "preload_done": bool(_META_PRELOAD_DONE),
-                                "cover_sidecar_present": bool(cover),
-                                "over_sidecar_present": bool(over),
-                                "cover_keys": list(cover.keys()) if isinstance(cover, dict) else [],
-                                "over_keys": list(over.keys()) if isinstance(over, dict) else [],
-                            })
-                        except Exception:
-                            return jsonify({
-                                "preload_done": False,
-                                "cover_sidecar_present": False,
-                                "over_sidecar_present": False,
-                            })
-
-                    # health route mistakenly inserted here previously; kept logic out of flow
-
                     try:
                         base_dt = pd.to_datetime(f"{dstr} {tstr}", errors='coerce')
                         if pd.notna(base_dt):
@@ -2172,6 +2229,71 @@ def _derive_start_iso(row: dict[str, Any]) -> str | None:
     Handles late CT/HST games crossing 00:00 UTC by anchoring to provided local time when available.
     """
     try:
+        # 0) Derive from display strings when upstream artifacts only ship those.
+        #    Examples:
+        #      - 'YYYY-MM-DD 05:00 PM'
+        #      - 'YYYY-MM-DD 19:30 CST'
+        disp_raw = row.get('start_time_display') or row.get('display_time_str')
+        if disp_raw:
+            try:
+                sdisp = str(disp_raw).strip()
+                # Skip obvious non-values
+                if sdisp and sdisp.lower() not in ('nan','none','null'):
+                    # 12h with optional tz abbr
+                    m = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*([AP]M)\b(?:\s+([A-Za-z]{2,4}))?$', sdisp, flags=re.IGNORECASE)
+                    if m:
+                        dstr, tstr, ampm = m.group(1), m.group(2), m.group(3).upper()
+                        abbr2 = (m.group(4) or '').upper().strip()
+                        base_dt = dt.datetime.strptime(f"{dstr} {tstr} {ampm}", "%Y-%m-%d %I:%M %p")
+                        tz_map = {
+                            'UTC': 0, 'Z': 0,
+                            'HST': -10, 'AKST': -9,
+                            'PST': -8, 'PDT': -7,
+                            'MST': -7, 'MDT': -6,
+                            'CST': -6, 'CDT': -5,
+                            'EST': -5, 'EDT': -4,
+                        }
+                        off = tz_map.get(abbr2) if abbr2 else None
+                        if off is not None:
+                            tzinfo = dt.timezone(dt.timedelta(hours=off))
+                            utc_dt = base_dt.replace(tzinfo=tzinfo).astimezone(dt.timezone.utc)
+                            return utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        # No explicit abbr: assume site schedule/display tz
+                        try:
+                            tz_name_eff = os.getenv("SCHEDULE_TZ") or os.getenv("DISPLAY_TZ") or "America/Chicago"
+                            aware = base_dt.replace(tzinfo=ZoneInfo(tz_name_eff))
+                            utc_dt = aware.astimezone(dt.timezone.utc)
+                            return utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        except Exception:
+                            pass
+                    # 24h with optional tz abbr
+                    m2 = re.match(r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?:\s+([A-Za-z]{2,4}))?$', sdisp)
+                    if m2:
+                        dstr, tstr = m2.group(1), m2.group(2)
+                        abbr2 = (m2.group(3) or '').upper().strip()
+                        base_dt = dt.datetime.strptime(f"{dstr} {tstr}", "%Y-%m-%d %H:%M")
+                        tz_map = {
+                            'UTC': 0, 'Z': 0,
+                            'HST': -10, 'AKST': -9,
+                            'PST': -8, 'PDT': -7,
+                            'MST': -7, 'MDT': -6,
+                            'CST': -6, 'CDT': -5,
+                            'EST': -5, 'EDT': -4,
+                        }
+                        off = tz_map.get(abbr2) if abbr2 else None
+                        if off is not None:
+                            tzinfo = dt.timezone(dt.timedelta(hours=off))
+                            utc_dt = base_dt.replace(tzinfo=tzinfo).astimezone(dt.timezone.utc)
+                            return utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        try:
+                            tz_name_eff = os.getenv("SCHEDULE_TZ") or os.getenv("DISPLAY_TZ") or "America/Chicago"
+                            aware = base_dt.replace(tzinfo=ZoneInfo(tz_name_eff))
+                            utc_dt = aware.astimezone(dt.timezone.utc)
+                            return utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        except Exception:
+                            pass
+            except Exception:
+                pass
         # 1) Venue/local explicit string + abbr
         loc = row.get('start_time_local') or row.get('start_time_local_venue')
         abbr = (row.get('start_tz_abbr') or row.get('start_tz_abbr_venue') or '').upper()
@@ -2309,7 +2431,69 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
         except Exception:
             return v is None
 
+    def _get_sched_maps(date_q: str) -> tuple[dict[str, dict[str, Any]], dict[tuple[str, str], dict[str, Any]]]:
+        """Load/caches schedule rows for a slate date.
+
+        Returns:
+          - gid_map: game_id -> row dict
+          - name_map: (home_norm, away_norm) -> row dict
+        """
+        try:
+            cache = getattr(_backfill_start_fields, '_sched_cache', {})
+        except Exception:
+            cache = {}
+        if isinstance(cache, dict) and date_q in cache:
+            return cache[date_q]
+
+        gid_map: dict[str, dict[str, Any]] = {}
+        name_map: dict[tuple[str, str], dict[str, Any]] = {}
+        try:
+            out_dir = globals().get('OUT')
+            if out_dir is None:
+                out_dir = ROOT / 'outputs'
+            p_sched = out_dir / f'games_{date_q}.csv'
+            if p_sched.exists():
+                df_sched = pd.read_csv(p_sched, dtype=str, low_memory=False)
+                if not df_sched.empty:
+                    if 'game_id' in df_sched.columns:
+                        for rr in df_sched.to_dict('records'):
+                            gid = str(rr.get('game_id') or '').strip()
+                            if gid:
+                                gid_map[gid] = rr
+                    # Most of our artifacts use home_team/away_team
+                    if 'home_team' in df_sched.columns and 'away_team' in df_sched.columns:
+                        for rr in df_sched.to_dict('records'):
+                            hn = normalize_name(str(rr.get('home_team') or ''))
+                            an = normalize_name(str(rr.get('away_team') or ''))
+                            if hn and an:
+                                name_map[(hn, an)] = rr
+                                # Also store swapped to handle home/away flips
+                                name_map[(an, hn)] = rr
+        except Exception:
+            pass
+
+        try:
+            if not isinstance(cache, dict):
+                cache = {}
+            cache[date_q] = (gid_map, name_map)
+            setattr(_backfill_start_fields, '_sched_cache', cache)
+        except Exception:
+            pass
+        return gid_map, name_map
+
     slate_raw = r.get('_slate_date') or r.get('date') or r.get('slate_date')
+    if _is_missing(slate_raw):
+        try:
+            gid = str(r.get('game_id') or '')
+            m = re.search(r'@(\d{4}-\d{2}-\d{2})', gid)
+            if m:
+                slate_raw = m.group(1)
+                if _is_missing(r.get('_slate_date')):
+                    r['_slate_date'] = slate_raw
+                if _is_missing(r.get('date')):
+                    r['date'] = slate_raw
+        except Exception:
+            pass
     slate_dt = None
     if slate_raw:
         try:
@@ -2331,6 +2515,111 @@ def _backfill_start_fields(r: dict[str, Any]) -> dict[str, Any]:
                 utc_source = pd.to_datetime(str(st_raw).replace('Z','+00:00'), errors='coerce', utc=True)
             except Exception:
                 utc_source = None
+
+    # Reconcile against schedule even when we already have a time.
+    # Some artifacts may carry stale/incorrect start_time_iso while schedule is correct.
+    try:
+        if not _is_missing(slate_raw):
+            date_q = str(slate_raw)[:10]
+            gid_map, name_map = _get_sched_maps(date_q)
+            row_s = None
+            try:
+                gid = str(r.get('game_id') or '').strip()
+                if gid and gid in gid_map:
+                    row_s = gid_map.get(gid)
+            except Exception:
+                row_s = None
+            if row_s is None:
+                try:
+                    home_nm = normalize_name(str(r.get('home_team') or r.get('home') or ''))
+                    away_nm = normalize_name(str(r.get('away_team') or r.get('away') or ''))
+                    if home_nm and away_nm:
+                        row_s = name_map.get((home_nm, away_nm))
+                except Exception:
+                    row_s = None
+            if row_s:
+                sched_dt = None
+                for k in ('start_time_iso', 'start_time', 'commence_time'):
+                    try:
+                        v = row_s.get(k)
+                        if not _is_missing(v):
+                            sched_dt = pd.to_datetime(str(v).replace('Z', '+00:00'), errors='coerce', utc=True)
+                            if sched_dt is not None and pd.notna(sched_dt):
+                                break
+                    except Exception:
+                        sched_dt = None
+                if sched_dt is not None and pd.notna(sched_dt):
+                    try:
+                        # Override when missing or materially different (>5 minutes)
+                        do_override = (utc_source is None) or (pd.isna(utc_source))
+                        if not do_override:
+                            try:
+                                do_override = abs((sched_dt.to_pydatetime() - utc_source.to_pydatetime()).total_seconds()) > 300
+                            except Exception:
+                                do_override = True
+                        if do_override:
+                            utc_source = sched_dt
+                            r['start_time_iso'] = sched_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                            r['_start_dt'] = sched_dt
+                            # Refresh related fields from schedule when present
+                            for kk in (
+                                'start_time', 'commence_time',
+                                'start_time_local', 'start_tz_abbr',
+                                'start_time_display', 'display_time_str',
+                                'venue_tz',
+                            ):
+                                try:
+                                    if (kk in row_s) and (not _is_missing(row_s.get(kk))):
+                                        r[kk] = row_s.get(kk)
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    # If we still have no time signals at all, try schedule backfill by normalized teams.
+    try:
+        if utc_source is None and _is_missing(iso_val) and _is_missing(r.get('start_time')) and _is_missing(r.get('commence_time')) and not _is_missing(slate_raw):
+            date_q = str(slate_raw)[:10]
+            gid_map, name_map = _get_sched_maps(date_q)
+            row_s = None
+            try:
+                gid = str(r.get('game_id') or '').strip()
+                if gid and gid in gid_map:
+                    row_s = gid_map.get(gid)
+            except Exception:
+                row_s = None
+            if row_s is None:
+                try:
+                    home_nm = normalize_name(str(r.get('home_team') or r.get('home') or ''))
+                    away_nm = normalize_name(str(r.get('away_team') or r.get('away') or ''))
+                    if home_nm and away_nm:
+                        row_s = name_map.get((home_nm, away_nm))
+                except Exception:
+                    row_s = None
+            if row_s:
+                for k in (
+                    'start_time_iso', 'start_time', 'commence_time',
+                    'start_time_local', 'start_tz_abbr',
+                    'start_time_display', 'display_time_str',
+                    'venue_tz',
+                ):
+                    try:
+                        if _is_missing(r.get(k)) and (k in row_s) and not _is_missing(row_s.get(k)):
+                            r[k] = row_s.get(k)
+                    except Exception:
+                        pass
+                # Recompute utc_source from the newly injected values
+                try:
+                    if _is_missing(r.get('start_time_iso')):
+                        r['start_time_iso'] = _derive_start_iso(r)
+                    if r.get('start_time_iso'):
+                        utc_source = pd.to_datetime(str(r.get('start_time_iso')).replace('Z', '+00:00'), errors='coerce', utc=True)
+                except Exception:
+                    pass
+    except Exception:
+        pass
     if utc_source is not None and pd.notna(utc_source):
         if not iso_val:
             r['start_time_iso'] = utc_source.strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -25406,6 +25695,91 @@ def api_recommendations():
     # If we have base picks_raw but no totals, synthesize gated totals and append
     try:
         if isinstance(picks, pd.DataFrame) and not picks.empty and date_q:
+            # If picks_raw lacks ATS rows but per-date ATS picks exist, append them.
+            try:
+                has_ats = False
+                if 'rec_code' in picks.columns:
+                    has_ats = picks['rec_code'].astype(str).str.upper().eq('ATS').any()
+                if (not has_ats) and 'market' in picks.columns:
+                    has_ats = picks['market'].astype(str).str.lower().str.contains('spread|ats').any()
+                if not has_ats:
+                    ats_path = OUT / 'picks' / f'ats_picks_{date_q}.csv'
+                    df_ats = _safe_read_csv(ats_path) if ats_path.exists() else pd.DataFrame()
+                    if isinstance(df_ats, pd.DataFrame) and not df_ats.empty:
+                        try:
+                            df_ats = df_ats.loc[:, ~df_ats.columns.duplicated()].copy()
+                        except Exception:
+                            pass
+                        # Normalize ids
+                        if 'game_id' in df_ats.columns:
+                            try:
+                                df_ats['game_id'] = df_ats['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+                            except Exception:
+                                pass
+                        # Build rows aligned to picks_raw schema
+                        extra_ats = pd.DataFrame()
+                        extra_ats['game_id'] = df_ats.get('game_id')
+                        extra_ats['date'] = date_q
+                        extra_ats['home_team'] = df_ats.get('home_team')
+                        extra_ats['away_team'] = df_ats.get('away_team')
+                        extra_ats['market'] = 'spreads'
+                        extra_ats['period'] = 'full_game'
+                        # Side + line
+                        side = df_ats.get('ats_side')
+                        sh = pd.to_numeric(df_ats.get('closing_spread_home') if 'closing_spread_home' in df_ats.columns else df_ats.get('spread_home'), errors='coerce')
+                        pm = pd.to_numeric(df_ats.get('_pred_margin_blend'), errors='coerce')
+                        def _bet_label(i: int) -> str:
+                            try:
+                                s = str(side.iat[i]).strip().lower() if side is not None else ''
+                            except Exception:
+                                s = ''
+                            ht = str(extra_ats.get('home_team').iat[i]) if 'home_team' in extra_ats.columns else ''
+                            at = str(extra_ats.get('away_team').iat[i]) if 'away_team' in extra_ats.columns else ''
+                            if s in ('home','h'):
+                                return ht
+                            if s in ('away','a'):
+                                return at
+                            # If ats_side already contains a team name, preserve it.
+                            return (ht if (pm is not None and pd.notna(pm.iat[i]) and float(pm.iat[i]) >= 0) else at)
+                        extra_ats['bet'] = [ _bet_label(i) for i in range(len(df_ats)) ]
+                        # Side-specific signed line for display consumers
+                        lines = []
+                        edges = []
+                        for i in range(len(df_ats)):
+                            try:
+                                s = str(side.iat[i]).strip().lower() if side is not None else ''
+                            except Exception:
+                                s = ''
+                            v = float(sh.iat[i]) if (sh is not None and pd.notna(sh.iat[i])) else None
+                            # Normalize near-zero negative zeros
+                            if v is not None and abs(v) < 0.05:
+                                v = 0.0
+                            if v is None:
+                                lines.append(None)
+                            else:
+                                if s in ('away','a'):
+                                    lines.append(-v)
+                                else:
+                                    lines.append(v)
+                            # Edge proxy: |pred_margin + spread_home|
+                            try:
+                                pmv = float(pm.iat[i]) if (pm is not None and pd.notna(pm.iat[i])) else None
+                                if (pmv is not None) and (v is not None):
+                                    edges.append(abs(pmv + v))
+                                else:
+                                    edges.append(None)
+                            except Exception:
+                                edges.append(None)
+                        extra_ats['line'] = lines
+                        extra_ats['price'] = None
+                        extra_ats['edge'] = edges
+                        extra_ats['pred_margin'] = pm
+                        extra_ats['pred_total'] = None
+                        extra_ats['rec_type'] = 'Spread'
+                        extra_ats['rec_code'] = 'ATS'
+                        picks = pd.concat([picks, extra_ats], ignore_index=True)
+            except Exception:
+                pass
             has_ou = False
             try:
                 if 'rec_code' in picks.columns:
@@ -26292,6 +26666,135 @@ def api_recommendations():
             picks = picks[picks['date'] == date_q]
         except Exception:
             pass
+
+    # If ATS artifacts are clearly broken (all ~0 lines and ~0 margins), rebuild ATS from
+    # predictions_<date>.csv + games_with_last.csv spreads.
+    try:
+        if isinstance(picks, pd.DataFrame) and not picks.empty and date_q:
+            df_chk = picks.copy()
+            # Identify ATS rows
+            try:
+                m_ats = df_chk.get('rec_code').astype(str).str.upper().eq('ATS') if 'rec_code' in df_chk.columns else pd.Series(False, index=df_chk.index)
+            except Exception:
+                m_ats = pd.Series(False, index=df_chk.index)
+            if (not m_ats.any()) and ('market' in df_chk.columns):
+                try:
+                    m_ats = df_chk['market'].astype(str).str.lower().str.contains('spread|ats')
+                except Exception:
+                    m_ats = pd.Series(False, index=df_chk.index)
+            if m_ats.any():
+                ats = df_chk[m_ats].copy()
+                # Heuristic: broken when most lines are ~0 and most pred_margins are ~0
+                try:
+                    ln = pd.to_numeric(ats.get('line'), errors='coerce') if 'line' in ats.columns else pd.Series(np.nan, index=ats.index)
+                    pm = pd.to_numeric(ats.get('pred_margin'), errors='coerce') if 'pred_margin' in ats.columns else pd.Series(np.nan, index=ats.index)
+                    frac_ln_zero = float((ln.abs() < 0.05).mean()) if len(ln) else 0.0
+                    frac_pm_zero = float((pm.abs() < 0.05).mean()) if len(pm) else 0.0
+                    ats_broken = (frac_ln_zero >= 0.85) and (frac_pm_zero >= 0.85)
+                except Exception:
+                    ats_broken = False
+
+                if ats_broken:
+                    # Load predictions margins (prefer blend)
+                    pred_path = OUT / f"predictions_{date_q}.csv"
+                    pred = _safe_read_csv(pred_path) if pred_path.exists() else pd.DataFrame()
+                    if isinstance(pred, pd.DataFrame) and not pred.empty and 'game_id' in pred.columns:
+                        try:
+                            pred = pred.copy()
+                            pred['game_id'] = pred['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+                        except Exception:
+                            pass
+                    # Load spreads from games_with_last and aggregate per-game
+                    gpath = OUT / 'games_with_last.csv'
+                    gwl = _safe_read_csv(gpath) if gpath.exists() else pd.DataFrame()
+                    if isinstance(gwl, pd.DataFrame) and not gwl.empty and 'game_id' in gwl.columns:
+                        try:
+                            gwl = gwl.copy()
+                            gwl['game_id'] = gwl['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+                        except Exception:
+                            pass
+                        # Filter to date_q when a date-like column exists
+                        try:
+                            date_cols = [c for c in ['display_date','date','date_game','game_date','date_line','odds_date'] if c in gwl.columns]
+                            if date_cols:
+                                dc = date_cols[0]
+                                ds = pd.to_datetime(gwl[dc], errors='coerce').dt.strftime('%Y-%m-%d')
+                                gwl = gwl[ds.astype(str) == str(date_q)].copy()
+                        except Exception:
+                            pass
+                    # Aggregate a usable home spread per game_id
+                    spread_col = None
+                    for c in ['home_spread','spread_home','closing_spread_home','spread']:
+                        if isinstance(gwl, pd.DataFrame) and (not gwl.empty) and (c in gwl.columns):
+                            spread_col = c
+                            break
+                    if isinstance(pred, pd.DataFrame) and (not pred.empty) and isinstance(gwl, pd.DataFrame) and (not gwl.empty) and spread_col:
+                        try:
+                            gwl['_hs'] = pd.to_numeric(gwl[spread_col], errors='coerce')
+                            spr = gwl.groupby('game_id', as_index=False)['_hs'].median().rename(columns={'_hs':'home_spread'})
+                        except Exception:
+                            spr = pd.DataFrame()
+                        # Choose prediction margin source
+                        pm_col = 'pred_margin_blend' if 'pred_margin_blend' in pred.columns else ('pred_margin' if 'pred_margin' in pred.columns else None)
+                        if pm_col and (not spr.empty):
+                            try:
+                                pred2 = pred[['game_id','home_team','away_team', pm_col]].copy()
+                                pred2['pred_margin_use'] = pd.to_numeric(pred2[pm_col], errors='coerce')
+                            except Exception:
+                                pred2 = pd.DataFrame()
+                            if not pred2.empty:
+                                base = pred2.merge(spr, on='game_id', how='inner')
+                                base['home_spread'] = pd.to_numeric(base['home_spread'], errors='coerce')
+                                base = base[base['pred_margin_use'].notna() & base['home_spread'].notna()].copy()
+                                if not base.empty:
+                                    def _side_row(rr: pd.Series) -> str:
+                                        try:
+                                            return 'home' if float(rr['pred_margin_use']) + float(rr['home_spread']) > 0 else 'away'
+                                        except Exception:
+                                            return 'home'
+                                    base['bet'] = base.apply(_side_row, axis=1)
+                                    def _signed_line(rr: pd.Series) -> float:
+                                        hs = float(rr['home_spread'])
+                                        if abs(hs) < 0.05:
+                                            hs = 0.0
+                                        return hs if rr['bet'] == 'home' else (0.0 - hs)
+                                    base['line'] = base.apply(_signed_line, axis=1)
+                                    def _edge(rr: pd.Series) -> float:
+                                        try:
+                                            return float(abs(float(rr['pred_margin_use']) + float(rr['home_spread'])))
+                                        except Exception:
+                                            return float('nan')
+                                    base['edge'] = base.apply(_edge, axis=1)
+                                    rebuilt = pd.DataFrame({
+                                        'game_id': base['game_id'],
+                                        'date': date_q,
+                                        'home_team': base['home_team'],
+                                        'away_team': base['away_team'],
+                                        'market': 'spreads',
+                                        'period': 'full_game',
+                                        'bet': base['bet'],
+                                        'line': base['line'],
+                                        'price': None,
+                                        'edge': base['edge'],
+                                        'pred_margin': base['pred_margin_use'],
+                                        # Provide home-spread fields so label logic can recompute reliably
+                                        'home_spread': base['home_spread'],
+                                        'closing_spread_home': base['home_spread'],
+                                        'rec_type': 'Spread',
+                                        'rec_code': 'ATS',
+                                    })
+
+                                    # Drop old ATS rows and append rebuilt
+                                    try:
+                                        keep = picks.loc[~m_ats].copy()
+                                    except Exception:
+                                        keep = picks.copy()
+                                    try:
+                                        picks = pd.concat([keep, rebuilt], ignore_index=True)
+                                    except Exception:
+                                        pass
+    except Exception:
+        pass
     # If filtering by date resulted in no rows, retry date-scoped picks_raw_<date>.csv
     if (picks is None) or (isinstance(picks, pd.DataFrame) and picks.empty):
         try:
@@ -26646,6 +27149,16 @@ def api_recommendations():
                         except Exception:
                             out_m['pred_margin'] = None
                         out_m['rec_type'] = 'Spread'; out_m['rec_code'] = 'ATS'
+                        # Skip clearly-broken ATS artifacts (all ~0 lines and ~0 margins)
+                        try:
+                            ln_chk = pd.to_numeric(out_m.get('line'), errors='coerce')
+                            pm_chk = pd.to_numeric(out_m.get('pred_margin'), errors='coerce')
+                            frac_ln0 = float((ln_chk.abs() < 0.05).mean()) if len(ln_chk) else 0.0
+                            frac_pm0 = float((pm_chk.abs() < 0.05).mean()) if len(pm_chk) else 0.0
+                            if (frac_ln0 >= 0.85) and (frac_pm0 >= 0.85):
+                                out_m = pd.DataFrame()
+                        except Exception:
+                            pass
                         # Append and drop duplicates by game/line/market when possible
                         base_df = df.copy()
                         # Ensure market label
@@ -32932,7 +33445,22 @@ def api_display_predictions():
                         # Fall back to commence_time/start_time/display_time_str if ISO missing.
                         ts = item.get('commence_time') or item.get('start_time') or item.get('display_time_str')
                         if not _is_missing_str(ts):
-                            dt_utc = pd.to_datetime(str(ts).replace('Z', '+00:00'), errors='coerce', utc=True)
+                            ts_s = str(ts).strip()
+                            # If the timestamp has an explicit offset/Z, treat it as UTC-aware.
+                            has_tz = bool(re.search(r'(Z|[+-]\d{2}:?\d{2})$', ts_s)) or ('+00:00' in ts_s)
+                            if has_tz:
+                                dt_utc = pd.to_datetime(ts_s.replace('Z', '+00:00'), errors='coerce', utc=True)
+                            else:
+                                # Otherwise, interpret as local time in the active display tz.
+                                # This avoids misinterpreting naive local strings as UTC (which can collapse
+                                # many games to the same noon-ish time).
+                                d_naive = pd.to_datetime(ts_s, errors='coerce')
+                                if pd.notna(d_naive):
+                                    try:
+                                        d_loc = d_naive.to_pydatetime().replace(tzinfo=tzinfo)
+                                        dt_utc = pd.to_datetime(d_loc.astimezone(dt.timezone.utc), utc=True)
+                                    except Exception:
+                                        dt_utc = pd.to_datetime(d_naive, errors='coerce', utc=True)
                 except Exception:
                     dt_utc = None
 

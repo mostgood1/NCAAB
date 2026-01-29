@@ -1296,6 +1296,11 @@
             {% set away_disp = away_header or r.away_team or 'Away' %}
             {% set mt = (r.market_total if (r.market_total is defined and r.market_total is not none and r.market_total == r.market_total) else (r.closing_total if (r.closing_total is defined and r.closing_total is not none and r.closing_total == r.closing_total) else None)) %}
             {% set spr = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else None)) %}
+            {# Normalize negative-zero/near-zero artifact for display #}
+            {% if spr is not none %}
+              {% set spr_num = spr|float %}
+              {% if spr_num > -0.05 and spr_num < 0.05 %}{% set spr = 0.0 %}{% else %}{% set spr = spr_num %}{% endif %}
+            {% endif %}
             {% set mlh = (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else None) %}
             {% set mla = (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else None) %}
 

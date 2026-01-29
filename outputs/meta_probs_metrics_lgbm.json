@@ -5,6 +5,7 @@
   },
   "features_used": [
     "edge_total",
+    "edge_total_1h",
     "edge_total_agg",
     "edge_total_agg.1",
     "edge_total_agg.10",
@@ -113,7 +114,7 @@
   ],
   "over": {
     "auc": null,
-    "rows": 5332
+    "rows": 5428
   },
-  "rows_total": 5332
+  "rows_total": 5428
 }

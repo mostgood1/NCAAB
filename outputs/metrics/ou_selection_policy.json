@@ -6,10 +6,10 @@
       "tau": 2,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 247,
-      "accuracy": 0.4534412955465587,
+      "n": 248,
+      "accuracy": 0.45564516129032256,
       "over_count": 144,
-      "under_count": 103
+      "under_count": 104
     },
     {
       "tau": 2,
@@ -735,10 +735,10 @@
       "tau": 3,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 208,
-      "accuracy": 0.4519230769230769,
+      "n": 209,
+      "accuracy": 0.45454545454545453,
       "over_count": 128,
-      "under_count": 80
+      "under_count": 81
     },
     {
       "tau": 3,
@@ -1464,10 +1464,10 @@
       "tau": 4,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 179,
-      "accuracy": 0.441340782122905,
+      "n": 180,
+      "accuracy": 0.4444444444444444,
       "over_count": 111,
-      "under_count": 68
+      "under_count": 69
     },
     {
       "tau": 4,
@@ -2193,10 +2193,10 @@
       "tau": 5,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 177,
-      "accuracy": 0.4406779661016949,
+      "n": 178,
+      "accuracy": 0.4438202247191011,
       "over_count": 110,
-      "under_count": 67
+      "under_count": 68
     },
     {
       "tau": 5,
@@ -2922,10 +2922,10 @@
       "tau": 6,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 158,
-      "accuracy": 0.4240506329113924,
+      "n": 159,
+      "accuracy": 0.4276729559748428,
       "over_count": 100,
-      "under_count": 58
+      "under_count": 59
     },
     {
       "tau": 6,
@@ -3651,10 +3651,10 @@
       "tau": 8,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 146,
-      "accuracy": 0.4452054794520548,
+      "n": 147,
+      "accuracy": 0.4489795918367347,
       "over_count": 100,
-      "under_count": 46
+      "under_count": 47
     },
     {
       "tau": 8,
@@ -4380,10 +4380,10 @@
       "tau": 10,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 135,
-      "accuracy": 0.45185185185185184,
+      "n": 136,
+      "accuracy": 0.45588235294117646,
       "over_count": 99,
-      "under_count": 36
+      "under_count": 37
     },
     {
       "tau": 10,
@@ -5109,10 +5109,10 @@
       "tau": 12,
       "sigma_max": 0,
       "pmin": 0.0,
-      "n": 132,
-      "accuracy": 0.4621212121212121,
+      "n": 133,
+      "accuracy": 0.46616541353383456,
       "over_count": 98,
-      "under_count": 34
+      "under_count": 35
     },
     {
       "tau": 12,
@@ -9489,5 +9489,5 @@
     "over_count": 64,
     "under_count": 18
   },
-  "generated_at": "2026-01-28T22:39:13.124245Z"
+  "generated_at": "2026-01-29T14:13:47.345179Z"
 }
