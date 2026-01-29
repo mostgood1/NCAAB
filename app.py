@@ -654,7 +654,318 @@ try:
     if isinstance(app, Flask):
         from flask import render_template
 
-        def accuracy_page():
+        def _list_dates_from_outputs(prefix: str) -> set[str]:
+            try:
+                import re as _re
+                root = Path(os.getcwd()) / 'outputs'
+                pat = _re.compile(r'^' + _re.escape(prefix) + r'_(\d{4}-\d{2}-\d{2})\.(csv|json)$')
+                out: set[str] = set()
+                for p in root.glob(f"{prefix}_*"):
+                    m = pat.match(p.name)
+                    if m:
+                        out.add(m.group(1))
+                return out
+            except Exception:
+                return set()
+
+        def _read_csv_outputs(rel_parts: list[str]) -> pd.DataFrame:
+            try:
+                p = Path(os.getcwd()).joinpath(*rel_parts)
+                if not p.exists():
+                    return pd.DataFrame()
+                return pd.read_csv(p)
+            except Exception:
+                return pd.DataFrame()
+
+        def _pick_first_col(df: pd.DataFrame, candidates: list[str]) -> tuple[pd.Series, str | None]:
+            for c in candidates:
+                if c in df.columns:
+                    s = pd.to_numeric(df[c], errors='coerce')
+                    if s.notna().any():
+                        return s, c
+            return pd.Series([np.nan] * len(df)), None
+
+        def _accuracy_from_pred_and_line(pred: pd.Series, line: pd.Series) -> pd.Series:
+            try:
+                return np.sign(pd.to_numeric(pred, errors='coerce') + pd.to_numeric(line, errors='coerce'))
+            except Exception:
+                return pd.Series([np.nan] * len(pred))
+
+        def _ou_sign(pred_total: pd.Series, market_total: pd.Series) -> pd.Series:
+            try:
+                return np.sign(pd.to_numeric(pred_total, errors='coerce') - pd.to_numeric(market_total, errors='coerce'))
+            except Exception:
+                return pd.Series([np.nan] * len(pred_total))
+
+        def _compute_accuracy_recap_for_date(date_str: str) -> dict[str, Any] | None:
+            try:
+                sim = _read_csv_outputs(["outputs", f"sim_quantiles_{date_str}.csv"])
+                res = _read_csv_outputs(["outputs", "daily_results", f"results_{date_str}.csv"])
+                if sim.empty or res.empty:
+                    return None
+
+                # Normalize keys
+                sim = sim.copy()
+                res = res.copy()
+                sim['game_id'] = pd.to_numeric(sim.get('game_id'), errors='coerce')
+                res['game_id'] = pd.to_numeric(res.get('game_id'), errors='coerce')
+                merged = pd.merge(sim, res, on='game_id', how='inner', suffixes=('', '_res'))
+                if merged.empty:
+                    return None
+
+                # Actuals
+                hs = pd.to_numeric(merged.get('home_score'), errors='coerce')
+                aw = pd.to_numeric(merged.get('away_score'), errors='coerce')
+                actual_margin = hs - aw
+                actual_total = hs + aw
+
+                hs1 = pd.to_numeric(merged.get('home_score_1h'), errors='coerce')
+                aw1 = pd.to_numeric(merged.get('away_score_1h'), errors='coerce')
+                actual_margin_1h = hs1 - aw1
+                actual_total_1h = hs1 + aw1
+
+                # Only evaluate games with real finals/halves
+                final_mask = actual_total.notna() & (actual_total > 0)
+                half_mask = actual_total_1h.notna() & (actual_total_1h > 0)
+
+                pred_margin_full, pred_margin_full_src = _pick_first_col(merged, ['q50_margin', 'mu_margin', 'mean_margin_selected', 'mean_margin_after_overrides_calib'])
+                pred_total_full, pred_total_full_src = _pick_first_col(merged, ['q50_total', 'mu_total', 'mean_total_selected', 'mean_total_after_overrides_calib'])
+                pred_margin_1h, pred_margin_1h_src = _pick_first_col(merged, ['q50_margin_1h', 'mu_margin_1h'])
+                pred_total_1h, pred_total_1h_src = _pick_first_col(merged, ['q50_total_1h', 'mu_total_1h'])
+
+                spread_full = pd.to_numeric(merged.get('spread_home'), errors='coerce')
+                total_full = pd.to_numeric(merged.get('market_total'), errors='coerce')
+                spread_1h = pd.to_numeric(merged.get('spread_home_1h'), errors='coerce')
+                total_1h = pd.to_numeric(merged.get('market_total_1h'), errors='coerce')
+
+                # Winners (full)
+                w_mask = final_mask & pred_margin_full.notna() & actual_margin.notna() & (actual_margin != 0)
+                w_acc = float(((pred_margin_full > 0) == (actual_margin > 0)).mean()) if w_mask.any() else None
+                w_n = int(w_mask.sum())
+
+                # Winners (1H)
+                w1_mask = half_mask & pred_margin_1h.notna() & actual_margin_1h.notna() & (actual_margin_1h != 0)
+                w1_acc = float(((pred_margin_1h > 0) == (actual_margin_1h > 0)).mean()) if w1_mask.any() else None
+                w1_n = int(w1_mask.sum())
+
+                # ATS (full)
+                ats_mask = final_mask & pred_margin_full.notna() & spread_full.notna() & actual_margin.notna()
+                pred_cover = _accuracy_from_pred_and_line(pred_margin_full, spread_full)
+                act_cover = _accuracy_from_pred_and_line(actual_margin, spread_full)
+                ats_mask = ats_mask & pred_cover.notna() & act_cover.notna() & (pred_cover != 0) & (act_cover != 0)
+                ats_acc = float((pred_cover[ats_mask] == act_cover[ats_mask]).mean()) if ats_mask.any() else None
+                ats_n = int(ats_mask.sum())
+
+                # ATS (1H)
+                ats1_mask = half_mask & pred_margin_1h.notna() & spread_1h.notna() & actual_margin_1h.notna()
+                pred_cover_1h = _accuracy_from_pred_and_line(pred_margin_1h, spread_1h)
+                act_cover_1h = _accuracy_from_pred_and_line(actual_margin_1h, spread_1h)
+                ats1_mask = ats1_mask & pred_cover_1h.notna() & act_cover_1h.notna() & (pred_cover_1h != 0) & (act_cover_1h != 0)
+                ats1_acc = float((pred_cover_1h[ats1_mask] == act_cover_1h[ats1_mask]).mean()) if ats1_mask.any() else None
+                ats1_n = int(ats1_mask.sum())
+
+                # Totals (full)
+                tot_mask = final_mask & pred_total_full.notna() & total_full.notna() & actual_total.notna()
+                pred_ou = _ou_sign(pred_total_full, total_full)
+                act_ou = _ou_sign(actual_total, total_full)
+                tot_mask = tot_mask & pred_ou.notna() & act_ou.notna() & (pred_ou != 0) & (act_ou != 0)
+                tot_acc = float((pred_ou[tot_mask] == act_ou[tot_mask]).mean()) if tot_mask.any() else None
+                tot_n = int(tot_mask.sum())
+
+                # Totals (1H)
+                tot1_mask = half_mask & pred_total_1h.notna() & total_1h.notna() & actual_total_1h.notna()
+                pred_ou_1h = _ou_sign(pred_total_1h, total_1h)
+                act_ou_1h = _ou_sign(actual_total_1h, total_1h)
+                tot1_mask = tot1_mask & pred_ou_1h.notna() & act_ou_1h.notna() & (pred_ou_1h != 0) & (act_ou_1h != 0)
+                tot1_acc = float((pred_ou_1h[tot1_mask] == act_ou_1h[tot1_mask]).mean()) if tot1_mask.any() else None
+                tot1_n = int(tot1_mask.sum())
+
+                return {
+                    'date': date_str,
+                    'winners_full': {'acc': w_acc, 'n': w_n},
+                    'winners_1h': {'acc': w1_acc, 'n': w1_n},
+                    'ats_full': {'acc': ats_acc, 'n': ats_n},
+                    'ats_1h': {'acc': ats1_acc, 'n': ats1_n},
+                    'totals_full': {'acc': tot_acc, 'n': tot_n},
+                    'totals_1h': {'acc': tot1_acc, 'n': tot1_n},
+                    'sources': {
+                        'pred_margin_full': pred_margin_full_src,
+                        'pred_total_full': pred_total_full_src,
+                        'pred_margin_1h': pred_margin_1h_src,
+                        'pred_total_1h': pred_total_1h_src,
+                    },
+                }
+            except Exception:
+                return None
+
+        def _compute_accuracy_recap_payload() -> dict[str, Any]:
+            sim_dates = _list_dates_from_outputs('sim_quantiles')
+            res_dates = _list_dates_from_outputs('results')  # note: results live under outputs/daily_results, so this is mostly empty
+            # results_<date>.csv are in outputs/daily_results
+            try:
+                import re as _re
+                root = Path(os.getcwd()) / 'outputs' / 'daily_results'
+                pat = _re.compile(r'^results_(\d{4}-\d{2}-\d{2})\.csv$')
+                res_dates2: set[str] = set()
+                for p in root.glob('results_*.csv'):
+                    m = pat.match(p.name)
+                    if m:
+                        res_dates2.add(m.group(1))
+                res_dates = res_dates2
+            except Exception:
+                res_dates = set()
+
+            dates = sorted(sim_dates & res_dates)
+            daily: list[dict[str, Any]] = []
+            for d in dates:
+                rec = _compute_accuracy_recap_for_date(d)
+                if rec:
+                    daily.append(rec)
+            daily_sorted = sorted(daily, key=lambda r: r.get('date', ''), reverse=True)
+
+            def _agg(key: str) -> dict[str, Any]:
+                num = 0.0
+                den = 0
+                for r in daily_sorted:
+                    obj = (r.get(key) or {})
+                    acc = obj.get('acc')
+                    n = obj.get('n')
+                    if acc is None or n is None:
+                        continue
+                    try:
+                        n_i = int(n)
+                        if n_i <= 0:
+                            continue
+                        num += float(acc) * n_i
+                        den += n_i
+                    except Exception:
+                        continue
+                return {'acc': (num / den) if den > 0 else None, 'n': den}
+
+            overall = {
+                'winners_full': _agg('winners_full'),
+                'winners_1h': _agg('winners_1h'),
+                'ats_full': _agg('ats_full'),
+                'ats_1h': _agg('ats_1h'),
+                'totals_full': _agg('totals_full'),
+                'totals_1h': _agg('totals_1h'),
+            }
+            return {'overall': overall, 'daily': daily_sorted, 'dates': dates}
+
+        def api_accuracy_recap_table():
+            return _compute_accuracy_recap_payload()
+        if 'api_accuracy_recap_table' not in app.view_functions:
+            app.add_url_rule('/api/accuracy-recap-table', endpoint='api_accuracy_recap_table', view_func=api_accuracy_recap_table)
+
+        def accuracy_recap_page():
+            payload = _compute_accuracy_recap_payload()
+            return render_template('accuracy_recap.html', payload=payload)
+
+        def _compute_interval_accuracy_payload() -> dict[str, Any]:
+            # Use predictions_model_interval_<date>.csv + daily_results/results_<date>.csv
+            try:
+                import re as _re
+                root_out = Path(os.getcwd()) / 'outputs'
+                pat = _re.compile(r'^predictions_model_interval_(\d{4}-\d{2}-\d{2})\.csv$')
+                pred_dates: set[str] = set()
+                for p in root_out.glob('predictions_model_interval_*.csv'):
+                    m = pat.match(p.name)
+                    if m:
+                        pred_dates.add(m.group(1))
+                root_res = root_out / 'daily_results'
+                pat2 = _re.compile(r'^results_(\d{4}-\d{2}-\d{2})\.csv$')
+                res_dates: set[str] = set()
+                for p in root_res.glob('results_*.csv'):
+                    m = pat2.match(p.name)
+                    if m:
+                        res_dates.add(m.group(1))
+                dates = sorted(pred_dates & res_dates)
+            except Exception:
+                dates = []
+
+            daily_rows: list[dict[str, Any]] = []
+            for d in dates:
+                pred = _read_csv_outputs(["outputs", f"predictions_model_interval_{d}.csv"])
+                res = _read_csv_outputs(["outputs", "daily_results", f"results_{d}.csv"])
+                if pred.empty or res.empty:
+                    continue
+                try:
+                    pred = pred.copy()
+                    res = res.copy()
+                    pred['game_id'] = pd.to_numeric(pred.get('game_id'), errors='coerce')
+                    res['game_id'] = pd.to_numeric(res.get('game_id'), errors='coerce')
+                    m = pd.merge(pred, res, on='game_id', how='inner')
+                    if m.empty:
+                        continue
+                    hs = pd.to_numeric(m.get('home_score'), errors='coerce')
+                    aw = pd.to_numeric(m.get('away_score'), errors='coerce')
+                    actual_margin = hs - aw
+                    actual_total = hs + aw
+                    final_mask = actual_total.notna() & (actual_total > 0)
+
+                    def _cov(low_c: str, high_c: str, actual_s: pd.Series) -> tuple[float | None, int]:
+                        low = pd.to_numeric(m.get(low_c), errors='coerce')
+                        high = pd.to_numeric(m.get(high_c), errors='coerce')
+                        mask = final_mask & low.notna() & high.notna() & actual_s.notna()
+                        if not mask.any():
+                            return None, 0
+                        inside = (actual_s[mask] >= low[mask]) & (actual_s[mask] <= high[mask])
+                        return float(inside.mean()), int(mask.sum())
+
+                    tot75, n_tot75 = _cov('pred_total_ci75_low', 'pred_total_ci75_high', actual_total)
+                    tot90, n_tot90 = _cov('pred_total_ci90_low', 'pred_total_ci90_high', actual_total)
+                    mar75, n_mar75 = _cov('pred_margin_ci75_low', 'pred_margin_ci75_high', actual_margin)
+                    mar90, n_mar90 = _cov('pred_margin_ci90_low', 'pred_margin_ci90_high', actual_margin)
+                    daily_rows.append({
+                        'date': d,
+                        'total_ci75': {'cov': tot75, 'n': n_tot75},
+                        'total_ci90': {'cov': tot90, 'n': n_tot90},
+                        'margin_ci75': {'cov': mar75, 'n': n_mar75},
+                        'margin_ci90': {'cov': mar90, 'n': n_mar90},
+                    })
+                except Exception:
+                    continue
+            daily_rows = sorted(daily_rows, key=lambda r: r.get('date', ''), reverse=True)
+
+            def _agg_cov(key: str) -> dict[str, Any]:
+                num = 0.0
+                den = 0
+                for r in daily_rows:
+                    obj = (r.get(key) or {})
+                    cov = obj.get('cov')
+                    n = obj.get('n')
+                    if cov is None or n is None:
+                        continue
+                    try:
+                        n_i = int(n)
+                        if n_i <= 0:
+                            continue
+                        num += float(cov) * n_i
+                        den += n_i
+                    except Exception:
+                        continue
+                return {'cov': (num / den) if den > 0 else None, 'n': den}
+
+            overall = {
+                'total_ci75': _agg_cov('total_ci75'),
+                'total_ci90': _agg_cov('total_ci90'),
+                'margin_ci75': _agg_cov('margin_ci75'),
+                'margin_ci90': _agg_cov('margin_ci90'),
+            }
+            return {'overall': overall, 'daily': daily_rows}
+
+        def api_interval_accuracy():
+            return _compute_interval_accuracy_payload()
+        if 'api_interval_accuracy' not in app.view_functions:
+            app.add_url_rule('/api/interval-accuracy', endpoint='api_interval_accuracy', view_func=api_interval_accuracy)
+
+        def interval_accuracy_page():
+            payload = _compute_interval_accuracy_payload()
+            return render_template('interval_accuracy.html', payload=payload)
+        if 'interval_accuracy_page' not in app.view_functions:
+            app.add_url_rule('/interval-accuracy', endpoint='interval_accuracy_page', view_func=interval_accuracy_page)
+
+        def accuracy_market_page():
             # Prefer snapshot-first: load persisted JSON if present
             payload = None
             try:
@@ -693,8 +1004,18 @@ try:
             except Exception:
                 team_sorted = team_items
             return render_template('accuracy.html', payload=payload, daily_sorted=daily_sorted, conf_sorted=conf_sorted, team_sorted=team_sorted)
-        if 'accuracy_page' not in app.view_functions:
-            app.add_url_rule('/accuracy', endpoint='accuracy_page', view_func=accuracy_page)
+
+        # New spec: /accuracy becomes the recap table page.
+        if 'accuracy_page' in app.view_functions:
+            try:
+                # If previously registered, leave it alone.
+                pass
+            except Exception:
+                pass
+        if 'accuracy_recap_page' not in app.view_functions:
+            app.add_url_rule('/accuracy', endpoint='accuracy_recap_page', view_func=accuracy_recap_page)
+        if 'accuracy_market_page' not in app.view_functions:
+            app.add_url_rule('/accuracy-market', endpoint='accuracy_market_page', view_func=accuracy_market_page)
 except Exception:
     pass
 def _safe_nanmean(x):
@@ -30571,6 +30892,361 @@ def api_scoring():
         return jsonify(payload)
     except Exception as e:
         return jsonify({"status": "error", "date": date_q, "message": str(e)}), 500
+
+
+@app.route("/api/recap")
+@app.route("/api/accuracy-recap")
+def api_accuracy_recap():
+    """Accuracy recap across sim engine components (model/sim/blend).
+
+    Returns:
+      - Per-day metrics for each component
+      - All-up aggregate across components
+      - Weekly aggregate (same as the requested window)
+
+    Query params:
+      - days: integer window ending at `end` (default 7)
+      - end: YYYY-MM-DD (default: latest date with daily_results, else today)
+      - start: YYYY-MM-DD (optional; overrides days/end)
+      - components: comma list in {model,sim,blend} (default all)
+    """
+
+    def _parse_date(s: str) -> dt.date | None:
+        try:
+            d = pd.to_datetime(str(s).strip(), errors='coerce')
+            if pd.isna(d):
+                return None
+            return d.date()
+        except Exception:
+            return None
+
+    def _list_results_dates() -> list[str]:
+        out = []
+        try:
+            daily_dir = OUT / 'daily_results'
+            if daily_dir.exists():
+                import re as _re
+                pat = _re.compile(r'^results_(\d{4}-\d{2}-\d{2})\.csv$')
+                for p in daily_dir.glob('results_*.csv'):
+                    m = pat.match(p.name)
+                    if m:
+                        out.append(m.group(1))
+        except Exception:
+            pass
+        return sorted(set(out))
+
+    # Resolve component set
+    comp_q = (request.args.get('components') or '').strip().lower()
+    if comp_q:
+        comps = [c.strip() for c in comp_q.split(',') if c.strip()]
+    else:
+        comps = ['model', 'sim', 'blend']
+    comps = [c for c in comps if c in ('model', 'sim', 'blend')]
+    if not comps:
+        comps = ['model', 'sim', 'blend']
+
+    # Resolve date window
+    start_q = (request.args.get('start') or '').strip()
+    end_q = (request.args.get('end') or '').strip()
+    days_q = (request.args.get('days') or '').strip()
+    days = 7
+    try:
+        if days_q:
+            days = max(1, int(float(days_q)))
+    except Exception:
+        days = 7
+
+    start_d = _parse_date(start_q) if start_q else None
+    end_d = _parse_date(end_q) if end_q else None
+
+    # Default end date: latest with results, else today (UTC)
+    res_dates = _list_results_dates()
+    if end_d is None:
+        if res_dates:
+            end_d = _parse_date(res_dates[-1])
+        if end_d is None:
+            try:
+                end_d = dt.datetime.utcnow().date()
+            except Exception:
+                end_d = dt.datetime.now().date()
+
+    if start_d is None:
+        start_d = end_d - dt.timedelta(days=days - 1)
+
+    # Build date list inclusive
+    dates: list[str] = []
+    try:
+        cur = start_d
+        while cur <= end_d:
+            dates.append(cur.isoformat())
+            cur = cur + dt.timedelta(days=1)
+    except Exception:
+        dates = [start_d.isoformat()]
+
+    def _norm_gid(v: Any) -> str:
+        try:
+            return str(v or '').strip().replace('.0', '')
+        except Exception:
+            return str(v or '').strip()
+
+    def _read_pred_like(path: Path) -> pd.DataFrame:
+        try:
+            return _safe_read_csv(path) if path.exists() else pd.DataFrame()
+        except Exception:
+            return pd.DataFrame()
+
+    def _load_components_df(date_s: str, base_ids: pd.DataFrame) -> pd.DataFrame:
+        """Return DF keyed by game_id with component predictions."""
+        dfc = base_ids.copy()
+        try:
+            dfc['game_id'] = dfc['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+        except Exception:
+            pass
+
+        # MODEL (calibrated model predictions)
+        mp = OUT / f"predictions_model_calibrated_{date_s}.csv"
+        mdf = _read_pred_like(mp)
+        if isinstance(mdf, pd.DataFrame) and not mdf.empty and 'game_id' in mdf.columns:
+            try:
+                mdf = mdf.copy()
+                mdf['game_id'] = mdf['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                mt = pd.to_numeric(mdf.get('pred_total_calibrated') if 'pred_total_calibrated' in mdf.columns else mdf.get('pred_total_model'), errors='coerce')
+                mm = pd.to_numeric(mdf.get('pred_margin_calibrated') if 'pred_margin_calibrated' in mdf.columns else mdf.get('pred_margin_model'), errors='coerce')
+                j = pd.DataFrame({'game_id': mdf['game_id'], 'pred_total_model': mt, 'pred_margin_model': mm}).drop_duplicates('game_id')
+                dfc = dfc.merge(j, on='game_id', how='left')
+            except Exception:
+                pass
+
+        # SIM (q50 or mu)
+        sp = OUT / f"sim_quantiles_{date_s}.csv"
+        sdf = _read_pred_like(sp)
+        if isinstance(sdf, pd.DataFrame) and not sdf.empty and 'game_id' in sdf.columns:
+            try:
+                sdf = sdf.copy()
+                sdf['game_id'] = sdf['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                st = pd.to_numeric(sdf.get('q50_total') if 'q50_total' in sdf.columns else sdf.get('mu_total'), errors='coerce')
+                sm = pd.to_numeric(sdf.get('q50_margin') if 'q50_margin' in sdf.columns else sdf.get('mu_margin'), errors='coerce')
+                j = pd.DataFrame({'game_id': sdf['game_id'], 'pred_total_sim': st, 'pred_margin_sim': sm}).drop_duplicates('game_id')
+                dfc = dfc.merge(j, on='game_id', how='left')
+            except Exception:
+                pass
+
+        # BLEND (prefer unified enriched, else predictions_<date>)
+        bp = OUT / f"predictions_unified_enriched_{date_s}.csv"
+        bdf = _read_pred_like(bp)
+        if isinstance(bdf, pd.DataFrame) and not bdf.empty and 'game_id' in bdf.columns and (
+            'pred_total_blend' in bdf.columns or 'pred_margin_blend' in bdf.columns
+        ):
+            try:
+                bdf = bdf.copy()
+                bdf['game_id'] = bdf['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                bt = pd.to_numeric(bdf.get('pred_total_blend') if 'pred_total_blend' in bdf.columns else bdf.get('pred_total'), errors='coerce')
+                bm = pd.to_numeric(bdf.get('pred_margin_blend') if 'pred_margin_blend' in bdf.columns else bdf.get('pred_margin'), errors='coerce')
+                j = pd.DataFrame({'game_id': bdf['game_id'], 'pred_total_blend': bt, 'pred_margin_blend': bm}).drop_duplicates('game_id')
+                dfc = dfc.merge(j, on='game_id', how='left')
+            except Exception:
+                pass
+        else:
+            bp2 = OUT / f"predictions_{date_s}.csv"
+            bdf2 = _read_pred_like(bp2)
+            if isinstance(bdf2, pd.DataFrame) and not bdf2.empty and 'game_id' in bdf2.columns:
+                try:
+                    bdf2 = bdf2.copy()
+                    bdf2['game_id'] = bdf2['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    bt = pd.to_numeric(bdf2.get('pred_total_blend') if 'pred_total_blend' in bdf2.columns else bdf2.get('pred_total'), errors='coerce')
+                    bm = pd.to_numeric(bdf2.get('pred_margin_blend') if 'pred_margin_blend' in bdf2.columns else bdf2.get('pred_margin'), errors='coerce')
+                    j = pd.DataFrame({'game_id': bdf2['game_id'], 'pred_total_blend': bt, 'pred_margin_blend': bm}).drop_duplicates('game_id')
+                    dfc = dfc.merge(j, on='game_id', how='left')
+                except Exception:
+                    pass
+
+        return dfc
+
+    def _metrics(y_true: pd.Series, y_pred: pd.Series) -> dict[str, Any]:
+        yt = pd.to_numeric(y_true, errors='coerce')
+        yp = pd.to_numeric(y_pred, errors='coerce')
+        m = yt.notna() & yp.notna()
+        yt = yt[m]
+        yp = yp[m]
+        n = int(len(yt))
+        if n == 0:
+            return {'n': 0, 'mae': None, 'rmse': None, 'bias': None}
+        err = (yp - yt).astype(float)
+        mae = float(np.mean(np.abs(err)))
+        rmse = float(np.sqrt(np.mean(err * err)))
+        bias = float(np.mean(err))
+        return {'n': n, 'mae': mae, 'rmse': rmse, 'bias': bias}
+
+    def _winner_acc(actual_margin: pd.Series, pred_margin: pd.Series) -> dict[str, Any]:
+        a = pd.to_numeric(actual_margin, errors='coerce')
+        p = pd.to_numeric(pred_margin, errors='coerce')
+        m = a.notna() & p.notna()
+        a = a[m]
+        p = p[m]
+        if len(a) == 0:
+            return {'n': 0, 'acc': None}
+        # Ignore true ties (rare)
+        mt = (a != 0)
+        a = a[mt]
+        p = p[mt]
+        if len(a) == 0:
+            return {'n': 0, 'acc': None}
+        acc = float(((a > 0) == (p > 0)).mean())
+        return {'n': int(len(a)), 'acc': acc}
+
+    per_day: list[dict[str, Any]] = []
+    # For weekly aggregates we stack per-component rows
+    weekly_stack_total = []
+    weekly_stack_margin = []
+
+    for ds in dates:
+        # Load daily results for actuals
+        dr = _load_daily_results_for(ds)
+        if not isinstance(dr, pd.DataFrame) or dr.empty or 'game_id' not in dr.columns:
+            per_day.append({'date': ds, 'ok': False, 'reason': 'missing daily_results', 'components': {}, 'all_up': {}})
+            continue
+        try:
+            dr = dr.copy()
+            dr['game_id'] = dr['game_id'].apply(_norm_gid)
+        except Exception:
+            pass
+
+        # Prefer finalized games when status exists
+        try:
+            if 'status' in dr.columns:
+                st = dr['status'].astype(str).str.lower()
+                is_final = st.str.contains('final')
+                if is_final.any():
+                    dr = dr[is_final].copy()
+        except Exception:
+            pass
+
+        # Need actual_total + actual_margin
+        if 'actual_total' not in dr.columns or 'actual_margin' not in dr.columns:
+            # Compute when possible
+            try:
+                hs = pd.to_numeric(dr.get('home_score'), errors='coerce')
+                as_ = pd.to_numeric(dr.get('away_score'), errors='coerce')
+                if 'actual_total' not in dr.columns:
+                    dr['actual_total'] = hs + as_
+                if 'actual_margin' not in dr.columns:
+                    dr['actual_margin'] = hs - as_
+            except Exception:
+                pass
+
+        base_ids = dr[['game_id']].drop_duplicates('game_id').copy()
+        dfc = _load_components_df(ds, base_ids)
+        # Join actuals
+        try:
+            act = dr[['game_id', 'actual_total', 'actual_margin']].drop_duplicates('game_id').copy()
+            dfc = dfc.merge(act, on='game_id', how='left')
+        except Exception:
+            pass
+
+        day_out: dict[str, Any] = {'date': ds, 'ok': True, 'components': {}, 'all_up': {}}
+        # Per component
+        for c in comps:
+            if c == 'model':
+                pt = dfc.get('pred_total_model')
+                pm = dfc.get('pred_margin_model')
+            elif c == 'sim':
+                pt = dfc.get('pred_total_sim')
+                pm = dfc.get('pred_margin_sim')
+            else:
+                pt = dfc.get('pred_total_blend')
+                pm = dfc.get('pred_margin_blend')
+            if pt is None and pm is None:
+                continue
+            tot_m = _metrics(dfc.get('actual_total'), pt)
+            mar_m = _metrics(dfc.get('actual_margin'), pm)
+            win_m = _winner_acc(dfc.get('actual_margin'), pm)
+            day_out['components'][c] = {
+                'totals': tot_m,
+                'margins': mar_m,
+                'winner': win_m,
+            }
+            # stack for weekly aggregate
+            try:
+                tmp = pd.DataFrame({'pred_total': pt, 'pred_margin': pm, 'actual_total': dfc.get('actual_total'), 'actual_margin': dfc.get('actual_margin')})
+                tmp['component'] = c
+                weekly_stack_total.append(tmp[['component', 'pred_total', 'actual_total']])
+                weekly_stack_margin.append(tmp[['component', 'pred_margin', 'actual_margin']])
+            except Exception:
+                pass
+
+        # All-up aggregate across components: stack predictions from selected comps
+        try:
+            stack_t = []
+            stack_m = []
+            for c in comps:
+                if c == 'model':
+                    pt = dfc.get('pred_total_model'); pm = dfc.get('pred_margin_model')
+                elif c == 'sim':
+                    pt = dfc.get('pred_total_sim'); pm = dfc.get('pred_margin_sim')
+                else:
+                    pt = dfc.get('pred_total_blend'); pm = dfc.get('pred_margin_blend')
+                if pt is not None:
+                    stack_t.append(pd.DataFrame({'actual_total': dfc.get('actual_total'), 'pred_total': pt}))
+                if pm is not None:
+                    stack_m.append(pd.DataFrame({'actual_margin': dfc.get('actual_margin'), 'pred_margin': pm}))
+            if stack_t:
+                st = pd.concat(stack_t, ignore_index=True)
+                day_out['all_up']['totals'] = _metrics(st['actual_total'], st['pred_total'])
+            if stack_m:
+                sm = pd.concat(stack_m, ignore_index=True)
+                day_out['all_up']['margins'] = _metrics(sm['actual_margin'], sm['pred_margin'])
+                day_out['all_up']['winner'] = _winner_acc(sm['actual_margin'], sm['pred_margin'])
+        except Exception:
+            pass
+
+        per_day.append(day_out)
+
+    # Weekly aggregate across window
+    weekly: dict[str, Any] = {'components': {}, 'all_up': {}}
+    try:
+        if weekly_stack_total:
+            wk_t = pd.concat(weekly_stack_total, ignore_index=True)
+        else:
+            wk_t = pd.DataFrame()
+        if weekly_stack_margin:
+            wk_m = pd.concat(weekly_stack_margin, ignore_index=True)
+        else:
+            wk_m = pd.DataFrame()
+        for c in comps:
+            if not wk_t.empty:
+                mt = wk_t[wk_t['component'] == c]
+                totals = _metrics(mt['actual_total'], mt['pred_total'])
+            else:
+                totals = {'n': 0, 'mae': None, 'rmse': None, 'bias': None}
+            if not wk_m.empty:
+                mm = wk_m[wk_m['component'] == c]
+                margins = _metrics(mm['actual_margin'], mm['pred_margin'])
+                winner = _winner_acc(mm['actual_margin'], mm['pred_margin'])
+            else:
+                margins = {'n': 0, 'mae': None, 'rmse': None, 'bias': None}
+                winner = {'n': 0, 'acc': None}
+            weekly['components'][c] = {'totals': totals, 'margins': margins, 'winner': winner}
+
+        # all-up
+        if not wk_t.empty:
+            weekly['all_up']['totals'] = _metrics(wk_t['actual_total'], wk_t['pred_total'])
+        if not wk_m.empty:
+            weekly['all_up']['margins'] = _metrics(wk_m['actual_margin'], wk_m['pred_margin'])
+            weekly['all_up']['winner'] = _winner_acc(wk_m['actual_margin'], wk_m['pred_margin'])
+    except Exception:
+        pass
+
+    return jsonify({
+        'ok': True,
+        'meta': {
+            'start': start_d.isoformat() if start_d else None,
+            'end': end_d.isoformat() if end_d else None,
+            'days': int(len(dates)),
+            'components': comps,
+        },
+        'per_day': per_day,
+        'weekly': weekly,
+    })
 
 
 @app.route("/api/finalize-day", methods=["GET","POST"])

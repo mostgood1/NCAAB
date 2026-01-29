@@ -1,5 +1,5 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401809345,2026,2026-01-29,2026-01-29 22:00:00+00:00,2026-01-29 17:00,EST,Furman Paladins,Samford Bulldogs,0,0,,,,,False,Timmons Arena
+401809345,2026,2026-01-29,2026-01-29 22:00:00+00:00,2026-01-29 17:00,EST,Furman Paladins,Samford Bulldogs,17,19,17.0,19.0,,,False,Timmons Arena
 401812136,2026,2026-01-29,2026-01-29 23:00:00+00:00,2026-01-29 18:00,EST,New Hampshire Wildcats,UMass Lowell River Hawks,0,0,,,,,False,Lundholm Gymnasium
 401812134,2026,2026-01-29,2026-01-29 23:00:00+00:00,2026-01-29 18:00,EST,Binghamton Bearcats,Bryant Bulldogs,0,0,,,,,False,Events Center (Binghamton)
 401809343,2026,2026-01-29,2026-01-29 23:00:00+00:00,2026-01-29 18:00,EST,Chattanooga Mocs,Wofford Terriers,0,0,,,,,False,McKenzie Arena
