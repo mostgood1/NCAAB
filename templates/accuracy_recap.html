@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB – Accuracy</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <style>
+    .nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .mono{font-variant-numeric:tabular-nums;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>NCAAB – Accuracy</h1>
+      <div class="spacer"></div>
+      <div class="nav">
+        <a class="pill" href="/">Cards</a>
+        <a class="pill" href="/interval-accuracy">Interval Accuracy</a>
+        <a class="pill" href="/accuracy-market" title="Old breakdown page">Market Breakdown</a>
+        <a class="pill" href="/api/accuracy-recap-table" title="JSON">JSON</a>
+      </div>
+    </div>
+
+    {% set overall = payload.overall or {} %}
+    <div class="card mb8">
+      <div class="title-sm">Season Aggregate</div>
+      <div class="muted m4v8">Weighted by game count (pushes excluded where applicable).</div>
+      <div class="recap-scroll">
+        <table class="table recap-table">
+          <thead>
+            <tr>
+              <th class="recap-th-left">Metric</th>
+              <th class="recap-th-right">1H</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">Full</th>
+              <th class="recap-th-right">N</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for label, k1, k2 in [
+              ('Winners', 'winners_1h', 'winners_full'),
+              ('ATS', 'ats_1h', 'ats_full'),
+              ('Totals', 'totals_1h', 'totals_full')
+            ] %}
+              {% set a1 = (overall.get(k1) or {}) %}
+              {% set a2 = (overall.get(k2) or {}) %}
+              <tr>
+                <td class="recap-td recap-th-left">{{ label }}</td>
+                <td class="recap-td recap-th-right mono">{% if a1.acc is not none %}{{ '%.1f' % (100.0 * a1.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ a1.n if a1.n is not none else '—' }}</td>
+                <td class="recap-td recap-th-right mono">{% if a2.acc is not none %}{{ '%.1f' % (100.0 * a2.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ a2.n if a2.n is not none else '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb8">
+      <div class="title-sm">Daily Accuracy</div>
+      <div class="muted m4v8">Winners, ATS, Totals for 1H + Full Game (one row per day).</div>
+      <div class="recap-scroll">
+        <table class="table recap-table">
+          <thead>
+            <tr>
+              <th class="recap-th-left">Date</th>
+              <th class="recap-th-right">Win 1H</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">Win Full</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">ATS 1H</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">ATS Full</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">OU 1H</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">OU Full</th>
+              <th class="recap-th-right">N</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in (payload.daily or []) %}
+              <tr>
+                <td class="recap-td recap-th-left mono">{{ r.date }}</td>
+
+                {% set w1 = r.winners_1h or {} %}
+                <td class="recap-td recap-th-right mono">{% if w1.acc is not none %}{{ '%.1f' % (100.0 * w1.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ w1.n if w1.n is not none else '—' }}</td>
+
+                {% set wf = r.winners_full or {} %}
+                <td class="recap-td recap-th-right mono">{% if wf.acc is not none %}{{ '%.1f' % (100.0 * wf.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ wf.n if wf.n is not none else '—' }}</td>
+
+                {% set a1 = r.ats_1h or {} %}
+                <td class="recap-td recap-th-right mono">{% if a1.acc is not none %}{{ '%.1f' % (100.0 * a1.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ a1.n if a1.n is not none else '—' }}</td>
+
+                {% set af = r.ats_full or {} %}
+                <td class="recap-td recap-th-right mono">{% if af.acc is not none %}{{ '%.1f' % (100.0 * af.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ af.n if af.n is not none else '—' }}</td>
+
+                {% set t1 = r.totals_1h or {} %}
+                <td class="recap-td recap-th-right mono">{% if t1.acc is not none %}{{ '%.1f' % (100.0 * t1.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ t1.n if t1.n is not none else '—' }}</td>
+
+                {% set tf = r.totals_full or {} %}
+                <td class="recap-td recap-th-right mono">{% if tf.acc is not none %}{{ '%.1f' % (100.0 * tf.acc) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ tf.n if tf.n is not none else '—' }}</td>
+              </tr>
+            {% endfor %}
+            {% if not (payload.daily or []) %}
+              <tr><td class="recap-td muted" colspan="13">No overlap found between sim quantiles and daily results.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

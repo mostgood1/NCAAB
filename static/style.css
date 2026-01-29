@@ -64,6 +64,12 @@ a{color:var(--accent)}
 .nav-links{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .nav-links a{color:var(--accent);text-decoration:none}
 .nav-links a:hover{text-decoration:underline}
+.w72{width:72px}
+.recap-scroll{overflow:auto;max-width:100%}
+.recap-table{width:100%;border-collapse:collapse}
+.recap-th-left{text-align:left;padding:6px 8px}
+.recap-th-right{text-align:right;padding:6px 8px}
+.recap-td{padding:6px 8px}
 /* Toast notifications */
 .toast{position:fixed;bottom:20px;right:20px;background:#152042;border:1px solid #2a3a63;padding:10px 14px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(12px);transition:all .25s ease;color:var(--text);z-index:9999}
 .toast.ok{background:#143d2a;border-color:#2d6a4f;color:#bff0cc}

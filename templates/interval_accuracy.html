@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB – Interval Accuracy</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <style>
+    .nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .mono{font-variant-numeric:tabular-nums;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="row header">
+      <h1>NCAAB – Interval Accuracy</h1>
+      <div class="spacer"></div>
+      <div class="nav">
+        <a class="pill" href="/">Cards</a>
+        <a class="pill" href="/accuracy">Accuracy</a>
+        <a class="pill" href="/api/interval-accuracy" title="JSON">JSON</a>
+      </div>
+    </div>
+
+    {% set overall = payload.overall or {} %}
+    <div class="card mb8">
+      <div class="title-sm">Season Coverage</div>
+      <div class="muted m4v8">Share of games where actual is inside the prediction interval.</div>
+      <div class="recap-scroll">
+        <table class="table recap-table">
+          <thead>
+            <tr>
+              <th class="recap-th-left">Metric</th>
+              <th class="recap-th-right">CI75</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">CI90</th>
+              <th class="recap-th-right">N</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for label, k75, k90 in [
+              ('Total', 'total_ci75', 'total_ci90'),
+              ('Margin', 'margin_ci75', 'margin_ci90')
+            ] %}
+              {% set a75 = (overall.get(k75) or {}) %}
+              {% set a90 = (overall.get(k90) or {}) %}
+              <tr>
+                <td class="recap-td recap-th-left">{{ label }}</td>
+                <td class="recap-td recap-th-right mono">{% if a75.cov is not none %}{{ '%.1f' % (100.0 * a75.cov) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ a75.n if a75.n is not none else '—' }}</td>
+                <td class="recap-td recap-th-right mono">{% if a90.cov is not none %}{{ '%.1f' % (100.0 * a90.cov) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ a90.n if a90.n is not none else '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb8">
+      <div class="title-sm">Daily Coverage</div>
+      <div class="muted m4v8">From outputs/predictions_model_interval_YYYY-MM-DD.csv.</div>
+      <div class="recap-scroll">
+        <table class="table recap-table">
+          <thead>
+            <tr>
+              <th class="recap-th-left">Date</th>
+              <th class="recap-th-right">Total CI75</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">Total CI90</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">Margin CI75</th>
+              <th class="recap-th-right">N</th>
+              <th class="recap-th-right">Margin CI90</th>
+              <th class="recap-th-right">N</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in (payload.daily or []) %}
+              <tr>
+                <td class="recap-td recap-th-left mono">{{ r.date }}</td>
+                {% set t75 = r.total_ci75 or {} %}
+                <td class="recap-td recap-th-right mono">{% if t75.cov is not none %}{{ '%.1f' % (100.0 * t75.cov) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ t75.n if t75.n is not none else '—' }}</td>
+
+                {% set t90 = r.total_ci90 or {} %}
+                <td class="recap-td recap-th-right mono">{% if t90.cov is not none %}{{ '%.1f' % (100.0 * t90.cov) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ t90.n if t90.n is not none else '—' }}</td>
+
+                {% set m75 = r.margin_ci75 or {} %}
+                <td class="recap-td recap-th-right mono">{% if m75.cov is not none %}{{ '%.1f' % (100.0 * m75.cov) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ m75.n if m75.n is not none else '—' }}</td>
+
+                {% set m90 = r.margin_ci90 or {} %}
+                <td class="recap-td recap-th-right mono">{% if m90.cov is not none %}{{ '%.1f' % (100.0 * m90.cov) }}%{% else %}—{% endif %}</td>
+                <td class="recap-td recap-th-right mono">{{ m90.n if m90.n is not none else '—' }}</td>
+              </tr>
+            {% endfor %}
+            {% if not (payload.daily or []) %}
+              <tr><td class="recap-td muted" colspan="9">No interval prediction files found matching daily results.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
