@@ -47,7 +47,7 @@ function Upload-File {
             # Optional endpoints may not exist on older deployments; treat as skip.
             $code = $null
             try { $code = [int]$resp.StatusCode } catch { $code = $null }
-            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments')) {
+            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments|upload_predictions_model_interval')) {
                 Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                 return @{ status = 'skipped'; code = 404; uri = $Uri }
             }
@@ -69,6 +69,7 @@ $edgesPath     = Join-Path -Path $OutputsDir -ChildPath ("align_period_{0}_edges
 $displayPath   = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.csv" -f $Date)
 $enrichedPath  = Join-Path -Path $OutputsDir -ChildPath ("predictions_unified_enriched_{0}.csv" -f $Date)
 $resultsPath   = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
+$modelIntervalPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_model_interval_{0}.csv" -f $Date)
 $simQuantilesPath = Join-Path -Path $OutputsDir -ChildPath ("sim_quantiles_{0}.csv" -f $Date)
 $simBlendPath     = Join-Path -Path $OutputsDir -ChildPath ("sim_blend_{0}.csv" -f $Date)
 $simSegmentsPath  = Join-Path -Path $OutputsDir -ChildPath ("sim_segments_{0}.csv" -f $Date)
@@ -501,6 +502,25 @@ if (-not $SlimSimOnly.IsPresent) {
     }
 } else {
     Write-Host "[Skip] SlimSimOnly: skipping predictions_enriched upload" -ForegroundColor Yellow
+}
+
+# Upload interval bands (model interval predictions) if present
+$intRows = Get-CsvRowCount -Path $modelIntervalPath
+if ($intRows -gt 0) {
+    $uInt = Upload-File -Uri "$BaseUrl/api/upload_predictions_model_interval" -FilePath $modelIntervalPath -Query @{ date = $Date }
+    if ($uInt -and ($uInt.status -eq 'skipped')) {
+        Write-Host "[Skip] predictions_model_interval endpoint unavailable" -ForegroundColor Yellow
+    } elseif ($uInt) {
+        $rv = if ($uInt.rows_verified) { $uInt.rows_verified } elseif ($uInt.rows) { $uInt.rows } else { $null }
+        $ru = if ($uInt.rows_uploaded) { $uInt.rows_uploaded } else { $null }
+        $sha = if ($uInt.sha) { $uInt.sha } else { $null }
+        $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+        Write-Host ("[OK] predictions_model_interval uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+    } else {
+        Write-Host "[Warn] predictions_model_interval upload failed" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[Skip] predictions_model_interval missing or empty for $Date" -ForegroundColor Yellow
 }
 
 # Upload simulation artifacts if present

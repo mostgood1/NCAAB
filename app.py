@@ -30407,6 +30407,68 @@ def api_upload_predictions_enriched():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@app.route("/api/upload_predictions_model_interval", methods=["POST"])
+def api_upload_predictions_model_interval():
+    """Upload model-interval predictions CSV for a given date.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/predictions_model_interval_<date>.csv.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+
+        out_path = OUT / f"predictions_model_interval_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with open(tmp_path, 'wb') as fh:
+                fh.write(csv_bytes)
+                try:
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                except Exception:
+                    pass
+            os.replace(tmp_path, out_path)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        try:
+            df2 = _safe_read_csv(out_path)
+            raw = out_path.read_bytes()
+            sha = _hashlib_mod.sha256(raw).hexdigest() if raw else None
+            return jsonify({
+                "status": "ok",
+                "rows_uploaded": int(len(df)),
+                "rows_verified": int(len(df2)) if not df2.empty else 0,
+                "date": date_q,
+                "path": str(out_path),
+                "sha": sha,
+            })
+        except Exception as e:
+            return jsonify({"status": "ok", "rows_uploaded": int(len(df)), "date": date_q, "path": str(out_path), "verify_error": str(e)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # Quantile artifact uploads
 @app.route("/api/upload_quantiles_selected", methods=["POST"])
 def api_upload_quantiles_selected():
