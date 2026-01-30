@@ -1,5 +1,5 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401858731,2026,2026-01-30,2026-01-30 20:00:00+00:00,2026-01-30 15:00,EST,UL Monroe Warhawks,Georgia Southern Eagles,0,0,,,,,True,Fredrick C. Hobdy Assembly Center
+401858731,2026,2026-01-30,2026-01-30 20:00:00+00:00,2026-01-30 15:00,EST,UL Monroe Warhawks,Georgia Southern Eagles,76,79,33.0,37.0,43.0,42.0,True,Fredrick C. Hobdy Assembly Center
 401826866,2026,2026-01-30,2026-01-30 23:00:00+00:00,2026-01-30 18:00,EST,Cornell Big Red,Princeton Tigers,0,0,,,,,False,Newman Arena
 401814549,2026,2026-01-30,2026-01-30 23:00:00+00:00,2026-01-30 18:00,EST,Akron Zips,Kent State Golden Flashes,0,0,,,,,False,James A. Rhodes Arena
 401817643,2026,2026-01-30,2026-01-30 23:30:00+00:00,2026-01-30 18:30,EST,Youngstown State Penguins,IU Indianapolis Jaguars,0,0,,,,,False,Beeghly Center

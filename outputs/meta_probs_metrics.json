@@ -1,42 +1,42 @@
 {
   "cover": {
-    "auc": 0.006646706760881915,
-    "base_rate": 0.46113989637305697,
-    "brier": 0.24741182530015132,
+    "auc": 0.007542521268864788,
+    "base_rate": 0.45481927710843373,
+    "brier": 0.24706680224619282,
     "calibrated_features_used": [],
-    "ece": 0.041528450869467805,
+    "ece": 0.04902324355645319,
     "features_used": [
       "p_home_cover",
       "p_home_cover_dist",
       "p_home_cover_ensemble"
     ],
-    "ks": 0.006646706760881915,
+    "ks": 0.007542521268864788,
     "legacy_features_present": [
       "p_home_cover",
       "p_home_cover_dist",
       "p_home_cover_ensemble"
     ],
-    "log_loss": 0.6879058192578875,
+    "log_loss": 0.6872067456024493,
     "n_features": 3,
-    "samples": 772
+    "samples": 664
   },
   "over": {
-    "auc": 0.0011625680570243602,
-    "base_rate": 0.4896373056994819,
-    "brier": 0.24973463090381656,
+    "auc": 0.001438589018428138,
+    "base_rate": 0.5030120481927711,
+    "brier": 0.24969959059554456,
     "calibrated_features_used": [],
-    "ece": 0.012672210997114759,
+    "ece": 0.03467010860024526,
     "features_used": [
       "p_over_dist"
     ],
-    "ks": 0.0011625680570243602,
+    "ks": 0.001438589018428138,
     "legacy_features_present": [
       "p_over",
       "p_over_dist",
       "p_over_ensemble"
     ],
-    "log_loss": 0.6926149392524428,
+    "log_loss": 0.6925446535313258,
     "n_features": 1,
-    "samples": 772
+    "samples": 664
   }
 }
