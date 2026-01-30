@@ -56,30 +56,14 @@
     <div class="row header">
       <h1>NCAAB – Cards</h1>
       <div class="spacer"></div>
+      {% set _nav_date = (request.args.get('date') or (date_val if date_val is defined else '') ) %}
       <nav class="nav-links">
         <a href="/">Cards</a>
-        <a href="/display-archive">Archive</a>
-        <a href="/accuracy">Accuracy</a>
         <a href="/interval-accuracy">Interval Accuracy</a>
         <a href="/accuracy-market">Market Breakdown</a>
-        <a href="/finals">Final Scores</a>
-        <a href="/stake-sheet">Stake Sheet</a>
-        <a href="/coverage">Coverage</a>
-        <a href="/calibration">Calibration</a>
-        <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
+        <a href="/api/display_predictions?view=cards{% if _nav_date %}&date={{ _nav_date }}{% endif %}">JSON</a>
       </nav>
     </div>
-    <script>
-      (function(){
-        var btn = document.getElementById('toggleContrast');
-        if(!btn) return;
-        try{ if(localStorage.getItem('highContrast')==='1'){ document.documentElement.classList.add('high-contrast'); } }catch(e){}
-        btn.addEventListener('click', function(){
-          document.documentElement.classList.toggle('high-contrast');
-          try{ localStorage.setItem('highContrast', document.documentElement.classList.contains('high-contrast') ? '1':'0'); }catch(e){}
-        });
-      })();
-    </script>
     <div class="cards">
       {% for r in rows %}
         {% set _edge = (r.edge_total if (r.edge_total is defined and r.edge_total is not none and r.edge_total == r.edge_total) else None) %}
