@@ -48,6 +48,12 @@
     .bet-callout .bet-item{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.08);}
     .bet-callout.edge{border-color:rgba(11,114,133,0.75);background:rgba(11,114,133,0.14);}
     .bet-callout.edge .bet-label{background:#0b7285;}
+
+    /* Header date picker */
+    .header-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .date-form{display:flex;align-items:center;gap:8px;}
+    .date-input{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#f6f8ff;border-radius:10px;padding:6px 10px;}
+    .date-input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.9;}
   </style>
   {% set e = 2.718281828459045 %}
 </head>
@@ -57,12 +63,26 @@
       <h1>NCAAB – Cards</h1>
       <div class="spacer"></div>
       {% set _nav_date = (request.args.get('date') or (date_val if date_val is defined else '') ) %}
-      <nav class="nav-links">
-        <a href="/">Cards</a>
-        <a href="/interval-accuracy">Interval Accuracy</a>
-        <a href="/accuracy-market">Market Breakdown</a>
-        <a href="/api/display_predictions?view=cards{% if _nav_date %}&date={{ _nav_date }}{% endif %}">JSON</a>
-      </nav>
+      <div class="header-controls">
+        <form class="date-form" method="get" action="/" aria-label="Select date">
+          <span class="pill small">Date</span>
+          <input class="date-input" type="date" name="date" value="{{ _nav_date }}" onchange="this.form.submit()" aria-label="Slate date" title="Select slate date" />
+          {# Preserve other query params when switching dates (compact/stable/sim_only/etc.) #}
+          {% for k, v in request.args.items() %}
+            {% if k != 'date' %}
+              <input type="hidden" name="{{ k }}" value="{{ v }}" />
+            {% endif %}
+          {% endfor %}
+          <noscript><button type="submit" class="pill small">Go</button></noscript>
+        </form>
+
+        <nav class="nav-links">
+          <a href="/">Cards</a>
+          <a href="/interval-accuracy">Interval Accuracy</a>
+          <a href="/accuracy-market">Market Breakdown</a>
+          <a href="/api/display_predictions?view=cards{% if _nav_date %}&date={{ _nav_date }}{% endif %}">JSON</a>
+        </nav>
+      </div>
     </div>
     <div class="cards">
       {% for r in rows %}
@@ -171,11 +191,58 @@
               {% set ou_lbl  = 'OU: '  ~ ('n/a' if not has_total  else ('W' if ou_cls2 == 'ok' else ('L' if ou_cls2 == 'bad' else '–'))) %}
               {% set ml_lbl  = 'ML: '  ~ ('W' if ml_cls == 'ok' else ('L' if ml_cls == 'bad' else '–')) %}
 
+              {# Total interval coverage (full game) #}
+              {% set ci75_lo = (r.pred_total_ci75_low if (r.pred_total_ci75_low is defined and r.pred_total_ci75_low is not none and r.pred_total_ci75_low == r.pred_total_ci75_low) else none) %}
+              {% set ci75_hi = (r.pred_total_ci75_high if (r.pred_total_ci75_high is defined and r.pred_total_ci75_high is not none and r.pred_total_ci75_high == r.pred_total_ci75_high) else none) %}
+              {% set ci90_lo = (r.pred_total_ci90_low if (r.pred_total_ci90_low is defined and r.pred_total_ci90_low is not none and r.pred_total_ci90_low == r.pred_total_ci90_low) else none) %}
+              {% set ci90_hi = (r.pred_total_ci90_high if (r.pred_total_ci90_high is defined and r.pred_total_ci90_high is not none and r.pred_total_ci90_high == r.pred_total_ci90_high) else none) %}
+              {% set at_full = (r.actual_total if (r.actual_total is defined and r.actual_total is not none and r.actual_total == r.actual_total) else none) %}
+              {% set ci75_ok = (at_full is not none and ci75_lo is not none and ci75_hi is not none and at_full >= ci75_lo and at_full <= ci75_hi) %}
+              {% set ci90_ok = (at_full is not none and ci90_lo is not none and ci90_hi is not none and at_full >= ci90_lo and at_full <= ci90_hi) %}
+
               <div class="kpi recon-kpi" aria-label="Reconciliation summary">
                 <span class="pill {{ ats_cls }}" title="{% if has_spread %}ATS result: {{ (r.ats_result ~ '') if (r.ats_result is defined and r.ats_result is not none) else '–' }}{% else %}ATS market line unavailable{% endif %}">{{ ats_lbl }}</span>
                 <span class="pill {{ ou_cls2 }}" title="{% if has_total %}OU result: {{ ou_actual2 or '–' }} | Model lean: {{ lean_ou2 or '–' }}{% else %}OU market total unavailable{% endif %}">{{ ou_lbl }}</span>
                 <span class="pill {{ ml_cls }}" title="Winner: {{ (r.ml_result ~ '') if (r.ml_result is defined and r.ml_result is not none) else '–' }}">{{ ml_lbl }}</span>
+
+                {% if (ci75_lo is not none) and (ci75_hi is not none) and (at_full is not none) %}
+                  <span class="pill {{ 'ok' if ci75_ok else 'bad' }}" title="Total CI75: [{{ '%.1f' % ci75_lo }}, {{ '%.1f' % ci75_hi }}] | Actual: {{ '%.1f' % at_full }}">CI75</span>
+                {% endif %}
+                {% if (ci90_lo is not none) and (ci90_hi is not none) and (at_full is not none) %}
+                  <span class="pill {{ 'ok' if ci90_ok else 'bad' }}" title="Total CI90: [{{ '%.1f' % ci90_lo }}, {{ '%.1f' % ci90_hi }}] | Actual: {{ '%.1f' % at_full }}">CI90</span>
+                {% endif %}
               </div>
+
+              {# 1H reconciliation strip (when 1H markets + scores available) #}
+              {% set has_spread_1h = (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) %}
+              {% set has_total_1h  = (r.market_total_1h is defined and r.market_total_1h is not none and r.market_total_1h == r.market_total_1h) %}
+              {% set at1 = (r.actual_total_1h if (r.actual_total_1h is defined and r.actual_total_1h is not none and r.actual_total_1h == r.actual_total_1h) else none) %}
+              {% set eval_ats1 = (r.eval_ats_ok_1h if (r.eval_ats_ok_1h is defined and r.eval_ats_ok_1h is not none and r.eval_ats_ok_1h == r.eval_ats_ok_1h) else none) %}
+              {% set eval_ml1  = (r.eval_ml_ok_1h  if (r.eval_ml_ok_1h  is defined and r.eval_ml_ok_1h  is not none and r.eval_ml_ok_1h  == r.eval_ml_ok_1h ) else none) %}
+              {% set ats1_cls = (('ok' if eval_ats1 else 'bad') if (eval_ats1 is not none) else 'neutral') %}
+              {% set ml1_cls  = (('ok' if eval_ml1  else 'bad') if (eval_ml1  is not none) else 'neutral') %}
+
+              {% set ou1_res = (r.ou_result_1h if (r.ou_result_1h is defined and r.ou_result_1h is not none) else none) %}
+              {% if ou1_res is not none %}{% set ou1_res = (ou1_res ~ '') %}{% endif %}
+              {% if ou1_res in ['nan','None','none','null',''] %}{% set ou1_res = none %}{% endif %}
+
+              {% if ou1_res is none %}
+                {% set mt1 = (r.market_total_1h if (r.market_total_1h is defined and r.market_total_1h is not none and r.market_total_1h == r.market_total_1h) else none) %}
+                {% set ou1_res = ( 'Over' if (at1 is not none and mt1 is not none and at1 > mt1) else ( 'Under' if (at1 is not none and mt1 is not none and at1 < mt1) else ('Push' if (at1 is not none and mt1 is not none and at1 == mt1) else none))) %}
+              {% endif %}
+              {% set ou1_lean = (r.lean_ou_side_1h if (r.lean_ou_side_1h is defined and r.lean_ou_side_1h) else none) %}
+              {% set ou1_cls = 'neutral' if (ou1_res is none or ou1_res == 'Push' or ou1_lean is none) else ('ok' if ou1_lean == ou1_res else 'bad') %}
+
+              {% if at1 is not none or (r.home_score_1h is defined and r.home_score_1h is not none) %}
+                {% set ats1_lbl = '1H ATS: ' ~ ('n/a' if not has_spread_1h else ('W' if ats1_cls == 'ok' else ('L' if ats1_cls == 'bad' else '–'))) %}
+                {% set ou1_lbl  = '1H OU: '  ~ ('n/a' if not has_total_1h  else ('W' if ou1_cls == 'ok' else ('L' if ou1_cls == 'bad' else '–'))) %}
+                {% set ml1_lbl  = '1H ML: '  ~ ('W' if ml1_cls == 'ok' else ('L' if ml1_cls == 'bad' else '–')) %}
+                <div class="kpi recon-kpi" aria-label="1H reconciliation summary">
+                  <span class="pill {{ ats1_cls }}" title="{% if has_spread_1h %}1H ATS result: {{ (r.ats_result_1h ~ '') if (r.ats_result_1h is defined and r.ats_result_1h is not none) else '–' }}{% else %}1H ATS line unavailable{% endif %}">{{ ats1_lbl }}</span>
+                  <span class="pill {{ ou1_cls }}" title="{% if has_total_1h %}1H OU result: {{ ou1_res or '–' }} | Model lean: {{ ou1_lean or '–' }}{% else %}1H total line unavailable{% endif %}">{{ ou1_lbl }}</span>
+                  <span class="pill {{ ml1_cls }}" title="1H winner: {{ (r.ml_result_1h ~ '') if (r.ml_result_1h is defined and r.ml_result_1h is not none) else '–' }}">{{ ml1_lbl }}</span>
+                </div>
+              {% endif %}
             {% endif %}
           </div>
           {% set _cards_view = (r.pred_total_model is defined) or (r.pred_total_sim is defined) or (r.pred_total_blend is defined) or (r.pred_total_model_1h is defined) or (r.pred_total_blend_1h is defined) %}

@@ -32840,6 +32840,21 @@ def api_display_predictions():
                                   'proj_home','proj_away','proj_home_1h','proj_away_1h']:
                             _map_from(pdf, c, c, numeric=True)
 
+                    # Interval bands (residual CI) for totals/margins.
+                    # Source: outputs/predictions_model_interval_<date>.csv
+                    try:
+                        idf = _safe_read_csv(OUT / f"predictions_model_interval_{date_q}.csv")
+                        if isinstance(idf, pd.DataFrame) and (not idf.empty):
+                            for c in [
+                                'pred_total_ci75_low', 'pred_total_ci75_high',
+                                'pred_total_ci90_low', 'pred_total_ci90_high',
+                                'pred_margin_ci75_low', 'pred_margin_ci75_high',
+                                'pred_margin_ci90_low', 'pred_margin_ci90_high',
+                            ]:
+                                _map_from(idf, c, c, numeric=True)
+                    except Exception:
+                        pass
+
                     # Authoritative model-only predictions (or unified/calibrated fallbacks).
                     # This ensures the cards "Model" row has numbers even when projections are missing.
                     try:
@@ -33663,6 +33678,91 @@ def api_display_predictions():
                     except Exception:
                         pass
 
+                    # 1H reconciliation helpers: totals and winner at halftime.
+                    try:
+                        if 'actual_total_1h' not in df.columns:
+                            df['actual_total_1h'] = np.nan
+                        if {'home_score_1h', 'away_score_1h'}.issubset(df.columns):
+                            hs1 = pd.to_numeric(df.get('home_score_1h'), errors='coerce')
+                            as1 = pd.to_numeric(df.get('away_score_1h'), errors='coerce')
+                            at1 = pd.to_numeric(df.get('actual_total_1h'), errors='coerce')
+                            fill = at1.isna() & hs1.notna() & as1.notna()
+                            if fill.any():
+                                df.loc[fill, 'actual_total_1h'] = (hs1 + as1).loc[fill]
+                    except Exception:
+                        pass
+
+                    try:
+                        if 'ml_result_1h' not in df.columns:
+                            df['ml_result_1h'] = None
+                        if {'home_score_1h', 'away_score_1h'}.issubset(df.columns):
+                            hs1 = pd.to_numeric(df.get('home_score_1h'), errors='coerce')
+                            as1 = pd.to_numeric(df.get('away_score_1h'), errors='coerce')
+                            need = df['ml_result_1h'].isna() if hasattr(df.get('ml_result_1h'), 'isna') else pd.Series(True, index=df.index)
+                            fill = need & hs1.notna() & as1.notna()
+                            if fill.any():
+                                df.loc[fill, 'ml_result_1h'] = np.where(
+                                    hs1.loc[fill] > as1.loc[fill],
+                                    'Home Win',
+                                    np.where(hs1.loc[fill] < as1.loc[fill], 'Away Win', 'Push')
+                                )
+                    except Exception:
+                        pass
+
+                    try:
+                        if 'ou_result_1h' not in df.columns:
+                            df['ou_result_1h'] = None
+                        at1 = pd.to_numeric(df.get('actual_total_1h'), errors='coerce') if 'actual_total_1h' in df.columns else pd.Series(np.nan, index=df.index)
+                        mt1 = pd.to_numeric(df.get('market_total_1h'), errors='coerce') if 'market_total_1h' in df.columns else pd.Series(np.nan, index=df.index)
+                        need = df['ou_result_1h'].isna() if hasattr(df.get('ou_result_1h'), 'isna') else pd.Series(True, index=df.index)
+                        fill = need & at1.notna() & mt1.notna()
+                        if fill.any():
+                            df.loc[fill, 'ou_result_1h'] = np.where(
+                                at1.loc[fill] > mt1.loc[fill],
+                                'Over',
+                                np.where(at1.loc[fill] < mt1.loc[fill], 'Under', 'Push')
+                            )
+                    except Exception:
+                        pass
+
+                    try:
+                        if 'lean_ou_side_1h' not in df.columns:
+                            df['lean_ou_side_1h'] = None
+                        if 'lean_ou_edge_abs_1h' not in df.columns:
+                            df['lean_ou_edge_abs_1h'] = np.nan
+                        pt1 = pd.to_numeric(df.get('pred_total_model_1h'), errors='coerce') if 'pred_total_model_1h' in df.columns else pd.Series(np.nan, index=df.index)
+                        mt1 = pd.to_numeric(df.get('market_total_1h'), errors='coerce') if 'market_total_1h' in df.columns else pd.Series(np.nan, index=df.index)
+                        diff1 = pt1 - mt1
+                        df['lean_ou_side_1h'] = np.where(diff1 > 0, 'Over', np.where(diff1 < 0, 'Under', None))
+                        df['lean_ou_edge_abs_1h'] = diff1.abs()
+                    except Exception:
+                        pass
+
+                    try:
+                        if 'eval_ats_ok_1h' not in df.columns:
+                            df['eval_ats_ok_1h'] = np.nan
+                        if {'pred_margin_model_1h', 'ats_result_1h', 'spread_home_1h'}.issubset(df.columns):
+                            pm1 = pd.to_numeric(df.get('pred_margin_model_1h'), errors='coerce')
+                            sh1 = pd.to_numeric(df.get('spread_home_1h'), errors='coerce')
+                            pred_cover_1h = np.where(pm1 > -sh1, 'Home Cover', np.where(pm1 < -sh1, 'Away Cover', 'Push'))
+                            r_ats1 = df['ats_result_1h'].astype(str)
+                            ok1 = np.where((r_ats1 == 'Push') | (pred_cover_1h == 'Push') | r_ats1.isna(), np.nan, (pred_cover_1h == r_ats1))
+                            df['eval_ats_ok_1h'] = ok1
+                    except Exception:
+                        pass
+
+                    try:
+                        if 'eval_ml_ok_1h' not in df.columns:
+                            df['eval_ml_ok_1h'] = np.nan
+                        if {'pred_margin_model_1h', 'ml_result_1h'}.issubset(df.columns):
+                            pm1 = pd.to_numeric(df.get('pred_margin_model_1h'), errors='coerce')
+                            pred_ml1 = np.where(pm1 > 0, 'Home Win', np.where(pm1 < 0, 'Away Win', 'Push'))
+                            rml1 = df['ml_result_1h'].astype(str)
+                            okml1 = np.where((pred_ml1 == 'Push') | (rml1 == 'Push') | rml1.isna(), np.nan, (pred_ml1 == rml1))
+                            df['eval_ml_ok_1h'] = okml1
+                    except Exception:
+                        pass
+
                     # ATS correctness vs final ATS result.
                     try:
                         if 'eval_ats_ok' not in df.columns:
@@ -33718,6 +33818,14 @@ def api_display_predictions():
                 'home_score','away_score','actual_total','actual_margin',
                 'ats_result','ml_result','ou_result_full',
                 'eval_ats_ok','eval_ml_ok','lean_ou_side','lean_ou_edge_abs',
+
+                # 1H reconciliation
+                'home_score_1h','away_score_1h','actual_total_1h',
+                'ats_result_1h','ou_result_1h','ml_result_1h',
+                'eval_ats_ok_1h','eval_ml_ok_1h','lean_ou_side_1h','lean_ou_edge_abs_1h',
+
+                # Interval bands (full game)
+                'pred_total_ci75_low','pred_total_ci75_high','pred_total_ci90_low','pred_total_ci90_high',
             ]
 
         # Optional: attach 5-minute segment trajectory + boxscore-grid summaries.
@@ -34077,6 +34185,14 @@ def api_display_predictions():
                 'home_score','away_score','actual_total','actual_margin',
                 'ats_result','ml_result','ou_result_full',
                 'eval_ats_ok','eval_ml_ok','lean_ou_side','lean_ou_edge_abs',
+
+                # 1H reconciliation
+                'home_score_1h','away_score_1h','actual_total_1h',
+                'ats_result_1h','ou_result_1h','ml_result_1h',
+                'eval_ats_ok_1h','eval_ml_ok_1h','lean_ou_side_1h','lean_ou_edge_abs_1h',
+
+                # Interval bands (full game)
+                'pred_total_ci75_low','pred_total_ci75_high','pred_total_ci90_low','pred_total_ci90_high',
             ]
         rows: list[dict[str, Any]] = []
         for _, r in df.iterrows():

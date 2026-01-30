@@ -1,0 +1,24 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
+401858731,2026,2026-01-30,2026-01-30 20:00:00+00:00,2026-01-30 15:00,EST,UL Monroe Warhawks,Georgia Southern Eagles,0,0,,,,,True,Fredrick C. Hobdy Assembly Center
+401826866,2026,2026-01-30,2026-01-30 23:00:00+00:00,2026-01-30 18:00,EST,Cornell Big Red,Princeton Tigers,0,0,,,,,False,Newman Arena
+401814549,2026,2026-01-30,2026-01-30 23:00:00+00:00,2026-01-30 18:00,EST,Akron Zips,Kent State Golden Flashes,0,0,,,,,False,James A. Rhodes Arena
+401817643,2026,2026-01-30,2026-01-30 23:30:00+00:00,2026-01-30 18:30,EST,Youngstown State Penguins,IU Indianapolis Jaguars,0,0,,,,,False,Beeghly Center
+401813390,2026,2026-01-30,2026-01-30 23:30:00+00:00,2026-01-30 18:30,EST,Niagara Purple Eagles,Siena Saints,0,0,,,,,False,Gallagher Center
+401828204,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Charlotte 49ers,Rice Owls,0,0,,,,,False,Halton Arena
+401823317,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Iona Gaels,Fairfield Stags,0,0,,,,,False,Hynes Athletics Center
+401822922,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Villanova Wildcats,Providence Friars,0,0,,,,,False,Finneran Pavilion
+401820590,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Quinnipiac Bobcats,Sacred Heart Pioneers,0,0,,,,,False,M&T Bank Arena
+401818311,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Yale Bulldogs,Dartmouth Big Green,0,0,,,,,False,John J. Lee Amphitheater
+401817646,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Green Bay Phoenix,Cleveland State Vikings,0,0,,,,,False,Resch Center
+401817644,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Detroit Mercy Titans,Northern Kentucky Norse,0,0,,,,,False,Calihan Hall
+401813337,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Canisius Golden Griffins,Marist Red Foxes,0,0,,,,,False,Koessler Athletic Center
+401813304,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Manhattan Jaspers,Rider Broncs,0,0,,,,,False,Draddy Gymnasium
+401812617,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Brown Bears,Harvard Crimson,0,0,,,,,False,Pizzitola Sports Center
+401812590,2026,2026-01-30,2026-01-31 00:00:00+00:00,2026-01-30 19:00,EST,Columbia Lions,Pennsylvania Quakers,0,0,,,,,False,Levien Gymnasium
+401825481,2026,2026-01-30,2026-01-31 01:00:00+00:00,2026-01-30 20:00,EST,Michigan State Spartans,Michigan Wolverines,0,0,,,,,False,Breslin Center
+401828400,2026,2026-01-30,2026-01-31 01:00:00+00:00,2026-01-30 20:00,EST,Saint Louis Billikens,Dayton Flyers,0,0,,,,,False,Chaifetz Arena
+401817645,2026,2026-01-30,2026-01-31 01:00:00+00:00,2026-01-30 20:00,EST,Milwaukee Panthers,Wright State Raiders,0,0,,,,,False,UW-Milwaukee Panther Arena
+401813414,2026,2026-01-30,2026-01-31 01:00:00+00:00,2026-01-30 20:00,EST,Saint Peter's Peacocks,Mount St. Mary's Mountaineers,0,0,,,,,False,Yanitelli Center
+401828401,2026,2026-01-30,2026-01-31 02:00:00+00:00,2026-01-30 21:00,EST,VCU Rams,Loyola Chicago Ramblers,0,0,,,,,False,Siegel Center
+401823799,2026,2026-01-30,2026-01-31 02:00:00+00:00,2026-01-30 21:00,EST,Grand Canyon Lopes,Boise State Broncos,0,0,,,,,False,Global Credit Union Arena
+401829317,2026,2026-01-30,2026-01-31 03:00:00+00:00,2026-01-30 22:00,EST,Nevada Wolf Pack,UNLV Rebels,0,0,,,,,False,Lawlor Events Center
