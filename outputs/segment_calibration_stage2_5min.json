@@ -9,7 +9,7 @@
     35,
     40
   ],
-  "generated_at": "2026-01-31T15:02:04.550756Z",
+  "generated_at": "2026-01-31T22:32:18.738881Z",
   "kind": "stage2_residual_bias_by_end_min",
   "min_rows_per_end_min": 150,
   "pred_col": "pred_q50",
