@@ -926,3 +926,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401812611,2026-02-01,St. John's Red Storm,Harvard Crimson,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401813284,2026-02-01,Loyola Marymount Lions,Morgan State Bears,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401822876,2026-02-01,Seton Hall Pirates,Villanova Wildcats,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401828406,2026-02-01,Duquesne Dukes,Rhode Island Rams,totals,full_game,over,,,,,,Total,OU
+401825486,2026-02-01,Maryland Terrapins,Purdue Boilermakers,totals,full_game,over,,,,,,Total,OU
+401808208,2026-02-01,Florida Gators,Alabama Crimson Tide,totals,full_game,under,,,,,,Total,OU
+401823753,2026-02-01,Merrimack Warriors,Sacred Heart Pioneers,totals,full_game,over,,,,,,Total,OU
+401813365,2026-02-01,Canisius Golden Griffins,Siena Saints,totals,full_game,over,,,,,,Total,OU
