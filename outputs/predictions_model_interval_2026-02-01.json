@@ -1,0 +1,17 @@
+{
+  "conformal_scale_margin": null,
+  "conformal_scale_total": null,
+  "date": "2026-02-01",
+  "point_margin_column": "pred_margin_calibrated",
+  "point_total_column": "pred_total_calibrated",
+  "rmse_margin": 10.0,
+  "rmse_total": 12.0,
+  "rows_used": 0,
+  "timestamp_utc": "2026-02-01T14:05:37.534080",
+  "window_days": 30,
+  "z_values": {
+    "75": 1.150349,
+    "90": 1.644854,
+    "95": 1.959964
+  }
+}
