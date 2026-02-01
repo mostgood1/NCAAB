@@ -1,22 +1,22 @@
 {
   "cover_error": "Input X contains NaN.\nLogisticRegression does not accept missing values encoded as NaN natively. For supervised learning, you might want to consider sklearn.ensemble.HistGradientBoostingClassifier and Regressor which accept missing values encoded as NaNs natively. Alternatively, it is possible to preprocess the data, for instance by using an imputer transformer in a pipeline or drop samples with missing values. See https://scikit-learn.org/stable/modules/impute.html You can find a list of all estimators that handle NaN values at the following page: https://scikit-learn.org/stable/modules/impute.html#estimators-that-handle-nan-values",
   "over": {
-    "auc": 0.00013518658973848963,
-    "base_rate": 0.4602649006622517,
-    "brier": 0.25006741501921537,
+    "auc": 0.0001994745903743378,
+    "base_rate": 0.49079754601226994,
+    "brier": 0.25010879323649243,
     "calibrated_features_used": [],
-    "ece": 0.04281621634120435,
+    "ece": 0.06443073611771716,
     "features_used": [
       "p_over_dist"
     ],
-    "ks": 0.00013518658973848963,
+    "ks": 0.0001994745903743378,
     "legacy_features_present": [
       "p_over",
       "p_over_dist",
       "p_over_ensemble"
     ],
-    "log_loss": 0.6932820283530285,
+    "log_loss": 0.6933647956075628,
     "n_features": 1,
-    "samples": 604
+    "samples": 326
   }
 }
