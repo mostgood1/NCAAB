@@ -31,6 +31,7 @@ param(
   [switch]$SkipSimCalibrationFit,
   [int]$SimCalibrationLookbackDays = 21,
   [int]$SimCalibrationMinGames = 80,
+  [switch]$SimCalibrationFit1HOnly,
   # Simulation engine backtesting (historical join vs daily_results/results_*.csv)
   [switch]$RunSimBacktest,
   [int]$SimBacktestRecent = 30,
@@ -417,7 +418,10 @@ print({'path': str(games_path), 'rows': len(df2)})
               --out (Join-Path $OutDir 'segment_calibration_stage2_5min.json') `
               --end $prevDate `
               --window-days 14 `
-              --end-mins '35,40' `
+              --end-mins '10,15,35,40' `
+              --pred-already-stage1 `
+              --pred-already-stage2 `
+              --merge-existing `
               --min-rows-per-end-min $Segment5MinCalibrationMinRowsPerEndMin `
               --min-endpoints 2 `
               --min-rows-used ([int]$Segment5MinCalibrationMinRowsPerEndMin * 2) `
@@ -576,7 +580,25 @@ print({'path': str(games_path), 'rows': len(df2)})
       if ($lookback -lt 1) { $lookback = 1 }
       $startDt = $prevDt.AddDays(-1 * ($lookback - 1))
       $startIso = $startDt.ToString('yyyy-MM-dd')
-      $fitOut = (& $VenvPython scripts/fit_sim_calibration.py --outputs $OutDir --start $startIso --end $prevDate --min-games $SimCalibrationMinGames) | Out-String
+
+      $fitArgs = @(
+        'scripts/fit_sim_calibration.py',
+        '--outputs', $OutDir,
+        '--start', $startIso,
+        '--end', $prevDate,
+        '--min-games', "$SimCalibrationMinGames",
+        '--no-accumulate',
+        '--cap-sigma-mult', '3.0',
+        '--cap-sigma-1h-mult', '1.5',
+        '--cap-abs-delta', '25.0',
+        '--cap-abs-delta-1h', '15.0'
+      )
+      if ($SimCalibrationFit1HOnly.IsPresent) {
+        $fitArgs += '--fit-1h-only'
+        Write-Host '[sim-cal] 1H-only mode enabled (preserving full-game keys)' -ForegroundColor DarkGray
+      }
+
+      $fitOut = (& $VenvPython @fitArgs) | Out-String
       if ($fitOut) {
         Write-Host ($fitOut.Trim())
       }

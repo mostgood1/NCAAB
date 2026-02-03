@@ -1,24 +1,26 @@
 {
   "actual_col": "actual_total",
   "bias_by_end_min": {
-    "35": 2.0857907377389453,
-    "40": 1.9075399873007712
+    "10": 1.2012717537066133,
+    "15": 1.0240379697492474,
+    "35": 7.97712623352918,
+    "40": 3.621736053956118
   },
   "end": "2026-02-02",
   "end_mins": [
-    35,
-    40
+    10,
+    15
   ],
-  "generated_at": "2026-02-03T14:10:11.241671Z",
+  "generated_at": "2026-02-03T22:32:13.312074Z",
   "kind": "stage2_residual_bias_by_end_min",
-  "min_rows_per_end_min": 150,
+  "min_rows_per_end_min": 200,
   "pred_col": "pred_q50",
   "rows_by_end_min": {
-    "35": 658,
-    "40": 658
+    "10": 346,
+    "15": 346
   },
-  "rows_used": 1316,
-  "source_backtest_csv": "C:\\Users\\mostg\\OneDrive\\Coding\\NCAAB\\outputs\\backtests\\segments_5min_master.csv",
-  "stage1_calibration_json": "C:\\Users\\mostg\\OneDrive\\Coding\\NCAAB\\outputs\\segment_calibration_5min.json",
-  "start": "2026-01-20"
+  "rows_used": 692,
+  "source_backtest_csv": "outputs\\backtests\\seg_bt_base1h7_s4000_verify_2026-01-27_to_2026-02-02.csv",
+  "stage1_calibration_json": "outputs\\segment_calibration_5min.json",
+  "start": null
 }

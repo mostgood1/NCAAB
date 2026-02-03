@@ -53,6 +53,9 @@ def fit_stage2_bias(
     start: str | None,
     end: str | None,
     end_mins: list[int],
+    pred_already_stage1: bool,
+    pred_already_stage2: bool,
+    existing_stage2_bias_by_end_min: dict[int, float] | None,
     pred_col: str = "pred_q50",
     actual_col: str = "actual_total",
     date_col: str = "date",
@@ -92,17 +95,36 @@ def fit_stage2_bias(
     if df.empty:
         raise ValueError(f"No rows left after filtering to end_mins={end_mins}")
 
-    a_map, b_map = _load_stage1_affine(stage1_calibration_json)
-    if not a_map:
-        raise ValueError(f"Stage1 calibration has no a_by_end_min: {stage1_calibration_json}")
+    if pred_already_stage1:
+        # Predictions already reflect stage1 calibration.
+        df["pred_stage1"] = df[pred_col]
 
-    # Apply stage 1 calibration to predictions, then compute residual bias.
-    df["_a"] = df[end_min_col].map(a_map)
-    df["_b"] = df[end_min_col].map(b_map).fillna(0.0)
-    df = df.dropna(subset=["_a"])
+        if pred_already_stage2:
+            # Predictions also reflect an existing stage2 correction.
+            # Undo it to recover the stage1-only prediction, then fit the residual bias
+            # that should be subtracted as stage2.
+            if not existing_stage2_bias_by_end_min:
+                raise ValueError(
+                    "--pred-already-stage2 requires an existing stage2 bias map (bias_by_end_min) to undo"
+                )
+            df["_stage2_existing"] = df[end_min_col].map(existing_stage2_bias_by_end_min).fillna(0.0)
+            df["pred_stage1_only"] = df["pred_stage1"] + df["_stage2_existing"]
+            df["resid"] = df["pred_stage1_only"] - df[actual_col]
+        else:
+            # Fit residual directly from stage1-calibrated predictions.
+            df["resid"] = df["pred_stage1"] - df[actual_col]
+    else:
+        a_map, b_map = _load_stage1_affine(stage1_calibration_json)
+        if not a_map:
+            raise ValueError(f"Stage1 calibration has no a_by_end_min: {stage1_calibration_json}")
 
-    df["pred_stage1"] = df["_a"] * df[pred_col] + df["_b"]
-    df["resid"] = df["pred_stage1"] - df[actual_col]
+        # Apply stage 1 calibration to raw predictions, then compute residual bias.
+        df["_a"] = df[end_min_col].map(a_map)
+        df["_b"] = df[end_min_col].map(b_map).fillna(0.0)
+        df = df.dropna(subset=["_a"])
+
+        df["pred_stage1"] = df["_a"] * df[pred_col] + df["_b"]
+        df["resid"] = df["pred_stage1"] - df[actual_col]
 
     bias_by_end_min: dict[str, float] = {}
     rows_by_end_min: dict[str, int] = {}
@@ -165,6 +187,31 @@ def main() -> None:
         default=str(Path("outputs") / "segment_calibration_stage2_5min.json"),
         help="Output JSON path (default: outputs/segment_calibration_stage2_5min.json)",
     )
+    ap.add_argument(
+        "--pred-already-stage1",
+        action="store_true",
+        help=(
+            "Treat pred-col values in the backtest CSV as already stage1-calibrated. "
+            "In this mode, residual is computed as pred-col - actual (no extra stage1 application)."
+        ),
+    )
+    ap.add_argument(
+        "--pred-already-stage2",
+        action="store_true",
+        help=(
+            "Treat pred-col values as already stage2-corrected as well (i.e., stage1 + stage2 already applied). "
+            "In this mode, the fitter will undo the existing stage2 bias map (from the current --out file) before "
+            "computing residuals, so that the newly-fit stage2 represents the residual bias to subtract from stage1-only predictions."
+        ),
+    )
+    ap.add_argument(
+        "--merge-existing",
+        action="store_true",
+        help=(
+            "Merge fitted bias_by_end_min into the existing stage2 JSON (if present), "
+            "overriding only the fitted endpoints and preserving any others."
+        ),
+    )
     ap.add_argument("--start", default=None, help="Optional start date YYYY-MM-DD")
     ap.add_argument("--end", default=None, help="Optional end date YYYY-MM-DD")
     ap.add_argument(
@@ -204,6 +251,28 @@ def main() -> None:
     out_path = Path(args.out)
     tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
 
+    existing_stage2_bias: dict[int, float] | None = None
+    if bool(args.pred_already_stage2):
+        if not bool(args.pred_already_stage1):
+            raise SystemExit("--pred-already-stage2 requires --pred-already-stage1")
+        if out_path.exists():
+            try:
+                existing_obj = json.loads(out_path.read_text(encoding="utf-8"))
+            except Exception:
+                existing_obj = {}
+            raw = existing_obj.get("bias_by_end_min") if isinstance(existing_obj, dict) else None
+            if isinstance(raw, dict) and raw:
+                parsed: dict[int, float] = {}
+                for k, v in raw.items():
+                    try:
+                        kk = int(float(k))
+                        vv = float(v)
+                    except Exception:
+                        continue
+                    if np.isfinite(vv):
+                        parsed[kk] = vv
+                existing_stage2_bias = parsed
+
     fit_res = fit_stage2_bias(
         backtest_csv=Path(args.backtest_csv),
         stage1_calibration_json=Path(args.stage1_calibration),
@@ -211,6 +280,9 @@ def main() -> None:
         start=start,
         end=end,
         end_mins=end_mins,
+        pred_already_stage1=bool(args.pred_already_stage1),
+        pred_already_stage2=bool(args.pred_already_stage2),
+        existing_stage2_bias_by_end_min=existing_stage2_bias,
         pred_col=str(args.pred_col),
         min_rows_per_end_min=int(args.min_rows_per_end_min),
         stat=str(args.stat),
@@ -247,6 +319,26 @@ def main() -> None:
     }
 
     if should_promote:
+        if args.merge_existing and out_path.exists():
+            try:
+                existing = json.loads(out_path.read_text(encoding="utf-8"))
+            except Exception:
+                existing = {}
+
+            try:
+                fresh = json.loads(tmp_path.read_text(encoding="utf-8"))
+            except Exception:
+                fresh = {}
+
+            if isinstance(existing, dict) and isinstance(fresh, dict):
+                ex_bias = existing.get("bias_by_end_min")
+                fr_bias = fresh.get("bias_by_end_min")
+                if isinstance(ex_bias, dict) and isinstance(fr_bias, dict) and fr_bias:
+                    merged = dict(ex_bias)
+                    merged.update(fr_bias)
+                    fresh["bias_by_end_min"] = merged
+                tmp_path.write_text(json.dumps(fresh, indent=2, sort_keys=True), encoding="utf-8")
+
         out_path.parent.mkdir(parents=True, exist_ok=True)
         if out_path.exists():
             out_path.unlink()

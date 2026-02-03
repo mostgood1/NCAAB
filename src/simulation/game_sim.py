@@ -1268,6 +1268,17 @@ def _apply_sim_calibration(
     sigma_total_mult = float(calibration.get("sigma_total_mult", 1.0) or 1.0)
     sigma_margin_mult = float(calibration.get("sigma_margin_mult", 1.0) or 1.0)
 
+    # Guardrails: calibration artifacts can drift/accumulate; never allow extreme
+    # global uncertainty inflation to dominate outputs.
+    try:
+        sigma_total_mult = float(np.clip(sigma_total_mult, 0.5, 5.0))
+    except Exception:
+        sigma_total_mult = 1.0
+    try:
+        sigma_margin_mult = float(np.clip(sigma_margin_mult, 0.5, 5.0))
+    except Exception:
+        sigma_margin_mult = 1.0
+
     total_mean2 = float(total_mean) + delta_total
     margin_mean2 = float(margin_mean) + delta_margin
     sigma_total2 = float(max(1e-6, float(sigma_total) * sigma_total_mult))
@@ -1693,16 +1704,25 @@ def simulate_game_row(
             ]
         )
     )
+
+    calib_delta_total_1h_applied = 0.0
+    calib_delta_margin_1h_applied = 0.0
+    calib_sigma_total_1h_mult_applied = 1.0
+    calib_sigma_margin_1h_mult_applied = 1.0
     if has_1h_cal:
         try:
-            total_mean_1h = float(total_mean_1h) + float(sim_calibration.get("delta_total_1h", 0.0) or 0.0)
-            margin_mean_1h = float(margin_mean_1h) + float(sim_calibration.get("delta_margin_1h", 0.0) or 0.0)
+            calib_delta_total_1h_applied = float(sim_calibration.get("delta_total_1h", 0.0) or 0.0)
+            calib_delta_margin_1h_applied = float(sim_calibration.get("delta_margin_1h", 0.0) or 0.0)
+            total_mean_1h = float(total_mean_1h) + calib_delta_total_1h_applied
+            margin_mean_1h = float(margin_mean_1h) + calib_delta_margin_1h_applied
         except Exception:
             pass
     else:
         try:
             delta_total_cal = float(calib_applied.get("delta_total", 0.0)) if calib_applied else 0.0
             delta_margin_cal = float(calib_applied.get("delta_margin", 0.0)) if calib_applied else 0.0
+            calib_delta_total_1h_applied = float(delta_total_cal) * float(half_frac)
+            calib_delta_margin_1h_applied = float(delta_margin_cal) * 0.5
             total_mean_1h = float(total_mean_1h) + delta_total_cal * half_frac
             margin_mean_1h = float(margin_mean_1h) + delta_margin_cal * 0.5
         except Exception:
@@ -1730,6 +1750,7 @@ def simulate_game_row(
             # Empirically, 1H total bands are already close with sqrt-scaling from full game;
             # do not further inflate them globally.
             m = float(min(m, 1.0, m_cap))
+            calib_sigma_total_1h_mult_applied = float(m)
             sigma_total_1h = float(max(1e-6, float(sigma_total_1h) * m))
         except Exception:
             pass
@@ -1739,6 +1760,7 @@ def simulate_game_row(
                 m_cap = float(0.99 / float(np.sqrt(max(half_frac, 1e-6))))
                 # Allow some additional 1H margin spread, but keep it modest.
                 m = float(min(m, 1.15, m_cap))
+                calib_sigma_margin_1h_mult_applied = float(m)
                 sigma_margin_1h = float(max(1e-6, float(sigma_margin_1h) * m))
             except Exception:
                 pass
@@ -1785,6 +1807,20 @@ def simulate_game_row(
         away_pts = ev["away"]
         home_1h = ev["home_1h"]
         away_1h = ev["away_1h"]
+
+        # Apply 1H calibration to the event-sim by reallocating points between halves.
+        # This preserves full-game totals while shifting 1H (and 2H as the residual).
+        # Note: values can become non-integer; that's fine for probabilistic outputs.
+        try:
+            dT = float(calib_delta_total_1h_applied)
+            dM = float(calib_delta_margin_1h_applied)
+            if np.isfinite(dT) and np.isfinite(dM) and (abs(dT) > 1e-9 or abs(dM) > 1e-9):
+                d_home = 0.5 * (dT + dM)
+                d_away = 0.5 * (dT - dM)
+                home_1h = np.clip(home_1h.astype(float) + float(d_home), 0.0, home_pts.astype(float))
+                away_1h = np.clip(away_1h.astype(float) + float(d_away), 0.0, away_pts.astype(float))
+        except Exception:
+            pass
         totals = home_pts + away_pts
         margins = home_pts - away_pts
         totals_1h = home_1h + away_1h
@@ -1856,6 +1892,23 @@ def simulate_game_row(
                 use_time_aware_segments = _safe_bool(v)
         except Exception:
             use_time_aware_segments = True
+
+        # If we have explicit 1H calibration deltas, time-aware segments would ignore the
+        # calibrated 1H distribution (it re-simulates its own possession timeline).
+        # Force point-allocation segments so end_min=20 matches calibrated 1H, unless
+        # the user explicitly opts into time-aware segments with 1H calibration.
+        try:
+            allow_time_aware_with_1h_cal = _safe_bool(os.environ.get("NCAAB_ALLOW_TIME_AWARE_SEGMENTS_WITH_1H_CAL"))
+        except Exception:
+            allow_time_aware_with_1h_cal = False
+        try:
+            if (not allow_time_aware_with_1h_cal) and has_1h_cal:
+                dT = float(calib_delta_total_1h_applied)
+                dM = float(calib_delta_margin_1h_applied)
+                if np.isfinite(dT) and np.isfinite(dM) and (abs(dT) > 1e-9 or abs(dM) > 1e-9):
+                    use_time_aware_segments = False
+        except Exception:
+            pass
 
         if use_time_aware_segments:
             # Recompute event params here to avoid threading through ev payload.
@@ -1987,6 +2040,10 @@ def simulate_game_row(
             "calib_delta_margin": float(calib_applied.get("delta_margin", 0.0)) if calib_applied else 0.0,
             "calib_sigma_total_mult": float(calib_applied.get("sigma_total_mult", 1.0)) if calib_applied else 1.0,
             "calib_sigma_margin_mult": float(calib_applied.get("sigma_margin_mult", 1.0)) if calib_applied else 1.0,
+            "calib_delta_total_1h": float(calib_delta_total_1h_applied),
+            "calib_delta_margin_1h": float(calib_delta_margin_1h_applied),
+            "calib_sigma_total_1h_mult": float(calib_sigma_total_1h_mult_applied),
+            "calib_sigma_margin_1h_mult": float(calib_sigma_margin_1h_mult_applied),
             "_segments_rows": segment_rows,
             **{f"event_{k}": v for k, v in (ev.get("agg") or {}).items()},
         }
@@ -2279,6 +2336,10 @@ def simulate_game_row(
             "calib_delta_margin": float(calib_applied.get("delta_margin", 0.0)) if calib_applied else 0.0,
             "calib_sigma_total_mult": float(calib_applied.get("sigma_total_mult", 1.0)) if calib_applied else 1.0,
             "calib_sigma_margin_mult": float(calib_applied.get("sigma_margin_mult", 1.0)) if calib_applied else 1.0,
+            "calib_delta_total_1h": float(calib_delta_total_1h_applied),
+            "calib_delta_margin_1h": float(calib_delta_margin_1h_applied),
+            "calib_sigma_total_1h_mult": float(calib_sigma_total_1h_mult_applied),
+            "calib_sigma_margin_1h_mult": float(calib_sigma_margin_1h_mult_applied),
             "_segments_rows": segment_rows,
         }
 
@@ -2485,6 +2546,10 @@ def simulate_game_row(
         "calib_delta_margin": float(calib_applied.get("delta_margin", 0.0)) if calib_applied else 0.0,
         "calib_sigma_total_mult": float(calib_applied.get("sigma_total_mult", 1.0)) if calib_applied else 1.0,
         "calib_sigma_margin_mult": float(calib_applied.get("sigma_margin_mult", 1.0)) if calib_applied else 1.0,
+        "calib_delta_total_1h": float(calib_delta_total_1h_applied),
+        "calib_delta_margin_1h": float(calib_delta_margin_1h_applied),
+        "calib_sigma_total_1h_mult": float(calib_sigma_total_1h_mult_applied),
+        "calib_sigma_margin_1h_mult": float(calib_sigma_margin_1h_mult_applied),
         "_segments_rows": segment_rows,
     }
 
@@ -3170,6 +3235,13 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     if disable_cal == "1":
                         raise RuntimeError("Segment calibration disabled via NCAAB_DISABLE_SEGMENT_CALIB")
 
+                    try:
+                        import os
+
+                        bias_only = (os.environ.get("NCAAB_SEGMENT_BIAS_ONLY") or "").strip().lower() in {"1", "true", "yes"}
+                    except Exception:
+                        bias_only = False
+
                     seg_df["end_min"] = pd.to_numeric(seg_df["end_min"], errors="coerce")
 
                     cols = [
@@ -3190,7 +3262,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     stage2_path = out_dir / "segment_calibration_stage2_5min.json"
 
                     stage1_affine_applied = False
-                    if calib_path.exists() and cols:
+                    if (not bias_only) and calib_path.exists() and cols:
                         calib = read_json(calib_path)
                         a_map = calib.get("a_by_end_min") if isinstance(calib, dict) else None
                         b_map = calib.get("b_by_end_min") if isinstance(calib, dict) else None
@@ -3217,15 +3289,18 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                     norm_b[kk] = vv
 
                             if norm_a:
-                                seg_df["_a_hat"] = seg_df["end_min"].map(norm_a)
-                                seg_df["_b_hat"] = seg_df["end_min"].map(norm_b).fillna(0.0)
-                                for col in cols:
-                                    seg_df[col] = seg_df["_a_hat"] * seg_df[col] + seg_df["_b_hat"]
-                                seg_df = seg_df.drop(columns=["_a_hat", "_b_hat"], errors="ignore")
+                                # Apply affine correction only for endpoints that passed guardrails.
+                                # For skipped endpoints, keep the original signal (do NOT NaN it out).
+                                a_hat = seg_df["end_min"].map(norm_a)
+                                apply_mask = a_hat.notna()
+                                if apply_mask.any():
+                                    b_hat = seg_df["end_min"].map(norm_b).fillna(0.0)
+                                    for col in cols:
+                                        seg_df.loc[apply_mask, col] = a_hat.loc[apply_mask] * seg_df.loc[apply_mask, col] + b_hat.loc[apply_mask]
                                 stage1_affine_applied = True
 
-                    # Stage1 fallback: simple bias-only correction (older artifact).
-                    if (not stage1_affine_applied) and bias_path.exists() and cols:
+                    # Stage1 fallback (or forced mode): simple bias-only correction.
+                    if (bias_only or (not stage1_affine_applied)) and bias_path.exists() and cols:
                         bias_payload = read_json(bias_path)
                         bias_map = bias_payload.get("bias_by_end_min") if isinstance(bias_payload, dict) else None
                         if isinstance(bias_map, dict) and bias_map:
@@ -3246,7 +3321,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                 seg_df = seg_df.drop(columns=["_bias_hat"], errors="ignore")
 
                     # Optional second-stage residual bias correction (typically endgame endpoints like 35/40).
-                    if stage1_affine_applied and stage2_path.exists() and cols:
+                    if (not bias_only) and stage1_affine_applied and stage2_path.exists() and cols:
                         import os
 
                         disable_stage2 = (os.environ.get("NCAAB_DISABLE_SEGMENT_CALIB_STAGE2") or "").strip().lower()

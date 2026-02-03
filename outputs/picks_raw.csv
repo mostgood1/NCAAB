@@ -927,7 +927,7 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401813284,2026-02-03,Loyola Marymount Lions,Morgan State Bears,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401822876,2026-02-03,Seton Hall Pirates,Villanova Wildcats,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401814556,2026-02-03,Buffalo Bulls,Miami (OH) RedHawks,totals,full_game,under,,,,,,Total,OU
-401814552,2026-02-03,Eastern Michigan Eagles,Akron Zips,totals,full_game,over,,,,,,Total,OU
-401813366,2026-02-03,Niagara Purple Eagles,Canisius Golden Griffins,totals,full_game,over,,,,,,Total,OU
-401822927,2026-02-03,UConn Huskies,Xavier Musketeers,totals,full_game,over,,,,,,Total,OU
-401820715,2026-02-03,Duke Blue Devils,Boston College Eagles,totals,full_game,over,,,,,,Total,OU
+401814552,2026-02-03,Eastern Michigan Eagles,Akron Zips,totals,full_game,under,,,,,,Total,OU
+401813366,2026-02-03,Niagara Purple Eagles,Canisius Golden Griffins,totals,full_game,under,,,,,,Total,OU
+401822927,2026-02-03,UConn Huskies,Xavier Musketeers,totals,full_game,under,,,,,,Total,OU
+401820715,2026-02-03,Duke Blue Devils,Boston College Eagles,totals,full_game,under,,,,,,Total,OU
