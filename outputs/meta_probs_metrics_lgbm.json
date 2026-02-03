@@ -82,7 +82,6 @@
     "pred_margin_basis_orig",
     "pred_margin_cal",
     "pred_margin_calibrated",
-    "pred_margin_market_blend",
     "pred_margin_model",
     "pred_margin_model_basis",
     "pred_margin_model_new",
@@ -106,7 +105,7 @@
     "pred_total_model",
     "pred_total_model_basis",
     "pred_total_model_new",
-    "pred_total_model_unified",
+    "pred_total_model_x",
     "pred_total_model_y",
     "pred_total_pick",
     "pred_total_sigma",
@@ -114,7 +113,7 @@
   ],
   "over": {
     "auc": null,
-    "rows": 5675
+    "rows": 5662
   },
-  "rows_total": 5675
+  "rows_total": 5662
 }
