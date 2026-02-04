@@ -460,6 +460,20 @@ def backtest_sim_accuracy(
             "Only used when recomputing sims."
         ),
     ),
+    include_ot_diagnostics: bool = typer.Option(
+        False,
+        help=(
+            "If true, also compute regulation totals (@40, from outputs/interval_actuals_5min_<date>.csv) and OT flip diagnostics. "
+            "This adds extra columns/summary keys but does not change the existing final-score-based metrics."
+        ),
+    ),
+    interval_actuals_prefix: str = typer.Option(
+        "interval_actuals_5min_",
+        help=(
+            "Prefix for outputs/<prefix><date>.csv interval actuals files (default interval_actuals_5min_). "
+            "Used only when --include-ot-diagnostics is enabled."
+        ),
+    ),
 ):
     """Backtest sim-driven hit rates (winners/totals/ATS) across historical finalized days.
 
@@ -481,6 +495,8 @@ def backtest_sim_accuracy(
             out_prefix=out_prefix,
             sim_quantiles_prefix=str(sim_quantiles_prefix),
             sim_meta_prefix=str(sim_meta_prefix),
+            include_ot_diagnostics=bool(include_ot_diagnostics),
+            interval_actuals_prefix=str(interval_actuals_prefix),
         )
         res = run_sim_accuracy_backtest(cfg)
         print(res)
@@ -522,6 +538,14 @@ def backtest_segments_5min(
             "Only used when recomputing sims."
         ),
     ),
+    emit_ot_rows: bool = typer.Option(
+        True,
+        help=(
+            "If true, emit extra OT endpoint rows (45/50/55/60) as actual-only rows for games that went to OT. "
+            "Regulation metrics remain evaluated on end_min<=40."
+        ),
+    ),
+    max_ot_periods: int = typer.Option(4, help="Maximum OT periods to emit (each OT is 5 minutes): 1=>45, 2=>50, ..."),
 ):
     """Backtest 5-minute cumulative score checkpoints (5..40) vs ESPN play-by-play.
 
@@ -550,6 +574,8 @@ def backtest_segments_5min(
             sim_segments_prefix=str(sim_segments_prefix),
             sim_quantiles_prefix=str(sim_quantiles_prefix),
             sim_meta_prefix=str(sim_meta_prefix),
+            emit_ot_rows=bool(emit_ot_rows),
+            max_ot_periods=int(max_ot_periods),
         )
         res = run_segments_5min_backtest(cfg)
         print(res)
@@ -602,6 +628,11 @@ def build_interval_actuals_5min(
     sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests"),
     max_games: int = typer.Option(0, help="If >0, limit the number of games processed (debug/smoke)"),
     out_prefix: str = typer.Option("interval_actuals_5min_", help="Output prefix under outputs/<prefix><date>.csv"),
+    include_ot_endpoints: bool = typer.Option(
+        False,
+        help="If true, include OT endpoints (45/50/55/60) for games that went to OT (regulation endpoints remain unchanged).",
+    ),
+    max_ot_periods: int = typer.Option(4, help="Maximum OT periods to emit (each OT is 5 minutes)."),
 ):
     """Build 5-minute cumulative *team* scores (5..40) from ESPN play-by-play.
 
@@ -623,11 +654,130 @@ def build_interval_actuals_5min(
             sleep_seconds=float(sleep_seconds),
             max_games=int(max_games),
             out_prefix=str(out_prefix),
+            include_ot_endpoints=bool(include_ot_endpoints),
+            max_ot_periods=int(max_ot_periods),
         )
         p = build_interval_actuals_5min_for_date(cfg)
         print({"wrote": str(p)})
     except Exception as e:
         print(f"[red]build-interval-actuals-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="tune-sim-sigma-crps")
+def tune_sim_sigma_crps(
+    start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
+    end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
+    sim_quantiles_prefix: str = typer.Option(
+        "sim_quantiles_",
+        help="Prefix for outputs/<prefix><date>.csv quantiles files (default sim_quantiles_).",
+    ),
+    interval_actuals_prefix: str = typer.Option(
+        "interval_actuals_5min_",
+        help="Prefix for outputs/<prefix><date>.csv interval actuals files (default interval_actuals_5min_).",
+    ),
+    grid_min: float = typer.Option(0.6, help="Minimum sigma multiplier to evaluate."),
+    grid_max: float = typer.Option(1.8, help="Maximum sigma multiplier to evaluate."),
+    grid_steps: int = typer.Option(25, help="Number of grid steps between min/max (inclusive)."),
+    out: Path = typer.Option(
+        settings.outputs_dir / "sim_calibration_crps_tuned.json",
+        help="Output JSON path (tuning report + recommended multipliers).",
+    ),
+    apply: bool = typer.Option(
+        False,
+        help=(
+            "If set, also update outputs/sim_calibration.json with the tuned sigma multipliers (creates a timestamped backup first)."
+        ),
+    ),
+):
+    """Tune global sigma multipliers to minimize Normal-CRPS on regulation actuals.
+
+    Uses outputs/interval_actuals_5min_<date>.csv to get regulation totals at end_min=40 (and margins when home/away scores are present).
+    Uses outputs/sim_quantiles_<date>.csv for mu/sigma.
+    """
+    try:
+        from src.backtests.sim_sigma_crps_tune import TuneSigmaCRPSConfig, tune_sigma_crps, write_sim_calibration_update
+
+        cfg = TuneSigmaCRPSConfig(
+            out_dir=settings.outputs_dir,
+            start=str(start),
+            end=str(end),
+            sim_quantiles_prefix=str(sim_quantiles_prefix),
+            interval_actuals_prefix=str(interval_actuals_prefix),
+            use_regulation_40=True,
+            grid_min=float(grid_min),
+            grid_max=float(grid_max),
+            grid_steps=int(grid_steps),
+        )
+        tuned = tune_sigma_crps(cfg)
+        wrote = write_sim_calibration_update(
+            out_dir=settings.outputs_dir,
+            tuned=tuned,
+            out_path=Path(out),
+            apply_to_default=bool(apply),
+        )
+        print({"tuned": tuned, "wrote": wrote})
+    except Exception as e:
+        print(f"[red]tune-sim-sigma-crps failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="eval-sim-sigma-crps")
+def eval_sim_sigma_crps(
+    start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
+    end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
+    sigma_total_mult: float = typer.Option(..., help="Absolute sigma_total multiplier to evaluate (sim_calibration.json scale)."),
+    sigma_margin_mult: float = typer.Option(..., help="Absolute sigma_margin multiplier to evaluate (sim_calibration.json scale)."),
+    baseline_total_mult: float = typer.Option(
+        None,
+        help="Optional baseline sigma_total_mult to compare against (defaults to current outputs/sim_calibration.json).",
+    ),
+    baseline_margin_mult: float = typer.Option(
+        None,
+        help="Optional baseline sigma_margin_mult to compare against (defaults to current outputs/sim_calibration.json).",
+    ),
+    sim_quantiles_prefix: str = typer.Option(
+        "sim_quantiles_",
+        help="Prefix for outputs/<prefix><date>.csv quantiles files (default sim_quantiles_).",
+    ),
+    interval_actuals_prefix: str = typer.Option(
+        "interval_actuals_5min_",
+        help="Prefix for outputs/<prefix><date>.csv interval actuals files (default interval_actuals_5min_).",
+    ),
+    out: Path = typer.Option(
+        settings.outputs_dir / "sim_calibration_crps_eval.json",
+        help="Output JSON path (baseline vs eval CRPS report).",
+    ),
+):
+    """Evaluate fixed sigma multipliers using Normal-CRPS vs regulation totals (@40).
+
+    Compares against the baseline sigma multipliers currently in outputs/sim_calibration.json.
+    """
+    try:
+        from src.backtests.sim_sigma_crps_tune import TuneSigmaCRPSConfig, evaluate_sigma_crps
+
+        cfg = TuneSigmaCRPSConfig(
+            out_dir=settings.outputs_dir,
+            start=str(start),
+            end=str(end),
+            sim_quantiles_prefix=str(sim_quantiles_prefix),
+            interval_actuals_prefix=str(interval_actuals_prefix),
+            use_regulation_40=True,
+            baseline_sigma_total_mult=float(baseline_total_mult) if baseline_total_mult is not None else None,
+            baseline_sigma_margin_mult=float(baseline_margin_mult) if baseline_margin_mult is not None else None,
+        )
+        res = evaluate_sigma_crps(
+            cfg,
+            sigma_total_mult=float(sigma_total_mult),
+            sigma_margin_mult=float(sigma_margin_mult),
+        )
+
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(res, indent=2, sort_keys=True), encoding="utf-8")
+        print({"evaluated": res, "wrote": str(out)})
+    except Exception as e:
+        print(f"[red]eval-sim-sigma-crps failed:[/red] {e}")
         raise typer.Exit(code=1)
 
 

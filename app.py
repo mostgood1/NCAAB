@@ -34104,6 +34104,10 @@ def api_display_predictions():
                                         'actual_home_score_end': _si(rr.get('actual_home_score_end')),
                                         'actual_away_score_end': _si(rr.get('actual_away_score_end')),
                                         'actual_total_score_end': _si(rr.get('actual_total_score_end')),
+                                        # OT metadata (optional; present when interval actuals were built with OT endpoints enabled)
+                                        'is_ot_game': _si(rr.get('is_ot_game')),
+                                        'is_ot_endpoint': _si(rr.get('is_ot_endpoint')),
+                                        'ot_periods': _si(rr.get('ot_periods')),
                                     }
                                 )
                             if rows_ia:
@@ -34459,16 +34463,148 @@ def api_display_predictions():
                                     'err_total': (pt - float(at)) if (pt is not None and at is not None) else None,
                                     'err_home': (ph - float(ah)) if (ph is not None and ah is not None) else None,
                                     'err_away': (pa - float(aa)) if (pa is not None and aa is not None) else None,
+                                    'is_ot_endpoint': 1 if em_i > 40 else 0,
                                 }
                             )
                         except Exception:
                             continue
+
+                    # Append OT endpoints (actual-only) when interval actuals includes them.
+                    # Segments remain regulation-only (end_min <= 40), so OT rows are informational.
+                    try:
+                        seg_endmins = set()
+                        for s in segs:
+                            try:
+                                em = s.get('end_min')
+                                if em is None:
+                                    continue
+                                seg_endmins.add(int(em))
+                            except Exception:
+                                continue
+                        for em_i, a in sorted(a_by.items(), key=lambda kv: int(kv[0])):
+                            try:
+                                if em_i in seg_endmins:
+                                    continue
+                                if em_i <= 40:
+                                    continue
+                                merged.append(
+                                    {
+                                        'end_min': int(em_i),
+                                        'start_min': None,
+                                        'half': None,
+                                        'pred_q50_total_score_end': None,
+                                        'pred_q50_home_score_end': None,
+                                        'pred_q50_away_score_end': None,
+                                        'pred_q10_total_score_end': None,
+                                        'pred_q90_total_score_end': None,
+                                        'actual_total_score_end': _i(a.get('actual_total_score_end')),
+                                        'actual_home_score_end': _i(a.get('actual_home_score_end')),
+                                        'actual_away_score_end': _i(a.get('actual_away_score_end')),
+                                        'err_total': None,
+                                        'err_home': None,
+                                        'err_away': None,
+                                        'is_ot_endpoint': 1,
+                                    }
+                                )
+                            except Exception:
+                                continue
+                    except Exception:
+                        pass
                     merged.sort(key=lambda x: int(x.get('end_min') or 0))
                 item['segments_5min_recon'] = merged
                 item['has_segments_5min_recon'] = bool(merged)
             except Exception:
                 item['segments_5min_recon'] = []
                 item['has_segments_5min_recon'] = False
+
+            # OT impact summary (cards view only): regulation 40 vs final incl-OT (from interval actuals)
+            try:
+                item['is_ot_game'] = False
+                item['ot_periods'] = None
+                item['reg_total_40'] = None
+                item['final_total_incl_ot'] = None
+                item['ot_points'] = None
+                item['ou_side_reg_40'] = None
+                item['ou_side_final_incl_ot'] = None
+                item['ou_flipped_by_ot'] = False
+
+                if cards_view:
+                    acts = item.get('intervals_5min_actual')
+                    if isinstance(acts, list) and acts:
+                        a_by = {}
+                        for a in acts:
+                            try:
+                                em = a.get('end_min')
+                                if em is None:
+                                    continue
+                                a_by[int(em)] = a
+                            except Exception:
+                                continue
+
+                        # Determine OT periods / is_ot_game from any row that carries metadata.
+                        try:
+                            otp = None
+                            is_ot = False
+                            for a in acts:
+                                try:
+                                    if a.get('is_ot_game') in (1, True):
+                                        is_ot = True
+                                    if a.get('ot_periods') is not None:
+                                        otp = int(a.get('ot_periods'))
+                                except Exception:
+                                    continue
+                            # Fallback: infer from max endpoint.
+                            max_em = max(a_by.keys()) if a_by else None
+                            if max_em is not None and int(max_em) > 40:
+                                is_ot = True
+                            item['is_ot_game'] = bool(is_ot)
+                            item['ot_periods'] = otp
+                        except Exception:
+                            pass
+
+                        def _to_int(v: Any) -> int | None:
+                            try:
+                                if v is None:
+                                    return None
+                                x = float(v)
+                                if not np.isfinite(x):
+                                    return None
+                                return int(x)
+                            except Exception:
+                                return None
+
+                        reg40 = _to_int(a_by.get(40, {}).get('actual_total_score_end')) if (40 in a_by) else None
+                        max_em = max(a_by.keys()) if a_by else None
+                        final_tot = _to_int(a_by.get(int(max_em), {}).get('actual_total_score_end')) if (max_em is not None) else None
+
+                        item['reg_total_40'] = reg40
+                        item['final_total_incl_ot'] = final_tot
+                        if (reg40 is not None) and (final_tot is not None) and (final_tot >= reg40):
+                            item['ot_points'] = int(final_tot - reg40)
+
+                        # Side vs market_total at regulation vs final (to show OT flips).
+                        try:
+                            line = item.get('market_total')
+                            if line is not None:
+                                line_f = float(line)
+                                def _side(total_i: int | None) -> str | None:
+                                    if total_i is None:
+                                        return None
+                                    if total_i > line_f:
+                                        return 'O'
+                                    if total_i < line_f:
+                                        return 'U'
+                                    return 'P'
+                                s_reg = _side(reg40)
+                                s_fin = _side(final_tot)
+                                item['ou_side_reg_40'] = s_reg
+                                item['ou_side_final_incl_ot'] = s_fin
+                                if (s_reg is not None) and (s_fin is not None) and (s_reg != 'P') and (s_fin != 'P'):
+                                    item['ou_flipped_by_ot'] = bool(s_reg != s_fin)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
             # Attach stake-sheet marker/details (cards view only)
             try:

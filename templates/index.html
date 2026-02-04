@@ -168,7 +168,8 @@
             </div>
 
             {# Card-level reconciliation strip (historic actuals): ATS / OU / ML correctness at a glance #}
-            {% if r.has_actuals is defined and r.has_actuals %}
+            {% set _has_actuals = (r.has_actuals is defined and r.has_actuals) %}
+            {% if _has_actuals %}
               {% set has_spread = (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) %}
               {% set has_total  = (r.market_total is defined and r.market_total is not none and r.market_total == r.market_total) %}
               {% set eval_ats = (r.eval_ats_ok if (r.eval_ats_ok is defined and r.eval_ats_ok is not none and r.eval_ats_ok == r.eval_ats_ok) else none) %}
@@ -211,6 +212,14 @@
                 {% if (ci90_lo is not none) and (ci90_hi is not none) and (at_full is not none) %}
                   <span class="pill {{ 'ok' if ci90_ok else 'bad' }}" title="Total CI90: [{{ '%.1f' % ci90_lo }}, {{ '%.1f' % ci90_hi }}] | Actual: {{ '%.1f' % at_full }}">CI90</span>
                 {% endif %}
+
+                {# OT visibility: regulation (40m) vs final incl-OT (from interval actuals) #}
+                {% if r.is_ot_game is defined and r.is_ot_game and (r.reg_total_40 is defined and r.reg_total_40 is not none) and (r.final_total_incl_ot is defined and r.final_total_incl_ot is not none) %}
+                  {% set _ot_cls = ('bad' if (r.ou_flipped_by_ot is defined and r.ou_flipped_by_ot) else 'neutral') %}
+                  <span class="pill {{ _ot_cls }}" title="OT impact | Reg 40: {{ r.reg_total_40 }} | Final (incl OT): {{ r.final_total_incl_ot }}{% if r.ot_periods is defined and r.ot_periods is not none %} | OT periods: {{ r.ot_periods }}{% endif %}{% if r.ou_side_reg_40 is defined and r.ou_side_final_incl_ot is defined and r.ou_side_reg_40 and r.ou_side_final_incl_ot %} | OU vs line: {{ r.ou_side_reg_40 }} → {{ r.ou_side_final_incl_ot }}{% endif %}">
+                    OT{% if r.ot_points is defined and r.ot_points is not none %} +{{ r.ot_points }}{% endif %}{% if r.ou_flipped_by_ot is defined and r.ou_flipped_by_ot %} (flip){% endif %}
+                  </span>
+                {% endif %}
               </div>
 
               {# 1H reconciliation strip (when 1H markets + scores available) #}
@@ -241,6 +250,16 @@
                   <span class="pill {{ ats1_cls }}" title="{% if has_spread_1h %}1H ATS result: {{ (r.ats_result_1h ~ '') if (r.ats_result_1h is defined and r.ats_result_1h is not none) else '–' }}{% else %}1H ATS line unavailable{% endif %}">{{ ats1_lbl }}</span>
                   <span class="pill {{ ou1_cls }}" title="{% if has_total_1h %}1H OU result: {{ ou1_res or '–' }} | Model lean: {{ ou1_lean or '–' }}{% else %}1H total line unavailable{% endif %}">{{ ou1_lbl }}</span>
                   <span class="pill {{ ml1_cls }}" title="1H winner: {{ (r.ml_result_1h ~ '') if (r.ml_result_1h is defined and r.ml_result_1h is not none) else '–' }}">{{ ml1_lbl }}</span>
+                </div>
+              {% endif %}
+            {% else %}
+              {# If results aren't loaded yet, still surface OT impact when interval actuals include OT endpoints. #}
+              {% if r.is_ot_game is defined and r.is_ot_game and (r.reg_total_40 is defined and r.reg_total_40 is not none) and (r.final_total_incl_ot is defined and r.final_total_incl_ot is not none) %}
+                {% set _ot_cls = ('bad' if (r.ou_flipped_by_ot is defined and r.ou_flipped_by_ot) else 'neutral') %}
+                <div class="kpi recon-kpi" aria-label="OT impact">
+                  <span class="pill {{ _ot_cls }}" title="OT impact | Reg 40: {{ r.reg_total_40 }} | Final (incl OT): {{ r.final_total_incl_ot }}{% if r.ot_periods is defined and r.ot_periods is not none %} | OT periods: {{ r.ot_periods }}{% endif %}{% if r.ou_side_reg_40 is defined and r.ou_side_final_incl_ot is defined and r.ou_side_reg_40 and r.ou_side_final_incl_ot %} | OU vs line: {{ r.ou_side_reg_40 }} → {{ r.ou_side_final_incl_ot }}{% endif %}">
+                    OT{% if r.ot_points is defined and r.ot_points is not none %} +{{ r.ot_points }}{% endif %}{% if r.ou_flipped_by_ot is defined and r.ou_flipped_by_ot %} (flip){% endif %}
+                  </span>
                 </div>
               {% endif %}
             {% endif %}
@@ -507,11 +526,27 @@
                     </div>
 
                     {% if r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon %}
+                      {% if r.is_ot_game is defined and r.is_ot_game and (r.reg_total_40 is defined and r.reg_total_40 is not none) and (r.final_total_incl_ot is defined and r.final_total_incl_ot is not none) %}
+                        <div class="muted m4v8">
+                          OT impact:
+                          <span class="pill small">Reg 40: {{ r.reg_total_40 }}</span>
+                          <span class="pill small">Final (incl OT): {{ r.final_total_incl_ot }}</span>
+                          {% if r.ot_points is defined and r.ot_points is not none %}
+                            <span class="pill small">OT pts +{{ r.ot_points }}</span>
+                          {% endif %}
+                          {% if r.ot_periods is defined and r.ot_periods is not none %}
+                            <span class="pill small">OT periods {{ r.ot_periods }}</span>
+                          {% endif %}
+                          {% if r.ou_flipped_by_ot is defined and r.ou_flipped_by_ot %}
+                            <span class="pill small">OU flipped by OT{% if r.ou_side_reg_40 is defined and r.ou_side_final_incl_ot is defined and r.ou_side_reg_40 and r.ou_side_final_incl_ot %}: {{ r.ou_side_reg_40 }} → {{ r.ou_side_final_incl_ot }}{% endif %}</span>
+                          {% endif %}
+                        </div>
+                      {% endif %}
                       <div class="muted m4v8">
                         Actual cum (H/A) + Δ(total) at end-minute:
                         {% for x in r.segments_5min_recon %}
                           {% if (x.end_min is defined and x.end_min is not none) and (x.actual_total_score_end is defined and x.actual_total_score_end is not none) %}
-                            {% set _tag = ('1H' if (x.end_min == 20) else ('G' if (x.end_min == 40) else '')) %}
+                            {% set _tag = ('1H' if (x.end_min == 20) else ('G' if (x.end_min == 40) else ('OT' if (x.end_min > 40) else ''))) %}
                             <span class="pill small">
                               {{ x.end_min }}{% if _tag %} ({{ _tag }}){% endif %}:
                               H {{ x.actual_home_score_end if x.actual_home_score_end is not none else '–' }} · A {{ x.actual_away_score_end if x.actual_away_score_end is not none else '–' }}
@@ -524,7 +559,7 @@
                       </div>
                       <div class="note muted">Δ is (Sim q50 cumulative total) − (Actual cumulative total) at each 5-min endpoint (from cached ESPN play-by-play).</div>
                     {% else %}
-                      <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD</span> (uses cached ESPN PBP when available).</div>
+                      <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD --include-ot-endpoints</span> (uses cached ESPN PBP when available).</div>
                     {% endif %}
 
                     {% if r.segments_rollup is defined and r.segments_rollup %}

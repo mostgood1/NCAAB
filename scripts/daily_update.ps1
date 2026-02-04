@@ -482,7 +482,9 @@ print({'path': str(games_path), 'rows': len(df2)})
       $iaArgs = @(
         'build-interval-actuals-5min',
         '--date', "$prevDate",
-        '--sleep-seconds', '0.10'
+        '--sleep-seconds', '0.10',
+        '--include-ot-endpoints',
+        '--max-ot-periods', '4'
       )
       if ($NoCache.IsPresent) { $iaArgs += '--no-use-cache' }
 
