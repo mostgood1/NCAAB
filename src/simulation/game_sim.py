@@ -3232,6 +3232,13 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     except Exception:
                         disable_cal = "0"
 
+                    try:
+                        import os
+
+                        debug_seg_cal = (os.environ.get("NCAAB_DEBUG_SEGMENT_CALIB") or "").strip().lower() in {"1", "true", "yes"}
+                    except Exception:
+                        debug_seg_cal = False
+
                     if disable_cal == "1":
                         raise RuntimeError("Segment calibration disabled via NCAAB_DISABLE_SEGMENT_CALIB")
 
@@ -3262,6 +3269,9 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     stage2_path = out_dir / "segment_calibration_stage2_5min.json"
 
                     stage1_affine_applied = False
+                    stage1_bias_applied = False
+                    stage2_applied = False
+                    stage2_skipped_reason: str | None = None
                     if (not bias_only) and calib_path.exists() and cols:
                         calib = read_json(calib_path)
                         a_map = calib.get("a_by_end_min") if isinstance(calib, dict) else None
@@ -3319,9 +3329,13 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                 for col in cols:
                                     seg_df[col] = seg_df[col] - seg_df["_bias_hat"]
                                 seg_df = seg_df.drop(columns=["_bias_hat"], errors="ignore")
+                                stage1_bias_applied = True
 
-                    # Optional second-stage residual bias correction (typically endgame endpoints like 35/40).
-                    if (not bias_only) and stage1_affine_applied and stage2_path.exists() and cols:
+                    # Optional second-stage residual bias correction.
+                    # Note: Stage1 affine calibration may be skipped by guardrails (e.g., very small slopes).
+                    # In that case we often fall back to bias-only Stage1; stage2 is still useful and should
+                    # be allowed to run on top of whatever stage1 was applied.
+                    if stage2_path.exists() and cols:
                         import os
 
                         disable_stage2 = (os.environ.get("NCAAB_DISABLE_SEGMENT_CALIB_STAGE2") or "").strip().lower()
@@ -3344,12 +3358,111 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                     for col in cols:
                                         seg_df[col] = seg_df[col] - seg_df["_bias2_hat"]
                                     seg_df = seg_df.drop(columns=["_bias2_hat"], errors="ignore")
+                                    stage2_applied = True
+                        else:
+                            stage2_skipped_reason = "env_disabled"
+
+                    if debug_seg_cal:
+                        try:
+                            print(
+                                {
+                                    "segment_calib_debug": {
+                                        "date": str(date),
+                                        "bias_only": bool(bias_only),
+                                        "stage1_affine_applied": bool(stage1_affine_applied),
+                                        "stage1_bias_applied": bool(stage1_bias_applied),
+                                        "stage2_path_exists": bool(stage2_path.exists()),
+                                        "stage2_applied": bool(stage2_applied),
+                                        "stage2_skipped_reason": stage2_skipped_reason,
+                                    }
+                                }
+                            )
+                        except Exception:
+                            pass
 
                     # Enforce monotonicity within each game for cumulative columns.
                     if cols and "game_id" in seg_df.columns:
                         seg_df = seg_df.sort_values(["game_id", "end_min"], kind="mergesort")
                         for col in cols:
                             seg_df[col] = seg_df.groupby("game_id")[col].cummax()
+
+                    # Re-anchor calibrated segment cumulative totals to the primary sim totals.
+                    # The segment calibration is an endpoint-specific transform (a*value+b - bias),
+                    # which can introduce constant shifts at 20/40 that make the trajectory disagree
+                    # with the main 1H/full-game totals used elsewhere. We preserve internal
+                    # consistency by ensuring:
+                    #   end_min=20 matches *_total_1h
+                    #   end_min=40 matches *_total
+                    # while applying a smooth piecewise-linear adjustment across endpoints.
+                    try:
+                        if cols and "game_id" in seg_df.columns and "end_min" in seg_df.columns:
+                            anchor_map = {
+                                "mu_total_score_end": ("mu_total_1h", "mu_total"),
+                                "q10_total_score_end": ("q10_total_1h", "q10_total"),
+                                "q50_total_score_end": ("q50_total_1h", "q50_total"),
+                                "q90_total_score_end": ("q90_total_1h", "q90_total"),
+                            }
+
+                            usable = [c for c in cols if c in anchor_map]
+                            if usable:
+                                needed_sim = ["game_id"]
+                                for seg_col in usable:
+                                    s1, sfull = anchor_map[seg_col]
+                                    needed_sim.extend([s1, sfull])
+
+                                if all((c in sim_df.columns) for c in needed_sim):
+                                    anchors = sim_df[needed_sim].copy()
+                                    seg20 = seg_df.loc[seg_df["end_min"] == 20, ["game_id"] + usable].copy()
+                                    seg40 = seg_df.loc[seg_df["end_min"] == 40, ["game_id"] + usable].copy()
+
+                                    seg20 = seg20.rename(columns={c: f"{c}_seg20" for c in usable})
+                                    seg40 = seg40.rename(columns={c: f"{c}_seg40" for c in usable})
+
+                                    a = anchors.merge(seg20, on="game_id", how="inner").merge(seg40, on="game_id", how="inner")
+
+                                    for seg_col in usable:
+                                        s1, sfull = anchor_map[seg_col]
+                                        a[f"delta20__{seg_col}"] = pd.to_numeric(a[s1], errors="coerce") - pd.to_numeric(
+                                            a.get(f"{seg_col}_seg20"), errors="coerce"
+                                        )
+                                        a[f"delta40__{seg_col}"] = pd.to_numeric(a[sfull], errors="coerce") - pd.to_numeric(
+                                            a.get(f"{seg_col}_seg40"), errors="coerce"
+                                        )
+
+                                    deltas = a[["game_id"] + [f"delta20__{c}" for c in usable] + [f"delta40__{c}" for c in usable]].copy()
+                                    seg_df = seg_df.merge(deltas, on="game_id", how="left")
+
+                                    end_min = pd.to_numeric(seg_df["end_min"], errors="coerce")
+                                    frac1 = (end_min / 20.0).clip(lower=0.0, upper=1.0)
+                                    frac2 = ((end_min - 20.0) / 20.0).clip(lower=0.0, upper=1.0)
+
+                                    half1_mask = end_min <= 20.0
+                                    for seg_col in usable:
+                                        d20 = pd.to_numeric(seg_df.get(f"delta20__{seg_col}"), errors="coerce")
+                                        d40 = pd.to_numeric(seg_df.get(f"delta40__{seg_col}"), errors="coerce")
+                                        d20 = d20.fillna(0.0)
+                                        d40 = d40.fillna(d20)
+
+                                        delta = np.where(
+                                            half1_mask,
+                                            d20.to_numpy(dtype=float) * frac1.to_numpy(dtype=float),
+                                            d20.to_numpy(dtype=float) + (d40.to_numpy(dtype=float) - d20.to_numpy(dtype=float)) * frac2.to_numpy(dtype=float),
+                                        )
+
+                                        seg_df[seg_col] = pd.to_numeric(seg_df[seg_col], errors="coerce") + delta
+
+                                    seg_df = seg_df.drop(
+                                        columns=[f"delta20__{c}" for c in usable] + [f"delta40__{c}" for c in usable],
+                                        errors="ignore",
+                                    )
+
+                                    # Re-enforce monotonicity after anchoring.
+                                    seg_df = seg_df.sort_values(["game_id", "end_min"], kind="mergesort")
+                                    for seg_col in usable:
+                                        seg_df[seg_col] = pd.to_numeric(seg_df[seg_col], errors="coerce")
+                                        seg_df[seg_col] = seg_df.groupby("game_id")[seg_col].cummax()
+                    except Exception:
+                        pass
             except Exception:
                 pass
             seg_df.to_csv(seg_path, index=False, na_rep="")

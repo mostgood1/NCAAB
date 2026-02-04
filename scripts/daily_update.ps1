@@ -410,27 +410,60 @@ print({'path': str(games_path), 'rows': len(df2)})
           ) | Out-String
           if ($calOut) { Write-Host ($calOut.Trim()) }
 
-          # Stage 2: late-game residual bias correction (applied after affine calibration)
+          # Stage 2: residual bias correction (fit from a stage2-disabled baseline window)
           try {
-            $stage2Out = (& $VenvPython scripts/fit_segment_stage2_bias_5min.py `
-              --backtest-csv $masterCsv `
-              --stage1-calibration (Join-Path $OutDir 'segment_calibration_5min.json') `
-              --out (Join-Path $OutDir 'segment_calibration_stage2_5min.json') `
-              --end $prevDate `
-              --window-days 14 `
-              --end-mins '10,15,35,40' `
-              --pred-already-stage1 `
-              --pred-already-stage2 `
-              --merge-existing `
-              --min-rows-per-end-min $Segment5MinCalibrationMinRowsPerEndMin `
-              --min-endpoints 2 `
-              --min-rows-used ([int]$Segment5MinCalibrationMinRowsPerEndMin * 2) `
-              --stat mean
-            ) | Out-String
-            if ($stage2Out) { Write-Host ($stage2Out.Trim()) }
+            $stage2WindowDays = 14
+            $prevDt = [datetime]::ParseExact($prevDate, 'yyyy-MM-dd', $null)
+            $stage2Start = $prevDt.AddDays(-($stage2WindowDays - 1)).ToString('yyyy-MM-dd')
+            $stage2Prefix = 'segments_5min_stage2off_window'
+            $stage2BtArgs = @(
+              'backtest-segments-5min',
+              '--start', "$stage2Start",
+              '--end', "$prevDate",
+              '--engine', "$Segment5MinBacktestEngine",
+              '--samples', "$Segment5MinBacktestSamples",
+              '--out-prefix', "$stage2Prefix",
+              '--sleep-seconds', '0.10',
+              '--recompute-sims'
+            )
+
+            $prevDisableStage2 = $env:NCAAB_DISABLE_SEGMENT_CALIB_STAGE2
+            try {
+              $env:NCAAB_DISABLE_SEGMENT_CALIB_STAGE2 = '1'
+              $stage2BtOut = (& $VenvPython -m ncaab_model.cli @stage2BtArgs) | Out-String
+              if ($stage2BtOut) { Write-Host ($stage2BtOut.Trim()) }
+            } finally {
+              if ($null -eq $prevDisableStage2 -or $prevDisableStage2 -eq '') {
+                Remove-Item Env:\NCAAB_DISABLE_SEGMENT_CALIB_STAGE2 -ErrorAction SilentlyContinue
+              } else {
+                $env:NCAAB_DISABLE_SEGMENT_CALIB_STAGE2 = $prevDisableStage2
+              }
+            }
+
+            $stage2Csv = Join-Path $btDir ("${stage2Prefix}_${stage2Start}_to_${prevDate}.csv")
+            if (Test-Path $stage2Csv) {
+              $stage2Out = (& $VenvPython scripts/refresh_segment_stage2_bias_5min.py `
+                --backtest-csv $stage2Csv `
+                --out (Join-Path $OutDir 'segment_calibration_stage2_5min.json') `
+                --end $prevDate `
+                --window-days $stage2WindowDays `
+                --end-mins '5,10,15,20,25,30,35,40' `
+                --zero-end-mins '20,40' `
+                --merge-existing `
+                --min-rows-per-end-min $Segment5MinCalibrationMinRowsPerEndMin `
+                --min-endpoints 8 `
+                --min-rows-used ([int]$Segment5MinCalibrationMinRowsPerEndMin * 8) `
+                --stat mean
+              ) | Out-String
+              if ($stage2Out) { Write-Host ($stage2Out.Trim()) }
+            } else {
+              Write-Warning "[segments-5min] Stage2 baseline backtest CSV not found: $stage2Csv"
+            }
           } catch {
             Write-Warning "segments-5min stage2 bias fit failed for ${prevDate}: $($_)"
           }
+        } else {
+          Write-Warning "[segments-5min] Master backtest CSV not found: $masterCsv"
         }
       } else {
         Write-Warning "[segments-5min] Daily backtest CSV not found: $dailyCsv"
@@ -1783,6 +1816,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
           (Join-Path $RepoRoot 'scripts\upsert_segments_5min_master.py'),
           (Join-Path $RepoRoot 'scripts\refresh_segment_calibration_5min.py'),
           (Join-Path $RepoRoot 'scripts\fit_segment_stage2_bias_5min.py'),
+          (Join-Path $RepoRoot 'scripts\refresh_segment_stage2_bias_5min.py'),
           (Join-Path $RepoRoot 'scripts\persist_odds_into_daily_results.py'),
           (Join-Path $RepoRoot 'templates\index.html'),
           (Join-Path $RepoRoot 'static\css\app.css'),
