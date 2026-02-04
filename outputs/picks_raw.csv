@@ -926,3 +926,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401812611,2026-02-04,St. John's Red Storm,Harvard Crimson,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401813284,2026-02-04,Loyola Marymount Lions,Morgan State Bears,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401822876,2026-02-04,Seton Hall Pirates,Villanova Wildcats,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401809355,2026-02-04,VMI Keydets,Wofford Terriers,totals,full_game,under,,,,,,Total,OU
+401809354,2026-02-04,UNC Greensboro Spartans,Western Carolina Catamounts,totals,full_game,under,,,,,,Total,OU
+401823936,2026-02-04,UNC Asheville Bulldogs,South Carolina Upstate Spartans,totals,full_game,under,,,,,,Total,OU
+401822929,2026-02-04,Villanova Wildcats,Seton Hall Pirates,totals,full_game,under,,,,,,Total,OU
+401808655,2026-02-04,App State Mountaineers,South Alabama Jaguars,totals,full_game,under,,,,,,Total,OU
