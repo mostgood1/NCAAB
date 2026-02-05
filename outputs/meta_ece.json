@@ -1,0 +1,20 @@
+{
+  "brier_cover_cal": null,
+  "brier_cover_raw": null,
+  "brier_over_cal": 7.834194466509724e-06,
+  "brier_over_raw": 0.1588135496552538,
+  "ece_cover_cal": null,
+  "ece_cover_raw": null,
+  "ece_over_cal": 0.0008496092665975284,
+  "ece_over_raw": 0.2026267006540183,
+  "p_col_cover_cal": "p_home_cover_meta_cal",
+  "p_col_cover_raw": "p_home_cover_meta",
+  "p_col_over_cal": "p_over_meta_cal",
+  "p_col_over_raw": "p_over_meta",
+  "rows_cover_cal": 0,
+  "rows_cover_raw": 0,
+  "rows_over_cal": 68,
+  "rows_over_raw": 356,
+  "status": "ok",
+  "timestamp_utc": "2026-02-05T22:43:51.666971"
+}
