@@ -1242,15 +1242,17 @@ def _apply_overrides(
     return total_mean2, margin_mean2, sigma_total2, sigma_margin2, pace_mu2, meta
 
 
-def _load_sim_calibration(path: Path) -> dict:
+def _load_sim_calibration(path: Path) -> tuple[dict, Optional[str]]:
     try:
         if not path.exists():
-            return {}
+            return {}, None
         with path.open("r", encoding="utf-8") as f:
             obj = json.load(f)
-        return obj if isinstance(obj, dict) else {}
-    except Exception:
-        return {}
+        if isinstance(obj, dict):
+            return obj, None
+        return {}, f"unexpected_calibration_type:{type(obj).__name__}"
+    except Exception as e:
+        return {}, f"{type(e).__name__}:{e}"
 
 
 def _apply_sim_calibration(
@@ -2594,7 +2596,20 @@ def run_simulations_for_date(out_dir: Path, date: str,
         # Use rolling last-odds file by default; per-date odds can be sparse.
         lines_path = out_dir / "games_with_last.csv"
 
-    sim_calibration = _load_sim_calibration(out_dir / "sim_calibration.json")
+    calib_path = out_dir / "sim_calibration.json"
+    sim_calibration, sim_calibration_load_error = _load_sim_calibration(calib_path)
+    # If the file exists but couldn't be read/parsed (e.g., transient write), retry once.
+    if (not sim_calibration) and sim_calibration_load_error and calib_path.exists():
+        try:
+            import time
+
+            time.sleep(0.05)
+        except Exception:
+            pass
+        sim_calibration2, sim_calibration_load_error2 = _load_sim_calibration(calib_path)
+        if sim_calibration2:
+            sim_calibration = sim_calibration2
+            sim_calibration_load_error = sim_calibration_load_error2
 
     # Effective rho can be overridden via sim_calibration.json (used for fallback
     # covariance construction when sigma_margin is missing).
@@ -3471,6 +3486,13 @@ def run_simulations_for_date(out_dir: Path, date: str,
 
     try:
         meta_path = out_dir / f"{meta_out_prefix}{date}.json"
+        sim_calibration_sha256 = None
+        try:
+            if calib_path.exists():
+                raw = calib_path.read_bytes()
+                sim_calibration_sha256 = hashlib.sha256(raw).hexdigest()
+        except Exception:
+            sim_calibration_sha256 = None
         meta = {
             "date": date,
             "sim_seed": int(seed) if seed is not None else None,
@@ -3481,6 +3503,9 @@ def run_simulations_for_date(out_dir: Path, date: str,
             "use_pace": bool(use_pace),
             "pace_sigma": float(pace_sigma),
             "injuries_path": str(injuries_path) if injuries_path is not None else None,
+            "sim_calibration_path": str(calib_path),
+            "sim_calibration_sha256": sim_calibration_sha256,
+            "sim_calibration_load_error": sim_calibration_load_error,
             "sim_calibration": sim_calibration,
             "mean_source": str(mean_source),
             "allow_market_guardrails": bool(allow_market_guardrails),

@@ -1,0 +1,9 @@
+{
+  "date": "2026-02-05",
+  "ece_threshold": 0.035,
+  "min_days": 3,
+  "reason": [],
+  "saved_calibrators_after": [],
+  "saved_calibrators_before": [],
+  "triggered": false
+}
