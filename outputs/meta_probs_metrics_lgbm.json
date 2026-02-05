@@ -108,7 +108,6 @@
     "pred_total_model_x",
     "pred_total_model_y",
     "pred_total_pick",
-    "pred_total_sigma",
     "pred_total_sigma_bootstrap"
   ],
   "over": {
