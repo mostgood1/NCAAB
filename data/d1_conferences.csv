@@ -90,6 +90,9 @@ Richmond Spiders,A-10
 Saint Joseph's Hawks,A-10
 George Mason Patriots,A-10
 Duquesne Dukes,A-10
+Fordham Rams,A-10
+La Salle Explorers,A-10
+Rhode Island Rams,A-10
 Loyola Chicago Ramblers,A-10
 # AAC (deduplicated; includes SMU),
 Memphis Tigers,AAC
@@ -153,6 +156,8 @@ Northern Illinois Huskies,MAC
 Ohio Bobcats,MAC
 Toledo Rockets,MAC
 Western Michigan Broncos,MAC
+UMass Minutemen,MAC
+Massachusetts Minutemen,MAC
 # Sun Belt (canonical 'App State'),
 App State Mountaineers,Sun Belt
 Arkansas State Red Wolves,Sun Belt
@@ -185,6 +190,9 @@ Mississippi Valley State Delta Devils,SWAC
 Prairie View A&M Panthers,SWAC
 Southern Jaguars,SWAC
 Texas Southern Tigers,SWAC
+Arkansas–Pine Bluff Golden Lions,SWAC
+Arkansas-Pine Bluff Golden Lions,SWAC
+Arkansas Pine Bluff Golden Lions,SWAC
 # MEAC,
 Howard Bison,MEAC
 Norfolk State Spartans,MEAC
@@ -236,6 +244,7 @@ Bellarmine Knights,ASUN
 Central Arkansas Bears,ASUN
 Eastern Kentucky Colonels,ASUN
 North Florida Ospreys,ASUN
+West Georgia Wolves,ASUN
 # WAC,
 UT Arlington Mavericks,WAC
 Abilene Christian Wildcats,WAC
@@ -258,6 +267,9 @@ Cleveland State Vikings,Horizon
 Robert Morris Colonials,Horizon
 Youngstown State Penguins,Horizon
 Northern Kentucky Norse,Horizon
+IU Indy Jaguars,Horizon
+IUPUI Jaguars,Horizon
+IU Indianapolis Jaguars,Horizon
 # Missouri Valley (canonical; remove MVC duplicates),
 Evansville Purple Aces,Missouri Valley
 Belmont Bruins,Missouri Valley
@@ -307,6 +319,7 @@ UMass Lowell River Hawks,America East
 New Hampshire Wildcats,America East
 NJIT Highlanders,America East
 Vermont Catamounts,America East
+UMBC Retrievers,America East
 # Big South,
 Gardner-Webb Runnin' Bulldogs,Big South
 High Point Panthers,Big South

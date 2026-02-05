@@ -84,6 +84,22 @@
         </nav>
       </div>
     </div>
+
+    <div id="filtersBar" class="card" role="region" aria-label="Cards filters">
+      <div class="flex-row-wrap filters-bar-row">
+        <div class="flex-row-wrap">
+          <span class="pill small neutral" aria-hidden="true">Conferences</span>
+          <div id="confPills" class="flex-row-wrap" aria-label="Conference filter pills"></div>
+        </div>
+        <div class="flex-row-wrap">
+          <span class="pill small neutral" aria-hidden="true">Times</span>
+          <div id="timePills" class="flex-row-wrap" aria-label="Time filter pills"></div>
+        </div>
+      </div>
+    </div>
+
+    <script id="allConferencesData" type="application/json">{{ (all_conferences or []) | tojson }}</script>
+
     <div class="cards">
       {% for r in rows %}
         {% set _edge = (r.edge_total if (r.edge_total is defined and r.edge_total is not none and r.edge_total == r.edge_total) else None) %}
@@ -98,7 +114,10 @@
         ) %}
         {% set _has_ml = (r.ml_home is defined and r.ml_home is not none) %}
         {% set _market_avail = (1 if (_has_total or _has_spread or _has_ml) else 0) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}">
+        {% set _conf_home = (r.conference_home if (r.conference_home is defined and r.conference_home) else '') %}
+        {% set _conf_away = (r.conference_away if (r.conference_away is defined and r.conference_away) else '') %}
+        {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -106,6 +125,7 @@
                   <img class="logo" src="{{ r.away_logo }}" alt="{{ r.away_team or 'Away' }} logo" />
                 {% endif %}
                 {% set use_short = (compact_mode is defined and compact_mode) %}
+
                 {% set away_header = r.away_team %}
                 {% if use_short %}
                   {% if r.away_short is defined and r.away_short %}
@@ -157,6 +177,12 @@
               {% set disp_date = (r.display_date if (r.display_date is defined and r.display_date) else (r.date if (r.date is defined and r.date) else '')) %}
               {% set is_rollover = (r.display_date is defined and r.date is defined and r.display_date and r.date and r.display_date != r.date) %}
               {% set ampm = r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '') %}
+
+              {% set _is_conf_game = (_conf_home and _conf_away and (_conf_home|trim|lower == _conf_away|trim|lower) and (_conf_home|trim|lower not in ['unknown'])) %}
+              {% if _is_conf_game %}
+                <span class="pill neutral" title="Conference game">{{ _conf_home }}</span>
+              {% endif %}
+
               {% if ampm %}
                 {% set iso0 = (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.start_time if (r.start_time is defined and r.start_time) else '')) %}
                 <span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-iso="{{ iso0 }}" data-slate="{{ disp_date }}" data-rollover="{{ '1' if is_rollover else '0' }}" title="Time shown in {{ tz or 'local' }}">{{ ampm }}</span>
@@ -278,19 +304,221 @@
             {% set mlh = (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else None) %}
             {% set mla = (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else None) %}
 
+            {% set mt1 = (r.market_total_1h if (r.market_total_1h is defined and r.market_total_1h is not none and r.market_total_1h == r.market_total_1h) else None) %}
+            {% set spr1 = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
+            {% set mlh1 = (r.ml_home_1h if (r.ml_home_1h is defined and r.ml_home_1h is not none and r.ml_home_1h == r.ml_home_1h) else None) %}
+            {% set mla1 = (r.ml_away_1h if (r.ml_away_1h is defined and r.ml_away_1h is not none and r.ml_away_1h == r.ml_away_1h) else None) %}
+
+            <div class="section-block">
+              <div class="section-title">Market</div>
+              <div class="market-grid">
+                <div class="pill">ML: {% if mla is not none %}{{ away_disp }} {{ '%.0f' % mla }}{% else %}{{ away_disp }} –{% endif %} / {% if mlh is not none %}{{ home_disp }} {{ '%.0f' % mlh }}{% else %}{{ home_disp }} –{% endif %}</div>
+                <div class="pill">ATS: {% if spr is not none %}{{ home_disp }} {% if spr > 0 %}+{% endif %}{{ '%.1f' % spr }}{% else %}–{% endif %}</div>
+                <div class="pill">Total: {% if mt is not none %}{{ '%.1f' % mt }}{% else %}–{% endif %}</div>
+
+                <div class="pill">1H ATS: {% if spr1 is not none %}{{ home_disp }} {% if spr1 > 0 %}+{% endif %}{{ '%.1f' % spr1 }}{% else %}–{% endif %}</div>
+                <div class="pill">1H Total: {% if mt1 is not none %}{{ '%.1f' % mt1 }}{% else %}–{% endif %}</div>
+                {% if (mla1 is not none) or (mlh1 is not none) %}
+                  <div class="pill">1H ML: {% if mla1 is not none %}{{ away_disp }} {{ '%.0f' % mla1 }}{% else %}{{ away_disp }} –{% endif %} / {% if mlh1 is not none %}{{ home_disp }} {{ '%.0f' % mlh1 }}{% else %}{{ home_disp }} –{% endif %}</div>
+                {% endif %}
+              </div>
+            </div>
+
             <div class="game-body">
-              <div class="section-block">
-                <div class="section-title">Market</div>
-                <div class="market-grid">
-                  <div class="pill">ML: {% if mla is not none %}{{ away_disp }} {{ '%.0f' % mla }}{% else %}{{ away_disp }} –{% endif %} / {% if mlh is not none %}{{ home_disp }} {{ '%.0f' % mlh }}{% else %}{{ home_disp }} –{% endif %}</div>
-                  <div class="pill">ATS: {% if spr is not none %}{{ home_disp }} {% if spr > 0 %}+{% endif %}{{ '%.1f' % spr }}{% else %}–{% endif %}</div>
-                  <div class="pill">Total: {% if mt is not none %}{{ '%.1f' % mt }}{% else %}–{% endif %}</div>
+              <div class="game-col">
+                <div class="section-block">
+                  <div class="section-title">1H</div>
+                  <div class="mini-table">
+                    <div class="mini-head">Source</div><div class="mini-head">Winner</div><div class="mini-head">ATS</div><div class="mini-head">Total</div><div class="mini-head">Score</div>
+                    {% for src in [
+                      {'k':'Model', 't':(r.pred_total_model_1h|default(none)), 'm':(r.pred_margin_model_1h|default(none))},
+                      {'k':'Sim', 't':(r.pred_total_sim_1h|default(none)), 'm':(r.pred_margin_sim_1h|default(none))},
+                      {'k':'Blend', 't':(r.pred_total_blend_1h|default(none)), 'm':(r.pred_margin_blend_1h|default(none)), 'w':(r.blend_weight|default(none))}
+                    ] %}
+                      {% set t = (src.t if (src.t is not none and src.t == src.t) else None) %}
+                      {% set m = (src.m if (src.m is not none and src.m == src.m) else None) %}
+                      {% set winner = (home_disp if (m is not none and m > 0) else (away_disp if (m is not none and m < 0) else ('Push' if (m is not none and m == 0) else '–'))) %}
+
+                      {% set win_edge = m %}
+
+                      {% set ats_pick = '–' %}
+                      {% if (m is not none) and (spr1 is not none) %}
+                        {% set diff = (m + spr1) %}
+                        {% if diff > 0 %}
+                          {% set ats_pick = home_disp ~ ' ' ~ ((('+' if spr1 > 0 else '') ~ ('%.1f' % spr1))) %}
+                        {% elif diff < 0 %}
+                          {% set asp = (-spr1) %}
+                          {% set ats_pick = away_disp ~ ' ' ~ ((('+' if asp > 0 else '') ~ ('%.1f' % asp))) %}
+                        {% else %}
+                          {% set ats_pick = 'Push' %}
+                        {% endif %}
+                      {% endif %}
+
+                      {% set ou_pick = '' %}
+                      {% if (t is not none) and (mt1 is not none) %}
+                        {% if t > mt1 %}{% set ou_pick = 'Over ' ~ ('%.1f' % mt1) %}{% elif t < mt1 %}{% set ou_pick = 'Under ' ~ ('%.1f' % mt1) %}{% else %}{% set ou_pick = 'Push' %}{% endif %}
+                      {% endif %}
+
+                      {% set tot_edge = (t - mt1) if (t is not none and mt1 is not none) else None %}
+
+                      {# Predicted 1H score (Away/Home) per source #}
+                      {% set home_pts = none %}
+                      {% set away_pts = none %}
+                      {% if src.k == 'Model' %}
+                        {% if r.proj_home_1h is defined and r.proj_away_1h is defined and r.proj_home_1h is not none and r.proj_away_1h is not none and r.proj_home_1h==r.proj_home_1h and r.proj_away_1h==r.proj_away_1h %}
+                          {% set home_pts = r.proj_home_1h %}
+                          {% set away_pts = r.proj_away_1h %}
+                        {% elif (t is not none) and (m is not none) %}
+                          {% set home_pts = (t + m) / 2.0 %}
+                          {% set away_pts = (t - m) / 2.0 %}
+                        {% endif %}
+                      {% elif src.k == 'Sim' %}
+                        {% if r.mu_home_1h is defined and r.mu_away_1h is defined and r.mu_home_1h is not none and r.mu_away_1h is not none and r.mu_home_1h==r.mu_home_1h and r.mu_away_1h==r.mu_away_1h %}
+                          {% set home_pts = r.mu_home_1h %}
+                          {% set away_pts = r.mu_away_1h %}
+                        {% elif (t is not none) and (m is not none) %}
+                          {% set home_pts = (t + m) / 2.0 %}
+                          {% set away_pts = (t - m) / 2.0 %}
+                        {% endif %}
+                      {% else %}
+                        {% if (t is not none) and (m is not none) %}
+                          {% set home_pts = (t + m) / 2.0 %}
+                          {% set away_pts = (t - m) / 2.0 %}
+                        {% endif %}
+                      {% endif %}
+
+                      <div class="mini-cell source">{{ src.k }}{% if src.k == 'Blend' and src.w is defined and src.w is not none and src.w == src.w %}<span class="muted"> (w {{ '%.2f' % src.w }})</span>{% endif %}</div>
+                      <div class="mini-cell">{{ winner }}{% if win_edge is not none %}<span class="muted"> ({{ '+' if win_edge > 0 else '' }}{{ '%.1f' % win_edge }})</span>{% endif %}</div>
+                      <div class="mini-cell">{{ ats_pick }}{% if (m is not none) and (spr1 is not none) %}<span class="muted"> (edge {{ '+' if diff > 0 else '' }}{{ '%.1f' % diff }})</span>{% endif %}</div>
+                      <div class="mini-cell">{% if t is not none %}{{ '%.1f' % t }}{% else %}–{% endif %}{% if ou_pick %}<span class="muted"> ({{ ou_pick }}{% if tot_edge is not none %}; edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }}{% endif %})</span>{% elif tot_edge is not none %}<span class="muted"> (edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }})</span>{% endif %}</div>
+                      <div class="mini-cell" title="{{ away_disp }} @ {{ home_disp }} (1H)">
+                        {% if (home_pts is not none) and (away_pts is not none) %}
+                          A {{ '%.0f' % away_pts }} · H {{ '%.0f' % home_pts }}
+                        {% else %}
+                          –
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                  <div class="note muted">1H scores use 1H totals/margins (sim uses 1H sim quantiles when available; otherwise falls back to proportional scaling).</div>
                 </div>
+
+                {% if r.has_segments_5min is defined and r.has_segments_5min and (r.segments_5min is defined) and r.segments_5min %}
+                  <div class="section-block">
+                    <details open>
+                      <summary class="section-title">1H 5-min Interval</summary>
+
+                      <div class="live-lens-wrap muted m4v8">
+                        <div class="note muted">Live lens (1H; enter minutes remaining + score; optional live total + 2PA/3PA):</div>
+                        <div class="kpi mt8">
+                          <span class="pill small">Min remaining
+                            <select class="date-input live-lens-min" aria-label="Minutes remaining (1H)">
+                              <option value="">–</option>
+                            </select>
+                          </span>
+                          <span class="pill small">Total pts
+                            <input class="date-input live-lens-total" type="number" step="1" min="0" inputmode="numeric" aria-label="Current total points" placeholder="e.g. 28" />
+                          </span>
+                          <span class="pill small">Live total
+                            <input class="date-input live-lens-line" type="number" step="0.5" min="0" inputmode="decimal" aria-label="Live total line (1H)" placeholder="optional" />
+                          </span>
+                          <span class="pill small">2PA
+                            <input class="date-input live-lens-2pa" type="number" step="1" min="0" inputmode="numeric" aria-label="2PA so far" placeholder="opt" />
+                          </span>
+                          <span class="pill small">3PA
+                            <input class="date-input live-lens-3pa" type="number" step="1" min="0" inputmode="numeric" aria-label="3PA so far" placeholder="opt" />
+                          </span>
+                        </div>
+                        <div class="kpi mt8">
+                          <span class="pill small live-lens-out" data-out="exp">Sim q50 @ time: –</span>
+                          <span class="pill small live-lens-out" data-out="delta">Δ (Sim−Act): –</span>
+                          <span class="pill small live-lens-out" data-out="pace">Pace final: –</span>
+                          <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
+                          <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
+                          <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                        </div>
+                        <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'segments': r.segments_5min, 'recon': (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon) else [])} | tojson }}</script>
+                      </div>
+
+                      <div class="muted m4v8">
+                        Cum total (q50) at end-minute:
+                        {% for s in r.segments_5min %}
+                          {% if (s.end_min is defined and s.end_min is not none) and (s.end_min <= 20) and (s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end) %}
+                            {% set _tag = ('1H' if (s.end_min == 20) else '') %}
+                            <span class="pill small">{{ s.end_min }}{% if _tag %} ({{ _tag }}){% endif %}: {{ '%.0f' % s.q50_total_score_end }}</span>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+
+                      {% if r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon %}
+                        <div class="muted m4v8">
+                          Actual cum (H/A) + Δ(total) at end-minute:
+                          {% for x in r.segments_5min_recon %}
+                            {% if (x.end_min is defined and x.end_min is not none) and (x.end_min <= 20) and (x.actual_total_score_end is defined and x.actual_total_score_end is not none) %}
+                              {% set _tag = ('1H' if (x.end_min == 20) else '') %}
+                              <span class="pill small">
+                                {{ x.end_min }}{% if _tag %} ({{ _tag }}){% endif %}:
+                                H {{ x.actual_home_score_end if x.actual_home_score_end is not none else '–' }} · A {{ x.actual_away_score_end if x.actual_away_score_end is not none else '–' }}
+                                {% if x.err_total is defined and x.err_total is not none and x.err_total == x.err_total %}
+                                  <span class="muted"> · Δ {{ '+' if x.err_total > 0 else '' }}{{ '%.0f' % x.err_total }}</span>
+                                {% endif %}
+                              </span>
+                            {% endif %}
+                          {% endfor %}
+                        </div>
+                        <div class="note muted">Δ is (Sim q50 cumulative total) − (Actual cumulative total) at each 5-min endpoint (from cached ESPN play-by-play).</div>
+                      {% else %}
+                        <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD --include-ot-endpoints</span> (uses cached ESPN PBP when available).</div>
+                      {% endif %}
+
+                      {% if r.segments_rollup is defined and r.segments_rollup %}
+                        <div class="muted m4v8">
+                          Boxscore μ rollup:
+                          <span class="pill small" title="1H totals from 5-min segments">
+                            1H poss {% if r.segments_rollup.mu_total_poss_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_poss_1h }}{% else %}–{% endif %}
+                            · tov {% if r.segments_rollup.mu_total_tov_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_tov_1h }}{% else %}–{% endif %}
+                            · fta {% if r.segments_rollup.mu_total_fta_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fta_1h }}{% else %}–{% endif %}
+                            · 2pa {% if r.segments_rollup.mu_total_fga2_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga2_1h }}{% else %}–{% endif %}
+                            · 3pa {% if r.segments_rollup.mu_total_fga3_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga3_1h }}{% else %}–{% endif %}
+                          </span>
+                        </div>
+                      {% endif %}
+                      <div class="detailed-only">
+                        <div class="mini-table">
+                          <div class="mini-head">Seg</div><div class="mini-head">Tot pts (μ)</div><div class="mini-head">Tot pts (q10–q90)</div><div class="mini-head">Cum tot (μ)</div><div class="mini-head">Cum tot (q50)</div><div class="mini-head">Poss</div><div class="mini-head">TOV</div><div class="mini-head">FTA</div><div class="mini-head">2PA</div><div class="mini-head">3PA</div>
+                          {% for s in r.segments_5min %}
+                            {% if s.end_min is defined and s.end_min is not none and s.end_min <= 20 %}
+                              {% set seg_label = ( (s.start_min|string) ~ '–' ~ (s.end_min|string) ) if (s.start_min is defined and s.end_min is defined and s.start_min is not none and s.end_min is not none) else ('Seg ' ~ (s.segment|string)) %}
+                              <div class="mini-cell source">{{ seg_label }}</div>
+                              <div class="mini-cell">{% if s.mu_total_pts_seg is defined and s.mu_total_pts_seg is not none and s.mu_total_pts_seg == s.mu_total_pts_seg %}{{ '%.1f' % s.mu_total_pts_seg }}{% else %}–{% endif %}</div>
+                              <div class="mini-cell">
+                                {% if (s.q10_total_pts_seg is defined and s.q10_total_pts_seg is not none and s.q10_total_pts_seg == s.q10_total_pts_seg) and (s.q90_total_pts_seg is defined and s.q90_total_pts_seg is not none and s.q90_total_pts_seg == s.q90_total_pts_seg) %}
+                                  {{ '%.1f' % s.q10_total_pts_seg }}–{{ '%.1f' % s.q90_total_pts_seg }}
+                                {% else %}
+                                  –
+                                {% endif %}
+                              </div>
+                              <div class="mini-cell">{% if s.mu_total_score_end is defined and s.mu_total_score_end is not none and s.mu_total_score_end == s.mu_total_score_end %}{{ '%.1f' % s.mu_total_score_end }}{% else %}–{% endif %}</div>
+                              <div class="mini-cell">{% if s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end %}{{ '%.1f' % s.q50_total_score_end }}{% else %}–{% endif %}</div>
+                              <div class="mini-cell">{% if s.mu_total_poss_seg is defined and s.mu_total_poss_seg is not none and s.mu_total_poss_seg == s.mu_total_poss_seg %}{{ '%.1f' % s.mu_total_poss_seg }}{% else %}–{% endif %}</div>
+                              <div class="mini-cell">{% if s.mu_total_tov_seg is defined and s.mu_total_tov_seg is not none and s.mu_total_tov_seg == s.mu_total_tov_seg %}{{ '%.1f' % s.mu_total_tov_seg }}{% else %}–{% endif %}</div>
+                              <div class="mini-cell">{% if s.mu_total_fta_seg is defined and s.mu_total_fta_seg is not none and s.mu_total_fta_seg == s.mu_total_fta_seg %}{{ '%.1f' % s.mu_total_fta_seg }}{% else %}–{% endif %}</div>
+                              <div class="mini-cell">{% if s.mu_total_fga2_seg is defined and s.mu_total_fga2_seg is not none and s.mu_total_fga2_seg == s.mu_total_fga2_seg %}{{ '%.1f' % s.mu_total_fga2_seg }}{% else %}–{% endif %}</div>
+                              <div class="mini-cell">{% if s.mu_total_fga3_seg is defined and s.mu_total_fga3_seg is not none and s.mu_total_fga3_seg == s.mu_total_fga3_seg %}{{ '%.1f' % s.mu_total_fga3_seg }}{% else %}–{% endif %}</div>
+                            {% endif %}
+                          {% endfor %}
+                        </div>
+                        <div class="note muted">Use cumulative columns for rollups; segment quantiles (q10/q90) are not additive.</div>
+                      </div>
+                    </details>
+                  </div>
+                {% endif %}
               </div>
 
-              <div class="section-block">
-                <div class="section-title">Full Game</div>
-                <div class="mini-table">
+              <div class="game-col">
+                <div class="section-block">
+                  <div class="section-title">Full Game</div>
+                  <div class="mini-table">
                   <div class="mini-head">Source</div><div class="mini-head">Winner</div><div class="mini-head">ATS</div><div class="mini-head">Total</div><div class="mini-head">Score</div>
 
                   {% for src in [
@@ -423,103 +651,48 @@
                 </div>
               </div>
 
-              <div class="section-block">
-                <div class="section-title">1H</div>
-                {% set mt1 = (r.market_total_1h if (r.market_total_1h is defined and r.market_total_1h is not none and r.market_total_1h == r.market_total_1h) else None) %}
-                {% set spr1 = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
-                {% set mlh1 = (r.ml_home_1h if (r.ml_home_1h is defined and r.ml_home_1h is not none and r.ml_home_1h == r.ml_home_1h) else None) %}
-                {% set mla1 = (r.ml_away_1h if (r.ml_away_1h is defined and r.ml_away_1h is not none and r.ml_away_1h == r.ml_away_1h) else None) %}
-                <div class="market-grid market-grid-sub">
-                  <div class="pill">1H ATS: {% if spr1 is not none %}{{ home_disp }} {% if spr1 > 0 %}+{% endif %}{{ '%.1f' % spr1 }}{% else %}–{% endif %}</div>
-                  <div class="pill">1H Total: {% if mt1 is not none %}{{ '%.1f' % mt1 }}{% else %}–{% endif %}</div>
-                  {% if (mla1 is not none) or (mlh1 is not none) %}
-                    <div class="pill">1H ML: {% if mla1 is not none %}{{ away_disp }} {{ '%.0f' % mla1 }}{% else %}{{ away_disp }} –{% endif %} / {% if mlh1 is not none %}{{ home_disp }} {{ '%.0f' % mlh1 }}{% else %}{{ home_disp }} –{% endif %}</div>
-                  {% endif %}
-                </div>
-                <div class="mini-table">
-                  <div class="mini-head">Source</div><div class="mini-head">Winner</div><div class="mini-head">ATS</div><div class="mini-head">Total</div><div class="mini-head">Score</div>
-                  {% for src in [
-                    {'k':'Model', 't':(r.pred_total_model_1h|default(none)), 'm':(r.pred_margin_model_1h|default(none))},
-                    {'k':'Sim', 't':(r.pred_total_sim_1h|default(none)), 'm':(r.pred_margin_sim_1h|default(none))},
-                    {'k':'Blend', 't':(r.pred_total_blend_1h|default(none)), 'm':(r.pred_margin_blend_1h|default(none)), 'w':(r.blend_weight|default(none))}
-                  ] %}
-                    {% set t = (src.t if (src.t is not none and src.t == src.t) else None) %}
-                    {% set m = (src.m if (src.m is not none and src.m == src.m) else None) %}
-                    {% set winner = (home_disp if (m is not none and m > 0) else (away_disp if (m is not none and m < 0) else ('Push' if (m is not none and m == 0) else '–'))) %}
+                {% if r.has_segments_5min is defined and r.has_segments_5min and (r.segments_5min is defined) and r.segments_5min %}
+                  <div class="section-block">
+                    <details open>
+                      <summary class="section-title">Full Game 5-min Interval</summary>
 
-                    {% set win_edge = m %}
-
-                    {% set ats_pick = '–' %}
-                    {% if (m is not none) and (spr1 is not none) %}
-                      {% set diff = (m + spr1) %}
-                      {% if diff > 0 %}
-                        {% set ats_pick = home_disp ~ ' ' ~ ((('+' if spr1 > 0 else '') ~ ('%.1f' % spr1))) %}
-                      {% elif diff < 0 %}
-                        {% set asp = (-spr1) %}
-                        {% set ats_pick = away_disp ~ ' ' ~ ((('+' if asp > 0 else '') ~ ('%.1f' % asp))) %}
-                      {% else %}
-                        {% set ats_pick = 'Push' %}
-                      {% endif %}
-                    {% endif %}
-
-                    {% set ou_pick = '' %}
-                    {% if (t is not none) and (mt1 is not none) %}
-                      {% if t > mt1 %}{% set ou_pick = 'Over ' ~ ('%.1f' % mt1) %}{% elif t < mt1 %}{% set ou_pick = 'Under ' ~ ('%.1f' % mt1) %}{% else %}{% set ou_pick = 'Push' %}{% endif %}
-                    {% endif %}
-
-                    {% set tot_edge = (t - mt1) if (t is not none and mt1 is not none) else None %}
-
-                    {# Predicted 1H score (Away/Home) per source #}
-                    {% set home_pts = none %}
-                    {% set away_pts = none %}
-                    {% if src.k == 'Model' %}
-                      {% if r.proj_home_1h is defined and r.proj_away_1h is defined and r.proj_home_1h is not none and r.proj_away_1h is not none and r.proj_home_1h==r.proj_home_1h and r.proj_away_1h==r.proj_away_1h %}
-                        {% set home_pts = r.proj_home_1h %}
-                        {% set away_pts = r.proj_away_1h %}
-                      {% elif (t is not none) and (m is not none) %}
-                        {% set home_pts = (t + m) / 2.0 %}
-                        {% set away_pts = (t - m) / 2.0 %}
-                      {% endif %}
-                    {% elif src.k == 'Sim' %}
-                      {% if r.mu_home_1h is defined and r.mu_away_1h is defined and r.mu_home_1h is not none and r.mu_away_1h is not none and r.mu_home_1h==r.mu_home_1h and r.mu_away_1h==r.mu_away_1h %}
-                        {% set home_pts = r.mu_home_1h %}
-                        {% set away_pts = r.mu_away_1h %}
-                      {% elif (t is not none) and (m is not none) %}
-                        {% set home_pts = (t + m) / 2.0 %}
-                        {% set away_pts = (t - m) / 2.0 %}
-                      {% endif %}
-                    {% else %}
-                      {% if (t is not none) and (m is not none) %}
-                        {% set home_pts = (t + m) / 2.0 %}
-                        {% set away_pts = (t - m) / 2.0 %}
-                      {% endif %}
-                    {% endif %}
-
-                    <div class="mini-cell source">{{ src.k }}{% if src.k == 'Blend' and src.w is defined and src.w is not none and src.w == src.w %}<span class="muted"> (w {{ '%.2f' % src.w }})</span>{% endif %}</div>
-                    <div class="mini-cell">{{ winner }}{% if win_edge is not none %}<span class="muted"> ({{ '+' if win_edge > 0 else '' }}{{ '%.1f' % win_edge }})</span>{% endif %}</div>
-                    <div class="mini-cell">{{ ats_pick }}{% if (m is not none) and (spr1 is not none) %}<span class="muted"> (edge {{ '+' if diff > 0 else '' }}{{ '%.1f' % diff }})</span>{% endif %}</div>
-                    <div class="mini-cell">{% if t is not none %}{{ '%.1f' % t }}{% else %}–{% endif %}{% if ou_pick %}<span class="muted"> ({{ ou_pick }}{% if tot_edge is not none %}; edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }}{% endif %})</span>{% elif tot_edge is not none %}<span class="muted"> (edge {{ '+' if tot_edge > 0 else '' }}{{ '%.1f' % tot_edge }})</span>{% endif %}</div>
-                    <div class="mini-cell" title="{{ away_disp }} @ {{ home_disp }} (1H)">
-                      {% if (home_pts is not none) and (away_pts is not none) %}
-                        A {{ '%.0f' % away_pts }} · H {{ '%.0f' % home_pts }}
-                      {% else %}
-                        –
-                      {% endif %}
+                    <div class="live-lens-wrap muted m4v8">
+                      <div class="note muted">Live lens (full game; enter minutes remaining + score; optional live total + 2PA/3PA):</div>
+                      <div class="kpi mt8">
+                        <span class="pill small">Min remaining
+                          <select class="date-input live-lens-min" aria-label="Minutes remaining (full game)">
+                            <option value="">–</option>
+                          </select>
+                        </span>
+                        <span class="pill small">Total pts
+                          <input class="date-input live-lens-total" type="number" step="1" min="0" inputmode="numeric" aria-label="Current total points" placeholder="e.g. 62" />
+                        </span>
+                        <span class="pill small">Live total
+                          <input class="date-input live-lens-line" type="number" step="0.5" min="0" inputmode="decimal" aria-label="Live total line" placeholder="optional" />
+                        </span>
+                        <span class="pill small">2PA
+                          <input class="date-input live-lens-2pa" type="number" step="1" min="0" inputmode="numeric" aria-label="2PA so far" placeholder="opt" />
+                        </span>
+                        <span class="pill small">3PA
+                          <input class="date-input live-lens-3pa" type="number" step="1" min="0" inputmode="numeric" aria-label="3PA so far" placeholder="opt" />
+                        </span>
+                      </div>
+                      <div class="kpi mt8">
+                        <span class="pill small live-lens-out" data-out="exp">Sim q50 @ time: –</span>
+                        <span class="pill small live-lens-out" data-out="delta">Δ (Sim−Act): –</span>
+                        <span class="pill small live-lens-out" data-out="pace">Pace final: –</span>
+                        <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
+                        <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
+                        <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                      </div>
+                      <script type="application/json" class="live-lens-data">{{ {'horizon': 40, 'segments': r.segments_5min, 'recon': (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon) else [])} | tojson }}</script>
                     </div>
-                  {% endfor %}
-                </div>
-                <div class="note muted">1H scores use 1H totals/margins (sim uses 1H sim quantiles when available; otherwise falls back to proportional scaling).</div>
-              </div>
 
-              {% if r.has_segments_5min is defined and r.has_segments_5min and (r.segments_5min is defined) and r.segments_5min %}
-                <div class="section-block">
-                  <details>
-                    <summary class="section-title">5-min Trajectory</summary>
                     <div class="muted m4v8">
                       Cum total (q50) at end-minute:
                       {% for s in r.segments_5min %}
-                        {% if (s.end_min is defined and s.end_min is not none) and (s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end) %}
-                          {% set _tag = ('1H' if (s.end_min == 20) else ('G' if (s.end_min == 40) else '')) %}
+                        {% if (s.end_min is defined and s.end_min is not none) and (s.end_min <= 40) and (s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end) %}
+                          {% set _tag = ('G' if (s.end_min == 40) else ('1H' if (s.end_min == 20) else '')) %}
                           <span class="pill small">{{ s.end_min }}{% if _tag %} ({{ _tag }}){% endif %}: {{ '%.0f' % s.q50_total_score_end }}</span>
                         {% endif %}
                       {% endfor %}
@@ -547,13 +720,15 @@
                         {% for x in r.segments_5min_recon %}
                           {% if (x.end_min is defined and x.end_min is not none) and (x.actual_total_score_end is defined and x.actual_total_score_end is not none) %}
                             {% set _tag = ('1H' if (x.end_min == 20) else ('G' if (x.end_min == 40) else ('OT' if (x.end_min > 40) else ''))) %}
-                            <span class="pill small">
-                              {{ x.end_min }}{% if _tag %} ({{ _tag }}){% endif %}:
-                              H {{ x.actual_home_score_end if x.actual_home_score_end is not none else '–' }} · A {{ x.actual_away_score_end if x.actual_away_score_end is not none else '–' }}
-                              {% if x.err_total is defined and x.err_total is not none and x.err_total == x.err_total %}
-                                <span class="muted"> · Δ {{ '+' if x.err_total > 0 else '' }}{{ '%.0f' % x.err_total }}</span>
-                              {% endif %}
-                            </span>
+                            {% if x.end_min <= 40 or x.end_min > 40 %}
+                              <span class="pill small">
+                                {{ x.end_min }}{% if _tag %} ({{ _tag }}){% endif %}:
+                                H {{ x.actual_home_score_end if x.actual_home_score_end is not none else '–' }} · A {{ x.actual_away_score_end if x.actual_away_score_end is not none else '–' }}
+                                {% if x.err_total is defined and x.err_total is not none and x.err_total == x.err_total %}
+                                  <span class="muted"> · Δ {{ '+' if x.err_total > 0 else '' }}{{ '%.0f' % x.err_total }}</span>
+                                {% endif %}
+                              </span>
+                            {% endif %}
                           {% endif %}
                         {% endfor %}
                       </div>
@@ -565,13 +740,6 @@
                     {% if r.segments_rollup is defined and r.segments_rollup %}
                       <div class="muted m4v8">
                         Boxscore μ rollup:
-                        <span class="pill small" title="1H totals from 5-min segments">
-                          1H poss {% if r.segments_rollup.mu_total_poss_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_poss_1h }}{% else %}–{% endif %}
-                          · tov {% if r.segments_rollup.mu_total_tov_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_tov_1h }}{% else %}–{% endif %}
-                          · fta {% if r.segments_rollup.mu_total_fta_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fta_1h }}{% else %}–{% endif %}
-                          · 2pa {% if r.segments_rollup.mu_total_fga2_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga2_1h }}{% else %}–{% endif %}
-                          · 3pa {% if r.segments_rollup.mu_total_fga3_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga3_1h }}{% else %}–{% endif %}
-                        </span>
                         <span class="pill small" title="Full game totals from 5-min segments">
                           G poss {% if r.segments_rollup.mu_total_poss_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_poss_g }}{% else %}–{% endif %}
                           · tov {% if r.segments_rollup.mu_total_tov_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_tov_g }}{% else %}–{% endif %}
@@ -585,30 +753,33 @@
                       <div class="mini-table">
                         <div class="mini-head">Seg</div><div class="mini-head">Tot pts (μ)</div><div class="mini-head">Tot pts (q10–q90)</div><div class="mini-head">Cum tot (μ)</div><div class="mini-head">Cum tot (q50)</div><div class="mini-head">Poss</div><div class="mini-head">TOV</div><div class="mini-head">FTA</div><div class="mini-head">2PA</div><div class="mini-head">3PA</div>
                         {% for s in r.segments_5min %}
-                          {% set seg_label = ( (s.start_min|string) ~ '–' ~ (s.end_min|string) ) if (s.start_min is defined and s.end_min is defined and s.start_min is not none and s.end_min is not none) else ('Seg ' ~ (s.segment|string)) %}
-                          <div class="mini-cell source">{{ seg_label }}</div>
-                          <div class="mini-cell">{% if s.mu_total_pts_seg is defined and s.mu_total_pts_seg is not none and s.mu_total_pts_seg == s.mu_total_pts_seg %}{{ '%.1f' % s.mu_total_pts_seg }}{% else %}–{% endif %}</div>
-                          <div class="mini-cell">
-                            {% if (s.q10_total_pts_seg is defined and s.q10_total_pts_seg is not none and s.q10_total_pts_seg == s.q10_total_pts_seg) and (s.q90_total_pts_seg is defined and s.q90_total_pts_seg is not none and s.q90_total_pts_seg == s.q90_total_pts_seg) %}
-                              {{ '%.1f' % s.q10_total_pts_seg }}–{{ '%.1f' % s.q90_total_pts_seg }}
-                            {% else %}
-                              –
-                            {% endif %}
-                          </div>
-                          <div class="mini-cell">{% if s.mu_total_score_end is defined and s.mu_total_score_end is not none and s.mu_total_score_end == s.mu_total_score_end %}{{ '%.1f' % s.mu_total_score_end }}{% else %}–{% endif %}</div>
-                          <div class="mini-cell">{% if s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end %}{{ '%.1f' % s.q50_total_score_end }}{% else %}–{% endif %}</div>
-                          <div class="mini-cell">{% if s.mu_total_poss_seg is defined and s.mu_total_poss_seg is not none and s.mu_total_poss_seg == s.mu_total_poss_seg %}{{ '%.1f' % s.mu_total_poss_seg }}{% else %}–{% endif %}</div>
-                          <div class="mini-cell">{% if s.mu_total_tov_seg is defined and s.mu_total_tov_seg is not none and s.mu_total_tov_seg == s.mu_total_tov_seg %}{{ '%.1f' % s.mu_total_tov_seg }}{% else %}–{% endif %}</div>
-                          <div class="mini-cell">{% if s.mu_total_fta_seg is defined and s.mu_total_fta_seg is not none and s.mu_total_fta_seg == s.mu_total_fta_seg %}{{ '%.1f' % s.mu_total_fta_seg }}{% else %}–{% endif %}</div>
-                          <div class="mini-cell">{% if s.mu_total_fga2_seg is defined and s.mu_total_fga2_seg is not none and s.mu_total_fga2_seg == s.mu_total_fga2_seg %}{{ '%.1f' % s.mu_total_fga2_seg }}{% else %}–{% endif %}</div>
-                          <div class="mini-cell">{% if s.mu_total_fga3_seg is defined and s.mu_total_fga3_seg is not none and s.mu_total_fga3_seg == s.mu_total_fga3_seg %}{{ '%.1f' % s.mu_total_fga3_seg }}{% else %}–{% endif %}</div>
+                          {% if s.end_min is defined and s.end_min is not none and s.end_min <= 40 %}
+                            {% set seg_label = ( (s.start_min|string) ~ '–' ~ (s.end_min|string) ) if (s.start_min is defined and s.end_min is defined and s.start_min is not none and s.end_min is not none) else ('Seg ' ~ (s.segment|string)) %}
+                            <div class="mini-cell source">{{ seg_label }}</div>
+                            <div class="mini-cell">{% if s.mu_total_pts_seg is defined and s.mu_total_pts_seg is not none and s.mu_total_pts_seg == s.mu_total_pts_seg %}{{ '%.1f' % s.mu_total_pts_seg }}{% else %}–{% endif %}</div>
+                            <div class="mini-cell">
+                              {% if (s.q10_total_pts_seg is defined and s.q10_total_pts_seg is not none and s.q10_total_pts_seg == s.q10_total_pts_seg) and (s.q90_total_pts_seg is defined and s.q90_total_pts_seg is not none and s.q90_total_pts_seg == s.q90_total_pts_seg) %}
+                                {{ '%.1f' % s.q10_total_pts_seg }}–{{ '%.1f' % s.q90_total_pts_seg }}
+                              {% else %}
+                                –
+                              {% endif %}
+                            </div>
+                            <div class="mini-cell">{% if s.mu_total_score_end is defined and s.mu_total_score_end is not none and s.mu_total_score_end == s.mu_total_score_end %}{{ '%.1f' % s.mu_total_score_end }}{% else %}–{% endif %}</div>
+                            <div class="mini-cell">{% if s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end %}{{ '%.1f' % s.q50_total_score_end }}{% else %}–{% endif %}</div>
+                            <div class="mini-cell">{% if s.mu_total_poss_seg is defined and s.mu_total_poss_seg is not none and s.mu_total_poss_seg == s.mu_total_poss_seg %}{{ '%.1f' % s.mu_total_poss_seg }}{% else %}–{% endif %}</div>
+                            <div class="mini-cell">{% if s.mu_total_tov_seg is defined and s.mu_total_tov_seg is not none and s.mu_total_tov_seg == s.mu_total_tov_seg %}{{ '%.1f' % s.mu_total_tov_seg }}{% else %}–{% endif %}</div>
+                            <div class="mini-cell">{% if s.mu_total_fta_seg is defined and s.mu_total_fta_seg is not none and s.mu_total_fta_seg == s.mu_total_fta_seg %}{{ '%.1f' % s.mu_total_fta_seg }}{% else %}–{% endif %}</div>
+                            <div class="mini-cell">{% if s.mu_total_fga2_seg is defined and s.mu_total_fga2_seg is not none and s.mu_total_fga2_seg == s.mu_total_fga2_seg %}{{ '%.1f' % s.mu_total_fga2_seg }}{% else %}–{% endif %}</div>
+                            <div class="mini-cell">{% if s.mu_total_fga3_seg is defined and s.mu_total_fga3_seg is not none and s.mu_total_fga3_seg == s.mu_total_fga3_seg %}{{ '%.1f' % s.mu_total_fga3_seg }}{% else %}–{% endif %}</div>
+                          {% endif %}
                         {% endfor %}
                       </div>
-                      <div class="note muted">Alignment: per-sample 5-min segments sum to 1H and full-game totals (so Cum Tot at 20m == 1H, and Cum Tot at 40m == Full). Note: segment quantiles (q10/q90) are not additive; use cumulative columns for rollups.</div>
+                      <div class="note muted">Use cumulative columns for rollups; segment quantiles (q10/q90) are not additive.</div>
                     </div>
-                  </details>
-                </div>
-              {% endif %}
+                    </details>
+                  </div>
+                {% endif %}
+              </div>
 
               <div class="section-block section-block-wide">
                 <div class="section-title">Recommendation</div>
@@ -738,7 +909,10 @@
             <div class="pill signals-row">
               {% if _edge_s is not none %}<span>Edge {{ '%.1f' % _edge_s }}</span>{% endif %}
               {% if _ev_s is not none %}<span>EV {{ '%.3f' % _ev_s }}</span>{% endif %}
-              {% if _imp_s is not none %}<span>Imp {{ '%.1f' % (_imp_s*100) }}%</span>{% endif %}
+                {% set _conf_home = (r.conference_home if (r.conference_home is defined and r.conference_home) else '') %}
+                {% set _conf_away = (r.conference_away if (r.conference_away is defined and r.conference_away) else '') %}
+                {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
+                <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}">
               {% if _d_ou_s is not none %}<span>ΔOU {{ '%.1f' % _d_ou_s }}</span>{% endif %}
               {# Prefer display-clipped probabilities with meta precedence #}
               {% if r.p_over_display is defined and r.p_over_display is not none and r.p_over_display == r.p_over_display %}
@@ -1689,6 +1863,357 @@
           observer.observe(sentinel);
         }
       } catch(e) { /* ignore */ }
+    })();
+  </script>
+
+  <script>
+    // Live lens for 5-min trajectory: translate current score/time into pace + (optional) shot-volume diagnostics vs sim.
+    (function(){
+      function toNum(v){
+        if(v === null || v === undefined) return null;
+        var x = (typeof v === 'number') ? v : parseFloat(String(v).trim());
+        return (isFinite(x) ? x : null);
+      }
+      function round1(x){ return (x === null ? null : Math.round(x * 10) / 10); }
+      function round0(x){ return (x === null ? null : Math.round(x)); }
+      function pct(x){ return (x === null ? null : Math.round(x * 100)); }
+
+      function buildIndex(segments, horizon){
+        var rows = (segments || []).map(function(s){
+          return {
+            end_min: toNum(s.end_min),
+            q50_total_score_end: toNum(s.q50_total_score_end),
+            mu_total_fga2_seg: toNum(s.mu_total_fga2_seg),
+            mu_total_fga3_seg: toNum(s.mu_total_fga3_seg)
+          };
+        }).filter(function(r){
+          if(r.end_min === null || r.end_min <= 0) return false;
+          if(horizon !== null && horizon !== undefined && r.end_min > horizon) return false;
+          return true;
+        });
+        rows.sort(function(a,b){ return a.end_min - b.end_min; });
+
+        var expTotalByMin = {};
+        var exp2paCumByMin = {};
+        var exp3paCumByMin = {};
+        var c2 = 0, c3 = 0;
+        rows.forEach(function(r){
+          if(r.mu_total_fga2_seg !== null) c2 += r.mu_total_fga2_seg;
+          if(r.mu_total_fga3_seg !== null) c3 += r.mu_total_fga3_seg;
+          if(r.q50_total_score_end !== null) expTotalByMin[String(r.end_min)] = r.q50_total_score_end;
+          exp2paCumByMin[String(r.end_min)] = c2;
+          exp3paCumByMin[String(r.end_min)] = c3;
+        });
+
+        var maxMin = rows.length ? rows[rows.length-1].end_min : null;
+        var simFinal = null;
+        var endKey = String(horizon || 40);
+        if(expTotalByMin[endKey]) simFinal = expTotalByMin[endKey];
+        else if(maxMin !== null) simFinal = expTotalByMin[String(maxMin)] || null;
+
+        return { rows: rows, expTotalByMin: expTotalByMin, exp2paCumByMin: exp2paCumByMin, exp3paCumByMin: exp3paCumByMin, simFinal: simFinal };
+      }
+
+      function setText(root, key, txt){
+        var el = root.querySelector('[data-out="' + key + '"]');
+        if(el) el.textContent = txt;
+      }
+
+      function wireOne(wrap){
+        var dataEl = wrap.querySelector('.live-lens-data');
+        if(!dataEl) return;
+        var data = null;
+        try { data = JSON.parse(dataEl.textContent || '{}'); } catch(e){ data = {}; }
+
+        var horizon = toNum(data.horizon);
+        if(horizon === null) horizon = 40;
+        var idx = buildIndex(data.segments || [], horizon);
+        var selMin = wrap.querySelector('.live-lens-min');
+        var inpTot = wrap.querySelector('.live-lens-total');
+        var inpLine = wrap.querySelector('.live-lens-line');
+        var inp2pa = wrap.querySelector('.live-lens-2pa');
+        var inp3pa = wrap.querySelector('.live-lens-3pa');
+
+        if(!selMin || !inpTot) return;
+
+        // Populate remaining-time options: remaining = horizon - elapsed
+        while(selMin.options.length > 1) selMin.remove(1);
+        idx.rows.forEach(function(r){
+          var elapsed = r.end_min;
+          if(elapsed === null) return;
+          if(elapsed <= 0) return;
+          var remaining = horizon - elapsed;
+          if(remaining < 0) remaining = 0;
+          var opt = document.createElement('option');
+          opt.value = String(remaining);
+          var tag = (elapsed === 20 ? ' (1H)' : (elapsed === 40 ? ' (G)' : ''));
+          opt.textContent = String(remaining) + tag;
+          selMin.appendChild(opt);
+        });
+
+        // Defaults from recon (last endpoint within horizon)
+        try {
+          var recon = (data.recon || []).slice();
+          recon = recon.map(function(x){ return { end_min: toNum(x.end_min), actual_total_score_end: toNum(x.actual_total_score_end) }; })
+                       .filter(function(x){
+                         if(x.end_min === null || x.actual_total_score_end === null) return false;
+                         if(x.end_min > horizon) return false;
+                         return true;
+                       })
+                       .sort(function(a,b){ return a.end_min - b.end_min; });
+          if(recon.length){
+            var last = recon[recon.length-1];
+            if(last.end_min !== null) {
+              var rem = horizon - last.end_min;
+              if(rem < 0) rem = 0;
+              selMin.value = String(rem);
+            }
+            if(last.actual_total_score_end !== null) inpTot.value = String(round0(last.actual_total_score_end));
+          }
+        } catch(e) { /* noop */ }
+
+        function update(){
+          var remaining = toNum(selMin.value);
+          var act = toNum(inpTot.value);
+          var line = inpLine ? toNum(inpLine.value) : null;
+          var a2 = inp2pa ? toNum(inp2pa.value) : null;
+          var a3 = inp3pa ? toNum(inp3pa.value) : null;
+
+          // Convert remaining → elapsed in this horizon
+          var elapsed = (remaining !== null) ? (horizon - remaining) : null;
+          if(elapsed !== null && elapsed < 0) elapsed = 0;
+
+          var exp = (elapsed !== null && elapsed > 0) ? (idx.expTotalByMin[String(elapsed)] ?? null) : null;
+          var simFinal = idx.simFinal;
+
+          var delta = (exp !== null && act !== null) ? (exp - act) : null; // + means sim higher than actual so far
+          var paceFinal = (elapsed !== null && act !== null && elapsed > 0) ? (act / elapsed * horizon) : null;
+
+          setText(wrap, 'exp', 'Sim q50 @ time: ' + (exp !== null ? String(round0(exp)) : '–'));
+          setText(wrap, 'delta', 'Δ (Sim−Act): ' + (delta !== null ? ((delta > 0 ? '+' : '') + String(round0(delta))) : '–'));
+          setText(wrap, 'pace', 'Pace final (' + String(round0(horizon)) + 'm): ' + (paceFinal !== null ? String(round0(paceFinal)) : '–'));
+          setText(wrap, 'simfinal', 'Sim q50 final: ' + (simFinal !== null ? String(round0(simFinal)) : '–'));
+
+          // Driver + lean
+          var driver = '–';
+          var lean = '–';
+          if(line !== null && paceFinal !== null){
+            var edge = paceFinal - line;
+            if(edge > 0.01) lean = 'Over (pace +' + String(round0(edge)) + ')';
+            else if(edge < -0.01) lean = 'Under (pace ' + String(round0(edge)) + ')';
+            else lean = 'No edge';
+          } else if(delta !== null){
+            lean = (delta > 0 ? 'Over candidates (low so far)' : (delta < 0 ? 'Under candidates (high so far)' : 'On track'));
+          }
+
+          if(a2 !== null || a3 !== null){
+            var actAtt = 0;
+            if(a2 !== null) actAtt += a2;
+            if(a3 !== null) actAtt += a3;
+            var expAtt = null;
+            if(elapsed !== null && elapsed > 0){
+              var e2 = idx.exp2paCumByMin[String(elapsed)];
+              var e3 = idx.exp3paCumByMin[String(elapsed)];
+              if(e2 !== undefined && e3 !== undefined) expAtt = e2 + e3;
+            }
+            if(expAtt !== null && expAtt > 0 && actAtt > 0 && exp !== null && exp > 0 && act !== null && act > 0){
+              var volRatio = actAtt / expAtt;
+              var effAct = act / actAtt;
+              var effExp = exp / expAtt;
+              var effRatio = (effExp > 0) ? (effAct / effExp) : null;
+              if(volRatio !== null && effRatio !== null){
+                if(volRatio > 1.05 && effRatio < 0.95) driver = 'Efficiency (volume high)';
+                else if(volRatio < 0.95 && effRatio >= 0.95) driver = 'Pace (volume low)';
+                else if(volRatio > 1.05 && effRatio > 1.05) driver = 'Hot shooting';
+                else if(volRatio < 0.95 && effRatio < 0.95) driver = 'Slow + cold';
+                else driver = 'Mixed';
+
+                // If we have a delta and efficiency/volume, refine lean when low so far
+                if(delta !== null && delta > 0 && volRatio > 1.05 && effRatio < 0.95) {
+                  lean = 'Over lean (low due to efficiency)';
+                } else if(delta !== null && delta > 0 && volRatio < 0.95) {
+                  lean = 'Under lean (low due to pace)';
+                } else if(delta !== null && delta < 0 && volRatio > 1.05 && effRatio > 1.05) {
+                  lean = 'Under lean (high due to hot shooting)';
+                }
+              }
+            }
+          } else {
+            if(delta !== null){
+              driver = (delta > 0 ? 'Below sim (so far)' : (delta < 0 ? 'Above sim (so far)' : 'On sim'));
+            }
+          }
+
+          setText(wrap, 'driver', 'Driver: ' + driver);
+          setText(wrap, 'lean', 'Lean: ' + lean);
+        }
+
+        ['change','input'].forEach(function(evt){
+          selMin.addEventListener(evt, update);
+          inpTot.addEventListener(evt, update);
+          if(inpLine) inpLine.addEventListener(evt, update);
+          if(inp2pa) inp2pa.addEventListener(evt, update);
+          if(inp3pa) inp3pa.addEventListener(evt, update);
+        });
+        update();
+      }
+
+      document.addEventListener('DOMContentLoaded', function(){
+        document.querySelectorAll('.live-lens-wrap').forEach(wireOne);
+      });
+    })();
+  </script>
+
+  <script>
+    // Top-of-page multi-select pill filters: Conferences + Times
+    (function(){
+      function normStr(v){
+        try { return String(v || '').trim(); } catch(e){ return ''; }
+      }
+      function bucketFromTimeLabel(label){
+        var s = normStr(label);
+        if(!s) return '';
+        // Prefer parsing "7:30 PM" / "7 PM" to an hour bucket.
+        var m = s.match(/\b(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i);
+        if(!m) return s;
+        var hh = parseInt(m[1], 10);
+        if(!isFinite(hh) || hh < 1 || hh > 12) return s;
+        var ap = String(m[3] || '').toUpperCase();
+        return String(hh) + ' ' + ap;
+      }
+      function timeBucketSortKey(bucket){
+        var s = normStr(bucket);
+        var m = s.match(/^(\d{1,2})\s*(AM|PM)$/i);
+        if(!m) return 999;
+        var hh = parseInt(m[1], 10);
+        var ap = String(m[2]).toUpperCase();
+        if(!isFinite(hh)) return 999;
+        if(hh === 12) hh = 0;
+        var h24 = hh + (ap === 'PM' ? 12 : 0);
+        return h24;
+      }
+      function mkPill(txt, cls){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'pill small ' + (cls || 'neutral');
+        b.textContent = txt;
+        b.setAttribute('aria-pressed', 'false');
+        return b;
+      }
+
+      function applyFilters(cards, selConfs, selTimes){
+        cards.forEach(function(card){
+          var ch = normStr(card.getAttribute('data-conf-home'));
+          var ca = normStr(card.getAttribute('data-conf-away'));
+          var tb = normStr(card.getAttribute('data-time-bucket'));
+
+          var okConf = true;
+          if(selConfs.size){
+            okConf = (selConfs.has(ch) || selConfs.has(ca));
+          }
+          var okTime = true;
+          if(selTimes.size){
+            okTime = selTimes.has(tb);
+          }
+          card.style.display = (okConf && okTime) ? '' : 'none';
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function(){
+        var confWrap = document.getElementById('confPills');
+        var timeWrap = document.getElementById('timePills');
+        if(!confWrap || !timeWrap) return;
+
+        var cards = Array.from(document.querySelectorAll('.game-card'));
+        if(!cards.length) return;
+
+        // Derive per-card time buckets
+        cards.forEach(function(card){
+          var lbl = normStr(card.getAttribute('data-time-label'));
+          var b = bucketFromTimeLabel(lbl);
+          card.setAttribute('data-time-bucket', b);
+        });
+
+        // Collect unique conferences/times
+        var confSet = new Set();
+        var timeSet = new Set();
+        cards.forEach(function(card){
+          var ch = normStr(card.getAttribute('data-conf-home'));
+          var ca = normStr(card.getAttribute('data-conf-away'));
+          var tb = normStr(card.getAttribute('data-time-bucket'));
+          if(ch) confSet.add(ch);
+          if(ca) confSet.add(ca);
+          if(tb) timeSet.add(tb);
+        });
+
+        // Use only conferences present on the slate.
+        // If a canonical D1 list is available, use it only to provide a stable ordering.
+        var confs = null;
+        try {
+          var el = document.getElementById('allConferencesData');
+          if(el && el.textContent){
+            var parsed = JSON.parse(el.textContent);
+            if(Array.isArray(parsed) && parsed.length){
+              confs = parsed
+                .map(normStr)
+                .filter(function(x){ return !!x && confSet.has(x); });
+            }
+          }
+        } catch(e) { confs = null; }
+        if(!confs || !confs.length){
+          confs = Array.from(confSet);
+        }
+        confs = confs.sort(function(a,b){ return a.localeCompare(b); });
+        var times = Array.from(timeSet).sort(function(a,b){ return timeBucketSortKey(a) - timeBucketSortKey(b); });
+
+        var selConfs = new Set();
+        var selTimes = new Set();
+
+        function setActive(btn, on){
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          // Use existing palette: neutral (off) -> edge-mod strong (on)
+          btn.classList.toggle('edge-mod', !!on);
+          btn.classList.toggle('strong', !!on);
+          btn.classList.toggle('neutral', !on);
+        }
+
+        function renderGroup(wrap, items, selSet, onChange){
+          wrap.innerHTML = '';
+          var allBtn = mkPill('All', 'neutral');
+          allBtn.addEventListener('click', function(){
+            selSet.clear();
+            onChange();
+          });
+          wrap.appendChild(allBtn);
+          items.forEach(function(name){
+            var btn = mkPill(name, 'neutral');
+            btn.addEventListener('click', function(){
+              if(selSet.has(name)) selSet.delete(name); else selSet.add(name);
+              onChange();
+            });
+            wrap.appendChild(btn);
+          });
+        }
+
+        function updateUI(){
+          // Update button states based on current selection
+          Array.from(confWrap.querySelectorAll('button')).forEach(function(btn){
+            var t = normStr(btn.textContent);
+            if(t === 'All') { setActive(btn, selConfs.size === 0); return; }
+            setActive(btn, selConfs.has(t));
+          });
+          Array.from(timeWrap.querySelectorAll('button')).forEach(function(btn){
+            var t = normStr(btn.textContent);
+            if(t === 'All') { setActive(btn, selTimes.size === 0); return; }
+            setActive(btn, selTimes.has(t));
+          });
+          applyFilters(cards, selConfs, selTimes);
+        }
+
+        renderGroup(confWrap, confs, selConfs, updateUI);
+        renderGroup(timeWrap, times, selTimes, updateUI);
+        updateUI();
+      });
     })();
   </script>
 </body>

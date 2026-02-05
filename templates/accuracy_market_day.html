@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Accuracy - {{ payload.get('date') }}</title>
+  <style>
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    .container { max-width: 1250px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin-bottom: 0.5rem; }
+    a { color: var(--accent); }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid var(--pill-br); padding: 0.5rem; text-align: left; }
+    th { background: var(--card); color: var(--muted); }
+    tbody tr:nth-child(odd) { background: #0d1427; }
+    .muted { color: var(--muted); }
+    .num { font-variant-numeric: tabular-nums; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+      <h1>Market Accuracy: {{ payload.get('date') }}</h1>
+      <a href="/accuracy-market">Back</a>
+      <a href="/api/accuracy-market" target="_blank">Season JSON</a>
+    </header>
+
+    {% if payload.get('missing') %}
+      <p class="muted">No merged sim/results data found for {{ payload.get('date') }}.</p>
+    {% else %}
+      {% set m = payload.get('metrics', {}) %}
+      <div class="grid">
+        <div>
+          <h2>Day Summary</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th class="num">Correct/Total</th>
+                <th class="num">Accuracy</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for key, label in [
+                ('game_ats','Game ATS'),
+                ('game_ml','Game ML'),
+                ('game_total','Game Total'),
+                ('h1_ats','1H ATS'),
+                ('h1_ml','1H ML'),
+                ('h1_total','1H Total'),
+              ] %}
+                {% set rec = m.get(key, {}) %}
+                <tr>
+                  <td>{{ label }}</td>
+                  <td class="num">{{ rec.get('correct',0) }}/{{ rec.get('total',0) }}</td>
+                  <td class="num">{{ ('%.1f' % (100.0 * rec.get('accuracy'))) ~ '%' if rec.get('accuracy') is not none else '—' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <h2>Inputs</h2>
+          {% set meta = payload.get('meta', {}) %}
+          <table>
+            <tr><th>Join key</th><td class="num">{{ meta.get('join') or '—' }}</td></tr>
+            <tr><th>Sim rows</th><td class="num">{{ meta.get('rows_sim') }}</td></tr>
+            <tr><th>Results rows</th><td class="num">{{ meta.get('rows_results') }}</td></tr>
+          </table>
+          {% set src = m.get('sources', {}) %}
+          <p class="muted" style="margin-top:8px;">
+            Pred sources: margin={{ src.get('pred_margin_full') or '—' }}, total={{ src.get('pred_total_full') or '—' }},
+            margin_1h={{ src.get('pred_margin_1h') or '—' }}, total_1h={{ src.get('pred_total_1h') or '—' }}
+          </p>
+        </div>
+      </div>
+
+      <h2>Conference vs Non-Conference</h2>
+      <p class="muted" style="margin-top:-8px;">1H ML is evaluated on who is leading at halftime (first 20 minutes).</p>
+      {% set s = payload.get('segments', {}) %}
+      <table>
+        <thead>
+          <tr>
+            <th>Segment</th>
+            <th class="num">Game ATS</th>
+            <th class="num">Game ML</th>
+            <th class="num">Game Total</th>
+            <th class="num">1H ATS</th>
+            <th class="num">1H ML</th>
+            <th class="num">1H Total</th>
+            <th class="muted">Rows</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for seg_key, seg_label in [
+            ('conference_games','Conference games'),
+            ('non_conference_games','Non-conference games'),
+            ('unknown_conference','Unknown conference'),
+          ] %}
+            {% set seg = s.get(seg_key, {}) %}
+            <tr>
+              <td>{{ seg_label }}</td>
+              {% for key in ['game_ats','game_ml','game_total','h1_ats','h1_ml','h1_total'] %}
+                {% set rec = seg.get(key, {}) %}
+                <td class="num">
+                  {{ ('%.1f' % (100.0 * rec.get('accuracy'))) ~ '%' if rec.get('accuracy') is not none else '—' }}
+                  <span class="muted">({{ rec.get('correct',0) }}/{{ rec.get('total',0) }})</span>
+                </td>
+              {% endfor %}
+              <td class="muted num">{{ seg.get('rows') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h2>By Conference</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Conference</th>
+            <th class="num">Game ATS</th>
+            <th class="num">Game ML</th>
+            <th class="num">Game Total</th>
+            <th class="num">1H ATS</th>
+            <th class="num">1H ML</th>
+            <th class="num">1H Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in payload.get('by_conference', []) %}
+            <tr>
+              <td>{{ rec.get('conference') }}</td>
+              {% for key in ['game_ats','game_ml','game_total','h1_ats','h1_ml','h1_total'] %}
+                {% set obj = rec.get(key, {}) %}
+                <td class="num">
+                  {{ ('%.1f' % (100.0 * obj.get('accuracy'))) ~ '%' if obj.get('accuracy') is not none else '—' }}
+                  <span class="muted">({{ obj.get('correct',0) }}/{{ obj.get('total',0) }})</span>
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if payload.get('unmapped_teams') %}
+        <h2>Unmapped Teams</h2>
+        <p class="muted">These teams did not map to a conference via `data/d1_conferences.csv`, `data/conferences.csv`, `data/provider_aliases.csv`, or `data/team_map.csv`.</p>
+        <ul>
+          {% for t in payload.get('unmapped_teams', []) %}
+            <li class="muted">{{ t }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+    {% endif %}
+
+  </div>
+</body>
+</html>

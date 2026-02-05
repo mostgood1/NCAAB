@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass
 from typing import Iterable, Optional
@@ -15,7 +16,7 @@ SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-col
 
 @dataclass(frozen=True)
 class CumTotals:
-    # cumulative minutes elapsed in regulation (5..40)
+    # cumulative minutes elapsed from start (regulation 5..40, OT 45+ when requested)
     end_min: int
     home_score: int
     away_score: int
@@ -171,19 +172,38 @@ def _clock_to_remaining_seconds(clock_display: object) -> Optional[int]:
         return None
 
 
-def _play_elapsed_min(p: dict) -> Optional[float]:
-    """Return regulation minutes elapsed from start (0..40)."""
+def _play_period_num(p: dict) -> Optional[int]:
     try:
         per = p.get("period") or {}
         period_num = per.get("number") or per.get("value") or per.get("period")
-        period_num = int(period_num)
+        return int(period_num)
     except Exception:
-        period_num = None
-
-    if period_num not in (1, 2):
         return None
 
-    # Basketball halves are 20 minutes
+
+def _play_elapsed_min(p: dict) -> Optional[float]:
+    """Return minutes elapsed from start (regulation + OT).
+
+    ESPN uses 20-minute halves (period 1,2) and 5-minute overtime periods (3,4,...).
+    We map elapsed as:
+      - period 1: [0,20]
+      - period 2: [20,40]
+      - OT1 (period 3): [40,45]
+      - OT2 (period 4): [45,50]
+      - ...
+    """
+    period_num = _play_period_num(p)
+    if period_num is None or period_num < 1:
+        return None
+
+    if period_num in (1, 2):
+        period_len_min = 20.0
+        base_elapsed = 20.0 * float(period_num - 1)
+    else:
+        # Overtime periods are 5 minutes.
+        period_len_min = 5.0
+        base_elapsed = 40.0 + 5.0 * float(period_num - 3)
+
     try:
         clock = p.get("clock") or {}
         disp = clock.get("displayValue") if isinstance(clock, dict) else None
@@ -198,11 +218,36 @@ def _play_elapsed_min(p: dict) -> Optional[float]:
     if rem_sec is None:
         return None
 
-    elapsed_in_period = max(0.0, 20.0 - (float(rem_sec) / 60.0))
-    elapsed = (20.0 * float(period_num - 1)) + elapsed_in_period
-    if elapsed < 0.0 or elapsed > 40.5:
+    # elapsed_in_period is clamped to [0, period_len_min]
+    elapsed_in_period = float(period_len_min) - (float(rem_sec) / 60.0)
+    if not math.isfinite(elapsed_in_period):
         return None
-    return elapsed
+    elapsed_in_period = float(min(max(elapsed_in_period, 0.0), period_len_min))
+
+    elapsed = float(base_elapsed + elapsed_in_period)
+    if elapsed < 0.0:
+        return None
+
+    # Allow a generous upper bound for multi-OT games.
+    if elapsed > 80.5:
+        return None
+    return float(elapsed)
+
+
+def infer_ot_periods(payload: dict) -> int:
+    """Infer number of OT periods present in an ESPN play-by-play payload."""
+    max_period = 0
+    try:
+        for p in _iter_plays(payload):
+            per = _play_period_num(p)
+            if per is not None and per > max_period:
+                max_period = int(per)
+    except Exception:
+        max_period = 0
+
+    if max_period <= 2:
+        return 0
+    return int(max_period - 2)
 
 
 def extract_cum_totals_5min(payload: dict, endpoints: list[int] | None = None) -> list[CumTotals]:

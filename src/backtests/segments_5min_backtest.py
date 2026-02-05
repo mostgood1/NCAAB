@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from ncaab_model.config import settings
-from ncaab_model.data.adapters.espn_playbyplay import fetch_playbyplay, extract_cum_totals_5min
+from ncaab_model.data.adapters.espn_playbyplay import fetch_playbyplay, extract_cum_totals_5min, infer_ot_periods
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,8 @@ class Segments5MinBacktestConfig:
     sim_segments_prefix: str = "sim_segments_"
     sim_quantiles_prefix: str = "sim_quantiles_"
     sim_meta_prefix: str = "sim_meta_"
+    emit_ot_rows: bool = True
+    max_ot_periods: int = 4
 
 
 def _date_range(start_iso: str, end_iso: str) -> Iterable[dt.date]:
@@ -87,6 +89,9 @@ def run_segments_5min_backtest(cfg: Segments5MinBacktestConfig) -> dict:
     n_games = 0
     n_missing_pbp = 0
     n_missing_segments = 0
+    n_ot_games = 0
+    n_ot_rows = 0
+    ot_points: list[float] = []
 
     for d in _date_range(cfg.start, cfg.end):
         date_iso = d.isoformat()
@@ -138,8 +143,26 @@ def run_segments_5min_backtest(cfg: Segments5MinBacktestConfig) -> dict:
                     time.sleep(float(cfg.sleep_seconds))
                 continue
 
-            actual = extract_cum_totals_5min(payload)
+            base_endpoints = [5, 10, 15, 20, 25, 30, 35, 40]
+            ot_periods = infer_ot_periods(payload) if bool(cfg.emit_ot_rows) else 0
+            endpoints = list(base_endpoints)
+            if ot_periods > 0:
+                n_ot_games += 1
+                extra = [40 + 5 * i for i in range(1, min(int(cfg.max_ot_periods), int(ot_periods)) + 1)]
+                endpoints = sorted(set(endpoints + extra))
+
+            actual = extract_cum_totals_5min(payload, endpoints=endpoints)
             actual_map = {int(x.end_min): int(x.total_score) for x in actual}
+
+            # OT points summary (final OT endpoint vs regulation endpoint)
+            if ot_periods > 0:
+                try:
+                    reg = float(actual_map.get(40))
+                    fin = float(actual_map.get(40 + 5 * int(min(int(cfg.max_ot_periods), int(ot_periods)))))
+                    if math.isfinite(reg) and math.isfinite(fin):
+                        ot_points.append(float(fin - reg))
+                except Exception:
+                    pass
 
             # Preds for this game
             pred_map = {}
@@ -155,37 +178,62 @@ def run_segments_5min_backtest(cfg: Segments5MinBacktestConfig) -> dict:
                     "q90": float(r.get("q90_total_score_end")) if pd.notna(r.get("q90_total_score_end")) else None,
                 }
 
-            # Merge endpoints present in both
+            # Emit rows for all extracted actual endpoints.
             for end_min, y in actual_map.items():
-                p = pred_map.get(end_min)
-                if not p:
-                    continue
-                q50 = p.get("q50")
-                if q50 is None or not math.isfinite(float(q50)):
-                    continue
+                end_min_i = int(end_min)
+                p = pred_map.get(end_min_i)
 
-                err = float(q50) - float(y)
-                rows.append(
-                    {
-                        "date": date_iso,
-                        "game_id": str(gid),
-                        "end_min": int(end_min),
-                        "actual_total": float(y),
-                        "pred_mu": p.get("mu"),
-                        "pred_q10": p.get("q10"),
-                        "pred_q50": p.get("q50"),
-                        "pred_q90": p.get("q90"),
-                        "err_q50": err,
-                        "abs_err_q50": abs(err),
-                        "pinball_q10": _pinball(float(p.get("q10")) if p.get("q10") is not None else float("nan"), float(y), 0.10)
-                        if p.get("q10") is not None and math.isfinite(float(p.get("q10")))
-                        else None,
-                        "pinball_q50": _pinball(float(p.get("q50")), float(y), 0.50),
-                        "pinball_q90": _pinball(float(p.get("q90")) if p.get("q90") is not None else float("nan"), float(y), 0.90)
-                        if p.get("q90") is not None and math.isfinite(float(p.get("q90")))
-                        else None,
-                    }
-                )
+                # Regulation endpoints (<=40) should always have preds; OT endpoints generally won't.
+                if p and p.get("q50") is not None and math.isfinite(float(p.get("q50"))):
+                    q50 = float(p.get("q50"))
+                    err = float(q50) - float(y)
+                    rows.append(
+                        {
+                            "date": date_iso,
+                            "game_id": str(gid),
+                            "end_min": int(end_min_i),
+                            "actual_total": float(y),
+                            "pred_mu": p.get("mu"),
+                            "pred_q10": p.get("q10"),
+                            "pred_q50": p.get("q50"),
+                            "pred_q90": p.get("q90"),
+                            "err_q50": err,
+                            "abs_err_q50": abs(err),
+                            "pinball_q10": _pinball(float(p.get("q10")) if p.get("q10") is not None else float("nan"), float(y), 0.10)
+                            if p.get("q10") is not None and math.isfinite(float(p.get("q10")))
+                            else None,
+                            "pinball_q50": _pinball(float(p.get("q50")), float(y), 0.50),
+                            "pinball_q90": _pinball(float(p.get("q90")) if p.get("q90") is not None else float("nan"), float(y), 0.90)
+                            if p.get("q90") is not None and math.isfinite(float(p.get("q90")))
+                            else None,
+                            "is_ot_game": 1 if ot_periods > 0 else 0,
+                            "is_ot_endpoint": 1 if end_min_i > 40 else 0,
+                            "ot_periods": int(ot_periods),
+                        }
+                    )
+                elif bool(cfg.emit_ot_rows) and ot_periods > 0 and end_min_i > 40:
+                    # OT-only row: keep for reconciliation, exclude from metrics.
+                    rows.append(
+                        {
+                            "date": date_iso,
+                            "game_id": str(gid),
+                            "end_min": int(end_min_i),
+                            "actual_total": float(y),
+                            "pred_mu": None,
+                            "pred_q10": None,
+                            "pred_q50": None,
+                            "pred_q90": None,
+                            "err_q50": None,
+                            "abs_err_q50": None,
+                            "pinball_q10": None,
+                            "pinball_q50": None,
+                            "pinball_q90": None,
+                            "is_ot_game": 1,
+                            "is_ot_endpoint": 1,
+                            "ot_periods": int(ot_periods),
+                        }
+                    )
+                    n_ot_rows += 1
 
             n_games += 1
 
@@ -210,6 +258,10 @@ def run_segments_5min_backtest(cfg: Segments5MinBacktestConfig) -> dict:
         "games_processed": int(n_games),
         "missing_sim_segments_dates": int(n_missing_segments),
         "missing_pbp_games": int(n_missing_pbp),
+        "emit_ot_rows": bool(cfg.emit_ot_rows),
+        "max_ot_periods": int(cfg.max_ot_periods),
+        "ot_games": int(n_ot_games),
+        "ot_rows_emitted": int(n_ot_rows),
     }
 
     if df.empty:
@@ -223,11 +275,21 @@ def run_segments_5min_backtest(cfg: Segments5MinBacktestConfig) -> dict:
         )
     else:
         summary["rows"] = int(len(df))
-        summary["mae_q50"] = float(df["abs_err_q50"].mean())
-        summary["bias_q50"] = float(df["err_q50"].mean())
+        # Metrics are evaluated on regulation endpoints with valid predictions.
+        df_metrics = df.copy()
+        if "end_min" in df_metrics.columns:
+            df_metrics["end_min"] = pd.to_numeric(df_metrics["end_min"], errors="coerce")
+        df_metrics["pred_q50"] = pd.to_numeric(df_metrics.get("pred_q50"), errors="coerce")
+        df_metrics["abs_err_q50"] = pd.to_numeric(df_metrics.get("abs_err_q50"), errors="coerce")
+        df_metrics["err_q50"] = pd.to_numeric(df_metrics.get("err_q50"), errors="coerce")
+        df_metrics = df_metrics[(df_metrics["end_min"] <= 40) & df_metrics["pred_q50"].notna()]
+
+        summary["mae_q50"] = float(df_metrics["abs_err_q50"].mean()) if not df_metrics.empty else None
+        summary["bias_q50"] = float(df_metrics["err_q50"].mean()) if not df_metrics.empty else None
 
         by_end = []
-        for end_min, g in df.groupby("end_min"):
+        df_by_end = df_metrics.copy()
+        for end_min, g in df_by_end.groupby("end_min"):
             by_end.append(
                 {
                     "end_min": int(end_min),
@@ -247,6 +309,20 @@ def run_segments_5min_backtest(cfg: Segments5MinBacktestConfig) -> dict:
             )
         by_end.sort(key=lambda x: x["end_min"])
         summary["by_end_min"] = by_end
+
+        if ot_points:
+            try:
+                arr = np.asarray(ot_points, dtype=float)
+                arr = arr[np.isfinite(arr)]
+                if arr.size:
+                    summary["ot_points"] = {
+                        "n": int(arr.size),
+                        "mean": float(np.mean(arr)),
+                        "median": float(np.median(arr)),
+                        "max": float(np.max(arr)),
+                    }
+            except Exception:
+                pass
 
     # Write artifacts
     tag = f"{cfg.start}_to_{cfg.end}".replace(":", "-")

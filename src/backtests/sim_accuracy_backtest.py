@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import json
+import math
 from pathlib import Path
 from typing import Any, Optional
 
@@ -40,6 +41,90 @@ class SimAccuracyBacktestConfig:
     out_prefix: str = "sim_accuracy"
     sim_quantiles_prefix: str = "sim_quantiles_"
     sim_meta_prefix: str = "sim_meta_"
+    # Optional: use 5-min interval actuals (from ESPN PBP) to compute regulation totals (@40)
+    # and OT diagnostics, without changing the existing final-score-based metrics.
+    interval_actuals_prefix: str = "interval_actuals_5min_"
+    include_ot_diagnostics: bool = False
+
+
+def _load_interval_actuals_5min(out_dir: Path, date_iso: str, prefix: str) -> pd.DataFrame:
+    try:
+        path = Path(out_dir) / f"{prefix}{date_iso}.csv"
+        if not path.exists():
+            return pd.DataFrame()
+        df = pd.read_csv(path)
+        if df.empty:
+            return pd.DataFrame()
+        if "game_id" not in df.columns or "end_min" not in df.columns:
+            return pd.DataFrame()
+        df = df.copy()
+        df["game_id"] = df["game_id"].astype(str)
+        df["end_min"] = pd.to_numeric(df["end_min"], errors="coerce")
+        # normalize common naming
+        if "actual_total_score_end" in df.columns:
+            df["actual_total_score_end"] = pd.to_numeric(df["actual_total_score_end"], errors="coerce")
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
+def _ou_side(total: float | None, line: float | None) -> str | None:
+    try:
+        if total is None or line is None:
+            return None
+        if not (np.isfinite(float(total)) and np.isfinite(float(line))):
+            return None
+        if float(total) > float(line):
+            return "O"
+        if float(total) < float(line):
+            return "U"
+        return "P"
+    except Exception:
+        return None
+
+
+def _norm_pdf(z: np.ndarray) -> np.ndarray:
+    return np.exp(-0.5 * z * z) / math.sqrt(2.0 * math.pi)
+
+
+def _norm_cdf(z: np.ndarray) -> np.ndarray:
+    # No SciPy in this project; use math.erf with a Python loop.
+    inv_sqrt2 = 1.0 / math.sqrt(2.0)
+    return 0.5 * (1.0 + np.asarray([math.erf(float(v) * inv_sqrt2) for v in z], dtype=float))
+
+
+def _crps_normal(mu: pd.Series, sigma: pd.Series, y: pd.Series) -> pd.Series:
+    """CRPS for Normal(mu, sigma) against observation y.
+
+    Formula: CRPS = sigma * [ z (2 Phi(z) - 1) + 2 phi(z) - 1/sqrt(pi) ], z=(y-mu)/sigma
+    """
+    mu2 = pd.to_numeric(mu, errors="coerce")
+    sig2 = pd.to_numeric(sigma, errors="coerce")
+    y2 = pd.to_numeric(y, errors="coerce")
+    out = pd.Series(np.nan, index=mu2.index, dtype=float)
+    m = mu2.notna() & sig2.notna() & y2.notna() & (sig2 > 1e-9)
+    if not m.any():
+        return out
+    z = ((y2[m] - mu2[m]) / sig2[m]).to_numpy(dtype=float)
+    phi = _norm_pdf(z)
+    Phi = _norm_cdf(z)
+    crps = sig2[m].to_numpy(dtype=float) * (z * (2.0 * Phi - 1.0) + 2.0 * phi - 1.0 / math.sqrt(math.pi))
+    out.loc[m] = crps
+    return out
+
+
+def _nll_normal(mu: pd.Series, sigma: pd.Series, y: pd.Series) -> pd.Series:
+    """Negative log-likelihood for Normal(mu, sigma) against observation y (up to exact constants)."""
+    mu2 = pd.to_numeric(mu, errors="coerce")
+    sig2 = pd.to_numeric(sigma, errors="coerce")
+    y2 = pd.to_numeric(y, errors="coerce")
+    out = pd.Series(np.nan, index=mu2.index, dtype=float)
+    m = mu2.notna() & sig2.notna() & y2.notna() & (sig2 > 1e-9)
+    if not m.any():
+        return out
+    z2 = (((y2[m] - mu2[m]) / sig2[m]) ** 2).astype(float)
+    out.loc[m] = 0.5 * np.log(2.0 * math.pi * (sig2[m].astype(float) ** 2)) + 0.5 * z2
+    return out
 
 
 def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
@@ -85,7 +170,7 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 meta_out_prefix=str(cfg.sim_meta_prefix),
             )
 
-        sim = _load_sim_for_date(cfg.out_dir, d)
+        sim = _load_sim_for_date(cfg.out_dir, d, sim_quantiles_prefix=str(cfg.sim_quantiles_prefix))
         res = _load_results_for_date(cfg.out_dir, d)
         merged = _join_sim_results(sim, res)
         if merged.empty:
@@ -159,6 +244,135 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
         market_total = _s("market_total")
         spread_home = _s("spread_home")
 
+        # Distribution params (Normal) when available
+        mu_total = _s("mu_total")
+        sigma_total = _s("sigma_total")
+        mu_margin = _s("mu_margin")
+        sigma_margin = _s("sigma_margin")
+
+        mu_total_1h = _s("mu_total_1h")
+        sigma_total_1h = _s("sigma_total_1h")
+        mu_margin_1h = _s("mu_margin_1h")
+        sigma_margin_1h = _s("sigma_margin_1h")
+
+        # Optional OT diagnostics via interval actuals (regulation @40 from PBP)
+        interval_df = pd.DataFrame()
+        if bool(cfg.include_ot_diagnostics):
+            interval_df = _load_interval_actuals_5min(cfg.out_dir, d, str(cfg.interval_actuals_prefix))
+
+        actual_total_reg40 = pd.Series(np.nan, index=merged.index, dtype=float)
+        actual_margin_reg40 = pd.Series(np.nan, index=merged.index, dtype=float)
+        actual_total_final_from_intervals = pd.Series(np.nan, index=merged.index, dtype=float)
+        actual_margin_final_from_intervals = pd.Series(np.nan, index=merged.index, dtype=float)
+        is_ot_game = pd.Series(0.0, index=merged.index, dtype=float)
+        ot_points = pd.Series(np.nan, index=merged.index, dtype=float)
+        ou_flipped_by_ot = pd.Series(np.nan, index=merged.index, dtype=float)
+
+        if bool(cfg.include_ot_diagnostics) and (not interval_df.empty):
+            try:
+                # Derive per-game regulation total (@40) and max endpoint (final incl OT when present)
+                if "actual_total_score_end" in interval_df.columns:
+                    base = interval_df.dropna(subset=["end_min", "actual_total_score_end"]).copy()
+                    base["end_min"] = base["end_min"].astype(int)
+                    reg = (
+                        base[base["end_min"] == 40]
+                        .sort_values(["game_id"])
+                        .drop_duplicates(subset=["game_id"], keep="last")
+                        .rename(columns={"actual_total_score_end": "actual_total_reg40"})
+                    )
+                    fin = (
+                        base.sort_values(["game_id", "end_min"])
+                        .groupby("game_id", as_index=False)
+                        .last()
+                        .rename(columns={"actual_total_score_end": "actual_total_final_from_intervals", "end_min": "max_end_min"})
+                    )
+
+                    # If home/away end scores are present, compute margins as well.
+                    if "actual_home_score_end" in base.columns and "actual_away_score_end" in base.columns:
+                        base["actual_home_score_end"] = pd.to_numeric(base["actual_home_score_end"], errors="coerce")
+                        base["actual_away_score_end"] = pd.to_numeric(base["actual_away_score_end"], errors="coerce")
+                        reg_m = (
+                            base[base["end_min"] == 40]
+                            .sort_values(["game_id"])
+                            .drop_duplicates(subset=["game_id"], keep="last")
+                            .assign(actual_margin_reg40=lambda d: d["actual_home_score_end"] - d["actual_away_score_end"])
+                            [["game_id", "actual_margin_reg40"]]
+                        )
+                        fin_m = (
+                            base.sort_values(["game_id", "end_min"])
+                            .groupby("game_id", as_index=False)
+                            .last()
+                            .assign(actual_margin_final_from_intervals=lambda d: d["actual_home_score_end"] - d["actual_away_score_end"])
+                            [["game_id", "actual_margin_final_from_intervals"]]
+                        )
+                    else:
+                        reg_m = None
+                        fin_m = None
+
+                    # Optional metadata columns (if present)
+                    meta_cols = [c for c in ["is_ot_game", "ot_periods"] if c in base.columns]
+                    meta = None
+                    if meta_cols:
+                        meta = (
+                            base.sort_values(["game_id", "end_min"])
+                            .groupby("game_id", as_index=False)
+                            .last()[["game_id"] + meta_cols]
+                        )
+
+                    g = reg[["game_id", "actual_total_reg40"]].merge(
+                        fin[["game_id", "actual_total_final_from_intervals", "max_end_min"]], on="game_id", how="outer"
+                    )
+                    if reg_m is not None:
+                        g = g.merge(reg_m, on="game_id", how="left")
+                    if fin_m is not None:
+                        g = g.merge(fin_m, on="game_id", how="left")
+                    if meta is not None:
+                        g = g.merge(meta, on="game_id", how="left")
+
+                    # Map into merged rows by game_id
+                    g["game_id"] = g["game_id"].astype(str)
+                    merged_gid = merged.get("game_id").astype(str) if "game_id" in merged.columns else pd.Series("", index=merged.index)
+
+                    g_map_reg = dict(zip(g["game_id"], pd.to_numeric(g.get("actual_total_reg40"), errors="coerce")))
+                    g_map_fin = dict(zip(g["game_id"], pd.to_numeric(g.get("actual_total_final_from_intervals"), errors="coerce")))
+                    g_map_max = dict(zip(g["game_id"], pd.to_numeric(g.get("max_end_min"), errors="coerce")))
+
+                    actual_total_reg40 = merged_gid.map(g_map_reg).astype(float)
+                    actual_total_final_from_intervals = merged_gid.map(g_map_fin).astype(float)
+                    max_end = merged_gid.map(g_map_max).astype(float)
+
+                    if "actual_margin_reg40" in g.columns:
+                        g_map_m40 = dict(zip(g["game_id"], pd.to_numeric(g.get("actual_margin_reg40"), errors="coerce")))
+                        actual_margin_reg40 = merged_gid.map(g_map_m40).astype(float)
+                    if "actual_margin_final_from_intervals" in g.columns:
+                        g_map_mfin = dict(zip(g["game_id"], pd.to_numeric(g.get("actual_margin_final_from_intervals"), errors="coerce")))
+                        actual_margin_final_from_intervals = merged_gid.map(g_map_mfin).astype(float)
+
+                    # is_ot_game: prefer explicit flag, else infer from max endpoint
+                    if "is_ot_game" in g.columns:
+                        g_map_isot = dict(zip(g["game_id"], pd.to_numeric(g.get("is_ot_game"), errors="coerce")))
+                        is_ot_game = merged_gid.map(g_map_isot).fillna(0.0)
+                    else:
+                        is_ot_game = (max_end > 40).astype(float).fillna(0.0)
+
+                    # OT points computed from intervals (final - reg40)
+                    ot_points = (actual_total_final_from_intervals - actual_total_reg40).where(
+                        actual_total_final_from_intervals.notna() & actual_total_reg40.notna()
+                    )
+
+                    # OU flipped by OT relative to market_total
+                    try:
+                        line = pd.to_numeric(market_total, errors="coerce")
+                        s_reg = actual_total_reg40.combine(line, lambda t, l: _ou_side(t, l))
+                        s_fin = actual_total_final_from_intervals.combine(line, lambda t, l: _ou_side(t, l))
+                        flipped = (s_reg.notna() & s_fin.notna() & (s_reg != "P") & (s_fin != "P") & (s_reg != s_fin))
+                        ou_flipped_by_ot = flipped.astype(float)
+                    except Exception:
+                        pass
+            except Exception:
+                # Leave diagnostics as NaN/0 when parsing fails
+                pass
+
         # 1H actuals/markets when present
         actual_total_1h = _s("actual_total_1h")
         market_total_1h = _s("market_total_1h")
@@ -183,6 +397,35 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
         # Totals accuracy vs market_total: exclude pushes
         mt = pred_total.notna() & actual_total.notna() & market_total.notna() & (actual_total != market_total)
         tot_correct = ((pred_total[mt] > market_total[mt]) == (actual_total[mt] > market_total[mt]))
+
+        # Optional: regulation totals accuracy vs market_total (using PBP @40). Exclude pushes.
+        mt_reg40 = (
+            bool(cfg.include_ot_diagnostics)
+            and pred_total.notna().any()
+            and market_total.notna().any()
+        )
+        if mt_reg40:
+            mt40 = pred_total.notna() & actual_total_reg40.notna() & market_total.notna() & (actual_total_reg40 != market_total)
+            tot_correct_reg40 = ((pred_total[mt40] > market_total[mt40]) == (actual_total_reg40[mt40] > market_total[mt40]))
+        else:
+            mt40 = pd.Series(False, index=merged.index)
+            tot_correct_reg40 = pd.Series(dtype=bool)
+
+        # Distribution scoring: CRPS / NLL (final and optional reg40)
+        crps_total_final = _crps_normal(mu_total, sigma_total, actual_total)
+        nll_total_final = _nll_normal(mu_total, sigma_total, actual_total)
+        crps_margin_final = _crps_normal(mu_margin, sigma_margin, actual_margin)
+        nll_margin_final = _nll_normal(mu_margin, sigma_margin, actual_margin)
+
+        crps_total_reg40 = _crps_normal(mu_total, sigma_total, actual_total_reg40) if bool(cfg.include_ot_diagnostics) else pd.Series(np.nan, index=merged.index)
+        nll_total_reg40 = _nll_normal(mu_total, sigma_total, actual_total_reg40) if bool(cfg.include_ot_diagnostics) else pd.Series(np.nan, index=merged.index)
+        crps_margin_reg40 = _crps_normal(mu_margin, sigma_margin, actual_margin_reg40) if bool(cfg.include_ot_diagnostics) else pd.Series(np.nan, index=merged.index)
+        nll_margin_reg40 = _nll_normal(mu_margin, sigma_margin, actual_margin_reg40) if bool(cfg.include_ot_diagnostics) else pd.Series(np.nan, index=merged.index)
+
+        crps_total_1h = _crps_normal(mu_total_1h, sigma_total_1h, actual_total_1h)
+        nll_total_1h = _nll_normal(mu_total_1h, sigma_total_1h, actual_total_1h)
+        crps_margin_1h = _crps_normal(mu_margin_1h, sigma_margin_1h, actual_margin_1h)
+        nll_margin_1h = _nll_normal(mu_margin_1h, sigma_margin_1h, actual_margin_1h)
 
         # ATS accuracy vs spread_home: exclude pushes
         ma = pred_margin.notna() & actual_margin.notna() & spread_home.notna()
@@ -224,6 +467,26 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 "winners_acc": float(win_correct.mean()) if mw.any() else None,
                 "totals_n": int(mt.sum()),
                 "totals_acc": float(tot_correct.mean()) if mt.any() else None,
+                "totals_reg40_n": int(mt40.sum()) if bool(cfg.include_ot_diagnostics) else 0,
+                "totals_reg40_acc": float(tot_correct_reg40.mean()) if (bool(cfg.include_ot_diagnostics) and mt40.any()) else None,
+                "crps_total_final": float(pd.to_numeric(crps_total_final, errors="coerce").dropna().mean())
+                if pd.to_numeric(crps_total_final, errors="coerce").notna().any()
+                else None,
+                "crps_total_reg40": float(pd.to_numeric(crps_total_reg40, errors="coerce").dropna().mean())
+                if (bool(cfg.include_ot_diagnostics) and pd.to_numeric(crps_total_reg40, errors="coerce").notna().any())
+                else None,
+                "crps_margin_final": float(pd.to_numeric(crps_margin_final, errors="coerce").dropna().mean())
+                if pd.to_numeric(crps_margin_final, errors="coerce").notna().any()
+                else None,
+                "crps_margin_reg40": float(pd.to_numeric(crps_margin_reg40, errors="coerce").dropna().mean())
+                if (bool(cfg.include_ot_diagnostics) and pd.to_numeric(crps_margin_reg40, errors="coerce").notna().any())
+                else None,
+                "crps_total_1h": float(pd.to_numeric(crps_total_1h, errors="coerce").dropna().mean())
+                if pd.to_numeric(crps_total_1h, errors="coerce").notna().any()
+                else None,
+                "crps_margin_1h": float(pd.to_numeric(crps_margin_1h, errors="coerce").dropna().mean())
+                if pd.to_numeric(crps_margin_1h, errors="coerce").notna().any()
+                else None,
                 "ats_n": int(ma2.sum()),
                 "ats_acc": float(ats_correct.mean()) if ma2.any() else None,
                 "winners_1h_n": int(mw1.sum()),
@@ -232,6 +495,8 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 "totals_1h_acc": float(tot_correct_1h.mean()) if mt1.any() else None,
                 "ats_1h_n": int(ma1b.sum()),
                 "ats_1h_acc": float(ats_correct_1h.mean()) if ma1b.any() else None,
+                "ot_games_n": int(pd.to_numeric(is_ot_game, errors="coerce").fillna(0.0).gt(0).sum()) if bool(cfg.include_ot_diagnostics) else 0,
+                "ou_flipped_by_ot_n": int(pd.to_numeric(ou_flipped_by_ot, errors="coerce").fillna(0.0).gt(0).sum()) if bool(cfg.include_ot_diagnostics) else 0,
                 "pred_total_source": total_source,
                 "pred_margin_source": margin_source,
                 "pred_total_1h_source": total_1h_source,
@@ -250,6 +515,13 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 "pred_total_1h": pred_total_1h,
                 "pred_margin_1h": pred_margin_1h,
                 "actual_total": actual_total,
+                "actual_total_reg40": actual_total_reg40 if bool(cfg.include_ot_diagnostics) else np.nan,
+                "actual_total_final_from_intervals": actual_total_final_from_intervals if bool(cfg.include_ot_diagnostics) else np.nan,
+                "actual_margin_reg40": actual_margin_reg40 if bool(cfg.include_ot_diagnostics) else np.nan,
+                "actual_margin_final_from_intervals": actual_margin_final_from_intervals if bool(cfg.include_ot_diagnostics) else np.nan,
+                "is_ot_game": is_ot_game if bool(cfg.include_ot_diagnostics) else np.nan,
+                "ot_points": ot_points if bool(cfg.include_ot_diagnostics) else np.nan,
+                "ou_flipped_by_ot": ou_flipped_by_ot if bool(cfg.include_ot_diagnostics) else np.nan,
                 "actual_margin": actual_margin,
                 "actual_total_1h": actual_total_1h,
                 "actual_margin_1h": actual_margin_1h,
@@ -257,6 +529,26 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 "spread_home": spread_home,
                 "market_total_1h": market_total_1h,
                 "spread_home_1h": spread_home_1h,
+                "mu_total": mu_total,
+                "sigma_total": sigma_total,
+                "mu_margin": mu_margin,
+                "sigma_margin": sigma_margin,
+                "mu_total_1h": mu_total_1h,
+                "sigma_total_1h": sigma_total_1h,
+                "mu_margin_1h": mu_margin_1h,
+                "sigma_margin_1h": sigma_margin_1h,
+                "crps_total_final": crps_total_final,
+                "nll_total_final": nll_total_final,
+                "crps_margin_final": crps_margin_final,
+                "nll_margin_final": nll_margin_final,
+                "crps_total_reg40": crps_total_reg40 if bool(cfg.include_ot_diagnostics) else np.nan,
+                "nll_total_reg40": nll_total_reg40 if bool(cfg.include_ot_diagnostics) else np.nan,
+                "crps_margin_reg40": crps_margin_reg40 if bool(cfg.include_ot_diagnostics) else np.nan,
+                "nll_margin_reg40": nll_margin_reg40 if bool(cfg.include_ot_diagnostics) else np.nan,
+                "crps_total_1h": crps_total_1h,
+                "nll_total_1h": nll_total_1h,
+                "crps_margin_1h": crps_margin_1h,
+                "nll_margin_1h": nll_margin_1h,
             }
         )
         if len(df_out):
@@ -264,6 +556,11 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
             df_out.loc[mw, "winner_correct"] = win_correct.astype(float).to_numpy()
             df_out["total_correct"] = np.nan
             df_out.loc[mt, "total_correct"] = tot_correct.astype(float).to_numpy()
+
+            if bool(cfg.include_ot_diagnostics):
+                df_out["total_correct_reg40"] = np.nan
+                if isinstance(mt40, pd.Series) and mt40.any():
+                    df_out.loc[mt40, "total_correct_reg40"] = tot_correct_reg40.astype(float).to_numpy()
             df_out["ats_correct"] = np.nan
             df_out.loc[ma2, "ats_correct"] = ats_correct.astype(float).to_numpy()
 
@@ -290,20 +587,54 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
         total = float(np.sum(n[mask].astype(float)))
         return {"n": int(total), "acc": float(correct / total) if total > 0 else None}
 
+    def _agg_mean(col: str) -> dict[str, Any]:
+        try:
+            ok = (per_date.get("skipped") == False) if "skipped" in per_date.columns else pd.Series(True, index=per_date.index)
+            v = pd.to_numeric(per_date.loc[ok, col], errors="coerce")
+            n = int(v.notna().sum())
+            return {"n": n, "mean": float(v.dropna().mean()) if n > 0 else None}
+        except Exception:
+            return {"n": 0, "mean": None}
+
     summary = {
         "range": {"start": dates[0], "end": dates[-1], "n_dates": int(len(dates))},
         "engine": str(cfg.engine),
         "samples": int(cfg.samples),
         "rho": float(cfg.rho),
+        "sim_quantiles_prefix": str(cfg.sim_quantiles_prefix),
+        "sim_meta_prefix": str(cfg.sim_meta_prefix),
+        "include_ot_diagnostics": bool(cfg.include_ot_diagnostics),
+        "interval_actuals_prefix": str(cfg.interval_actuals_prefix),
         "dates_scored": int(per_date.loc[per_date.get("skipped") == False].shape[0]) if "skipped" in per_date.columns else int(len(per_date)),
         "dates_skipped": int(per_date.get("skipped").sum()) if "skipped" in per_date.columns else 0,
         "winners": _agg_acc("winners_n", "winners_acc"),
         "totals": _agg_acc("totals_n", "totals_acc"),
+        "totals_reg40": _agg_acc("totals_reg40_n", "totals_reg40_acc") if bool(cfg.include_ot_diagnostics) else {"n": 0, "acc": None},
         "ats": _agg_acc("ats_n", "ats_acc"),
         "winners_1h": _agg_acc("winners_1h_n", "winners_1h_acc"),
         "totals_1h": _agg_acc("totals_1h_n", "totals_1h_acc"),
         "ats_1h": _agg_acc("ats_1h_n", "ats_1h_acc"),
+        "scoring": {
+            "crps_total_final": _agg_mean("crps_total_final"),
+            "crps_total_reg40": _agg_mean("crps_total_reg40") if bool(cfg.include_ot_diagnostics) else {"n": 0, "mean": None},
+            "crps_margin_final": _agg_mean("crps_margin_final"),
+            "crps_margin_reg40": _agg_mean("crps_margin_reg40") if bool(cfg.include_ot_diagnostics) else {"n": 0, "mean": None},
+            "crps_total_1h": _agg_mean("crps_total_1h"),
+            "crps_margin_1h": _agg_mean("crps_margin_1h"),
+        },
     }
+
+    if bool(cfg.include_ot_diagnostics) and (not per_date.empty):
+        try:
+            ok = (per_date.get("skipped") == False) if "skipped" in per_date.columns else pd.Series(True, index=per_date.index)
+            ot_games = pd.to_numeric(per_date.loc[ok, "ot_games_n"], errors="coerce").fillna(0.0)
+            flips = pd.to_numeric(per_date.loc[ok, "ou_flipped_by_ot_n"], errors="coerce").fillna(0.0)
+            summary["ot"] = {
+                "ot_games": int(ot_games.sum()),
+                "ou_flipped_by_ot": int(flips.sum()),
+            }
+        except Exception:
+            pass
 
     out_stem = f"{cfg.out_prefix}_{dates[0]}_{dates[-1]}"
     out_game = bt_dir / f"{out_stem}.csv"

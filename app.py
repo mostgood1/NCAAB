@@ -372,13 +372,64 @@ def _accuracy_missing_by_date(df: pd.DataFrame) -> dict:
 def _conference_map() -> dict:
     m: dict[str, str] = {}
     try:
+        def _resolve_data_root() -> Path:
+            # Prefer explicit env var if provided
+            try:
+                env_dir = os.getenv('NCAAB_DATA_DIR', '').strip()
+                if env_dir:
+                    p = Path(env_dir).resolve()
+                    if p.exists() and p.is_dir():
+                        return p
+            except Exception:
+                pass
+            # Then settings.data_dir if available
+            try:
+                p2 = Path(str(getattr(settings, 'data_dir', '')))
+                if p2.exists() and p2.is_dir():
+                    return p2
+            except Exception:
+                pass
+            # Then module ROOT/data if available
+            try:
+                root = globals().get('ROOT')
+                if isinstance(root, Path):
+                    p3 = root / 'data'
+                    if p3.exists() and p3.is_dir():
+                        return p3
+            except Exception:
+                pass
+            # Fallback to cwd/data
+            return Path(os.getcwd()) / 'data'
+
+        data_root = _resolve_data_root()
+
+        def _is_valid_conf(conf: str) -> bool:
+            try:
+                c = str(conf or '').strip()
+                if not c:
+                    return False
+                if c.lower() in ('nan', 'none', 'null', 'unknown'):
+                    return False
+                return True
+            except Exception:
+                return False
+
+        def _set_conf(team_key: str, conf_val: str):
+            if not team_key:
+                return
+            if not _is_valid_conf(conf_val):
+                return
+            existing = m.get(team_key)
+            if existing is not None and _is_valid_conf(existing):
+                return
+            m[team_key] = str(conf_val).strip()
+
         # Prefer populated D1 mapping if available
-        p_d1 = os.path.join(os.getcwd(), 'data', 'd1_conferences.csv')
-        paths = [p_d1, os.path.join(os.getcwd(), 'data', 'conferences.csv')]
+        paths = [data_root / 'd1_conferences.csv', data_root / 'conferences.csv']
         for p in paths:
-            if not os.path.exists(p):
+            if not p.exists():
                 continue
-            cdf = pd.read_csv(p, dtype=str, comment='#')
+            cdf = pd.read_csv(str(p), dtype=str, comment='#')
             team_col = next((c for c in cdf.columns if c.lower() in ('team','school','name','team_name','canonical')), None)
             conf_col = next((c for c in cdf.columns if c.lower() in ('conference','conf','league')), None)
             if not team_col or not conf_col:
@@ -386,30 +437,614 @@ def _conference_map() -> dict:
             for _, r in cdf[[team_col, conf_col]].iterrows():
                 raw_team = str(r[team_col]).strip()
                 conf = str(r[conf_col]).strip()
-                if not raw_team or not conf:
+                if not raw_team or not _is_valid_conf(conf):
                     continue
-                m[raw_team] = conf
+                _set_conf(raw_team, conf)
                 try:
                     canon = _canon_slug(raw_team)
-                    m[canon] = conf
+                    _set_conf(canon, conf)
                 except Exception:
                     pass
         # Also fold in provider aliases to catch variants
-        alias_path = os.path.join(os.getcwd(), 'data', 'provider_aliases.csv')
-        if os.path.exists(alias_path):
-            adf = pd.read_csv(alias_path, dtype=str)
-            src_col = next((c for c in adf.columns if c.lower() in ('provider_name','raw','alias','source')), None)
-            can_col = next((c for c in adf.columns if c.lower() in ('canonical','team','name')), None)
+        alias_path = data_root / 'provider_aliases.csv'
+        if alias_path.exists():
+            adf = pd.read_csv(str(alias_path), dtype=str)
+            src_col = next((c for c in adf.columns if c.lower() in ('provider_name','raw','alias','source','from')), None)
+            can_col = next((c for c in adf.columns if c.lower() in ('canonical','team','name','to')), None)
             if src_col and can_col:
                 for _, r in adf[[src_col, can_col]].dropna().iterrows():
                     src = str(r[src_col]).strip()
                     can = str(r[can_col]).strip()
                     conf = m.get(can) or m.get(_canon_slug(can))
                     if src and conf:
-                        m[src] = conf
+                        _set_conf(src, conf)
+
+        # Also fold in team_map raw->canonical, so conference lookups work even when
+        # upstream data uses alternate spellings.
+        team_map_path = data_root / 'team_map.csv'
+        if team_map_path.exists():
+            tdf = pd.read_csv(str(team_map_path), dtype=str)
+            raw_col = next((c for c in tdf.columns if c.lower() in ('raw','source','provider','name','team')), None)
+            can_col = next((c for c in tdf.columns if c.lower() in ('canonical','canon','target','normalized')), None)
+            if raw_col and can_col:
+                for _, r in tdf[[raw_col, can_col]].dropna().iterrows():
+                    raw_team = str(r[raw_col]).strip()
+                    can_team = str(r[can_col]).strip()
+                    if not raw_team or not can_team:
+                        continue
+                    conf = m.get(can_team) or m.get(_canon_slug(can_team))
+                    if conf:
+                        _set_conf(raw_team, conf)
+                        try:
+                            _set_conf(_canon_slug(raw_team), conf)
+                        except Exception:
+                            pass
     except Exception:
         pass
     return m
+
+
+_D1_CONFERENCE_LIST_CACHE: list[str] | None = None
+
+
+def _load_d1_conference_list() -> list[str]:
+    """Return canonical D1 conference names (sorted), best-effort.
+
+    Source: data/d1_conferences_list.csv (column: conference/name).
+    """
+    global _D1_CONFERENCE_LIST_CACHE
+    if _D1_CONFERENCE_LIST_CACHE is not None:
+        return list(_D1_CONFERENCE_LIST_CACHE)
+
+    def _resolve_data_root() -> Path:
+        try:
+            env_dir = os.getenv('NCAAB_DATA_DIR', '').strip()
+            if env_dir:
+                p = Path(env_dir).resolve()
+                if p.exists() and p.is_dir():
+                    return p
+        except Exception:
+            pass
+        try:
+            p2 = Path(str(getattr(settings, 'data_dir', '')))
+            if p2.exists() and p2.is_dir():
+                return p2
+        except Exception:
+            pass
+        try:
+            root = globals().get('ROOT')
+            if isinstance(root, Path):
+                p3 = root / 'data'
+                if p3.exists() and p3.is_dir():
+                    return p3
+        except Exception:
+            pass
+        return Path(os.getcwd()) / 'data'
+
+    out: list[str] = []
+    try:
+        data_root = _resolve_data_root()
+        p = data_root / 'd1_conferences_list.csv'
+        if not p.exists():
+            _D1_CONFERENCE_LIST_CACHE = []
+            return []
+        df = pd.read_csv(str(p), dtype=str, comment='#')
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            _D1_CONFERENCE_LIST_CACHE = []
+            return []
+        col = next((c for c in df.columns if c.lower() in ('conference', 'name', 'conf', 'league')), None)
+        if not col:
+            _D1_CONFERENCE_LIST_CACHE = []
+            return []
+        vals = df[col].astype(str).map(lambda s: str(s).strip()).tolist()
+        out = sorted({v for v in vals if v and v.lower() not in ('nan', 'none', 'null')})
+    except Exception:
+        out = []
+    _D1_CONFERENCE_LIST_CACHE = list(out)
+    return list(out)
+
+
+def _read_csv_safe(path: Path, dtype: Any = None) -> pd.DataFrame:
+    try:
+        if not path.exists():
+            return pd.DataFrame()
+        return pd.read_csv(path, dtype=dtype, low_memory=False)
+    except Exception:
+        return pd.DataFrame()
+
+
+def _list_daily_result_dates() -> set[str]:
+    try:
+        import re as _re
+        out_root = globals().get('OUT')
+        if not isinstance(out_root, Path):
+            try:
+                root2 = globals().get('ROOT')
+                if isinstance(root2, Path):
+                    out_root = root2 / 'outputs'
+            except Exception:
+                out_root = None
+        if not isinstance(out_root, Path):
+            out_root = Path(os.getcwd()) / 'outputs'
+        root = out_root / 'daily_results'
+        pat = _re.compile(r'^results_(\d{4}-\d{2}-\d{2})\.csv$')
+        out: set[str] = set()
+        for p in root.glob('results_*.csv'):
+            m = pat.match(p.name)
+            if m:
+                out.add(m.group(1))
+        return out
+    except Exception:
+        return set()
+
+
+def _list_sim_quantiles_dates() -> set[str]:
+    try:
+        import re as _re
+        out_root = globals().get('OUT')
+        if not isinstance(out_root, Path):
+            try:
+                root2 = globals().get('ROOT')
+                if isinstance(root2, Path):
+                    out_root = root2 / 'outputs'
+            except Exception:
+                out_root = None
+        if not isinstance(out_root, Path):
+            out_root = Path(os.getcwd()) / 'outputs'
+        root = out_root
+        pat = _re.compile(r'^sim_quantiles_(\d{4}-\d{2}-\d{2})\.csv$')
+        out: set[str] = set()
+        for p in root.glob('sim_quantiles_*.csv'):
+            m = pat.match(p.name)
+            if m:
+                out.add(m.group(1))
+        return out
+    except Exception:
+        return set()
+
+
+def _pick_first_numeric_col(df: pd.DataFrame, candidates: list[str]) -> tuple[pd.Series, str | None]:
+    for c in candidates:
+        if c in df.columns:
+            s = pd.to_numeric(df[c], errors='coerce')
+            if s.notna().any():
+                return s, c
+    return pd.Series([np.nan] * len(df)), None
+
+
+def _truthy_sign(x: pd.Series) -> pd.Series:
+    try:
+        s = pd.to_numeric(x, errors='coerce')
+        return np.sign(s)
+    except Exception:
+        return pd.Series([np.nan] * len(x))
+
+
+def _load_merged_sim_and_results_for_date(date_str: str) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Returns merged (sim_quantiles x daily_results) for a date.
+
+    Prefers join on game_id; falls back to date+teams if needed.
+    """
+    out_root = globals().get('OUT')
+    if not isinstance(out_root, Path):
+        try:
+            root2 = globals().get('ROOT')
+            if isinstance(root2, Path):
+                out_root = root2 / 'outputs'
+        except Exception:
+            out_root = None
+    if not isinstance(out_root, Path):
+        out_root = Path(os.getcwd()) / 'outputs'
+    sim_path = out_root / f'sim_quantiles_{date_str}.csv'
+    res_path = out_root / 'daily_results' / f'results_{date_str}.csv'
+    sim = _read_csv_safe(sim_path)
+    res = _read_csv_safe(res_path)
+    meta: dict[str, Any] = {
+        'date': date_str,
+        'sim_path': str(sim_path),
+        'results_path': str(res_path),
+        'join': None,
+        'rows_sim': int(len(sim)) if not sim.empty else 0,
+        'rows_results': int(len(res)) if not res.empty else 0,
+    }
+    if sim.empty or res.empty:
+        return pd.DataFrame(), meta
+
+    sim = sim.copy()
+    res = res.copy()
+
+    # Standardize a few columns
+    if 'date' in res.columns:
+        try:
+            res['date'] = pd.to_datetime(res['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        except Exception:
+            pass
+    if 'date' in sim.columns:
+        try:
+            sim['date'] = pd.to_datetime(sim['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        except Exception:
+            pass
+
+    # 1) Join on game_id when possible
+    sim_gid = pd.to_numeric(sim.get('game_id'), errors='coerce') if 'game_id' in sim.columns else pd.Series([np.nan] * len(sim))
+    res_gid = pd.to_numeric(res.get('game_id'), errors='coerce') if 'game_id' in res.columns else pd.Series([np.nan] * len(res))
+    sim['game_id'] = sim_gid
+    res['game_id'] = res_gid
+    merged = pd.merge(sim, res, on='game_id', how='inner', suffixes=('', '_res'))
+    if not merged.empty:
+        meta['join'] = 'game_id'
+        return merged, meta
+
+    # 2) Fallback join on date + normalized teams
+    if not {'home_team', 'away_team'}.issubset(sim.columns) or not {'home_team', 'away_team'}.issubset(res.columns):
+        return pd.DataFrame(), meta
+    sim['_home_norm'] = sim['home_team'].astype(str).map(normalize_name)
+    sim['_away_norm'] = sim['away_team'].astype(str).map(normalize_name)
+    res['_home_norm'] = res['home_team'].astype(str).map(normalize_name)
+    res['_away_norm'] = res['away_team'].astype(str).map(normalize_name)
+    if 'date' not in sim.columns:
+        sim['date'] = date_str
+    if 'date' not in res.columns:
+        res['date'] = date_str
+    merged2 = pd.merge(sim, res, on=['date', '_home_norm', '_away_norm'], how='inner', suffixes=('', '_res'))
+    if not merged2.empty:
+        meta['join'] = 'date+teams'
+        return merged2, meta
+    return pd.DataFrame(), meta
+
+
+def _compute_metric_acc(correct_mask: pd.Series, valid_mask: pd.Series) -> dict[str, Any]:
+    try:
+        valid = valid_mask.fillna(False)
+        if not bool(valid.any()):
+            return {'total': 0, 'correct': 0, 'accuracy': None}
+        corr = (correct_mask & valid).sum()
+        tot = valid.sum()
+        acc = float(corr / tot) if tot else None
+        return {'total': int(tot), 'correct': int(corr), 'accuracy': acc}
+    except Exception:
+        return {'total': 0, 'correct': 0, 'accuracy': None}
+
+
+def _compute_accuracy_market_for_merged(merged: pd.DataFrame) -> tuple[dict[str, Any], pd.DataFrame]:
+    """Compute the six requested metrics for a merged per-game DataFrame.
+
+    Returns (metrics_dict, merged_enriched_df).
+    """
+    df = merged.copy()
+
+    def _num_col(col: str) -> pd.Series:
+        if col in df.columns:
+            return pd.to_numeric(df[col], errors='coerce')
+        return pd.Series([np.nan] * len(df))
+
+    def _pick_first_nonempty_numeric(candidates: list[str]) -> pd.Series:
+        for c in candidates:
+            if c in df.columns:
+                s = pd.to_numeric(df[c], errors='coerce')
+                if s.notna().any():
+                    return s
+        return pd.Series([np.nan] * len(df))
+
+    # Actuals (prefer precomputed columns when present)
+    actual_margin = _num_col('actual_margin')
+    actual_total = _num_col('actual_total')
+    if actual_margin.isna().all() or actual_total.isna().all():
+        hs = pd.to_numeric(df.get('home_score'), errors='coerce')
+        aw = pd.to_numeric(df.get('away_score'), errors='coerce')
+        actual_margin = hs - aw
+        actual_total = hs + aw
+
+    actual_margin_1h = _num_col('actual_margin_1h')
+    actual_total_1h = _num_col('actual_total_1h')
+    if actual_margin_1h.isna().all() or actual_total_1h.isna().all():
+        hs1 = _pick_first_nonempty_numeric(['home_score_1h', 'home_score_1h_m', 'home_score_1h_x', 'home_score_1h_y'])
+        aw1 = _pick_first_nonempty_numeric(['away_score_1h', 'away_score_1h_m', 'away_score_1h_x', 'away_score_1h_y'])
+        actual_margin_1h = hs1 - aw1
+        actual_total_1h = hs1 + aw1
+
+    # Market lines
+    spread_full = _num_col('spread_home')
+    total_full = _num_col('market_total')
+    spread_1h = _num_col('spread_home_1h')
+    total_1h = _num_col('market_total_1h')
+
+    final_mask = actual_total.notna() & (actual_total > 0)
+    half_mask = actual_total_1h.notna() & (actual_total_1h > 0)
+
+    # Simulation-implied central tendency (fallback order)
+    pred_margin_full, pred_margin_full_src = _pick_first_numeric_col(
+        df, ['q50_margin', 'mu_margin', 'mean_margin_selected', 'mean_margin_after_overrides_calib', 'pred_margin']
+    )
+    pred_total_full, pred_total_full_src = _pick_first_numeric_col(
+        df, ['q50_total', 'mu_total', 'mean_total_selected', 'mean_total_after_overrides_calib', 'pred_total']
+    )
+    pred_margin_1h, pred_margin_1h_src = _pick_first_numeric_col(df, ['q50_margin_1h', 'mu_margin_1h', 'pred_margin_1h'])
+    pred_total_1h, pred_total_1h_src = _pick_first_numeric_col(df, ['q50_total_1h', 'mu_total_1h', 'pred_total_1h'])
+
+    # Simulation-implied probabilities if present
+    p_home_win = _num_col('p_home_win')
+    p_home_win_1h = _num_col('p_home_win_1h')
+    p_cover_home = _num_col('p_cover_home')
+    p_cover_home_1h = _num_col('p_cover_home_1h')
+    p_over = _num_col('p_over')
+    p_over_1h = _num_col('p_over_1h')
+
+    # ML (home win) direction
+    sim_home_win_full = (p_home_win >= 0.5)
+    sim_home_win_1h = (p_home_win_1h >= 0.5)
+    # If probabilities are missing, fall back to margin sign
+    sim_home_win_full = sim_home_win_full.where(p_home_win.notna(), pred_margin_full > 0)
+    sim_home_win_1h = sim_home_win_1h.where(p_home_win_1h.notna(), pred_margin_1h > 0)
+    actual_home_win_full = actual_margin > 0
+    actual_home_win_1h = actual_margin_1h > 0
+
+    # ATS (home cover) direction
+    sim_home_cover_full = (p_cover_home >= 0.5)
+    sim_home_cover_1h = (p_cover_home_1h >= 0.5)
+    sim_home_cover_full = sim_home_cover_full.where(p_cover_home.notna(), pred_margin_full > (-spread_full))
+    sim_home_cover_1h = sim_home_cover_1h.where(p_cover_home_1h.notna(), pred_margin_1h > (-spread_1h))
+    actual_home_cover_full = actual_margin > (-spread_full)
+    actual_home_cover_1h = actual_margin_1h > (-spread_1h)
+
+    # Totals (over/under) direction
+    sim_over_full = (p_over >= 0.5)
+    sim_over_1h = (p_over_1h >= 0.5)
+    sim_over_full = sim_over_full.where(p_over.notna(), pred_total_full > total_full)
+    sim_over_1h = sim_over_1h.where(p_over_1h.notna(), pred_total_1h > total_1h)
+    actual_over_full = actual_total > total_full
+    actual_over_1h = actual_total_1h > total_1h
+
+    # Valid evaluation masks (avoid pushes: equal to line)
+    valid_ml_full = final_mask & actual_margin.notna() & (actual_margin != 0) & sim_home_win_full.notna()
+    valid_ml_1h = half_mask & actual_margin_1h.notna() & (actual_margin_1h != 0) & sim_home_win_1h.notna()
+
+    valid_ats_full = final_mask & spread_full.notna() & actual_margin.notna() & sim_home_cover_full.notna() & (actual_margin != (-spread_full))
+    valid_ats_1h = half_mask & spread_1h.notna() & actual_margin_1h.notna() & sim_home_cover_1h.notna() & (actual_margin_1h != (-spread_1h))
+
+    valid_tot_full = final_mask & total_full.notna() & actual_total.notna() & sim_over_full.notna() & (actual_total != total_full)
+    valid_tot_1h = half_mask & total_1h.notna() & actual_total_1h.notna() & sim_over_1h.notna() & (actual_total_1h != total_1h)
+
+    metrics = {
+        'game_ats': _compute_metric_acc(sim_home_cover_full == actual_home_cover_full, valid_ats_full),
+        'game_ml': _compute_metric_acc(sim_home_win_full == actual_home_win_full, valid_ml_full),
+        'game_total': _compute_metric_acc(sim_over_full == actual_over_full, valid_tot_full),
+        'h1_ats': _compute_metric_acc(sim_home_cover_1h == actual_home_cover_1h, valid_ats_1h),
+        'h1_ml': _compute_metric_acc(sim_home_win_1h == actual_home_win_1h, valid_ml_1h),
+        'h1_total': _compute_metric_acc(sim_over_1h == actual_over_1h, valid_tot_1h),
+        'sources': {
+            'pred_margin_full': pred_margin_full_src,
+            'pred_total_full': pred_total_full_src,
+            'pred_margin_1h': pred_margin_1h_src,
+            'pred_total_1h': pred_total_1h_src,
+        },
+    }
+
+    # Enrich for downstream grouping/diagnostics
+    df['actual_margin_calc'] = actual_margin
+    df['actual_total_calc'] = actual_total
+    df['actual_margin_1h_calc'] = actual_margin_1h
+    df['actual_total_1h_calc'] = actual_total_1h
+    df['conference_home'] = None
+    df['conference_away'] = None
+    try:
+        conf_map = _conference_map()
+        if 'home_team' in df.columns:
+            df['conference_home'] = df['home_team'].astype(str).map(lambda t: conf_map.get(t) or conf_map.get(_canon_slug(t)))
+        if 'away_team' in df.columns:
+            df['conference_away'] = df['away_team'].astype(str).map(lambda t: conf_map.get(t) or conf_map.get(_canon_slug(t)))
+    except Exception:
+        pass
+
+    # Store per-game correctness booleans for conference breakdown
+    df['_ok_game_ats'] = (sim_home_cover_full == actual_home_cover_full)
+    df['_ok_game_ml'] = (sim_home_win_full == actual_home_win_full)
+    df['_ok_game_total'] = (sim_over_full == actual_over_full)
+    df['_ok_h1_ats'] = (sim_home_cover_1h == actual_home_cover_1h)
+    df['_ok_h1_ml'] = (sim_home_win_1h == actual_home_win_1h)
+    df['_ok_h1_total'] = (sim_over_1h == actual_over_1h)
+    df['_valid_game_ats'] = valid_ats_full
+    df['_valid_game_ml'] = valid_ml_full
+    df['_valid_game_total'] = valid_tot_full
+    df['_valid_h1_ats'] = valid_ats_1h
+    df['_valid_h1_ml'] = valid_ml_1h
+    df['_valid_h1_total'] = valid_tot_1h
+
+    return metrics, df
+
+
+def _compute_accuracy_market_day_payload(date_str: str) -> dict[str, Any] | None:
+    merged, meta = _load_merged_sim_and_results_for_date(date_str)
+    if merged.empty:
+        return None
+
+    metrics, enriched = _compute_accuracy_market_for_merged(merged)
+
+    # Conference vs non-conference segment
+    conf_home = enriched.get('conference_home')
+    conf_away = enriched.get('conference_away')
+    conf_home = conf_home.fillna('Unknown') if isinstance(conf_home, pd.Series) else pd.Series(['Unknown'] * len(enriched))
+    conf_away = conf_away.fillna('Unknown') if isinstance(conf_away, pd.Series) else pd.Series(['Unknown'] * len(enriched))
+    # If only one side is unknown, we can still safely treat it as non-conference.
+    # Reserve the 'unknown' bucket for cases where BOTH teams are unmapped.
+    is_unknown = (conf_home == 'Unknown') & (conf_away == 'Unknown')
+    is_conf_game = (conf_home != 'Unknown') & (conf_away != 'Unknown') & (conf_home == conf_away)
+    is_non_conf = (~is_unknown) & (~is_conf_game)
+
+    def _seg(mask: pd.Series) -> dict[str, Any]:
+        seg_df = enriched.loc[mask].copy()
+        out: dict[str, Any] = {}
+        for key, ok_col, v_col in [
+            ('game_ats', '_ok_game_ats', '_valid_game_ats'),
+            ('game_ml', '_ok_game_ml', '_valid_game_ml'),
+            ('game_total', '_ok_game_total', '_valid_game_total'),
+            ('h1_ats', '_ok_h1_ats', '_valid_h1_ats'),
+            ('h1_ml', '_ok_h1_ml', '_valid_h1_ml'),
+            ('h1_total', '_ok_h1_total', '_valid_h1_total'),
+        ]:
+            if ok_col in seg_df.columns and v_col in seg_df.columns:
+                out[key] = _compute_metric_acc(seg_df[ok_col], seg_df[v_col])
+            else:
+                out[key] = {'total': 0, 'correct': 0, 'accuracy': None}
+        out['rows'] = int(len(seg_df))
+        return out
+
+    segments = {
+        'all': _seg(pd.Series([True] * len(enriched), index=enriched.index)),
+        'conference_games': _seg(is_conf_game),
+        'non_conference_games': _seg(is_non_conf),
+        'unknown_conference': _seg(is_unknown),
+    }
+
+    # Per-conference breakdown: count each game once per unique conference involved
+    conf_rows: list[dict[str, Any]] = []
+    for idx, row in enriched.iterrows():
+        cs: list[str] = []
+        try:
+            ch = row.get('conference_home')
+            ca = row.get('conference_away')
+            if ch and str(ch) != 'nan':
+                cs.append(str(ch))
+            if ca and str(ca) != 'nan':
+                cs.append(str(ca))
+        except Exception:
+            cs = []
+        cs = [c for c in dict.fromkeys(cs) if c and c != 'Unknown']
+        if not cs:
+            continue
+        for c in cs:
+            conf_rows.append({
+                'conference': c,
+                '_ok_game_ats': row.get('_ok_game_ats'), '_valid_game_ats': row.get('_valid_game_ats'),
+                '_ok_game_ml': row.get('_ok_game_ml'), '_valid_game_ml': row.get('_valid_game_ml'),
+                '_ok_game_total': row.get('_ok_game_total'), '_valid_game_total': row.get('_valid_game_total'),
+                '_ok_h1_ats': row.get('_ok_h1_ats'), '_valid_h1_ats': row.get('_valid_h1_ats'),
+                '_ok_h1_ml': row.get('_ok_h1_ml'), '_valid_h1_ml': row.get('_valid_h1_ml'),
+                '_ok_h1_total': row.get('_ok_h1_total'), '_valid_h1_total': row.get('_valid_h1_total'),
+            })
+    conf_df = pd.DataFrame(conf_rows)
+    by_conf: list[dict[str, Any]] = []
+    if not conf_df.empty:
+        for conf, g in conf_df.groupby('conference'):
+            rec: dict[str, Any] = {'conference': str(conf)}
+            for key, ok_col, v_col in [
+                ('game_ats', '_ok_game_ats', '_valid_game_ats'),
+                ('game_ml', '_ok_game_ml', '_valid_game_ml'),
+                ('game_total', '_ok_game_total', '_valid_game_total'),
+                ('h1_ats', '_ok_h1_ats', '_valid_h1_ats'),
+                ('h1_ml', '_ok_h1_ml', '_valid_h1_ml'),
+                ('h1_total', '_ok_h1_total', '_valid_h1_total'),
+            ]:
+                rec[key] = _compute_metric_acc(g[ok_col], g[v_col])
+            by_conf.append(rec)
+        by_conf = sorted(by_conf, key=lambda r: (r.get('conference') or ''))
+
+    # Unmapped teams diagnostics
+    unmapped: list[str] = []
+    try:
+        if 'home_team' in enriched.columns and 'away_team' in enriched.columns:
+            all_teams = set(enriched['home_team'].astype(str).tolist() + enriched['away_team'].astype(str).tolist())
+            conf_map = _conference_map()
+            for t in sorted(all_teams):
+                if not (conf_map.get(t) or conf_map.get(_canon_slug(t))):
+                    unmapped.append(t)
+    except Exception:
+        unmapped = []
+
+    return {
+        'date': date_str,
+        'metrics': metrics,
+        'segments': segments,
+        'by_conference': by_conf,
+        'unmapped_teams': unmapped,
+        'meta': meta,
+    }
+
+
+def _compute_accuracy_market_season_payload() -> dict[str, Any]:
+    sim_dates = _list_sim_quantiles_dates()
+    res_dates = _list_daily_result_dates()
+    dates = sorted(sim_dates & res_dates)
+    daily: list[dict[str, Any]] = []
+    unmapped_all: set[str] = set()
+    conf_totals: dict[str, dict[str, dict[str, int]]] = {}
+    metric_keys = ['game_ats', 'game_ml', 'game_total', 'h1_ats', 'h1_ml', 'h1_total']
+    for d in dates:
+        rec = _compute_accuracy_market_day_payload(d)
+        if rec:
+            try:
+                for t in (rec.get('unmapped_teams') or []):
+                    if t:
+                        unmapped_all.add(str(t))
+            except Exception:
+                pass
+
+            # Aggregate by-conference YTD using day payload counts.
+            try:
+                for c_row in (rec.get('by_conference') or []):
+                    conf = str(c_row.get('conference') or '').strip()
+                    if not conf:
+                        continue
+                    bucket = conf_totals.setdefault(conf, {k: {'correct': 0, 'total': 0} for k in metric_keys})
+                    for k in metric_keys:
+                        obj = c_row.get(k) or {}
+                        try:
+                            bucket[k]['correct'] += int(obj.get('correct') or 0)
+                            bucket[k]['total'] += int(obj.get('total') or 0)
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+
+            daily.append({
+                'date': d,
+                **(rec.get('metrics') or {}),
+                'meta': rec.get('meta') or {},
+            })
+    daily_sorted = sorted(daily, key=lambda r: r.get('date', ''), reverse=True)
+
+    # Weighted YTD aggregates
+    def _agg(metric_key: str) -> dict[str, Any]:
+        corr = 0
+        tot = 0
+        for r in daily_sorted:
+            obj = r.get(metric_key) or {}
+            try:
+                corr += int(obj.get('correct') or 0)
+                tot += int(obj.get('total') or 0)
+            except Exception:
+                continue
+        return {'correct': corr, 'total': tot, 'accuracy': (float(corr / tot) if tot else None)}
+
+    ytd = {
+        'game_ats': _agg('game_ats'),
+        'game_ml': _agg('game_ml'),
+        'game_total': _agg('game_total'),
+        'h1_ats': _agg('h1_ats'),
+        'h1_ml': _agg('h1_ml'),
+        'h1_total': _agg('h1_total'),
+    }
+
+    by_conference_ytd: list[dict[str, Any]] = []
+    try:
+        for conf, m in conf_totals.items():
+            row: dict[str, Any] = {'conference': conf}
+            for k in metric_keys:
+                corr = int(m.get(k, {}).get('correct') or 0)
+                tot = int(m.get(k, {}).get('total') or 0)
+                row[k] = {'correct': corr, 'total': tot, 'accuracy': (float(corr / tot) if tot else None)}
+            by_conference_ytd.append(row)
+        by_conference_ytd = sorted(by_conference_ytd, key=lambda r: (r.get('conference') or ''))
+    except Exception:
+        by_conference_ytd = []
+
+    return {
+        'ytd': ytd,
+        'by_conference_ytd': by_conference_ytd,
+        'daily': daily_sorted,
+        'date_count': int(len(daily_sorted)),
+        'unmapped_teams': sorted(unmapped_all),
+    }
 
 def _accuracy_payload(df: pd.DataFrame) -> dict:
     if df.empty:
@@ -654,10 +1289,38 @@ try:
     if isinstance(app, Flask):
         from flask import render_template
 
+        def _get_outputs_root() -> Path:
+            """Best-effort resolution of the outputs directory.
+
+            Avoids relying on the current working directory, since this module
+            can be invoked from Flask, CLI, tests, or snippets.
+            """
+            try:
+                out = globals().get("OUT")
+                if isinstance(out, Path) and out.exists() and out.is_dir():
+                    return out
+            except Exception:
+                pass
+            try:
+                env_dir = os.getenv("NCAAB_OUTPUTS_DIR", "").strip()
+                if env_dir:
+                    p = Path(env_dir).resolve()
+                    if p.exists() and p.is_dir():
+                        return p
+            except Exception:
+                pass
+            try:
+                root = globals().get("ROOT")
+                if isinstance(root, Path) and root.exists() and root.is_dir():
+                    return root / "outputs"
+            except Exception:
+                pass
+            return Path(__file__).resolve().parent / "outputs"
+
         def _list_dates_from_outputs(prefix: str) -> set[str]:
             try:
                 import re as _re
-                root = Path(os.getcwd()) / 'outputs'
+                root = _get_outputs_root()
                 pat = _re.compile(r'^' + _re.escape(prefix) + r'_(\d{4}-\d{2}-\d{2})\.(csv|json)$')
                 out: set[str] = set()
                 for p in root.glob(f"{prefix}_*"):
@@ -670,7 +1333,12 @@ try:
 
         def _read_csv_outputs(rel_parts: list[str]) -> pd.DataFrame:
             try:
-                p = Path(os.getcwd()).joinpath(*rel_parts)
+                root = _get_outputs_root()
+                parts = list(rel_parts)
+                # Call sites often pass ["outputs", ...]; root is already the outputs dir.
+                if parts and str(parts[0]).lower() == "outputs":
+                    parts = parts[1:]
+                p = root.joinpath(*parts)
                 if not p.exists():
                     return pd.DataFrame()
                 return pd.read_csv(p)
@@ -966,44 +1634,29 @@ try:
             app.add_url_rule('/interval-accuracy', endpoint='interval_accuracy_page', view_func=interval_accuracy_page)
 
         def accuracy_market_page():
-            # Prefer snapshot-first: load persisted JSON if present
-            payload = None
+            payload: dict[str, Any] | None = None
+            # Prefer snapshot-first for the new market accuracy payload
             try:
-                snap_path = os.path.join(os.getcwd(), 'outputs', 'metrics', 'season_accuracy_summary.json')
+                snap_path = os.path.join(os.getcwd(), 'outputs', 'metrics', 'accuracy_market_summary.json')
                 if os.path.exists(snap_path):
                     with open(snap_path, 'r') as f:
                         payload = json.load(f)
             except Exception:
                 payload = None
             if not payload or 'daily' not in payload:
-                # Fallback to live computation if snapshot missing or invalid
-                df = _load_all_daily_results()
-                payload = _accuracy_payload(df)
-            # Build sorted views
-            daily_items = list(payload.get('daily', {}).items())
-            try:
-                daily_sorted = sorted(daily_items, key=lambda x: x[0], reverse=True)
-            except Exception:
-                daily_sorted = daily_items
-            conf_items = list(payload.get('conferences', {}).items())
-            def _acc_key_conf(item):
-                rec = item[1] or {}
-                v = rec.get('ats_accuracy')
-                return (v is None, -(v or 0.0))
-            try:
-                conf_sorted = sorted(conf_items, key=_acc_key_conf)
-            except Exception:
-                conf_sorted = conf_items
-            team_items = list(payload.get('teams', {}).items())
-            def _acc_key_team(item):
-                rec = item[1] or {}
-                v = rec.get('ats_accuracy')
-                return (v is None, -(v or 0.0))
-            try:
-                team_sorted = sorted(team_items, key=_acc_key_team)
-            except Exception:
-                team_sorted = team_items
-            return render_template('accuracy.html', payload=payload, daily_sorted=daily_sorted, conf_sorted=conf_sorted, team_sorted=team_sorted)
+                payload = _compute_accuracy_market_season_payload()
+
+            return render_template('accuracy_market.html', payload=payload)
+
+        def api_accuracy_market():
+            payload = _compute_accuracy_market_season_payload()
+            return jsonify(payload)
+
+        def accuracy_market_day_page(date_str: str):
+            rec = _compute_accuracy_market_day_payload(date_str)
+            if not rec:
+                return render_template('accuracy_market_day.html', payload={'date': date_str, 'missing': True}), 404
+            return render_template('accuracy_market_day.html', payload=rec)
 
         # New spec: /accuracy becomes the recap table page.
         if 'accuracy_page' in app.view_functions:
@@ -1016,6 +1669,10 @@ try:
             app.add_url_rule('/accuracy', endpoint='accuracy_recap_page', view_func=accuracy_recap_page)
         if 'accuracy_market_page' not in app.view_functions:
             app.add_url_rule('/accuracy-market', endpoint='accuracy_market_page', view_func=accuracy_market_page)
+        if 'api_accuracy_market' not in app.view_functions:
+            app.add_url_rule('/api/accuracy-market', endpoint='api_accuracy_market', view_func=api_accuracy_market)
+        if 'accuracy_market_day_page' not in app.view_functions:
+            app.add_url_rule('/accuracy-market/<date_str>', endpoint='accuracy_market_day_page', view_func=accuracy_market_day_page)
 except Exception:
     pass
 def _safe_nanmean(x):
@@ -6386,6 +7043,12 @@ def index():
     except Exception:
         compact_mode = True
 
+    # Canonical conference list for UI filtering
+    try:
+        all_conferences = _load_d1_conference_list()
+    except Exception:
+        all_conferences = []
+
     # Early stable redirect: favor resilient cards-safe in snapshot-only/stable mode
     try:
         stable_q = (request.args.get("stable") or "").strip().lower() in ("1","true","yes")
@@ -6476,6 +7139,7 @@ def index():
                     rows=safe_rows,
                     total_rows=len(safe_rows),
                     date_val=date_val,
+                    all_conferences=all_conferences,
                     top_picks=[],
                     accuracy=None,
                     uniform_note=None,
@@ -6595,6 +7259,7 @@ def index():
                 rows=safe_rows,
                 total_rows=len(safe_rows),
                 date_val=date_val,
+                all_conferences=all_conferences,
                 top_picks=[],
                 accuracy=None,
                 uniform_note=None,
@@ -6921,6 +7586,7 @@ def index():
                     rows=rows,
                     total_rows=total_rows,
                     date_val=date_stable,
+                    all_conferences=all_conferences,
                     top_picks=[],
                     accuracy=accuracy,
                     uniform_note=None,
@@ -19210,6 +19876,7 @@ def index():
         rows=safe_rows,
         total_rows=total_rows,
         date_val=date_q,
+        all_conferences=all_conferences,
         top_picks=top_picks,
         accuracy=accuracy,
         uniform_note=uniform_note,
@@ -34260,6 +34927,15 @@ def api_display_predictions():
                 # Interval bands (full game)
                 'pred_total_ci75_low','pred_total_ci75_high','pred_total_ci90_low','pred_total_ci90_high',
             ]
+
+        # Conference enrichment for cards filtering (home/away)
+        conf_map: dict[str, str] = {}
+        try:
+            if cards_view:
+                conf_map = _conference_map() or {}
+        except Exception:
+            conf_map = {}
+
         rows: list[dict[str, Any]] = []
         for _, r in df.iterrows():
             item = {}
@@ -34364,6 +35040,26 @@ def api_display_predictions():
                     item['display_date'] = item.get('date') or item.get('display_date_local')
             except Exception:
                 pass
+
+            # Attach conferences (cards view only)
+            try:
+                if cards_view and conf_map:
+                    ht = str(item.get('home_team') or '').strip()
+                    at = str(item.get('away_team') or '').strip()
+                    ch = None
+                    ca = None
+                    if ht:
+                        ch = conf_map.get(ht) or conf_map.get(_canon_slug(ht))
+                    if at:
+                        ca = conf_map.get(at) or conf_map.get(_canon_slug(at))
+                    item['conference_home'] = ch
+                    item['conference_away'] = ca
+            except Exception:
+                try:
+                    item['conference_home'] = None
+                    item['conference_away'] = None
+                except Exception:
+                    pass
 
             # Attach 5-minute segments if available (cards view only)
             try:

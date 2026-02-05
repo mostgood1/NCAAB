@@ -135,8 +135,8 @@ def _load_results_for_date(out_dir: Path, date: str) -> pd.DataFrame:
     return df
 
 
-def _load_sim_for_date(out_dir: Path, date: str) -> pd.DataFrame:
-    p = out_dir / f"sim_quantiles_{date}.csv"
+def _load_sim_for_date(out_dir: Path, date: str, sim_quantiles_prefix: str = "sim_quantiles_") -> pd.DataFrame:
+    p = out_dir / f"{sim_quantiles_prefix}{date}.csv"
     if not p.exists():
         return pd.DataFrame()
     df = pd.read_csv(p)

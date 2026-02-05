@@ -92,6 +92,16 @@ def main() -> int:
     ap.add_argument("--start", default=None, help="Start date YYYY-MM-DD (inclusive)")
     ap.add_argument("--end", default=None, help="End date YYYY-MM-DD (inclusive)")
     ap.add_argument(
+        "--fit-1h-only",
+        action="store_true",
+        help="Only update 1H calibration keys (delta_*_1h, sigma_*_1h_mult). Full-game keys are preserved from any prior calibration file.",
+    )
+    ap.add_argument(
+        "--no-accumulate",
+        action="store_true",
+        help="Do not accumulate full-game updates on top of any prior calibration. Useful when fitting from scratch on an already-calibrated sim output.",
+    )
+    ap.add_argument(
         "--rebuild-sims",
         action="store_true",
         help="Re-run the simulator to (re)write outputs/sim_quantiles_<date>.csv before fitting calibration. "
@@ -104,6 +114,10 @@ def main() -> int:
         help="If --rebuild-sims is set, override simulator sample count (default: simulator's internal default)",
     )
     ap.add_argument("--min-games", type=int, default=50, help="Minimum merged games required")
+    ap.add_argument("--cap-abs-delta", type=float, default=25.0, help="Clamp |delta_total| and |delta_margin| to this value")
+    ap.add_argument("--cap-abs-delta-1h", type=float, default=15.0, help="Clamp |delta_total_1h| and |delta_margin_1h| to this value")
+    ap.add_argument("--cap-sigma-mult", type=float, default=3.0, help="Clamp sigma_total_mult and sigma_margin_mult to [0.5, cap]")
+    ap.add_argument("--cap-sigma-1h-mult", type=float, default=1.5, help="Clamp sigma_total_1h_mult and sigma_margin_1h_mult to [0.5, cap]")
     ap.add_argument("--out", default=None, help="Calibration JSON path (default: <outputs>/sim_calibration.json)")
     args = ap.parse_args()
 
@@ -112,8 +126,7 @@ def main() -> int:
 
     # If sims were produced with an existing calibration file and we are NOT rebuilding
     # sims without it, then the mu/sigma columns already reflect that prior calibration.
-    # To avoid oscillation (writing tiny deltas that effectively delete the prior calib),
-    # accumulate updates on top of the prior.
+    # For full-game fitting, we can optionally accumulate on top of the prior.
     prior = {}
     if not args.rebuild_sims:
         try:
@@ -123,10 +136,22 @@ def main() -> int:
                     prior = {}
         except Exception:
             prior = {}
-    prior_delta_total = float(prior.get("delta_total", 0.0) or 0.0) if prior else 0.0
-    prior_delta_margin = float(prior.get("delta_margin", 0.0) or 0.0) if prior else 0.0
-    prior_sigma_total_mult = float(prior.get("sigma_total_mult", 1.0) or 1.0) if prior else 1.0
-    prior_sigma_margin_mult = float(prior.get("sigma_margin_mult", 1.0) or 1.0) if prior else 1.0
+
+    prior_for_preserve = dict(prior) if isinstance(prior, dict) else {}
+    if args.no_accumulate:
+        prior_delta_total = 0.0
+        prior_delta_margin = 0.0
+        prior_sigma_total_mult = 1.0
+        prior_sigma_margin_mult = 1.0
+        prior_delta_total_1h = 0.0
+        prior_delta_margin_1h = 0.0
+    else:
+        prior_delta_total = float(prior.get("delta_total", 0.0) or 0.0) if prior else 0.0
+        prior_delta_margin = float(prior.get("delta_margin", 0.0) or 0.0) if prior else 0.0
+        prior_sigma_total_mult = float(prior.get("sigma_total_mult", 1.0) or 1.0) if prior else 1.0
+        prior_sigma_margin_mult = float(prior.get("sigma_margin_mult", 1.0) or 1.0) if prior else 1.0
+        prior_delta_total_1h = float(prior.get("delta_total_1h", 0.0) or 0.0) if prior else 0.0
+        prior_delta_margin_1h = float(prior.get("delta_margin_1h", 0.0) or 0.0) if prior else 0.0
 
     dates = _list_dates(outputs_dir)
     start = _parse_date(args.start) if args.start else None
@@ -263,52 +288,96 @@ def main() -> int:
         print(json.dumps({"error": "too_few_games", "n_games": int(len(df)), "min_games": int(args.min_games)}))
         return 2
 
-    # Mean shifts (residual-on-current outputs); accumulate on top of any prior calibration.
-    delta_total_resid = float(np.mean((df["actual_total"] - df["mu_total"]).astype(float)))
-    delta_margin_resid = float(np.mean((df["actual_margin"] - df["mu_margin"]).astype(float)))
-    delta_total = float(prior_delta_total + delta_total_resid)
-    delta_margin = float(prior_delta_margin + delta_margin_resid)
+    def _clamp_abs(x: float, cap: float) -> float:
+        try:
+            x = float(x)
+            cap = float(cap)
+            if cap <= 0:
+                return x
+            return float(np.clip(x, -cap, cap))
+        except Exception:
+            return float(x)
 
-    # Sigma inflation: use absolute normalized residuals
-    # Compute z on *current* sigma columns (may already include prior inflation)
-    # and then scale multipliers on top of prior multipliers.
-    z_total = ((df["actual_total"] - (df["mu_total"] + delta_total_resid)) / df["sigma_total"]).astype(float)
-    z_total = z_total.replace([np.inf, -np.inf], np.nan).dropna()
-    if len(z_total) == 0:
-        sigma_total_mult = 1.0
-    else:
-        q = float(np.quantile(np.abs(z_total), 0.80))
-        sigma_total_mult = float(max(0.5, min(5.0, q / Z_80)))
-
-    sigma_total_mult = float(prior_sigma_total_mult * sigma_total_mult)
-
-    # Margin inflation only if sigma_margin exists
-    sigma_margin_mult = 1.0
-    if "sigma_margin" in df.columns:
-        dm = df.dropna(subset=["sigma_margin"]).copy()
-        dm = dm[dm["sigma_margin"] > 0]
-        if len(dm) > 0:
-            z_margin = ((dm["actual_margin"] - (dm["mu_margin"] + delta_margin_resid)) / dm["sigma_margin"]).astype(float)
-            z_margin = z_margin.replace([np.inf, -np.inf], np.nan).dropna()
-            if len(z_margin) > 0:
-                q = float(np.quantile(np.abs(z_margin), 0.80))
-                sigma_margin_mult = float(max(0.5, min(5.0, q / Z_80)))
-
-    sigma_margin_mult = float(prior_sigma_margin_mult * sigma_margin_mult)
+    def _clamp_sigma(x: float, cap: float) -> float:
+        try:
+            x = float(x)
+            cap = float(cap)
+            lo = 0.5
+            hi = max(lo, cap)
+            return float(np.clip(x, lo, hi))
+        except Exception:
+            return float(x)
 
     calib = {
         "start": dates[0],
         "end": dates[-1],
-        "n_games": int(len(df)),
-        "delta_total": delta_total,
-        "delta_margin": delta_margin,
-        "sigma_total_mult": sigma_total_mult,
-        "sigma_margin_mult": sigma_margin_mult,
     }
+
+    if args.fit_1h_only:
+        # Preserve full-game params (and rho) from prior calibration.
+        calib.update({
+            "n_games": int(len(df)),
+            "delta_total": float(prior_for_preserve.get("delta_total", 0.0) or 0.0),
+            "delta_margin": float(prior_for_preserve.get("delta_margin", 0.0) or 0.0),
+            "sigma_total_mult": float(prior_for_preserve.get("sigma_total_mult", 1.0) or 1.0),
+            "sigma_margin_mult": float(prior_for_preserve.get("sigma_margin_mult", 1.0) or 1.0),
+        })
+        if isinstance(prior_for_preserve, dict) and "rho" in prior_for_preserve and prior_for_preserve.get("rho") is not None:
+            try:
+                calib["rho"] = float(prior_for_preserve.get("rho"))
+                calib["rho_method"] = prior_for_preserve.get("rho_method")
+                calib["n_games_rho"] = prior_for_preserve.get("n_games_rho")
+            except Exception:
+                pass
+    else:
+        # Mean shifts (residual-on-current outputs); optionally accumulate on top of any prior calibration.
+        delta_total_resid = float(np.mean((df["actual_total"] - df["mu_total"]).astype(float)))
+        delta_margin_resid = float(np.mean((df["actual_margin"] - df["mu_margin"]).astype(float)))
+        delta_total = float(prior_delta_total + delta_total_resid)
+        delta_margin = float(prior_delta_margin + delta_margin_resid)
+        delta_total = _clamp_abs(delta_total, float(args.cap_abs_delta))
+        delta_margin = _clamp_abs(delta_margin, float(args.cap_abs_delta))
+
+        # Sigma inflation: use absolute normalized residuals
+        # Compute z on *current* sigma columns (may already include prior inflation)
+        # and then scale multipliers on top of prior multipliers.
+        z_total = ((df["actual_total"] - (df["mu_total"] + delta_total_resid)) / df["sigma_total"]).astype(float)
+        z_total = z_total.replace([np.inf, -np.inf], np.nan).dropna()
+        if len(z_total) == 0:
+            sigma_total_mult_upd = 1.0
+        else:
+            q = float(np.quantile(np.abs(z_total), 0.80))
+            sigma_total_mult_upd = float(max(0.5, min(5.0, q / Z_80)))
+
+        sigma_total_mult = float(prior_sigma_total_mult * sigma_total_mult_upd)
+        sigma_total_mult = _clamp_sigma(sigma_total_mult, float(args.cap_sigma_mult))
+
+        # Margin inflation only if sigma_margin exists
+        sigma_margin_mult_upd = 1.0
+        if "sigma_margin" in df.columns:
+            dm = df.dropna(subset=["sigma_margin"]).copy()
+            dm = dm[dm["sigma_margin"] > 0]
+            if len(dm) > 0:
+                z_margin = ((dm["actual_margin"] - (dm["mu_margin"] + delta_margin_resid)) / dm["sigma_margin"]).astype(float)
+                z_margin = z_margin.replace([np.inf, -np.inf], np.nan).dropna()
+                if len(z_margin) > 0:
+                    q = float(np.quantile(np.abs(z_margin), 0.80))
+                    sigma_margin_mult_upd = float(max(0.5, min(5.0, q / Z_80)))
+
+        sigma_margin_mult = float(prior_sigma_margin_mult * sigma_margin_mult_upd)
+        sigma_margin_mult = _clamp_sigma(sigma_margin_mult, float(args.cap_sigma_mult))
+
+        calib.update({
+            "n_games": int(len(df)),
+            "delta_total": delta_total,
+            "delta_margin": delta_margin,
+            "sigma_total_mult": sigma_total_mult,
+            "sigma_margin_mult": sigma_margin_mult,
+        })
 
     # Estimate global rho from historical games by correlating centered per-team residuals.
     # Use the calibrated mean shifts so we don't bake in simple bias.
-    if "home_score" in df.columns and "away_score" in df.columns:
+    if (not args.fit_1h_only) and "home_score" in df.columns and "away_score" in df.columns:
         hs = pd.to_numeric(df["home_score"], errors="coerce")
         aw = pd.to_numeric(df["away_score"], errors="coerce")
         mu_total_cal = pd.to_numeric(df["mu_total"], errors="coerce") + float(delta_total)
@@ -345,27 +414,34 @@ def main() -> int:
         df1 = df1[df1["sigma_total_1h"] > 0]
 
         if len(df1) >= int(args.min_games):
-            delta_total_1h = float(np.mean((df1["actual_total_1h"] - df1["mu_total_1h"]).astype(float)))
-            delta_margin_1h = float(np.mean((df1["actual_margin_1h"] - df1["mu_margin_1h"]).astype(float)))
+            # Residual updates on top of existing 1H deltas when present.
+            delta_total_1h_resid = float(np.mean((df1["actual_total_1h"] - df1["mu_total_1h"]).astype(float)))
+            delta_margin_1h_resid = float(np.mean((df1["actual_margin_1h"] - df1["mu_margin_1h"]).astype(float)))
+            delta_total_1h = float(prior_delta_total_1h + delta_total_1h_resid)
+            delta_margin_1h = float(prior_delta_margin_1h + delta_margin_1h_resid)
+            delta_total_1h = _clamp_abs(delta_total_1h, float(args.cap_abs_delta_1h))
+            delta_margin_1h = _clamp_abs(delta_margin_1h, float(args.cap_abs_delta_1h))
 
-            z_total_1h = ((df1["actual_total_1h"] - (df1["mu_total_1h"] + delta_total_1h)) / df1["sigma_total_1h"]).astype(float)
+            z_total_1h = ((df1["actual_total_1h"] - (df1["mu_total_1h"] + delta_total_1h_resid)) / df1["sigma_total_1h"]).astype(float)
             z_total_1h = z_total_1h.replace([np.inf, -np.inf], np.nan).dropna()
             if len(z_total_1h) == 0:
                 sigma_total_1h_mult = 1.0
             else:
                 q = float(np.quantile(np.abs(z_total_1h), 0.80))
                 sigma_total_1h_mult = float(max(0.5, min(5.0, q / Z_80)))
+            sigma_total_1h_mult = _clamp_sigma(float(sigma_total_1h_mult), float(args.cap_sigma_1h_mult))
 
             sigma_margin_1h_mult = 1.0
             if "sigma_margin_1h" in df1.columns:
                 dm1 = df1.dropna(subset=["sigma_margin_1h"]).copy()
                 dm1 = dm1[dm1["sigma_margin_1h"] > 0]
                 if len(dm1) > 0:
-                    z_margin_1h = ((dm1["actual_margin_1h"] - (dm1["mu_margin_1h"] + delta_margin_1h)) / dm1["sigma_margin_1h"]).astype(float)
+                    z_margin_1h = ((dm1["actual_margin_1h"] - (dm1["mu_margin_1h"] + delta_margin_1h_resid)) / dm1["sigma_margin_1h"]).astype(float)
                     z_margin_1h = z_margin_1h.replace([np.inf, -np.inf], np.nan).dropna()
                     if len(z_margin_1h) > 0:
                         q = float(np.quantile(np.abs(z_margin_1h), 0.80))
                         sigma_margin_1h_mult = float(max(0.5, min(5.0, q / Z_80)))
+            sigma_margin_1h_mult = _clamp_sigma(float(sigma_margin_1h_mult), float(args.cap_sigma_1h_mult))
 
             calib.update({
                 "delta_total_1h": delta_total_1h,

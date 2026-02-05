@@ -71,6 +71,7 @@
 .sentinel{height:24px}
 /* Sticky controls bar */
 #filtersBar,#sortBar{position:sticky; top:0; z-index:10}
+.filters-bar-row{justify-content:space-between; width:100%;}
 .sticky-shadow{box-shadow:0 2px 8px rgba(0,0,0,0.35);}
 .sticky-holder{position:relative}
 .sticky-holder.shadow .card{box-shadow:0 2px 8px rgba(0,0,0,0.35)}
@@ -100,6 +101,7 @@
 
 /* New game-card layout (Market + Full/1H + Recommendation) */
 .game-body{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+.game-col{display:flex;flex-direction:column;gap:10px;min-width:0}
 .section-block{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:10px}
 .section-title{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;margin-bottom:8px}
 .market-grid{display:flex;flex-wrap:wrap;gap:6px}

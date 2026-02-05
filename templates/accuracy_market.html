@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Accuracy</title>
+  <style>
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    .container { max-width: 1250px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin-bottom: 0.5rem; }
+    a { color: var(--accent); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid var(--pill-br); padding: 0.5rem; text-align: left; }
+    th { background: var(--card); color: var(--muted); }
+    tbody tr:nth-child(odd) { background: #0d1427; }
+    tbody tr:hover { background: #101a35; cursor: pointer; }
+    .muted { color: var(--muted); }
+    .num { font-variant-numeric: tabular-nums; }
+    .small { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+      <h1>Market Accuracy</h1>
+      <a href="/">Home</a>
+      <a href="/recommendations?group=1{% if request.args.get('date') %}&date={{ request.args.get('date') }}{% endif %}">Recommendations</a>
+      <a href="/results-archive">Daily Recap</a>
+      <a href="/api/accuracy-market" target="_blank">Accuracy JSON</a>
+    </header>
+
+    <p class="muted">Sim-implied direction vs market outcomes (ATS, ML, totals) for full game and 1H. Double-click a date row to drill in.</p>
+
+    {% set y = payload.get('ytd', {}) %}
+    <div class="grid">
+      <div>
+        <h2>YTD Recap</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th class="num">Correct/Total</th>
+              <th class="num">Accuracy</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for key, label in [
+              ('game_ats','Game ATS'),
+              ('game_ml','Game ML'),
+              ('game_total','Game Total'),
+              ('h1_ats','1H ATS'),
+              ('h1_ml','1H ML'),
+              ('h1_total','1H Total'),
+            ] %}
+              {% set rec = y.get(key, {}) %}
+              <tr>
+                <td>{{ label }}</td>
+                <td class="num">{{ rec.get('correct',0) }}/{{ rec.get('total',0) }}</td>
+                <td class="num">{{ ('%.1f' % (100.0 * rec.get('accuracy'))) ~ '%' if rec.get('accuracy') is not none else '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h2>Notes</h2>
+        <div class="muted small">
+          <div>ATS: compares (sim vs actual) home cover relative to spread.</div>
+          <div>ML: compares (sim vs actual) home win (1H ML uses halftime leader).</div>
+          <div>Totals: compares (sim vs actual) over/under relative to total.</div>
+          <div>Pushes are excluded (exactly on the line).</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Daily List</h2>
+    <table id="dailyTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th class="num">Game ATS</th>
+          <th class="num">Game ML</th>
+          <th class="num">Game Total</th>
+          <th class="num">1H ATS</th>
+          <th class="num">1H ML</th>
+          <th class="num">1H Total</th>
+          <th class="muted">Join</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in payload.get('daily', []) %}
+          {% set d = r.get('date') %}
+          <tr data-date="{{ d }}" title="Double-click to drill in">
+            <td class="num">{{ d }}</td>
+
+            {% for key in ['game_ats','game_ml','game_total','h1_ats','h1_ml','h1_total'] %}
+              {% set rec = r.get(key, {}) %}
+              <td class="num">
+                {{ ('%.1f' % (100.0 * rec.get('accuracy'))) ~ '%' if rec.get('accuracy') is not none else '—' }}
+                <span class="muted">({{ rec.get('correct',0) }}/{{ rec.get('total',0) }})</span>
+              </td>
+            {% endfor %}
+
+            {% set meta = r.get('meta', {}) %}
+            <td class="muted">{{ meta.get('join') or '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if payload.get('by_conference_ytd') %}
+      <h2>YTD By Conference</h2>
+      <p class="muted">Aggregated across all days; counts are weighted by games (pushes excluded).</p>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Conference</th>
+              <th class="num">Game ATS</th>
+              <th class="num">Game ML</th>
+              <th class="num">Game Total</th>
+              <th class="num">1H ATS</th>
+              <th class="num">1H ML</th>
+              <th class="num">1H Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in payload.get('by_conference_ytd', []) %}
+              <tr>
+                <td>{{ r.get('conference') }}</td>
+                {% for key in ['game_ats','game_ml','game_total','h1_ats','h1_ml','h1_total'] %}
+                  {% set rec = r.get(key, {}) %}
+                  <td class="num">
+                    {{ ('%.1f' % (100.0 * rec.get('accuracy'))) ~ '%' if rec.get('accuracy') is not none else '—' }}
+                    <span class="muted">({{ rec.get('correct',0) }}/{{ rec.get('total',0) }})</span>
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    {% if payload.get('unmapped_teams') %}
+      <h2>Unmapped Teams (Season)</h2>
+      <p class="muted">These teams did not map to a conference via `data/d1_conferences.csv`, `data/conferences.csv`, `data/provider_aliases.csv`, or `data/team_map.csv`.</p>
+      <details>
+        <summary class="muted">Show list ({{ payload.get('unmapped_teams')|length }})</summary>
+        <ul>
+          {% for t in payload.get('unmapped_teams', []) %}
+            <li class="muted">{{ t }}</li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  </div>
+
+  <script>
+    (function(){
+      var table = document.getElementById('dailyTable');
+      if (!table) return;
+      table.addEventListener('dblclick', function(e){
+        var tr = e.target && e.target.closest ? e.target.closest('tr[data-date]') : null;
+        if (!tr) return;
+        var d = tr.getAttribute('data-date');
+        if (!d) return;
+        window.location.href = '/accuracy-market/' + encodeURIComponent(d);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -35,10 +35,10 @@
       <table>
         <tr><th>ATS total</th><td>{{ o.get('ats_total') }}</td></tr>
         <tr><th>ATS correct</th><td>{{ o.get('ats_correct') }}</td></tr>
-        <tr><th>ATS accuracy</th><td>{{ '%.3f' % o.get('ats_accuracy') if o.get('ats_accuracy') is not none else '—' }}</td></tr>
+        <tr><th>ATS accuracy</th><td>{{ ('%.1f' % (100.0 * o.get('ats_accuracy'))) ~ '%' if o.get('ats_accuracy') is not none else '—' }}</td></tr>
         <tr><th>Totals total</th><td>{{ o.get('totals_total') }}</td></tr>
         <tr><th>Totals correct</th><td>{{ o.get('totals_correct') }}</td></tr>
-        <tr><th>Totals accuracy</th><td>{{ '%.3f' % o.get('totals_accuracy') if o.get('totals_accuracy') is not none else '—' }}</td></tr>
+        <tr><th>Totals accuracy</th><td>{{ ('%.1f' % (100.0 * o.get('totals_accuracy'))) ~ '%' if o.get('totals_accuracy') is not none else '—' }}</td></tr>
       </table>
     </div>
 
@@ -67,9 +67,9 @@
       {% for d, rec in daily_sorted %}
         <tr>
           <td>{{ d }}</td>
-          <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
+          <td>{{ ('%.1f' % (100.0 * rec.get('ats_accuracy'))) ~ '%' if rec.get('ats_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('ats_correct') }}/{{ rec.get('ats_total') }}</td>
-          <td>{{ '%.3f' % rec.get('totals_accuracy') if rec.get('totals_accuracy') is not none else '—' }}</td>
+          <td>{{ ('%.1f' % (100.0 * rec.get('totals_accuracy'))) ~ '%' if rec.get('totals_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('totals_correct') }}/{{ rec.get('totals_total') }}</td>
           {% set mc = rec.get('missing_counts', {}) %}
           <td class="muted">
@@ -99,9 +99,9 @@
       {% for conf, rec in conf_sorted %}
         <tr>
           <td>{{ conf }}</td>
-          <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
+          <td>{{ ('%.1f' % (100.0 * rec.get('ats_accuracy'))) ~ '%' if rec.get('ats_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('ats_total') }}</td>
-          <td>{{ '%.3f' % rec.get('totals_accuracy') if rec.get('totals_accuracy') is not none else '—' }}</td>
+          <td>{{ ('%.1f' % (100.0 * rec.get('totals_accuracy'))) ~ '%' if rec.get('totals_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('totals_total') }}</td>
         </tr>
       {% endfor %}
@@ -123,9 +123,9 @@
       {% for team, rec in team_sorted %}
         <tr>
           <td>{{ team }}</td>
-          <td>{{ '%.3f' % rec.get('ats_accuracy') if rec.get('ats_accuracy') is not none else '—' }}</td>
+          <td>{{ ('%.1f' % (100.0 * rec.get('ats_accuracy'))) ~ '%' if rec.get('ats_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('ats_total') }}</td>
-          <td>{{ '%.3f' % rec.get('totals_accuracy') if rec.get('totals_accuracy') is not none else '—' }}</td>
+          <td>{{ ('%.1f' % (100.0 * rec.get('totals_accuracy'))) ~ '%' if rec.get('totals_accuracy') is not none else '—' }}</td>
           <td>{{ rec.get('totals_total') }}</td>
         </tr>
       {% endfor %}

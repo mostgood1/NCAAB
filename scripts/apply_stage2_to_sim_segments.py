@@ -46,6 +46,12 @@ def apply_stage2(seg: pd.DataFrame, bias_by_end_min: dict[float, float]) -> pd.D
     for col in cols:
         seg[col] = seg[col].replace([np.inf, -np.inf], np.nan)
 
+    # Enforce monotonicity for cumulative columns within each game.
+    if cols and "game_id" in seg.columns:
+        seg = seg.sort_values(["game_id", "end_min"], kind="mergesort")
+        for col in cols:
+            seg[col] = seg.groupby("game_id")[col].cummax()
+
     return seg
 
 
