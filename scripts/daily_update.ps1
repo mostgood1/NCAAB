@@ -1950,7 +1950,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
     if ($PSBoundParameters.ContainsKey('SkipRenderUpload') -and $SkipRenderUpload.IsPresent) { $doRenderUpload = $false }
     # Back-compat: if user explicitly supplied -UploadToRender, honor true; otherwise default remains true
     if ($doRenderUpload -or $UploadToRender.IsPresent) {
-      Write-Section "11b) Upload artifacts to Render + verify ($todayIso)"
+      Write-Section "11b) Upload artifacts to Render + verify ($prevDate, $todayIso)"
       try {
         $uploader = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
         if (Test-Path $uploader) {
@@ -1958,12 +1958,26 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
           $doRedeploy = $false
           if ($PSBoundParameters.ContainsKey('SkipRenderRedeploy') -and $SkipRenderRedeploy.IsPresent) { $doRedeploy = $false }
           if ($TriggerRenderRedeploy.IsPresent) { $doRedeploy = $true }
+
+          # Upload both yesterday (for reconciliation/results) and today (for cards/recs).
+          # Note: Render storage is ephemeral unless a persistent disk is enabled; this ensures data is present post-run.
+          $datesToUpload = @($prevDate, $todayIso) | Where-Object { $_ -and $_.Trim() -ne '' } | Select-Object -Unique
+
           if ($doRedeploy) {
-            Write-Host "[Render] Uploading artifacts and triggering redeploy (sanitized display)" -ForegroundColor Cyan
+            # Trigger at most one redeploy to avoid wiping uploads mid-loop.
+            Write-Host "[Render] Uploading artifacts and triggering a single redeploy (sanitized display)" -ForegroundColor Cyan
             powershell.exe -ExecutionPolicy Bypass -File $uploader -Date $todayIso -TriggerRedeploy
+            foreach ($d in $datesToUpload) {
+              if ($d -eq $todayIso) { continue }
+              Write-Host ("[Render] Uploading additional date artifacts: {0}" -f $d) -ForegroundColor Cyan
+              powershell.exe -ExecutionPolicy Bypass -File $uploader -Date $d
+            }
           } else {
             Write-Host "[Render] Uploading artifacts (sanitized display)" -ForegroundColor Cyan
-            powershell.exe -ExecutionPolicy Bypass -File $uploader -Date $todayIso
+            foreach ($d in $datesToUpload) {
+              Write-Host ("[Render] Upload date artifacts: {0}" -f $d) -ForegroundColor Cyan
+              powershell.exe -ExecutionPolicy Bypass -File $uploader -Date $d
+            }
           }
         } else {
           Write-Warning "Uploader script not found at $uploader; skipping Render upload."
