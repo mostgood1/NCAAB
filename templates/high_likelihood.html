@@ -138,11 +138,16 @@
               {% for p in today.picks_list %}
                 {% set code = (p.rec_code or '')|upper %}
                 {% set market_chip = 'ml' if code == 'ML' else ('ats' if code == 'ATS' else 'ou') %}
+                {% set matchup = '' %}
+                {% if p.get('away_team') and p.get('home_team') %}
+                  {% set matchup = p.get('away_team') ~ ' @ ' ~ p.get('home_team') %}
+                {% endif %}
                 {% set pick_label = '' %}
                 {% if code == 'ML' %}
                   {% set pick_label = p.selection_team or p.selection or '' %}
                 {% elif code == 'OU' %}
                   {% set pick_label = (p.selection or '') ~ ' ' ~ ('%.1f' % p.line if p.line is not none else '') %}
+                  {% if matchup %}{% set pick_label = pick_label ~ ' — ' ~ matchup %}{% endif %}
                 {% elif code == 'ATS' %}
                   {% set home = p.home_team or '' %}
                   {% set away = p.away_team or '' %}
@@ -152,6 +157,7 @@
                   {% else %}
                     {% set pick_label = away ~ ' ' ~ ('%+.1f' % (0 - hs) if hs is not none else '') %}
                   {% endif %}
+                  {% if matchup %}{% set pick_label = pick_label ~ ' — ' ~ matchup %}{% endif %}
                 {% endif %}
                 <tr>
                   <td><span class="chip {{ market_chip }}">{{ code }}</span></td>
@@ -209,11 +215,16 @@
                     {% for p in day.picks_list %}
                       {% set code = (p.rec_code or '')|upper %}
                       {% set market_chip = 'ml' if code == 'ML' else ('ats' if code == 'ATS' else 'ou') %}
+                      {% set matchup = '' %}
+                      {% if p.get('away_team') and p.get('home_team') %}
+                        {% set matchup = p.get('away_team') ~ ' @ ' ~ p.get('home_team') %}
+                      {% endif %}
                       {% set pick_label = '' %}
                       {% if code == 'ML' %}
                         {% set pick_label = p.selection_team or p.selection or '' %}
                       {% elif code == 'OU' %}
                         {% set pick_label = (p.selection or '') ~ ' ' ~ ('%.1f' % p.line if p.line is not none else '') %}
+                        {% if matchup %}{% set pick_label = pick_label ~ ' — ' ~ matchup %}{% endif %}
                       {% elif code == 'ATS' %}
                         {% set home = p.home_team or '' %}
                         {% set away = p.away_team or '' %}
@@ -223,6 +234,7 @@
                         {% else %}
                           {% set pick_label = away ~ ' ' ~ ('%+.1f' % (0 - hs) if hs is not none else '') %}
                         {% endif %}
+                        {% if matchup %}{% set pick_label = pick_label ~ ' — ' ~ matchup %}{% endif %}
                       {% endif %}
                       <tr>
                         <td><span class="chip {{ market_chip }}">{{ code }}</span></td>
