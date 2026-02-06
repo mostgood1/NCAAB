@@ -409,7 +409,7 @@
                       <summary class="section-title">1H 5-min Interval</summary>
 
                       <div class="live-lens-wrap muted m4v8">
-                        <div class="note muted">Live lens (1H; enter minutes remaining + score; optional live total + 2PA/3PA):</div>
+                        <div class="note muted">Live lens (1H; enter minutes remaining + score; optional live total):</div>
                         <div class="kpi mt8">
                           <span class="pill small">Min remaining
                             <select class="date-input live-lens-min" aria-label="Minutes remaining (1H)">
@@ -421,12 +421,6 @@
                           </span>
                           <span class="pill small">Live total
                             <input class="date-input live-lens-line" type="number" step="0.5" min="0" inputmode="decimal" aria-label="Live total line (1H)" placeholder="optional" />
-                          </span>
-                          <span class="pill small">2PA
-                            <input class="date-input live-lens-2pa" type="number" step="1" min="0" inputmode="numeric" aria-label="2PA so far" placeholder="opt" />
-                          </span>
-                          <span class="pill small">3PA
-                            <input class="date-input live-lens-3pa" type="number" step="1" min="0" inputmode="numeric" aria-label="3PA so far" placeholder="opt" />
                           </span>
                         </div>
                         <div class="kpi mt8">
@@ -657,7 +651,7 @@
                       <summary class="section-title">Full Game 5-min Interval</summary>
 
                     <div class="live-lens-wrap muted m4v8">
-                      <div class="note muted">Live lens (full game; enter minutes remaining + score; optional live total + 2PA/3PA):</div>
+                      <div class="note muted">Live lens (full game; enter minutes remaining + score; optional live total):</div>
                       <div class="kpi mt8">
                         <span class="pill small">Min remaining
                           <select class="date-input live-lens-min" aria-label="Minutes remaining (full game)">
@@ -669,12 +663,6 @@
                         </span>
                         <span class="pill small">Live total
                           <input class="date-input live-lens-line" type="number" step="0.5" min="0" inputmode="decimal" aria-label="Live total line" placeholder="optional" />
-                        </span>
-                        <span class="pill small">2PA
-                          <input class="date-input live-lens-2pa" type="number" step="1" min="0" inputmode="numeric" aria-label="2PA so far" placeholder="opt" />
-                        </span>
-                        <span class="pill small">3PA
-                          <input class="date-input live-lens-3pa" type="number" step="1" min="0" inputmode="numeric" aria-label="3PA so far" placeholder="opt" />
                         </span>
                       </div>
                       <div class="kpi mt8">
@@ -1867,7 +1855,7 @@
   </script>
 
   <script>
-    // Live lens for 5-min trajectory: translate current score/time into pace + (optional) shot-volume diagnostics vs sim.
+    // Live lens for 5-min trajectory: translate current score/time into pace + diagnostics vs sim.
     (function(){
       function toNum(v){
         if(v === null || v === undefined) return null;
@@ -1882,9 +1870,7 @@
         var rows = (segments || []).map(function(s){
           return {
             end_min: toNum(s.end_min),
-            q50_total_score_end: toNum(s.q50_total_score_end),
-            mu_total_fga2_seg: toNum(s.mu_total_fga2_seg),
-            mu_total_fga3_seg: toNum(s.mu_total_fga3_seg)
+            q50_total_score_end: toNum(s.q50_total_score_end)
           };
         }).filter(function(r){
           if(r.end_min === null || r.end_min <= 0) return false;
@@ -1894,15 +1880,8 @@
         rows.sort(function(a,b){ return a.end_min - b.end_min; });
 
         var expTotalByMin = {};
-        var exp2paCumByMin = {};
-        var exp3paCumByMin = {};
-        var c2 = 0, c3 = 0;
         rows.forEach(function(r){
-          if(r.mu_total_fga2_seg !== null) c2 += r.mu_total_fga2_seg;
-          if(r.mu_total_fga3_seg !== null) c3 += r.mu_total_fga3_seg;
           if(r.q50_total_score_end !== null) expTotalByMin[String(r.end_min)] = r.q50_total_score_end;
-          exp2paCumByMin[String(r.end_min)] = c2;
-          exp3paCumByMin[String(r.end_min)] = c3;
         });
 
         var maxMin = rows.length ? rows[rows.length-1].end_min : null;
@@ -1911,7 +1890,7 @@
         if(expTotalByMin[endKey]) simFinal = expTotalByMin[endKey];
         else if(maxMin !== null) simFinal = expTotalByMin[String(maxMin)] || null;
 
-        return { rows: rows, expTotalByMin: expTotalByMin, exp2paCumByMin: exp2paCumByMin, exp3paCumByMin: exp3paCumByMin, simFinal: simFinal };
+        return { rows: rows, expTotalByMin: expTotalByMin, simFinal: simFinal };
       }
 
       function setText(root, key, txt){
@@ -1931,8 +1910,6 @@
         var selMin = wrap.querySelector('.live-lens-min');
         var inpTot = wrap.querySelector('.live-lens-total');
         var inpLine = wrap.querySelector('.live-lens-line');
-        var inp2pa = wrap.querySelector('.live-lens-2pa');
-        var inp3pa = wrap.querySelector('.live-lens-3pa');
 
         if(!selMin || !inpTot) return;
 
@@ -1976,8 +1953,6 @@
           var remaining = toNum(selMin.value);
           var act = toNum(inpTot.value);
           var line = inpLine ? toNum(inpLine.value) : null;
-          var a2 = inp2pa ? toNum(inp2pa.value) : null;
-          var a3 = inp3pa ? toNum(inp3pa.value) : null;
 
           // Convert remaining → elapsed in this horizon
           var elapsed = (remaining !== null) ? (horizon - remaining) : null;
@@ -2006,42 +1981,8 @@
             lean = (delta > 0 ? 'Over candidates (low so far)' : (delta < 0 ? 'Under candidates (high so far)' : 'On track'));
           }
 
-          if(a2 !== null || a3 !== null){
-            var actAtt = 0;
-            if(a2 !== null) actAtt += a2;
-            if(a3 !== null) actAtt += a3;
-            var expAtt = null;
-            if(elapsed !== null && elapsed > 0){
-              var e2 = idx.exp2paCumByMin[String(elapsed)];
-              var e3 = idx.exp3paCumByMin[String(elapsed)];
-              if(e2 !== undefined && e3 !== undefined) expAtt = e2 + e3;
-            }
-            if(expAtt !== null && expAtt > 0 && actAtt > 0 && exp !== null && exp > 0 && act !== null && act > 0){
-              var volRatio = actAtt / expAtt;
-              var effAct = act / actAtt;
-              var effExp = exp / expAtt;
-              var effRatio = (effExp > 0) ? (effAct / effExp) : null;
-              if(volRatio !== null && effRatio !== null){
-                if(volRatio > 1.05 && effRatio < 0.95) driver = 'Efficiency (volume high)';
-                else if(volRatio < 0.95 && effRatio >= 0.95) driver = 'Pace (volume low)';
-                else if(volRatio > 1.05 && effRatio > 1.05) driver = 'Hot shooting';
-                else if(volRatio < 0.95 && effRatio < 0.95) driver = 'Slow + cold';
-                else driver = 'Mixed';
-
-                // If we have a delta and efficiency/volume, refine lean when low so far
-                if(delta !== null && delta > 0 && volRatio > 1.05 && effRatio < 0.95) {
-                  lean = 'Over lean (low due to efficiency)';
-                } else if(delta !== null && delta > 0 && volRatio < 0.95) {
-                  lean = 'Under lean (low due to pace)';
-                } else if(delta !== null && delta < 0 && volRatio > 1.05 && effRatio > 1.05) {
-                  lean = 'Under lean (high due to hot shooting)';
-                }
-              }
-            }
-          } else {
-            if(delta !== null){
-              driver = (delta > 0 ? 'Below sim (so far)' : (delta < 0 ? 'Above sim (so far)' : 'On sim'));
-            }
+          if(delta !== null){
+            driver = (delta > 0 ? 'Below sim (so far)' : (delta < 0 ? 'Above sim (so far)' : 'On sim'));
           }
 
           setText(wrap, 'driver', 'Driver: ' + driver);
@@ -2052,8 +1993,6 @@
           selMin.addEventListener(evt, update);
           inpTot.addEventListener(evt, update);
           if(inpLine) inpLine.addEventListener(evt, update);
-          if(inp2pa) inp2pa.addEventListener(evt, update);
-          if(inp3pa) inp3pa.addEventListener(evt, update);
         });
         update();
       }
