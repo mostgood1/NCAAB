@@ -36710,4 +36710,9 @@ if __name__ == "__main__":
             ensure_runtime_artifacts()
     except Exception:
         pass
-    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=debug)
+    # Never enable the Werkzeug auto-reloader by default; it can cause frequent
+    # restarts in environments that continuously touch files (e.g., outputs/logs).
+    # If you explicitly want the reloader, set FLASK_USE_RELOADER=1.
+    use_reloader_flag = str(os.environ.get("FLASK_USE_RELOADER", "")).lower()
+    use_reloader = use_reloader_flag in ("1", "true", "yes", "on")
+    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=use_reloader)
