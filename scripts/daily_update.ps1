@@ -1954,6 +1954,47 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
       try {
         $uploader = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
         if (Test-Path $uploader) {
+          # Preflight: ensure today's sim artifacts exist locally before attempting upload.
+          # The sim generation earlier is best-effort; if it failed, Render cards will be missing the Sim row.
+          function Test-HasDataRow {
+            param([string]$Path)
+            if (-not (Test-Path -LiteralPath $Path)) { return $false }
+            try {
+              $n = (Get-Content -LiteralPath $Path -TotalCount 2 | Measure-Object).Count
+              return ($n -ge 2)
+            } catch { return $false }
+          }
+
+          $simQuantilesToday = Join-Path $OutDir ("sim_quantiles_" + $todayIso + ".csv")
+          $simBlendToday     = Join-Path $OutDir ("sim_blend_" + $todayIso + ".csv")
+          $simSegmentsToday2 = Join-Path $OutDir ("sim_segments_" + $todayIso + ".csv")
+          $needSim = (-not (Test-HasDataRow $simQuantilesToday)) -or (-not (Test-HasDataRow $simBlendToday)) -or (-not (Test-HasDataRow $simSegmentsToday2))
+
+          if ($needSim) {
+            Write-Section "11b.pre) Missing local sim artifacts; regenerating sims for $todayIso"
+            try {
+              if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') {
+                $env:NCAAB_SIM_SEED = $todayIso.Replace('-','')
+              }
+              $env:NCAAB_SIM_MEAN_SOURCE = 'features_strict'
+              try { & $VenvPython scripts/validate_sim_inputs.py $todayIso $OutDir } catch { Write-Warning "validate_sim_inputs retry failed: $($_)" }
+              try { & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir } catch { Write-Warning "run_game_simulations retry failed: $($_)" }
+              try {
+                $BlendSimWeight = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
+                & $VenvPython scripts/blend_sim_quantiles.py $todayIso $OutDir $BlendSimWeight
+              } catch { Write-Warning "blend_sim_quantiles retry failed: $($_)" }
+            } catch {
+              Write-Warning "Sim regeneration preflight failed: $($_)"
+            }
+
+            $needSimAfter = (-not (Test-HasDataRow $simQuantilesToday)) -or (-not (Test-HasDataRow $simBlendToday)) -or (-not (Test-HasDataRow $simSegmentsToday2))
+            if ($needSimAfter) {
+              Write-Warning "Local sim artifacts are still missing/empty after retry; Render cards may lack Sim rows. Expected: $simQuantilesToday"
+            } else {
+              Write-Host "[Sim] Local sim artifacts regenerated; proceeding with upload." -ForegroundColor Green
+            }
+          }
+
           # Determine redeploy behavior: default false unless explicitly requested; explicit -TriggerRenderRedeploy forces true
           $doRedeploy = $false
           if ($PSBoundParameters.ContainsKey('SkipRenderRedeploy') -and $SkipRenderRedeploy.IsPresent) { $doRedeploy = $false }
@@ -2051,14 +2092,23 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
           $atsKey = "picks/ats_picks_${todayIso}.csv"
           $atsInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq $atsKey } | Select-Object -First 1
           $atsRows = if ($atsInfoProp) { $atsInfoProp.Value.rows } else { $null }
+          $simKey = "sim_quantiles_${todayIso}.csv"
+          $simInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq $simKey } | Select-Object -First 1
+          $simRows = if ($simInfoProp) { $simInfoProp.Value.rows } else { $null }
           $prInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq 'picks_raw.csv' } | Select-Object -First 1
           $prRows = if ($prInfoProp) { $prInfoProp.Value.rows } else { $null }
           $atsRowsInt = if ($atsRows -ne $null) { [int]$atsRows } else { 0 }
-          Write-Host ("[Artifacts] picks_raw_rows={0} ats_picks_rows={1}" -f $prRows, $atsRows) -ForegroundColor Gray
+          $simRowsInt = if ($simRows -ne $null) { [int]$simRows } else { 0 }
+          Write-Host ("[Artifacts] picks_raw_rows={0} ats_picks_rows={1} sim_quantiles_rows={2}" -f $prRows, $atsRows, $simRows) -ForegroundColor Gray
           if (($atsRows -eq $null -or $atsRowsInt -le 0) -and $displayRows -gt 0) {
             Write-Warning "ATS picks artifact missing or empty; API will synthesize spreads fallback, but consider re-generating ats_picks for full coverage."
           } elseif ($displayRows -gt 0 -and $atsRowsInt -lt $displayRows) {
             Write-Warning ("ATS picks artifact incomplete: ats_picks_rows={0} < display_rows={1}; topping up from display is recommended." -f $atsRowsInt, $displayRows)
+          }
+          if (($simRows -eq $null -or $simRowsInt -le 0) -and $displayRows -gt 0) {
+            Write-Warning "sim_quantiles artifact missing or empty; Cards will show no Sim row. Consider re-running sims + upload_artifacts_to_render.ps1 for today."
+          } elseif ($displayRows -gt 0 -and $simRowsInt -gt 0 -and $simRowsInt -lt $displayRows) {
+            Write-Warning ("sim_quantiles artifact incomplete: sim_rows={0} < display_rows={1}; Sim row coverage may be partial." -f $simRowsInt, $displayRows)
           }
           # Conditional rebuild + re-upload: if server artifacts are empty, (re)build from display/enriched and persist
           try {
@@ -2084,6 +2134,85 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
             }
 
             $needAtsTopUp = ($displayRows -gt 0 -and $atsRowsInt -lt $displayRows)
+
+            # If sim artifacts are missing or incomplete on Render, regenerate locally (best-effort) and re-upload.
+            $needSimTopUp = ($displayRows -gt 0 -and ($simRows -eq $null -or $simRowsInt -lt $displayRows))
+            $simQuantLocal = Join-Path $outsDir "sim_quantiles_${todayIso}.csv"
+            $simBlendLocal = Join-Path $outsDir "sim_blend_${todayIso}.csv"
+            $simSegLocal   = Join-Path $outsDir "sim_segments_${todayIso}.csv"
+            $simDiagLocal  = Join-Path $outsDir "sim_inputs_diagnostic_${todayIso}.json"
+            $simCalibLocal = Join-Path $outsDir "sim_calibration.json"
+
+            function Get-LocalRows {
+              param([string]$p)
+              try {
+                if (-not (Test-Path -LiteralPath $p)) { return 0 }
+                $n = ((Get-Content -LiteralPath $p | Measure-Object).Count - 1)
+                if ($n -lt 0) { $n = 0 }
+                return [int]$n
+              } catch { return 0 }
+            }
+
+            if ($needSimTopUp) {
+              $simLocalRows = Get-LocalRows $simQuantLocal
+              $blendLocalRows = Get-LocalRows $simBlendLocal
+              $segLocalRows = Get-LocalRows $simSegLocal
+
+              if ($simLocalRows -lt $displayRows -or $blendLocalRows -lt $displayRows -or $segLocalRows -le 0) {
+                Write-Host ("[Sim] Local sim artifacts missing/incomplete; regenerating for {0}" -f $todayIso) -ForegroundColor DarkCyan
+                try {
+                  if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') { $env:NCAAB_SIM_SEED = $todayIso.Replace('-','') }
+                  $env:NCAAB_SIM_MEAN_SOURCE = 'features_strict'
+                  try { & $VenvPython scripts/validate_sim_inputs.py $todayIso $outsDir } catch { Write-Warning ("validate_sim_inputs (health retry) failed: {0}" -f $_.Exception.Message) }
+                  try { & $VenvPython scripts/run_game_simulations.py $todayIso $outsDir } catch { Write-Warning ("run_game_simulations (health retry) failed: {0}" -f $_.Exception.Message) }
+                  try {
+                    $BlendSimWeight2 = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
+                    & $VenvPython scripts/blend_sim_quantiles.py $todayIso $outsDir $BlendSimWeight2
+                  } catch { Write-Warning ("blend_sim_quantiles (health retry) failed: {0}" -f $_.Exception.Message) }
+                } catch {
+                  Write-Warning ("Sim regeneration (health retry) failed: {0}" -f $_.Exception.Message)
+                }
+              }
+
+              # Re-upload sim artifacts only (avoid touching display snapshots here)
+              try {
+                $simLocalRows = Get-LocalRows $simQuantLocal
+                if ($simLocalRows -gt 0) {
+                  Write-Host ("[Re-upload] Posting sim_quantiles -> {0}" -f $simQuantLocal) -ForegroundColor DarkCyan
+                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_quantiles?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simQuantLocal -ContentType 'text/csv' | Out-Null
+                }
+              } catch { Write-Warning ("sim_quantiles re-upload failed: {0}" -f $_.Exception.Message) }
+
+              try {
+                $blendLocalRows = Get-LocalRows $simBlendLocal
+                if ($blendLocalRows -gt 0) {
+                  Write-Host ("[Re-upload] Posting sim_blend -> {0}" -f $simBlendLocal) -ForegroundColor DarkCyan
+                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_blend?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simBlendLocal -ContentType 'text/csv' | Out-Null
+                }
+              } catch { Write-Warning ("sim_blend re-upload failed: {0}" -f $_.Exception.Message) }
+
+              try {
+                $segLocalRows = Get-LocalRows $simSegLocal
+                if ($segLocalRows -gt 0) {
+                  Write-Host ("[Re-upload] Posting sim_segments -> {0}" -f $simSegLocal) -ForegroundColor DarkCyan
+                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_segments?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simSegLocal -ContentType 'text/csv' | Out-Null
+                }
+              } catch { Write-Warning ("sim_segments re-upload failed: {0}" -f $_.Exception.Message) }
+
+              try {
+                if (Test-Path -LiteralPath $simDiagLocal) {
+                  Write-Host ("[Re-upload] Posting sim_inputs_diagnostic -> {0}" -f $simDiagLocal) -ForegroundColor DarkCyan
+                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_inputs_diagnostic?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simDiagLocal -ContentType 'application/json' | Out-Null
+                }
+              } catch { Write-Warning ("sim_inputs_diagnostic re-upload failed (optional): {0}" -f $_.Exception.Message) }
+
+              try {
+                if (Test-Path -LiteralPath $simCalibLocal) {
+                  Write-Host ("[Re-upload] Posting sim_calibration -> {0}" -f $simCalibLocal) -ForegroundColor DarkCyan
+                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_calibration" -f $baseUrl) -Method Post -InFile $simCalibLocal -ContentType 'application/json' | Out-Null
+                }
+              } catch { Write-Warning ("sim_calibration re-upload failed (optional): {0}" -f $_.Exception.Message) }
+            }
 
             # Option A (expanded): if ATS picks are missing or incomplete on Render, synthesize full-slate from display snapshot
             if ($needAtsTopUp -and ($atsLocalRows -lt $displayRows)) {
