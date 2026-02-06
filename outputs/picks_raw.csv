@@ -45,6 +45,6 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401828213,2026-02-06,UAB Blazers,Memphis Tigers,spreads,full_game,home,-0.5,,,0.3715129145590057,,Spread,ATS
 401828413,2026-02-06,Davidson Wildcats,Loyola Chicago Ramblers,totals,full_game,under,,,,,,Total,OU
 401828414,2026-02-06,VCU Rams,Dayton Flyers,totals,full_game,under,,,,,,Total,OU
-401818312,2026-02-06,Yale Bulldogs,Brown Bears,totals,full_game,over,,,,,,Total,OU
+401818312,2026-02-06,Yale Bulldogs,Brown Bears,totals,full_game,under,,,,,,Total,OU
 401822932,2026-02-06,St. John's Red Storm,UConn Huskies,totals,full_game,under,,,,,,Total,OU
-401830293,2026-02-06,Valparaiso Beacons,Evansville Purple Aces,totals,full_game,over,,,,,,Total,OU
+401830293,2026-02-06,Valparaiso Beacons,Evansville Purple Aces,totals,full_game,under,,,,,,Total,OU
