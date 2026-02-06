@@ -505,6 +505,237 @@ def backtest_sim_accuracy(
         raise typer.Exit(code=1)
 
 
+@app.command(name="backtest-high-likelihood")
+def backtest_high_likelihood(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive). Defaults to earliest available results_*.csv"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (inclusive). Defaults to latest available results_*.csv"),
+    recent: int = typer.Option(7, help="If set, backtest only the most recent N result-dates (default 7)"),
+    top_n: int = typer.Option(12, help="Top N picks per day (after min_score filter)"),
+    min_score: float = typer.Option(75.0, help="Minimum confidence score (0-100)"),
+    sigma_total: float = typer.Option(12.0, help="Assumed total std-dev for p(Over/Under) mapping"),
+    sigma_margin: float = typer.Option(8.0, help="Assumed margin std-dev for p(cover) mapping"),
+    max_juice_abs: float = typer.Option(120.0, help="Juice penalty starts beyond abs(price) > this"),
+    markets: str = typer.Option("ML,ATS,OU", help="Comma-separated markets: ML,ATS,OU (default ML,ATS,OU)"),
+    max_ats_picks: int = typer.Option(2, help="Max ATS picks per day (default 2)"),
+    max_ou_picks: int = typer.Option(2, help="Max OU picks per day (default 2)"),
+    max_picks_per_game: int = typer.Option(1, help="Max picks per game_id (default 1)"),
+    ml_favorites_only: bool = typer.Option(True, help="If true, only allow negative-odds ML picks"),
+    min_ml_implied_prob: float = typer.Option(0.60, help="Minimum implied probability (from price) for ML picks"),
+    min_ml_model_prob: float = typer.Option(0.60, help="Minimum model fair win prob for ML picks"),
+    max_ml_underdog_price: float = typer.Option(120.0, help="If ml_favorites_only=false, max underdog price allowed"),
+    min_ats_model_prob: float = typer.Option(0.60, help="Minimum model cover probability for ATS picks"),
+    min_ou_model_prob: float = typer.Option(0.60, help="Minimum model probability for OU picks"),
+    min_ats_edge_pts: float = typer.Option(4.0, help="Minimum absolute spread edge in points"),
+    min_ou_edge_pts: float = typer.Option(4.0, help="Minimum absolute total edge in points"),
+    min_prob_edge_vs_implied: float = typer.Option(0.05, help="Require p_model >= p_implied + this"),
+    out_prefix: str = typer.Option("high_likelihood", help="Outputs/backtests/<prefix>_<start>_<end>.*"),
+):
+    """Backtest the high-likelihood pick selection vs finalized results.
+
+    Builds daily picks from outputs/align_period_<date>_edges.csv, then grades them against
+    outputs/daily_results/results_<date>.csv. Writes per-date and per-pick CSVs and a summary JSON
+    under outputs/backtests/.
+    """
+    try:
+        import datetime as dt
+
+        import pandas as pd
+
+        from src.eval.high_likelihood import (
+            HighLikelihoodConfig,
+            build_high_likelihood,
+            reconcile_picks,
+            recent_results_dates,
+        )
+
+        out_dir = settings.outputs_dir
+
+        all_dates = recent_results_dates(out_dir, int(recent) if recent is not None else 0)
+        if not all_dates:
+            print("[yellow]No results_*.csv dates found under outputs/daily_results[/yellow]")
+            raise typer.Exit(code=1)
+
+        def _d(s: str) -> dt.date:
+            return dt.date.fromisoformat(str(s).strip())
+
+        # Default start/end to available bounds.
+        start_d = _d(start) if start else _d(all_dates[0])
+        end_d = _d(end) if end else _d(all_dates[-1])
+
+        dates = [d for d in all_dates if start_d <= _d(d) <= end_d]
+        if recent is not None and int(recent) > 0:
+            dates = dates[-int(recent) :]
+
+        if not dates:
+            print("[yellow]No dates in requested window[/yellow]")
+            raise typer.Exit(code=1)
+
+        daily_rows: list[dict] = []
+        pick_rows: list[dict] = []
+
+        agg_w = agg_l = agg_p = 0
+        agg_units = 0.0
+
+        for d in dates:
+            inc = tuple(x.strip().upper() for x in str(markets).split(",") if x.strip())
+            if not inc:
+                inc = ("ML",)
+            cfg = HighLikelihoodConfig(
+                out_dir=out_dir,
+                date=d,
+                top_n=int(top_n),
+                min_score=float(min_score),
+                sigma_total=float(sigma_total),
+                sigma_margin=float(sigma_margin),
+                max_juice_abs=float(max_juice_abs),
+                include_markets=inc,
+                max_ats_picks=int(max_ats_picks),
+                max_ou_picks=int(max_ou_picks),
+                max_picks_per_game=int(max_picks_per_game),
+                ml_favorites_only=bool(ml_favorites_only),
+                min_ml_implied_prob=float(min_ml_implied_prob),
+                min_ml_model_prob=float(min_ml_model_prob),
+                max_ml_underdog_price=float(max_ml_underdog_price),
+                min_ats_model_prob=float(min_ats_model_prob),
+                min_ou_model_prob=float(min_ou_model_prob),
+                min_ats_edge_pts=float(min_ats_edge_pts),
+                min_ou_edge_pts=float(min_ou_edge_pts),
+                min_prob_edge_vs_implied=float(min_prob_edge_vs_implied),
+            )
+
+            built = build_high_likelihood(cfg)
+            if built.get("status") != "ok":
+                daily_rows.append(
+                    {
+                        "date": d,
+                        "status": "error",
+                        "message": built.get("message"),
+                        "candidates": built.get("candidates"),
+                        "eligible": built.get("eligible"),
+                        "picks": 0,
+                        "wins": 0,
+                        "losses": 0,
+                        "pushes": 0,
+                        "win_rate": None,
+                        "units": 0.0,
+                    }
+                )
+                continue
+
+            picks = list(built.get("picks") or [])
+            rec = reconcile_picks(out_dir, d, picks)
+            if rec.get("status") != "ok":
+                daily_rows.append(
+                    {
+                        "date": d,
+                        "status": "error",
+                        "message": rec.get("message"),
+                        "candidates": built.get("candidates"),
+                        "eligible": built.get("eligible"),
+                        "picks": len(picks),
+                        "wins": 0,
+                        "losses": 0,
+                        "pushes": 0,
+                        "win_rate": None,
+                        "units": 0.0,
+                    }
+                )
+                continue
+
+            w = int(rec.get("wins") or 0)
+            l = int(rec.get("losses") or 0)
+            p = int(rec.get("pushes") or 0)
+            u = float(rec.get("units") or 0.0)
+            wr = rec.get("win_rate")
+
+            agg_w += w
+            agg_l += l
+            agg_p += p
+            agg_units += u
+
+            daily_rows.append(
+                {
+                    "date": d,
+                    "status": "ok",
+                    "candidates": int(built.get("candidates") or 0),
+                    "eligible": int(built.get("eligible") or 0),
+                    "picks": int(rec.get("rows") or 0),
+                    "wins": w,
+                    "losses": l,
+                    "pushes": p,
+                    "win_rate": float(wr) if wr is not None else None,
+                    "units": u,
+                }
+            )
+
+            for r in rec.get("picks") or []:
+                rr = dict(r)
+                rr["date"] = d
+                pick_rows.append(rr)
+
+        graded = agg_w + agg_l
+        agg_wr = float(agg_w / graded) if graded > 0 else None
+
+        out_base = out_dir / "backtests"
+        out_base.mkdir(parents=True, exist_ok=True)
+        start_s = dates[0]
+        end_s = dates[-1]
+        out_daily_csv = out_base / f"{out_prefix}_{start_s}_{end_s}.csv"
+        out_picks_csv = out_base / f"{out_prefix}_picks_{start_s}_{end_s}.csv"
+        out_json = out_base / f"{out_prefix}_{start_s}_{end_s}.json"
+
+        pd.DataFrame(daily_rows).to_csv(out_daily_csv, index=False)
+        pd.DataFrame(pick_rows).to_csv(out_picks_csv, index=False)
+
+        summary = {
+            "status": "ok",
+            "start": start_s,
+            "end": end_s,
+            "days": len(dates),
+            "params": {
+                "top_n": int(top_n),
+                "min_score": float(min_score),
+                "sigma_total": float(sigma_total),
+                "sigma_margin": float(sigma_margin),
+                "max_juice_abs": float(max_juice_abs),
+                "markets": str(markets),
+                "max_ats_picks": int(max_ats_picks),
+                "max_ou_picks": int(max_ou_picks),
+                "max_picks_per_game": int(max_picks_per_game),
+                "ml_favorites_only": bool(ml_favorites_only),
+                "min_ml_implied_prob": float(min_ml_implied_prob),
+                "min_ml_model_prob": float(min_ml_model_prob),
+                "max_ml_underdog_price": float(max_ml_underdog_price),
+                "min_ats_model_prob": float(min_ats_model_prob),
+                "min_ou_model_prob": float(min_ou_model_prob),
+                "min_ats_edge_pts": float(min_ats_edge_pts),
+                "min_ou_edge_pts": float(min_ou_edge_pts),
+                "min_prob_edge_vs_implied": float(min_prob_edge_vs_implied),
+            },
+            "aggregate": {
+                "wins": int(agg_w),
+                "losses": int(agg_l),
+                "pushes": int(agg_p),
+                "win_rate": agg_wr,
+                "units": float(agg_units),
+            },
+            "outputs": {
+                "daily_csv": str(out_daily_csv),
+                "picks_csv": str(out_picks_csv),
+            },
+        }
+
+        import json
+
+        with open(out_json, "w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2)
+
+        print(f"[green]Backtest complete[/green] -> {out_json} | {out_daily_csv} | {out_picks_csv}")
+    except Exception as e:
+        print(f"[red]backtest-high-likelihood failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command(name="backtest-segments-5min")
 def backtest_segments_5min(
     start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),

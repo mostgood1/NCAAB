@@ -29825,6 +29825,443 @@ def api_hr_diagnostics():
     }
     return jsonify(payload_out), 200
 
+
+@app.route("/api/high_likelihood")
+def api_high_likelihood():
+    """High-likelihood betting angles for the day + recent reconciliation.
+
+    This endpoint builds a ranked list of picks using per-date market+prediction
+    artifacts (primarily align_period_<date>_edges.csv) and computes a composite
+    confidence score (not EV-only). It also backfills a small lookback window of
+    prior dates and reports win-rate / units from daily_results/results_<date>.csv.
+
+    Query params:
+      - date=YYYY-MM-DD (optional; defaults like /api/recommendations)
+      - lookback_days=N (default 7)
+      - top_n=N (default 12)
+      - min_score=FLOAT (default 75)
+            - markets=ML,ATS,OU (default ML,ATS,OU)
+            - max_ats_picks=N (default 2)
+            - max_ou_picks=N (default 2)
+    """
+    date_q = (request.args.get("date") or "").strip()
+    try:
+        lookback_days = int(request.args.get("lookback_days") or 7)
+    except Exception:
+        lookback_days = 7
+    lookback_days = max(0, min(30, lookback_days))
+    try:
+        top_n = int(request.args.get("top_n") or 12)
+    except Exception:
+        top_n = 12
+    top_n = max(1, min(50, top_n))
+    try:
+        min_score = float(request.args.get("min_score") or 75.0)
+    except Exception:
+        min_score = 75.0
+    min_score = max(0.0, min(100.0, min_score))
+
+    markets_q = (request.args.get("markets") or "ML,ATS,OU").strip()
+    inc = tuple(x.strip().upper() for x in markets_q.split(",") if x.strip())
+    if not inc:
+        inc = ("ML", "ATS", "OU")
+
+    try:
+        max_ats_picks = int(request.args.get("max_ats_picks") or 2)
+    except Exception:
+        max_ats_picks = 2
+    max_ats_picks = max(0, min(10, max_ats_picks))
+
+    try:
+        max_ou_picks = int(request.args.get("max_ou_picks") or 2)
+    except Exception:
+        max_ou_picks = 2
+    max_ou_picks = max(0, min(10, max_ou_picks))
+
+    # Resolve default date in the same spirit as /api/recommendations
+    if not date_q:
+        try:
+            import re as _re_mod
+            pat = _re_mod.compile(r"^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$")
+            _dates = []
+            for _p in OUT.glob("predictions_display_*.csv"):
+                m = pat.match(_p.name)
+                if m:
+                    _dates.append(m.group(1))
+            if _dates:
+                date_q = sorted(_dates)[-1]
+        except Exception:
+            date_q = date_q
+    if not date_q:
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+
+            now_et = dt.datetime.now(_ZI("America/New_York"))
+            date_q = now_et.date().isoformat()
+        except Exception:
+            date_q = dt.date.today().isoformat()
+
+    try:
+        from src.eval.high_likelihood import HighLikelihoodConfig, build_high_likelihood, reconcile_picks, recent_results_dates
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"high_likelihood module import failed: {e}"}), 500
+
+    base = build_high_likelihood(
+        HighLikelihoodConfig(
+            out_dir=OUT,
+            date=date_q,
+            top_n=top_n,
+            min_score=min_score,
+            include_markets=inc,
+            max_ats_picks=max_ats_picks,
+            max_ou_picks=max_ou_picks,
+        )
+    )
+    if not isinstance(base, dict) or base.get("status") != "ok":
+        _resp = jsonify(base)
+        try:
+            _resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            _resp.headers["Pragma"] = "no-cache"
+        except Exception:
+            pass
+        return _resp, 200
+
+    # Reconcile lookback
+    recon_daily: list[dict[str, Any]] = []
+    try:
+        dates = recent_results_dates(OUT, lookback_days + 1)
+        # Keep only dates <= requested date, take last N
+        dates = [d for d in dates if (str(d) <= str(base.get("date")))]
+        if lookback_days > 0:
+            dates = dates[-lookback_days:]
+        else:
+            dates = []
+    except Exception:
+        dates = []
+
+    tot_w = tot_l = tot_p = 0
+    tot_units = 0.0
+    for d in dates:
+        try:
+            day = build_high_likelihood(
+                HighLikelihoodConfig(
+                    out_dir=OUT,
+                    date=d,
+                    top_n=top_n,
+                    min_score=min_score,
+                    include_markets=inc,
+                    max_ats_picks=max_ats_picks,
+                    max_ou_picks=max_ou_picks,
+                )
+            )
+            if not isinstance(day, dict) or day.get("status") != "ok":
+                recon_daily.append({"date": d, "status": "skipped", "reason": day.get("message") if isinstance(day, dict) else "error"})
+                continue
+            rec = reconcile_picks(OUT, d, day.get("picks") or [])
+            recon_daily.append(
+                {
+                    "date": d,
+                    "status": rec.get("status"),
+                    "rows": rec.get("rows"),
+                    "wins": rec.get("wins"),
+                    "losses": rec.get("losses"),
+                    "pushes": rec.get("pushes"),
+                    "win_rate": rec.get("win_rate"),
+                    "units": rec.get("units"),
+                }
+            )
+            if rec.get("status") == "ok":
+                tot_w += int(rec.get("wins") or 0)
+                tot_l += int(rec.get("losses") or 0)
+                tot_p += int(rec.get("pushes") or 0)
+                try:
+                    tot_units += float(rec.get("units") or 0.0)
+                except Exception:
+                    pass
+        except Exception as e:
+            recon_daily.append({"date": d, "status": "error", "reason": str(e)})
+
+    graded = tot_w + tot_l
+    agg = {
+        "wins": tot_w,
+        "losses": tot_l,
+        "pushes": tot_p,
+        "win_rate": (float(tot_w / graded) if graded > 0 else None),
+        "units": float(tot_units),
+    }
+
+    payload = {
+        **base,
+        "lookback_days": lookback_days,
+        "reconciliation": {
+            "daily": recon_daily,
+            "aggregate": agg,
+        },
+    }
+    _resp = jsonify(payload)
+    try:
+        _resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        _resp.headers["Pragma"] = "no-cache"
+    except Exception:
+        pass
+    return _resp, 200
+
+
+@app.route("/high-likelihood")
+def high_likelihood_page():
+    """Server-rendered high-likelihood recommendations recap page."""
+
+    def _safe_int(v: str | None, default: int, lo: int, hi: int) -> int:
+        try:
+            x = int(v) if v is not None and str(v).strip() != "" else int(default)
+        except Exception:
+            x = int(default)
+        return max(lo, min(hi, x))
+
+    def _safe_float(v: str | None, default: float, lo: float, hi: float) -> float:
+        try:
+            x = float(v) if v is not None and str(v).strip() != "" else float(default)
+        except Exception:
+            x = float(default)
+        return max(lo, min(hi, x))
+
+    # Resolve default date in the same spirit as /api/high_likelihood
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        try:
+            import re as _re_mod
+
+            pat = _re_mod.compile(r"^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$")
+            _dates = []
+            for _p in OUT.glob("predictions_display_*.csv"):
+                m = pat.match(_p.name)
+                if m:
+                    _dates.append(m.group(1))
+            if _dates:
+                date_q = sorted(_dates)[-1]
+        except Exception:
+            date_q = date_q
+    if not date_q:
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+
+            now_et = dt.datetime.now(_ZI("America/New_York"))
+            date_q = now_et.date().isoformat()
+        except Exception:
+            date_q = dt.date.today().isoformat()
+
+    lookback_days = _safe_int(request.args.get("lookback_days"), 30, 0, 120)
+    top_n = _safe_int(request.args.get("top_n"), 12, 1, 50)
+    min_score = _safe_float(request.args.get("min_score"), 75.0, 0.0, 100.0)
+
+    markets_q = (request.args.get("markets") or "ML,ATS,OU").strip()
+    inc = tuple(x.strip().upper() for x in markets_q.split(",") if x.strip())
+    if not inc:
+        inc = ("ML", "ATS", "OU")
+
+    max_ats_picks = _safe_int(request.args.get("max_ats_picks"), 2, 0, 10)
+    max_ou_picks = _safe_int(request.args.get("max_ou_picks"), 2, 0, 10)
+
+    try:
+        from src.eval.high_likelihood import HighLikelihoodConfig, build_high_likelihood, reconcile_picks, recent_results_dates
+    except Exception as e:
+        return render_template(
+            "high_likelihood.html",
+            asof_date=date_q,
+            lookback_days=lookback_days,
+            top_n=top_n,
+            min_score=min_score,
+            max_ats_picks=max_ats_picks,
+            max_ou_picks=max_ou_picks,
+            ytd_start=f"{dt.date.today().year}-01-01",
+            ytd={"picks": 0, "wins": 0, "losses": 0, "pushes": 0, "win_rate": 0.0, "units": 0.0, "by_market": []},
+            daily=[],
+            generated_utc=dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ"),
+            _error=f"high_likelihood module import failed: {e}",
+        )
+
+    def _summarize_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
+        wins = losses = pushes = 0
+        units = 0.0
+        by_market: dict[str, dict[str, Any]] = {}
+        for r in rows or []:
+            res = str(r.get("result") or "").upper()
+            if res == "W":
+                wins += 1
+            elif res == "L":
+                losses += 1
+            elif res == "P":
+                pushes += 1
+            try:
+                units += float(r.get("units") or 0.0)
+            except Exception:
+                pass
+
+            m = str(r.get("rec_code") or "UNK").upper()
+            bm = by_market.setdefault(m, {"market": m, "picks": 0, "wins": 0, "losses": 0, "pushes": 0, "units": 0.0})
+            bm["picks"] += 1
+            if res == "W":
+                bm["wins"] += 1
+            elif res == "L":
+                bm["losses"] += 1
+            elif res == "P":
+                bm["pushes"] += 1
+            try:
+                bm["units"] += float(r.get("units") or 0.0)
+            except Exception:
+                pass
+
+        graded = wins + losses
+        win_rate = float(wins / graded) if graded > 0 else 0.0
+        by_market_list = list(by_market.values())
+        for bm in by_market_list:
+            g = int(bm.get("wins") or 0) + int(bm.get("losses") or 0)
+            bm["win_rate"] = float((bm.get("wins") or 0) / g) if g > 0 else 0.0
+        by_market_list.sort(key=lambda x: (x.get("picks") or 0, x.get("market") or ""), reverse=True)
+        return {
+            "picks": int(len(rows or [])),
+            "wins": int(wins),
+            "losses": int(losses),
+            "pushes": int(pushes),
+            "win_rate": win_rate,
+            "units": float(units),
+            "by_market": by_market_list,
+        }
+
+    def _ensure_grade_fields(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for r in rows or []:
+            try:
+                rr = dict(r)
+            except Exception:
+                continue
+            rr.setdefault("result", None)
+            rr.setdefault("units", None)
+            out.append(rr)
+        return out
+
+    # Today's (as-of) picks (may be ungraded if results not present yet)
+    cfg_today = HighLikelihoodConfig(
+        out_dir=OUT,
+        date=str(date_q),
+        top_n=top_n,
+        min_score=min_score,
+        include_markets=inc,
+        max_ats_picks=max_ats_picks,
+        max_ou_picks=max_ou_picks,
+    )
+    day_today = build_high_likelihood(cfg_today)
+    today_picks = (day_today.get("picks") or []) if isinstance(day_today, dict) else []
+    rec_today = reconcile_picks(OUT, str(date_q), today_picks)
+    if isinstance(rec_today, dict) and rec_today.get("status") == "ok":
+        today_picks_list = _ensure_grade_fields(rec_today.get("picks") or [])
+        today_summary = {
+            "picks": int(rec_today.get("rows") or len(today_picks_list)),
+            "wins": int(rec_today.get("wins") or 0),
+            "losses": int(rec_today.get("losses") or 0),
+            "pushes": int(rec_today.get("pushes") or 0),
+            "win_rate": float(rec_today.get("win_rate") or 0.0),
+            "units": float(rec_today.get("units") or 0.0),
+            "graded": True,
+        }
+    else:
+        today_picks_list = _ensure_grade_fields(today_picks)
+        today_summary = {**_summarize_rows(today_picks_list), "graded": False}
+
+    # Daily recap dates (we only list days with results files)
+    all_result_dates = recent_results_dates(OUT, 0)
+    all_result_dates = [d for d in all_result_dates if str(d) <= str(date_q)]
+    if lookback_days > 0:
+        try:
+            asof_dt = dt.date.fromisoformat(date_q)
+            start_lb = (asof_dt - dt.timedelta(days=int(lookback_days))).isoformat()
+            all_result_dates = [d for d in all_result_dates if str(d) >= str(start_lb)]
+        except Exception:
+            pass
+    daily_dates = list(reversed(all_result_dates))
+
+    daily: list[dict[str, Any]] = []
+    for d in daily_dates:
+        cfg = HighLikelihoodConfig(
+            out_dir=OUT,
+            date=str(d),
+            top_n=top_n,
+            min_score=min_score,
+            include_markets=inc,
+            max_ats_picks=max_ats_picks,
+            max_ou_picks=max_ou_picks,
+        )
+        day = build_high_likelihood(cfg)
+        picks = (day.get("picks") or []) if isinstance(day, dict) else []
+        rec = reconcile_picks(OUT, str(d), picks)
+        if isinstance(rec, dict) and rec.get("status") == "ok":
+            picks_list = _ensure_grade_fields(rec.get("picks") or [])
+            summary = {
+                "picks": int(rec.get("rows") or len(picks_list)),
+                "wins": int(rec.get("wins") or 0),
+                "losses": int(rec.get("losses") or 0),
+                "pushes": int(rec.get("pushes") or 0),
+                "win_rate": float(rec.get("win_rate") or 0.0),
+                "units": float(rec.get("units") or 0.0),
+            }
+        else:
+            picks_list = _ensure_grade_fields(picks)
+            summary = _summarize_rows(picks_list)
+
+        daily.append(
+            {
+                "date": str(d),
+                "picks_list": picks_list,
+                **summary,
+            }
+        )
+
+    # YTD stats
+    try:
+        asof_dt = dt.date.fromisoformat(date_q)
+    except Exception:
+        asof_dt = dt.date.today()
+    ytd_start = dt.date(asof_dt.year, 1, 1).isoformat()
+    ytd_dates = [d for d in recent_results_dates(OUT, 0) if (str(d) >= ytd_start and str(d) <= str(date_q))]
+
+    ytd_rows: list[dict[str, Any]] = []
+    for d in ytd_dates:
+        cfg = HighLikelihoodConfig(
+            out_dir=OUT,
+            date=str(d),
+            top_n=top_n,
+            min_score=min_score,
+            include_markets=inc,
+            max_ats_picks=max_ats_picks,
+            max_ou_picks=max_ou_picks,
+        )
+        day = build_high_likelihood(cfg)
+        picks = (day.get("picks") or []) if isinstance(day, dict) else []
+        rec = reconcile_picks(OUT, str(d), picks)
+        if isinstance(rec, dict) and rec.get("status") == "ok":
+            ytd_rows.extend(_ensure_grade_fields(rec.get("picks") or []))
+
+    ytd = _summarize_rows(ytd_rows)
+
+    return render_template(
+        "high_likelihood.html",
+        asof_date=str(date_q),
+        lookback_days=int(lookback_days),
+        top_n=int(top_n),
+        min_score=float(min_score),
+        max_ats_picks=int(max_ats_picks),
+        max_ou_picks=int(max_ou_picks),
+        ytd_start=str(ytd_start),
+        ytd=ytd,
+        today={
+            "date": str(date_q),
+            "picks_list": today_picks_list,
+            **today_summary,
+        },
+        daily=daily,
+        generated_utc=dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ"),
+    )
+
 def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None, ddf: pd.DataFrame | None = None) -> list[dict]:
     """Derive simple ATS rows from align_period_<date>_edges.csv.
 

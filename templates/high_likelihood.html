@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB Betting – High Likelihood</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <style>
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text)}
+    a{color:var(--accent)}
+    .container{max-width:1100px;margin:24px auto;padding:0 16px}
+    h1{margin:0 0 8px 0;font-size:24px}
+    h2{margin:18px 0 10px 0;font-size:16px;color:var(--text)}
+    .meta{color:var(--muted);font-size:12px}
+    .pill{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:999px;padding:3px 8px;font-size:12px}
+    .header{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+    .spacer{flex:1}
+    .card{background:var(--card); border:1px solid var(--pill-br); border-radius:10px; padding:12px; margin:12px 0}
+    .grid{display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:10px}
+    .kpi{background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); border-radius:10px; padding:10px}
+    .kpi .label{color:var(--muted); font-size:11px}
+    .kpi .value{font-size:18px; font-weight:700; margin-top:2px}
+    details{border:1px solid var(--pill-br); border-radius:10px; background:rgba(255,255,255,0.03); margin:10px 0; overflow:hidden}
+    summary{list-style:none; cursor:pointer; padding:10px 12px; display:flex; align-items:center; gap:10px}
+    summary::-webkit-details-marker{display:none}
+    summary .date{font-weight:700}
+    summary .mini{color:var(--muted); font-size:12px}
+    summary .spacer{flex:1}
+    .details-body{padding:10px 12px; border-top:1px solid var(--pill-br)}
+    table{width:100%; border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--pill-br); padding:8px 6px; font-size:13px; vertical-align:top}
+    th{color:var(--muted); text-align:left}
+    .right{text-align:right}
+    .center{text-align:center}
+    .chip{display:inline-block;border-radius:12px;padding:3px 8px;font-size:12px;line-height:1;border:1px solid transparent}
+    .chip.ml{background:#12324e22;border-color:#1d4d75;color:#bfe2ff}
+    .chip.ou{background:#5e2a0a22;border-color:#a55c21;color:#ffd8ad}
+    .chip.ats{background:#1f3f2a22;border-color:#2b5a3a;color:#bfeecb}
+    .result{font-weight:700}
+    .result.W{color:#79d68b}
+    .result.L{color:#ff7b7b}
+    .result.P{color:#c9d1e8}
+    .muted{color:var(--muted)}
+    .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    .date-input{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#f6f8ff;border-radius:10px;padding:6px 10px;}
+    .date-input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.9;}
+    .narrow{max-width:110px}
+    .mt8{margin-top:8px}
+    .mt10{margin-top:10px}
+    .mt14{margin-top:14px}
+    .h2tight{margin-top:0}
+    .row{display:flex; align-items:center; gap:10px}
+    .nowrap{white-space:nowrap}
+    .xscroll{overflow-x:auto}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>NCAAB – Recommendations (High Likelihood)</h1>
+      <div class="spacer"></div>
+      <a href="/">Cards</a>
+      <a href="/results-archive" class="pill">Results Archive</a>
+      <a href="/recommendations?group=1{% if request.args.get('date') %}&date={{ request.args.get('date') }}{% endif %}" class="pill" title="EV-style recommendations">Legacy Recs</a>
+    </div>
+
+    <div class="card">
+      <form method="get" action="/high-likelihood" class="controls" aria-label="Recommendations controls">
+        <span class="pill">As of</span>
+        <input class="date-input" type="date" name="date" value="{{ asof_date }}" onchange="this.form.submit()" title="As-of date" aria-label="As-of date" />
+        <span class="pill">Lookback</span>
+        <input class="date-input narrow" type="number" min="0" max="120" name="lookback_days" value="{{ lookback_days }}" onchange="this.form.submit()" title="Lookback days" aria-label="Lookback days" />
+        <span class="pill">Top N</span>
+        <input class="date-input narrow" type="number" min="1" max="50" name="top_n" value="{{ top_n }}" onchange="this.form.submit()" title="Top N" aria-label="Top N" />
+        <span class="pill">Min Score</span>
+        <input class="date-input narrow" type="number" min="0" max="100" step="1" name="min_score" value="{{ min_score }}" onchange="this.form.submit()" title="Minimum score" aria-label="Minimum score" />
+        <span class="pill">Caps</span>
+        <span class="muted">ATS {{ max_ats_picks }} / OU {{ max_ou_picks }}</span>
+        {% for k, v in request.args.items() %}
+          {% if k not in ['date','lookback_days','top_n','min_score'] %}
+            <input type="hidden" name="{{ k }}" value="{{ v }}" />
+          {% endif %}
+        {% endfor %}
+        <noscript><button type="submit" class="pill">Go</button></noscript>
+      </form>
+      <div class="meta mt8">YTD window: <span class="pill">{{ ytd_start }}</span> → <span class="pill">{{ asof_date }}</span></div>
+    </div>
+
+    <div class="card">
+      <h2 class="h2tight">YTD Stats</h2>
+      <div class="grid">
+        <div class="kpi"><div class="label">Picks</div><div class="value">{{ ytd.picks }}</div></div>
+        <div class="kpi"><div class="label">W-L-P</div><div class="value">{{ ytd.wins }}-{{ ytd.losses }}-{{ ytd.pushes }}</div></div>
+        <div class="kpi"><div class="label">Win Rate</div><div class="value">{{ '%.1f' % (100.0 * (ytd.win_rate or 0.0)) }}%</div></div>
+        <div class="kpi"><div class="label">Units</div><div class="value">{{ '%+.2f' % (ytd.units or 0.0) }}</div></div>
+      </div>
+      <div class="meta mt10">
+        {% for m in (ytd.by_market or []) %}
+          <span class="pill" title="{{ m.market }}">{{ m.market }}: {{ m.wins }}-{{ m.losses }} ({{ '%.1f' % (100.0 * (m.win_rate or 0.0)) }}%)</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <h2 class="nowrap">Today’s Recommendations ({{ asof_date }})</h2>
+        <span class="pill">{{ today.picks }} picks</span>
+        {% if today.graded %}
+          <span class="pill">{{ today.wins }}-{{ today.losses }}-{{ today.pushes }}</span>
+          <span class="pill">{{ '%.1f' % (100.0 * (today.win_rate or 0.0)) }}%</span>
+          <span class="pill">{{ '%+.2f' % (today.units or 0.0) }}</span>
+        {% else %}
+          <span class="pill">ungraded</span>
+        {% endif %}
+        <span class="spacer"></span>
+        <a class="pill" href="/api/high_likelihood?date={{ asof_date }}&top_n={{ top_n }}&min_score={{ min_score }}&lookback_days=0&markets=ML,ATS,OU&max_ats_picks={{ max_ats_picks }}&max_ou_picks={{ max_ou_picks }}">JSON</a>
+      </div>
+      {% if not today.picks_list %}
+        <div class="meta mt10">No picks for this date (or missing artifacts).</div>
+      {% else %}
+        <div class="mt10 xscroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Pick</th>
+                <th class="right">Line</th>
+                <th class="right">Price</th>
+                <th class="right">P(win)</th>
+                <th class="right">Score</th>
+                <th class="center">Result</th>
+                <th class="right">Units</th>
+                <th>Reasons</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in today.picks_list %}
+                {% set code = (p.rec_code or '')|upper %}
+                {% set market_chip = 'ml' if code == 'ML' else ('ats' if code == 'ATS' else 'ou') %}
+                {% set pick_label = '' %}
+                {% if code == 'ML' %}
+                  {% set pick_label = p.selection_team or p.selection or '' %}
+                {% elif code == 'OU' %}
+                  {% set pick_label = (p.selection or '') ~ ' ' ~ ('%.1f' % p.line if p.line is not none else '') %}
+                {% elif code == 'ATS' %}
+                  {% set home = p.home_team or '' %}
+                  {% set away = p.away_team or '' %}
+                  {% set hs = p.line if p.line is not none else none %}
+                  {% if (p.selection or '')|title == 'Home' %}
+                    {% set pick_label = home ~ ' ' ~ ('%+.1f' % hs if hs is not none else '') %}
+                  {% else %}
+                    {% set pick_label = away ~ ' ' ~ ('%+.1f' % (0 - hs) if hs is not none else '') %}
+                  {% endif %}
+                {% endif %}
+                <tr>
+                  <td><span class="chip {{ market_chip }}">{{ code }}</span></td>
+                  <td>{{ pick_label }}</td>
+                  <td class="right">{{ '%.1f' % p.line if p.line is not none else '' }}</td>
+                  <td class="right">{{ '%+.0f' % p.price if p.price is not none else '' }}</td>
+                  <td class="right">{{ '%.3f' % p.p_win if p.p_win is not none else '' }}</td>
+                  <td class="right">{{ '%.1f' % p.score if p.score is not none else '' }}</td>
+                  <td class="center"><span class="result {{ p.result or '' }}">{{ p.result or '' }}</span></td>
+                  <td class="right">{{ '%+.3f' % p.units if p.units is not none else '' }}</td>
+                  <td class="muted">{{ (p.reasons or [])|join(', ') }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2 class="h2tight">Daily Recaps</h2>
+      {% if not daily %}
+        <div class="meta">No dates available in this window.</div>
+      {% else %}
+        {% for day in daily %}
+          <details {% if loop.first %}open{% endif %}>
+            <summary>
+              <span class="date">{{ day.date }}</span>
+              <span class="pill">{{ day.picks }} picks</span>
+              <span class="pill">{{ day.wins }}-{{ day.losses }}-{{ day.pushes }}</span>
+              <span class="pill">{{ '%.1f' % (100.0 * (day.win_rate or 0.0)) }}%</span>
+              <span class="pill">{{ '%+.2f' % (day.units or 0.0) }}</span>
+              <span class="spacer"></span>
+              <span class="mini">click to expand</span>
+            </summary>
+            <div class="details-body">
+              {% if not day.picks_list %}
+                <div class="meta">No picks.</div>
+              {% else %}
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Pick</th>
+                      <th class="right">Line</th>
+                      <th class="right">Price</th>
+                      <th class="right">P(win)</th>
+                      <th class="right">Score</th>
+                      <th class="center">Result</th>
+                      <th class="right">Units</th>
+                      <th>Reasons</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for p in day.picks_list %}
+                      {% set code = (p.rec_code or '')|upper %}
+                      {% set market_chip = 'ml' if code == 'ML' else ('ats' if code == 'ATS' else 'ou') %}
+                      {% set pick_label = '' %}
+                      {% if code == 'ML' %}
+                        {% set pick_label = p.selection_team or p.selection or '' %}
+                      {% elif code == 'OU' %}
+                        {% set pick_label = (p.selection or '') ~ ' ' ~ ('%.1f' % p.line if p.line is not none else '') %}
+                      {% elif code == 'ATS' %}
+                        {% set home = p.home_team or '' %}
+                        {% set away = p.away_team or '' %}
+                        {% set hs = p.line if p.line is not none else none %}
+                        {% if (p.selection or '')|title == 'Home' %}
+                          {% set pick_label = home ~ ' ' ~ ('%+.1f' % hs if hs is not none else '') %}
+                        {% else %}
+                          {% set pick_label = away ~ ' ' ~ ('%+.1f' % (0 - hs) if hs is not none else '') %}
+                        {% endif %}
+                      {% endif %}
+                      <tr>
+                        <td><span class="chip {{ market_chip }}">{{ code }}</span></td>
+                        <td>{{ pick_label }}</td>
+                        <td class="right">{{ '%.1f' % p.line if p.line is not none else '' }}</td>
+                        <td class="right">{{ '%+.0f' % p.price if p.price is not none else '' }}</td>
+                        <td class="right">{{ '%.3f' % p.p_win if p.p_win is not none else '' }}</td>
+                        <td class="right">{{ '%.1f' % p.score if p.score is not none else '' }}</td>
+                        <td class="center"><span class="result {{ p.result or '' }}">{{ p.result or '' }}</span></td>
+                        <td class="right">{{ '%+.3f' % p.units if p.units is not none else '' }}</td>
+                        <td class="muted">{{ (p.reasons or [])|join(', ') }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% endif %}
+            </div>
+          </details>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="meta mt14">Generated {{ generated_utc }}</div>
+  </div>
+</body>
+</html>

@@ -78,6 +78,7 @@
 
         <nav class="nav-links">
           <a href="/">Cards</a>
+          <a href="/high-likelihood{% if _nav_date %}?date={{ _nav_date }}{% endif %}" title="High-likelihood recommendations + recaps">Recommendations</a>
           <a href="/interval-accuracy">Interval Accuracy</a>
           <a href="/accuracy-market">Market Breakdown</a>
           <a href="/api/display_predictions?view=cards{% if _nav_date %}&date={{ _nav_date }}{% endif %}">JSON</a>
