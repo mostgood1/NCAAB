@@ -1663,8 +1663,10 @@
         });
       }
     } catch(e) { /* noop */ }
-    // Optional auto-refresh every 60s (user-controlled); indicate live with title dot if not enabled
+    // Optional auto-refresh every 60s (user-controlled).
+    // NOTE: Auto-refresh interrupts Live Lens interactions, so we force-disable it when Live Lens UI exists.
     var hasLive = document.querySelector('[data-live="1"]') !== null;
+    var hasLiveLens = document.querySelector('.live-lens-wrap') !== null;
     var chk = document.getElementById('autoRefreshChk');
     var key = 'ncaab:autoRefresh';
     var saved = (localStorage.getItem(key) === '1');
@@ -1673,6 +1675,12 @@
       chk.addEventListener('change', function(){
         localStorage.setItem(key, chk.checked ? '1' : '0');
       });
+    }
+    if(saved && hasLiveLens){
+      // Persistently disable so the page doesn't keep reloading mid-entry.
+      saved = false;
+      try{ localStorage.setItem(key, '0'); }catch(e){}
+      if(chk){ chk.checked = false; }
     }
     if(saved){
       setTimeout(function(){ location.reload(); }, 60000);
