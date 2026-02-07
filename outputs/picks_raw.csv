@@ -7,3 +7,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401830292,2026-02-07,Southern Illinois Salukis,Murray State Racers,spreads,full_game,away,-1.0,,,-2.3847722023064284,,Spread,ATS
 401830293,2026-02-07,Valparaiso Beacons,Evansville Purple Aces,spreads,full_game,home,-10.0,,,2.3580108721019712,,Spread,ATS
 401830211,2026-02-07,UIC Flames,Belmont Bruins,spreads,full_game,home,2.5,,,0.979000316267856,,Spread,ATS
+401825499,2026-02-07,Rutgers Scarlet Knights,Nebraska Cornhuskers,totals,full_game,over,,,,,,Total,OU
+401820728,2026-02-07,Virginia Cavaliers,Syracuse Orange,totals,full_game,over,,,,,,Total,OU
+401808222,2026-02-07,Mississippi State Bulldogs,Arkansas Razorbacks,totals,full_game,over,,,,,,Total,OU
+401820729,2026-02-07,Wake Forest Demon Deacons,Louisville Cardinals,totals,full_game,under,,,,,,Total,OU
+401828214,2026-02-07,East Carolina Pirates,Temple Owls,totals,full_game,over,,,,,,Total,OU
