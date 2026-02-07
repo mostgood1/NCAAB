@@ -1945,11 +1945,31 @@
 
       function updateCardLiveEdgeClass(card){
         if(!card) return;
+        var per = null;
+        try {
+          if(typeof card.__livePeriod === 'number' && isFinite(card.__livePeriod)) per = card.__livePeriod;
+        } catch(e) { /* noop */ }
+        if(per === null){
+          try {
+            var pAttr = card.getAttribute('data-live-period');
+            var pn = pAttr !== null ? parseInt(String(pAttr), 10) : NaN;
+            if(isFinite(pn)) per = pn;
+          } catch(e2) { /* noop */ }
+        }
+        var is2H = (per !== null && per >= 2);
+
         var wraps = card.querySelectorAll('.live-lens-wrap');
         var anyOk = false;
         var anyWarn = false;
         wraps.forEach(function(w){
           if(!w) return;
+          if(is2H){
+            // In 2H, ignore 1H lens indicators; only consider full-game horizon.
+            try {
+              var hz = parseFloat(String(w.getAttribute('data-lens-horizon') || '').trim());
+              if(isFinite(hz) && hz <= 20.5) return;
+            } catch(e3) { /* noop */ }
+          }
           if(w.getAttribute('data-live-edge-ok') === '1') anyOk = true;
           if(w.getAttribute('data-live-edge-warn') === '1') anyWarn = true;
         });
@@ -1966,6 +1986,7 @@
 
         var horizon = toNum(data.horizon);
         if(horizon === null) horizon = 40;
+        try { wrap.setAttribute('data-lens-horizon', String(horizon)); } catch(eh) { /* noop */ }
         var idx = buildIndex(data.segments || [], horizon);
         var selMin = wrap.querySelector('.live-lens-min');
         var inpTot = wrap.querySelector('.live-lens-total');
@@ -2010,6 +2031,20 @@
         } catch(e) { /* noop */ }
 
         function update(){
+          var card0 = getCardForWrap(wrap);
+          var per0 = null;
+          try {
+            if(card0 && typeof card0.__livePeriod === 'number' && isFinite(card0.__livePeriod)) per0 = card0.__livePeriod;
+          } catch(e0) { /* noop */ }
+          if(per0 === null && card0){
+            try {
+              var pAttr0 = card0.getAttribute('data-live-period');
+              var pn0 = pAttr0 !== null ? parseInt(String(pAttr0), 10) : NaN;
+              if(isFinite(pn0)) per0 = pn0;
+            } catch(e00) { /* noop */ }
+          }
+          var is2H0 = (per0 !== null && per0 >= 2);
+
           var remaining = toNum(selMin.value);
           var act = toNum(inpTot.value);
           var line = inpLine ? toNum(inpLine.value) : null;
@@ -2100,14 +2135,17 @@
           try {
             var leanEl = wrap.querySelector('[data-out="lean"]');
             if(leanEl){
-              leanEl.classList.toggle('ok', !!isStrong);
-              leanEl.classList.toggle('warn', (!isStrong && !!isStrongNoLine));
+              // In 2H, suppress 1H lens bet indicators.
+              var suppress = (is2H0 && horizon <= 20.5);
+              leanEl.classList.toggle('ok', (!suppress && !!isStrong));
+              leanEl.classList.toggle('warn', (!suppress && !isStrong && !!isStrongNoLine));
             }
           } catch(e) { /* noop */ }
           try {
-            wrap.setAttribute('data-live-edge-ok', isStrong ? '1' : '0');
-            wrap.setAttribute('data-live-edge-warn', (!isStrong && isStrongNoLine) ? '1' : '0');
-            var card2 = getCardForWrap(wrap);
+            var suppress2 = (is2H0 && horizon <= 20.5);
+            wrap.setAttribute('data-live-edge-ok', (!suppress2 && isStrong) ? '1' : '0');
+            wrap.setAttribute('data-live-edge-warn', (!suppress2 && !isStrong && isStrongNoLine) ? '1' : '0');
+            var card2 = card0 || getCardForWrap(wrap);
             updateCardLiveEdgeClass(card2);
           } catch(e) { /* noop */ }
         }
@@ -2240,6 +2278,18 @@
 
       function applyLiveStateToCard(card, live){
         if(!card || !live) return;
+
+        // Persist live period on the card so Live Lens can suppress 1H indicators during 2H.
+        try {
+          var pn = (live.period !== null && live.period !== undefined) ? parseInt(String(live.period), 10) : NaN;
+          if(isFinite(pn)){
+            card.__livePeriod = pn;
+            card.setAttribute('data-live-period', String(pn));
+          } else {
+            try { delete card.__livePeriod; } catch(_e0) { /* noop */ }
+            card.removeAttribute('data-live-period');
+          }
+        } catch(_e1) { /* ignore */ }
 
         var wraps = card.querySelectorAll('.live-lens-wrap');
         if(!wraps || !wraps.length) return;
