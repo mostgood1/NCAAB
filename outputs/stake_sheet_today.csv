@@ -1,2 +1,4 @@
-date,game_id,event_id,book,market,period,selection,line,price,edge,kelly,fractional,stake,slate_date,q10_total,q50_total,q90_total,q10_margin,q50_margin,q90_margin
-2026-02-02,401823049,33cafcc11e3eed4741b86e57036795f6,BetOnline.ag,spreads,full_game,home,-3.5,-115.0,1.3822340965270996,0.1974620137895856,0.5,30.0,2026-02-02,,,,,,
+date,game_id,event_id,book,market,period,selection,line,price,edge,kelly,fractional,stake,q10_total,q50_total,q90_total,q10_margin,q50_margin,q90_margin,slate_date
+2026-02-07,401808716,944f04f90fcb73a78794f0167740e579,BetOnline.ag,spreads,full_game,home,-2.0,-110.0,11.98581886291504,1.0,0.5,30.0,,,,,,,2026-02-07
+2026-02-07,401812148,f55588ebfdb651ffe6f9be28a770cb69,BetOnline.ag,spreads,full_game,home,-3.5,-110.0,8.082683563232422,1.0,0.5,30.0,,,,,,,2026-02-07
+2026-02-07,401827030,5aa859eace8ba6c4967ab1e39ee350e0,BetOnline.ag,spreads,full_game,home,-7.5,-110.0,11.180868148803713,0.7453912099202475,0.5,30.0,,,,,,,2026-02-07
