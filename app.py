@@ -21504,6 +21504,187 @@ def api_live_state():
     ), 200
 
 
+@app.get("/api/live_pbp_stats")
+def api_live_pbp_stats():
+    """Return ESPN play-by-play derived stats keyed by ESPN event id.
+
+    Intended for Live Lens enrichment (no page reloads).
+
+    Params:
+      - event_ids: comma-separated ESPN event ids
+      - refresh=1 to force network fetch (bypass cache)
+      - ttl: seconds for disk-cache freshness check (default 20)
+    """
+
+    event_ids_raw = (request.args.get("event_ids") or "").strip()
+    refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
+    try:
+        ttl = int((request.args.get("ttl") or "20").strip())
+    except Exception:
+        ttl = 20
+    ttl = max(0, min(ttl, 180))
+
+    if not event_ids_raw:
+        return jsonify({"status": "error", "message": "Missing event_ids"}), 400
+
+    event_ids = [x.strip() for x in event_ids_raw.split(",") if x.strip()]
+    if not event_ids:
+        return jsonify({"status": "error", "message": "Missing event_ids"}), 400
+
+    try:
+        from ncaab_model.data.adapters.espn_playbyplay import fetch_playbyplay  # type: ignore
+        from ncaab_model.data.cache import cache_path, read_json  # type: ignore
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Adapter import failed: {e}"}), 500
+
+    def _fresh_payload(eid: str) -> tuple[dict | None, str]:
+        """Return a payload + fetched_from marker with TTL-based disk freshness."""
+        try:
+            pbp_file = cache_path("espn_pbp", f"{eid}.json")
+        except Exception:
+            pbp_file = None
+
+        if not refresh and ttl > 0 and pbp_file is not None:
+            try:
+                if pbp_file.exists():
+                    import time
+
+                    age = time.time() - float(pbp_file.stat().st_mtime)
+                    if age <= float(ttl):
+                        cached = read_json(pbp_file)
+                        if isinstance(cached, dict):
+                            cached = dict(cached)
+                            cached.setdefault("_fetched_from", "cache_pbp_fresh")
+                            return cached, str(cached.get("_fetched_from") or "cache")
+            except Exception:
+                pass
+
+        # If stale (or ttl==0 or refresh), force a network fetch.
+        payload = fetch_playbyplay(eid, use_cache=False)
+        if isinstance(payload, dict):
+            return payload, str(payload.get("_fetched_from") or "network")
+
+        # Fall back to whatever cache exists (best-effort).
+        if pbp_file is not None:
+            try:
+                if pbp_file.exists():
+                    cached = read_json(pbp_file)
+                    if isinstance(cached, dict):
+                        cached = dict(cached)
+                        cached.setdefault("_fetched_from", "cache_pbp_stale")
+                        return cached, str(cached.get("_fetched_from") or "cache")
+            except Exception:
+                pass
+        return None, "missing"
+
+    def _team_side_map(payload: dict) -> tuple[dict[str, str], dict[str, str]]:
+        """Return team_id->side and side->team_id using payload boxscore."""
+        by_id: dict[str, str] = {}
+        by_side: dict[str, str] = {}
+        try:
+            teams = ((payload.get("boxscore") or {}).get("teams") or [])
+            if isinstance(teams, list):
+                for t in teams:
+                    if not isinstance(t, dict):
+                        continue
+                    side = str(t.get("homeAway") or "").strip().lower()
+                    tid = str(((t.get("team") or {}) if isinstance(t.get("team"), dict) else {}).get("id") or "").strip()
+                    if tid and side in ("home", "away"):
+                        by_id[tid] = side
+                        by_side[side] = tid
+        except Exception:
+            pass
+        return by_id, by_side
+
+    def _blank_stats() -> dict:
+        return {
+            "fta_att": 0,
+            "fta_made": 0,
+            "fga2_att": 0,
+            "fga2_made": 0,
+            "fga3_att": 0,
+            "fga3_made": 0,
+        }
+
+    def _accumulate(payload: dict) -> dict:
+        """Accumulate attempts/makes by side (home/away) from plays."""
+        team_to_side, _ = _team_side_map(payload)
+        out = {"home": _blank_stats(), "away": _blank_stats(), "unknown": _blank_stats()}
+
+        plays = payload.get("plays")
+        if not isinstance(plays, list):
+            return out
+
+        for p in plays:
+            if not isinstance(p, dict):
+                continue
+            try:
+                if not bool(p.get("shootingPlay")):
+                    continue
+                pa = p.get("pointsAttempted")
+                if pa is None:
+                    continue
+                pa_i = int(pa)
+                if pa_i not in (1, 2, 3):
+                    continue
+            except Exception:
+                continue
+
+            try:
+                tid = str(((p.get("team") or {}) if isinstance(p.get("team"), dict) else {}).get("id") or "").strip()
+            except Exception:
+                tid = ""
+            side = team_to_side.get(tid) if tid else None
+            if side not in ("home", "away"):
+                side = "unknown"
+
+            made = bool(p.get("scoringPlay"))
+
+            if pa_i == 1:
+                out[side]["fta_att"] += 1
+                out[side]["fta_made"] += 1 if made else 0
+            elif pa_i == 2:
+                out[side]["fga2_att"] += 1
+                out[side]["fga2_made"] += 1 if made else 0
+            elif pa_i == 3:
+                out[side]["fga3_att"] += 1
+                out[side]["fga3_made"] += 1 if made else 0
+
+        return out
+
+    games: dict[str, dict] = {}
+    for eid in event_ids[:50]:
+        eid_s = str(eid)
+        payload, fetched_from = _fresh_payload(eid_s)
+        if not isinstance(payload, dict):
+            continue
+        stats = _accumulate(payload)
+        team_to_side, side_to_team = _team_side_map(payload)
+        games[eid_s] = {
+            "event_id": eid_s,
+            "fetched_from": fetched_from,
+            "teams": {
+                "home_team_id": side_to_team.get("home"),
+                "away_team_id": side_to_team.get("away"),
+            },
+            "stats": {
+                "home": stats.get("home") or _blank_stats(),
+                "away": stats.get("away") or _blank_stats(),
+                "unknown": stats.get("unknown") or _blank_stats(),
+            },
+        }
+
+    return jsonify(
+        {
+            "status": "ok",
+            "refresh": bool(refresh),
+            "ttl": ttl,
+            "count": len(games),
+            "games": games,
+        }
+    ), 200
+
+
 # ---------------------------------
 # Time display diagnostics endpoint
 # ---------------------------------

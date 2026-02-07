@@ -124,3 +124,7 @@
 .cards-compact .section-block{padding:8px}
 .cards-compact .mini-table{grid-template-columns:62px 1fr 1fr 1fr 1fr}
 .cards-compact .mini-cell{font-size:11px}
+
+/* Live Lens: highlight whole card when a strong live edge is detected */
+.game-card.live-edge-ok{border-color:#14532d !important;}
+.game-card.live-edge-warn{border-color:#6b4f1d !important;}

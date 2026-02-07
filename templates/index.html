@@ -432,6 +432,10 @@
                           <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
                           <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
                         </div>
+                        <div class="kpi mt8">
+                          <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
+                          <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
+                        </div>
                         <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'segments': r.segments_5min, 'recon': (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon) else [])} | tojson }}</script>
                       </div>
 
@@ -673,6 +677,10 @@
                         <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
                         <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                      </div>
+                      <div class="kpi mt8">
+                        <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
+                        <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
                       </div>
                       <script type="application/json" class="live-lens-data">{{ {'horizon': 40, 'segments': r.segments_5min, 'recon': (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon) else [])} | tojson }}</script>
                     </div>
@@ -1907,6 +1915,49 @@
         if(el) el.textContent = txt;
       }
 
+      function getCardForWrap(wrap){
+        try { return wrap ? wrap.closest('.game-card') : null; } catch(e) { return null; }
+      }
+
+      function num0(v){
+        var x = toNum(v);
+        return (x === null ? 0 : x);
+      }
+
+      function pbpRollup(stats){
+        if(!stats) return null;
+        var home = stats.home || {};
+        var away = stats.away || {};
+        var fga2a = num0(home.fga2_att) + num0(away.fga2_att);
+        var fga3a = num0(home.fga3_att) + num0(away.fga3_att);
+        var fta = num0(home.fta_att) + num0(away.fta_att);
+        var fga2m = num0(home.fga2_made) + num0(away.fga2_made);
+        var fga3m = num0(home.fga3_made) + num0(away.fga3_made);
+        var ftm = num0(home.fta_made) + num0(away.fta_made);
+        var fga = fga2a + fga3a;
+        var fgm = fga2m + fga3m;
+        var fgPct = (fga > 0 ? (fgm / fga) : null);
+        var tpPct = (fga3a > 0 ? (fga3m / fga3a) : null);
+        var ftPct = (fta > 0 ? (ftm / fta) : null);
+        var ftr = (fga > 0 ? (fta / fga) : null);
+        return { fga2a:fga2a, fga3a:fga3a, fga:fga, fta:fta, fgPct:fgPct, tpPct:tpPct, ftPct:ftPct, ftr:ftr };
+      }
+
+      function updateCardLiveEdgeClass(card){
+        if(!card) return;
+        var wraps = card.querySelectorAll('.live-lens-wrap');
+        var anyOk = false;
+        var anyWarn = false;
+        wraps.forEach(function(w){
+          if(!w) return;
+          if(w.getAttribute('data-live-edge-ok') === '1') anyOk = true;
+          if(w.getAttribute('data-live-edge-warn') === '1') anyWarn = true;
+        });
+        card.classList.toggle('live-edge-ok', anyOk);
+        // Only show warn if we are not already in ok.
+        card.classList.toggle('live-edge-warn', (!anyOk && anyWarn));
+      }
+
       function wireOne(wrap){
         var dataEl = wrap.querySelector('.live-lens-data');
         if(!dataEl) return;
@@ -1981,13 +2032,61 @@
           // Driver + lean
           var driver = '–';
           var lean = '–';
+          var isStrong = false;
+          var isStrongNoLine = false;
           if(line !== null && paceFinal !== null){
             var edge = paceFinal - line;
-            if(edge > 0.01) lean = 'Over (pace +' + String(round0(edge)) + ')';
-            else if(edge < -0.01) lean = 'Under (pace ' + String(round0(edge)) + ')';
+            var side = (edge > 0.01) ? 'Over' : (edge < -0.01 ? 'Under' : 'No edge');
+            var edgeAbs = Math.abs(edge);
+
+            // Basic strength threshold based on horizon; avoid early-noise signals.
+            var minElapsed = (horizon <= 20.5) ? 4 : 6;
+            var thr = (horizon <= 20.5) ? 5 : 7;
+
+            // PBP context: adjust confidence if scoring looks "hot" or "cold".
+            var card = getCardForWrap(wrap);
+            var stats = (card && card.__livePbpStats) ? card.__livePbpStats : null;
+            var pbp = pbpRollup(stats);
+            var adj = 0;
+            if(delta !== null){
+              if(side === 'Over') adj += (delta > 0 ? 1 : (delta < 0 ? -1 : 0));
+              if(side === 'Under') adj += (delta < 0 ? 1 : (delta > 0 ? -1 : 0));
+            }
+            if(pbp){
+              var hot = ((pbp.fgPct !== null && pbp.fgPct >= 0.60) || (pbp.tpPct !== null && pbp.tpPct >= 0.52) || (pbp.ftPct !== null && pbp.ftPct >= 0.92));
+              var cold = ((pbp.fgPct !== null && pbp.fgPct <= 0.38) || (pbp.tpPct !== null && pbp.tpPct <= 0.22));
+              if(side === 'Over'){
+                if(hot) adj -= 2;
+                if(cold) adj += 1;
+              } else if(side === 'Under'){
+                if(hot) adj += 1;
+                if(cold) adj -= 2;
+              }
+              if(pbp.ftr !== null){
+                if(side === 'Over' && pbp.ftr >= 0.55) adj += 0.5;
+                if(side === 'Under' && pbp.ftr <= 0.22) adj += 0.5;
+              }
+            }
+
+            var strength = edgeAbs + adj;
+            isStrong = (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thr);
+            var edgeTxt = (edge > 0 ? '+' : '') + String(round0(edge));
+            if(side === 'Over') lean = (isStrong ? 'BET ' : 'Watch ') + 'Over (pace ' + edgeTxt + ')';
+            else if(side === 'Under') lean = (isStrong ? 'BET ' : 'Watch ') + 'Under (pace ' + edgeTxt + ')';
             else lean = 'No edge';
           } else if(delta !== null){
-            lean = (delta > 0 ? 'Over candidates (low so far)' : (delta < 0 ? 'Under candidates (high so far)' : 'On track'));
+            var minElapsed2 = (horizon <= 20.5) ? 4 : 6;
+            var thrDelta = (horizon <= 20.5) ? 8 : 12;
+            var dabs = Math.abs(delta);
+            var side2 = (delta > 0.01) ? 'Over' : (delta < -0.01 ? 'Under' : 'No edge');
+            isStrongNoLine = (side2 === 'Over' || side2 === 'Under') && (elapsed !== null && elapsed >= minElapsed2) && (dabs >= thrDelta);
+            if(side2 === 'Over'){
+              lean = (isStrongNoLine ? 'WATCH ' : '') + 'Over candidates (Δ ' + (delta > 0 ? '+' : '') + String(round0(delta)) + ')';
+            } else if(side2 === 'Under'){
+              lean = (isStrongNoLine ? 'WATCH ' : '') + 'Under candidates (Δ ' + (delta > 0 ? '+' : '') + String(round0(delta)) + ')';
+            } else {
+              lean = 'On track';
+            }
           }
 
           if(delta !== null){
@@ -1996,6 +2095,21 @@
 
           setText(wrap, 'driver', 'Driver: ' + driver);
           setText(wrap, 'lean', 'Lean: ' + lean);
+
+          // Visual emphasis when we have a strong live edge.
+          try {
+            var leanEl = wrap.querySelector('[data-out="lean"]');
+            if(leanEl){
+              leanEl.classList.toggle('ok', !!isStrong);
+              leanEl.classList.toggle('warn', (!isStrong && !!isStrongNoLine));
+            }
+          } catch(e) { /* noop */ }
+          try {
+            wrap.setAttribute('data-live-edge-ok', isStrong ? '1' : '0');
+            wrap.setAttribute('data-live-edge-warn', (!isStrong && isStrongNoLine) ? '1' : '0');
+            var card2 = getCardForWrap(wrap);
+            updateCardLiveEdgeClass(card2);
+          } catch(e) { /* noop */ }
         }
 
         ['change','input'].forEach(function(evt){
@@ -2174,6 +2288,43 @@
         });
       }
 
+      function applyLivePbpToCard(card, pbp){
+        if(!card || !pbp) return;
+        try {
+          var stats = pbp.stats || {};
+          var sAway = stats.away || {};
+          var sHome = stats.home || {};
+          try {
+            card.__livePbpStats = stats;
+            card.__livePbpFetchedFrom = pbp.fetched_from || '';
+          } catch(_e) { /* ignore */ }
+          var wraps = card.querySelectorAll('.live-lens-wrap');
+          if(!wraps || !wraps.length) return;
+          wraps.forEach(function(wrap){
+            var pills = wrap.querySelectorAll('.live-lens-pbp');
+            if(!pills || !pills.length) return;
+            pills.forEach(function(pill){
+              var side = String(pill.getAttribute('data-side') || '').trim().toLowerCase();
+              var s = (side === 'home') ? sHome : (side === 'away' ? sAway : null);
+              if(!s) return;
+              var fta = (s.fta_att !== undefined && s.fta_att !== null) ? String(s.fta_att) : '–';
+              var fga2 = (s.fga2_att !== undefined && s.fga2_att !== null) ? String(s.fga2_att) : '–';
+              var fga3 = (s.fga3_att !== undefined && s.fga3_att !== null) ? String(s.fga3_att) : '–';
+              var label = (side === 'home') ? 'H' : (side === 'away' ? 'A' : '');
+              pill.textContent = label + ' FTA ' + fta + ' · 2PA ' + fga2 + ' · 3PA ' + fga3;
+            });
+          });
+
+          // Recompute bet signal now that PBP context is available.
+          try {
+            wraps.forEach(function(wrap){
+              var selMin = wrap.querySelector('.live-lens-min');
+              if(selMin) selMin.dispatchEvent(new Event('change', {bubbles:true}));
+            });
+          } catch(_e2) { /* ignore */ }
+        } catch(e) { /* ignore */ }
+      }
+
       var inFlight = false;
       function pollOnce(){
         if(inFlight) return;
@@ -2188,11 +2339,14 @@
 
         inFlight = true;
         var url = '/api/live_state?date=' + encodeURIComponent(slate) + '&ttl=12';
+
         fetch(url, { cache: 'no-store' })
           .then(function(r){ return r.json(); })
           .then(function(js){
             try {
-              if(!js || js.status !== 'ok' || !js.games) return;
+              if(!js || js.status !== 'ok' || !js.games) return null;
+
+              var liveEventIds = [];
               cards.forEach(function(card){
                 if(card.style.display === 'none') return;
                 var gid = String(card.getAttribute('data-game-id') || '').trim();
@@ -2200,13 +2354,36 @@
                 var live = js.games[gid];
                 if(!live) return;
                 applyLiveStateToCard(card, live);
+                if(live.is_live) liveEventIds.push(gid);
               });
-            } catch(e) { /* ignore */ }
+
+              // Fetch PBP-derived stat attempts (FTA/2PA/3PA) only for live games.
+              if(!liveEventIds.length) return null;
+              // De-dupe + cap to avoid huge URLs.
+              var uniq = Array.from(new Set(liveEventIds)).slice(0, 50);
+              var pbpUrl = '/api/live_pbp_stats?ttl=20&event_ids=' + encodeURIComponent(uniq.join(','));
+              return fetch(pbpUrl, { cache: 'no-store' })
+                .then(function(r2){ return r2.json(); })
+                .then(function(js2){
+                  try {
+                    if(!js2 || js2.status !== 'ok' || !js2.games) return;
+                    cards.forEach(function(card){
+                      if(card.style.display === 'none') return;
+                      var gid = String(card.getAttribute('data-game-id') || '').trim();
+                      if(!gid) return;
+                      var pbp = js2.games[gid];
+                      if(!pbp) return;
+                      applyLivePbpToCard(card, pbp);
+                    });
+                  } catch(e) { /* ignore */ }
+                })
+                .catch(function(){ /* ignore */ });
+            } catch(e) {
+              return null;
+            }
           })
           .catch(function(){ /* ignore */ })
-          .finally(function(){
-            inFlight = false;
-          });
+          .finally(function(){ inFlight = false; });
       }
 
       document.addEventListener('DOMContentLoaded', function(){
