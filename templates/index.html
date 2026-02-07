@@ -2186,11 +2186,6 @@
         var slate = getSlateDate();
         if(!slate) return;
 
-        var anyLive = cards.some(function(c){
-          try { return (c.getAttribute('data-live') === '1') && (c.style.display !== 'none'); } catch(e){ return false; }
-        });
-        if(!anyLive) return;
-
         inFlight = true;
         var url = '/api/live_state?date=' + encodeURIComponent(slate) + '&ttl=12';
         fetch(url, { cache: 'no-store' })
@@ -2199,7 +2194,6 @@
             try {
               if(!js || js.status !== 'ok' || !js.games) return;
               cards.forEach(function(card){
-                if(card.getAttribute('data-live') !== '1') return;
                 if(card.style.display === 'none') return;
                 var gid = String(card.getAttribute('data-game-id') || '').trim();
                 if(!gid) return;
