@@ -118,7 +118,7 @@
         {% set _conf_home = (r.conference_home if (r.conference_home is defined and r.conference_home) else '') %}
         {% set _conf_away = (r.conference_away if (r.conference_away is defined and r.conference_away) else '') %}
         {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}">
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -901,7 +901,7 @@
                 {% set _conf_home = (r.conference_home if (r.conference_home is defined and r.conference_home) else '') %}
                 {% set _conf_away = (r.conference_away if (r.conference_away is defined and r.conference_away) else '') %}
                 {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
-                <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}">
+                <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}">
               {% if _d_ou_s is not none %}<span>ΔOU {{ '%.1f' % _d_ou_s }}</span>{% endif %}
               {# Prefer display-clipped probabilities with meta precedence #}
               {% if r.p_over_display is defined and r.p_over_display is not none and r.p_over_display == r.p_over_display %}
@@ -2008,6 +2008,222 @@
 
       document.addEventListener('DOMContentLoaded', function(){
         document.querySelectorAll('.live-lens-wrap').forEach(wireOne);
+      });
+    })();
+  </script>
+
+  <script>
+    // Live game polling -> auto-populate Live Lens inputs (minutes remaining + total points).
+    // Manual overrides: once a field is edited, it becomes "dirty" and won't be overwritten.
+    (function(){
+      function toNum(v){
+        if(v === null || v === undefined) return null;
+        var x = (typeof v === 'number') ? v : parseFloat(String(v).trim());
+        return (isFinite(x) ? x : null);
+      }
+
+      function getSlateDate(){
+        var el = document.querySelector('input[type="date"][name="date"]');
+        return el ? String(el.value || '').trim() : '';
+      }
+
+      function ensureAutoUI(wrap){
+        if(wrap.querySelector('.live-lens-auto-pill')) return;
+        var row = document.createElement('div');
+        row.className = 'kpi mt8';
+        var pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'pill small live-lens-auto-pill';
+        pill.textContent = 'Auto: On';
+        pill.setAttribute('aria-pressed','true');
+        var stamp = document.createElement('span');
+        stamp.className = 'pill small muted live-lens-auto-stamp';
+        stamp.textContent = 'Live: –';
+        row.appendChild(pill);
+        row.appendChild(stamp);
+        var note = wrap.querySelector('.note');
+        if(note && note.parentNode){
+          note.parentNode.insertBefore(row, note.nextSibling);
+        } else {
+          wrap.insertBefore(row, wrap.firstChild);
+        }
+
+        pill.addEventListener('click', function(){
+          var on = !(wrap.getAttribute('data-auto') === '0');
+          on = !on;
+          wrap.setAttribute('data-auto', on ? '1' : '0');
+          pill.textContent = on ? 'Auto: On' : 'Auto: Off';
+          pill.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      }
+
+      function isDirty(el){
+        return !!(el && (el.getAttribute('data-dirty') === '1'));
+      }
+      function markDirty(el){
+        try { if(el) el.setAttribute('data-dirty','1'); } catch(e) { /* noop */ }
+      }
+      function clearDirty(el){
+        try { if(el) el.removeAttribute('data-dirty'); } catch(e) { /* noop */ }
+      }
+
+      function wireDirtyTracking(wrap){
+        if(wrap.getAttribute('data-dirty-wired') === '1') return;
+        wrap.setAttribute('data-dirty-wired','1');
+        var selMin = wrap.querySelector('.live-lens-min');
+        var inpTot = wrap.querySelector('.live-lens-total');
+        var inpLine = wrap.querySelector('.live-lens-line');
+        [selMin, inpTot, inpLine].forEach(function(el){
+          if(!el) return;
+          ['change','input'].forEach(function(evt){
+            el.addEventListener(evt, function(){
+              var v = (el.value === null || el.value === undefined) ? '' : String(el.value);
+              if(v.trim() === '') clearDirty(el);
+              else markDirty(el);
+            });
+          });
+        });
+      }
+
+      function setStamp(wrap, txt){
+        var el = wrap.querySelector('.live-lens-auto-stamp');
+        if(el) el.textContent = txt;
+      }
+
+      function setSelectClosest(sel, targetMinutes){
+        if(!sel) return false;
+        var best = null;
+        var bestDiff = 1e9;
+        for(var i=0;i<sel.options.length;i++){
+          var opt = sel.options[i];
+          if(!opt || opt.value === '') continue;
+          var v = toNum(opt.value);
+          if(v === null) continue;
+          var d = Math.abs(v - targetMinutes);
+          if(d < bestDiff){ bestDiff = d; best = opt.value; }
+        }
+        if(best !== null){
+          if(sel.value !== best){
+            sel.value = best;
+            try { sel.dispatchEvent(new Event('change', {bubbles:true})); } catch(e) {}
+          }
+          return true;
+        }
+        return false;
+      }
+
+      function parseHorizon(wrap){
+        var dataEl = wrap.querySelector('.live-lens-data');
+        if(!dataEl) return 40;
+        try {
+          var data = JSON.parse(dataEl.textContent || '{}');
+          var h = toNum(data.horizon);
+          return (h !== null ? h : 40);
+        } catch(e){
+          return 40;
+        }
+      }
+
+      function applyLiveStateToCard(card, live){
+        if(!card || !live) return;
+
+        var wraps = card.querySelectorAll('.live-lens-wrap');
+        if(!wraps || !wraps.length) return;
+        wraps.forEach(function(wrap){
+          ensureAutoUI(wrap);
+          wireDirtyTracking(wrap);
+
+          var autoOn = !(wrap.getAttribute('data-auto') === '0');
+          var horizon = parseHorizon(wrap);
+          var selMin = wrap.querySelector('.live-lens-min');
+          var inpTot = wrap.querySelector('.live-lens-total');
+
+          if(live.is_live){
+            var clk = live.display_clock ? String(live.display_clock) : '';
+            var per = (live.period !== null && live.period !== undefined) ? String(live.period) : '';
+            setStamp(wrap, 'Live: P' + per + ' ' + (clk || ''));
+          } else if(live.is_final){
+            setStamp(wrap, 'Live: Final');
+          } else {
+            setStamp(wrap, 'Live: –');
+          }
+
+          if(!autoOn) return;
+          if(!live.is_live) return;
+
+          if(inpTot && !isDirty(inpTot)){
+            if(live.total_points !== null && live.total_points !== undefined){
+              var cur = String(inpTot.value || '').trim();
+              var next = String(live.total_points);
+              if(cur !== next){
+                inpTot.value = next;
+                try { inpTot.dispatchEvent(new Event('input', {bubbles:true})); } catch(e) {}
+              }
+            }
+          }
+
+          var remSec = null;
+          if(horizon <= 20.5) remSec = live.remaining_1h_seconds;
+          else remSec = live.remaining_reg_seconds;
+
+          if(selMin && !isDirty(selMin) && remSec !== null && remSec !== undefined){
+            var remMin = Math.ceil(Math.max(0, toNum(remSec) || 0) / 60);
+            if(remMin > horizon) remMin = horizon;
+            setSelectClosest(selMin, remMin);
+          }
+        });
+      }
+
+      var inFlight = false;
+      function pollOnce(){
+        if(inFlight) return;
+        var hasWrap = document.querySelector('.live-lens-wrap') !== null;
+        if(!hasWrap) return;
+
+        var cards = Array.from(document.querySelectorAll('.game-card[data-game-id]'));
+        if(!cards.length) return;
+
+        var slate = getSlateDate();
+        if(!slate) return;
+
+        var anyLive = cards.some(function(c){
+          try { return (c.getAttribute('data-live') === '1') && (c.style.display !== 'none'); } catch(e){ return false; }
+        });
+        if(!anyLive) return;
+
+        inFlight = true;
+        var url = '/api/live_state?date=' + encodeURIComponent(slate) + '&ttl=12';
+        fetch(url, { cache: 'no-store' })
+          .then(function(r){ return r.json(); })
+          .then(function(js){
+            try {
+              if(!js || js.status !== 'ok' || !js.games) return;
+              cards.forEach(function(card){
+                if(card.getAttribute('data-live') !== '1') return;
+                if(card.style.display === 'none') return;
+                var gid = String(card.getAttribute('data-game-id') || '').trim();
+                if(!gid) return;
+                var live = js.games[gid];
+                if(!live) return;
+                applyLiveStateToCard(card, live);
+              });
+            } catch(e) { /* ignore */ }
+          })
+          .catch(function(){ /* ignore */ })
+          .finally(function(){
+            inFlight = false;
+          });
+      }
+
+      document.addEventListener('DOMContentLoaded', function(){
+        document.querySelectorAll('.live-lens-wrap').forEach(function(wrap){
+          ensureAutoUI(wrap);
+          wireDirtyTracking(wrap);
+          setStamp(wrap, 'Live: –');
+        });
+
+        pollOnce();
+        setInterval(pollOnce, 12000);
       });
     })();
   </script>

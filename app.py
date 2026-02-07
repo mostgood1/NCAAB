@@ -21330,6 +21330,180 @@ def api_schedule_diagnostics():
     }), 200
 
 
+@app.get("/api/live_state")
+def api_live_state():
+    """Return lightweight ESPN live state keyed by ESPN event id.
+
+    Params:
+      - date: YYYY-MM-DD (default today)
+      - refresh=1 to bypass adapter cache
+      - ttl: seconds for disk-cache freshness check (default 12)
+    """
+    date_param = (request.args.get("date") or "").strip()
+    refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
+    try:
+        ttl = int((request.args.get("ttl") or "12").strip())
+    except Exception:
+        ttl = 12
+    ttl = max(0, min(ttl, 120))
+
+    try:
+        target_date = dt.date.fromisoformat(date_param) if date_param else _today_local()
+    except Exception:
+        return jsonify({"status": "error", "message": f"Invalid date: {date_param}"}), 400
+
+    try:
+        from ncaab_model.data.adapters.espn_scoreboard import _fetch_day as _espn_fetch  # type: ignore
+        from ncaab_model.data.cache import cache_path  # type: ignore
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Adapter import failed: {e}"}), 500
+
+    # Use adapter disk cache when it's fresh enough; otherwise force refresh.
+    use_cache = True
+    if refresh:
+        use_cache = False
+    elif ttl == 0:
+        use_cache = False
+    else:
+        try:
+            cache_file = cache_path("espn", f"{target_date.isoformat()}.json")
+            if cache_file.exists():
+                import time
+
+                age = time.time() - float(cache_file.stat().st_mtime)
+                use_cache = age <= float(ttl)
+            else:
+                use_cache = False
+        except Exception:
+            use_cache = True
+
+    payload = _espn_fetch(target_date, use_cache=use_cache)
+    if not payload or not isinstance(payload, dict):
+        return jsonify({"status": "error", "message": "No ESPN payload"}), 502
+
+    def _to_int(x):
+        try:
+            return int(x) if x is not None else None
+        except Exception:
+            return None
+
+    def _clock_to_seconds(clock_val):
+        if clock_val is None:
+            return None
+        try:
+            s = str(clock_val).strip()
+        except Exception:
+            return None
+        if not s:
+            return None
+        # Typical: "12:34".
+        try:
+            if ":" in s:
+                mm, ss = s.split(":", 1)
+                m = int(mm)
+                sec = int(ss)
+                if m < 0 or sec < 0 or sec >= 60:
+                    return None
+                return m * 60 + sec
+            # Sometimes numeric seconds as a string.
+            v = float(s)
+            if not (v >= 0):
+                return None
+            return int(v)
+        except Exception:
+            return None
+
+    def _compute_remaining_seconds(period, clock_seconds):
+        # NCAA regulation: 2x20.
+        if period is None or clock_seconds is None:
+            return None, None
+        try:
+            p = int(period)
+        except Exception:
+            return None, None
+        if p <= 0:
+            return None, None
+        # If ESPN clock is countdown within current period.
+        if p == 1:
+            rem_1h = max(0, int(clock_seconds))
+            rem_reg = 20 * 60 + rem_1h
+            return rem_reg, rem_1h
+        if p == 2:
+            rem_1h = 0
+            rem_reg = max(0, int(clock_seconds))
+            return rem_reg, rem_1h
+        # OT or beyond: treat regulation remaining as 0.
+        return 0, 0
+
+    games = {}
+    events = payload.get("events", [])
+    if not isinstance(events, list):
+        events = []
+
+    for ev in events:
+        try:
+            ev_id = str((ev or {}).get("id") or "").strip()
+            if not ev_id:
+                continue
+            comps = ((ev or {}).get("competitions") or [])
+            comp0 = comps[0] if isinstance(comps, list) and comps else {}
+            status = (comp0.get("status") or (ev or {}).get("status") or {}) if isinstance(comp0, dict) else {}
+            st_type = (status.get("type") or {}) if isinstance(status, dict) else {}
+            state = str(st_type.get("state") or "").strip().lower()
+            completed = bool(st_type.get("completed"))
+            period = _to_int(status.get("period"))
+            display_clock = status.get("displayClock") or status.get("clock")
+            clock_seconds = _clock_to_seconds(display_clock)
+
+            competitors = comp0.get("competitors", []) if isinstance(comp0, dict) else []
+            home = None
+            away = None
+            if isinstance(competitors, list):
+                for c in competitors:
+                    if not isinstance(c, dict):
+                        continue
+                    ha = str(c.get("homeAway") or "").strip().lower()
+                    if ha == "home":
+                        home = c
+                    elif ha == "away":
+                        away = c
+            home_score = _to_int((home or {}).get("score"))
+            away_score = _to_int((away or {}).get("score"))
+            total_points = (home_score + away_score) if (home_score is not None and away_score is not None) else None
+
+            is_live = (state == "in")
+            is_final = bool(completed or state == "post")
+            rem_reg, rem_1h = _compute_remaining_seconds(period, clock_seconds) if is_live else (None, None)
+
+            games[ev_id] = {
+                "event_id": ev_id,
+                "state": state,
+                "is_live": bool(is_live),
+                "is_final": bool(is_final),
+                "period": period,
+                "display_clock": str(display_clock) if display_clock is not None else None,
+                "clock_seconds": clock_seconds,
+                "home_score": home_score,
+                "away_score": away_score,
+                "total_points": total_points,
+                "remaining_reg_seconds": rem_reg,
+                "remaining_1h_seconds": rem_1h,
+            }
+        except Exception:
+            continue
+
+    return jsonify(
+        {
+            "status": "ok",
+            "date": target_date.isoformat(),
+            "refresh": bool(refresh),
+            "ttl": ttl,
+            "count": len(games),
+            "games": games,
+        }
+    ), 200
+
+
 # ---------------------------------
 # Time display diagnostics endpoint
 # ---------------------------------
