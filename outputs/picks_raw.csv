@@ -1,14 +1,161 @@
 game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,pred_total,rec_type,rec_code
-401818312,2026-02-07,Yale Bulldogs,Brown Bears,spreads,full_game,home,-15.5,,,6.07125757485895,,Spread,ATS
-401828414,2026-02-07,VCU Rams,Dayton Flyers,spreads,full_game,home,-7.75,,,1.0073077066390166,,Spread,ATS
-401822932,2026-02-07,St. John's Red Storm,UConn Huskies,spreads,full_game,home,1.5,,,2.9382423064455425,,Spread,ATS
-401830226,2026-02-07,Northern Iowa Panthers,Bradley Braves,spreads,full_game,home,-3.5,,,2.4867158395850355,,Spread,ATS
-401830291,2026-02-07,Illinois State Redbirds,Drake Bulldogs,spreads,full_game,away,9.5,,,-2.186249777597256,,Spread,ATS
-401830292,2026-02-07,Southern Illinois Salukis,Murray State Racers,spreads,full_game,away,-1.0,,,-2.3847722023064284,,Spread,ATS
-401830293,2026-02-07,Valparaiso Beacons,Evansville Purple Aces,spreads,full_game,home,-10.0,,,2.3580108721019712,,Spread,ATS
-401830211,2026-02-07,UIC Flames,Belmont Bruins,spreads,full_game,home,2.5,,,0.979000316267856,,Spread,ATS
-401825499,2026-02-07,Rutgers Scarlet Knights,Nebraska Cornhuskers,totals,full_game,over,,,,,,Total,OU
-401820728,2026-02-07,Virginia Cavaliers,Syracuse Orange,totals,full_game,over,,,,,,Total,OU
-401808222,2026-02-07,Mississippi State Bulldogs,Arkansas Razorbacks,totals,full_game,over,,,,,,Total,OU
+401804917,2026-02-07,UTEP Miners,New Mexico State Aggies,spreads,full_game,home,-2.5,,,2.488078463582781,,Spread,ATS
+401804918,2026-02-07,Louisiana Tech Bulldogs,Sam Houston Bearkats,spreads,full_game,home,-4.5,,,4.505304524621415,,Spread,ATS
+401804919,2026-02-07,Jacksonville State Gamecocks,Kennesaw State Owls,spreads,full_game,home,-5.5,,,5.570832078651285,,Spread,ATS
+401804920,2026-02-07,Delaware Blue Hens,Middle Tennessee Blue Raiders,spreads,full_game,home,-5.5,,,5.618525159243585,,Spread,ATS
+401804921,2026-02-07,Western Kentucky Hilltoppers,Florida International Panthers,spreads,full_game,home,-3.5,,,3.326532700155627,,Spread,ATS
+401804922,2026-02-07,Liberty Flames,Missouri State Bears,spreads,full_game,home,-5.0,,,5.006714506957719,,Spread,ATS
+401805190,2026-02-07,California Baptist Lancers,Abilene Christian Wildcats,spreads,full_game,home,-2.5,,,2.6060368646081606,,Spread,ATS
+401805191,2026-02-07,Southern Utah Thunderbirds,Tarleton State Texans,spreads,full_game,home,-5.5,,,5.457935636786432,,Spread,ATS
+401805192,2026-02-07,Utah Valley Wolverines,UT Arlington Mavericks,spreads,full_game,home,-3.0,,,3.1587200223433127,,Spread,ATS
+401806475,2026-02-07,Tennessee Tech Golden Eagles,Eastern Illinois Panthers,spreads,full_game,home,-3.0,,,3.0679237382854248,,Spread,ATS
+401806476,2026-02-07,Little Rock Trojans,SIU Edwardsville Cougars,spreads,full_game,home,-4.5,,,4.552177476877617,,Spread,ATS
+401806477,2026-02-07,UT Martin Skyhawks,Morehead State Eagles,spreads,full_game,home,-3.0,,,2.8766611662511634,,Spread,ATS
+401806478,2026-02-07,Southeast Missouri State Redhawks,Southern Indiana Screaming Eagles,spreads,full_game,home,-4.5,,,4.253944523889986,,Spread,ATS
+401806479,2026-02-07,Tennessee State Tigers,Western Illinois Leathernecks,spreads,full_game,home,-4.5,,,4.469530357777817,,Spread,ATS
+401807727,2026-02-07,Lipscomb Bisons,Central Arkansas Bears,spreads,full_game,home,-2.5,,,2.3946094864702108,,Spread,ATS
+401807728,2026-02-07,Bellarmine Knights,Florida Gulf Coast Eagles,spreads,full_game,home,-4.5,,,4.3570338713898185,,Spread,ATS
+401807729,2026-02-07,West Georgia Wolves,Jacksonville Dolphins,spreads,full_game,home,-3.5,,,3.5100335980102004,,Spread,ATS
+401807730,2026-02-07,Austin Peay Governors,North Alabama Lions,spreads,full_game,home,-4.5,,,4.443452372244427,,Spread,ATS
+401807731,2026-02-07,Queens University Royals,North Florida Ospreys,spreads,full_game,home,-2.5,,,2.2553379696397813,,Spread,ATS
+401807732,2026-02-07,Eastern Kentucky Colonels,Stetson Hatters,spreads,full_game,home,-5.0,,,4.945267366994649,,Spread,ATS
+401808219,2026-02-07,Auburn Tigers,Alabama Crimson Tide,spreads,full_game,home,-3.0,,,2.8079542571125327,,Spread,ATS
+401808220,2026-02-07,Kentucky Wildcats,Tennessee Volunteers,spreads,full_game,home,-4.5,,,4.401823203494166,,Spread,ATS
+401808221,2026-02-07,LSU Tigers,Georgia Bulldogs,spreads,full_game,home,-3.5,,,3.441050690911886,,Spread,ATS
+401808222,2026-02-07,Mississippi State Bulldogs,Arkansas Razorbacks,spreads,full_game,home,-3.5,,,3.51439324381062,,Spread,ATS
+401808223,2026-02-07,South Carolina Gamecocks,Missouri Tigers,spreads,full_game,home,-3.0,,,3.05622420993024,,Spread,ATS
+401808224,2026-02-07,Texas A&M Aggies,Florida Gators,spreads,full_game,home,-2.5,,,2.265147215257508,,Spread,ATS
+401808225,2026-02-07,Vanderbilt Commodores,Oklahoma Sooners,spreads,full_game,home,-2.0,,,2.13713788631782,,Spread,ATS
+401808226,2026-02-07,Texas Longhorns,Ole Miss Rebels,spreads,full_game,home,-3.0,,,3.1373899484096297,,Spread,ATS
+401808463,2026-02-07,Montana State Bobcats,Eastern Washington Eagles,spreads,full_game,home,-3.0,,,3.2105339373445427,,Spread,ATS
+401808480,2026-02-07,Montana Grizzlies,Idaho Vandals,spreads,full_game,home,-2.0,,,2.0168813633479576,,Spread,ATS
+401808496,2026-02-07,Idaho State Bengals,Northern Colorado Bears,spreads,full_game,home,-4.5,,,4.300599802140103,,Spread,ATS
+401808527,2026-02-07,Weber State Wildcats,Northern Arizona Lumberjacks,spreads,full_game,home,-3.5,,,3.488463923940218,,Spread,ATS
+401808539,2026-02-07,Sacramento State Hornets,Portland State Vikings,spreads,full_game,home,-2.5,,,2.742482185919505,,Spread,ATS
+401808716,2026-02-07,East Texas A&M Lions,Northwestern State Demons,spreads,full_game,home,-4.5,,,4.561609461026261,,Spread,ATS
+401808883,2026-02-07,McNeese Cowboys,Incarnate Word Cardinals,spreads,full_game,home,-3.0,,,3.177484127535427,,Spread,ATS
+401808911,2026-02-07,New Orleans Privateers,UT Rio Grande Valley Vaqueros,spreads,full_game,home,-4.5,,,4.285726546536628,,Spread,ATS
+401808927,2026-02-07,Nicholls Colonels,Texas A&M-Corpus Christi Islanders,spreads,full_game,home,-5.5,,,5.461075406805494,,Spread,ATS
+401808962,2026-02-07,SE Louisiana Lions,Houston Christian Huskies,spreads,full_game,home,-2.5,,,2.581551474643239,,Spread,ATS
+401808971,2026-02-07,Stephen F. Austin Lumberjacks,Lamar Cardinals,spreads,full_game,home,-2.5,,,2.620988863154253,,Spread,ATS
+401809097,2026-02-07,Hawai'i Rainbow Warriors,UC San Diego Tritons,spreads,full_game,home,-4.5,,,4.31054912677244,,Spread,ATS
+401809115,2026-02-07,UC Santa Barbara Gauchos,UC Irvine Anteaters,spreads,full_game,home,-3.5,,,3.523418173451424,,Spread,ATS
+401809133,2026-02-07,UC Davis Aggies,Cal Poly Mustangs,spreads,full_game,home,-3.0,,,2.921627188331728,,Spread,ATS
+401809358,2026-02-07,Chattanooga Mocs,The Citadel Bulldogs,spreads,full_game,home,-4.5,,,4.534735815989387,,Spread,ATS
+401809360,2026-02-07,Samford Bulldogs,Mercer Bears,spreads,full_game,home,-2.0,,,2.0166390204352145,,Spread,ATS
+401809361,2026-02-07,VMI Keydets,East Tennessee State Buccaneers,spreads,full_game,home,-2.0,,,1.931174602317153,,Spread,ATS
+401809362,2026-02-07,Wofford Terriers,Western Carolina Catamounts,spreads,full_game,home,-2.5,,,2.7179757152168027,,Spread,ATS
+401812054,2026-02-07,Stony Brook Seawolves,Northeastern Huskies,spreads,full_game,home,-2.5,,,2.495213172077568,,Spread,ATS
+401812055,2026-02-07,Elon Phoenix,Drexel Dragons,spreads,full_game,home,-2.0,,,1.938120715789232,,Spread,ATS
+401812056,2026-02-07,Hofstra Pride,Towson Tigers,spreads,full_game,home,-5.5,,,5.602265098525345,,Spread,ATS
+401812057,2026-02-07,Hampton Pirates,William & Mary Tribe,spreads,full_game,home,-4.0,,,4.053837423386594,,Spread,ATS
+401812058,2026-02-07,North Carolina A&T Aggies,Campbell Fighting Camels,spreads,full_game,home,-3.0,,,3.1969071226363224,,Spread,ATS
+401812146,2026-02-07,NJIT Highlanders,Binghamton Bearcats,spreads,full_game,home,-3.0,,,3.0169846642645948,,Spread,ATS
+401812147,2026-02-07,Bryant Bulldogs,Maine Black Bears,spreads,full_game,home,-5.5,,,5.284419425769945,,Spread,ATS
+401812148,2026-02-07,UAlbany Great Danes,UMass Lowell River Hawks,spreads,full_game,home,-5.0,,,5.18278150050514,,Spread,ATS
+401812149,2026-02-07,Vermont Catamounts,New Hampshire Wildcats,spreads,full_game,home,-2.0,,,2.161307907594649,,Spread,ATS
+401812326,2026-02-07,Fairleigh Dickinson Knights,Mercyhurst Lakers,spreads,full_game,home,-5.5,,,5.4078598330358005,,Spread,ATS
+401812344,2026-02-07,Le Moyne Dolphins,Saint Francis Red Flash,spreads,full_game,home,-5.0,,,4.879077342048082,,Spread,ATS
+401812373,2026-02-07,Long Island University Sharks,Stonehill Skyhawks,spreads,full_game,home,-5.5,,,5.304998313624782,,Spread,ATS
+401812415,2026-02-07,Central Connecticut Blue Devils,Wagner Seahawks,spreads,full_game,home,-5.5,,,5.514481351616573,,Spread,ATS
+401812592,2026-02-07,Pennsylvania Quakers,Princeton Tigers,spreads,full_game,home,-5.5,,,5.454836913407035,,Spread,ATS
+401812619,2026-02-07,Dartmouth Big Green,Harvard Crimson,spreads,full_game,home,-5.0,,,5.027270899556068,,Spread,ATS
+401813306,2026-02-07,Manhattan Jaspers,Sacred Heart Pioneers,spreads,full_game,home,-4.0,,,4.124654551788389,,Spread,ATS
+401813340,2026-02-07,Fairfield Stags,Marist Red Foxes,spreads,full_game,home,-4.5,,,4.385991482112529,,Spread,ATS
+401813391,2026-02-07,Quinnipiac Bobcats,Niagara Purple Eagles,spreads,full_game,home,-2.0,,,2.215290518116664,,Spread,ATS
+401813416,2026-02-07,Iona Gaels,Mount St. Mary's Mountaineers,spreads,full_game,home,-5.0,,,4.770367794226793,,Spread,ATS
+401813428,2026-02-07,Saint Peter's Peacocks,Siena Saints,spreads,full_game,home,-5.5,,,5.297246648918953,,Spread,ATS
+401817656,2026-02-07,Northern Kentucky Norse,Milwaukee Panthers,spreads,full_game,home,-2.0,,,1.920022246267841,,Spread,ATS
+401817657,2026-02-07,Wright State Raiders,Purdue Fort Wayne Mastodons,spreads,full_game,home,-2.0,,,2.248459059999925,,Spread,ATS
+401817658,2026-02-07,Green Bay Phoenix,Detroit Mercy Titans,spreads,full_game,home,-2.0,,,1.9081954097066287,,Spread,ATS
+401817659,2026-02-07,IU Indianapolis Jaguars,Cleveland State Vikings,spreads,full_game,home,-3.0,,,3.1632299996091526,,Spread,ATS
+401817660,2026-02-07,Youngstown State Penguins,Robert Morris Colonials,spreads,full_game,home,-2.5,,,2.2522983201938818,,Spread,ATS
+401818412,2026-02-07,South Dakota State Jackrabbits,South Dakota Coyotes,spreads,full_game,home,-3.0,,,3.1205746555811604,,Spread,ATS
+401818413,2026-02-07,North Dakota State Bison,Omaha Mavericks,spreads,full_game,home,-5.0,,,5.049020288116792,,Spread,ATS
+401818414,2026-02-07,St. Thomas-Minnesota Tommies,Oral Roberts Golden Eagles,spreads,full_game,home,-3.5,,,3.4785712661722146,,Spread,ATS
+401818415,2026-02-07,North Dakota Fighting Hawks,Denver Pioneers,spreads,full_game,home,-2.5,,,2.389192124825315,,Spread,ATS
+401818543,2026-02-07,Columbia Lions,Cornell Big Red,spreads,full_game,home,-5.5,,,5.37589500055777,,Spread,ATS
+401820171,2026-02-07,Navy Midshipmen,American University Eagles,spreads,full_game,home,-2.0,,,1.9963089467083104,,Spread,ATS
+401820203,2026-02-07,Boston University Terriers,Loyola Maryland Greyhounds,spreads,full_game,home,-4.5,,,4.552860284957191,,Spread,ATS
+401820568,2026-02-07,Air Force Falcons,San Diego State Aztecs,spreads,full_game,home,-5.5,,,5.351642643753924,,Spread,ATS
+401820721,2026-02-07,Boston College Eagles,Miami Hurricanes,spreads,full_game,home,-5.0,,,5.173571403200828,,Spread,ATS
+401820722,2026-02-07,California Golden Bears,Clemson Tigers,spreads,full_game,home,-4.5,,,4.308400386258316,,Spread,ATS
+401820723,2026-02-07,NC State Wolfpack,Virginia Tech Hokies,spreads,full_game,home,-5.0,,,4.950615856470312,,Spread,ATS
+401820724,2026-02-07,North Carolina Tar Heels,Duke Blue Devils,spreads,full_game,home,-2.0,,,1.896648898996948,,Spread,ATS
+401820725,2026-02-07,Notre Dame Fighting Irish,Florida State Seminoles,spreads,full_game,home,-2.5,,,2.4063093333315324,,Spread,ATS
+401820726,2026-02-07,Pittsburgh Panthers,SMU Mustangs,spreads,full_game,home,-4.5,,,4.655110850622388,,Spread,ATS
+401820727,2026-02-07,Stanford Cardinal,Georgia Tech Yellow Jackets,spreads,full_game,home,-3.0,,,2.923370840453845,,Spread,ATS
+401820728,2026-02-07,Virginia Cavaliers,Syracuse Orange,spreads,full_game,home,-2.0,,,1.870464953431836,,Spread,ATS
+401820729,2026-02-07,Wake Forest Demon Deacons,Louisville Cardinals,spreads,full_game,home,-3.5,,,3.3464153304443296,,Spread,ATS
+401822349,2026-02-07,New Haven Chargers,Chicago State Cougars,spreads,full_game,home,-3.5,,,3.381818452092767,,Spread,ATS
+401822774,2026-02-07,Coppin State Eagles,Delaware State Hornets,spreads,full_game,home,-4.5,,,4.456560031996419,,Spread,ATS
+401822933,2026-02-07,Creighton Bluejays,Seton Hall Pirates,spreads,full_game,home,-5.5,,,5.377900544932456,,Spread,ATS
+401822934,2026-02-07,Georgetown Hoyas,Villanova Wildcats,spreads,full_game,home,-4.5,,,4.455092491569782,,Spread,ATS
+401822935,2026-02-07,Marquette Golden Eagles,Butler Bulldogs,spreads,full_game,home,-3.5,,,3.421553521363034,,Spread,ATS
+401822936,2026-02-07,Providence Friars,DePaul Blue Demons,spreads,full_game,home,-3.0,,,2.8702178110065426,,Spread,ATS
+401823051,2026-02-07,Morgan State Bears,Maryland Eastern Shore Hawks,spreads,full_game,home,-3.5,,,3.455941443454489,,Spread,ATS
+401823183,2026-02-07,Cal State Fullerton Titans,Cal State Bakersfield Roadrunners,spreads,full_game,home,-3.0,,,3.141002607239088,,Spread,ATS
+401823267,2026-02-07,Cal State Northridge Matadors,UC Riverside Highlanders,spreads,full_game,home,-5.0,,,4.757764846530674,,Spread,ATS
+401823800,2026-02-07,UNLV Rebels,Grand Canyon Lopes,spreads,full_game,home,-2.0,,,2.0766926358202538,,Spread,ATS
+401823828,2026-02-07,New Mexico Lobos,Boise State Broncos,spreads,full_game,home,-3.0,,,2.8643191886594703,,Spread,ATS
+401823855,2026-02-07,Rider Broncs,Merrimack Warriors,spreads,full_game,home,-3.5,,,3.580743533780365,,Spread,ATS
+401823938,2026-02-07,South Carolina Upstate Spartans,Charleston Southern Buccaneers,spreads,full_game,home,-3.0,,,2.961153212293393,,Spread,ATS
+401823939,2026-02-07,Presbyterian Blue Hose,Gardner-Webb Runnin' Bulldogs,spreads,full_game,home,-2.5,,,2.538622334493905,,Spread,ATS
+401823940,2026-02-07,Winthrop Eagles,Longwood Lancers,spreads,full_game,home,-2.5,,,2.519926767994184,,Spread,ATS
+401823941,2026-02-07,High Point Panthers,Radford Highlanders,spreads,full_game,home,-5.0,,,5.215754333864686,,Spread,ATS
+401824392,2026-02-07,Holy Cross Crusaders,Lehigh Mountain Hawks,spreads,full_game,home,-5.0,,,5.147241291394203,,Spread,ATS
+401825497,2026-02-07,Indiana Hoosiers,Wisconsin Badgers,spreads,full_game,home,-4.5,,,4.459020818143749,,Spread,ATS
+401825498,2026-02-07,Purdue Boilermakers,Oregon Ducks,spreads,full_game,home,-3.0,,,2.8885095376255743,,Spread,ATS
+401825499,2026-02-07,Rutgers Scarlet Knights,Nebraska Cornhuskers,spreads,full_game,home,-3.0,,,2.862063870886452,,Spread,ATS
+401825500,2026-02-07,UCLA Bruins,Washington Huskies,spreads,full_game,home,-4.5,,,4.618192956480431,,Spread,ATS
+401826822,2026-02-07,Army Black Knights,Lafayette Leopards,spreads,full_game,home,-5.0,,,4.780295542804434,,Spread,ATS
+401827030,2026-02-07,Southern Jaguars,Alabama A&M Bulldogs,spreads,full_game,home,-2.0,,,2.126684877569936,,Spread,ATS
+401827075,2026-02-07,Bethune-Cookman Wildcats,Prairie View A&M Panthers,spreads,full_game,home,-5.5,,,5.515502190208746,,Spread,ATS
+401827102,2026-02-07,Grambling Tigers,Alabama State Hornets,spreads,full_game,home,-2.0,,,1.9965249324432284,,Spread,ATS
+401827146,2026-02-07,Mississippi Valley State Delta Devils,Jackson State Tigers,spreads,full_game,home,-3.0,,,3.0934697726527003,,Spread,ATS
+401827665,2026-02-07,Arizona Wildcats,Oklahoma State Cowboys,spreads,full_game,home,-5.0,,,4.973685668877344,,Spread,ATS
+401827666,2026-02-07,BYU Cougars,Houston Cougars,spreads,full_game,home,-5.5,,,5.487010256763684,,Spread,ATS
+401827667,2026-02-07,Colorado Buffaloes,Arizona State Sun Devils,spreads,full_game,home,-2.0,,,2.056728593268187,,Spread,ATS
+401827668,2026-02-07,Iowa State Cyclones,Baylor Bears,spreads,full_game,home,-3.0,,,2.7710946714366544,,Spread,ATS
+401827669,2026-02-07,Kansas Jayhawks,Utah Utes,spreads,full_game,home,-5.5,,,5.734329721374859,,Spread,ATS
+401827670,2026-02-07,TCU Horned Frogs,Kansas State Wildcats,spreads,full_game,home,-3.0,,,3.161103224410987,,Spread,ATS
+401828214,2026-02-07,East Carolina Pirates,Temple Owls,spreads,full_game,home,-4.5,,,4.488696662850914,,Spread,ATS
+401828215,2026-02-07,UTSA Roadrunners,North Texas Mean Green,spreads,full_game,home,-2.0,,,2.1716990469757294,,Spread,ATS
+401828415,2026-02-07,Fordham Rams,St. Bonaventure Bonnies,spreads,full_game,home,-5.0,,,4.827548925689516,,Spread,ATS
+401828416,2026-02-07,George Mason Patriots,Saint Joseph's Hawks,spreads,full_game,home,-5.0,,,5.198654246536282,,Spread,ATS
+401828417,2026-02-07,Duquesne Dukes,George Washington Revolutionaries,spreads,full_game,home,-5.5,,,5.406819859800031,,Spread,ATS
+401828418,2026-02-07,Saint Louis Billikens,La Salle Explorers,spreads,full_game,home,-2.5,,,2.3236420435166507,,Spread,ATS
+401828419,2026-02-07,Rhode Island Rams,Richmond Spiders,spreads,full_game,home,-4.0,,,4.152442129542028,,Spread,ATS
+401828729,2026-02-07,Norfolk State Spartans,North Carolina Central Eagles,spreads,full_game,home,-5.5,,,5.579468900638318,,Spread,ATS
+401828931,2026-02-07,Nevada Wolf Pack,Fresno State Bulldogs,spreads,full_game,home,-2.5,,,2.632974271727388,,Spread,ATS
+401829233,2026-02-07,Oregon State Beavers,Gonzaga Bulldogs,spreads,full_game,home,-2.0,,,1.9959897600854208,,Spread,ATS
+401829234,2026-02-07,Pepperdine Waves,Pacific Tigers,spreads,full_game,home,-2.5,,,2.357952746656501,,Spread,ATS
+401829235,2026-02-07,Loyola Marymount Lions,San Diego Toreros,spreads,full_game,home,-4.0,,,4.15282409851921,,Spread,ATS
+401829236,2026-02-07,Saint Mary's Gaels,San Francisco Dons,spreads,full_game,home,-4.0,,,4.135427737464454,,Spread,ATS
+401829237,2026-02-07,Washington State Cougars,Santa Clara Broncos,spreads,full_game,home,-3.5,,,3.3351850897417474,,Spread,ATS
+401829238,2026-02-07,Portland Pilots,Seattle U Redhawks,spreads,full_game,home,-4.5,,,4.372376180534383,,Spread,ATS
+401829288,2026-02-07,Howard Bison,South Carolina State Bulldogs,spreads,full_game,home,-5.0,,,5.103359144124379,,Spread,ATS
+401829331,2026-02-07,Colorado State Rams,San José State Spartans,spreads,full_game,home,-4.0,,,4.04937498670211,,Spread,ATS
+401829338,2026-02-07,Wyoming Cowboys,Utah State Aggies,spreads,full_game,home,-3.5,,,3.3988478653497647,,Spread,ATS
+401829399,2026-02-07,Bucknell Bison,Colgate Raiders,spreads,full_game,home,-5.5,,,5.709166312963307,,Spread,ATS
+401829502,2026-02-07,Florida A&M Rattlers,Texas Southern Tigers,spreads,full_game,home,-5.0,,,4.860495516301992,,Spread,ATS
+401829688,2026-02-07,Arkansas-Pine Bluff Golden Lions,Alcorn State Braves,spreads,full_game,home,-2.5,,,2.648229264545164,,Spread,ATS
+401830778,2026-02-07,Michigan State Spartans,Illinois Fighting Illini,spreads,full_game,home,-3.5,,,3.2869396326109883,,Spread,ATS
+401845836,2026-02-07,App State Mountaineers,Eastern Michigan Eagles,spreads,full_game,home,-5.5,,,5.603962742389352,,Spread,ATS
+401845837,2026-02-07,Arkansas State Red Wolves,Bowling Green Falcons,spreads,full_game,home,-4.0,,,4.146530683158153,,Spread,ATS
+401845838,2026-02-07,Coastal Carolina Chanticleers,Massachusetts Minutemen,spreads,full_game,home,-5.0,,,5.024575215452534,,Spread,ATS
+401845839,2026-02-07,Georgia State Panthers,Northern Illinois Huskies,spreads,full_game,home,-5.0,,,5.086013370748888,,Spread,ATS
+401845840,2026-02-07,James Madison Dukes,Toledo Rockets,spreads,full_game,home,-4.0,,,4.163364811655435,,Spread,ATS
+401845841,2026-02-07,Louisiana Ragin' Cajuns,Central Michigan Chippewas,spreads,full_game,home,-2.0,,,1.9418594888365528,,Spread,ATS
+401845842,2026-02-07,UL Monroe Warhawks,Ball State Cardinals,spreads,full_game,home,-3.5,,,3.278353186592909,,Spread,ATS
+401845843,2026-02-07,Marshall Thundering Herd,Miami (OH) RedHawks,spreads,full_game,home,-4.5,,,4.3456856941005535,,Spread,ATS
+401845844,2026-02-07,Old Dominion Monarchs,Ohio Bobcats,spreads,full_game,home,-2.5,,,2.335237890815545,,Spread,ATS
+401845845,2026-02-07,South Alabama Jaguars,Buffalo Bulls,spreads,full_game,home,-3.0,,,3.1495766461889176,,Spread,ATS
+401845846,2026-02-07,Southern Miss Golden Eagles,Kent State Golden Flashes,spreads,full_game,home,-2.5,,,2.3965114122481896,,Spread,ATS
+401845847,2026-02-07,Texas State Bobcats,Western Michigan Broncos,spreads,full_game,home,-5.5,,,5.729024665553542,,Spread,ATS
+401845848,2026-02-07,Troy Trojans,Akron Zips,spreads,full_game,home,-3.5,,,3.5413869683147823,,Spread,ATS
+401825499,2026-02-07,Rutgers Scarlet Knights,Nebraska Cornhuskers,totals,full_game,under,,,,,,Total,OU
+401820728,2026-02-07,Virginia Cavaliers,Syracuse Orange,totals,full_game,under,,,,,,Total,OU
+401808222,2026-02-07,Mississippi State Bulldogs,Arkansas Razorbacks,totals,full_game,under,,,,,,Total,OU
 401820729,2026-02-07,Wake Forest Demon Deacons,Louisville Cardinals,totals,full_game,under,,,,,,Total,OU
-401828214,2026-02-07,East Carolina Pirates,Temple Owls,totals,full_game,over,,,,,,Total,OU
+401828214,2026-02-07,East Carolina Pirates,Temple Owls,totals,full_game,under,,,,,,Total,OU
