@@ -2249,10 +2249,23 @@ def simulate_game_row(
             if v:
                 use_time_aware_segments = _safe_bool(v)
             else:
-                # If tuned weights are provided, default to the point-allocation splitter
-                # so the weights actually affect the segment shape.
+                # If tuned 2-min weights are provided, default to the point-allocation
+                # splitter so the weights actually affect the segment shape.
                 if segment_probs_half1 is not None or segment_probs_half2 is not None:
-                    use_time_aware_segments = False
+                    size10 = False
+                    try:
+                        if segment_probs_half1 is not None and np.asarray(segment_probs_half1, dtype=float).reshape(-1).size == 10:
+                            size10 = True
+                        if segment_probs_half2 is not None and np.asarray(segment_probs_half2, dtype=float).reshape(-1).size == 10:
+                            size10 = True
+                    except Exception:
+                        size10 = False
+                    try:
+                        grid_min = int(_segments_grid_min_from_env())
+                    except Exception:
+                        grid_min = 5
+                    if size10 or int(grid_min) == 2:
+                        use_time_aware_segments = False
         except Exception:
             use_time_aware_segments = True
 
