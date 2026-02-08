@@ -37,6 +37,31 @@ PACE_MAX = 85.0
 HALF_FRAC_DEFAULT = 0.5
 
 
+def _hash_prob_vec_short(v: object) -> Optional[str]:
+    """Return a short, stable hash for a segment probability vector."""
+    try:
+        if v is None:
+            return None
+        a = np.asarray(v, dtype=float).reshape(-1)
+        if a.size <= 0:
+            return None
+        a = np.where(np.isfinite(a), a, 0.0)
+        # Stable text serialization (avoid platform-dependent float repr).
+        s = ",".join(f"{float(x):.10g}" for x in a.tolist())
+        return hashlib.sha256(s.encode("utf-8", errors="ignore")).hexdigest()[:12]
+    except Exception:
+        return None
+
+
+def _prob_vec_len(v: object) -> Optional[int]:
+    try:
+        if v is None:
+            return None
+        return int(np.asarray(v, dtype=float).reshape(-1).size)
+    except Exception:
+        return None
+
+
 def _resolve_half_frac(row: pd.Series) -> float:
     # Prefer explicit half fraction, then derive from projections/predictions/markets.
     try:
@@ -533,6 +558,11 @@ def _segment_quantiles_from_events_timeline(
 
     margin_thresh = int(_safe_float(os.getenv("NCAAB_LATE_MARGIN_THRESH")) or 3)
     close_margin = int(_safe_float(os.getenv("NCAAB_LATE_CLOSE_MARGIN")) or 2)
+    late_foul_max_abs_margin = int(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_MAX_ABS_MARGIN")) or 10, 2, 40))
+    late_foul_max_abs_margin_early = int(
+        np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_MAX_ABS_MARGIN_EARLY")) or 6, 1, late_foul_max_abs_margin)
+    )
+    late_foul_ramp_end_s = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_RAMP_END_SEC")) or 60.0, 5.0, late_foul_time_s))
 
     for i in range(n):
         # Possessions per team per half
@@ -595,6 +625,8 @@ def _segment_quantiles_from_events_timeline(
             adj_home = (to_h, ft_h, three_h)
             adj_away = (to_a, ft_a, three_a)
             dt_mult = 1.0
+            # Late-foul / clock effects: only plausible in close-ish games, and the maximum
+            # margin where fouling is active should widen as the clock gets lower.
             if enable_late_foul and time_remaining <= late_foul_time_s:
                 # Make adjustments conditional on BOTH margin and who has the ball.
                 # Heuristic intent:
@@ -602,47 +634,59 @@ def _segment_quantiles_from_events_timeline(
                 # - Trailing defense fouls more, which increases FT-trip for the LEADING offense.
                 # - Leading offense tends to burn clock.
 
-                # Close games: modestly faster possessions.
-                if abs(margin) <= close_margin:
-                    dt_mult = close_dt_mult
-
-                # Home has ball
-                if home_ball:
-                    if margin <= -margin_thresh:
-                        # Home trailing on offense: faster + more 3s.
-                        adj_home = (
-                            to_h,
-                            ft_h,
-                            min(0.48, three_h + trail_three_delta),
-                        )
-                        dt_mult = min(dt_mult, trail_dt_mult)
-                    elif margin >= margin_thresh:
-                        # Home leading on offense: away may foul -> more FTs for home; clock stoppages.
-                        adj_home = (
-                            float(np.clip(to_h + lead_to_delta, 0.11, 0.25)),
-                            float(np.clip(ft_h + lead_ft_delta, 0.06, 0.18)),
-                            float(np.clip(three_h + lead_three_delta, 0.25, 0.50)),
-                        )
-                        dt_mult = min(dt_mult, lead_dt_mult)
-
-                # Away has ball
+                # Ramp the max margin from an early (more conservative) value at ~2:00 remaining
+                # to the full value by ~1:00 remaining.
+                if late_foul_time_s > late_foul_ramp_end_s:
+                    ramp = float((late_foul_time_s - time_remaining) / (late_foul_time_s - late_foul_ramp_end_s))
                 else:
-                    if margin >= margin_thresh:
-                        # Away trailing on offense: faster + more 3s.
-                        adj_away = (
-                            to_a,
-                            ft_a,
-                            min(0.48, three_a + trail_three_delta),
-                        )
-                        dt_mult = min(dt_mult, trail_dt_mult)
-                    elif margin <= -margin_thresh:
-                        # Away leading on offense: home may foul -> more FTs for away; clock stoppages.
-                        adj_away = (
-                            float(np.clip(to_a + lead_to_delta, 0.11, 0.25)),
-                            float(np.clip(ft_a + lead_ft_delta, 0.06, 0.18)),
-                            float(np.clip(three_a + lead_three_delta, 0.25, 0.50)),
-                        )
-                        dt_mult = min(dt_mult, lead_dt_mult)
+                    ramp = 1.0
+                ramp = float(np.clip(ramp, 0.0, 1.0))
+                eff_max_margin = int(round(late_foul_max_abs_margin_early + ramp * (late_foul_max_abs_margin - late_foul_max_abs_margin_early)))
+                if abs(margin) > eff_max_margin:
+                    pass
+                else:
+
+                    # Close games: modestly faster possessions.
+                    if abs(margin) <= close_margin:
+                        dt_mult = close_dt_mult
+
+                    # Home has ball
+                    if home_ball:
+                        if margin <= -margin_thresh:
+                            # Home trailing on offense: faster + more 3s.
+                            adj_home = (
+                                to_h,
+                                ft_h,
+                                min(0.48, three_h + trail_three_delta),
+                            )
+                            dt_mult = min(dt_mult, trail_dt_mult)
+                        elif margin >= margin_thresh:
+                            # Home leading on offense: away may foul -> more FTs for home; clock stoppages.
+                            adj_home = (
+                                float(np.clip(to_h + lead_to_delta, 0.11, 0.25)),
+                                float(np.clip(ft_h + lead_ft_delta, 0.06, 0.18)),
+                                float(np.clip(three_h + lead_three_delta, 0.25, 0.50)),
+                            )
+                            dt_mult = min(dt_mult, lead_dt_mult)
+
+                    # Away has ball
+                    else:
+                        if margin >= margin_thresh:
+                            # Away trailing on offense: faster + more 3s.
+                            adj_away = (
+                                to_a,
+                                ft_a,
+                                min(0.48, three_a + trail_three_delta),
+                            )
+                            dt_mult = min(dt_mult, trail_dt_mult)
+                        elif margin <= -margin_thresh:
+                            # Away leading on offense: home may foul -> more FTs for away; clock stoppages.
+                            adj_away = (
+                                float(np.clip(to_a + lead_to_delta, 0.11, 0.25)),
+                                float(np.clip(ft_a + lead_ft_delta, 0.06, 0.18)),
+                                float(np.clip(three_a + lead_three_delta, 0.25, 0.50)),
+                            )
+                            dt_mult = min(dt_mult, lead_dt_mult)
 
             dt = float(rng.gamma(shape, scale_2h))
             dt = float(np.clip(dt * dt_mult, 4.0, 40.0))
@@ -970,6 +1014,62 @@ def _segment_grid_quantiles_from_points(
             rng=rng,
         )
 
+    # Optional late-game shaping for 2-min point-allocation segments.
+    # This is a lightweight way to make the final 2-minute segment share depend on
+    # the (simulated) game closeness, without switching to time-aware segments.
+    #
+    # Disabled by default to preserve existing behavior.
+    try:
+        enable_late_alloc_shape = _safe_bool(os.environ.get("NCAAB_LATE_ALLOC_SHAPE"))
+    except Exception:
+        enable_late_alloc_shape = False
+    try:
+        late_alloc_close_max = int(_safe_float(os.environ.get("NCAAB_LATE_ALLOC_CLOSE_MAX")) or 6)
+    except Exception:
+        late_alloc_close_max = 6
+    try:
+        late_alloc_blowout_min = int(_safe_float(os.environ.get("NCAAB_LATE_ALLOC_BLOWOUT_MIN")) or 14)
+    except Exception:
+        late_alloc_blowout_min = 14
+    try:
+        late_alloc_last_mult_close = float(_safe_float(os.environ.get("NCAAB_LATE_ALLOC_LAST_MULT_CLOSE")) or 1.12)
+    except Exception:
+        late_alloc_last_mult_close = 1.12
+    try:
+        late_alloc_last_mult_blowout = float(_safe_float(os.environ.get("NCAAB_LATE_ALLOC_LAST_MULT_BLOWOUT")) or 0.88)
+    except Exception:
+        late_alloc_last_mult_blowout = 0.88
+
+    late_alloc_close_max = int(max(0, late_alloc_close_max))
+    late_alloc_blowout_min = int(max(late_alloc_close_max + 1, late_alloc_blowout_min))
+    late_alloc_last_mult_close = float(np.clip(late_alloc_last_mult_close, 0.50, 2.00))
+    late_alloc_last_mult_blowout = float(np.clip(late_alloc_last_mult_blowout, 0.25, 1.50))
+
+    def _shape_2h_probs_for_sample(abs_margin: int) -> np.ndarray:
+        if not enable_late_alloc_shape:
+            return probs_2h_2
+        try:
+            am = int(max(0, abs_margin))
+        except Exception:
+            am = 0
+        if am <= late_alloc_close_max:
+            mult = late_alloc_last_mult_close
+        elif am >= late_alloc_blowout_min:
+            mult = late_alloc_last_mult_blowout
+        else:
+            # Linear interpolation between close and blowout multipliers.
+            denom = float(max(1, (late_alloc_blowout_min - late_alloc_close_max)))
+            t = float((am - late_alloc_close_max) / denom)
+            t = float(np.clip(t, 0.0, 1.0))
+            mult = float((1.0 - t) * late_alloc_last_mult_close + t * late_alloc_last_mult_blowout)
+
+        p = np.asarray(probs_2h_2, dtype=float).copy()
+        p[-1] = float(max(0.0, p[-1] * mult))
+        s = float(p.sum())
+        if s <= 0:
+            return probs_2h_2
+        return (p / s).astype(float)
+
     def _to_nonneg_int(x: float) -> int:
         try:
             if not np.isfinite(x):
@@ -1093,8 +1193,10 @@ def _segment_grid_quantiles_from_points(
 
         home_seg_pts[i, 0:10] = rng.multinomial(h1_pts, probs_1h_2)
         away_seg_pts[i, 0:10] = rng.multinomial(a1_pts, probs_1h_2)
-        home_seg_pts[i, 10:20] = rng.multinomial(h2_pts, probs_2h_2)
-        away_seg_pts[i, 10:20] = rng.multinomial(a2_pts, probs_2h_2)
+
+        probs_2h_i = _shape_2h_probs_for_sample(abs(h_full_pts - a_full_pts))
+        home_seg_pts[i, 10:20] = rng.multinomial(h2_pts, probs_2h_i)
+        away_seg_pts[i, 10:20] = rng.multinomial(a2_pts, probs_2h_i)
 
         if home_seg_metrics:
             for m, hseg in home_seg_metrics.items():
@@ -1108,8 +1210,8 @@ def _segment_grid_quantiles_from_points(
 
                 hseg[i, 0:10] = rng.multinomial(one_h, probs_1h_2)
                 away_seg_metrics[m][i, 0:10] = rng.multinomial(one_a, probs_1h_2)
-                hseg[i, 10:20] = rng.multinomial(two_h, probs_2h_2)
-                away_seg_metrics[m][i, 10:20] = rng.multinomial(two_a, probs_2h_2)
+                hseg[i, 10:20] = rng.multinomial(two_h, probs_2h_i)
+                away_seg_metrics[m][i, 10:20] = rng.multinomial(two_a, probs_2h_i)
 
     home_cum = np.cumsum(home_seg_pts, axis=1)
     away_cum = np.cumsum(away_seg_pts, axis=1)
@@ -2242,6 +2344,7 @@ def simulate_game_row(
         sigma_margin_2h_s = float(max(1e-6, float(np.std(margins_2h, ddof=1))))
 
         use_time_aware_segments = True
+        segments_grid_min_used = None
         try:
             # Set NCAAB_SEGMENTS_TIME_AWARE explicitly to override.
             raw = os.environ.get("NCAAB_SEGMENTS_TIME_AWARE")
@@ -2262,12 +2365,20 @@ def simulate_game_row(
                         size10 = False
                     try:
                         grid_min = int(_segments_grid_min_from_env())
+                        segments_grid_min_used = int(grid_min)
                     except Exception:
                         grid_min = 5
+                        segments_grid_min_used = int(grid_min)
                     if size10 or int(grid_min) == 2:
                         use_time_aware_segments = False
         except Exception:
             use_time_aware_segments = True
+
+        if segments_grid_min_used is None:
+            try:
+                segments_grid_min_used = int(_segments_grid_min_from_env())
+            except Exception:
+                segments_grid_min_used = 5
 
         # If we have explicit 1H calibration deltas, time-aware segments would ignore the
         # calibrated 1H distribution (it re-simulates its own possession timeline).
@@ -2360,6 +2471,12 @@ def simulate_game_row(
             "sim_ok": True,
             "sim_method": "events",
             "sim_engine": "events",
+            "segments_grid_min": int(segments_grid_min_used) if segments_grid_min_used is not None else None,
+            "segments_mode": "time_aware" if bool(use_time_aware_segments) else "points_alloc",
+            "segment_probs_half1_len": _prob_vec_len(segment_probs_half1),
+            "segment_probs_half2_len": _prob_vec_len(segment_probs_half2),
+            "segment_probs_half1_hash": _hash_prob_vec_short(segment_probs_half1),
+            "segment_probs_half2_hash": _hash_prob_vec_short(segment_probs_half2),
             "mean_source": (mean_source or "auto"),
             "mean_source_used": mean_source_used,
             **mean_trace,
@@ -2640,11 +2757,13 @@ def simulate_game_row(
             p_home_win_1h = None
 
         segment_rows = None
+        segments_grid_min_used = None
         try:
             try:
                 grid_min_pts = _segments_grid_min_from_env()
             except Exception:
                 grid_min_pts = 5
+            segments_grid_min_used = int(grid_min_pts)
             segment_rows = _segment_grid_quantiles_from_points(
                 home_pts=home_pts,
                 away_pts=away_pts,
@@ -2663,6 +2782,12 @@ def simulate_game_row(
             "sim_method": "pace",
             "mean_source": (mean_source or "auto"),
             "mean_source_used": mean_source_used,
+            "segments_grid_min": int(segments_grid_min_used) if segments_grid_min_used is not None else None,
+            "segments_mode": "points_alloc",
+            "segment_probs_half1_len": _prob_vec_len(segment_probs_half1),
+            "segment_probs_half2_len": _prob_vec_len(segment_probs_half2),
+            "segment_probs_half1_hash": _hash_prob_vec_short(segment_probs_half1),
+            "segment_probs_half2_hash": _hash_prob_vec_short(segment_probs_half2),
             **mean_trace,
             "pace_mu": pace_mu_used,
             "pace_sigma": pace_sigma_used,
@@ -2875,11 +3000,13 @@ def simulate_game_row(
         p_cover_home_1h = float(np.mean(margins_1h + float(spread_home_1h) > 0))
 
     segment_rows = None
+    segments_grid_min_used = None
     try:
         try:
             grid_min_pts = _segments_grid_min_from_env()
         except Exception:
             grid_min_pts = 5
+        segments_grid_min_used = int(grid_min_pts)
         segment_rows = _segment_grid_quantiles_from_points(
             home_pts=home_pts,
             away_pts=away_pts,
@@ -2898,6 +3025,12 @@ def simulate_game_row(
         "sim_method": "points",
         "mean_source": (mean_source or "auto"),
         "mean_source_used": mean_source_used,
+        "segments_grid_min": int(segments_grid_min_used) if segments_grid_min_used is not None else None,
+        "segments_mode": "points_alloc",
+        "segment_probs_half1_len": _prob_vec_len(segment_probs_half1),
+        "segment_probs_half2_len": _prob_vec_len(segment_probs_half2),
+        "segment_probs_half1_hash": _hash_prob_vec_short(segment_probs_half1),
+        "segment_probs_half2_hash": _hash_prob_vec_short(segment_probs_half2),
         **mean_trace,
         "rho_used": rho_used,
         "sigma_total": float(sigma_total),
@@ -3506,6 +3639,10 @@ def run_simulations_for_date(out_dir: Path, date: str,
     team_seg_global_h1 = None
     team_seg_global_h2 = None
     team_seg_by_team: dict[str, dict] = {}
+    seg_weights_path_used = None
+    seg_weights_load_error = None
+    team_weights_path_used = None
+    team_weights_load_error = None
     try:
         import os
 
@@ -3523,9 +3660,15 @@ def run_simulations_for_date(out_dir: Path, date: str,
             try:
                 if p.exists():
                     wobj = json.loads(p.read_text(encoding="utf-8"))
+                    seg_weights_path_used = str(p)
                     break
-            except Exception:
+            except Exception as e:
+                if seg_weights_load_error is None:
+                    seg_weights_load_error = f"{p}: {repr(e)}"
                 continue
+
+        if wobj is None and seg_weights_load_error is None:
+            seg_weights_load_error = "segment_weights_not_found"
 
         if isinstance(wobj, dict):
             h1 = wobj.get("half1")
@@ -3536,15 +3679,34 @@ def run_simulations_for_date(out_dir: Path, date: str,
             if isinstance(h2, list) and len(h2) in {4, 10}:
                 if int(grid_min_cfg) == 2 or len(h2) == 4:
                     seg_probs_half2 = np.asarray(h2, dtype=float)
-    except Exception:
-        seg_probs_half1 = None
-        seg_probs_half2 = None
+    except Exception as e:
+        try:
+            seg_weights_load_error = repr(e)
+        except Exception:
+            seg_weights_load_error = "segment_weights_load_failed"
 
     # Optional per-team tuned 2-min segment weights.
     # Format: {"global": {"half1": [10], "half2": [10]}, "teams": {"team": {"half1": [10], "half2": [10]}}}
+    # Can be disabled via env for A/B testing.
     if int(grid_min_cfg) == 2:
         try:
             import os
+
+            # Back-compat / convenience flag: if explicitly provided and falsey, disable.
+            # (Primary switch remains NCAAB_DISABLE_TEAM_SEGMENT_WEIGHTS.)
+            try:
+                raw_use = (os.environ.get("NCAAB_USE_TEAM_SEGMENT_WEIGHTS_2MIN") or "").strip()
+                if raw_use and (not _safe_bool(raw_use)):
+                    team_weights_load_error = "team_segment_weights_disabled"
+                    raise StopIteration("skip")
+            except StopIteration:
+                raise
+            except Exception:
+                pass
+
+            if _safe_bool(os.environ.get("NCAAB_DISABLE_TEAM_SEGMENT_WEIGHTS")):
+                team_weights_load_error = "team_segment_weights_disabled"
+                raise StopIteration("skip")
 
             twpath = (os.environ.get("NCAAB_TEAM_SEGMENT_WEIGHTS_2MIN_PATH") or "").strip()
             candidates_tw: list[Path] = []
@@ -3563,9 +3725,15 @@ def run_simulations_for_date(out_dir: Path, date: str,
                 try:
                     if p.exists():
                         twobj = json.loads(p.read_text(encoding="utf-8"))
+                        team_weights_path_used = str(p)
                         break
-                except Exception:
+                except Exception as e:
+                    if team_weights_load_error is None:
+                        team_weights_load_error = f"{p}: {repr(e)}"
                     continue
+
+            if twobj is None and team_weights_load_error is None:
+                team_weights_load_error = "team_segment_weights_not_found"
 
             if isinstance(twobj, dict):
                 g = twobj.get("global")
@@ -3580,10 +3748,15 @@ def run_simulations_for_date(out_dir: Path, date: str,
                 if isinstance(teams, dict):
                     # keys are already normalized lowercase in the tuner
                     team_seg_by_team = {str(k).strip().lower(): v for k, v in teams.items() if k is not None}
-        except Exception:
-            team_seg_global_h1 = None
-            team_seg_global_h2 = None
-            team_seg_by_team = {}
+        except StopIteration:
+            # Expected skip when disabled.
+            pass
+        except Exception as e:
+            if team_weights_load_error is None:
+                try:
+                    team_weights_load_error = repr(e)
+                except Exception:
+                    team_weights_load_error = "team_segment_weights_load_failed"
     id_col, home_col, away_col = _resolve_keys(preds)
     for _, r in preds.iterrows():
 
@@ -3603,6 +3776,7 @@ def run_simulations_for_date(out_dir: Path, date: str,
 
         seg_probs_half1_row = seg_probs_half1
         seg_probs_half2_row = seg_probs_half2
+        seg_probs_source = "base"
         if int(grid_min_cfg) == 2 and team_seg_global_h1 is not None and team_seg_global_h2 is not None:
             try:
                 ht_key = _norm_team_key(r.get("home_team") if "home_team" in preds.columns else r.get(home_col))
@@ -3637,9 +3811,17 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     w2 = (w2 / s2).astype(float)
                 seg_probs_half1_row = w1
                 seg_probs_half2_row = w2
+                seg_probs_source = "team"
             except Exception:
                 seg_probs_half1_row = seg_probs_half1
                 seg_probs_half2_row = seg_probs_half2
+                seg_probs_source = "base"
+
+        # Observability: capture which vectors we actually passed for this row.
+        seg_h1_hash = _hash_prob_vec_short(seg_probs_half1_row)
+        seg_h2_hash = _hash_prob_vec_short(seg_probs_half2_row)
+        seg_h1_len = _prob_vec_len(seg_probs_half1_row)
+        seg_h2_len = _prob_vec_len(seg_probs_half2_row)
         sim_res = simulate_game_row(
             r,
             rho=rho_eff,
@@ -3671,6 +3853,11 @@ def run_simulations_for_date(out_dir: Path, date: str,
                 "start_time_local": r.get("start_time_local"),
                 "start_time_iso": r.get("start_time_iso"),
                 "start_tz_abbr": r.get("start_tz_abbr"),
+                "segment_probs_source": seg_probs_source,
+                "segment_probs_half1_len_passed": seg_h1_len,
+                "segment_probs_half2_len_passed": seg_h2_len,
+                "segment_probs_half1_hash_passed": seg_h1_hash,
+                "segment_probs_half2_hash_passed": seg_h2_hash,
             }
             for sr in seg_rows:
                 if isinstance(sr, dict):
@@ -3685,6 +3872,16 @@ def run_simulations_for_date(out_dir: Path, date: str,
             "start_time_iso": r.get("start_time_iso"),
             "start_time_local": r.get("start_time_local"),
             "start_tz_abbr": r.get("start_tz_abbr"),
+            "segments_grid_min_cfg": int(grid_min_cfg),
+            "segment_weights_path_used": seg_weights_path_used,
+            "segment_weights_load_error": seg_weights_load_error,
+            "team_segment_weights_path_used": team_weights_path_used,
+            "team_segment_weights_load_error": team_weights_load_error,
+            "segment_probs_source": seg_probs_source,
+            "segment_probs_half1_len_passed": seg_h1_len,
+            "segment_probs_half2_len_passed": seg_h2_len,
+            "segment_probs_half1_hash_passed": seg_h1_hash,
+            "segment_probs_half2_hash_passed": seg_h2_hash,
             "neutral_site": _pick_first_nonnull("neutral_site", "neutral_site_y", "neutral_site_x"),
             "venue": r.get("venue"),
             "rest_home": r.get("rest_home"),
@@ -3831,7 +4028,11 @@ def run_simulations_for_date(out_dir: Path, date: str,
                                     norm_bias[kk] = vv
 
                             if norm_bias:
-                                seg_df["_bias_hat"] = seg_df["end_min"].map(norm_bias)
+                                # IMPORTANT: the bias map is typically defined only on the 5-min grid.
+                                # When we emit 2-min endpoints, most rows will not have an entry.
+                                # Treat missing bias as 0.0 (no correction) rather than NaN-ing out
+                                # the entire column via arithmetic with NaNs.
+                                seg_df["_bias_hat"] = seg_df["end_min"].map(norm_bias).fillna(0.0)
                                 for col in cols:
                                     seg_df[col] = seg_df[col] - seg_df["_bias_hat"]
                                 seg_df = seg_df.drop(columns=["_bias_hat"], errors="ignore")
@@ -3993,6 +4194,14 @@ def run_simulations_for_date(out_dir: Path, date: str,
             "rho_effective": float(rho_eff),
             "use_pace": bool(use_pace),
             "pace_sigma": float(pace_sigma),
+            "segments_grid_min_cfg": int(grid_min_cfg) if 'grid_min_cfg' in locals() else None,
+            "segments_time_aware_env": (os.environ.get("NCAAB_SEGMENTS_TIME_AWARE") if "os" in globals() else None),
+            "segments_grid_min_env": (os.environ.get("NCAAB_SEGMENTS_GRID_MIN") if "os" in globals() else None),
+            "team_segment_weights_disabled_env": (os.environ.get("NCAAB_DISABLE_TEAM_SEGMENT_WEIGHTS") if "os" in globals() else None),
+            "segment_weights_path_used": seg_weights_path_used if 'seg_weights_path_used' in locals() else None,
+            "segment_weights_load_error": seg_weights_load_error if 'seg_weights_load_error' in locals() else None,
+            "team_segment_weights_path_used": team_weights_path_used if 'team_weights_path_used' in locals() else None,
+            "team_segment_weights_load_error": team_weights_load_error if 'team_weights_load_error' in locals() else None,
             "injuries_path": str(injuries_path) if injuries_path is not None else None,
             "sim_calibration_path": str(calib_path),
             "sim_calibration_sha256": sim_calibration_sha256,
@@ -4001,8 +4210,6 @@ def run_simulations_for_date(out_dir: Path, date: str,
             "mean_source": str(mean_source),
             "allow_market_guardrails": bool(allow_market_guardrails),
         }
-        import json
-
         meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8")
     except Exception:
         pass

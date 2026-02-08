@@ -1,0 +1,13 @@
+{
+  "algo": "lightgbm",
+  "pred_iqr": 17.387189218726128,
+  "pred_max": 56.44263470237717,
+  "pred_min": -41.31274646090193,
+  "pred_std": 14.362742679022569,
+  "pred_variance": 206.28837726381641,
+  "split": "random",
+  "status": "ok",
+  "target": "margin",
+  "test_size": 840,
+  "timestamp_utc": "2026-02-08T14:15:53.522233"
+}
