@@ -31,3 +31,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401829338,2026-02-08,Wyoming Cowboys,Utah State Aggies,spreads,full_game,away,-5.5,,,-5.482455466915481,,Spread,ATS
 401830778,2026-02-08,Michigan State Spartans,Illinois Fighting Illini,spreads,full_game,home,-4.5,,,4.339651956403988,,Spread,ATS
 401845844,2026-02-08,Old Dominion Monarchs,Ohio Bobcats,spreads,full_game,home,-0.0,,,0.174555742044391,,Spread,ATS
+401828218,2026-02-08,South Florida Bulls,Tulsa Golden Hurricane,totals,full_game,under,,,,,,Total,OU
+401825504,2026-02-08,Penn State Nittany Lions,USC Trojans,totals,full_game,under,,,,,,Total,OU
+401825503,2026-02-08,Ohio State Buckeyes,Michigan Wolverines,totals,full_game,under,,,,,,Total,OU
+401827672,2026-02-08,West Virginia Mountaineers,Texas Tech Red Raiders,totals,full_game,under,,,,,,Total,OU
+401809359,2026-02-08,Furman Paladins,UNC Greensboro Spartans,totals,full_game,under,,,,,,Total,OU
