@@ -404,10 +404,14 @@
                   <div class="note muted">1H scores use 1H totals/margins (sim uses 1H sim quantiles when available; otherwise falls back to proportional scaling).</div>
                 </div>
 
-                {% if r.has_segments_5min is defined and r.has_segments_5min and (r.segments_5min is defined) and r.segments_5min %}
+                {% set segs_1h = (r.segments_2min if (r.has_segments_2min is defined and r.has_segments_2min and (r.segments_2min is defined) and r.segments_2min) else r.segments_5min) %}
+                {% set recon_1h = (r.segments_2min_recon if (r.has_segments_2min_recon is defined and r.has_segments_2min_recon and (r.segments_2min_recon is defined) and r.segments_2min_recon) else (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon) else [])) %}
+                {% set roll_1h = (r.segments_rollup_2min if (r.has_segments_2min is defined and r.has_segments_2min and (r.segments_rollup_2min is defined) and r.segments_rollup_2min) else r.segments_rollup) %}
+
+                {% if segs_1h is defined and segs_1h %}
                   <div class="section-block">
                     <details open>
-                      <summary class="section-title">1H 5-min Interval</summary>
+                      <summary class="section-title">1H Interval</summary>
 
                       <div class="live-lens-wrap muted m4v8">
                         <div class="note muted">Live lens (1H; enter minutes remaining + score; optional live total):</div>
@@ -436,12 +440,12 @@
                           <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
                           <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
                         </div>
-                        <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'segments': r.segments_5min, 'recon': (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon) else [])} | tojson }}</script>
+                        <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'segments': segs_1h, 'recon': recon_1h} | tojson }}</script>
                       </div>
 
                       <div class="muted m4v8">
                         Cum total (q50) at end-minute:
-                        {% for s in r.segments_5min %}
+                        {% for s in segs_1h %}
                           {% if (s.end_min is defined and s.end_min is not none) and (s.end_min <= 20) and (s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end) %}
                             {% set _tag = ('1H' if (s.end_min == 20) else '') %}
                             <span class="pill small">{{ s.end_min }}{% if _tag %} ({{ _tag }}){% endif %}: {{ '%.0f' % s.q50_total_score_end }}</span>
@@ -449,10 +453,10 @@
                         {% endfor %}
                       </div>
 
-                      {% if r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon %}
+                      {% if recon_1h is defined and recon_1h %}
                         <div class="muted m4v8">
                           Actual cum (H/A) + Δ(total) at end-minute:
-                          {% for x in r.segments_5min_recon %}
+                          {% for x in recon_1h %}
                             {% if (x.end_min is defined and x.end_min is not none) and (x.end_min <= 20) and (x.actual_total_score_end is defined and x.actual_total_score_end is not none) %}
                               {% set _tag = ('1H' if (x.end_min == 20) else '') %}
                               <span class="pill small">
@@ -465,27 +469,27 @@
                             {% endif %}
                           {% endfor %}
                         </div>
-                        <div class="note muted">Δ is (Sim q50 cumulative total) − (Actual cumulative total) at each 5-min endpoint (from cached ESPN play-by-play).</div>
+                        <div class="note muted">Δ is (Sim q50 cumulative total) − (Actual cumulative total) at each endpoint (from cached ESPN play-by-play).</div>
                       {% else %}
-                        <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD --include-ot-endpoints</span> (uses cached ESPN PBP when available).</div>
+                        <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-2min --date YYYY-MM-DD</span> (or <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD --include-ot-endpoints</span>).</div>
                       {% endif %}
 
-                      {% if r.segments_rollup is defined and r.segments_rollup %}
+                      {% if roll_1h is defined and roll_1h %}
                         <div class="muted m4v8">
                           Boxscore μ rollup:
-                          <span class="pill small" title="1H totals from 5-min segments">
-                            1H poss {% if r.segments_rollup.mu_total_poss_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_poss_1h }}{% else %}–{% endif %}
-                            · tov {% if r.segments_rollup.mu_total_tov_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_tov_1h }}{% else %}–{% endif %}
-                            · fta {% if r.segments_rollup.mu_total_fta_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fta_1h }}{% else %}–{% endif %}
-                            · 2pa {% if r.segments_rollup.mu_total_fga2_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga2_1h }}{% else %}–{% endif %}
-                            · 3pa {% if r.segments_rollup.mu_total_fga3_1h is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga3_1h }}{% else %}–{% endif %}
+                          <span class="pill small" title="1H totals from segments">
+                            1H poss {% if roll_1h.mu_total_poss_1h is not none %}{{ '%.1f' % roll_1h.mu_total_poss_1h }}{% else %}–{% endif %}
+                            · tov {% if roll_1h.mu_total_tov_1h is not none %}{{ '%.1f' % roll_1h.mu_total_tov_1h }}{% else %}–{% endif %}
+                            · fta {% if roll_1h.mu_total_fta_1h is not none %}{{ '%.1f' % roll_1h.mu_total_fta_1h }}{% else %}–{% endif %}
+                            · 2pa {% if roll_1h.mu_total_fga2_1h is not none %}{{ '%.1f' % roll_1h.mu_total_fga2_1h }}{% else %}–{% endif %}
+                            · 3pa {% if roll_1h.mu_total_fga3_1h is not none %}{{ '%.1f' % roll_1h.mu_total_fga3_1h }}{% else %}–{% endif %}
                           </span>
                         </div>
                       {% endif %}
                       <div class="detailed-only">
                         <div class="mini-table">
                           <div class="mini-head">Seg</div><div class="mini-head">Tot pts (μ)</div><div class="mini-head">Tot pts (q10–q90)</div><div class="mini-head">Cum tot (μ)</div><div class="mini-head">Cum tot (q50)</div><div class="mini-head">Poss</div><div class="mini-head">TOV</div><div class="mini-head">FTA</div><div class="mini-head">2PA</div><div class="mini-head">3PA</div>
-                          {% for s in r.segments_5min %}
+                          {% for s in segs_1h %}
                             {% if s.end_min is defined and s.end_min is not none and s.end_min <= 20 %}
                               {% set seg_label = ( (s.start_min|string) ~ '–' ~ (s.end_min|string) ) if (s.start_min is defined and s.end_min is defined and s.start_min is not none and s.end_min is not none) else ('Seg ' ~ (s.segment|string)) %}
                               <div class="mini-cell source">{{ seg_label }}</div>
@@ -650,10 +654,14 @@
                 </div>
               </div>
 
-                {% if r.has_segments_5min is defined and r.has_segments_5min and (r.segments_5min is defined) and r.segments_5min %}
+                {% set segs_g = (r.segments_2min if (r.has_segments_2min is defined and r.has_segments_2min and (r.segments_2min is defined) and r.segments_2min) else r.segments_5min) %}
+                {% set recon_g = (r.segments_2min_recon if (r.has_segments_2min_recon is defined and r.has_segments_2min_recon and (r.segments_2min_recon is defined) and r.segments_2min_recon) else (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon) else [])) %}
+                {% set roll_g = (r.segments_rollup_2min if (r.has_segments_2min is defined and r.has_segments_2min and (r.segments_rollup_2min is defined) and r.segments_rollup_2min) else r.segments_rollup) %}
+
+                {% if segs_g is defined and segs_g %}
                   <div class="section-block">
                     <details open>
-                      <summary class="section-title">Full Game 5-min Interval</summary>
+                      <summary class="section-title">Full Game Interval</summary>
 
                     <div class="live-lens-wrap muted m4v8">
                       <div class="note muted">Live lens (full game; enter minutes remaining + score; optional live total):</div>
@@ -682,12 +690,12 @@
                         <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
                         <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
                       </div>
-                      <script type="application/json" class="live-lens-data">{{ {'horizon': 40, 'segments': r.segments_5min, 'recon': (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon) else [])} | tojson }}</script>
+                      <script type="application/json" class="live-lens-data">{{ {'horizon': 40, 'segments': segs_g, 'recon': recon_g} | tojson }}</script>
                     </div>
 
                     <div class="muted m4v8">
                       Cum total (q50) at end-minute:
-                      {% for s in r.segments_5min %}
+                      {% for s in segs_g %}
                         {% if (s.end_min is defined and s.end_min is not none) and (s.end_min <= 40) and (s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end) %}
                           {% set _tag = ('G' if (s.end_min == 40) else ('1H' if (s.end_min == 20) else '')) %}
                           <span class="pill small">{{ s.end_min }}{% if _tag %} ({{ _tag }}){% endif %}: {{ '%.0f' % s.q50_total_score_end }}</span>
@@ -695,7 +703,7 @@
                       {% endfor %}
                     </div>
 
-                    {% if r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon %}
+                    {% if recon_g is defined and recon_g %}
                       {% if r.is_ot_game is defined and r.is_ot_game and (r.reg_total_40 is defined and r.reg_total_40 is not none) and (r.final_total_incl_ot is defined and r.final_total_incl_ot is not none) %}
                         <div class="muted m4v8">
                           OT impact:
@@ -714,7 +722,7 @@
                       {% endif %}
                       <div class="muted m4v8">
                         Actual cum (H/A) + Δ(total) at end-minute:
-                        {% for x in r.segments_5min_recon %}
+                        {% for x in recon_g %}
                           {% if (x.end_min is defined and x.end_min is not none) and (x.actual_total_score_end is defined and x.actual_total_score_end is not none) %}
                             {% set _tag = ('1H' if (x.end_min == 20) else ('G' if (x.end_min == 40) else ('OT' if (x.end_min > 40) else ''))) %}
                             {% if x.end_min <= 40 or x.end_min > 40 %}
@@ -729,27 +737,27 @@
                           {% endif %}
                         {% endfor %}
                       </div>
-                      <div class="note muted">Δ is (Sim q50 cumulative total) − (Actual cumulative total) at each 5-min endpoint (from cached ESPN play-by-play).</div>
+                      <div class="note muted">Δ is (Sim q50 cumulative total) − (Actual cumulative total) at each endpoint (from cached ESPN play-by-play).</div>
                     {% else %}
-                      <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD --include-ot-endpoints</span> (uses cached ESPN PBP when available).</div>
+                      <div class="note muted">No interval actuals loaded. To generate: run <span class="pill small">ncaab build-interval-actuals-2min --date YYYY-MM-DD</span> (or <span class="pill small">ncaab build-interval-actuals-5min --date YYYY-MM-DD --include-ot-endpoints</span>).</div>
                     {% endif %}
 
-                    {% if r.segments_rollup is defined and r.segments_rollup %}
+                    {% if roll_g is defined and roll_g %}
                       <div class="muted m4v8">
                         Boxscore μ rollup:
-                        <span class="pill small" title="Full game totals from 5-min segments">
-                          G poss {% if r.segments_rollup.mu_total_poss_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_poss_g }}{% else %}–{% endif %}
-                          · tov {% if r.segments_rollup.mu_total_tov_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_tov_g }}{% else %}–{% endif %}
-                          · fta {% if r.segments_rollup.mu_total_fta_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fta_g }}{% else %}–{% endif %}
-                          · 2pa {% if r.segments_rollup.mu_total_fga2_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga2_g }}{% else %}–{% endif %}
-                          · 3pa {% if r.segments_rollup.mu_total_fga3_g is not none %}{{ '%.1f' % r.segments_rollup.mu_total_fga3_g }}{% else %}–{% endif %}
+                        <span class="pill small" title="Full game totals from segments">
+                          G poss {% if roll_g.mu_total_poss_g is not none %}{{ '%.1f' % roll_g.mu_total_poss_g }}{% else %}–{% endif %}
+                          · tov {% if roll_g.mu_total_tov_g is not none %}{{ '%.1f' % roll_g.mu_total_tov_g }}{% else %}–{% endif %}
+                          · fta {% if roll_g.mu_total_fta_g is not none %}{{ '%.1f' % roll_g.mu_total_fta_g }}{% else %}–{% endif %}
+                          · 2pa {% if roll_g.mu_total_fga2_g is not none %}{{ '%.1f' % roll_g.mu_total_fga2_g }}{% else %}–{% endif %}
+                          · 3pa {% if roll_g.mu_total_fga3_g is not none %}{{ '%.1f' % roll_g.mu_total_fga3_g }}{% else %}–{% endif %}
                         </span>
                       </div>
                     {% endif %}
                     <div class="detailed-only">
                       <div class="mini-table">
                         <div class="mini-head">Seg</div><div class="mini-head">Tot pts (μ)</div><div class="mini-head">Tot pts (q10–q90)</div><div class="mini-head">Cum tot (μ)</div><div class="mini-head">Cum tot (q50)</div><div class="mini-head">Poss</div><div class="mini-head">TOV</div><div class="mini-head">FTA</div><div class="mini-head">2PA</div><div class="mini-head">3PA</div>
-                        {% for s in r.segments_5min %}
+                        {% for s in segs_g %}
                           {% if s.end_min is defined and s.end_min is not none and s.end_min <= 40 %}
                             {% set seg_label = ( (s.start_min|string) ~ '–' ~ (s.end_min|string) ) if (s.start_min is defined and s.end_min is defined and s.start_min is not none and s.end_min is not none) else ('Seg ' ~ (s.segment|string)) %}
                             <div class="mini-cell source">{{ seg_label }}</div>

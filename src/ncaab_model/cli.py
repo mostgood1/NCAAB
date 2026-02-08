@@ -815,6 +815,85 @@ def backtest_segments_5min(
         raise typer.Exit(code=1)
 
 
+@app.command(name="backtest-segments-2min")
+def backtest_segments_2min(
+    start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
+    end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
+    engine: str = typer.Option("events", help="Simulation engine used to (re)compute sims when needed: events|normal|auto"),
+    samples: int = typer.Option(2000, help="Monte Carlo samples per game (used when recomputing sims)"),
+    rho: float = typer.Option(0.25, help="Total/margin correlation used by non-event fallback pieces"),
+    recompute_sims: bool = typer.Option(False, help="Recompute sim_quantiles/sim_segments even if they already exist"),
+    use_cache: bool = typer.Option(True, help="Use cached ESPN play-by-play responses when available"),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests (rate-limit friendly)"),
+    max_games: int = typer.Option(0, help="If >0, limit the number of games processed (debug/smoke)"),
+    out_prefix: str = typer.Option("segments_2min", help="Outputs/backtests/<prefix>_<start>_to_<end>.*"),
+    sim_segments_prefix: str = typer.Option(
+        "sim_segments_2min_",
+        help=(
+            "Prefix for outputs/<prefix><date>.csv segment files (default sim_segments_2min_). "
+            "Use this for controlled A/B runs without overwriting other segment artifacts."
+        ),
+    ),
+    sim_quantiles_prefix: str = typer.Option(
+        "sim_quantiles_",
+        help=(
+            "Prefix for outputs/<prefix><date>.csv quantiles files (default sim_quantiles_). "
+            "Only used when recomputing sims."
+        ),
+    ),
+    sim_meta_prefix: str = typer.Option(
+        "sim_meta_",
+        help=(
+            "Prefix for outputs/<prefix><date>.json meta files (default sim_meta_). "
+            "Only used when recomputing sims."
+        ),
+    ),
+    emit_ot_rows: bool = typer.Option(
+        True,
+        help=(
+            "If true, emit extra OT endpoint rows (45/50/55/60) as actual-only rows for games that went to OT. "
+            "Regulation metrics remain evaluated on end_min<=40."
+        ),
+    ),
+    max_ot_periods: int = typer.Option(4, help="Maximum OT periods to emit (each OT is 5 minutes): 1=>45, 2=>50, ..."),
+):
+    """Backtest 2-minute cumulative score checkpoints (2..40 by 2) vs ESPN play-by-play.
+
+    Compares the simulator's cumulative distributions from outputs/sim_segments_2min_<date>.csv
+    (q10/q50/q90 for total_score_end at each 2-minute endpoint) to the realized cumulative
+    totals derived from ESPN play-by-play.
+
+    If sim_segments_2min_<date>.csv is missing (or recompute_sims=true), this command will call
+    the simulator to regenerate it for that date.
+    """
+    try:
+        from src.backtests.segments_2min_backtest import Segments2MinBacktestConfig, run_segments_2min_backtest
+
+        cfg = Segments2MinBacktestConfig(
+            out_dir=settings.outputs_dir,
+            start=start,
+            end=end,
+            engine=str(engine),
+            samples=int(samples),
+            rho=float(rho),
+            recompute_sims=bool(recompute_sims),
+            use_cache=bool(use_cache),
+            sleep_seconds=float(sleep_seconds),
+            max_games=int(max_games),
+            out_prefix=str(out_prefix),
+            sim_segments_prefix=str(sim_segments_prefix),
+            sim_quantiles_prefix=str(sim_quantiles_prefix),
+            sim_meta_prefix=str(sim_meta_prefix),
+            emit_ot_rows=bool(emit_ot_rows),
+            max_ot_periods=int(max_ot_periods),
+        )
+        res = run_segments_2min_backtest(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]backtest-segments-2min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command(name="tune-segment-weights-5min")
 def tune_segment_weights_5min(
     start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
@@ -849,6 +928,48 @@ def tune_segment_weights_5min(
         print(res)
     except Exception as e:
         print(f"[red]tune-segment-weights-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="tune-segment-weights-2min-teams")
+def tune_segment_weights_2min_teams(
+    start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
+    end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
+    use_cache: bool = typer.Option(True, help="Use cached ESPN play-by-play responses when available"),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests"),
+    max_games: int = typer.Option(0, help="If >0, limit the number of games used (debug/smoke)"),
+    min_games_per_team: int = typer.Option(8, help="Minimum games per team to write a team-specific profile"),
+    shrink_to_global: float = typer.Option(0.35, help="Shrinkage toward global weights (0..1)"),
+    shrink_to_uniform: float = typer.Option(0.02, help="Shrinkage toward uniform weights (0..1)"),
+    out: Path = typer.Option(settings.outputs_dir / "team_segment_weights_2min.json", help="Output JSON path"),
+):
+    """Tune 2-minute per-team segment allocation weights from historical play-by-play.
+
+    Produces probabilities for the 10x 2-min segments within each half (half1/half2),
+    *per team*, plus a global fallback profile.
+
+    These weights can be consumed by the simulator's points-based segmentation path
+    when NCAAB_SEGMENTS_GRID_MIN=2.
+    """
+    try:
+        from src.backtests.segments_2min_tune_team import TuneSegments2MinTeamConfig, tune_segment_weights_2min_by_team
+
+        cfg = TuneSegments2MinTeamConfig(
+            out_dir=settings.outputs_dir,
+            start=start,
+            end=end,
+            use_cache=bool(use_cache),
+            sleep_seconds=float(sleep_seconds),
+            max_games=int(max_games),
+            min_games_per_team=int(min_games_per_team),
+            shrink_to_global=float(shrink_to_global),
+            shrink_to_uniform=float(shrink_to_uniform),
+            out_path=Path(out),
+        )
+        res = tune_segment_weights_2min_by_team(cfg)
+        print(res)
+    except Exception as e:
+        print(f"[red]tune-segment-weights-2min-teams failed:[/red] {e}")
         raise typer.Exit(code=1)
 
 
@@ -892,6 +1013,49 @@ def build_interval_actuals_5min(
         print({"wrote": str(p)})
     except Exception as e:
         print(f"[red]build-interval-actuals-5min failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="build-interval-actuals-2min")
+def build_interval_actuals_2min(
+    date: str = typer.Option(..., help="Date YYYY-MM-DD"),
+    use_cache: bool = typer.Option(True, help="Use cached ESPN play-by-play responses when available"),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN play-by-play requests"),
+    max_games: int = typer.Option(0, help="If >0, limit the number of games processed (debug/smoke)"),
+    out_prefix: str = typer.Option("interval_actuals_2min_", help="Output prefix under outputs/<prefix><date>.csv"),
+    include_ot_endpoints: bool = typer.Option(
+        False,
+        help="If true, include OT endpoints (45/50/55/60) for games that went to OT (regulation endpoints remain unchanged).",
+    ),
+    max_ot_periods: int = typer.Option(4, help="Maximum OT periods to emit (each OT is 5 minutes)."),
+):
+    """Build 2-minute cumulative *team* scores (2..40 by 2) from ESPN play-by-play.
+
+    Writes outputs/interval_actuals_2min_<date>.csv containing:
+    - actual_home_score_end / actual_away_score_end at each end_min in {2,4,...,40}
+
+    OT endpoints are optional and remain on 5-minute grid (45/50/55/60) when enabled.
+    """
+    try:
+        from src.ncaab_model.data.interval_actuals_2min import (
+            BuildIntervalActuals2MinConfig,
+            build_interval_actuals_2min_for_date,
+        )
+
+        cfg = BuildIntervalActuals2MinConfig(
+            out_dir=settings.outputs_dir,
+            date=str(date),
+            use_cache=bool(use_cache),
+            sleep_seconds=float(sleep_seconds),
+            max_games=int(max_games),
+            out_prefix=str(out_prefix),
+            include_ot_endpoints=bool(include_ot_endpoints),
+            max_ot_periods=int(max_ot_periods),
+        )
+        p = build_interval_actuals_2min_for_date(cfg)
+        print({"wrote": str(p)})
+    except Exception as e:
+        print(f"[red]build-interval-actuals-2min failed:[/red] {e}")
         raise typer.Exit(code=1)
 
 

@@ -444,15 +444,75 @@ def _segment_5min_quantiles_from_events_timeline(
     rng: np.random.Generator,
     enable_late_foul: bool = True,
 ) -> list[dict]:
-    """Derive 5-min cumulative endpoints by simulating a possession timeline.
+    return _segment_quantiles_from_events_timeline(
+        poss_1h=poss_1h,
+        poss_2h=poss_2h,
+        home_params=home_params,
+        away_params=away_params,
+        rng=rng,
+        end_mins=[5, 10, 15, 20, 25, 30, 35, 40],
+        enable_late_foul=enable_late_foul,
+    )
 
-    This is still "pregame" (no live inputs), but it is ground-up in the sense that
-    points occur on sequential possessions with a simple clock model. This naturally
-    produces halftime and end-of-game endpoints, and makes end-of-half behavior tunable.
+
+def _segment_2min_quantiles_from_events_timeline(
+    poss_1h: np.ndarray,
+    poss_2h: np.ndarray,
+    home_params: tuple[float, float, float, float, float, float],
+    away_params: tuple[float, float, float, float, float, float],
+    rng: np.random.Generator,
+    enable_late_foul: bool = True,
+) -> list[dict]:
+    return _segment_quantiles_from_events_timeline(
+        poss_1h=poss_1h,
+        poss_2h=poss_2h,
+        home_params=home_params,
+        away_params=away_params,
+        rng=rng,
+        end_mins=list(range(2, 41, 2)),
+        enable_late_foul=enable_late_foul,
+    )
+
+
+def _segments_grid_min_from_env() -> int:
+    try:
+        v = (os.environ.get("NCAAB_SEGMENTS_GRID_MIN") or "").strip()
+        if not v:
+            return 5
+        g = int(float(v))
+        if g <= 2:
+            return 2
+        return 5
+    except Exception:
+        return 5
+
+
+def _segment_quantiles_from_events_timeline(
+    poss_1h: np.ndarray,
+    poss_2h: np.ndarray,
+    home_params: tuple[float, float, float, float, float, float],
+    away_params: tuple[float, float, float, float, float, float],
+    rng: np.random.Generator,
+    end_mins: list[int],
+    enable_late_foul: bool = True,
+) -> list[dict]:
+    """Derive cumulative endpoints by simulating a possession timeline.
+
+    Default behavior remains the 5-minute grid. A 2-minute grid is supported
+    (2,4,...,40) and is used when end_mins is provided as such.
     """
 
-    # Endpoints in minutes
-    end_mins = [5, 10, 15, 20, 25, 30, 35, 40]
+    # Endpoints in minutes (regulation)
+    end_mins = [int(x) for x in end_mins if x is not None]
+    end_mins = [x for x in end_mins if 0 < int(x) <= 40]
+    end_mins = sorted(set(end_mins))
+    if not end_mins:
+        end_mins = [5, 10, 15, 20, 25, 30, 35, 40]
+    n1 = sum(1 for m in end_mins if int(m) <= 20)
+    if n1 <= 0 or n1 >= len(end_mins):
+        # Defensive fallback: assume standard halves split.
+        n1 = int(len(end_mins) // 2)
+
     n = int(len(poss_1h))
     home_cum = np.zeros((n, len(end_mins)), dtype=float)
     away_cum = np.zeros((n, len(end_mins)), dtype=float)
@@ -507,7 +567,7 @@ def _segment_5min_quantiles_from_events_timeline(
             home_ball = not home_ball
 
             # Record any crossed endpoints within 1H
-            while next_ep_idx < 4 and t >= end_mins[next_ep_idx] * 60.0:
+            while next_ep_idx < n1 and t >= end_mins[next_ep_idx] * 60.0:
                 home_cum[i, next_ep_idx] = float(home)
                 away_cum[i, next_ep_idx] = float(away)
                 next_ep_idx += 1
@@ -515,7 +575,7 @@ def _segment_5min_quantiles_from_events_timeline(
                 break
 
         # Fill any remaining 1H endpoints with final 1H totals
-        while next_ep_idx < 4:
+        while next_ep_idx < n1:
             home_cum[i, next_ep_idx] = float(home)
             away_cum[i, next_ep_idx] = float(away)
             next_ep_idx += 1
@@ -525,7 +585,7 @@ def _segment_5min_quantiles_from_events_timeline(
         mean_s_2h = 1200.0 / float(max(1, npos_2h))
         scale_2h = float(max(1.0, mean_s_2h / shape))
         home_ball = bool(rng.random() < 0.5)
-        next_ep_idx = 4
+        next_ep_idx = n1
 
         for _ in range(npos_2h):
             time_remaining = 1200.0 - t
@@ -597,7 +657,7 @@ def _segment_5min_quantiles_from_events_timeline(
             home_ball = not home_ball
 
             # Record any crossed endpoints within game
-            while next_ep_idx < 8 and t >= (end_mins[next_ep_idx] - 20) * 60.0:
+            while next_ep_idx < len(end_mins) and t >= (end_mins[next_ep_idx] - 20) * 60.0:
                 home_cum[i, next_ep_idx] = float(home)
                 away_cum[i, next_ep_idx] = float(away)
                 next_ep_idx += 1
@@ -605,7 +665,7 @@ def _segment_5min_quantiles_from_events_timeline(
                 break
 
         # Fill any remaining endpoints with final game totals
-        while next_ep_idx < 8:
+        while next_ep_idx < len(end_mins):
             home_cum[i, next_ep_idx] = float(home)
             away_cum[i, next_ep_idx] = float(away)
             next_ep_idx += 1
@@ -620,6 +680,9 @@ def _segment_5min_quantiles_from_events_timeline(
             float(np.quantile(v, 0.90)),
         )
 
+    grid_min = int(min(np.diff(np.array(end_mins, dtype=int))) if len(end_mins) > 1 else 5)
+    grid_min = int(2 if grid_min <= 2 else 5)
+
     rows: list[dict] = []
     for j, end_min in enumerate(end_mins):
         h_end = home_cum[:, j].astype(float)
@@ -632,7 +695,7 @@ def _segment_5min_quantiles_from_events_timeline(
         q_m_end = _q(m_end)
         rows.append(
             {
-                "start_min": int(end_min - 5),
+                "start_min": int(max(0, int(end_min) - int(grid_min))),
                 "end_min": int(end_min),
                 "half": 1 if int(end_min) <= 20 else 2,
                 "mu_home_score_end": float(np.mean(h_end)),
@@ -832,6 +895,298 @@ def _segment_5min_quantiles_from_points(
                 "q50_margin_pts_seg": q_m_seg[1],
                 "q90_margin_pts_seg": q_m_seg[2],
                 # Cumulative score through segment end
+                "mu_home_score_end": float(np.mean(h_end)),
+                "mu_away_score_end": float(np.mean(a_end)),
+                "mu_total_score_end": float(np.mean(t_end)),
+                "mu_margin_score_end": float(np.mean(m_end)),
+                "q10_home_score_end": q_h_end[0],
+                "q50_home_score_end": q_h_end[1],
+                "q90_home_score_end": q_h_end[2],
+                "q10_away_score_end": q_a_end[0],
+                "q50_away_score_end": q_a_end[1],
+                "q90_away_score_end": q_a_end[2],
+                "q10_total_score_end": q_t_end[0],
+                "q50_total_score_end": q_t_end[1],
+                "q90_total_score_end": q_t_end[2],
+                "q10_margin_score_end": q_m_end[0],
+                "q50_margin_score_end": q_m_end[1],
+                "q90_margin_score_end": q_m_end[2],
+                **extra,
+            }
+        )
+
+    return rows
+
+
+def _segment_grid_quantiles_from_points(
+    home_pts: np.ndarray,
+    away_pts: np.ndarray,
+    home_1h: np.ndarray,
+    away_1h: np.ndarray,
+    rng: np.random.Generator,
+    grid_min: int,
+    seg_probs_half1: Optional[np.ndarray] = None,
+    seg_probs_half2: Optional[np.ndarray] = None,
+    home_stats: Optional[dict[str, np.ndarray]] = None,
+    away_stats: Optional[dict[str, np.ndarray]] = None,
+) -> list[dict]:
+    """Derive segment scoring distributions on an arbitrary time grid from point samples.
+
+    - grid_min=5 => identical to the existing 5-min output.
+    - grid_min=2 => emits 20 segments (10 per half) with endpoints 2..40 by 2.
+
+    This preserves the key invariants of the original implementation:
+      - segment sums equal 1H and full-game points per sample
+      - cumulative at 20 min matches 1H distributions
+    """
+
+    try:
+        gm = int(grid_min)
+    except Exception:
+        gm = 5
+    if gm == 5:
+        return _segment_5min_quantiles_from_points(
+            home_pts=home_pts,
+            away_pts=away_pts,
+            home_1h=home_1h,
+            away_1h=away_1h,
+            seg_probs_half1=seg_probs_half1,
+            seg_probs_half2=seg_probs_half2,
+            home_stats=home_stats,
+            away_stats=away_stats,
+            rng=rng,
+        )
+    if gm != 2:
+        # Only 2 or 5 are supported for now.
+        return _segment_5min_quantiles_from_points(
+            home_pts=home_pts,
+            away_pts=away_pts,
+            home_1h=home_1h,
+            away_1h=away_1h,
+            seg_probs_half1=seg_probs_half1,
+            seg_probs_half2=seg_probs_half2,
+            home_stats=home_stats,
+            away_stats=away_stats,
+            rng=rng,
+        )
+
+    def _to_nonneg_int(x: float) -> int:
+        try:
+            if not np.isfinite(x):
+                return 0
+            return int(max(0, int(np.rint(float(x)))))
+        except Exception:
+            return 0
+
+    home_pts = np.asarray(home_pts, dtype=float)
+    away_pts = np.asarray(away_pts, dtype=float)
+    home_1h = np.asarray(home_1h, dtype=float)
+    away_1h = np.asarray(away_1h, dtype=float)
+    n = int(len(home_pts))
+    if n <= 0 or int(len(away_pts)) != n or int(len(home_1h)) != n or int(len(away_1h)) != n:
+        return []
+
+    def _norm_probs_4(v: Optional[np.ndarray]) -> np.ndarray:
+        if v is None:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        try:
+            a = np.asarray(v, dtype=float).reshape(-1)
+        except Exception:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        if a.size != 4:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        a = np.where(np.isfinite(a), a, 0.0)
+        a = np.clip(a, 0.0, None)
+        s = float(a.sum())
+        if s <= 0:
+            return np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        return (a / s).astype(float)
+
+    def _norm_probs_10(v: Optional[np.ndarray]) -> np.ndarray:
+        if v is None:
+            return np.array([0.1] * 10, dtype=float)
+        try:
+            a = np.asarray(v, dtype=float).reshape(-1)
+        except Exception:
+            return np.array([0.1] * 10, dtype=float)
+        if a.size != 10:
+            return np.array([0.1] * 10, dtype=float)
+        a = np.where(np.isfinite(a), a, 0.0)
+        a = np.clip(a, 0.0, None)
+        s = float(a.sum())
+        if s <= 0:
+            return np.array([0.1] * 10, dtype=float)
+        return (a / s).astype(float)
+
+    def _half_probs_2min(probs_5min_blocks: np.ndarray) -> np.ndarray:
+        """Convert 4x5-minute block weights into 10x2-minute segment probabilities.
+
+        We build per-minute weights (20 minutes per half), spreading each 5-minute block
+        uniformly across its 5 constituent minutes. Each 2-minute segment then sums the
+        weights of its two minutes.
+        """
+        p = np.asarray(probs_5min_blocks, dtype=float).reshape(-1)
+        if p.size != 4:
+            p = np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+        p = np.where(np.isfinite(p), p, 0.0)
+        p = np.clip(p, 0.0, None)
+        s = float(p.sum())
+        if s <= 0:
+            p = np.array([0.25, 0.25, 0.25, 0.25], dtype=float)
+            s = float(p.sum())
+        p = (p / s).astype(float)
+
+        minute_w = np.zeros(20, dtype=float)
+        for j in range(4):
+            start = int(j * 5)
+            end = int((j + 1) * 5)
+            minute_w[start:end] = float(p[j]) / 5.0
+
+        seg_w = np.zeros(10, dtype=float)
+        for k in range(10):
+            m0 = int(k * 2)
+            seg_w[k] = float(minute_w[m0] + minute_w[m0 + 1])
+
+        ss = float(seg_w.sum())
+        if ss <= 0:
+            return np.array([0.1] * 10, dtype=float)
+        return (seg_w / ss).astype(float)
+
+    # Allow callers to pass either 4x5-min block weights (legacy) or 10x2-min weights.
+    use_direct_10 = False
+    try:
+        if seg_probs_half1 is not None and np.asarray(seg_probs_half1, dtype=float).reshape(-1).size == 10:
+            use_direct_10 = True
+    except Exception:
+        use_direct_10 = False
+
+    if use_direct_10:
+        probs_1h_2 = _norm_probs_10(seg_probs_half1)
+        probs_2h_2 = _norm_probs_10(seg_probs_half2)
+    else:
+        probs_1h_5 = _norm_probs_4(seg_probs_half1)
+        probs_2h_5 = _norm_probs_4(seg_probs_half2)
+        probs_1h_2 = _half_probs_2min(probs_1h_5)
+        probs_2h_2 = _half_probs_2min(probs_2h_5)
+
+    # 40-minute game in 20 segments of 2 minutes each (10 per half)
+    home_seg_pts = np.zeros((n, 20), dtype=int)
+    away_seg_pts = np.zeros((n, 20), dtype=int)
+
+    metrics = ["poss", "tov", "fta", "fga2", "fga3"]
+    home_seg_metrics: dict[str, np.ndarray] = {}
+    away_seg_metrics: dict[str, np.ndarray] = {}
+    if home_stats is not None and away_stats is not None:
+        for m in metrics:
+            if (m in home_stats and f"{m}_1h" in home_stats) and (m in away_stats and f"{m}_1h" in away_stats):
+                home_seg_metrics[m] = np.zeros((n, 20), dtype=int)
+                away_seg_metrics[m] = np.zeros((n, 20), dtype=int)
+
+    for i in range(n):
+        h1_pts = _to_nonneg_int(home_1h[i])
+        a1_pts = _to_nonneg_int(away_1h[i])
+        h_full_pts = _to_nonneg_int(home_pts[i])
+        a_full_pts = _to_nonneg_int(away_pts[i])
+
+        h2_pts = max(0, h_full_pts - h1_pts)
+        a2_pts = max(0, a_full_pts - a1_pts)
+
+        home_seg_pts[i, 0:10] = rng.multinomial(h1_pts, probs_1h_2)
+        away_seg_pts[i, 0:10] = rng.multinomial(a1_pts, probs_1h_2)
+        home_seg_pts[i, 10:20] = rng.multinomial(h2_pts, probs_2h_2)
+        away_seg_pts[i, 10:20] = rng.multinomial(a2_pts, probs_2h_2)
+
+        if home_seg_metrics:
+            for m, hseg in home_seg_metrics.items():
+                full_h = _to_nonneg_int(float(home_stats.get(m)[i]))
+                one_h = _to_nonneg_int(float(home_stats.get(f"{m}_1h")[i]))
+                full_a = _to_nonneg_int(float(away_stats.get(m)[i]))
+                one_a = _to_nonneg_int(float(away_stats.get(f"{m}_1h")[i]))
+
+                two_h = max(0, full_h - one_h)
+                two_a = max(0, full_a - one_a)
+
+                hseg[i, 0:10] = rng.multinomial(one_h, probs_1h_2)
+                away_seg_metrics[m][i, 0:10] = rng.multinomial(one_a, probs_1h_2)
+                hseg[i, 10:20] = rng.multinomial(two_h, probs_2h_2)
+                away_seg_metrics[m][i, 10:20] = rng.multinomial(two_a, probs_2h_2)
+
+    home_cum = np.cumsum(home_seg_pts, axis=1)
+    away_cum = np.cumsum(away_seg_pts, axis=1)
+    total_cum = home_cum + away_cum
+    margin_cum = home_cum - away_cum
+
+    def _q(arr: np.ndarray) -> tuple[float, float, float]:
+        qq = np.quantile(arr, [0.10, 0.50, 0.90])
+        return float(qq[0]), float(qq[1]), float(qq[2])
+
+    rows: list[dict] = []
+    for seg_idx in range(20):
+        start_min = int(seg_idx * 2)
+        end_min = int((seg_idx + 1) * 2)
+        half = 1 if int(end_min) <= 20 else 2
+
+        h_seg = home_seg_pts[:, seg_idx].astype(float)
+        a_seg = away_seg_pts[:, seg_idx].astype(float)
+        t_seg = h_seg + a_seg
+        m_seg = h_seg - a_seg
+
+        h_end = home_cum[:, seg_idx].astype(float)
+        a_end = away_cum[:, seg_idx].astype(float)
+        t_end = total_cum[:, seg_idx].astype(float)
+        m_end = margin_cum[:, seg_idx].astype(float)
+
+        q_h_seg = _q(h_seg)
+        q_a_seg = _q(a_seg)
+        q_t_seg = _q(t_seg)
+        q_m_seg = _q(m_seg)
+        q_h_end = _q(h_end)
+        q_a_end = _q(a_end)
+        q_t_end = _q(t_end)
+        q_m_end = _q(m_end)
+
+        extra: dict[str, float] = {}
+        if home_seg_metrics:
+            for m in metrics:
+                if m not in home_seg_metrics:
+                    continue
+                h_m = home_seg_metrics[m][:, seg_idx].astype(float)
+                a_m = away_seg_metrics[m][:, seg_idx].astype(float)
+                t_m = h_m + a_m
+                q_t_m = _q(t_m)
+                extra.update(
+                    {
+                        f"mu_home_{m}_seg": float(np.mean(h_m)),
+                        f"mu_away_{m}_seg": float(np.mean(a_m)),
+                        f"mu_total_{m}_seg": float(np.mean(t_m)),
+                        f"q10_total_{m}_seg": float(q_t_m[0]),
+                        f"q50_total_{m}_seg": float(q_t_m[1]),
+                        f"q90_total_{m}_seg": float(q_t_m[2]),
+                    }
+                )
+
+        rows.append(
+            {
+                "segment": int(seg_idx + 1),
+                "half": int(half),
+                "start_min": int(start_min),
+                "end_min": int(end_min),
+                "mu_home_pts_seg": float(np.mean(h_seg)),
+                "mu_away_pts_seg": float(np.mean(a_seg)),
+                "mu_total_pts_seg": float(np.mean(t_seg)),
+                "mu_margin_pts_seg": float(np.mean(m_seg)),
+                "q10_home_pts_seg": q_h_seg[0],
+                "q50_home_pts_seg": q_h_seg[1],
+                "q90_home_pts_seg": q_h_seg[2],
+                "q10_away_pts_seg": q_a_seg[0],
+                "q50_away_pts_seg": q_a_seg[1],
+                "q90_away_pts_seg": q_a_seg[2],
+                "q10_total_pts_seg": q_t_seg[0],
+                "q50_total_pts_seg": q_t_seg[1],
+                "q90_total_pts_seg": q_t_seg[2],
+                "q10_margin_pts_seg": q_m_seg[0],
+                "q50_margin_pts_seg": q_m_seg[1],
+                "q90_margin_pts_seg": q_m_seg[2],
                 "mu_home_score_end": float(np.mean(h_end)),
                 "mu_away_score_end": float(np.mean(a_end)),
                 "mu_total_score_end": float(np.mean(t_end)),
@@ -1888,10 +2243,16 @@ def simulate_game_row(
 
         use_time_aware_segments = True
         try:
-            # Set NCAAB_SEGMENTS_TIME_AWARE=0 to revert to the old multinomial split.
-            v = (os.environ.get("NCAAB_SEGMENTS_TIME_AWARE") or "").strip()
+            # Set NCAAB_SEGMENTS_TIME_AWARE explicitly to override.
+            raw = os.environ.get("NCAAB_SEGMENTS_TIME_AWARE")
+            v = (raw or "").strip()
             if v:
                 use_time_aware_segments = _safe_bool(v)
+            else:
+                # If tuned weights are provided, default to the point-allocation splitter
+                # so the weights actually affect the segment shape.
+                if segment_probs_half1 is not None or segment_probs_half2 is not None:
+                    use_time_aware_segments = False
         except Exception:
             use_time_aware_segments = True
 
@@ -1928,7 +2289,12 @@ def simulate_game_row(
                 ft_a,
                 three_a,
             )
-            segment_rows = _segment_5min_quantiles_from_events_timeline(
+            try:
+                grid_min = _segments_grid_min_from_env()
+            except Exception:
+                grid_min = 5
+            seg_fn = _segment_2min_quantiles_from_events_timeline if int(grid_min) == 2 else _segment_5min_quantiles_from_events_timeline
+            segment_rows = seg_fn(
                 poss_1h=ev.get("home_poss_1h") if ev.get("home_poss_1h") is not None else np.zeros(int(samples), dtype=int),
                 poss_2h=(ev.get("home_poss") - ev.get("home_poss_1h")) if (ev.get("home_poss") is not None and ev.get("home_poss_1h") is not None) else np.zeros(int(samples), dtype=int),
                 home_params=(to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h),
@@ -1937,11 +2303,16 @@ def simulate_game_row(
                 enable_late_foul=True,
             )
         else:
-            segment_rows = _segment_5min_quantiles_from_points(
+            try:
+                grid_min_pts = _segments_grid_min_from_env()
+            except Exception:
+                grid_min_pts = 5
+            segment_rows = _segment_grid_quantiles_from_points(
                 home_pts=home_pts,
                 away_pts=away_pts,
                 home_1h=home_1h,
                 away_1h=away_1h,
+                grid_min=int(grid_min_pts),
                 seg_probs_half1=segment_probs_half1,
                 seg_probs_half2=segment_probs_half2,
                 home_stats={
@@ -2257,11 +2628,16 @@ def simulate_game_row(
 
         segment_rows = None
         try:
-            segment_rows = _segment_5min_quantiles_from_points(
+            try:
+                grid_min_pts = _segments_grid_min_from_env()
+            except Exception:
+                grid_min_pts = 5
+            segment_rows = _segment_grid_quantiles_from_points(
                 home_pts=home_pts,
                 away_pts=away_pts,
                 home_1h=home_1h,
                 away_1h=away_1h,
+                grid_min=int(grid_min_pts),
                 seg_probs_half1=segment_probs_half1,
                 seg_probs_half2=segment_probs_half2,
                 rng=rng,
@@ -2487,11 +2863,16 @@ def simulate_game_row(
 
     segment_rows = None
     try:
-        segment_rows = _segment_5min_quantiles_from_points(
+        try:
+            grid_min_pts = _segments_grid_min_from_env()
+        except Exception:
+            grid_min_pts = 5
+        segment_rows = _segment_grid_quantiles_from_points(
             home_pts=home_pts,
             away_pts=away_pts,
             home_1h=home_1h,
             away_1h=away_1h,
+            grid_min=int(grid_min_pts),
             seg_probs_half1=segment_probs_half1,
             seg_probs_half2=segment_probs_half2,
             rng=rng,
@@ -3099,9 +3480,19 @@ def run_simulations_for_date(out_dir: Path, date: str,
     results = []
     segment_rows_all: list[dict] = []
 
-    # Optional tuned 5-min segment weights (probabilities for 4 segments per half)
+    try:
+        grid_min_cfg = int(_segments_grid_min_from_env())
+    except Exception:
+        grid_min_cfg = 5
+
+    # Optional tuned segment weights.
+    # - 5-min grid: 4 segments per half.
+    # - 2-min grid: either 10 segments per half (direct) or 4 (expanded internally).
     seg_probs_half1 = None
     seg_probs_half2 = None
+    team_seg_global_h1 = None
+    team_seg_global_h2 = None
+    team_seg_by_team: dict[str, dict] = {}
     try:
         import os
 
@@ -3126,13 +3517,60 @@ def run_simulations_for_date(out_dir: Path, date: str,
         if isinstance(wobj, dict):
             h1 = wobj.get("half1")
             h2 = wobj.get("half2")
-            if isinstance(h1, list) and len(h1) == 4:
-                seg_probs_half1 = np.asarray(h1, dtype=float)
-            if isinstance(h2, list) and len(h2) == 4:
-                seg_probs_half2 = np.asarray(h2, dtype=float)
+            if isinstance(h1, list) and len(h1) in {4, 10}:
+                if int(grid_min_cfg) == 2 or len(h1) == 4:
+                    seg_probs_half1 = np.asarray(h1, dtype=float)
+            if isinstance(h2, list) and len(h2) in {4, 10}:
+                if int(grid_min_cfg) == 2 or len(h2) == 4:
+                    seg_probs_half2 = np.asarray(h2, dtype=float)
     except Exception:
         seg_probs_half1 = None
         seg_probs_half2 = None
+
+    # Optional per-team tuned 2-min segment weights.
+    # Format: {"global": {"half1": [10], "half2": [10]}, "teams": {"team": {"half1": [10], "half2": [10]}}}
+    if int(grid_min_cfg) == 2:
+        try:
+            import os
+
+            twpath = (os.environ.get("NCAAB_TEAM_SEGMENT_WEIGHTS_2MIN_PATH") or "").strip()
+            candidates_tw: list[Path] = []
+            if twpath:
+                try:
+                    candidates_tw.append(Path(twpath))
+                except Exception:
+                    pass
+            candidates_tw.extend([
+                Path(out_dir) / "team_segment_weights_2min.json",
+                Path("data") / "team_segment_weights_2min.json",
+            ])
+
+            twobj = None
+            for p in candidates_tw:
+                try:
+                    if p.exists():
+                        twobj = json.loads(p.read_text(encoding="utf-8"))
+                        break
+                except Exception:
+                    continue
+
+            if isinstance(twobj, dict):
+                g = twobj.get("global")
+                teams = twobj.get("teams")
+                if isinstance(g, dict):
+                    gh1 = g.get("half1")
+                    gh2 = g.get("half2")
+                    if isinstance(gh1, list) and len(gh1) == 10:
+                        team_seg_global_h1 = np.asarray(gh1, dtype=float)
+                    if isinstance(gh2, list) and len(gh2) == 10:
+                        team_seg_global_h2 = np.asarray(gh2, dtype=float)
+                if isinstance(teams, dict):
+                    # keys are already normalized lowercase in the tuner
+                    team_seg_by_team = {str(k).strip().lower(): v for k, v in teams.items() if k is not None}
+        except Exception:
+            team_seg_global_h1 = None
+            team_seg_global_h2 = None
+            team_seg_by_team = {}
     id_col, home_col, away_col = _resolve_keys(preds)
     for _, r in preds.iterrows():
 
@@ -3149,6 +3587,46 @@ def run_simulations_for_date(out_dir: Path, date: str,
         gid_s = _to_game_id_str(r.get(id_col))
         game_seed = _stable_u32_from_str(f"{seed}:{gid_s}")
         rng = np.random.default_rng(game_seed)
+
+        seg_probs_half1_row = seg_probs_half1
+        seg_probs_half2_row = seg_probs_half2
+        if int(grid_min_cfg) == 2 and team_seg_global_h1 is not None and team_seg_global_h2 is not None:
+            try:
+                ht_key = _norm_team_key(r.get("home_team") if "home_team" in preds.columns else r.get(home_col))
+                at_key = _norm_team_key(r.get("away_team") if "away_team" in preds.columns else r.get(away_col))
+
+                def _get_team_half(team_key: Optional[str], half_key: str, gvec: np.ndarray) -> np.ndarray:
+                    if not team_key:
+                        return gvec
+                    t = team_seg_by_team.get(str(team_key).strip().lower())
+                    if isinstance(t, dict):
+                        v = t.get(half_key)
+                        if isinstance(v, list) and len(v) == 10:
+                            return np.asarray(v, dtype=float)
+                    return gvec
+
+                h1_home = _get_team_half(ht_key, "half1", team_seg_global_h1)
+                h1_away = _get_team_half(at_key, "half1", team_seg_global_h1)
+                h2_home = _get_team_half(ht_key, "half2", team_seg_global_h2)
+                h2_away = _get_team_half(at_key, "half2", team_seg_global_h2)
+
+                w1 = 0.5 * (h1_home + h1_away)
+                w2 = 0.5 * (h2_home + h2_away)
+                w1 = np.where(np.isfinite(w1), w1, 0.0)
+                w2 = np.where(np.isfinite(w2), w2, 0.0)
+                w1 = np.clip(w1, 0.0, None)
+                w2 = np.clip(w2, 0.0, None)
+                s1 = float(w1.sum())
+                s2 = float(w2.sum())
+                if s1 > 0:
+                    w1 = (w1 / s1).astype(float)
+                if s2 > 0:
+                    w2 = (w2 / s2).astype(float)
+                seg_probs_half1_row = w1
+                seg_probs_half2_row = w2
+            except Exception:
+                seg_probs_half1_row = seg_probs_half1
+                seg_probs_half2_row = seg_probs_half2
         sim_res = simulate_game_row(
             r,
             rho=rho_eff,
@@ -3161,8 +3639,8 @@ def run_simulations_for_date(out_dir: Path, date: str,
             mean_source=mean_source,
             allow_market_guardrails=allow_market_guardrails,
             engine=engine,
-            segment_probs_half1=seg_probs_half1,
-            segment_probs_half2=seg_probs_half2,
+            segment_probs_half1=seg_probs_half1_row,
+            segment_probs_half2=seg_probs_half2_row,
         )
 
         seg_rows = None

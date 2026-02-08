@@ -1,52 +1,31 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401827665,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Arizona Wildcats,Oklahoma State Cowboys,50,25,40.0,22.0,10.0,3.0,False,McKale Memorial Center
-401808225,2026,2026-02-07,2026-02-07 20:30:00+00:00,2026-02-07 15:30,EST,Vanderbilt Commodores,Oklahoma Sooners,61,80,34.0,48.0,27.0,32.0,False,Memorial Gymnasium (TN)
-401845843,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Marshall Thundering Herd,Miami (OH) RedHawks,49,59,31.0,49.0,18.0,10.0,False,Cam Henderson Center
-401812326,2026,2026-02-07,2026-02-07 20:30:00+00:00,2026-02-07 15:30,EST,Fairleigh Dickinson Knights,Mercyhurst Lakers,55,52,28.0,30.0,27.0,22.0,False,Bogota Savings Bank Center
-401845845,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,South Alabama Jaguars,Buffalo Bulls,69,46,40.0,24.0,29.0,22.0,False,Mitchell Center
-401845841,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Louisiana Ragin' Cajuns,Central Michigan Chippewas,66,63,38.0,42.0,28.0,21.0,False,Cajundome
-401845840,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,James Madison Dukes,Toledo Rockets,52,46,32.0,32.0,20.0,15.0,False,Atlantic Union Bank Center
-401828416,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,George Mason Patriots,Saint Joseph's Hawks,50,46,29.0,29.0,21.0,17.0,False,EagleBank Arena
-401823267,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Cal State Northridge Matadors,UC Riverside Highlanders,67,59,42.0,36.0,25.0,23.0,False,Premier America Credit Union Arena
-401822936,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Providence Friars,DePaul Blue Demons,65,44,43.0,26.0,22.0,18.0,False,Amica Mutual Pavilion
-401820725,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Notre Dame Fighting Irish,Florida State Seminoles,51,54,32.0,41.0,19.0,13.0,False,Purcell Pavilion
-401820171,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Navy Midshipmen,American University Eagles,60,53,39.0,35.0,21.0,18.0,False,Alumni Hall (Navy)
-401812373,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Long Island University Sharks,Stonehill Skyhawks,51,49,26.0,29.0,25.0,20.0,False,Steinberg Wellness Center
-401812147,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Bryant Bulldogs,Maine Black Bears,48,44,32.0,27.0,16.0,17.0,False,Chace Athletic Center
-401812146,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,NJIT Highlanders,Binghamton Bearcats,53,40,32.0,30.0,21.0,10.0,False,Joel & Diane Bloom Wellness and Events Center
-401812056,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Hofstra Pride,Towson Tigers,60,32,46.0,20.0,14.0,12.0,False,David S. Mack Sports and Exhibition Complex
-401812054,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Stony Brook Seawolves,Northeastern Huskies,55,38,29.0,19.0,26.0,19.0,False,Stony Brook Arena
-401809362,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Wofford Terriers,Western Carolina Catamounts,66,55,41.0,36.0,25.0,19.0,False,Jerry Richardson Indoor Stadium
-401808219,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Auburn Tigers,Alabama Crimson Tide,54,49,41.0,37.0,13.0,10.0,False,Neville Arena
-401807731,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Queens University Royals,North Florida Ospreys,68,63,51.0,50.0,17.0,13.0,False,Curry Arena
-401806477,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,UT Martin Skyhawks,Morehead State Eagles,32,28,22.0,23.0,10.0,5.0,False,Kathleen and Tom Elam Center
-401806476,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Little Rock Trojans,SIU Edwardsville Cougars,23,33,23.0,33.0,,,False,Jack Stephens Center
-401806475,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Tennessee Tech Golden Eagles,Eastern Illinois Panthers,19,31,19.0,31.0,,,False,Hooper Eblen Center
-401805192,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Utah Valley Wolverines,UT Arlington Mavericks,57,45,42.0,31.0,15.0,14.0,False,UCCU Center
-401829288,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Howard Bison,South Carolina State Bulldogs,27,12,27.0,12.0,,,False,Burr Gymnasium
-401828729,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Norfolk State Spartans,North Carolina Central Eagles,29,27,29.0,27.0,,,False,Joseph G. Echols Hall
-401823800,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,UNLV Rebels,Grand Canyon Lopes,44,34,44.0,34.0,,,False,Thomas & Mack Center
-401817660,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Youngstown State Penguins,Robert Morris Colonials,30,41,30.0,41.0,,,False,Beeghly Center
-401808962,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,SE Louisiana Lions,Houston Christian Huskies,35,21,35.0,21.0,,,False,University Center
-401808927,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Nicholls Colonels,Texas A&M-Corpus Christi Islanders,38,39,38.0,39.0,,,False,David R. Stopher Gymnasium
-401806479,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Tennessee State Tigers,Western Illinois Leathernecks,43,27,43.0,27.0,,,False,Gentry Center
-401823051,2026,2026-02-07,2026-02-07 21:45:00+00:00,2026-02-07 16:45,EST,Morgan State Bears,Maryland Eastern Shore Hawks,32,29,30.0,29.0,,,False,Hill Field House
-401806478,2026,2026-02-07,2026-02-07 21:45:00+00:00,2026-02-07 16:45,EST,Southeast Missouri State Redhawks,Southern Indiana Screaming Eagles,25,29,25.0,29.0,,,False,Show Me Center
-401829399,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Bucknell Bison,Colgate Raiders,10,21,10.0,21.0,,,False,Sojka Pavilion
-401817656,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Northern Kentucky Norse,Milwaukee Panthers,14,18,14.0,18.0,,,False,Truist Arena
-401812619,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Dartmouth Big Green,Harvard Crimson,18,21,18.0,21.0,,,False,Leede Arena
-401809133,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,UC Davis Aggies,Cal Poly Mustangs,12,16,12.0,16.0,,,False,University Credit Union Center
-401808883,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,McNeese Cowboys,Incarnate Word Cardinals,19,15,19.0,15.0,,,False,Townsley Law Arena
-401807732,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Eastern Kentucky Colonels,Stetson Hatters,29,32,29.0,32.0,,,False,Baptist Health Arena
-401807730,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Austin Peay Governors,North Alabama Lions,31,16,31.0,16.0,,,False,F&M Bank Arena
-401807727,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Lipscomb Bisons,Central Arkansas Bears,20,27,20.0,27.0,,,False,Allen Arena
+401820724,2026,2026-02-07,2026-02-07 23:30:00+00:00,2026-02-07 18:30,EST,North Carolina Tar Heels,Duke Blue Devils,53,62,29.0,41.0,24.0,21.0,False,Dean E. Smith Center
+401829502,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Florida A&M Rattlers,Texas Southern Tigers,40,50,31.0,30.0,9.0,20.0,False,Al Lawson Center
+401827030,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Southern Jaguars,Alabama A&M Bulldogs,81,65,36.0,33.0,45.0,32.0,False,F.G. Clark Activity Center
+401822933,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Creighton Bluejays,Seton Hall Pirates,69,68,32.0,34.0,37.0,34.0,False,CHI Health Center Omaha
+401808911,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,New Orleans Privateers,UT Rio Grande Valley Vaqueros,76,95,34.0,51.0,42.0,44.0,False,Lakefront Arena
+401808480,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Montana Grizzlies,Idaho Vandals,73,68,19.0,29.0,54.0,39.0,False,Dahlberg Arena
+401827146,2026,2026-02-07,2026-02-07 23:25:00+00:00,2026-02-07 18:25,EST,Mississippi Valley State Delta Devils,Jackson State Tigers,56,69,38.0,45.0,18.0,24.0,False,R.W. Harrison HPER Complex
+401829688,2026,2026-02-07,2026-02-07 23:30:00+00:00,2026-02-07 18:30,EST,Arkansas-Pine Bluff Golden Lions,Alcorn State Braves,77,69,49.0,34.0,28.0,35.0,False,H.O. Clemmons Arena
+401845844,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Old Dominion Monarchs,Ohio Bobcats,54,52,40.0,35.0,14.0,17.0,False,Chartway Arena
+401823941,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,High Point Panthers,Radford Highlanders,47,45,39.0,37.0,8.0,8.0,False,Qubein Center
+401823855,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Rider Broncs,Merrimack Warriors,28,46,20.0,40.0,8.0,6.0,False,Alumni Gymnasium (Rider)
+401823183,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Cal State Fullerton Titans,Cal State Bakersfield Roadrunners,50,33,46.0,23.0,4.0,10.0,False,Titan Gym
+401817657,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Wright State Raiders,Purdue Fort Wayne Mastodons,46,38,43.0,29.0,3.0,9.0,False,Nutter Center
+401813416,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Iona Gaels,Mount St. Mary's Mountaineers,41,44,34.0,39.0,7.0,5.0,False,Hynes Athletics Center
+401813340,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Fairfield Stags,Marist Red Foxes,45,39,28.0,25.0,17.0,14.0,False,Leo D. Mahoney Arena
+401812148,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,UAlbany Great Danes,UMass Lowell River Hawks,47,46,38.0,39.0,9.0,7.0,False,Broadview Center
+401827665,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Arizona Wildcats,Oklahoma State Cowboys,84,47,40.0,22.0,44.0,25.0,False,McKale Memorial Center
+401829233,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Oregon State Beavers,Gonzaga Bulldogs,61,81,34.0,38.0,27.0,43.0,False,Gill Coliseum
 401827668,2026,2026-02-07,2026-02-07 19:00:00+00:00,2026-02-07 14:00,EST,Iowa State Cyclones,Baylor Bears,72,69,37.0,33.0,35.0,36.0,False,Hilton Coliseum
 401825499,2026,2026-02-07,2026-02-07 17:00:00+00:00,2026-02-07 12:00,EST,Rutgers Scarlet Knights,Nebraska Cornhuskers,68,80,27.0,41.0,41.0,39.0,False,Jersey Mike’s Arena
 401827669,2026,2026-02-07,2026-02-07 19:30:00+00:00,2026-02-07 14:30,EST,Kansas Jayhawks,Utah Utes,71,59,38.0,31.0,33.0,28.0,False,Allen Fieldhouse
 401825498,2026,2026-02-07,2026-02-07 18:00:00+00:00,2026-02-07 13:00,EST,Purdue Boilermakers,Oregon Ducks,68,64,36.0,34.0,32.0,30.0,False,Mackey Arena
+401808225,2026,2026-02-07,2026-02-07 20:30:00+00:00,2026-02-07 15:30,EST,Vanderbilt Commodores,Oklahoma Sooners,91,92,34.0,48.0,57.0,44.0,False,Memorial Gymnasium (TN)
 401820728,2026,2026-02-07,2026-02-07 17:00:00+00:00,2026-02-07 12:00,EST,Virginia Cavaliers,Syracuse Orange,72,59,38.0,35.0,34.0,24.0,False,John Paul Jones Arena
 401828418,2026,2026-02-07,2026-02-07 20:00:00+00:00,2026-02-07 15:00,EST,Saint Louis Billikens,La Salle Explorers,82,58,31.0,27.0,51.0,31.0,False,Chaifetz Arena
 401808222,2026,2026-02-07,2026-02-07 17:00:00+00:00,2026-02-07 12:00,EST,Mississippi State Bulldogs,Arkansas Razorbacks,68,88,30.0,43.0,38.0,45.0,False,Humphrey Coliseum
+401845843,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Marshall Thundering Herd,Miami (OH) RedHawks,74,90,31.0,49.0,43.0,41.0,False,Cam Henderson Center
 401820729,2026,2026-02-07,2026-02-07 17:00:00+00:00,2026-02-07 12:00,EST,Wake Forest Demon Deacons,Louisville Cardinals,80,88,34.0,43.0,46.0,45.0,False,LJVM Coliseum
 401828214,2026,2026-02-07,2026-02-07 17:00:00+00:00,2026-02-07 12:00,EST,East Carolina Pirates,Temple Owls,73,81,28.0,35.0,45.0,46.0,False,Minges Coliseum
 401826822,2026,2026-02-07,2026-02-07 17:00:00+00:00,2026-02-07 12:00,EST,Army Black Knights,Lafayette Leopards,60,63,28.0,26.0,32.0,37.0,False,Christl Arena
@@ -99,45 +78,66 @@ game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_tea
 401845837,2026,2026-02-07,2026-02-07 20:00:00+00:00,2026-02-07 15:00,EST,Arkansas State Red Wolves,Bowling Green Falcons,91,54,40.0,14.0,51.0,40.0,False,First National Bank Arena
 401804921,2026,2026-02-07,2026-02-07 20:00:00+00:00,2026-02-07 15:00,EST,Western Kentucky Hilltoppers,Florida International Panthers,80,70,30.0,38.0,50.0,32.0,False,E.A. Diddle Arena
 401804918,2026,2026-02-07,2026-02-07 20:00:00+00:00,2026-02-07 15:00,EST,Louisiana Tech Bulldogs,Sam Houston Bearkats,87,78,37.0,38.0,50.0,40.0,False,Thomas Assembly Center
-401827102,2026,2026-02-07,2026-02-07 22:30:00+00:00,2026-02-07 17:30,EST,Grambling Tigers,Alabama State Hornets,0,0,,,,,False,Fredrick C. Hobdy Assembly Center
-401827075,2026,2026-02-07,2026-02-07 22:30:00+00:00,2026-02-07 17:30,EST,Bethune-Cookman Wildcats,Prairie View A&M Panthers,0,0,,,,,False,Moore Gymnasium (FL)
-401822774,2026,2026-02-07,2026-02-07 22:30:00+00:00,2026-02-07 17:30,EST,Coppin State Eagles,Delaware State Hornets,0,0,,,,,False,Physical Education Complex
-401829233,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Oregon State Beavers,Gonzaga Bulldogs,0,0,,,,,False,Gill Coliseum
-401845848,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Troy Trojans,Akron Zips,0,0,,,,,False,Trojan Arena
-401829502,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Florida A&M Rattlers,Texas Southern Tigers,0,0,,,,,False,Al Lawson Center
-401829237,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Washington State Cougars,Santa Clara Broncos,0,0,,,,,False,Beasley Coliseum
-401827146,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Mississippi Valley State Delta Devils,Jackson State Tigers,0,0,,,,,False,R.W. Harrison HPER Complex
-401827030,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Southern Jaguars,Alabama A&M Bulldogs,0,0,,,,,False,F.G. Clark Activity Center
-401822933,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Creighton Bluejays,Seton Hall Pirates,0,0,,,,,False,CHI Health Center Omaha
-401818412,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,South Dakota State Jackrabbits,South Dakota Coyotes,0,0,,,,,False,First Bank & Trust Arena
-401809360,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Samford Bulldogs,Mercer Bears,0,0,,,,,False,Pete Hanna Center
-401808971,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Stephen F. Austin Lumberjacks,Lamar Cardinals,0,0,,,,,False,William R. Johnson Coliseum
-401808911,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,New Orleans Privateers,UT Rio Grande Valley Vaqueros,0,0,,,,,False,Lakefront Arena
-401808716,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,East Texas A&M Lions,Northwestern State Demons,0,0,,,,,False,The Field House
-401808496,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Idaho State Bengals,Northern Colorado Bears,0,0,,,,,False,Reed Gym
-401808480,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Montana Grizzlies,Idaho Vandals,0,0,,,,,False,Dahlberg Arena
-401808221,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,LSU Tigers,Georgia Bulldogs,0,0,,,,,False,Pete Maravich Assembly Center
-401820724,2026,2026-02-07,2026-02-07 23:30:00+00:00,2026-02-07 18:30,EST,North Carolina Tar Heels,Duke Blue Devils,0,0,,,,,False,Dean E. Smith Center
-401829688,2026,2026-02-07,2026-02-07 23:30:00+00:00,2026-02-07 18:30,EST,Arkansas-Pine Bluff Golden Lions,Alcorn State Braves,0,0,,,,,False,H.O. Clemmons Arena
-401845844,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Old Dominion Monarchs,Ohio Bobcats,0,0,,,,,False,Chartway Arena
-401823941,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,High Point Panthers,Radford Highlanders,0,0,,,,,False,Qubein Center
-401823855,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Rider Broncs,Merrimack Warriors,0,0,,,,,False,Alumni Gymnasium (Rider)
-401823183,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Cal State Fullerton Titans,Cal State Bakersfield Roadrunners,0,0,,,,,False,Titan Gym
-401817657,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Wright State Raiders,Purdue Fort Wayne Mastodons,0,0,,,,,False,Nutter Center
-401813416,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Iona Gaels,Mount St. Mary's Mountaineers,0,0,,,,,False,Hynes Athletics Center
-401813340,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,Fairfield Stags,Marist Red Foxes,0,0,,,,,False,Leo D. Mahoney Arena
-401812148,2026,2026-02-07,2026-02-08 00:00:00+00:00,2026-02-07 19:00,EST,UAlbany Great Danes,UMass Lowell River Hawks,0,0,,,,,False,Broadview Center
-401830778,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Michigan State Spartans,Illinois Fighting Illini,0,0,,,,,False,Breslin Center
-401820722,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,California Golden Bears,Clemson Tigers,0,0,,,,,False,Haas Pavilion
-401829338,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Wyoming Cowboys,Utah State Aggies,0,0,,,,,False,Arena-Auditorium
-401829238,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Portland Pilots,Seattle U Redhawks,0,0,,,,,False,Chiles Center
-401829234,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Pepperdine Waves,Pacific Tigers,0,0,,,,,False,Firestone Fieldhouse
-401820727,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Stanford Cardinal,Georgia Tech Yellow Jackets,0,0,,,,,False,Maples Pavilion
-401820568,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Air Force Falcons,San Diego State Aztecs,0,0,,,,,False,Clune Arena
-401818414,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,St. Thomas-Minnesota Tommies,Oral Roberts Golden Eagles,0,0,,,,,False,Lee & Penny Anderson Arena
-401808463,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Montana State Bobcats,Eastern Washington Eagles,0,0,,,,,False,Worthington Arena
-401805190,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,California Baptist Lancers,Abilene Christian Wildcats,0,0,,,,,False,Dale E. and Sarah Ann Fowler Events Center
-401804919,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Jacksonville State Gamecocks,Kennesaw State Owls,0,0,,,,,False,Pete Mathews Coliseum
+401812326,2026,2026-02-07,2026-02-07 20:30:00+00:00,2026-02-07 15:30,EST,Fairleigh Dickinson Knights,Mercyhurst Lakers,55,52,28.0,30.0,27.0,22.0,False,Bogota Savings Bank Center
+401845845,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,South Alabama Jaguars,Buffalo Bulls,81,69,40.0,24.0,41.0,45.0,False,Mitchell Center
+401845841,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Louisiana Ragin' Cajuns,Central Michigan Chippewas,85,80,38.0,42.0,47.0,38.0,False,Cajundome
+401845840,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,James Madison Dukes,Toledo Rockets,73,71,32.0,32.0,41.0,39.0,False,Atlantic Union Bank Center
+401828416,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,George Mason Patriots,Saint Joseph's Hawks,60,52,29.0,29.0,31.0,23.0,False,EagleBank Arena
+401823267,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Cal State Northridge Matadors,UC Riverside Highlanders,88,74,42.0,36.0,46.0,38.0,False,Premier America Credit Union Arena
+401822936,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Providence Friars,DePaul Blue Demons,90,72,43.0,26.0,47.0,46.0,False,Amica Mutual Pavilion
+401820725,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Notre Dame Fighting Irish,Florida State Seminoles,79,82,32.0,41.0,47.0,41.0,False,Purcell Pavilion
+401820171,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Navy Midshipmen,American University Eagles,82,73,39.0,35.0,43.0,38.0,False,Alumni Hall (Navy)
+401812373,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Long Island University Sharks,Stonehill Skyhawks,61,54,26.0,29.0,35.0,25.0,False,Steinberg Wellness Center
+401812147,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Bryant Bulldogs,Maine Black Bears,73,67,32.0,27.0,41.0,40.0,False,Chace Athletic Center
+401812146,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,NJIT Highlanders,Binghamton Bearcats,73,64,32.0,30.0,41.0,34.0,False,Joel & Diane Bloom Wellness and Events Center
+401812056,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Hofstra Pride,Towson Tigers,71,49,46.0,20.0,25.0,29.0,False,David S. Mack Sports and Exhibition Complex
+401812054,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Stony Brook Seawolves,Northeastern Huskies,69,55,29.0,19.0,40.0,36.0,False,Stony Brook Arena
+401809362,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Wofford Terriers,Western Carolina Catamounts,77,66,41.0,36.0,36.0,30.0,False,Jerry Richardson Indoor Stadium
+401808219,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Auburn Tigers,Alabama Crimson Tide,92,96,41.0,37.0,51.0,59.0,False,Neville Arena
+401807731,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Queens University Royals,North Florida Ospreys,91,72,51.0,50.0,40.0,22.0,False,Curry Arena
+401806477,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,UT Martin Skyhawks,Morehead State Eagles,55,61,22.0,23.0,33.0,38.0,False,Kathleen and Tom Elam Center
+401806476,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Little Rock Trojans,SIU Edwardsville Cougars,61,71,23.0,33.0,38.0,38.0,False,Jack Stephens Center
+401806475,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Tennessee Tech Golden Eagles,Eastern Illinois Panthers,54,60,19.0,31.0,35.0,29.0,False,Hooper Eblen Center
+401805192,2026,2026-02-07,2026-02-07 21:00:00+00:00,2026-02-07 16:00,EST,Utah Valley Wolverines,UT Arlington Mavericks,81,60,42.0,31.0,39.0,29.0,False,UCCU Center
+401829288,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Howard Bison,South Carolina State Bulldogs,85,57,36.0,24.0,49.0,33.0,False,Burr Gymnasium
+401828729,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Norfolk State Spartans,North Carolina Central Eagles,75,68,36.0,31.0,39.0,37.0,False,Joseph G. Echols Hall
+401823800,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,UNLV Rebels,Grand Canyon Lopes,80,78,44.0,34.0,36.0,44.0,False,Thomas & Mack Center
+401817660,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Youngstown State Penguins,Robert Morris Colonials,66,72,30.0,41.0,36.0,31.0,False,Beeghly Center
+401808962,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,SE Louisiana Lions,Houston Christian Huskies,55,47,35.0,21.0,20.0,26.0,False,University Center
+401808927,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Nicholls Colonels,Texas A&M-Corpus Christi Islanders,76,83,38.0,39.0,38.0,44.0,False,David R. Stopher Gymnasium
+401806479,2026,2026-02-07,2026-02-07 21:30:00+00:00,2026-02-07 16:30,EST,Tennessee State Tigers,Western Illinois Leathernecks,83,56,43.0,27.0,40.0,29.0,False,Gentry Center
+401823051,2026,2026-02-07,2026-02-07 21:45:00+00:00,2026-02-07 16:45,EST,Morgan State Bears,Maryland Eastern Shore Hawks,79,71,39.0,38.0,40.0,33.0,False,Hill Field House
+401806478,2026,2026-02-07,2026-02-07 21:45:00+00:00,2026-02-07 16:45,EST,Southeast Missouri State Redhawks,Southern Indiana Screaming Eagles,90,65,39.0,42.0,51.0,23.0,False,Show Me Center
+401829399,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Bucknell Bison,Colgate Raiders,59,78,23.0,39.0,36.0,39.0,False,Sojka Pavilion
+401817656,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Northern Kentucky Norse,Milwaukee Panthers,67,62,36.0,31.0,31.0,31.0,False,Truist Arena
+401812619,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Dartmouth Big Green,Harvard Crimson,58,71,30.0,32.0,28.0,39.0,False,Leede Arena
+401809133,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,UC Davis Aggies,Cal Poly Mustangs,67,58,21.0,22.0,46.0,36.0,False,University Credit Union Center
+401808883,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,McNeese Cowboys,Incarnate Word Cardinals,81,64,30.0,30.0,51.0,34.0,False,Townsley Law Arena
+401807732,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Eastern Kentucky Colonels,Stetson Hatters,100,88,48.0,48.0,52.0,40.0,False,Baptist Health Arena
+401807730,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Austin Peay Governors,North Alabama Lions,91,62,47.0,26.0,44.0,36.0,False,F&M Bank Arena
+401807727,2026,2026-02-07,2026-02-07 22:00:00+00:00,2026-02-07 17:00,EST,Lipscomb Bisons,Central Arkansas Bears,78,86,33.0,45.0,45.0,41.0,False,Allen Arena
+401827102,2026,2026-02-07,2026-02-07 22:30:00+00:00,2026-02-07 17:30,EST,Grambling Tigers,Alabama State Hornets,57,47,18.0,21.0,39.0,26.0,False,Fredrick C. Hobdy Assembly Center
+401827075,2026,2026-02-07,2026-02-07 22:30:00+00:00,2026-02-07 17:30,EST,Bethune-Cookman Wildcats,Prairie View A&M Panthers,82,76,36.0,36.0,46.0,40.0,False,Moore Gymnasium (FL)
+401822774,2026,2026-02-07,2026-02-07 22:30:00+00:00,2026-02-07 17:30,EST,Coppin State Eagles,Delaware State Hornets,65,47,26.0,23.0,39.0,24.0,False,Physical Education Complex
+401845848,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Troy Trojans,Akron Zips,79,69,35.0,29.0,44.0,40.0,False,Trojan Arena
+401829237,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Washington State Cougars,Santa Clara Broncos,92,96,49.0,49.0,43.0,47.0,False,Beasley Coliseum
+401818412,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,South Dakota State Jackrabbits,South Dakota Coyotes,67,68,32.0,43.0,35.0,25.0,False,First Bank & Trust Arena
+401809360,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Samford Bulldogs,Mercer Bears,69,49,40.0,22.0,29.0,27.0,False,Pete Hanna Center
+401808971,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Stephen F. Austin Lumberjacks,Lamar Cardinals,84,74,46.0,34.0,38.0,40.0,False,William R. Johnson Coliseum
+401808716,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,East Texas A&M Lions,Northwestern State Demons,52,48,29.0,19.0,23.0,29.0,False,The Field House
+401808496,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,Idaho State Bengals,Northern Colorado Bears,61,69,34.0,36.0,27.0,33.0,False,Reed Gym
+401808221,2026,2026-02-07,2026-02-07 23:00:00+00:00,2026-02-07 18:00,EST,LSU Tigers,Georgia Bulldogs,71,83,37.0,42.0,34.0,41.0,False,Pete Maravich Assembly Center
+401830778,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Michigan State Spartans,Illinois Fighting Illini,6,7,6.0,7.0,,,False,Breslin Center
+401820722,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,California Golden Bears,Clemson Tigers,13,9,13.0,9.0,,,False,Haas Pavilion
+401829338,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Wyoming Cowboys,Utah State Aggies,5,7,5.0,7.0,,,False,Arena-Auditorium
+401829238,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Portland Pilots,Seattle U Redhawks,6,14,6.0,14.0,,,False,Chiles Center
+401829234,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Pepperdine Waves,Pacific Tigers,6,7,6.0,10.0,,,False,Firestone Fieldhouse
+401820727,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Stanford Cardinal,Georgia Tech Yellow Jackets,9,6,9.0,6.0,,,False,Maples Pavilion
+401820568,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Air Force Falcons,San Diego State Aztecs,5,6,5.0,6.0,,,False,Clune Arena
+401818414,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,St. Thomas-Minnesota Tommies,Oral Roberts Golden Eagles,4,7,4.0,7.0,,,False,Lee & Penny Anderson Arena
+401808463,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Montana State Bobcats,Eastern Washington Eagles,10,14,10.0,14.0,,,False,Worthington Arena
+401805190,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,California Baptist Lancers,Abilene Christian Wildcats,12,8,12.0,8.0,,,False,Dale E. and Sarah Ann Fowler Events Center
+401804919,2026,2026-02-07,2026-02-08 01:00:00+00:00,2026-02-07 20:00,EST,Jacksonville State Gamecocks,Kennesaw State Owls,8,6,8.0,6.0,,,False,Pete Mathews Coliseum
 401808224,2026,2026-02-07,2026-02-08 01:30:00+00:00,2026-02-07 20:30,EST,Texas A&M Aggies,Florida Gators,0,0,,,,,False,Reed Arena
 401808220,2026,2026-02-07,2026-02-08 01:30:00+00:00,2026-02-07 20:30,EST,Kentucky Wildcats,Tennessee Volunteers,0,0,,,,,False,Rupp Arena
 401805191,2026,2026-02-07,2026-02-08 01:30:00+00:00,2026-02-07 20:30,EST,Southern Utah Thunderbirds,Tarleton State Texans,0,0,,,,,False,America First Events Center

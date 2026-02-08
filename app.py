@@ -19817,6 +19817,182 @@ def index():
                 r['has_segments_5min'] = False
         except Exception:
             pass
+
+    # Attach 2-minute segment trajectory to main page cards (if available).
+    # Source: outputs/sim_segments_2min_<date>.csv produced by the simulator.
+    try:
+        seg2_path = OUT / f"sim_segments_2min_{date_q}.csv"
+        seg2_map: dict[str, list[dict[str, Any]]] = {}
+        seg2_rollup_map: dict[str, dict[str, Any]] = {}
+
+        if seg2_path.exists():
+            seg2_df = _safe_read_csv(seg2_path)
+            if isinstance(seg2_df, pd.DataFrame) and (not seg2_df.empty) and ('game_id' in seg2_df.columns):
+                try:
+                    seg2_df['game_id'] = seg2_df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                except Exception:
+                    pass
+
+                # Some segment CSVs may omit an explicit 'segment' index.
+                # Derive it from minutes (end_min preferred; 0-2 => 1, ..., 38-40 => 20).
+                try:
+                    if 'segment' not in seg2_df.columns:
+                        seg2_df['segment'] = np.nan
+                    seg_series = pd.to_numeric(seg2_df.get('segment'), errors='coerce')
+                    if seg_series.isna().all():
+                        if 'end_min' in seg2_df.columns:
+                            seg_series = pd.to_numeric(seg2_df.get('end_min'), errors='coerce') / 2.0
+                        elif 'start_min' in seg2_df.columns:
+                            seg_series = (pd.to_numeric(seg2_df.get('start_min'), errors='coerce') + 2.0) / 2.0
+                    seg2_df['segment'] = seg_series.round()
+                except Exception:
+                    pass
+                try:
+                    seg2_df['segment'] = pd.to_numeric(seg2_df.get('segment'), errors='coerce')
+                except Exception:
+                    pass
+                try:
+                    seg2_df = seg2_df.sort_values(['game_id', 'segment'])
+                except Exception:
+                    pass
+
+                # Derive per-segment total points from cumulative endpoints when not provided.
+                try:
+                    _end_cols = [
+                        ('mu_total_score_end', 'mu_total_pts_seg'),
+                        ('q10_total_score_end', 'q10_total_pts_seg'),
+                        ('q50_total_score_end', 'q50_total_pts_seg'),
+                        ('q90_total_score_end', 'q90_total_pts_seg'),
+                    ]
+                    for c_end, c_seg in _end_cols:
+                        if c_end not in seg2_df.columns:
+                            continue
+                        need = (c_seg not in seg2_df.columns) or pd.to_numeric(seg2_df.get(c_seg), errors='coerce').isna().all()
+                        if not need:
+                            continue
+                        end_v = pd.to_numeric(seg2_df[c_end], errors='coerce')
+                        prev = end_v.groupby(seg2_df['game_id']).shift(1)
+                        seg_v = (end_v - prev.fillna(0.0)).clip(lower=0.0)
+                        seg2_df[c_seg] = seg_v
+                except Exception:
+                    pass
+
+                def _sf(v: Any) -> float | None:
+                    try:
+                        if v is None:
+                            return None
+                        x = float(v)
+                        if not np.isfinite(x):
+                            return None
+                        return float(x)
+                    except Exception:
+                        return None
+
+                def _si(v: Any) -> int | None:
+                    try:
+                        if v is None:
+                            return None
+                        x = float(v)
+                        if not np.isfinite(x):
+                            return None
+                        return int(x)
+                    except Exception:
+                        return None
+
+                want_cols = [
+                    'segment', 'half', 'start_min', 'end_min',
+                    # points
+                    'mu_total_pts_seg', 'q10_total_pts_seg', 'q50_total_pts_seg', 'q90_total_pts_seg',
+                    'mu_total_score_end', 'q10_total_score_end', 'q50_total_score_end', 'q90_total_score_end',
+                    # boxscore-ish totals (combined)
+                    'mu_total_poss_seg', 'mu_total_tov_seg', 'mu_total_fta_seg', 'mu_total_fga2_seg', 'mu_total_fga3_seg',
+                ]
+
+                for gid, g in seg2_df.groupby('game_id'):
+                    try:
+                        rows_seg: list[dict[str, Any]] = []
+                        for _, rr in g.iterrows():
+                            o: dict[str, Any] = {}
+                            for c in want_cols:
+                                if c not in g.columns:
+                                    continue
+                                if c in ('segment', 'half', 'start_min', 'end_min'):
+                                    o[c] = _si(rr.get(c))
+                                else:
+                                    o[c] = _sf(rr.get(c))
+                            if o.get('segment') is None:
+                                continue
+                            rows_seg.append(o)
+                        if rows_seg:
+                            gid_s = str(gid)
+                            seg2_map[gid_s] = rows_seg
+
+                            def _sum_where(key: str, pred) -> float | None:
+                                try:
+                                    vals: list[float] = []
+                                    for s in rows_seg:
+                                        try:
+                                            if not pred(s):
+                                                continue
+                                            v = s.get(key)
+                                            if v is None:
+                                                continue
+                                            x = float(v)
+                                            if np.isfinite(x):
+                                                vals.append(float(x))
+                                        except Exception:
+                                            continue
+                                    if not vals:
+                                        return None
+                                    return float(sum(vals))
+                                except Exception:
+                                    return None
+
+                            roll = {
+                                'mu_total_poss_1h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 1),
+                                'mu_total_tov_1h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 1),
+                                'mu_total_fta_1h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 1),
+                                'mu_total_fga2_1h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 1),
+                                'mu_total_fga3_1h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 1),
+                                'mu_total_poss_2h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 2),
+                                'mu_total_tov_2h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 2),
+                                'mu_total_fta_2h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 2),
+                                'mu_total_fga2_2h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 2),
+                                'mu_total_fga3_2h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 2),
+                                'mu_total_poss_g': _sum_where('mu_total_poss_seg', lambda s: True),
+                                'mu_total_tov_g': _sum_where('mu_total_tov_seg', lambda s: True),
+                                'mu_total_fta_g': _sum_where('mu_total_fta_seg', lambda s: True),
+                                'mu_total_fga2_g': _sum_where('mu_total_fga2_seg', lambda s: True),
+                                'mu_total_fga3_g': _sum_where('mu_total_fga3_seg', lambda s: True),
+                            }
+                            if any(v is not None for v in roll.values()):
+                                seg2_rollup_map[gid_s] = roll
+                    except Exception:
+                        continue
+
+        for r in safe_rows:
+            try:
+                gid = str(r.get('game_id') or '')
+                if gid and (gid in seg2_map):
+                    r['segments_2min'] = seg2_map.get(gid) or []
+                    r['segments_rollup_2min'] = seg2_rollup_map.get(gid) or {}
+                    r['has_segments_2min'] = True
+                else:
+                    r['segments_2min'] = []
+                    r['segments_rollup_2min'] = {}
+                    r['has_segments_2min'] = False
+            except Exception:
+                r['segments_2min'] = []
+                r['segments_rollup_2min'] = {}
+                r['has_segments_2min'] = False
+    except Exception:
+        try:
+            for r in safe_rows:
+                r['segments_2min'] = []
+                r['segments_rollup_2min'] = {}
+                r['has_segments_2min'] = False
+        except Exception:
+            pass
     # Write a post-normalization debug snapshot based on safe_rows to reflect final display state
     try:
         today_str = _today_local().strftime("%Y-%m-%d")
@@ -35353,7 +35529,10 @@ def api_display_predictions():
         # Source: outputs/sim_segments_<date>.csv produced by the simulator.
         seg_map: dict[str, list[dict[str, Any]]] = {}
         seg_rollup_map: dict[str, dict[str, Any]] = {}
+        seg2_map: dict[str, list[dict[str, Any]]] = {}
+        seg2_rollup_map: dict[str, dict[str, Any]] = {}
         interval_actuals_map: dict[str, list[dict[str, Any]]] = {}
+        interval_actuals_2min_map: dict[str, list[dict[str, Any]]] = {}
         try:
             seg_path = OUT / f"sim_segments_{date_q}.csv"
             if cards_view and seg_path.exists():
@@ -35507,6 +35686,158 @@ def api_display_predictions():
             seg_map = {}
             seg_rollup_map = {}
 
+        # Optional: attach 2-minute segment trajectory + boxscore-grid summaries.
+        # Source: outputs/sim_segments_2min_<date>.csv produced by the simulator.
+        try:
+            seg2_path = OUT / f"sim_segments_2min_{date_q}.csv"
+            if cards_view and seg2_path.exists():
+                seg2_df = _safe_read_csv(seg2_path)
+                if isinstance(seg2_df, pd.DataFrame) and (not seg2_df.empty) and ('game_id' in seg2_df.columns):
+                    try:
+                        seg2_df['game_id'] = seg2_df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+                    # Derive segment index from minutes on 2-minute grid.
+                    try:
+                        if 'segment' not in seg2_df.columns:
+                            seg2_df['segment'] = np.nan
+                        seg_series = pd.to_numeric(seg2_df.get('segment'), errors='coerce')
+                        if seg_series.isna().all():
+                            if 'end_min' in seg2_df.columns:
+                                seg_series = pd.to_numeric(seg2_df.get('end_min'), errors='coerce') / 2.0
+                            elif 'start_min' in seg2_df.columns:
+                                seg_series = (pd.to_numeric(seg2_df.get('start_min'), errors='coerce') + 2.0) / 2.0
+                        seg2_df['segment'] = seg_series.round()
+                    except Exception:
+                        pass
+                    try:
+                        seg2_df['segment'] = pd.to_numeric(seg2_df.get('segment'), errors='coerce')
+                    except Exception:
+                        pass
+                    try:
+                        seg2_df = seg2_df.sort_values(['game_id', 'segment'])
+                    except Exception:
+                        pass
+
+                    # Derive per-segment total points from cumulative endpoints when not provided.
+                    try:
+                        _end_cols = [
+                            ('mu_total_score_end', 'mu_total_pts_seg'),
+                            ('q10_total_score_end', 'q10_total_pts_seg'),
+                            ('q50_total_score_end', 'q50_total_pts_seg'),
+                            ('q90_total_score_end', 'q90_total_pts_seg'),
+                        ]
+                        for c_end, c_seg in _end_cols:
+                            if c_end not in seg2_df.columns:
+                                continue
+                            need = (c_seg not in seg2_df.columns) or pd.to_numeric(seg2_df.get(c_seg), errors='coerce').isna().all()
+                            if not need:
+                                continue
+                            end_v = pd.to_numeric(seg2_df[c_end], errors='coerce')
+                            prev = end_v.groupby(seg2_df['game_id']).shift(1)
+                            seg_v = (end_v - prev.fillna(0.0)).clip(lower=0.0)
+                            seg2_df[c_seg] = seg_v
+                    except Exception:
+                        pass
+
+                    def _sf(v: Any) -> float | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return float(x)
+                        except Exception:
+                            return None
+
+                    def _si(v: Any) -> int | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return int(x)
+                        except Exception:
+                            return None
+
+                    want_cols = [
+                        'segment', 'half', 'start_min', 'end_min',
+                        # points
+                        'mu_total_pts_seg', 'q10_total_pts_seg', 'q50_total_pts_seg', 'q90_total_pts_seg',
+                        'mu_total_score_end', 'q10_total_score_end', 'q50_total_score_end', 'q90_total_score_end',
+                        # boxscore-ish totals (combined)
+                        'mu_total_poss_seg', 'mu_total_tov_seg', 'mu_total_fta_seg', 'mu_total_fga2_seg', 'mu_total_fga3_seg',
+                    ]
+
+                    for gid, g in seg2_df.groupby('game_id'):
+                        try:
+                            rows_seg: list[dict[str, Any]] = []
+                            for _, rr in g.iterrows():
+                                o: dict[str, Any] = {}
+                                for c in want_cols:
+                                    if c not in g.columns:
+                                        continue
+                                    if c in ('segment', 'half', 'start_min', 'end_min'):
+                                        o[c] = _si(rr.get(c))
+                                    else:
+                                        o[c] = _sf(rr.get(c))
+                                if o.get('segment') is None:
+                                    continue
+                                rows_seg.append(o)
+                            if rows_seg:
+                                gid_s = str(gid)
+                                seg2_map[gid_s] = rows_seg
+
+                                def _sum_where(key: str, pred) -> float | None:
+                                    try:
+                                        vals: list[float] = []
+                                        for s in rows_seg:
+                                            try:
+                                                if not pred(s):
+                                                    continue
+                                                v = s.get(key)
+                                                if v is None:
+                                                    continue
+                                                x = float(v)
+                                                if np.isfinite(x):
+                                                    vals.append(float(x))
+                                            except Exception:
+                                                continue
+                                        if not vals:
+                                            return None
+                                        return float(sum(vals))
+                                    except Exception:
+                                        return None
+
+                                roll = {
+                                    # By half
+                                    'mu_total_poss_1h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_tov_1h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_fta_1h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_fga2_1h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_fga3_1h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 1),
+                                    'mu_total_poss_2h': _sum_where('mu_total_poss_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_tov_2h': _sum_where('mu_total_tov_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_fta_2h': _sum_where('mu_total_fta_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_fga2_2h': _sum_where('mu_total_fga2_seg', lambda s: s.get('half') == 2),
+                                    'mu_total_fga3_2h': _sum_where('mu_total_fga3_seg', lambda s: s.get('half') == 2),
+                                    # Full game
+                                    'mu_total_poss_g': _sum_where('mu_total_poss_seg', lambda s: True),
+                                    'mu_total_tov_g': _sum_where('mu_total_tov_seg', lambda s: True),
+                                    'mu_total_fta_g': _sum_where('mu_total_fta_seg', lambda s: True),
+                                    'mu_total_fga2_g': _sum_where('mu_total_fga2_seg', lambda s: True),
+                                    'mu_total_fga3_g': _sum_where('mu_total_fga3_seg', lambda s: True),
+                                }
+                                if any(v is not None for v in roll.values()):
+                                    seg2_rollup_map[gid_s] = roll
+                        except Exception:
+                            continue
+        except Exception:
+            seg2_map = {}
+            seg2_rollup_map = {}
+
         # Optional: attach realized 5-minute interval cumulative team scores from cached ESPN PBP.
         # Source: outputs/interval_actuals_5min_<date>.csv produced by `build-interval-actuals-5min`.
         try:
@@ -35575,6 +35906,75 @@ def api_display_predictions():
                             continue
         except Exception:
             interval_actuals_map = {}
+
+        # Optional: attach realized 2-minute interval cumulative team scores from cached ESPN PBP.
+        # Source: outputs/interval_actuals_2min_<date>.csv produced by `build-interval-actuals-2min`.
+        try:
+            ia2_path = OUT / f"interval_actuals_2min_{date_q}.csv"
+            if cards_view and ia2_path.exists():
+                ia2 = _safe_read_csv(ia2_path)
+                if isinstance(ia2, pd.DataFrame) and (not ia2.empty) and ('game_id' in ia2.columns):
+                    try:
+                        ia2 = ia2.copy()
+                        ia2['game_id'] = ia2['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+                    except Exception:
+                        pass
+                    for c in ('end_min', 'actual_home_score_end', 'actual_away_score_end', 'actual_total_score_end'):
+                        if c in ia2.columns:
+                            ia2[c] = pd.to_numeric(ia2[c], errors='coerce')
+                    try:
+                        ia2 = ia2.dropna(subset=['end_min'])
+                        ia2 = ia2.sort_values(['game_id', 'end_min'], kind='mergesort')
+                    except Exception:
+                        pass
+
+                    def _sf(v: Any) -> float | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return float(x)
+                        except Exception:
+                            return None
+
+                    def _si(v: Any) -> int | None:
+                        try:
+                            if v is None:
+                                return None
+                            x = float(v)
+                            if not np.isfinite(x):
+                                return None
+                            return int(x)
+                        except Exception:
+                            return None
+
+                    for gid, g in ia2.groupby('game_id'):
+                        try:
+                            rows_ia2: list[dict[str, Any]] = []
+                            for _, rr in g.iterrows():
+                                end_min = _si(rr.get('end_min'))
+                                if end_min is None:
+                                    continue
+                                rows_ia2.append(
+                                    {
+                                        'end_min': end_min,
+                                        'actual_home_score_end': _si(rr.get('actual_home_score_end')),
+                                        'actual_away_score_end': _si(rr.get('actual_away_score_end')),
+                                        'actual_total_score_end': _si(rr.get('actual_total_score_end')),
+                                        # OT metadata (optional)
+                                        'is_ot_game': _si(rr.get('is_ot_game')),
+                                        'is_ot_endpoint': _si(rr.get('is_ot_endpoint')),
+                                        'ot_periods': _si(rr.get('ot_periods')),
+                                    }
+                                )
+                            if rows_ia2:
+                                interval_actuals_2min_map[str(gid)] = rows_ia2
+                        except Exception:
+                            continue
+        except Exception:
+            interval_actuals_2min_map = {}
 
         # Optional: attach stake-sheet callouts to cards.
         # Source: outputs/stake_sheet_<date>_{cal|iso|base}.csv
@@ -35869,6 +36269,22 @@ def api_display_predictions():
                 item['segments_rollup'] = {}
                 item['has_segments_5min'] = False
 
+            # Attach 2-minute segments if available (cards view only)
+            try:
+                gid = str(item.get('game_id') or '')
+                if cards_view and gid and (gid in seg2_map):
+                    item['segments_2min'] = seg2_map.get(gid) or []
+                    item['segments_rollup_2min'] = seg2_rollup_map.get(gid) or {}
+                    item['has_segments_2min'] = True
+                else:
+                    item['segments_2min'] = []
+                    item['segments_rollup_2min'] = {}
+                    item['has_segments_2min'] = False
+            except Exception:
+                item['segments_2min'] = []
+                item['segments_rollup_2min'] = {}
+                item['has_segments_2min'] = False
+
             # Attach realized 5-minute cumulative scores (cards view only)
             try:
                 gid = str(item.get('game_id') or '').replace('.0', '').strip()
@@ -35882,6 +36298,20 @@ def api_display_predictions():
             except Exception:
                 item['intervals_5min_actual'] = []
                 item['has_intervals_5min_actual'] = False
+
+            # Attach realized 2-minute cumulative scores (cards view only)
+            try:
+                gid = str(item.get('game_id') or '').replace('.0', '').strip()
+                ia2 = interval_actuals_2min_map.get(gid) if (cards_view and gid) else None
+                if ia2:
+                    item['intervals_2min_actual'] = ia2
+                    item['has_intervals_2min_actual'] = True
+                else:
+                    item['intervals_2min_actual'] = []
+                    item['has_intervals_2min_actual'] = False
+            except Exception:
+                item['intervals_2min_actual'] = []
+                item['has_intervals_2min_actual'] = False
 
             # Merge segments + actuals into a single per-endpoint recon list
             try:
@@ -36004,6 +36434,89 @@ def api_display_predictions():
             except Exception:
                 item['segments_5min_recon'] = []
                 item['has_segments_5min_recon'] = False
+
+            # Merge 2-minute segments + 2-minute actuals into a recon list (preferred when present)
+            try:
+                merged2: list[dict[str, Any]] = []
+                segs = item.get('segments_2min') if cards_view else None
+                acts = item.get('intervals_2min_actual') if cards_view else None
+                if isinstance(segs, list) and segs and isinstance(acts, list) and acts:
+                    a_by = {}
+                    for a in acts:
+                        try:
+                            em = a.get('end_min')
+                            if em is None:
+                                continue
+                            a_by[int(em)] = a
+                        except Exception:
+                            continue
+                    for s in segs:
+                        try:
+                            em = s.get('end_min')
+                            if em is None:
+                                continue
+                            em_i = int(em)
+                            a = a_by.get(em_i)
+                            if not a:
+                                continue
+                            pred_total = s.get('q50_total_score_end') if s.get('q50_total_score_end') is not None else s.get('mu_total_score_end')
+                            pred_home = s.get('q50_home_score_end') if s.get('q50_home_score_end') is not None else s.get('mu_home_score_end')
+                            pred_away = s.get('q50_away_score_end') if s.get('q50_away_score_end') is not None else s.get('mu_away_score_end')
+                            act_total = a.get('actual_total_score_end')
+                            act_home = a.get('actual_home_score_end')
+                            act_away = a.get('actual_away_score_end')
+
+                            def _f(x):
+                                try:
+                                    if x is None:
+                                        return None
+                                    v = float(x)
+                                    return float(v) if np.isfinite(v) else None
+                                except Exception:
+                                    return None
+
+                            def _i(x):
+                                try:
+                                    if x is None:
+                                        return None
+                                    v = float(x)
+                                    return int(v) if np.isfinite(v) else None
+                                except Exception:
+                                    return None
+
+                            pt = _f(pred_total)
+                            ph = _f(pred_home)
+                            pa = _f(pred_away)
+                            at = _i(act_total)
+                            ah = _i(act_home)
+                            aa = _i(act_away)
+                            merged2.append(
+                                {
+                                    'end_min': em_i,
+                                    'start_min': s.get('start_min'),
+                                    'half': s.get('half'),
+                                    'pred_q50_total_score_end': pt,
+                                    'pred_q50_home_score_end': ph,
+                                    'pred_q50_away_score_end': pa,
+                                    'pred_q10_total_score_end': _f(s.get('q10_total_score_end')),
+                                    'pred_q90_total_score_end': _f(s.get('q90_total_score_end')),
+                                    'actual_total_score_end': at,
+                                    'actual_home_score_end': ah,
+                                    'actual_away_score_end': aa,
+                                    'err_total': (pt - float(at)) if (pt is not None and at is not None) else None,
+                                    'err_home': (ph - float(ah)) if (ph is not None and ah is not None) else None,
+                                    'err_away': (pa - float(aa)) if (pa is not None and aa is not None) else None,
+                                    'is_ot_endpoint': 1 if em_i > 40 else 0,
+                                }
+                            )
+                        except Exception:
+                            continue
+                    merged2.sort(key=lambda x: int(x.get('end_min') or 0))
+                item['segments_2min_recon'] = merged2
+                item['has_segments_2min_recon'] = bool(merged2)
+            except Exception:
+                item['segments_2min_recon'] = []
+                item['has_segments_2min_recon'] = False
 
             # OT impact summary (cards view only): regulation 40 vs final incl-OT (from interval actuals)
             try:
