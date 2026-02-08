@@ -252,7 +252,12 @@ class TheOddsAPIAdapter:
             }))
         return rows
 
-    def iter_current_odds_expanded(self, markets: str = "h2h,spreads,totals", date_iso: str | None = None) -> Iterable[OddsHistoryRow]:
+    def iter_current_odds_expanded(
+        self,
+        markets: str = "h2h,spreads,totals",
+        date_iso: str | None = None,
+        bookmakers: str | None = None,
+    ) -> Iterable[OddsHistoryRow]:
         """Fetch current odds with expanded markets (including halves if your plan supports market keys).
 
         markets can include variants like spreads_1st_half, totals_1st_half, spreads_2nd_half, totals_2nd_half.
@@ -265,6 +270,9 @@ class TheOddsAPIAdapter:
             "oddsFormat": "american",
             "dateFormat": "iso",
         }
+        if bookmakers:
+            # Optional bookmaker filter. Expects comma-separated bookmaker keys (e.g. draftkings,fanduel,betmgm).
+            params["bookmakers"] = bookmakers
         if date_iso:
             params["date"] = date_iso
 

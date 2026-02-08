@@ -19877,6 +19877,28 @@ def index():
                 except Exception:
                     pass
 
+                # Derive per-segment margin points from cumulative margin endpoints when not provided.
+                # NOTE: margin segments can be negative; do NOT clip.
+                try:
+                    _end_cols_m = [
+                        ('mu_margin_score_end', 'mu_margin_pts_seg'),
+                        ('q10_margin_score_end', 'q10_margin_pts_seg'),
+                        ('q50_margin_score_end', 'q50_margin_pts_seg'),
+                        ('q90_margin_score_end', 'q90_margin_pts_seg'),
+                    ]
+                    for c_end, c_seg in _end_cols_m:
+                        if c_end not in seg2_df.columns:
+                            continue
+                        need = (c_seg not in seg2_df.columns) or pd.to_numeric(seg2_df.get(c_seg), errors='coerce').isna().all()
+                        if not need:
+                            continue
+                        end_v = pd.to_numeric(seg2_df[c_end], errors='coerce')
+                        prev = end_v.groupby(seg2_df['game_id']).shift(1)
+                        seg_v = (end_v - prev.fillna(0.0))
+                        seg2_df[c_seg] = seg_v
+                except Exception:
+                    pass
+
                 def _sf(v: Any) -> float | None:
                     try:
                         if v is None:
@@ -19904,6 +19926,9 @@ def index():
                     # points
                     'mu_total_pts_seg', 'q10_total_pts_seg', 'q50_total_pts_seg', 'q90_total_pts_seg',
                     'mu_total_score_end', 'q10_total_score_end', 'q50_total_score_end', 'q90_total_score_end',
+                    # margin (home-away)
+                    'mu_margin_pts_seg', 'q10_margin_pts_seg', 'q50_margin_pts_seg', 'q90_margin_pts_seg',
+                    'mu_margin_score_end', 'q10_margin_score_end', 'q50_margin_score_end', 'q90_margin_score_end',
                     # boxscore-ish totals (combined)
                     'mu_total_poss_seg', 'mu_total_tov_seg', 'mu_total_fta_seg', 'mu_total_fga2_seg', 'mu_total_fga3_seg',
                 ]
@@ -21680,6 +21705,108 @@ def api_live_state():
     ), 200
 
 
+@app.get("/api/live_lens_tuning")
+def api_live_lens_tuning():
+    """Serve Live Lens tuning thresholds (pace/efficiency) computed by daily_update.
+
+    Source: outputs/live_lens_tuning.json (best-effort). If missing, returns defaults.
+    """
+
+    try:
+        ttl = int((request.args.get("ttl") or "3600").strip())
+    except Exception:
+        ttl = 3600
+    ttl = max(0, min(ttl, 24 * 3600))
+
+    # Minimal in-memory cache.
+    global _LIVE_LENS_TUNING_CACHE
+    try:
+        import time
+
+        now_ts = float(time.time())
+        mtime = None
+        try:
+            p0 = OUT / "live_lens_tuning.json"
+            if p0.exists():
+                mtime = float(p0.stat().st_mtime)
+        except Exception:
+            mtime = None
+
+        cache_key = f"live_lens_tuning|{ttl}|{mtime}"
+        if ttl > 0 and isinstance(_LIVE_LENS_TUNING_CACHE.get("payload"), dict):
+            ts0 = float(_LIVE_LENS_TUNING_CACHE.get("ts") or 0.0)
+            k0 = _LIVE_LENS_TUNING_CACHE.get("key")
+            if k0 == cache_key and (now_ts - ts0) <= float(ttl):
+                payload0 = dict(_LIVE_LENS_TUNING_CACHE.get("payload") or {})
+                return jsonify(payload0), 200
+    except Exception:
+        pass
+
+    defaults = {
+        "pace_hi": 3.25,
+        "pace_lo": 2.75,
+        "pps_hi": 1.18,
+        "pps_lo": 0.95,
+        "pbp_n_scale": 70.0,
+        "shot_proxy_ft_weight": 0.44,
+    }
+
+    payload: dict[str, object] = {
+        "status": "ok",
+        "source": "defaults",
+        "tuning": dict(defaults),
+        "meta": {},
+    }
+
+    try:
+        p = OUT / "live_lens_tuning.json"
+        if p.exists():
+            try:
+                raw = p.read_text(encoding="utf-8")
+            except Exception:
+                raw = p.read_text(encoding="utf-8", errors="ignore")
+            import json as _json2
+
+            j = _json2.loads(raw)
+            if isinstance(j, dict):
+                t = j.get("tuning")
+                if isinstance(t, dict):
+                    # Merge onto defaults
+                    merged = dict(defaults)
+                    for k, v in t.items():
+                        if k in merged:
+                            try:
+                                merged[k] = float(v)
+                            except Exception:
+                                pass
+                    payload["source"] = "outputs/live_lens_tuning.json"
+                    payload["tuning"] = merged
+                m = j.get("meta")
+                if isinstance(m, dict):
+                    payload["meta"] = m
+    except Exception:
+        pass
+
+    # Cache.
+    try:
+        import time
+
+        mtime = None
+        try:
+            if p.exists():
+                mtime = float(p.stat().st_mtime)
+        except Exception:
+            mtime = None
+
+        _LIVE_LENS_TUNING_CACHE["ts"] = float(time.time())
+        _LIVE_LENS_TUNING_CACHE["key"] = f"live_lens_tuning|{ttl}|{mtime}"
+        _LIVE_LENS_TUNING_CACHE["payload"] = dict(payload)
+    except Exception:
+        pass
+
+    return jsonify(payload), 200
+
+
 @app.get("/api/live_pbp_stats")
 def api_live_pbp_stats():
     """Return ESPN play-by-play derived stats keyed by ESPN event id.
@@ -21859,6 +21986,323 @@ def api_live_pbp_stats():
             "games": games,
         }
     ), 200
+
+
+# ---- Live odds lines (TheOddsAPI) for Live Lens auto-fill ----
+_LIVE_LENS_TUNING_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
+_LIVE_LINES_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
+_LIVE_LENS_SIGNAL_SEEN: dict[str, float] = {}
+
+
+@app.get("/api/live_lines")
+def api_live_lines():
+    """Return current full-game live total lines keyed by ESPN event id.
+
+    Intended for Live Lens auto-fill. Uses TheOddsAPI current odds endpoint.
+
+    Params:
+      - date: YYYY-MM-DD (used to map ESPN event ids -> home/away team names)
+      - event_ids: comma-separated ESPN event ids (optional; when omitted returns empty mapping)
+      - ttl: seconds for in-memory cache (default 20; max 120)
+      - bookmakers: comma-separated bookmaker keys (default draftkings,fanduel,betmgm)
+
+    Returns:
+      { status:'ok', lines: { <event_id>: { total:<float>, book:<str>, event_id_provider:<str>, last_update:<iso or null> } } }
+    """
+    date_param = (request.args.get("date") or "").strip()
+    event_ids_raw = (request.args.get("event_ids") or "").strip()
+    bookmakers = (request.args.get("bookmakers") or "draftkings,fanduel,betmgm").strip() or "draftkings,fanduel,betmgm"
+    try:
+        ttl = int((request.args.get("ttl") or "20").strip())
+    except Exception:
+        ttl = 20
+    ttl = max(0, min(ttl, 120))
+
+    if not date_param:
+        date_param = _today_local().isoformat()
+    try:
+        target_date = dt.date.fromisoformat(date_param)
+    except Exception:
+        return jsonify({"status": "error", "message": f"Invalid date: {date_param}"}), 400
+
+    event_ids = [x.strip() for x in event_ids_raw.split(",") if x.strip()]
+    # Defensive cap to prevent giant query strings / heavy processing.
+    if len(event_ids) > 60:
+        event_ids = event_ids[:60]
+
+    if not event_ids:
+        return jsonify({"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}), 200
+
+    # In-memory TTL cache to avoid burning odds credits during frequent polling.
+    cache_key = None
+    try:
+        import time
+
+        now_ts = float(time.time())
+        cache_key = f"{target_date.isoformat()}|{bookmakers}|{','.join(sorted(event_ids))}"
+        if ttl > 0 and _LIVE_LINES_CACHE.get("payload") is not None:
+            ts0 = float(_LIVE_LINES_CACHE.get("ts") or 0.0)
+            k0 = _LIVE_LINES_CACHE.get("key")
+            if k0 == cache_key and (now_ts - ts0) <= float(ttl):
+                return jsonify(_LIVE_LINES_CACHE.get("payload")), 200
+    except Exception:
+        pass
+
+    # Load the display snapshot for the date so we can map ESPN event id -> teams.
+    try:
+        path = OUT / f"predictions_display_{target_date.isoformat()}.csv"
+        if not path.exists():
+            return jsonify({"status": "error", "message": f"Missing display snapshot: {path.name}"}), 404
+
+        df_full = pd.read_csv(path, low_memory=True)
+
+        def _pick_col(df_, opts):
+            for c in opts:
+                if c in df_.columns:
+                    return c
+            return None
+
+        gid_col = _pick_col(df_full, ["game_id", "id", "gid"])
+        home_col = _pick_col(df_full, ["home_team", "home_team_name", "home"])
+        away_col = _pick_col(df_full, ["away_team", "away_team_name", "away"])
+        if not (gid_col and home_col and away_col):
+            return jsonify({"status": "error", "message": "Display snapshot missing required columns"}), 500
+
+        core = df_full[[gid_col, home_col, away_col]].copy()
+        core = core.rename(columns={gid_col: "game_id", home_col: "home_team", away_col: "away_team"})
+        core["game_id"] = core["game_id"].astype(str).str.replace(r"\.0$", "", regex=True)
+        core = core[core["game_id"].isin(set(event_ids))]
+        if core.empty:
+            payload = {"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}
+            try:
+                if cache_key:
+                    _LIVE_LINES_CACHE["ts"] = float(time.time())
+                    _LIVE_LINES_CACHE["key"] = cache_key
+                    _LIVE_LINES_CACHE["payload"] = payload
+            except Exception:
+                pass
+            return jsonify(payload), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to load display snapshot: {e}"}), 500
+
+    try:
+        from ncaab_model.data.team_normalize import pair_key as _pair_key  # type: ignore
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Team normalize import failed: {e}"}), 500
+
+    game_pair_to_ids: dict[str, list[str]] = {}
+    for _, r in core.iterrows():
+        try:
+            gid = str(r.get("game_id") or "").strip()
+            ht = str(r.get("home_team") or "").strip()
+            at = str(r.get("away_team") or "").strip()
+            if not gid or not ht or not at:
+                continue
+            pk = _pair_key(ht, at)
+            game_pair_to_ids.setdefault(pk, []).append(gid)
+        except Exception:
+            continue
+
+    try:
+        from ncaab_model.data.adapters.odds_theoddsapi import TheOddsAPIAdapter  # type: ignore
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Odds adapter import failed: {e}"}), 500
+
+    try:
+        adapter = TheOddsAPIAdapter()
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"TheOddsAPI not configured: {e}"}), 400
+
+    now_utc = dt.datetime.now(dt.timezone.utc)
+    preferred = ["draftkings", "fanduel", "betmgm"]
+    by_pair: dict[str, list[dict]] = {}
+    try:
+        for row in adapter.iter_current_odds_expanded(markets="totals", bookmakers=bookmakers):
+            try:
+                if (row.period or "") != "full_game":
+                    continue
+                if (row.market or "") != "totals":
+                    continue
+                if row.total is None:
+                    continue
+                if getattr(row, "commence_time", None) is not None:
+                    try:
+                        ct = row.commence_time
+                        if ct.tzinfo is None:
+                            ct = ct.replace(tzinfo=dt.timezone.utc)
+                        if ct > now_utc:
+                            continue
+                    except Exception:
+                        pass
+                ht = str(row.home_team_name or "").strip()
+                at = str(row.away_team_name or "").strip()
+                if not ht or not at:
+                    continue
+                pk = _pair_key(ht, at)
+                if pk not in game_pair_to_ids:
+                    continue
+                book = str(row.book or "").strip()
+                book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                last_update = getattr(row, "last_update", None)
+                by_pair.setdefault(pk, []).append({
+                    "total": float(row.total),
+                    "book": book,
+                    "book_key": book_key,
+                    "event_id_provider": str(row.event_id or ""),
+                    "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                })
+            except Exception:
+                continue
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Odds fetch failed: {e}"}), 502
+
+    def _pick_best(cands: list[dict]) -> dict | None:
+        if not cands:
+            return None
+        for pref in preferred:
+            for c in cands:
+                if pref in str(c.get("book_key") or ""):
+                    return c
+        return cands[0]
+
+    out_lines: dict[str, dict] = {}
+    for pk, gids in game_pair_to_ids.items():
+        best = _pick_best(by_pair.get(pk) or [])
+        if not best:
+            continue
+        for gid in gids:
+            out_lines[str(gid)] = {
+                "total": best.get("total"),
+                "book": best.get("book"),
+                "event_id_provider": best.get("event_id_provider"),
+                "last_update": best.get("last_update"),
+            }
+
+    payload = {
+        "status": "ok",
+        "date": target_date.isoformat(),
+        "bookmakers": bookmakers,
+        "count": len(out_lines),
+        "lines": out_lines,
+    }
+
+    try:
+        import time
+
+        if cache_key:
+            _LIVE_LINES_CACHE["ts"] = float(time.time())
+            _LIVE_LINES_CACHE["key"] = cache_key
+            _LIVE_LINES_CACHE["payload"] = payload
+    except Exception:
+        pass
+
+    return jsonify(payload), 200
+
+
+@app.post("/api/live_lens_signal")
+def api_live_lens_signal():
+    """Log Live Lens bet/watch signals for later accuracy evaluation.
+
+    Appends a JSON line to outputs/live_lens_signals_<date>.jsonl.
+    Best-effort + idempotent-ish: uses signal_id if provided, otherwise hashes a
+    compact subset of fields.
+    """
+
+    try:
+        payload = request.get_json(silent=True) or {}
+    except Exception:
+        payload = {}
+
+    if not isinstance(payload, dict):
+        return jsonify({"status": "error", "message": "Invalid JSON payload"}), 400
+
+    # Validate / normalize basics
+    date_s = str(payload.get("date") or "").strip()
+    if not date_s:
+        try:
+            date_s = _today_local().isoformat()
+        except Exception:
+            date_s = dt.date.today().isoformat()
+    try:
+        dt.date.fromisoformat(date_s)
+    except Exception:
+        return jsonify({"status": "error", "message": f"Invalid date: {date_s}"}), 400
+
+    game_id = str(payload.get("game_id") or payload.get("event_id") or "").strip()
+    if not game_id:
+        return jsonify({"status": "error", "message": "Missing game_id"}), 400
+
+    # Keep the record compact + stable.
+    keep: dict[str, Any] = {
+        "ts": str(payload.get("ts") or dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")),
+        "date": date_s,
+        "game_id": game_id,
+        "horizon": payload.get("horizon"),
+        "elapsed": payload.get("elapsed"),
+        "remaining": payload.get("remaining"),
+        "total_points": payload.get("total_points"),
+        "live_line": payload.get("live_line"),
+        "side": payload.get("side"),
+        "strength": payload.get("strength"),
+        "edge": payload.get("edge"),
+        "is_bet": bool(payload.get("is_bet")) if payload.get("is_bet") is not None else None,
+        "is_watch": bool(payload.get("is_watch")) if payload.get("is_watch") is not None else None,
+        "tuning_source": payload.get("tuning_source"),
+        "pbp": payload.get("pbp"),
+    }
+
+    # Compute signal_id for de-dupe.
+    signal_id = str(payload.get("signal_id") or "").strip()
+    if not signal_id:
+        try:
+            import hashlib
+            import json as _json3
+
+            raw = _json3.dumps(
+                {
+                    "date": keep.get("date"),
+                    "game_id": keep.get("game_id"),
+                    "horizon": keep.get("horizon"),
+                    "side": keep.get("side"),
+                    "elapsed": keep.get("elapsed"),
+                    "live_line": keep.get("live_line"),
+                    "is_bet": keep.get("is_bet"),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            signal_id = hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
+        except Exception:
+            signal_id = ""
+    keep["signal_id"] = signal_id
+
+    # In-memory de-dupe for a few hours.
+    try:
+        import time
+
+        now_ts = float(time.time())
+        # prune occasionally
+        if len(_LIVE_LENS_SIGNAL_SEEN) > 8000:
+            cutoff = now_ts - 6 * 3600
+            for k, ts0 in list(_LIVE_LENS_SIGNAL_SEEN.items())[:2000]:
+                if float(ts0) < cutoff:
+                    _LIVE_LENS_SIGNAL_SEEN.pop(k, None)
+        if signal_id and signal_id in _LIVE_LENS_SIGNAL_SEEN and (now_ts - float(_LIVE_LENS_SIGNAL_SEEN.get(signal_id) or 0.0)) < 6 * 3600:
+            return jsonify({"status": "ok", "duplicate": True, "signal_id": signal_id}), 200
+        if signal_id:
+            _LIVE_LENS_SIGNAL_SEEN[signal_id] = now_ts
+    except Exception:
+        pass
+
+    try:
+        out_path = OUT / f"live_lens_signals_{date_s}.jsonl"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(_sanitize_json_obj_strict(keep), ensure_ascii=False) + "\n")
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to write signal: {e}"}), 500
+
+    return jsonify({"status": "ok", "signal_id": signal_id}), 200
 
 
 # ---------------------------------
@@ -32281,6 +32725,44 @@ def api_upload_sim_segments():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/upload_sim_segments_2min", methods=["POST"])
+def api_upload_sim_segments_2min():
+    """Upload per-date 2-minute simulation segments CSV.
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/sim_segments_2min_<date>.csv for cards + Live Lens.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / f"sim_segments_2min_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/upload_sim_calibration", methods=["POST"])
 def api_upload_sim_calibration():
     """Upload global simulation calibration JSON.
@@ -35740,6 +36222,28 @@ def api_display_predictions():
                     except Exception:
                         pass
 
+                    # Derive per-segment margin points from cumulative margin endpoints when not provided.
+                    # NOTE: margin segments can be negative; do NOT clip.
+                    try:
+                        _end_cols_m = [
+                            ('mu_margin_score_end', 'mu_margin_pts_seg'),
+                            ('q10_margin_score_end', 'q10_margin_pts_seg'),
+                            ('q50_margin_score_end', 'q50_margin_pts_seg'),
+                            ('q90_margin_score_end', 'q90_margin_pts_seg'),
+                        ]
+                        for c_end, c_seg in _end_cols_m:
+                            if c_end not in seg2_df.columns:
+                                continue
+                            need = (c_seg not in seg2_df.columns) or pd.to_numeric(seg2_df.get(c_seg), errors='coerce').isna().all()
+                            if not need:
+                                continue
+                            end_v = pd.to_numeric(seg2_df[c_end], errors='coerce')
+                            prev = end_v.groupby(seg2_df['game_id']).shift(1)
+                            seg_v = (end_v - prev.fillna(0.0))
+                            seg2_df[c_seg] = seg_v
+                    except Exception:
+                        pass
+
                     def _sf(v: Any) -> float | None:
                         try:
                             if v is None:
@@ -35767,6 +36271,9 @@ def api_display_predictions():
                         # points
                         'mu_total_pts_seg', 'q10_total_pts_seg', 'q50_total_pts_seg', 'q90_total_pts_seg',
                         'mu_total_score_end', 'q10_total_score_end', 'q50_total_score_end', 'q90_total_score_end',
+                        # margin (home-away)
+                        'mu_margin_pts_seg', 'q10_margin_pts_seg', 'q50_margin_pts_seg', 'q90_margin_pts_seg',
+                        'mu_margin_score_end', 'q10_margin_score_end', 'q50_margin_score_end', 'q90_margin_score_end',
                         # boxscore-ish totals (combined)
                         'mu_total_poss_seg', 'mu_total_tov_seg', 'mu_total_fta_seg', 'mu_total_fga2_seg', 'mu_total_fga3_seg',
                     ]

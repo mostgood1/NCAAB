@@ -137,6 +137,25 @@ if (-not $NoTranscript.IsPresent) {
 try {
   Set-Location $RepoRoot
 
+  # Default late-game shaping for 2-min point-allocation segments.
+  # This only affects simulations when NCAAB_SEGMENTS_GRID_MIN=2 is used.
+  if (-not $env:NCAAB_LATE_ALLOC_SHAPE -or $env:NCAAB_LATE_ALLOC_SHAPE.Trim() -eq '') {
+    $env:NCAAB_LATE_ALLOC_SHAPE = '1'
+  }
+  if (-not $env:NCAAB_LATE_ALLOC_CLOSE_MAX -or $env:NCAAB_LATE_ALLOC_CLOSE_MAX.Trim() -eq '') {
+    $env:NCAAB_LATE_ALLOC_CLOSE_MAX = '6'
+  }
+  if (-not $env:NCAAB_LATE_ALLOC_BLOWOUT_MIN -or $env:NCAAB_LATE_ALLOC_BLOWOUT_MIN.Trim() -eq '') {
+    $env:NCAAB_LATE_ALLOC_BLOWOUT_MIN = '11'
+  }
+  if (-not $env:NCAAB_LATE_ALLOC_LAST_MULT_CLOSE -or $env:NCAAB_LATE_ALLOC_LAST_MULT_CLOSE.Trim() -eq '') {
+    $env:NCAAB_LATE_ALLOC_LAST_MULT_CLOSE = '1.20'
+  }
+  if (-not $env:NCAAB_LATE_ALLOC_LAST_MULT_BLOWOUT -or $env:NCAAB_LATE_ALLOC_LAST_MULT_BLOWOUT.Trim() -eq '') {
+    $env:NCAAB_LATE_ALLOC_LAST_MULT_BLOWOUT = '0.65'
+  }
+  Write-Host "[late-shape] NCAAB_LATE_ALLOC_SHAPE=$($env:NCAAB_LATE_ALLOC_SHAPE) CLOSE_MAX=$($env:NCAAB_LATE_ALLOC_CLOSE_MAX) BLOWOUT_MIN=$($env:NCAAB_LATE_ALLOC_BLOWOUT_MIN) CLOSE_MULT=$($env:NCAAB_LATE_ALLOC_LAST_MULT_CLOSE) BLOWOUT_MULT=$($env:NCAAB_LATE_ALLOC_LAST_MULT_BLOWOUT)" -ForegroundColor DarkGray
+
   # Compute dates
   $todayDate = [DateTime]::ParseExact($Today, 'yyyy-MM-dd', $null)
   $prevDate = $todayDate.AddDays(-1).ToString('yyyy-MM-dd')
@@ -154,6 +173,16 @@ try {
     )
   )
   Write-Host "[quantile-gating] day=$dow targetDay=$QuantileRetrainDay ageDays=$([Math]::Round($artifactAgeDays,2)) runHeavy=$RunHeavyQuantiles" -ForegroundColor DarkGray
+
+  # 0.tuning) Compute Live Lens pace/efficiency thresholds from cached ESPN PBP
+  # Writes: outputs/live_lens_tuning.json (used by /api/live_lens_tuning -> Live Lens JS)
+  Write-Section "0.tuning) Compute Live Lens tuning (pace/efficiency)"
+  try {
+    $tuneOut = Join-Path $OutDir 'live_lens_tuning.json'
+    & $VenvPython -m ncaab_model.cli compute-live-lens-tuning --days 21 --max-files 500 --out $tuneOut
+  } catch {
+    Write-Warning "Live Lens tuning compute failed: $($_)"
+  }
 
   # 0.weights) Refresh 5-min segment weights from season master backtest (fast, no network)
   Write-Section "0.weights) Refresh 5-min segment weights (from master backtest)"
@@ -337,6 +366,14 @@ print({'path': str(games_path), 'rows': len(df2)})
       }
     } catch {
       Write-Warning "[cleanup] Failed to remove stray results files: $($_)"
+    }
+
+    # Live Lens bet accuracy (requires UI-captured signals + finalized results)
+    Write-Section "3b.i) Live Lens bet accuracy (win-rate/ROI) for $prevDate"
+    try {
+      & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy --date $prevDate
+    } catch {
+      Write-Warning "compute-live-lens-accuracy failed for ${prevDate}: $($_)"
     }
   } else {
     Write-Host "SkipFinalizePrev flag set; skipping finalize-day for $prevDate." -ForegroundColor Yellow
@@ -1051,6 +1088,30 @@ sys.exit(1 if nan_count>0 else 0)
   try {
     & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir
   } catch { Write-Warning "run_game_simulations.py failed: $($_)" }
+
+  # Generate 2-min segments side-by-side for the cards UI (outputs/sim_segments_2min_<date>.csv)
+  Write-Section '6a.post.d.s.i) Generate 2-min sim segments (cards/UI)'
+  try {
+    & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir --segments-grid-min 2 --segments-out-prefix sim_segments_2min_ --quantiles-out-prefix sim_quantiles_2min_ --meta-out-prefix sim_meta_2min_
+  } catch { Write-Warning "2-min run_game_simulations.py failed: $($_)" }
+
+  # Safety: ensure 2-min artifacts exist (Live Lens prefers 2-min when present).
+  # If missing, retry once to avoid silent fallback to 5-min.
+  try {
+    $seg2 = Join-Path $OutDir ("sim_segments_2min_" + $todayIso + ".csv")
+    $q2 = Join-Path $OutDir ("sim_quantiles_2min_" + $todayIso + ".csv")
+    $m2 = Join-Path $OutDir ("sim_meta_2min_" + $todayIso + ".json")
+    if ((-not (Test-Path $seg2)) -or (-not (Test-Path $q2)) -or (-not (Test-Path $m2))) {
+      Write-Warning "[2-min] Missing after sim run; retrying once: seg=$([bool](Test-Path $seg2)) q=$([bool](Test-Path $q2)) meta=$([bool](Test-Path $m2))"
+      try {
+        & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir --segments-grid-min 2 --segments-out-prefix sim_segments_2min_ --quantiles-out-prefix sim_quantiles_2min_ --meta-out-prefix sim_meta_2min_
+      } catch {
+        Write-Warning "[2-min] Retry failed: $($_)"
+      }
+    }
+  } catch {
+    Write-Warning "[2-min] Artifact existence check failed: $($_)"
+  }
   try {
     $BlendSimWeight = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
     Write-Host "Blending simulations with weight $BlendSimWeight"

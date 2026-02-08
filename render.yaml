@@ -32,6 +32,17 @@ services:
         value: "0"
       - key: NCAAB_TOTALS_MODE
         value: model
+      # 2-min point-allocation late-game shaping (proxy-based by spread if present, else model margin)
+      - key: NCAAB_LATE_ALLOC_SHAPE
+        value: "1"
+      - key: NCAAB_LATE_ALLOC_CLOSE_MAX
+        value: "6"
+      - key: NCAAB_LATE_ALLOC_BLOWOUT_MIN
+        value: "11"
+      - key: NCAAB_LATE_ALLOC_LAST_MULT_CLOSE
+        value: "1.20"
+      - key: NCAAB_LATE_ALLOC_LAST_MULT_BLOWOUT
+        value: "0.65"
     healthCheckPath: /healthz
     
     # Optional persistent disk if you later want to write outputs on Render

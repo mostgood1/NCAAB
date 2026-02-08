@@ -47,7 +47,7 @@ function Upload-File {
             # Optional endpoints may not exist on older deployments; treat as skip.
             $code = $null
             try { $code = [int]$resp.StatusCode } catch { $code = $null }
-            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments|upload_predictions_model_interval')) {
+            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval')) {
                 Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                 return @{ status = 'skipped'; code = 404; uri = $Uri }
             }
@@ -73,6 +73,7 @@ $modelIntervalPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_model_
 $simQuantilesPath = Join-Path -Path $OutputsDir -ChildPath ("sim_quantiles_{0}.csv" -f $Date)
 $simBlendPath     = Join-Path -Path $OutputsDir -ChildPath ("sim_blend_{0}.csv" -f $Date)
 $simSegmentsPath  = Join-Path -Path $OutputsDir -ChildPath ("sim_segments_{0}.csv" -f $Date)
+$simSegments2MinPath  = Join-Path -Path $OutputsDir -ChildPath ("sim_segments_2min_{0}.csv" -f $Date)
 $simDiagPath      = Join-Path -Path $OutputsDir -ChildPath ("sim_inputs_diagnostic_{0}.json" -f $Date)
 $simCalibPath     = Join-Path -Path $OutputsDir -ChildPath 'sim_calibration.json'
 ${needSimRetry} = $false
@@ -549,6 +550,25 @@ if (Test-Path -LiteralPath $simSegmentsPath) {
     }
 } else {
     Write-Host "[Skip] sim_segments_$Date.csv missing" -ForegroundColor Yellow
+}
+
+# Upload simulation 2-min segments if present (for cards + Live Lens)
+if (Test-Path -LiteralPath $simSegments2MinPath) {
+    $seg2Rows = Get-CsvRowCount -Path $simSegments2MinPath
+    if ($seg2Rows -gt 0) {
+        $uSimS2 = Upload-File -Uri "$BaseUrl/api/upload_sim_segments_2min" -FilePath $simSegments2MinPath -Query @{ date = $Date }
+        if ($uSimS2 -and ($uSimS2.status -eq 'skipped')) {
+            Write-Host "[Skip] sim_segments_2min endpoint unavailable" -ForegroundColor Yellow
+        } elseif ($uSimS2) {
+            Write-Host "[OK] sim_segments_2min uploaded: rows=$($uSimS2.rows)" -ForegroundColor Green
+        } else {
+            ${needSimRetry} = $true
+        }
+    } else {
+        Write-Host "[Skip] sim_segments_2min_$Date.csv empty (header-only); not uploading" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[Skip] sim_segments_2min_$Date.csv missing" -ForegroundColor Yellow
 }
 if (Test-Path -LiteralPath $simBlendPath) {
     $uSimB = Upload-File -Uri "$BaseUrl/api/upload_sim_blend" -FilePath $simBlendPath -Query @{ date = $Date }

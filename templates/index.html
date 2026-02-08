@@ -54,6 +54,10 @@
     .date-form{display:flex;align-items:center;gap:8px;}
     .date-input{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#f6f8ff;border-radius:10px;padding:6px 10px;}
     .date-input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.9;}
+
+    /* Status pills: keep their color always, dim when not selected */
+    .pill.status-off{opacity:0.55;}
+    .pill.status-off:hover{opacity:0.78;}
   </style>
   {% set e = 2.718281828459045 %}
 </head>
@@ -96,6 +100,10 @@
           <span class="pill small neutral" aria-hidden="true">Times</span>
           <div id="timePills" class="flex-row-wrap" aria-label="Time filter pills"></div>
         </div>
+        <div class="flex-row-wrap">
+          <span class="pill small neutral" aria-hidden="true">Status</span>
+          <div id="statusPills" class="flex-row-wrap" aria-label="Status filter pills"></div>
+        </div>
       </div>
     </div>
 
@@ -118,7 +126,9 @@
         {% set _conf_home = (r.conference_home if (r.conference_home is defined and r.conference_home) else '') %}
         {% set _conf_away = (r.conference_away if (r.conference_away is defined and r.conference_away) else '') %}
         {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}">
+        {% set _spr_full = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else None)) %}
+        {% set _spr_1h = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -410,38 +420,42 @@
 
                 {% if segs_1h is defined and segs_1h %}
                   <div class="section-block">
-                    <details open>
-                      <summary class="section-title">1H Interval</summary>
-
-                      <div class="live-lens-wrap muted m4v8">
-                        <div class="note muted">Live lens (1H; enter minutes remaining + score; optional live total):</div>
-                        <div class="kpi mt8">
-                          <span class="pill small">Min remaining
-                            <select class="date-input live-lens-min" aria-label="Minutes remaining (1H)">
-                              <option value="">–</option>
-                            </select>
-                          </span>
-                          <span class="pill small">Total pts
-                            <input class="date-input live-lens-total" type="number" step="1" min="0" inputmode="numeric" aria-label="Current total points" placeholder="e.g. 28" />
-                          </span>
-                          <span class="pill small">Live total
-                            <input class="date-input live-lens-line" type="number" step="0.5" min="0" inputmode="decimal" aria-label="Live total line (1H)" placeholder="optional" />
-                          </span>
-                        </div>
-                        <div class="kpi mt8">
-                          <span class="pill small live-lens-out" data-out="exp">Sim q50 @ time: –</span>
-                          <span class="pill small live-lens-out" data-out="delta">Δ (Sim−Act): –</span>
-                          <span class="pill small live-lens-out" data-out="pace">Pace final: –</span>
-                          <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
-                          <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
-                          <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
-                        </div>
-                        <div class="kpi mt8">
-                          <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
-                          <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
-                        </div>
-                        <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'segments': segs_1h, 'recon': recon_1h} | tojson }}</script>
+                    <div class="section-title">1H Interval</div>
+                    <div class="live-lens-wrap muted m4v8">
+                      <div class="note muted">Live lens (1H; enter minutes remaining + score; optional live total):</div>
+                      <div class="kpi mt8">
+                        <span class="pill small">Min remaining
+                          <select class="date-input live-lens-min" aria-label="Minutes remaining (1H)">
+                            <option value="">–</option>
+                          </select>
+                        </span>
+                        <span class="pill small">Total pts
+                          <input class="date-input live-lens-total" type="number" step="1" min="0" inputmode="numeric" aria-label="Current total points" placeholder="e.g. 28" />
+                        </span>
+                        <span class="pill small">Live total
+                          <input class="date-input live-lens-line" type="number" step="0.5" min="0" inputmode="decimal" aria-label="Live total line (1H)" placeholder="optional" />
+                        </span>
                       </div>
+                      <div class="kpi mt8">
+                        <span class="pill small live-lens-out" data-out="exp">Sim q50 @ time: –</span>
+                        <span class="pill small live-lens-out" data-out="delta">Δ (Sim−Act): –</span>
+                        <span class="pill small live-lens-out" data-out="pace">Pace final: –</span>
+                        <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
+                        <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
+                        <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                        <span class="pill small live-lens-out" data-out="ml">ML: –</span>
+                        <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
+                      </div>
+                      <div class="kpi mt8">
+                        <span class="pill small live-lens-out" data-out="score">Score: –</span>
+                        <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
+                        <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
+                      </div>
+                      <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'segments': segs_1h, 'recon': recon_1h} | tojson }}</script>
+                    </div>
+
+                    <details>
+                      <summary class="note muted">Interval details</summary>
 
                       <div class="muted m4v8">
                         Cum total (q50) at end-minute:
@@ -660,9 +674,7 @@
 
                 {% if segs_g is defined and segs_g %}
                   <div class="section-block">
-                    <details open>
-                      <summary class="section-title">Full Game Interval</summary>
-
+                    <div class="section-title">Full Game Interval</div>
                     <div class="live-lens-wrap muted m4v8">
                       <div class="note muted">Live lens (full game; enter minutes remaining + score; optional live total):</div>
                       <div class="kpi mt8">
@@ -685,15 +697,21 @@
                         <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
                         <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                        <span class="pill small live-lens-out" data-out="ml">ML: –</span>
+                        <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
                       </div>
                       <div class="kpi mt8">
+                        <span class="pill small live-lens-out" data-out="score">Score: –</span>
                         <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
                         <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
                       </div>
                       <script type="application/json" class="live-lens-data">{{ {'horizon': 40, 'segments': segs_g, 'recon': recon_g} | tojson }}</script>
                     </div>
 
-                    <div class="muted m4v8">
+                    <details>
+                      <summary class="note muted">Interval details</summary>
+
+                      <div class="muted m4v8">
                       Cum total (q50) at end-minute:
                       {% for s in segs_g %}
                         {% if (s.end_min is defined and s.end_min is not none) and (s.end_min <= 40) and (s.q50_total_score_end is defined and s.q50_total_score_end is not none and s.q50_total_score_end == s.q50_total_score_end) %}
@@ -1880,7 +1898,7 @@
   </script>
 
   <script>
-    // Live lens for 5-min trajectory: translate current score/time into pace + diagnostics vs sim.
+    // Live lens for segment trajectory (2-min when available): translate current score/time into pace + diagnostics vs sim.
     (function(){
       function toNum(v){
         if(v === null || v === undefined) return null;
@@ -1891,11 +1909,34 @@
       function round0(x){ return (x === null ? null : Math.round(x)); }
       function pct(x){ return (x === null ? null : Math.round(x * 100)); }
 
+      function erf(x){
+        // Abramowitz and Stegun approximation (good enough for UI probabilities).
+        var sign = (x < 0) ? -1 : 1;
+        x = Math.abs(x);
+        var a1 = 0.254829592;
+        var a2 = -0.284496736;
+        var a3 = 1.421413741;
+        var a4 = -1.453152027;
+        var a5 = 1.061405429;
+        var p = 0.3275911;
+        var t = 1.0 / (1.0 + p * x);
+        var y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-x*x);
+        return sign * y;
+      }
+      function normCdf(z){
+        if(z === null || z === undefined) return null;
+        if(!isFinite(z)) return null;
+        return 0.5 * (1 + erf(z / Math.SQRT2));
+      }
+
       function buildIndex(segments, horizon){
         var rows = (segments || []).map(function(s){
           return {
             end_min: toNum(s.end_min),
-            q50_total_score_end: toNum(s.q50_total_score_end)
+            q50_total_score_end: toNum(s.q50_total_score_end),
+            q10_margin_score_end: toNum(s.q10_margin_score_end),
+            q50_margin_score_end: toNum(s.q50_margin_score_end),
+            q90_margin_score_end: toNum(s.q90_margin_score_end)
           };
         }).filter(function(r){
           if(r.end_min === null || r.end_min <= 0) return false;
@@ -1905,8 +1946,14 @@
         rows.sort(function(a,b){ return a.end_min - b.end_min; });
 
         var expTotalByMin = {};
+        var expMarginByMin = {};
+        var q10MarginByMin = {};
+        var q90MarginByMin = {};
         rows.forEach(function(r){
           if(r.q50_total_score_end !== null) expTotalByMin[String(r.end_min)] = r.q50_total_score_end;
+          if(r.q50_margin_score_end !== null) expMarginByMin[String(r.end_min)] = r.q50_margin_score_end;
+          if(r.q10_margin_score_end !== null) q10MarginByMin[String(r.end_min)] = r.q10_margin_score_end;
+          if(r.q90_margin_score_end !== null) q90MarginByMin[String(r.end_min)] = r.q90_margin_score_end;
         });
 
         var maxMin = rows.length ? rows[rows.length-1].end_min : null;
@@ -1915,7 +1962,25 @@
         if(expTotalByMin[endKey]) simFinal = expTotalByMin[endKey];
         else if(maxMin !== null) simFinal = expTotalByMin[String(maxMin)] || null;
 
-        return { rows: rows, expTotalByMin: expTotalByMin, simFinal: simFinal };
+        var simFinalMargin = null;
+        var q10FinalMargin = null;
+        var q90FinalMargin = null;
+        if(expMarginByMin[endKey] !== undefined) simFinalMargin = expMarginByMin[endKey];
+        else if(maxMin !== null && expMarginByMin[String(maxMin)] !== undefined) simFinalMargin = expMarginByMin[String(maxMin)];
+        if(q10MarginByMin[endKey] !== undefined) q10FinalMargin = q10MarginByMin[endKey];
+        else if(maxMin !== null && q10MarginByMin[String(maxMin)] !== undefined) q10FinalMargin = q10MarginByMin[String(maxMin)];
+        if(q90MarginByMin[endKey] !== undefined) q90FinalMargin = q90MarginByMin[endKey];
+        else if(maxMin !== null && q90MarginByMin[String(maxMin)] !== undefined) q90FinalMargin = q90MarginByMin[String(maxMin)];
+
+        return {
+          rows: rows,
+          expTotalByMin: expTotalByMin,
+          simFinal: simFinal,
+          expMarginByMin: expMarginByMin,
+          simFinalMargin: simFinalMargin,
+          q10FinalMargin: q10FinalMargin,
+          q90FinalMargin: q90FinalMargin
+        };
       }
 
       function setText(root, key, txt){
@@ -1984,6 +2049,72 @@
         card.classList.toggle('live-edge-ok', anyOk);
         // Only show warn if we are not already in ok.
         card.classList.toggle('live-edge-warn', (!anyOk && anyWarn));
+      }
+
+      function getSlateDate(){
+        try {
+          var el = document.querySelector('input[type="date"][name="date"]');
+          return el ? String(el.value || '').trim() : '';
+        } catch(e){
+          return '';
+        }
+      }
+
+      function maybeLogLiveLensSignal(wrap, card, sig){
+        try {
+          if(!sig || !card) return;
+          if(!sig.is_bet) return; // Only log BET signals for accuracy/ROI.
+          if(sig.live_line === null || sig.live_line === undefined) return;
+          if(sig.side !== 'over' && sig.side !== 'under') return;
+          if(sig.horizon !== null && sig.horizon !== undefined){
+            var hz = toNum(sig.horizon);
+            if(hz !== null && hz < 39) return; // full-game only for now
+          }
+
+          var gid = String(card.getAttribute('data-game-id') || '').trim();
+          if(!gid) return;
+
+          var elapsed = toNum(sig.elapsed);
+          var bucket = (elapsed !== null) ? Math.floor(elapsed) : null;
+          var line = toNum(sig.live_line);
+          var lineQ = (line !== null) ? (Math.round(line * 2) / 2) : null;
+
+          var key = gid + '|' + String(sig.side) + '|' + String(sig.horizon) + '|' + String(bucket) + '|' + String(lineQ);
+          if(wrap && wrap.__lastLiveLensLogKey === key) return;
+          if(wrap) wrap.__lastLiveLensLogKey = key;
+
+          var tuneSrc = null;
+          try { tuneSrc = (window.__ncaabLiveLensTuning && window.__ncaabLiveLensTuning.source) ? window.__ncaabLiveLensTuning.source : null; } catch(eTS){ tuneSrc = null; }
+
+          var pbp = null;
+          try {
+            var stats = card.__livePbpStats ? card.__livePbpStats : null;
+            pbp = pbpRollup(stats);
+          } catch(eP){ pbp = null; }
+
+          var payload = {
+            ts: (new Date()).toISOString(),
+            date: getSlateDate() || null,
+            game_id: gid,
+            horizon: sig.horizon,
+            elapsed: sig.elapsed,
+            remaining: sig.remaining,
+            total_points: sig.total_points,
+            live_line: lineQ,
+            side: sig.side,
+            edge: sig.edge,
+            strength: sig.strength,
+            is_bet: true,
+            tuning_source: tuneSrc,
+            pbp: pbp
+          };
+
+          fetch('/api/live_lens_signal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).catch(function(){ /* ignore */ });
+        } catch(e){ /* ignore */ }
       }
 
       function wireOne(wrap){
@@ -2057,6 +2188,15 @@
           var act = toNum(inpTot.value);
           var line = inpLine ? toNum(inpLine.value) : null;
 
+          // Live score (from polling) for ML/ATS.
+          var liveHome = null;
+          var liveAway = null;
+          try {
+            if(card0 && typeof card0.__liveHomeScore === 'number') liveHome = card0.__liveHomeScore;
+            if(card0 && typeof card0.__liveAwayScore === 'number') liveAway = card0.__liveAwayScore;
+          } catch(eLS) { /* noop */ }
+          var actMargin = (liveHome !== null && liveAway !== null) ? (toNum(liveHome) - toNum(liveAway)) : null;
+
           // Convert remaining → elapsed in this horizon
           var elapsed = (remaining !== null) ? (horizon - remaining) : null;
           if(elapsed !== null && elapsed < 0) elapsed = 0;
@@ -2064,8 +2204,32 @@
           var exp = (elapsed !== null && elapsed > 0) ? (idx.expTotalByMin[String(elapsed)] ?? null) : null;
           var simFinal = idx.simFinal;
 
+          var expMargin = (elapsed !== null && elapsed > 0) ? (idx.expMarginByMin[String(elapsed)] ?? null) : null;
+          var simFinalMargin = idx.simFinalMargin;
+
           var delta = (exp !== null && act !== null) ? (exp - act) : null; // + means sim higher than actual so far
           var paceFinal = (elapsed !== null && act !== null && elapsed > 0) ? (act / elapsed * horizon) : null;
+
+          // Optional daily-tuned thresholds (best-effort).
+          var tune = null;
+          try {
+            tune = (window.__ncaabLiveLensTuning && window.__ncaabLiveLensTuning.tuning) ? window.__ncaabLiveLensTuning.tuning : null;
+          } catch(eTune){ tune = null; }
+          var ftW = 0.44;
+          var pbpNScale = 70;
+          var paceHi = 3.25;
+          var paceLo = 2.75;
+          var ppsHi = 1.18;
+          var ppsLo = 0.95;
+          if(tune){
+            var v;
+            v = toNum(tune.shot_proxy_ft_weight); if(v !== null) ftW = v;
+            v = toNum(tune.pbp_n_scale); if(v !== null && v > 1) pbpNScale = v;
+            v = toNum(tune.pace_hi); if(v !== null) paceHi = v;
+            v = toNum(tune.pace_lo); if(v !== null) paceLo = v;
+            v = toNum(tune.pps_hi); if(v !== null) ppsHi = v;
+            v = toNum(tune.pps_lo); if(v !== null) ppsLo = v;
+          }
 
           setText(wrap, 'exp', 'Sim q50 @ time: ' + (exp !== null ? String(round0(exp)) : '–'));
           setText(wrap, 'delta', 'Δ (Sim−Act): ' + (delta !== null ? ((delta > 0 ? '+' : '') + String(round0(delta))) : '–'));
@@ -2077,6 +2241,7 @@
           var lean = '–';
           var isStrong = false;
           var isStrongNoLine = false;
+          var logSig = null;
           if(line !== null && paceFinal !== null){
             var edge = paceFinal - line;
             var side = (edge > 0.01) ? 'Over' : (edge < -0.01 ? 'Under' : 'No edge');
@@ -2096,6 +2261,57 @@
               if(side === 'Under') adj += (delta < 0 ? 1 : (delta > 0 ? -1 : 0));
             }
             if(pbp){
+              // Pace proxy: use (FGA + 0.44*FTA) per minute.
+              // This helps distinguish "fast but cold" from "slow but hot".
+              var shotProxy = null;
+              try {
+                shotProxy = (pbp.fga !== null ? pbp.fga : null);
+                if(shotProxy !== null) shotProxy = shotProxy + ftW * (pbp.fta !== null ? pbp.fta : 0);
+              } catch(eP0) { shotProxy = null; }
+
+              var shotRate = null;
+              if(shotProxy !== null && elapsed !== null && elapsed > 0){
+                shotRate = shotProxy / elapsed;
+              }
+
+              // Efficiency proxy: points per shotProxy (rough PPP).
+              var pps = null;
+              if(shotProxy !== null && shotProxy > 0.01 && act !== null){
+                pps = act / shotProxy;
+              }
+
+              // Weight PBP adjustments until there is a little sample size.
+              var pbpN = null;
+              try {
+                pbpN = (pbp.fga !== null ? pbp.fga : 0) + (pbp.fta !== null ? pbp.fta : 0);
+              } catch(eP1) { pbpN = null; }
+              var wPbp = 1;
+              if(pbpN !== null){
+                wPbp = Math.min(1, Math.max(0, pbpN / pbpNScale));
+              }
+
+              var paceAdj = 0;
+              if(shotRate !== null){
+                if(side === 'Over'){
+                  if(shotRate >= paceHi) paceAdj += 1;
+                  else if(shotRate <= paceLo) paceAdj -= 1;
+                } else if(side === 'Under'){
+                  if(shotRate <= paceLo) paceAdj += 1;
+                  else if(shotRate >= paceHi) paceAdj -= 1;
+                }
+              }
+
+              var effAdj = 0;
+              if(pps !== null){
+                if(side === 'Over'){
+                  if(pps <= ppsLo) effAdj += 1;
+                  else if(pps >= ppsHi) effAdj -= 1;
+                } else if(side === 'Under'){
+                  if(pps >= ppsHi) effAdj += 1;
+                  else if(pps <= ppsLo) effAdj -= 1;
+                }
+              }
+
               var hot = ((pbp.fgPct !== null && pbp.fgPct >= 0.60) || (pbp.tpPct !== null && pbp.tpPct >= 0.52) || (pbp.ftPct !== null && pbp.ftPct >= 0.92));
               var cold = ((pbp.fgPct !== null && pbp.fgPct <= 0.38) || (pbp.tpPct !== null && pbp.tpPct <= 0.22));
               if(side === 'Over'){
@@ -2109,6 +2325,9 @@
                 if(side === 'Over' && pbp.ftr >= 0.55) adj += 0.5;
                 if(side === 'Under' && pbp.ftr <= 0.22) adj += 0.5;
               }
+
+              // Incorporate attempt pace + efficiency proxies.
+              adj += wPbp * (paceAdj + effAdj);
             }
 
             var strength = edgeAbs + adj;
@@ -2117,12 +2336,53 @@
             if(side === 'Over') lean = (isStrong ? 'BET ' : 'Watch ') + 'Over (pace ' + edgeTxt + ')';
             else if(side === 'Under') lean = (isStrong ? 'BET ' : 'Watch ') + 'Under (pace ' + edgeTxt + ')';
             else lean = 'No edge';
+
+            if(isStrong && (side === 'Over' || side === 'Under')){
+              logSig = {
+                is_bet: true,
+                side: (side === 'Over' ? 'over' : 'under'),
+                horizon: horizon,
+                elapsed: elapsed,
+                remaining: remaining,
+                total_points: act,
+                live_line: line,
+                edge: edge,
+                strength: strength
+              };
+            }
           } else if(delta !== null){
             var minElapsed2 = (horizon <= 20.5) ? 4 : 6;
             var thrDelta = (horizon <= 20.5) ? 8 : 12;
             var dabs = Math.abs(delta);
             var side2 = (delta > 0.01) ? 'Over' : (delta < -0.01 ? 'Under' : 'No edge');
-            isStrongNoLine = (side2 === 'Over' || side2 === 'Under') && (elapsed !== null && elapsed >= minElapsed2) && (dabs >= thrDelta);
+
+            // Use PBP pace/efficiency as a small confirmation signal even when no line is present.
+            var pbpAdj2 = 0;
+            try {
+              var cardN = getCardForWrap(wrap);
+              var statsN = (cardN && cardN.__livePbpStats) ? cardN.__livePbpStats : null;
+              var pbpN2 = pbpRollup(statsN);
+              if(pbpN2){
+                var sp2 = (pbpN2.fga !== null ? pbpN2.fga : null);
+                if(sp2 !== null) sp2 = sp2 + ftW * (pbpN2.fta !== null ? pbpN2.fta : 0);
+                var sr2 = (sp2 !== null && elapsed !== null && elapsed > 0) ? (sp2 / elapsed) : null;
+                var pps2 = (sp2 !== null && sp2 > 0.01 && act !== null) ? (act / sp2) : null;
+
+                // If pace is clearly high, it supports Over candidates; if clearly low, supports Under.
+                if(sr2 !== null){
+                  if(side2 === 'Over' && sr2 >= paceHi) pbpAdj2 += 1;
+                  if(side2 === 'Under' && sr2 <= paceLo) pbpAdj2 += 1;
+                }
+
+                // If efficiency looks abnormally low/high, it hints at regression.
+                if(pps2 !== null){
+                  if(side2 === 'Over' && pps2 <= ppsLo) pbpAdj2 += 1;
+                  if(side2 === 'Under' && pps2 >= ppsHi) pbpAdj2 += 1;
+                }
+              }
+            } catch(eN){ pbpAdj2 = 0; }
+
+            isStrongNoLine = (side2 === 'Over' || side2 === 'Under') && (elapsed !== null && elapsed >= minElapsed2) && ((dabs + pbpAdj2) >= thrDelta);
             if(side2 === 'Over'){
               lean = (isStrongNoLine ? 'WATCH ' : '') + 'Over candidates (Δ ' + (delta > 0 ? '+' : '') + String(round0(delta)) + ')';
             } else if(side2 === 'Under'){
@@ -2138,6 +2398,57 @@
 
           setText(wrap, 'driver', 'Driver: ' + driver);
           setText(wrap, 'lean', 'Lean: ' + lean);
+
+          // Score display (auto from live polling)
+          if(liveHome !== null && liveAway !== null){
+            setText(wrap, 'score', 'Score: A ' + String(round0(liveAway)) + ' · H ' + String(round0(liveHome)));
+          } else {
+            setText(wrap, 'score', 'Score: –');
+          }
+
+          // ML / ATS recommendations (full-game lens only).
+          if(horizon <= 20.5){
+            setText(wrap, 'ml', 'ML: –');
+            setText(wrap, 'ats', 'ATS: –');
+          } else {
+            // Spread lines from the card; prefer live/full spread.
+            var spreadHome = null;
+            try {
+              if(card0){
+                spreadHome = toNum(card0.getAttribute('data-spread-home'));
+              }
+            } catch(eSp){ spreadHome = null; }
+
+            // Estimate sigma from (q10,q90) if available.
+            var sigma = null;
+            var q10F = idx.q10FinalMargin;
+            var q90F = idx.q90FinalMargin;
+            if(q10F !== null && q90F !== null){
+              var denom = 2 * 1.2815515655446004;
+              var s0 = (q90F - q10F) / denom;
+              if(isFinite(s0) && s0 > 0.01) sigma = s0;
+            }
+
+            if(simFinalMargin !== null){
+              var pickML = (simFinalMargin > 0.01) ? 'Home' : (simFinalMargin < -0.01 ? 'Away' : 'Pick');
+              var pHome = (sigma !== null) ? normCdf(simFinalMargin / sigma) : null;
+              var pTxt = (pHome !== null) ? (' (H ' + String(pct(pHome)) + '%)') : '';
+              setText(wrap, 'ml', 'ML: ' + pickML + pTxt);
+            } else {
+              setText(wrap, 'ml', 'ML: –');
+            }
+
+            if(spreadHome !== null && simFinalMargin !== null){
+              var coverEdge = simFinalMargin + spreadHome; // home covers if > 0
+              var pickATS = (coverEdge > 0.01) ? 'Home' : (coverEdge < -0.01 ? 'Away' : 'Push');
+              var pCov = (sigma !== null) ? normCdf(coverEdge / sigma) : null;
+              var pCovTxt = (pCov !== null) ? (' p' + String(pct(pCov)) + '%') : '';
+              var edgeTxt2 = (coverEdge > 0 ? '+' : '') + String(round1(coverEdge));
+              setText(wrap, 'ats', 'ATS: ' + pickATS + ' (' + edgeTxt2 + ')' + pCovTxt);
+            } else {
+              setText(wrap, 'ats', 'ATS: –');
+            }
+          }
 
           // Visual emphasis when we have a strong live edge.
           try {
@@ -2156,6 +2467,14 @@
             var card2 = card0 || getCardForWrap(wrap);
             updateCardLiveEdgeClass(card2);
           } catch(e) { /* noop */ }
+
+          // Best-effort bet logging for ROI backtests.
+          try {
+            if(logSig){
+              var cardL = card0 || getCardForWrap(wrap);
+              maybeLogLiveLensSignal(wrap, cardL, logSig);
+            }
+          } catch(eLog){ /* ignore */ }
         }
 
         ['change','input'].forEach(function(evt){
@@ -2163,11 +2482,29 @@
           inpTot.addEventListener(evt, update);
           if(inpLine) inpLine.addEventListener(evt, update);
         });
+        try { wrap.__liveLensUpdate = update; } catch(eU) { /* noop */ }
         update();
       }
 
       document.addEventListener('DOMContentLoaded', function(){
         document.querySelectorAll('.live-lens-wrap').forEach(wireOne);
+
+        // Best-effort load of daily tuning thresholds; re-run updates when loaded.
+        try {
+          fetch('/api/live_lens_tuning?ttl=300')
+            .then(function(r){ return r.json(); })
+            .then(function(j){
+              if(j && j.status === 'ok' && j.tuning){
+                try { window.__ncaabLiveLensTuning = j; } catch(eSet) { /* noop */ }
+                try {
+                  document.querySelectorAll('.live-lens-wrap').forEach(function(w){
+                    try { if(w && typeof w.__liveLensUpdate === 'function') w.__liveLensUpdate(); } catch(eRU) { /* noop */ }
+                  });
+                } catch(eAll) { /* noop */ }
+              }
+            })
+            .catch(function(){ /* ignore */ });
+        } catch(eFetch){ /* ignore */ }
       });
     })();
   </script>
@@ -2194,8 +2531,10 @@
         var pill = document.createElement('button');
         pill.type = 'button';
         pill.className = 'pill small live-lens-auto-pill';
-        pill.textContent = 'Auto: On';
+        // Live Lens is forced to overwrite with live polling.
+        pill.textContent = 'Auto: Forced';
         pill.setAttribute('aria-pressed','true');
+        pill.disabled = true;
         var stamp = document.createElement('span');
         stamp.className = 'pill small muted live-lens-auto-stamp';
         stamp.textContent = 'Live: –';
@@ -2208,13 +2547,7 @@
           wrap.insertBefore(row, wrap.firstChild);
         }
 
-        pill.addEventListener('click', function(){
-          var on = !(wrap.getAttribute('data-auto') === '0');
-          on = !on;
-          wrap.setAttribute('data-auto', on ? '1' : '0');
-          pill.textContent = on ? 'Auto: On' : 'Auto: Off';
-          pill.setAttribute('aria-pressed', on ? 'true' : 'false');
-        });
+        // No toggle: always forced on.
       }
 
       function isDirty(el){
@@ -2287,6 +2620,19 @@
       function applyLiveStateToCard(card, live){
         if(!card || !live) return;
 
+        // Keep a canonical live flag on the card for filtering.
+        try {
+          card.setAttribute('data-live', live.is_live ? '1' : '0');
+        } catch(_eLive) { /* ignore */ }
+
+        // Persist live score so Live Lens can compute margin-based leans.
+        try {
+          var hs = (live.home_score !== null && live.home_score !== undefined) ? parseInt(String(live.home_score), 10) : NaN;
+          var as = (live.away_score !== null && live.away_score !== undefined) ? parseInt(String(live.away_score), 10) : NaN;
+          if(isFinite(hs)) card.__liveHomeScore = hs; else try { delete card.__liveHomeScore; } catch(_eHS) {}
+          if(isFinite(as)) card.__liveAwayScore = as; else try { delete card.__liveAwayScore; } catch(_eAS) {}
+        } catch(_eS) { /* ignore */ }
+
         // Persist live period on the card so Live Lens can suppress 1H indicators during 2H.
         try {
           var pn = (live.period !== null && live.period !== undefined) ? parseInt(String(live.period), 10) : NaN;
@@ -2305,7 +2651,8 @@
           ensureAutoUI(wrap);
           wireDirtyTracking(wrap);
 
-          var autoOn = !(wrap.getAttribute('data-auto') === '0');
+          // Forced: always overwrite from live polling when game is live.
+          var autoOn = true;
           var horizon = parseHorizon(wrap);
           var selMin = wrap.querySelector('.live-lens-min');
           var inpTot = wrap.querySelector('.live-lens-total');
@@ -2323,14 +2670,11 @@
           if(!autoOn) return;
           if(!live.is_live) return;
 
-          if(inpTot && !isDirty(inpTot)){
+          if(inpTot){
             if(live.total_points !== null && live.total_points !== undefined){
-              var cur = String(inpTot.value || '').trim();
               var next = String(live.total_points);
-              if(cur !== next){
-                inpTot.value = next;
-                try { inpTot.dispatchEvent(new Event('input', {bubbles:true})); } catch(e) {}
-              }
+              inpTot.value = next;
+              try { inpTot.dispatchEvent(new Event('input', {bubbles:true})); } catch(e) {}
             }
           }
 
@@ -2338,7 +2682,7 @@
           if(horizon <= 20.5) remSec = live.remaining_1h_seconds;
           else remSec = live.remaining_reg_seconds;
 
-          if(selMin && !isDirty(selMin) && remSec !== null && remSec !== undefined){
+          if(selMin && remSec !== null && remSec !== undefined){
             var remMin = Math.ceil(Math.max(0, toNum(remSec) || 0) / 60);
             if(remMin > horizon) remMin = horizon;
             setSelectClosest(selMin, remMin);
@@ -2365,11 +2709,14 @@
               var side = String(pill.getAttribute('data-side') || '').trim().toLowerCase();
               var s = (side === 'home') ? sHome : (side === 'away' ? sAway : null);
               if(!s) return;
-              var fta = (s.fta_att !== undefined && s.fta_att !== null) ? String(s.fta_att) : '–';
-              var fga2 = (s.fga2_att !== undefined && s.fga2_att !== null) ? String(s.fga2_att) : '–';
-              var fga3 = (s.fga3_att !== undefined && s.fga3_att !== null) ? String(s.fga3_att) : '–';
+              var ftaA = (s.fta_att !== undefined && s.fta_att !== null) ? String(s.fta_att) : '–';
+              var ftm = (s.fta_made !== undefined && s.fta_made !== null) ? String(s.fta_made) : '–';
+              var fga2A = (s.fga2_att !== undefined && s.fga2_att !== null) ? String(s.fga2_att) : '–';
+              var fga2M = (s.fga2_made !== undefined && s.fga2_made !== null) ? String(s.fga2_made) : '–';
+              var fga3A = (s.fga3_att !== undefined && s.fga3_att !== null) ? String(s.fga3_att) : '–';
+              var fga3M = (s.fga3_made !== undefined && s.fga3_made !== null) ? String(s.fga3_made) : '–';
               var label = (side === 'home') ? 'H' : (side === 'away' ? 'A' : '');
-              pill.textContent = label + ' FTA ' + fta + ' · 2PA ' + fga2 + ' · 3PA ' + fga3;
+              pill.textContent = label + ' FT ' + ftm + '/' + ftaA + ' · 2P ' + fga2M + '/' + fga2A + ' · 3P ' + fga3M + '/' + fga3A;
             });
           });
 
@@ -2380,6 +2727,33 @@
               if(selMin) selMin.dispatchEvent(new Event('change', {bubbles:true}));
             });
           } catch(_e2) { /* ignore */ }
+        } catch(e) { /* ignore */ }
+      }
+
+      function applyLiveLinesToCard(card, liveLineByEventId){
+        if(!card || !liveLineByEventId) return;
+        try {
+          var gid = String(card.getAttribute('data-game-id') || '').trim();
+          if(!gid) return;
+          var rec = liveLineByEventId[gid];
+          if(!rec) return;
+          var total = toNum(rec.total);
+          if(total === null) return;
+
+          var wraps = card.querySelectorAll('.live-lens-wrap');
+          if(!wraps || !wraps.length) return;
+          wraps.forEach(function(wrap){
+            // Only apply to the full-game Live Lens (horizon > 20).
+            var horizon = parseHorizon(wrap);
+            if(!(horizon > 20.5)) return;
+            var inpLine = wrap.querySelector('.live-lens-line');
+            if(!inpLine) return;
+            var next = String(total);
+            if(inpLine.value !== next){
+              inpLine.value = next;
+              try { inpLine.dispatchEvent(new Event('input', {bubbles:true})); } catch(e) {}
+            }
+          });
         } catch(e) { /* ignore */ }
       }
 
@@ -2406,7 +2780,6 @@
 
               var liveEventIds = [];
               cards.forEach(function(card){
-                if(card.style.display === 'none') return;
                 var gid = String(card.getAttribute('data-game-id') || '').trim();
                 if(!gid) return;
                 var live = js.games[gid];
@@ -2426,7 +2799,6 @@
                   try {
                     if(!js2 || js2.status !== 'ok' || !js2.games) return;
                     cards.forEach(function(card){
-                      if(card.style.display === 'none') return;
                       var gid = String(card.getAttribute('data-game-id') || '').trim();
                       if(!gid) return;
                       var pbp = js2.games[gid];
@@ -2434,6 +2806,26 @@
                       applyLivePbpToCard(card, pbp);
                     });
                   } catch(e) { /* ignore */ }
+                  return true;
+                })
+                .then(function(){
+                  // Fetch live full-game total lines (if available) and auto-fill Live Lens.
+                  try {
+                    var oddsUrl = '/api/live_lines?ttl=20&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniq.join(','));
+                    return fetch(oddsUrl, { cache: 'no-store' })
+                      .then(function(r3){ return r3.json(); })
+                      .then(function(js3){
+                        try {
+                          if(!js3 || js3.status !== 'ok' || !js3.lines) return;
+                          cards.forEach(function(card){
+                            applyLiveLinesToCard(card, js3.lines);
+                          });
+                        } catch(e) { /* ignore */ }
+                      })
+                      .catch(function(){ /* ignore */ });
+                  } catch(e) {
+                    return null;
+                  }
                 })
                 .catch(function(){ /* ignore */ });
             } catch(e) {
@@ -2441,7 +2833,10 @@
             }
           })
           .catch(function(){ /* ignore */ })
-          .finally(function(){ inFlight = false; });
+          .finally(function(){
+            inFlight = false;
+            try { if(window.__ncaabUpdateTopFilters) window.__ncaabUpdateTopFilters(); } catch(e) { /* ignore */ }
+          });
       }
 
       document.addEventListener('DOMContentLoaded', function(){
@@ -2458,7 +2853,7 @@
   </script>
 
   <script>
-    // Top-of-page multi-select pill filters: Conferences + Times
+    // Top-of-page multi-select pill filters: Conferences + Times + Status
     (function(){
       function normStr(v){
         try { return String(v || '').trim(); } catch(e){ return ''; }
@@ -2494,11 +2889,30 @@
         return b;
       }
 
-      function applyFilters(cards, selConfs, selTimes){
+      function applyFilters(cards, selConfs, selTimes, selStatus){
         cards.forEach(function(card){
           var ch = normStr(card.getAttribute('data-conf-home'));
           var ca = normStr(card.getAttribute('data-conf-away'));
           var tb = normStr(card.getAttribute('data-time-bucket'));
+
+          var okStatus = true;
+          if(selStatus && selStatus.size){
+            var isLive = (normStr(card.getAttribute('data-live')) === '1');
+            var isBet = false;
+            var isWatch = false;
+            try {
+              // Bet: either a strong live-lens edge highlight or an in-card BET callout (stake sheet).
+              isBet = card.classList.contains('live-edge-ok') || (card.querySelector('.bet-callout') !== null);
+              // Watch: weaker live-lens signal (only shown when not already in Bet).
+              isWatch = card.classList.contains('live-edge-warn');
+            } catch(eS) { /* noop */ }
+
+            okStatus = (
+              (selStatus.has('Live') && isLive) ||
+              (selStatus.has('Watch') && isWatch) ||
+              (selStatus.has('Bet') && isBet)
+            );
+          }
 
           var okConf = true;
           if(selConfs.size){
@@ -2508,14 +2922,15 @@
           if(selTimes.size){
             okTime = selTimes.has(tb);
           }
-          card.style.display = (okConf && okTime) ? '' : 'none';
+          card.style.display = (okConf && okTime && okStatus) ? '' : 'none';
         });
       }
 
       document.addEventListener('DOMContentLoaded', function(){
         var confWrap = document.getElementById('confPills');
         var timeWrap = document.getElementById('timePills');
-        if(!confWrap || !timeWrap) return;
+        var statusWrap = document.getElementById('statusPills');
+        if(!confWrap || !timeWrap || !statusWrap) return;
 
         var cards = Array.from(document.querySelectorAll('.game-card'));
         if(!cards.length) return;
@@ -2561,6 +2976,7 @@
 
         var selConfs = new Set();
         var selTimes = new Set();
+        var selStatus = new Set();
 
         function setActive(btn, on){
           btn.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -2568,6 +2984,12 @@
           btn.classList.toggle('edge-mod', !!on);
           btn.classList.toggle('strong', !!on);
           btn.classList.toggle('neutral', !on);
+        }
+
+        function setStatusActive(btn, on){
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          btn.classList.toggle('status-off', !on);
+          btn.classList.toggle('strong', !!on);
         }
 
         function renderGroup(wrap, items, selSet, onChange){
@@ -2588,6 +3010,37 @@
           });
         }
 
+        function renderStatusGroup(wrap, onChange){
+          wrap.innerHTML = '';
+          var allBtn = mkPill('All', 'neutral');
+          allBtn.addEventListener('click', function(){
+            selStatus.clear();
+            onChange();
+          });
+          wrap.appendChild(allBtn);
+
+          var liveBtn = mkPill('Live', 'edge-weak status-off');
+          liveBtn.addEventListener('click', function(){
+            if(selStatus.has('Live')) selStatus.delete('Live'); else selStatus.add('Live');
+            onChange();
+          });
+          wrap.appendChild(liveBtn);
+
+          var watchBtn = mkPill('Watch', 'warn status-off');
+          watchBtn.addEventListener('click', function(){
+            if(selStatus.has('Watch')) selStatus.delete('Watch'); else selStatus.add('Watch');
+            onChange();
+          });
+          wrap.appendChild(watchBtn);
+
+          var betBtn = mkPill('Bet', 'ok status-off');
+          betBtn.addEventListener('click', function(){
+            if(selStatus.has('Bet')) selStatus.delete('Bet'); else selStatus.add('Bet');
+            onChange();
+          });
+          wrap.appendChild(betBtn);
+        }
+
         function updateUI(){
           // Update button states based on current selection
           Array.from(confWrap.querySelectorAll('button')).forEach(function(btn){
@@ -2600,12 +3053,23 @@
             if(t === 'All') { setActive(btn, selTimes.size === 0); return; }
             setActive(btn, selTimes.has(t));
           });
-          applyFilters(cards, selConfs, selTimes);
+
+          Array.from(statusWrap.querySelectorAll('button')).forEach(function(btn){
+            var t = normStr(btn.textContent);
+            if(t === 'All') { setActive(btn, selStatus.size === 0); return; }
+            setStatusActive(btn, selStatus.has(t));
+          });
+
+          applyFilters(cards, selConfs, selTimes, selStatus);
         }
 
         renderGroup(confWrap, confs, selConfs, updateUI);
         renderGroup(timeWrap, times, selTimes, updateUI);
+        renderStatusGroup(statusWrap, updateUI);
         updateUI();
+
+        // Allow the live polling loop to re-apply filters after it updates attributes/classes.
+        try { window.__ncaabUpdateTopFilters = updateUI; } catch(e) { /* noop */ }
       });
     })();
   </script>

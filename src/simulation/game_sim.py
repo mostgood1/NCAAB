@@ -969,6 +969,7 @@ def _segment_grid_quantiles_from_points(
     away_1h: np.ndarray,
     rng: np.random.Generator,
     grid_min: int,
+    abs_margin_proxy: Optional[float] = None,
     seg_probs_half1: Optional[np.ndarray] = None,
     seg_probs_half2: Optional[np.ndarray] = None,
     home_stats: Optional[dict[str, np.ndarray]] = None,
@@ -1014,6 +1015,7 @@ def _segment_grid_quantiles_from_points(
             rng=rng,
         )
 
+
     # Optional late-game shaping for 2-min point-allocation segments.
     # This is a lightweight way to make the final 2-minute segment share depend on
     # the (simulated) game closeness, without switching to time-aware segments.
@@ -1045,7 +1047,7 @@ def _segment_grid_quantiles_from_points(
     late_alloc_last_mult_close = float(np.clip(late_alloc_last_mult_close, 0.50, 2.00))
     late_alloc_last_mult_blowout = float(np.clip(late_alloc_last_mult_blowout, 0.25, 1.50))
 
-    def _shape_2h_probs_for_sample(abs_margin: int) -> np.ndarray:
+    def _shape_2h_probs_for_margin(abs_margin: int) -> np.ndarray:
         if not enable_late_alloc_shape:
             return probs_2h_2
         try:
@@ -1169,6 +1171,17 @@ def _segment_grid_quantiles_from_points(
         probs_1h_2 = _half_probs_2min(probs_1h_5)
         probs_2h_2 = _half_probs_2min(probs_2h_5)
 
+    # IMPORTANT: shape based on a per-game proxy (spread / expected margin), not per-sample
+    # realized margins. Per-sample shaping can suppress close games because MC tails include
+    # blowout outcomes even when the median game is close.
+    abs_margin_i = None
+    try:
+        if abs_margin_proxy is not None and np.isfinite(float(abs_margin_proxy)):
+            abs_margin_i = int(max(0, int(np.rint(float(abs_margin_proxy)))))
+    except Exception:
+        abs_margin_i = None
+    probs_2h_i = _shape_2h_probs_for_margin(abs_margin_i if abs_margin_i is not None else 0)
+
     # 40-minute game in 20 segments of 2 minutes each (10 per half)
     home_seg_pts = np.zeros((n, 20), dtype=int)
     away_seg_pts = np.zeros((n, 20), dtype=int)
@@ -1194,7 +1207,6 @@ def _segment_grid_quantiles_from_points(
         home_seg_pts[i, 0:10] = rng.multinomial(h1_pts, probs_1h_2)
         away_seg_pts[i, 0:10] = rng.multinomial(a1_pts, probs_1h_2)
 
-        probs_2h_i = _shape_2h_probs_for_sample(abs(h_full_pts - a_full_pts))
         home_seg_pts[i, 10:20] = rng.multinomial(h2_pts, probs_2h_i)
         away_seg_pts[i, 10:20] = rng.multinomial(a2_pts, probs_2h_i)
 
@@ -2380,6 +2392,22 @@ def simulate_game_row(
             except Exception:
                 segments_grid_min_used = 5
 
+        abs_margin_proxy_source = None
+        abs_margin_proxy_value = None
+        try:
+            if spread_home is not None and np.isfinite(float(spread_home)):
+                abs_margin_proxy_source = "spread"
+                abs_margin_proxy_value = abs(float(spread_home))
+            else:
+                abs_margin_proxy_source = "expected"
+                abs_margin_proxy_value = abs(float(mu_home) - float(mu_away))
+        except Exception:
+            abs_margin_proxy_source = "expected"
+            try:
+                abs_margin_proxy_value = abs(float(mu_home) - float(mu_away))
+            except Exception:
+                abs_margin_proxy_value = None
+
         # If we have explicit 1H calibration deltas, time-aware segments would ignore the
         # calibrated 1H distribution (it re-simulates its own possession timeline).
         # Force point-allocation segments so end_min=20 matches calibrated 1H, unless
@@ -2437,6 +2465,7 @@ def simulate_game_row(
                 home_1h=home_1h,
                 away_1h=away_1h,
                 grid_min=int(grid_min_pts),
+                abs_margin_proxy=abs_margin_proxy_value,
                 seg_probs_half1=segment_probs_half1,
                 seg_probs_half2=segment_probs_half2,
                 home_stats={
@@ -2473,6 +2502,8 @@ def simulate_game_row(
             "sim_engine": "events",
             "segments_grid_min": int(segments_grid_min_used) if segments_grid_min_used is not None else None,
             "segments_mode": "time_aware" if bool(use_time_aware_segments) else "points_alloc",
+            "abs_margin_proxy": float(abs_margin_proxy_value) if abs_margin_proxy_value is not None and np.isfinite(float(abs_margin_proxy_value)) else None,
+            "abs_margin_proxy_source": abs_margin_proxy_source,
             "segment_probs_half1_len": _prob_vec_len(segment_probs_half1),
             "segment_probs_half2_len": _prob_vec_len(segment_probs_half2),
             "segment_probs_half1_hash": _hash_prob_vec_short(segment_probs_half1),
@@ -2758,18 +2789,36 @@ def simulate_game_row(
 
         segment_rows = None
         segments_grid_min_used = None
+        abs_margin_proxy_source = None
+        abs_margin_proxy_value = None
         try:
             try:
                 grid_min_pts = _segments_grid_min_from_env()
             except Exception:
                 grid_min_pts = 5
             segments_grid_min_used = int(grid_min_pts)
+
+            try:
+                if spread_home is not None and np.isfinite(float(spread_home)):
+                    abs_margin_proxy_source = "spread"
+                    abs_margin_proxy_value = abs(float(spread_home))
+                else:
+                    abs_margin_proxy_source = "expected"
+                    abs_margin_proxy_value = abs(float(mu_home) - float(mu_away))
+            except Exception:
+                abs_margin_proxy_source = "expected"
+                try:
+                    abs_margin_proxy_value = abs(float(mu_home) - float(mu_away))
+                except Exception:
+                    abs_margin_proxy_value = None
+
             segment_rows = _segment_grid_quantiles_from_points(
                 home_pts=home_pts,
                 away_pts=away_pts,
                 home_1h=home_1h,
                 away_1h=away_1h,
                 grid_min=int(grid_min_pts),
+                abs_margin_proxy=abs_margin_proxy_value,
                 seg_probs_half1=segment_probs_half1,
                 seg_probs_half2=segment_probs_half2,
                 rng=rng,
@@ -2784,6 +2833,8 @@ def simulate_game_row(
             "mean_source_used": mean_source_used,
             "segments_grid_min": int(segments_grid_min_used) if segments_grid_min_used is not None else None,
             "segments_mode": "points_alloc",
+            "abs_margin_proxy": float(abs_margin_proxy_value) if abs_margin_proxy_value is not None and np.isfinite(float(abs_margin_proxy_value)) else None,
+            "abs_margin_proxy_source": abs_margin_proxy_source,
             "segment_probs_half1_len": _prob_vec_len(segment_probs_half1),
             "segment_probs_half2_len": _prob_vec_len(segment_probs_half2),
             "segment_probs_half1_hash": _hash_prob_vec_short(segment_probs_half1),
@@ -3001,18 +3052,36 @@ def simulate_game_row(
 
     segment_rows = None
     segments_grid_min_used = None
+    abs_margin_proxy_source = None
+    abs_margin_proxy_value = None
     try:
         try:
             grid_min_pts = _segments_grid_min_from_env()
         except Exception:
             grid_min_pts = 5
         segments_grid_min_used = int(grid_min_pts)
+
+        try:
+            if spread_home is not None and np.isfinite(float(spread_home)):
+                abs_margin_proxy_source = "spread"
+                abs_margin_proxy_value = abs(float(spread_home))
+            else:
+                abs_margin_proxy_source = "expected"
+                abs_margin_proxy_value = abs(float(mu_home) - float(mu_away))
+        except Exception:
+            abs_margin_proxy_source = "expected"
+            try:
+                abs_margin_proxy_value = abs(float(mu_home) - float(mu_away))
+            except Exception:
+                abs_margin_proxy_value = None
+
         segment_rows = _segment_grid_quantiles_from_points(
             home_pts=home_pts,
             away_pts=away_pts,
             home_1h=home_1h,
             away_1h=away_1h,
             grid_min=int(grid_min_pts),
+            abs_margin_proxy=abs_margin_proxy_value,
             seg_probs_half1=segment_probs_half1,
             seg_probs_half2=segment_probs_half2,
             rng=rng,
@@ -3027,6 +3096,8 @@ def simulate_game_row(
         "mean_source_used": mean_source_used,
         "segments_grid_min": int(segments_grid_min_used) if segments_grid_min_used is not None else None,
         "segments_mode": "points_alloc",
+        "abs_margin_proxy": float(abs_margin_proxy_value) if abs_margin_proxy_value is not None and np.isfinite(float(abs_margin_proxy_value)) else None,
+        "abs_margin_proxy_source": abs_margin_proxy_source,
         "segment_probs_half1_len": _prob_vec_len(segment_probs_half1),
         "segment_probs_half2_len": _prob_vec_len(segment_probs_half2),
         "segment_probs_half1_hash": _hash_prob_vec_short(segment_probs_half1),
@@ -3838,6 +3909,9 @@ def run_simulations_for_date(out_dir: Path, date: str,
             segment_probs_half2=seg_probs_half2_row,
         )
 
+        abs_margin_proxy_value = sim_res.get("abs_margin_proxy") if isinstance(sim_res, dict) else None
+        abs_margin_proxy_source = sim_res.get("abs_margin_proxy_source") if isinstance(sim_res, dict) else None
+
         seg_rows = None
         try:
             seg_rows = sim_res.pop("_segments_rows", None)
@@ -3853,6 +3927,8 @@ def run_simulations_for_date(out_dir: Path, date: str,
                 "start_time_local": r.get("start_time_local"),
                 "start_time_iso": r.get("start_time_iso"),
                 "start_tz_abbr": r.get("start_tz_abbr"),
+                "abs_margin_proxy": abs_margin_proxy_value,
+                "abs_margin_proxy_source": abs_margin_proxy_source,
                 "segment_probs_source": seg_probs_source,
                 "segment_probs_half1_len_passed": seg_h1_len,
                 "segment_probs_half2_len_passed": seg_h2_len,
@@ -4210,6 +4286,28 @@ def run_simulations_for_date(out_dir: Path, date: str,
             "mean_source": str(mean_source),
             "allow_market_guardrails": bool(allow_market_guardrails),
         }
+
+        # Diagnostics: how often we had spread vs expected-margin proxy available.
+        try:
+            games_n = int(len(sim_df)) if 'sim_df' in locals() and sim_df is not None else 0
+            spread_used_n = None
+            if games_n > 0 and 'sim_df' in locals() and sim_df is not None:
+                if "abs_margin_proxy_source" in sim_df.columns:
+                    src = sim_df["abs_margin_proxy_source"].astype(str).str.lower().str.strip()
+                    spread_used_n = int((src == "spread").sum())
+                elif "spread_home" in sim_df.columns:
+                    sh = pd.to_numeric(sim_df["spread_home"], errors="coerce")
+                    spread_used_n = int((sh.notna() & np.isfinite(sh)).sum())
+
+            if spread_used_n is not None:
+                meta["abs_margin_proxy_usage"] = {
+                    "games": games_n,
+                    "spread_used": int(spread_used_n),
+                    "expected_used": int(max(0, games_n - int(spread_used_n))),
+                    "spread_share": (float(spread_used_n) / float(games_n)) if games_n > 0 else None,
+                }
+        except Exception:
+            pass
         meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8")
     except Exception:
         pass

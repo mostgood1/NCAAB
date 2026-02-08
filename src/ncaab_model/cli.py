@@ -44,6 +44,8 @@ from .data.branding import fetch_espn_branding, write_branding_csv
 from .eval.accuracy import compute_accuracy, compare_vs_closing
 from .train.calibration import build_z_recenter_artifact, save_artifact, load_artifact
 from .store.sqlite import connect as sqlite_connect, ingest_csv as sqlite_ingest
+from .live_lens_tuning import compute_live_lens_tuning, write_live_lens_tuning
+from .live_lens_accuracy import LiveLensAccuracyConfig, compute_live_lens_accuracy, write_live_lens_accuracy
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -11173,6 +11175,178 @@ def probe_oddsapi_depth(
             opresent2 = sched_pairs & o_pairs2
             print(f"  odds(no-date filtered, {regions}): {len(opresent2)}/{len(sched_pairs)} (rows: {len(filt)})")
 
+
+@app.command(name="probe-oddsapi-live")
+def probe_oddsapi_live(
+    regions: str = typer.Option("us", help="Region(s) for TheOddsAPI odds endpoint (comma-separated)."),
+    bookmakers: str = typer.Option(
+        "draftkings,fanduel,betmgm",
+        help="Comma-separated bookmaker keys to request (e.g., draftkings,fanduel,betmgm).",
+    ),
+    markets: str = typer.Option(
+        "h2h,spreads,totals,spreads_1st_half,totals_1st_half",
+        help="Markets to request (comma-separated). Include *_1st_half to test 1H lines.",
+    ),
+    sport_key: str = typer.Option("basketball_ncaab", help="Sport key (default: basketball_ncaab)."),
+    only_live: bool = typer.Option(True, help="If true, only show in-play games (commence_time <= now UTC)."),
+    max_events: int = typer.Option(10, help="Max number of events to print."),
+    show_books: int = typer.Option(3, help="Show up to N bookmaker titles per event."),
+):
+    """Quick probe: do live games currently have live totals/spreads?
+
+    This does NOT integrate with the app/UI; it simply calls TheOddsAPI current odds
+    endpoint and summarizes whether in-play events have `totals` and/or `spreads`
+    markets with line values.
+    """
+
+    from collections import defaultdict
+    from datetime import datetime, timezone
+
+    try:
+        from .data.adapters.odds_theoddsapi import TheOddsAPIAdapter
+    except Exception as e:
+        print(f"[red]Adapter import failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    now = datetime.now(timezone.utc)
+    try:
+        adapter = TheOddsAPIAdapter(region=regions, sport_key=sport_key)
+    except Exception as e:
+        print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1)
+
+    try:
+        rows = list(adapter.iter_current_odds_expanded(markets=markets, date_iso=None, bookmakers=bookmakers))
+    except Exception as e:
+        print(f"[red]Failed calling TheOddsAPI current odds endpoint:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    if not rows:
+        print("[yellow]No rows returned by TheOddsAPI (no listed events for this sport/regions/markets right now).[/yellow]")
+        raise typer.Exit(code=0)
+
+    # Group per event
+    by_event: dict[str, list] = defaultdict(list)
+    for r in rows:
+        by_event[str(getattr(r, "event_id", ""))].append(r)
+
+    # Build event summaries
+    events = []
+    for eid, ev_rows in by_event.items():
+        if not eid:
+            continue
+        # Pull event context from any row
+        any_row = ev_rows[0]
+        commence = getattr(any_row, "commence_time", None)
+        home = getattr(any_row, "home_team_name", None)
+        away = getattr(any_row, "away_team_name", None)
+
+        is_live = False
+        if commence is not None:
+            try:
+                is_live = commence <= now
+            except Exception:
+                is_live = False
+
+        # Collect book titles
+        books = sorted({str(getattr(r, "book", "")) for r in ev_rows if getattr(r, "book", None)})
+
+        # Collect totals/spreads lines across books (full game and 1H)
+        totals_full = []
+        spreads_full = []
+        totals_1h = []
+        spreads_1h = []
+        for r in ev_rows:
+            period = getattr(r, "period", None)
+            m = getattr(r, "market", None)
+            if period == "full_game":
+                if m == "totals":
+                    t = getattr(r, "total", None)
+                    if t is not None:
+                        try:
+                            totals_full.append(float(t))
+                        except Exception:
+                            pass
+                elif m == "spreads":
+                    hs = getattr(r, "home_spread", None)
+                    if hs is not None:
+                        try:
+                            spreads_full.append(float(hs))
+                        except Exception:
+                            pass
+            elif period == "1h":
+                if m == "totals":
+                    t = getattr(r, "total", None)
+                    if t is not None:
+                        try:
+                            totals_1h.append(float(t))
+                        except Exception:
+                            pass
+                elif m == "spreads":
+                    hs = getattr(r, "home_spread", None)
+                    if hs is not None:
+                        try:
+                            spreads_1h.append(float(hs))
+                        except Exception:
+                            pass
+
+        events.append({
+            "event_id": eid,
+            "commence_time": commence,
+            "home": home,
+            "away": away,
+            "is_live": is_live,
+            "n_rows": len(ev_rows),
+            "books": books,
+            "totals_full": totals_full,
+            "spreads_full": spreads_full,
+            "totals_1h": totals_1h,
+            "spreads_1h": spreads_1h,
+        })
+
+    # Filter/sort
+    if only_live:
+        events = [e for e in events if e.get("is_live")]
+
+    events.sort(key=lambda e: (e.get("commence_time") is None, e.get("commence_time") or now))
+
+    if not events:
+        print("[yellow]No in-play events found in the current odds feed.[/yellow]")
+        print("Tip: rerun with --only-live false to inspect upcoming events, or confirm sport_key/regions.")
+        raise typer.Exit(code=0)
+
+    # Print
+    print(f"[bold]TheOddsAPI live probe[/bold] sport={sport_key} regions={regions} bookmakers={bookmakers} markets={markets}")
+    print(f"Now (UTC): {now.isoformat()}")
+    print(f"Events shown: {min(len(events), max_events)}/{len(events)}")
+    for e in events[: max_events]:
+        ct = e.get("commence_time")
+        ct_s = ct.isoformat() if ct is not None else "?"
+        home = e.get("home") or "?"
+        away = e.get("away") or "?"
+        books = e.get("books") or []
+        totals_full = e.get("totals_full") or []
+        spreads_full = e.get("spreads_full") or []
+        totals_1h = e.get("totals_1h") or []
+        spreads_1h = e.get("spreads_1h") or []
+
+        def _fmt_range(vals: list[float]) -> str:
+            uniq = sorted({round(x, 2) for x in vals})
+            if not uniq:
+                return "none"
+            if len(uniq) == 1:
+                return f"{uniq[0]}"
+            return f"{uniq[0]}..{uniq[-1]} ({len(uniq)} uniq)"
+
+        show_b = ", ".join(books[: max(0, int(show_books))])
+        if len(books) > show_books:
+            show_b += f", +{len(books) - show_books} more"
+
+        print(f"- {away} @ {home} | commence={ct_s} | event_id={e.get('event_id')}")
+        print(f"    books: {len(books)} [{show_b}]")
+        print(f"    totals(full): {_fmt_range(totals_full)} | spreads(full, home): {_fmt_range(spreads_full)}")
+        print(f"    totals(1H):   {_fmt_range(totals_1h)} | spreads(1H, home):   {_fmt_range(spreads_1h)}")
+
 # (moved app() invocation to end of file to ensure all commands are registered before run)
 
 @app.command(name="synthetic-e2e")
@@ -11632,6 +11806,62 @@ def sanitize_artifacts(
         raise typer.Exit(code=3)
     if bad_n > 0:
         raise typer.Exit(code=1)
+
+
+@app.command(name="compute-live-lens-tuning")
+def compute_live_lens_tuning_cmd(
+    days: int = typer.Option(21, help="Lookback window (days) for cached ESPN PBP files."),
+    max_files: int = typer.Option(500, help="Max number of cache files to scan (newest first)."),
+    out: Path = typer.Option(Path("outputs/live_lens_tuning.json"), help="Output JSON path."),
+):
+    """Compute Live Lens pace/efficiency tuning thresholds from cached ESPN play-by-play.
+
+    Writes outputs/live_lens_tuning.json so the web UI can consume it.
+    Intended to be run from scripts/daily_update.ps1.
+    """
+
+    try:
+        tuning, meta = compute_live_lens_tuning(days=days, max_files=max_files)
+        payload = write_live_lens_tuning(out, tuning, meta)
+        print(
+            f"[green]Wrote[/green] {out} ("
+            f"{payload.get('meta', {}).get('source')}; "
+            f"files={payload.get('meta', {}).get('files')}; "
+            f"samples={payload.get('meta', {}).get('samples')})"
+        )
+    except Exception as e:
+        print(f"[red]Failed computing live lens tuning:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="compute-live-lens-accuracy")
+def compute_live_lens_accuracy_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: yesterday local)."),
+    out_json: Path = typer.Option(None, help="Output JSON path (default: outputs/live_lens_accuracy_<date>.json)."),
+    out_csv: Path = typer.Option(None, help="Optional per-signal settled rows CSV output."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+):
+    """Compute Live Lens bet ROI / win-rate from logged live signals + finalized results.
+
+    Requires:
+      - outputs/live_lens_signals_<date>.jsonl (written by the web UI)
+      - outputs/daily_results/results_<date>.csv (written by finalize-day)
+    """
+
+    if not date:
+        date = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+
+    cfg = LiveLensAccuracyConfig(date=str(date), assume_price=float(price))
+    payload = compute_live_lens_accuracy(cfg)
+
+    if out_json is None:
+        out_json = Path("outputs") / f"live_lens_accuracy_{cfg.date}.json"
+
+    if out_csv is None:
+        out_csv = Path("outputs") / f"live_lens_accuracy_{cfg.date}.csv"
+
+    wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
+    print(wrote)
 
 if __name__ == "__main__":
     app()
