@@ -22,3 +22,6 @@ onnxruntime/
 
 # VSCode
 .vscode/
+
+# Local utilities (not tracked)
+scripts/build_backtest_joined.py
