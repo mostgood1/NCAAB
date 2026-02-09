@@ -1,5 +1,5 @@
 game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,neutral_site,venue
-401812394,2026,2026-02-09,2026-02-09 21:00:00+00:00,2026-02-09 16:00,EST,Chicago State Cougars,Saint Francis Red Flash,0,0,,,,,False,Jones Convocation Center
+401812394,2026,2026-02-09,2026-02-09 21:00:00+00:00,2026-02-09 16:00,EST,Chicago State Cougars,Saint Francis Red Flash,67,47,36.0,33.0,31.0,14.0,False,Jones Convocation Center
 401820172,2026,2026-02-09,2026-02-09 23:00:00+00:00,2026-02-09 18:00,EST,Bucknell Bison,Navy Midshipmen,0,0,,,,,False,Sojka Pavilion
 401822937,2026,2026-02-09,2026-02-09 23:30:00+00:00,2026-02-09 18:30,EST,St. John's Red Storm,Xavier Musketeers,0,0,,,,,False,Madison Square Garden
 401828666,2026,2026-02-09,2026-02-09 23:30:00+00:00,2026-02-09 18:30,EST,Arkansas-Pine Bluff Golden Lions,Jackson State Tigers,0,0,,,,,False,H.O. Clemmons Arena
