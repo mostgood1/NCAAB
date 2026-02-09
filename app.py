@@ -21486,6 +21486,31 @@ def api_live_state():
             away_score = _to_int((away or {}).get("score"))
             total_points = (home_score + away_score) if (home_score is not None and away_score is not None) else None
 
+            # Best-effort halftime (1H) points from ESPN linescores.
+            # ESPN typically exposes half-by-half linescores as a list of dicts with 'value'.
+            home_score_1h = None
+            away_score_1h = None
+            try:
+                def _ls_first_val(team_obj):
+                    if not isinstance(team_obj, dict):
+                        return None
+                    ls = team_obj.get("linescores")
+                    if not isinstance(ls, list) or not ls:
+                        return None
+                    first = ls[0]
+                    if isinstance(first, dict) and "value" in first:
+                        return _to_int(first.get("value"))
+                    # Occasionally a list of raw numbers.
+                    return _to_int(first)
+
+                home_score_1h = _ls_first_val(home)
+                away_score_1h = _ls_first_val(away)
+            except Exception:
+                home_score_1h = None
+                away_score_1h = None
+
+            total_points_1h = (home_score_1h + away_score_1h) if (home_score_1h is not None and away_score_1h is not None) else None
+
             is_live = (state == "in")
             is_final = bool(completed or state == "post")
             rem_reg, rem_1h = _compute_remaining_seconds(period, clock_seconds) if is_live else (None, None)
@@ -21501,6 +21526,9 @@ def api_live_state():
                 "home_score": home_score,
                 "away_score": away_score,
                 "total_points": total_points,
+                "home_score_1h": home_score_1h,
+                "away_score_1h": away_score_1h,
+                "total_points_1h": total_points_1h,
                 "remaining_reg_seconds": rem_reg,
                 "remaining_1h_seconds": rem_1h,
             }

@@ -2152,8 +2152,11 @@
           var liveHome = null;
           var liveAway = null;
           try {
-            if(card0 && typeof card0.__liveHomeScore === 'number') liveHome = card0.__liveHomeScore;
-            if(card0 && typeof card0.__liveAwayScore === 'number') liveAway = card0.__liveAwayScore;
+            var lock1H = (horizon <= 20.5) && is2H0;
+            if(lock1H && card0 && typeof card0.__liveHomeScore1H === 'number') liveHome = card0.__liveHomeScore1H;
+            else if(card0 && typeof card0.__liveHomeScore === 'number') liveHome = card0.__liveHomeScore;
+            if(lock1H && card0 && typeof card0.__liveAwayScore1H === 'number') liveAway = card0.__liveAwayScore1H;
+            else if(card0 && typeof card0.__liveAwayScore === 'number') liveAway = card0.__liveAwayScore;
           } catch(eLS) { /* noop */ }
           var actMargin = (liveHome !== null && liveAway !== null) ? (toNum(liveHome) - toNum(liveAway)) : null;
 
@@ -2593,6 +2596,14 @@
           if(isFinite(as)) card.__liveAwayScore = as; else try { delete card.__liveAwayScore; } catch(_eAS) {}
         } catch(_eS) { /* ignore */ }
 
+        // Persist halftime (1H) score when available so the 1H lens can lock after halftime.
+        try {
+          var hs1 = (live.home_score_1h !== null && live.home_score_1h !== undefined) ? parseInt(String(live.home_score_1h), 10) : NaN;
+          var as1 = (live.away_score_1h !== null && live.away_score_1h !== undefined) ? parseInt(String(live.away_score_1h), 10) : NaN;
+          if(isFinite(hs1)) card.__liveHomeScore1H = hs1; else try { delete card.__liveHomeScore1H; } catch(_eHS1) {}
+          if(isFinite(as1)) card.__liveAwayScore1H = as1; else try { delete card.__liveAwayScore1H; } catch(_eAS1) {}
+        } catch(_eS1) { /* ignore */ }
+
         // Persist live period on the card so Live Lens can suppress 1H indicators during 2H.
         try {
           var pn = (live.period !== null && live.period !== undefined) ? parseInt(String(live.period), 10) : NaN;
@@ -2630,16 +2641,24 @@
           if(!autoOn) return;
           if(!live.is_live) return;
 
+          var pn2 = (live.period !== null && live.period !== undefined) ? parseInt(String(live.period), 10) : NaN;
+          var is2H = (isFinite(pn2) && pn2 >= 2);
+          var lock1H = (horizon <= 20.5) && is2H;
+
           if(inpTot){
-            if(live.total_points !== null && live.total_points !== undefined){
-              var next = String(live.total_points);
+            var vTot = null;
+            if(lock1H && live.total_points_1h !== null && live.total_points_1h !== undefined) vTot = live.total_points_1h;
+            else if(live.total_points !== null && live.total_points !== undefined) vTot = live.total_points;
+            if(vTot !== null && vTot !== undefined){
+              var next = String(vTot);
               inpTot.value = next;
               try { inpTot.dispatchEvent(new Event('input', {bubbles:true})); } catch(e) {}
             }
           }
 
           var remSec = null;
-          if(horizon <= 20.5) remSec = live.remaining_1h_seconds;
+          if(lock1H) remSec = 0;
+          else if(horizon <= 20.5) remSec = live.remaining_1h_seconds;
           else remSec = live.remaining_reg_seconds;
 
           if(selMin && remSec !== null && remSec !== undefined){
@@ -2886,7 +2905,7 @@
         });
       }
 
-      document.addEventListener('DOMContentLoaded', function(){
+      function initTopFilters(){
         var confWrap = document.getElementById('confPills');
         var timeWrap = document.getElementById('timePills');
         var statusWrap = document.getElementById('statusPills');
@@ -3030,7 +3049,15 @@
 
         // Allow the live polling loop to re-apply filters after it updates attributes/classes.
         try { window.__ncaabUpdateTopFilters = updateUI; } catch(e) { /* noop */ }
-      });
+      }
+
+      // Ensure this runs even when DOMContentLoaded already fired.
+      try {
+        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initTopFilters);
+        else initTopFilters();
+      } catch(e) {
+        try { initTopFilters(); } catch(_e2) { /* noop */ }
+      }
     })();
   </script>
 </body>
