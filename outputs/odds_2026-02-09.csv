@@ -1,33 +1,35 @@
 game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
-4b884b7909ec80756fc09db4223867b4,BetOnline.ag,2026-02-09 15:19:58.730861+00:00,,,-3.0,145.0,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
-4b884b7909ec80756fc09db4223867b4,LowVig.ag,2026-02-09 15:19:58.730861+00:00,,,-3.0,145.0,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
-4b884b7909ec80756fc09db4223867b4,DraftKings,2026-02-09 15:19:58.730861+00:00,,,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
-4b884b7909ec80756fc09db4223867b4,BetRivers,2026-02-09 15:19:58.730861+00:00,-148.0,114.0,-2.5,143.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
-4b884b7909ec80756fc09db4223867b4,FanDuel,2026-02-09 15:19:58.730861+00:00,-156.0,130.0,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
-4b884b7909ec80756fc09db4223867b4,BetMGM,2026-02-09 15:19:58.730861+00:00,-145.0,120.0,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
-4b884b7909ec80756fc09db4223867b4,Bovada,2026-02-09 15:19:58.730861+00:00,,,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
-c43b3359273f53a5789c055ef2709ba8,BetOnline.ag,2026-02-09 15:19:58.730861+00:00,,,6.0,134.0,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-c43b3359273f53a5789c055ef2709ba8,LowVig.ag,2026-02-09 15:19:58.730861+00:00,,,6.0,134.0,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-c43b3359273f53a5789c055ef2709ba8,DraftKings,2026-02-09 15:19:58.730861+00:00,245.0,-305.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-c43b3359273f53a5789c055ef2709ba8,FanDuel,2026-02-09 15:19:58.730861+00:00,270.0,-345.0,7.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-c43b3359273f53a5789c055ef2709ba8,BetMGM,2026-02-09 15:19:58.730861+00:00,225.0,-275.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-c43b3359273f53a5789c055ef2709ba8,BetRivers,2026-02-09 15:19:58.730861+00:00,230.0,-305.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-c43b3359273f53a5789c055ef2709ba8,Bovada,2026-02-09 15:19:58.730861+00:00,260.0,-320.0,7.0,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-c43b3359273f53a5789c055ef2709ba8,Fanatics,2026-02-09 15:19:58.730861+00:00,240.0,-300.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
-eb23a44bdf173b22dfcdd6bfaedb960c,BetOnline.ag,2026-02-09 15:19:58.730861+00:00,,,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-eb23a44bdf173b22dfcdd6bfaedb960c,LowVig.ag,2026-02-09 15:19:58.730861+00:00,,,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-eb23a44bdf173b22dfcdd6bfaedb960c,DraftKings,2026-02-09 15:19:58.730861+00:00,-310.0,250.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-eb23a44bdf173b22dfcdd6bfaedb960c,FanDuel,2026-02-09 15:19:58.730861+00:00,-350.0,270.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-eb23a44bdf173b22dfcdd6bfaedb960c,BetMGM,2026-02-09 15:19:58.730861+00:00,-325.0,260.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-eb23a44bdf173b22dfcdd6bfaedb960c,Fanatics,2026-02-09 15:19:58.730861+00:00,-325.0,250.0,-7.5,157.0,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-eb23a44bdf173b22dfcdd6bfaedb960c,BetRivers,2026-02-09 15:19:58.730861+00:00,-400.0,290.0,-7.5,157.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-eb23a44bdf173b22dfcdd6bfaedb960c,Bovada,2026-02-09 15:19:58.730861+00:00,,,-7.0,157.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
-c495ba66d7c26d04ae2d33c198b70e7a,BetOnline.ag,2026-02-09 15:19:58.730861+00:00,-1450.0,856.0,-15.5,159.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,LowVig.ag,2026-02-09 15:19:58.730861+00:00,-1450.0,856.0,-15.5,159.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,BetMGM,2026-02-09 15:19:58.730861+00:00,-1600.0,850.0,,160.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,Caesars,2026-02-09 15:19:58.730861+00:00,-1400.0,800.0,-15.5,160.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,BetRivers,2026-02-09 15:19:58.730861+00:00,-1430.0,750.0,-15.5,160.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,FanDuel,2026-02-09 15:19:58.730861+00:00,-2000.0,980.0,-15.5,160.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,BetUS,2026-02-09 15:19:58.730861+00:00,-1450.0,875.0,-15.5,160.0,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,Fanatics,2026-02-09 15:19:58.730861+00:00,-1600.0,900.0,-15.0,161.0,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
-c495ba66d7c26d04ae2d33c198b70e7a,Bovada,2026-02-09 15:19:58.730861+00:00,-1600.0,800.0,-14.5,162.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+4b884b7909ec80756fc09db4223867b4,BetOnline.ag,2026-02-09 17:49:38.722732+00:00,,,-2.0,145.0,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
+4b884b7909ec80756fc09db4223867b4,LowVig.ag,2026-02-09 17:49:38.722732+00:00,,,-2.0,145.0,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
+4b884b7909ec80756fc09db4223867b4,DraftKings,2026-02-09 17:49:38.722732+00:00,-142.0,120.0,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
+4b884b7909ec80756fc09db4223867b4,BetRivers,2026-02-09 17:49:38.722732+00:00,-148.0,114.0,-2.5,144.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
+4b884b7909ec80756fc09db4223867b4,FanDuel,2026-02-09 17:49:38.722732+00:00,-160.0,132.0,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
+4b884b7909ec80756fc09db4223867b4,BetMGM,2026-02-09 17:49:38.722732+00:00,-145.0,118.0,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
+4b884b7909ec80756fc09db4223867b4,Bovada,2026-02-09 17:49:38.722732+00:00,-140.0,120.0,-2.5,145.5,2026-02-09 21:00:00+00:00,Chicago St Cougars,St. Francis (PA) Red Flash
+c43b3359273f53a5789c055ef2709ba8,BetOnline.ag,2026-02-09 17:49:38.722732+00:00,,,7.0,135.0,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,LowVig.ag,2026-02-09 17:49:38.722732+00:00,,,7.0,135.0,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,DraftKings,2026-02-09 17:49:38.722732+00:00,260.0,-325.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,FanDuel,2026-02-09 17:49:38.722732+00:00,250.0,-315.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,BetMGM,2026-02-09 17:49:38.722732+00:00,260.0,-325.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,BetRivers,2026-02-09 17:49:38.722732+00:00,230.0,-305.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,Bovada,2026-02-09 17:49:38.722732+00:00,265.0,-330.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,Fanatics,2026-02-09 17:49:38.722732+00:00,250.0,-325.0,7.0,134.0,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+c43b3359273f53a5789c055ef2709ba8,Caesars,2026-02-09 17:49:38.722732+00:00,270.0,-345.0,6.5,134.5,2026-02-09 23:00:00+00:00,Bucknell Bison,Navy Midshipmen
+eb23a44bdf173b22dfcdd6bfaedb960c,BetOnline.ag,2026-02-09 17:49:38.722732+00:00,,,-7.0,156.0,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,LowVig.ag,2026-02-09 17:49:38.722732+00:00,,,-7.0,156.0,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,DraftKings,2026-02-09 17:49:38.722732+00:00,-325.0,260.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,FanDuel,2026-02-09 17:49:38.722732+00:00,-350.0,275.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,BetMGM,2026-02-09 17:49:38.722732+00:00,-325.0,260.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,Fanatics,2026-02-09 17:49:38.722732+00:00,-325.0,250.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,BetRivers,2026-02-09 17:49:38.722732+00:00,-400.0,290.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,Bovada,2026-02-09 17:49:38.722732+00:00,-310.0,255.0,-7.5,157.0,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+eb23a44bdf173b22dfcdd6bfaedb960c,Caesars,2026-02-09 17:49:38.722732+00:00,-345.0,270.0,-7.5,156.5,2026-02-09 23:30:00+00:00,Arkansas-Pine Bluff Golden Lions,Jackson St Tigers
+c495ba66d7c26d04ae2d33c198b70e7a,BetOnline.ag,2026-02-09 17:49:38.722732+00:00,-1350.0,817.0,-15.0,160.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,LowVig.ag,2026-02-09 17:49:38.722732+00:00,-1350.0,817.0,-15.0,160.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,BetMGM,2026-02-09 17:49:38.722732+00:00,-1400.0,800.0,,159.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,Caesars,2026-02-09 17:49:38.722732+00:00,-1400.0,800.0,-15.0,159.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,BetRivers,2026-02-09 17:49:38.722732+00:00,-1430.0,750.0,-15.5,159.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,FanDuel,2026-02-09 17:49:38.722732+00:00,-2000.0,980.0,-15.5,160.5,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,BetUS,2026-02-09 17:49:38.722732+00:00,-1350.0,830.0,-15.0,160.0,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,Fanatics,2026-02-09 17:49:38.722732+00:00,-1600.0,900.0,-15.5,160.0,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers
+c495ba66d7c26d04ae2d33c198b70e7a,Bovada,2026-02-09 17:49:38.722732+00:00,-1800.0,850.0,-15.0,160.0,2026-02-09 23:30:00+00:00,St. John's Red Storm,Xavier Musketeers

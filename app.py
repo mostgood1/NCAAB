@@ -7371,6 +7371,28 @@ def index():
                     df_stable = pd.read_csv(path)
                 except Exception:
                     df_stable = pd.DataFrame()
+            # If the stable snapshot exists but lacks time fields (common when
+            # earlier generators wrote all-NaN display_time_str), re-persist it
+            # using the schedule merge/backfill so the UI doesn't show blanks.
+            try:
+                if path.exists() and isinstance(df_stable, pd.DataFrame) and not df_stable.empty:
+                    needs_time = False
+                    try:
+                        if 'display_time_str' not in df_stable.columns:
+                            needs_time = True
+                        else:
+                            s = df_stable['display_time_str']
+                            needs_time = bool(s.isna().all() or s.astype(str).str.strip().str.lower().isin(['', 'nan', 'none', 'null']).all())
+                    except Exception:
+                        needs_time = True
+                    if needs_time:
+                        _persist_display(df_stable, date_stable)
+                        try:
+                            df_stable = _safe_read_csv(path)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
             else:
                 try:
                     import re as _re_mod
@@ -34178,6 +34200,76 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
     try:
         if isinstance(norm, pd.DataFrame) and not norm.empty:
             work = norm.copy()
+
+            def _blank_mask(ser: pd.Series) -> pd.Series:
+                try:
+                    s = ser
+                    s_str = s.astype(str).str.strip().str.lower()
+                    return s.isna() | s_str.eq('') | s_str.isin(['nan', 'none', 'null'])
+                except Exception:
+                    try:
+                        return ser.isna()
+                    except Exception:
+                        return pd.Series([False] * len(work), index=work.index)
+
+            # If the incoming df lacks time fields (or they are blank), merge from schedule.
+            try:
+                if date_str and 'game_id' in work.columns:
+                    gpath = OUT / f'games_{date_str}.csv'
+                    if gpath.exists():
+                        g = pd.read_csv(gpath, dtype=str, low_memory=False)
+                        if isinstance(g, pd.DataFrame) and (not g.empty) and ('game_id' in g.columns):
+                            try:
+                                work['game_id'] = work['game_id'].astype(str).str.replace('.0', '', regex=False).str.strip()
+                                g['game_id'] = g['game_id'].astype(str).str.replace('.0', '', regex=False).str.strip()
+                            except Exception:
+                                pass
+                            keep_cols = [
+                                c
+                                for c in [
+                                    'game_id',
+                                    'date',
+                                    'start_time',
+                                    'start_time_local',
+                                    'start_tz_abbr',
+                                    'commence_time',
+                                    'venue_tz',
+                                    'venue',
+                                ]
+                                if c in g.columns
+                            ]
+                            if keep_cols:
+                                g2 = g[keep_cols].drop_duplicates(subset=['game_id'])
+                                work = work.merge(g2, on='game_id', how='left', suffixes=('', '_sched'))
+                                for col in ['start_time', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue', 'date']:
+                                    sched_col = f'{col}_sched'
+                                    if sched_col not in work.columns:
+                                        continue
+                                    if col not in work.columns:
+                                        work[col] = work[sched_col]
+                                        continue
+                                    try:
+                                        # If the base column was all-NaN, pandas may infer float dtype.
+                                        # Cast to object so string assignments do not raise.
+                                        try:
+                                            if getattr(work[col], 'dtype', None) != object:
+                                                work[col] = work[col].astype(object)
+                                        except Exception:
+                                            pass
+                                        bad = _blank_mask(work[col])
+                                        if bad.any():
+                                            work.loc[bad, col] = work.loc[bad, sched_col]
+                                    except Exception:
+                                        pass
+                                try:
+                                    drop_cols = [c for c in work.columns if c.endswith('_sched')]
+                                    if drop_cols:
+                                        work = work.drop(columns=drop_cols, errors='ignore')
+                                except Exception:
+                                    pass
+            except Exception:
+                pass
+
             # Resolve a stable default display timezone for persisted artifacts.
             # NOTE: _get_display_tz_name() depends on an active request context.
             try:
@@ -34187,41 +34279,87 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
                 _disp_tz_name = "America/Chicago"
                 _disp_tz = ZoneInfo("America/Chicago")
             # display_date: prefer existing display_date/_slate_date, else date.
-            if 'display_date' not in work.columns:
-                disp_date = None
-                if 'display_date' in df.columns:
-                    disp_date = df['display_date']
-                elif '_slate_date' in df.columns:
-                    disp_date = df['_slate_date']
-                elif 'date' in df.columns:
-                    disp_date = df['date']
-                if disp_date is not None:
-                    try:
-                        work['display_date'] = pd.to_datetime(disp_date, errors='coerce').dt.strftime('%Y-%m-%d')
-                    except Exception:
-                        work['display_date'] = disp_date.astype(str)
-            # display_time_str: prefer preformatted, else local/start time.
-            if 'display_time_str' not in work.columns:
-                disp_time = None
-                if 'display_time_str' in df.columns:
-                    disp_time = df['display_time_str']
-                elif 'start_time_display' in df.columns:
-                    disp_time = df['start_time_display']
-                elif 'start_time_local' in df.columns:
-                    disp_time = df['start_time_local']
-                elif 'start_time' in df.columns:
-                    disp_time = df['start_time']
-                if disp_time is not None:
-                    try:
-                        # Parse as UTC when possible, then convert to configured display timezone.
-                        ser = pd.to_datetime(disp_time, errors='coerce', utc=True)
+            try:
+                need_disp_date = ('display_date' not in work.columns)
+                if not need_disp_date:
+                    need_disp_date = bool(_blank_mask(work['display_date']).all())
+                if need_disp_date:
+                    disp_date = None
+                    if 'display_date' in work.columns:
+                        disp_date = work['display_date']
+                    elif '_slate_date' in work.columns:
+                        disp_date = work['_slate_date']
+                    elif 'date' in work.columns:
+                        disp_date = work['date']
+                    if disp_date is not None:
                         try:
-                            ser_loc = ser.dt.tz_convert(_disp_tz)
+                            work['display_date'] = pd.to_datetime(disp_date, errors='coerce').dt.strftime('%Y-%m-%d')
                         except Exception:
-                            ser_loc = ser
-                        work['display_time_str'] = ser_loc.dt.strftime('%Y-%m-%d %I:%M %p %Z')
-                    except Exception:
-                        work['display_time_str'] = disp_time.astype(str)
+                            work['display_date'] = disp_date.astype(str)
+            except Exception:
+                pass
+
+            # display_time_str: fill even when the column exists but is blank/NaN.
+            try:
+                if 'display_time_str' not in work.columns:
+                    work['display_time_str'] = pd.NA
+                if 'start_time_display' not in work.columns:
+                    work['start_time_display'] = pd.NA
+
+                # Ensure string-safe dtypes (avoid float dtype when column was all-NaN)
+                try:
+                    if getattr(work['display_time_str'], 'dtype', None) != object:
+                        work['display_time_str'] = work['display_time_str'].astype(object)
+                except Exception:
+                    pass
+                try:
+                    if getattr(work['start_time_display'], 'dtype', None) != object:
+                        work['start_time_display'] = work['start_time_display'].astype(object)
+                except Exception:
+                    pass
+
+                need_time = _blank_mask(work['display_time_str'])
+                if need_time.any():
+                    # Prefer UTC-aware sources first.
+                    src = None
+                    for c in ('start_time_iso', 'start_time', 'commence_time'):
+                        if c in work.columns and (not _blank_mask(work[c]).all()):
+                            src = c
+                            break
+                    # Fallback to local-only strings.
+                    if src is None:
+                        for c in ('start_time_local',):
+                            if c in work.columns and (not _blank_mask(work[c]).all()):
+                                src = c
+                                break
+                    if src is not None:
+                        try:
+                            raw = work[src]
+                            # Normalize Z suffix so pandas parses consistently.
+                            raw2 = raw.astype(str).str.replace('Z', '+00:00', regex=False)
+                            ser = pd.to_datetime(raw2, errors='coerce', utc=True)
+                            try:
+                                ser_loc = ser.dt.tz_convert(_disp_tz)
+                            except Exception:
+                                ser_loc = ser
+                            disp_full = ser_loc.dt.strftime('%Y-%m-%d %I:%M %p %Z')
+                            work.loc[need_time, 'display_time_str'] = disp_full.loc[need_time]
+                            # Keep start_time_display in sync for UI consumers.
+                            need_disp2 = _blank_mask(work['start_time_display'])
+                            if need_disp2.any():
+                                work.loc[need_disp2, 'start_time_display'] = work.loc[need_disp2, 'display_time_str']
+                            # Fill display_date for missing rows from localized timestamp.
+                            if 'display_date' in work.columns:
+                                need_dd = _blank_mask(work['display_date'])
+                                if need_dd.any():
+                                    dd = ser_loc.dt.strftime('%Y-%m-%d')
+                                    work.loc[need_dd, 'display_date'] = dd.loc[need_dd]
+                            else:
+                                work['display_date'] = ser_loc.dt.strftime('%Y-%m-%d')
+                        except Exception:
+                            pass
+            except Exception:
+                pass
             norm = work
     except Exception:
         pass

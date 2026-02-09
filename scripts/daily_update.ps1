@@ -1077,9 +1077,15 @@ sys.exit(1 if nan_count>0 else 0)
     Write-Host "Using NCAAB_SIM_SEED=$($env:NCAAB_SIM_SEED)" -ForegroundColor DarkGray
   }
   Write-Section '6a.post.d.s) Monte Carlo simulations + blend'
-  # Force simulation means to be feature-based (independent of model/blend).
-  # This is intentionally strict: if feature rows are missing, sims may be marked sim_ok=false.
-  $env:NCAAB_SIM_MEAN_SOURCE = 'features_strict'
+  # Default sim means to the model/blend columns (auto). This keeps sim margins aligned
+  # with our betting-intent predictions and avoids unrealistically "too many ties" when
+  # feature-only margins compress toward 0.
+  #
+  # To override (e.g., feature-only experiments), set NCAAB_SIM_MEAN_SOURCE in the shell
+  # before running this script.
+  if (-not $env:NCAAB_SIM_MEAN_SOURCE -or $env:NCAAB_SIM_MEAN_SOURCE.Trim() -eq '') {
+    $env:NCAAB_SIM_MEAN_SOURCE = 'auto'
+  }
   try {
     & $VenvPython scripts/validate_sim_inputs.py $todayIso $OutDir
   } catch {
@@ -2037,7 +2043,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
               if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') {
                 $env:NCAAB_SIM_SEED = $todayIso.Replace('-','')
               }
-              $env:NCAAB_SIM_MEAN_SOURCE = 'features_strict'
+              if (-not $env:NCAAB_SIM_MEAN_SOURCE -or $env:NCAAB_SIM_MEAN_SOURCE.Trim() -eq '') {
+                $env:NCAAB_SIM_MEAN_SOURCE = 'auto'
+              }
               try { & $VenvPython scripts/validate_sim_inputs.py $todayIso $OutDir } catch { Write-Warning "validate_sim_inputs retry failed: $($_)" }
               try { & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir } catch { Write-Warning "run_game_simulations retry failed: $($_)" }
               try {
@@ -2223,7 +2231,9 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
                 Write-Host ("[Sim] Local sim artifacts missing/incomplete; regenerating for {0}" -f $todayIso) -ForegroundColor DarkCyan
                 try {
                   if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') { $env:NCAAB_SIM_SEED = $todayIso.Replace('-','') }
-                  $env:NCAAB_SIM_MEAN_SOURCE = 'features_strict'
+                  if (-not $env:NCAAB_SIM_MEAN_SOURCE -or $env:NCAAB_SIM_MEAN_SOURCE.Trim() -eq '') {
+                    $env:NCAAB_SIM_MEAN_SOURCE = 'auto'
+                  }
                   try { & $VenvPython scripts/validate_sim_inputs.py $todayIso $outsDir } catch { Write-Warning ("validate_sim_inputs (health retry) failed: {0}" -f $_.Exception.Message) }
                   try { & $VenvPython scripts/run_game_simulations.py $todayIso $outsDir } catch { Write-Warning ("run_game_simulations (health retry) failed: {0}" -f $_.Exception.Message) }
                   try {

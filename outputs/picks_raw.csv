@@ -28,7 +28,7 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401827031,2026-02-09,Southern Jaguars,Alabama State Hornets,spreads,full_game,away,0.0,,,-0.1881477111192897,,Spread,ATS
 401830295,2026-02-09,Murray State Racers,Northern Iowa Panthers,spreads,full_game,away,-11.5,,,-11.709365907263154,,Spread,ATS
 401812394,2026-02-09,Chicago State Cougars,Saint Francis Red Flash,totals,full_game,under,,,,,,Total,OU
-401820172,2026-02-09,Bucknell Bison,Navy Midshipmen,totals,full_game,over,,,,,,Total,OU
-401822937,2026-02-09,St. John's Red Storm,Xavier Musketeers,totals,full_game,over,,,,,,Total,OU
-401828666,2026-02-09,Arkansas-Pine Bluff Golden Lions,Jackson State Tigers,totals,full_game,over,,,,,,Total,OU
-401820730,2026-02-09,Louisville Cardinals,NC State Wolfpack,totals,full_game,over,,,,,,Total,OU
+401820172,2026-02-09,Bucknell Bison,Navy Midshipmen,totals,full_game,under,,,,,,Total,OU
+401822937,2026-02-09,St. John's Red Storm,Xavier Musketeers,totals,full_game,under,,,,,,Total,OU
+401828666,2026-02-09,Arkansas-Pine Bluff Golden Lions,Jackson State Tigers,totals,full_game,under,,,,,,Total,OU
+401820730,2026-02-09,Louisville Cardinals,NC State Wolfpack,totals,full_game,under,,,,,,Total,OU
