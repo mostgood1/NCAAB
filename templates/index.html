@@ -2143,6 +2143,7 @@
             } catch(e00) { /* noop */ }
           }
           var is2H0 = (per0 !== null && per0 >= 2);
+          var lock1H = (horizon <= 20.5) && is2H0;
 
           var remaining = toNum(selMin.value);
           var act = toNum(inpTot.value);
@@ -2152,7 +2153,6 @@
           var liveHome = null;
           var liveAway = null;
           try {
-            var lock1H = (horizon <= 20.5) && is2H0;
             if(lock1H && card0 && typeof card0.__liveHomeScore1H === 'number') liveHome = card0.__liveHomeScore1H;
             else if(card0 && typeof card0.__liveHomeScore === 'number') liveHome = card0.__liveHomeScore;
             if(lock1H && card0 && typeof card0.__liveAwayScore1H === 'number') liveAway = card0.__liveAwayScore1H;
@@ -2216,7 +2216,11 @@
 
             // PBP context: adjust confidence if scoring looks "hot" or "cold".
             var card = getCardForWrap(wrap);
-            var stats = (card && card.__livePbpStats) ? card.__livePbpStats : null;
+            var stats = null;
+            try {
+              if(lock1H && card && card.__livePbpStats1H) stats = card.__livePbpStats1H;
+              else if(card && card.__livePbpStats) stats = card.__livePbpStats;
+            } catch(eS) { stats = null; }
             var pbp = pbpRollup(stats);
             var adj = 0;
             if(delta !== null){
@@ -2323,7 +2327,11 @@
             var pbpAdj2 = 0;
             try {
               var cardN = getCardForWrap(wrap);
-              var statsN = (cardN && cardN.__livePbpStats) ? cardN.__livePbpStats : null;
+              var statsN = null;
+              try {
+                if(lock1H && cardN && cardN.__livePbpStats1H) statsN = cardN.__livePbpStats1H;
+                else if(cardN && cardN.__livePbpStats) statsN = cardN.__livePbpStats;
+              } catch(eSN) { statsN = null; }
               var pbpN2 = pbpRollup(statsN);
               if(pbpN2){
                 var sp2 = (pbpN2.fga !== null ? pbpN2.fga : null);
@@ -2628,7 +2636,13 @@
           var selMin = wrap.querySelector('.live-lens-min');
           var inpTot = wrap.querySelector('.live-lens-total');
 
-          if(live.is_live){
+          var pn2 = (live.period !== null && live.period !== undefined) ? parseInt(String(live.period), 10) : NaN;
+          var is2H = (isFinite(pn2) && pn2 >= 2);
+          var lock1H = (horizon <= 20.5) && (is2H || !!live.is_final);
+
+          if(lock1H){
+            setStamp(wrap, 'Live: 1H Locked');
+          } else if(live.is_live){
             var clk = live.display_clock ? String(live.display_clock) : '';
             var per = (live.period !== null && live.period !== undefined) ? String(live.period) : '';
             setStamp(wrap, 'Live: P' + per + ' ' + (clk || ''));
@@ -2640,10 +2654,6 @@
 
           if(!autoOn) return;
           if(!live.is_live) return;
-
-          var pn2 = (live.period !== null && live.period !== undefined) ? parseInt(String(live.period), 10) : NaN;
-          var is2H = (isFinite(pn2) && pn2 >= 2);
-          var lock1H = (horizon <= 20.5) && is2H;
 
           if(inpTot){
             var vTot = null;
@@ -2673,10 +2683,14 @@
         if(!card || !pbp) return;
         try {
           var stats = pbp.stats || {};
+          var stats1h = pbp.stats_1h || null;
           var sAway = stats.away || {};
           var sHome = stats.home || {};
+          var sAway1h = (stats1h && stats1h.away) ? stats1h.away : null;
+          var sHome1h = (stats1h && stats1h.home) ? stats1h.home : null;
           try {
             card.__livePbpStats = stats;
+            if(stats1h) card.__livePbpStats1H = stats1h;
             card.__livePbpFetchedFrom = pbp.fetched_from || '';
           } catch(_e) { /* ignore */ }
           var wraps = card.querySelectorAll('.live-lens-wrap');
@@ -2684,9 +2698,20 @@
           wraps.forEach(function(wrap){
             var pills = wrap.querySelectorAll('.live-lens-pbp');
             if(!pills || !pills.length) return;
+
+            var hz = parseHorizon(wrap);
+            var per = null;
+            try { if(card && typeof card.__livePeriod === 'number' && isFinite(card.__livePeriod)) per = card.__livePeriod; } catch(_eP) { per = null; }
+            var lock1H = (hz <= 20.5) && (per !== null && per >= 2);
+
             pills.forEach(function(pill){
               var side = String(pill.getAttribute('data-side') || '').trim().toLowerCase();
-              var s = (side === 'home') ? sHome : (side === 'away' ? sAway : null);
+              var s = null;
+              if(lock1H && sHome1h && sAway1h){
+                s = (side === 'home') ? sHome1h : (side === 'away' ? sAway1h : null);
+              } else {
+                s = (side === 'home') ? sHome : (side === 'away' ? sAway : null);
+              }
               if(!s) return;
               var ftaA = (s.fta_att !== undefined && s.fta_att !== null) ? String(s.fta_att) : '–';
               var ftm = (s.fta_made !== undefined && s.fta_made !== null) ? String(s.fta_made) : '–';

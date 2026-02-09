@@ -21751,8 +21751,51 @@ def api_live_pbp_stats():
             "fga3_made": 0,
         }
 
-    def _accumulate(payload: dict) -> dict:
-        """Accumulate attempts/makes by side (home/away) from plays."""
+    def _play_period(play: dict) -> int | None:
+        """Best-effort extract period number from an ESPN play."""
+        try:
+            if not isinstance(play, dict):
+                return None
+            # Common variants observed in ESPN payloads.
+            p = play.get("period")
+            if isinstance(p, int):
+                return int(p)
+            if isinstance(p, str) and p.strip().isdigit():
+                return int(p.strip())
+            if isinstance(p, dict):
+                for k in ("number", "period", "value"):
+                    v = p.get(k)
+                    try:
+                        if v is None:
+                            continue
+                        if isinstance(v, int):
+                            return int(v)
+                        s = str(v).strip()
+                        if s.isdigit():
+                            return int(s)
+                    except Exception:
+                        continue
+            for k in ("periodNumber", "period_number"):
+                v = play.get(k)
+                try:
+                    if v is None:
+                        continue
+                    if isinstance(v, int):
+                        return int(v)
+                    s = str(v).strip()
+                    if s.isdigit():
+                        return int(s)
+                except Exception:
+                    continue
+        except Exception:
+            return None
+        return None
+
+    def _accumulate(payload: dict, max_period: int | None = None) -> dict:
+        """Accumulate attempts/makes by side (home/away) from plays.
+
+        If max_period is provided, only include plays with a known period <= max_period.
+        """
         team_to_side, _ = _team_side_map(payload)
         out = {"home": _blank_stats(), "away": _blank_stats(), "unknown": _blank_stats()}
 
@@ -21763,6 +21806,13 @@ def api_live_pbp_stats():
         for p in plays:
             if not isinstance(p, dict):
                 continue
+
+            if max_period is not None:
+                per = _play_period(p)
+                # For half splits, be conservative: only include plays with explicit period.
+                if per is None or per > int(max_period):
+                    continue
+
             try:
                 if not bool(p.get("shootingPlay")):
                     continue
@@ -21803,7 +21853,8 @@ def api_live_pbp_stats():
         payload, fetched_from = _fresh_payload(eid_s)
         if not isinstance(payload, dict):
             continue
-        stats = _accumulate(payload)
+        stats = _accumulate(payload, max_period=None)
+        stats_1h = _accumulate(payload, max_period=1)
         team_to_side, side_to_team = _team_side_map(payload)
         games[eid_s] = {
             "event_id": eid_s,
@@ -21816,6 +21867,11 @@ def api_live_pbp_stats():
                 "home": stats.get("home") or _blank_stats(),
                 "away": stats.get("away") or _blank_stats(),
                 "unknown": stats.get("unknown") or _blank_stats(),
+            },
+            "stats_1h": {
+                "home": stats_1h.get("home") or _blank_stats(),
+                "away": stats_1h.get("away") or _blank_stats(),
+                "unknown": stats_1h.get("unknown") or _blank_stats(),
             },
         }
 
