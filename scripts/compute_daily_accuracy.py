@@ -40,7 +40,10 @@ def compute_for_date(date_str: str, outputs_dir: str = 'outputs'):
     if line.isna().all() and 'closing_total' in df:
         line = pd.to_numeric(df.get('closing_total'), errors='coerce')
     ou = df.get('ou_result_full')
-    mask_t = pt.notna() & line.notna() & ou.notna() & ou.isin(['Over','Under'])
+    if ou is None:
+        mask_t = pd.Series(False, index=df.index)
+    else:
+        mask_t = pt.notna() & line.notna() & ou.notna() & ou.isin(['Over','Under'])
     totals = {
         'n': int(mask_t.sum()),
         'acc': float((((pt[mask_t] > line[mask_t]).astype(int)) == (ou[mask_t] == 'Over').astype(int)).mean()) if mask_t.sum() > 0 else None,
@@ -48,7 +51,10 @@ def compute_for_date(date_str: str, outputs_dir: str = 'outputs'):
 
     sp = pd.to_numeric(df.get('spread_home'), errors='coerce')
     ats_res = df.get('ats_result')
-    mask_ats = pm.notna() & sp.notna() & ats_res.notna() & ats_res.isin(['Home Cover','Away Cover'])
+    if ats_res is None:
+        mask_ats = pd.Series(False, index=df.index)
+    else:
+        mask_ats = pm.notna() & sp.notna() & ats_res.notna() & ats_res.isin(['Home Cover','Away Cover'])
     ats = {
         'n': int(mask_ats.sum()),
         'acc': float((((pm[mask_ats] > -sp[mask_ats]).astype(int)) == (ats_res[mask_ats] == 'Home Cover').astype(int)).mean()) if mask_ats.sum() > 0 else None,

@@ -23,7 +23,6 @@
   </header>
   <nav>
     <a href="/">Cards</a>
-    <a href="/stake-archive">Stake Archive</a>
     <a href="/results-archive">Results Archive</a>
     <a href="/display-archive">Display Archive</a>
     <a href="/backtest">Backtest</a>
@@ -39,7 +38,6 @@
     <div class="card">
       <h3>Quick Links</h3>
       <ul>
-        <li><a href="/api/stake_sheet_dates">Stake Sheet Dates (JSON)</a></li>
         <li><a href="/api/results_dates">Results Dates (JSON)</a></li>
         <li><a href="/api/ort-providers">ORT Providers (JSON)</a></li>
       </ul>
@@ -91,7 +89,6 @@
           <div>Providers: <code>${providers}</code></div>
           <div>Display Hash: <code>${h.display_hash ?? ''}</code></div>
           <div>Latest Results: <code>${h.results_latest ?? ''}</code></div>
-          <div>Latest Stake: <code>${h.stake_latest ?? ''}</code></div>
         `;
       } catch (e) {}
     }

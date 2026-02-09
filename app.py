@@ -2294,100 +2294,8 @@ def page_quantile_trend_weekly():
 # -----------------------------
 # Stake risk summary API + page
 # -----------------------------
-@app.get('/api/stake-risk-summary')
-def api_stake_risk_summary():
-    try:
-        out_dir = ROOT / 'outputs'
-        spath = out_dir / 'stake_risk_summary.csv'
-        # Optional VaR/ES computed from today's stake and quantiles
-        try:
-            import os
-        except Exception:
-            os = None
-        threshold_es99 = -500.0
-        if os:
-            try:
-                threshold_es99 = float(os.environ.get('RISK_ES99_ALERT_THRESHOLD', threshold_es99))
-            except Exception:
-                pass
-        var95 = None; var99 = None; es95 = None; es99 = None
-        try:
-            stake_csv = out_dir / 'stake_sheet_calibrated.csv'
-            quant_csv = out_dir / 'quantiles_selected.csv'
-            if stake_csv.exists() and quant_csv.exists():
-                sdf = pd.read_csv(stake_csv)
-                qdf = pd.read_csv(quant_csv)
-                # Join by game_id and date
-                for df in (sdf, qdf):
-                    if 'game_id' in df.columns:
-                        df['game_id'] = df['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
-                cols = ['date','game_id','stake','bet_kind','line','price']
-                sdf = sdf[[c for c in cols if c in sdf.columns]].copy()
-                j = pd.merge(sdf, qdf, on=['date','game_id'], how='inner')
-                # Approximate PnL distribution per bet using quantiles
-                pnls = []
-                for _, r in j.iterrows():
-                    stake = float(r.get('stake') or 0.0)
-                    price = float(r.get('price') or 0.0)
-                    kind = str(r.get('bet_kind') or '').lower()
-                    # probability from quantiles: over/under/spread implied via margin/total
-                    # Simplified: use q50 as central and width as uncertainty
-                    if 'total' in kind:
-                        q50 = float(r.get('q50_total') or np.nan)
-                        q10 = float(r.get('q10_total') or np.nan)
-                        q90 = float(r.get('q90_total') or np.nan)
-                    else:
-                        q50 = float(r.get('q50_margin') or np.nan)
-                        q10 = float(r.get('q10_margin') or np.nan)
-                        q90 = float(r.get('q90_margin') or np.nan)
-                    if not np.isfinite(q50) or not np.isfinite(q10) or not np.isfinite(q90):
-                        continue
-                    width = max(1e-6, q90 - q10)
-                    # crude mapping: win prob increases as central exceeds line for over/spread
-                    line = float(r.get('line') or 0.0)
-                    if 'over' in kind:
-                        edge = (q50 - line) / width
-                    elif 'under' in kind:
-                        edge = (line - q50) / width
-                    elif 'spread' in kind or 'ats' in kind:
-                        edge = (abs(q50) - abs(line)) / width
-                    else:
-                        edge = 0.0
-                    p_win = max(0.0, min(1.0, 0.5 + 0.4 * edge))
-                    # payoff: American odds price
-                    win_ret = stake * (price/100.0) if price > 0 else stake * (100.0/abs(price))
-                    lose_ret = -stake
-                    # sample PnL from a Bernoulli on quantile grid for portfolio approximation
-                    # represent as two-point distribution
-                    pnls.append(win_ret)
-                    pnls.append(lose_ret)
-                if pnls:
-                    arr = np.array(pnls, float)
-                    arr.sort()
-                    def _var(arr, lvl):
-                        return float(np.quantile(arr, 1.0 - lvl))
-                    def _es(arr, lvl):
-                        # expected shortfall beyond VaR
-                        cutoff = np.quantile(arr, 1.0 - lvl)
-                        tail = arr[arr <= cutoff]
-                        return float(np.mean(tail)) if len(tail) else cutoff
-                    var95 = _var(arr, 0.95); var99 = _var(arr, 0.99)
-                    es95 = _es(arr, 0.95); es99 = _es(arr, 0.99)
-        except Exception:
-            pass
-        if not spath.exists():
-            return jsonify({'status':'missing','data':[], 'var': {'var95': var95, 'var99': var99, 'es95': es95, 'es99': es99, 'threshold_es99': threshold_es99}})
-        df = pd.read_csv(spath)
-        return jsonify({'status':'ok','data': df.to_dict(orient='records'), 'var': {'var95': var95, 'var99': var99, 'es95': es95, 'es99': es99, 'threshold_es99': threshold_es99}})
-    except Exception as e:
-        return jsonify({'status':'error','message':str(e)})
 
-@app.get('/stake-risk-summary')
-def page_stake_risk_summary():
-    try:
-        return render_template('stake_risk_summary.html')
-    except Exception as e:
-        return jsonify({'status':'error','message':str(e)})
+# (Stake risk summary removed: stake-sheet artifacts are deprecated.)
 
 # (Dashboard route exists later as @app.route("/dashboard") with metrics.)
 
@@ -5941,63 +5849,6 @@ def _load_csv_first(paths: list[Path]) -> pd.DataFrame:
         except Exception:
             continue
     return pd.DataFrame()
-
-
-def _load_stake_sheet(kind: str, date_str: str | None = None) -> pd.DataFrame:
-    """Load stake sheet variant.
-
-    kind: one of 'orig','cal','compare'.
-    File conventions (today-only for now):
-      - stake_sheet_today.csv (original)
-      - stake_sheet_today_cal.csv (calibrated)
-      - stake_sheet_today_compare.csv (side-by-side deltas)
-    """
-    # If a date is provided, prefer dated filenames (stake_sheet_YYYY-MM-DD*.csv) with fallbacks to today files.
-    candidates: list[Path] = []
-    if date_str:
-        if kind == "orig":
-            candidates.append(OUT / f"stake_sheet_{date_str}.csv")
-            candidates.append(OUT / "stake_sheet_today.csv")
-        elif kind == "cal":
-            candidates.append(OUT / f"stake_sheet_{date_str}_cal.csv")
-            candidates.append(OUT / "stake_sheet_today_cal.csv")
-        elif kind == "compare":
-            candidates.append(OUT / f"stake_sheet_{date_str}_compare.csv")
-            candidates.append(OUT / "stake_sheet_today_compare.csv")
-    else:
-        if kind == "orig":
-            candidates.append(OUT / "stake_sheet_today.csv")
-        elif kind == "cal":
-            candidates.append(OUT / "stake_sheet_today_cal.csv")
-        elif kind == "compare":
-            candidates.append(OUT / "stake_sheet_today_compare.csv")
-    return _load_csv_first(candidates)
-
-
-def _summarize_stake_sheet(df: pd.DataFrame) -> dict[str, Any]:
-    if df.empty:
-        return {"n": 0}
-    out: dict[str, Any] = {"n": len(df)}
-    # Common columns: stake, kelly_fraction, prob, ev
-    for col in ["stake","kelly_fraction","prob","ev","price","line","delta_prob","delta_kelly","delta_ev","delta_stake"]:
-        if col in df.columns:
-            try:
-                ser = pd.to_numeric(df[col], errors="coerce")
-                out[f"sum_{col}"] = float(ser.dropna().sum())
-                out[f"mean_{col}"] = float(ser.dropna().mean())
-            except Exception:
-                pass
-    # Aggregate stake by book if present
-    if "book" in df.columns:
-        try:
-            book_stakes = (
-                df.groupby("book")["stake"].sum().sort_values(ascending=False).to_dict()
-                if "stake" in df.columns else {}
-            )
-            out["book_stakes"] = book_stakes
-        except Exception:
-            pass
-    return out
 
 
 def _load_calibration_artifact() -> dict[str, Any] | None:
@@ -19181,18 +19032,7 @@ def index():
             status['results_latest'] = (sorted(set(dates))[-1] if dates else None)
         except Exception:
             status['results_latest'] = None
-        # Latest stake sheet
-        try:
-            import re as _re
-            sdates: list[str] = []
-            pat = _re.compile(r'^stake_sheet_(\d{4}-\d{2}-\d{2})')
-            for p in OUT.glob('stake_sheet*.csv'):
-                m = pat.match(p.name)
-                if m:
-                    sdates.append(m.group(1))
-            status['stake_latest'] = (sorted(set(sdates))[-1] if sdates else None)
-        except Exception:
-            status['stake_latest'] = None
+        # (stake sheets deprecated)
         # Finalize hint for current or requested date
         try:
             use_date = str(date_q).strip() if (date_q and str(date_q).strip()) else dt.datetime.utcnow().strftime('%Y-%m-%d')
@@ -20828,7 +20668,6 @@ def api_health():
         games_files = [p.name for p in out_dir.glob("games*.csv")]
         odds_files = [p.name for p in out_dir.glob("odds*.csv")]
         preds_files = [p.name for p in out_dir.glob("predictions*.csv")]
-        stake_files = [p.name for p in out_dir.glob("stake_sheet*.csv")]
         daily_results = sorted(daily_dir.glob("results_*.csv")) if daily_dir.exists() else []
         recent_results = [p.stem.split("_")[1] for p in daily_results[-7:]] if daily_results else []
         # Today counts for quick diagnostics
@@ -20932,20 +20771,6 @@ def api_health():
             results_latest = dates[-1] if dates else None
         except Exception:
             results_latest = None
-        # Latest stake sheet
-        stake_latest = None
-        try:
-            import re as _re
-            pat = _re.compile(r'^stake_sheet_(\d{4}-\d{2}-\d{2})')
-            sdates = []
-            for p in out_dir.glob('stake_sheet*.csv'):
-                m = pat.match(p.name)
-                if m:
-                    sdates.append(m.group(1))
-            sdates = sorted(set(sdates))
-            stake_latest = sdates[-1] if sdates else None
-        except Exception:
-            stake_latest = None
         # Finalize hint
         finalize = None
         try:
@@ -21017,7 +20842,6 @@ def api_health():
             "games_files": games_files,
             "odds_files": odds_files,
             "predictions_files": preds_files,
-            "stake_files": stake_files,
             "daily_results_count": len(daily_results),
             "recent_result_dates": recent_results,
             "predictions_source": predictions_source,
@@ -21038,7 +20862,6 @@ def api_health():
             # Display predictions hash for alignment
             "display_hash": display_hash,
             "results_latest": results_latest,
-            "stake_latest": stake_latest,
             "finalize": finalize,
             "display_rows": display_rows,
             "enriched_rows": enriched_rows,
@@ -21086,7 +20909,7 @@ def healthz():
 def api_status():
     """Lightweight status for header strip.
 
-    Returns latest `results_latest`, `stake_latest`, `finalize` hint, `display_hash`,
+    Returns latest `results_latest`, `finalize` hint, `display_hash`,
     and calibration metrics when available: `basis_share_total_cal`, `basis_share_margin_cal`,
     `drift_total_delta_vs_median`, `drift_margin_delta_vs_median`.
     """
@@ -21106,19 +20929,6 @@ def api_status():
             results_latest = (sorted(set(dates))[-1] if dates else None)
         except Exception:
             results_latest = None
-        # Latest stake sheet
-        stake_latest = None
-        try:
-            import re as _re
-            sdates: list[str] = []
-            pat = _re.compile(r'^stake_sheet_(\d{4}-\d{2}-\d{2})')
-            for p in OUT.glob('stake_sheet*.csv'):
-                m = pat.match(p.name)
-                if m:
-                    sdates.append(m.group(1))
-            stake_latest = (sorted(set(sdates))[-1] if sdates else None)
-        except Exception:
-            stake_latest = None
         # Finalize hint
         finalize = None
         try:
@@ -21242,23 +21052,6 @@ def api_status():
             if rc.exists():
                 with open(rc, 'r', encoding='utf-8') as f:
                     risk = json.load(f)
-            else:
-                # Infer daily loss used from latest stake sheet PnL if available
-                # Expect columns: units, pnl_units, etc.
-                if stake_latest:
-                    # Try match stake sheet filename
-                    import re as _re
-                    pat = _re.compile(rf'^stake_sheet_{stake_latest}.*\.csv$')
-                    sheets = [p for p in OUT.glob('stake_sheet*.csv') if pat.match(p.name)]
-                    if sheets:
-                        try:
-                            ss = pd.read_csv(sheets[-1])
-                            if 'pnl_units' in ss.columns:
-                                used = float(pd.to_numeric(ss['pnl_units'], errors='coerce').sum())
-                                risk = (risk or {})
-                                risk['daily_loss_used'] = abs(min(0.0, used))
-                        except Exception:
-                            pass
             # Live PnL hook (overrides inferred value if present)
             try:
                 plive = OUT / 'pnl_live.json'
@@ -21275,7 +21068,6 @@ def api_status():
             risk = None
         return jsonify({
             'results_latest': results_latest,
-            'stake_latest': stake_latest,
             'finalize': finalize,
             'display_hash': display_hash,
             'basis_share_total_cal': basis_share_total_cal,
@@ -28263,15 +28055,8 @@ def api_recommendations():
                                             continue
                     except Exception:
                         prob_map = {}
-                    # Thresholds for probability gating (env-configurable)
-                    try:
-                        p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
-                    except Exception:
-                        p_hi = 0.52
-                    try:
-                        p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
-                    except Exception:
-                        p_lo = 0.48
+                    # Thresholds for probability gating (only gate when explicitly configured)
+                    p_hi, p_lo = _get_ou_thresholds()
                     def _tot_side(r: pd.Series) -> str:
                         try:
                             pt = float(r.get('pred_total')) if r.get('pred_total') is not None else np.nan
@@ -28300,9 +28085,9 @@ def api_recommendations():
                                 try:
                                     p = float(r.get('p_over_prob')) if r.get('p_over_prob') is not None else np.nan
                                     if np.isfinite(p):
-                                        if p >= p_hi:
+                                        if (p_hi is not None) and (p >= p_hi):
                                             return 'Over'
-                                        if p <= p_lo:
+                                        if (p_lo is not None) and (p <= p_lo):
                                             return 'Under'
                                 except Exception:
                                     pass
@@ -28313,8 +28098,10 @@ def api_recommendations():
                                 try:
                                     p = float(r.get('p_over_prob')) if r.get('p_over_prob') is not None else np.nan
                                     b = str(r.get('bet') or '').lower()
-                                    if np.isfinite(p):
-                                        return (p >= p_hi and b == 'over') or (p <= p_lo and b == 'under')
+                                    if np.isfinite(p) and (p_hi is not None or p_lo is not None):
+                                        ok_hi = (p_hi is not None) and (p >= p_hi) and (b == 'over')
+                                        ok_lo = (p_lo is not None) and (p <= p_lo) and (b == 'under')
+                                        return bool(ok_hi or ok_lo)
                                     # If no probability and no date-scoped prob map, allow edge-based totals to avoid empty payloads
                                     return True
                                 except Exception:
@@ -28592,23 +28379,15 @@ def api_recommendations():
                 except Exception:
                     pass
                 def _side(r: pd.Series) -> str:
-                    # Prefer probability-based side when confident
+                    # Prefer probability-based side when explicitly configured
                     try:
-                        # Load thresholds once
-                        try:
-                            p_hi = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_HIGH', '0.52'))
-                        except Exception:
-                            p_hi = 0.52
-                        try:
-                            p_lo = float(os.environ.get('NCAAB_P_OVER_THRESHOLD_LOW', '0.48'))
-                        except Exception:
-                            p_lo = 0.48
+                        p_hi, p_lo = _get_ou_thresholds()
                         p = r.get('p_over_blend') or r.get('p_over_final') or r.get('p_over_meta_cal') or r.get('p_over_display') or r.get('p_over')
-                        if p is not None and str(p).strip()!='':
+                        if p is not None and str(p).strip()!='' and (p_hi is not None or p_lo is not None):
                             p2 = float(p)
-                            if p2 >= p_hi:
+                            if (p_hi is not None) and (p2 >= p_hi):
                                 return 'Over'
-                            if p2 <= p_lo:
+                            if (p_lo is not None) and (p2 <= p_lo):
                                 return 'Under'
                     except Exception:
                         pass
@@ -30686,7 +30465,98 @@ def api_recommendations():
         except Exception:
             pass
 
-    _resp = jsonify({"rows": len(rows), "data": rows})
+    # Ensure JSON-safe nulls (avoid NaN/Inf leaking into responses) and
+    # backfill missing edges so rows remain rankable.
+    try:
+        def _sf(v: Any) -> float | None:
+            try:
+                if v is None:
+                    return None
+                s = str(v).strip()
+                if s == '' or s.lower() in ('nan', 'none', 'null'):
+                    return None
+                x = float(v)
+                if not np.isfinite(x):
+                    return None
+                return float(x)
+            except Exception:
+                return None
+
+        def _is_bad_number(v: Any) -> bool:
+            try:
+                if v is None:
+                    return False
+                if isinstance(v, (float, int, np.floating, np.integer)):
+                    return _sf(v) is None
+                return False
+            except Exception:
+                return False
+
+        cleaned: list[dict[str, Any]] = []
+        for r in (rows or []):
+            if not isinstance(r, dict):
+                continue
+            rr = dict(r)
+
+            # Sanitize problematic numeric values
+            for k, v in list(rr.items()):
+                if _is_bad_number(v):
+                    rr[k] = None
+
+            # Backfill missing edge using lightweight proxies
+            code = str(rr.get('rec_code') or rr.get('code') or '').strip().upper()
+            edge = _sf(rr.get('edge'))
+
+            if edge is None:
+                if code == 'OU':
+                    pt = _sf(rr.get('pred_total'))
+                    ln = _sf(rr.get('line'))
+                    if pt is not None and ln is not None:
+                        rr['edge'] = float(abs(pt - ln))
+                elif code == 'ATS':
+                    pm = _sf(rr.get('pred_margin'))
+                    ln = _sf(rr.get('line'))
+                    if pm is not None and ln is not None:
+                        home = str(rr.get('home_team') or '').strip().lower()
+                        away = str(rr.get('away_team') or '').strip().lower()
+                        bet_raw = rr.get('bet') or rr.get('selection') or rr.get('bet_label') or ''
+                        bet = str(bet_raw or '').strip().lower()
+                        is_home = (bet in ('home', 'h')) or (home and bet.startswith(home))
+                        is_away = (bet in ('away', 'a')) or (away and bet.startswith(away))
+                        if is_home:
+                            rr['edge'] = float(abs(pm + ln))
+                        elif is_away:
+                            rr['edge'] = float(abs((-pm) + ln))
+                        else:
+                            rr['edge'] = float(abs(pm + ln))
+                elif code == 'ML':
+                    p = _sf(rr.get('prob'))
+                    if p is not None:
+                        rr['edge'] = float(abs(p - 0.5))
+                    else:
+                        pm = _sf(rr.get('pred_margin'))
+                        if pm is not None:
+                            rr['edge'] = float(max(0.0, min(2.0, abs(pm) / 6.0)))
+
+            # Maintain abs_edge when possible (many consumers sort by it)
+            ev = _sf(rr.get('edge'))
+            rr['abs_edge'] = float(abs(ev)) if ev is not None else None
+
+            # Final guardrail: remove clearly-invalid “0.0 total with no prediction” rows
+            # that occasionally leak from partial artifacts.
+            if code == 'OU':
+                ln = _sf(rr.get('line'))
+                pt = _sf(rr.get('pred_total'))
+                if (ln is not None and abs(ln) < 0.05) and (pt is None):
+                    continue
+
+            cleaned.append(rr)
+
+        rows = cleaned
+    except Exception:
+        pass
+
+    _resp = jsonify({"status": "ok", "date": date_q, "rows": len(rows), "data": rows})
     try:
         _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         _resp.headers['Pragma'] = 'no-cache'
@@ -32189,7 +32059,7 @@ def api_picks_raw():
                 df = pd.DataFrame()
         # If still empty, return no data
         if df.empty:
-            return jsonify({"rows": 0, "data": []})
+            return jsonify({"status": "ok", "date": date_q, "rows": 0, "data": []})
     # Filter by date if provided
     if date_q and "date" in df.columns:
         try:
@@ -32209,8 +32079,13 @@ def api_picks_raw():
             row[f"{side}_color"] = b.get("primary") or b.get("secondary")
             row[f"{side}_text_color"] = b.get("text") or "#ffffff"
         return row
+    try:
+        # Ensure JSON-safe nulls (avoid NaN/NaT leaking into responses)
+        df = df.where(pd.notnull(df), None)
+    except Exception:
+        pass
     rows = [_enrich(r) for r in df.to_dict(orient="records")]
-    return jsonify({"rows": len(rows), "data": rows})
+    return jsonify({"status": "ok", "date": date_q, "rows": len(rows), "data": rows})
 
 
 @app.route("/api/upload_picks_raw", methods=["POST"])
@@ -33973,85 +33848,7 @@ def api_residuals():
     return jsonify({"ok": True, "meta": meta, "rows": out_rows})
 
 
-# ---------------- New Pages: Stake Sheet, Coverage, Calibration -----------------
-
-@app.route("/stake-sheet")
-def stake_sheet_page():
-    """Render stake sheet variants and comparison.
-
-    Query params:
-      ?view=orig|cal|compare (default orig)
-    """
-    view = (request.args.get("view") or "orig").strip().lower()
-    date_q = (request.args.get("date") or "").strip()
-    if view not in {"orig","cal","compare"}:
-        view = "orig"
-    df = _load_stake_sheet(view, date_q or None)
-    # Ensure expected columns exist to avoid Jinja UndefinedError
-    expected_common = [
-        "game_id","home_team","away_team","market","selection","line","price",
-        "prob","kelly_fraction","ev","stake","book","date",
-        # deltas (safe to include for all views)
-        "delta_prob","delta_kelly","delta_ev","delta_stake",
-    ]
-    expected_compare = [
-        "prob_orig","prob_cal","kelly_fraction_orig","kelly_fraction_cal",
-        "ev_orig","ev_cal","stake_orig","stake_cal",
-    ]
-    if df.empty:
-        rows: list[dict[str, Any]] = []
-    else:
-        for col in expected_common + (expected_compare if view == "compare" else []):
-            if col not in df.columns:
-                df[col] = None
-        rows = df.to_dict(orient="records")
-    summary = _summarize_stake_sheet(df)
-    return render_template(
-        "stake_sheet.html",
-        rows=rows,
-        total_rows=len(rows),
-        view=view,
-        date_val=date_q,
-        summary=summary,
-    )
-
-
-@app.route("/download/stake")
-def download_stake():
-    """Download stake sheet CSV for the requested view.
-
-    Query: ?view=orig|cal|compare
-    """
-    view = (request.args.get("view") or "orig").strip().lower()
-    date_q = (request.args.get("date") or "").strip()
-    def _cands(kind: str) -> list[Path]:
-        lst: list[Path] = []
-        if date_q:
-            if kind == "orig":
-                lst += [OUT / f"stake_sheet_{date_q}.csv"]
-            elif kind == "cal":
-                lst += [OUT / f"stake_sheet_{date_q}_cal.csv"]
-            elif kind == "compare":
-                lst += [OUT / f"stake_sheet_{date_q}_compare.csv"]
-        if kind == "orig":
-            lst += [OUT / "stake_sheet_today.csv"]
-        elif kind == "cal":
-            lst += [OUT / "stake_sheet_today_cal.csv"]
-        elif kind == "compare":
-            lst += [OUT / "stake_sheet_today_compare.csv"]
-        return lst
-    p = None
-    for cand in _cands(view):
-        if cand.exists():
-            p = cand
-            break
-    if not p or not p.exists():
-        return jsonify({"error": "file not found"}), 404
-    try:
-        return send_file(str(p), as_attachment=True, download_name=p.name)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+# ---------------- Pages: Coverage, Calibration -----------------
 
 @app.route("/coverage")
 def coverage_page():
@@ -34062,27 +33859,9 @@ def coverage_page():
 @app.route("/calibration")
 def calibration_page():
     artifact = _load_calibration_artifact()
-    compare_df = _load_stake_sheet("compare")
-    compare_summary = _summarize_stake_sheet(compare_df)
-    # Derive aggregate deltas if comparison present
-    deltas: dict[str, Any] = {}
-    if not compare_df.empty:
-        for col in ["delta_prob","delta_kelly","delta_ev","delta_stake"]:
-            if col in compare_df.columns:
-                try:
-                    ser = pd.to_numeric(compare_df[col], errors="coerce")
-                    deltas[f"mean_{col}"] = float(ser.dropna().mean())
-                    deltas[f"median_{col}"] = float(ser.dropna().median())
-                    deltas[f"sum_{col}"] = float(ser.dropna().sum())
-                except Exception:
-                    continue
-    rows_compare = compare_df.head(50).to_dict(orient="records") if not compare_df.empty else []
     return render_template(
         "calibration.html",
         artifact=artifact,
-        compare_rows=rows_compare,
-        compare_summary=compare_summary,
-        deltas=deltas,
     )
 
 # ---------------- Display Predictions & Dates API (enhancement) -----------------
@@ -36621,74 +36400,7 @@ def api_display_predictions():
         except Exception:
             interval_actuals_2min_map = {}
 
-        # Optional: attach stake-sheet callouts to cards.
-        # Source: outputs/stake_sheet_<date>_{cal|iso|base}.csv
-        stake_variant: str | None = None
-        stake_entries_map: dict[str, list[dict[str, Any]]] = {}
-        try:
-            if cards_view:
-                def _norm_gid(v: Any) -> str:
-                    try:
-                        s = str(v)
-                        return s.replace('.0', '').strip()
-                    except Exception:
-                        return str(v)
-
-                def _sf(v: Any) -> float | None:
-                    try:
-                        if v is None:
-                            return None
-                        x = float(v)
-                        if not np.isfinite(x):
-                            return None
-                        return float(x)
-                    except Exception:
-                        return None
-
-                def _ss_load(path: Path, variant: str) -> dict[str, list[dict[str, Any]]]:
-                    ss = _safe_read_csv(path)
-                    if not isinstance(ss, pd.DataFrame) or ss.empty or ('game_id' not in ss.columns):
-                        return {}
-                    try:
-                        ss = ss.copy()
-                        ss['game_id'] = ss['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
-                    except Exception:
-                        pass
-                    out: dict[str, list[dict[str, Any]]] = {}
-                    for gid, g in ss.groupby('game_id'):
-                        try:
-                            entries: list[dict[str, Any]] = []
-                            for _, rr in g.iterrows():
-                                entries.append({
-                                    'variant': variant,
-                                    'market': (str(rr.get('market')) if rr.get('market') is not None else ''),
-                                    'selection': (str(rr.get('selection')) if rr.get('selection') is not None else ''),
-                                    'line': _sf(rr.get('line')),
-                                    'price': _sf(rr.get('price')),
-                                    'edge': _sf(rr.get('edge')),
-                                    'stake': _sf(rr.get('stake')),
-                                })
-                            if entries:
-                                out[_norm_gid(gid)] = entries
-                        except Exception:
-                            continue
-                    return out
-
-                for _variant, _fname in (
-                    ('cal', f"stake_sheet_{date_q}_cal.csv"),
-                    ('iso', f"stake_sheet_{date_q}_iso.csv"),
-                    ('base', f"stake_sheet_{date_q}_base.csv"),
-                ):
-                    p = OUT / _fname
-                    if p.exists():
-                        m = _ss_load(p, _variant)
-                        if m:
-                            stake_variant = _variant
-                            stake_entries_map = m
-                            break
-        except Exception:
-            stake_variant = None
-            stake_entries_map = {}
+        # (Stake-sheet callouts removed: stake sheets are deprecated.)
         try:
             if sim_only and isinstance(df, pd.DataFrame) and not df.empty and 'game_id' in df.columns:
                 sq_path = OUT / f"sim_quantiles_{date_q}.csv"
@@ -37252,59 +36964,7 @@ def api_display_predictions():
             except Exception:
                 pass
 
-            # Attach stake-sheet marker/details (cards view only)
-            try:
-                gid = str(item.get('game_id') or '').replace('.0', '').strip()
-                entries = stake_entries_map.get(gid) if (cards_view and gid) else None
-                if entries:
-                    item['on_stake_sheet'] = True
-                    item['stake_sheet_variant'] = stake_variant
-                    item['stake_sheet_entries'] = entries
-                    try:
-                        total_stake = 0.0
-                        for e in entries:
-                            s = e.get('stake')
-                            if s is None:
-                                continue
-                            x = float(s)
-                            if np.isfinite(x):
-                                total_stake += float(x)
-                        item['stake_sheet_total_stake'] = total_stake
-                    except Exception:
-                        item['stake_sheet_total_stake'] = None
-                    try:
-                        parts: list[str] = []
-                        for e in entries:
-                            mkt = (e.get('market') or '').strip()
-                            sel = (e.get('selection') or '').strip()
-                            line = e.get('line')
-                            stake = e.get('stake')
-                            edge = e.get('edge')
-                            p = mkt or 'bet'
-                            if sel:
-                                p += f" {sel}"
-                            if line is not None:
-                                p += f" {line:+.1f}" if (mkt == 'spreads' and isinstance(line, (int, float))) else f" {line:.1f}"
-                            if stake is not None:
-                                p += f" stake {stake:.0f}"
-                            if edge is not None:
-                                p += f" edge {edge:+.2f}"
-                            parts.append(p.strip())
-                        item['stake_sheet_title'] = '; '.join([p for p in parts if p])
-                    except Exception:
-                        item['stake_sheet_title'] = 'On stake sheet'
-                else:
-                    item['on_stake_sheet'] = False
-                    item['stake_sheet_variant'] = None
-                    item['stake_sheet_entries'] = []
-                    item['stake_sheet_total_stake'] = None
-                    item['stake_sheet_title'] = ''
-            except Exception:
-                item['on_stake_sheet'] = False
-                item['stake_sheet_variant'] = None
-                item['stake_sheet_entries'] = []
-                item['stake_sheet_total_stake'] = None
-                item['stake_sheet_title'] = ''
+            # (Stake-sheet markers removed.)
             rows.append(item)
 
         try:
@@ -38382,81 +38042,11 @@ def api_finalize_hint():
 
 @app.route('/api/stake_sheet_dates')
 def api_stake_sheet_dates():
-    """List available dates for stake sheets by scanning outputs/stake_sheet_*.csv files."""
-    import re as _re
-    dates: list[str] = []
-    pat = _re.compile(r'^stake_sheet_(\d{4}-\d{2}-\d{2})')
-    try:
-        for p in OUT.glob('stake_sheet*.csv'):
-            m = pat.match(p.name)
-            if m:
-                dates.append(m.group(1))
-    except Exception:
-        pass
-    dates = sorted(set(dates))
-    return jsonify({'dates': dates, 'latest': dates[-1] if dates else None})
+    return jsonify({'status': 'gone', 'message': 'Stake sheet artifacts are deprecated.'}), 410
 
 @app.route('/api/stake_sheets')
 def api_stake_sheets():
-    """Return stake sheet rows for a given date.
-
-    Query params:
-      - date: YYYY-MM-DD; if omitted, try today's stake_sheet_today.csv
-    """
-    date_q = (request.args.get('date') or '').strip()
-    from datetime import datetime as _dt
-    today = _dt.utcnow().strftime('%Y-%m-%d')
-    paths = []
-    try:
-        if date_q:
-            # Try dated stake sheets first
-            for p in OUT.glob(f'stake_sheet_{date_q}*.csv'):
-                paths.append(p)
-        else:
-            # Fallback to today's rolling stake sheet
-            p = OUT / 'stake_sheet_today.csv'
-            if p.exists():
-                paths.append(p)
-            else:
-                for p in OUT.glob(f'stake_sheet_{today}*.csv'):
-                    paths.append(p)
-    except Exception:
-        paths = []
-    rows: list[dict[str, Any]] = []
-    chosen = None
-    for p in sorted(paths):
-        try:
-            df = pd.read_csv(p)
-            if df.empty:
-                continue
-            chosen = p
-            # Pass through as json objects but clip to common fields if huge
-            keep = [c for c in df.columns if c in ['game_id','home_team','away_team','pick','market','edge','stake','kelly','confidence','date']]
-            if keep:
-                df = df[keep]
-            # Inject branding for stake archive rendering
-            try:
-                branding = _load_branding_map()
-                def _brand_field(series, key):
-                    try:
-                        return series.astype(str).map(lambda nm: branding.get(normalize_name(nm), {}).get(key))
-                    except Exception:
-                        return pd.Series([None] * len(df))
-                if 'home_team' in df.columns:
-                    df['home_logo'] = _brand_field(df['home_team'], 'logo')
-                    df['home_color'] = _brand_field(df['home_team'], 'primary')
-                    df['home_text'] = _brand_field(df['home_team'], 'text')
-                if 'away_team' in df.columns:
-                    df['away_logo'] = _brand_field(df['away_team'], 'logo')
-                    df['away_color'] = _brand_field(df['away_team'], 'primary')
-                    df['away_text'] = _brand_field(df['away_team'], 'text')
-            except Exception:
-                pass
-            rows = [dict(r._asdict()) if hasattr(r, '_asdict') else {c: r[c] for c in df.columns} for _, r in df.iterrows()]
-            break
-        except Exception:
-            continue
-    return jsonify({'date': date_q or today, 'file': (str(chosen) if chosen else None), 'count': len(rows), 'rows': rows})
+    return jsonify({'status': 'gone', 'message': 'Stake sheet artifacts are deprecated.'}), 410
 
 @app.route('/download/display-predictions')
 def download_display_predictions_csv():
@@ -38558,13 +38148,8 @@ def display_archive():
             latest_hash = None
     return render_template('archive.html', dates=dates, latest=(dates[-1] if dates else None), remote_base=remote_base or None, remote_hash=remote_hash, latest_hash=latest_hash)
 
-@app.route('/stake-archive')
-def stake_archive():
-    """HTML page to browse stake sheet archives across dates.
 
-    Uses `/api/stake_sheet_dates` and `/api/stake_sheets` for data.
-    """
-    return render_template('stake_archive.html')
+# (Stake archive removed: stake-sheet artifacts are deprecated.)
 
 @app.route('/results-archive')
 def results_archive():

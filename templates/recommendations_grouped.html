@@ -171,7 +171,7 @@
                 const tbody = document.createElement('tbody');
                 function pill(code){ const s=document.createElement('span'); s.className='pill '+code; s.textContent = (code==='OU'?'Totals':code==='ATS'?'Spread':code==='ML'?'Moneyline':code); return s; }
                 function numCell(val){ const td=document.createElement('td'); td.className='num'; td.textContent = (val==null||val==='')?'':(typeof val==='number'?val.toFixed(1):val); return td; }
-                function betChip(code, lbl){
+                function betChip(code, lbl, it){
                   const sp=document.createElement('span');
                   const l = (lbl||'').toString();
                   const lo = l.toLowerCase();
@@ -184,15 +184,15 @@
                     const isHome = sp.className.includes('home');
                     let lineVal = null;
                     try{
-                      if(it.line!=null && it.line!==''){
+                      if(it && it.line!=null && it.line!==''){
                         const v = parseFloat(it.line);
                         if(isFinite(v)) lineVal = v;
                       }
                       // Prefer closing/home spread when present
                       if(lineVal==null){
-                        const lnHome = (it.closing_spread_home!=null?parseFloat(it.closing_spread_home):null);
-                        const lnHome2 = (it.home_spread!=null?parseFloat(it.home_spread):null);
-                        const lnAway = (it.away_spread!=null?parseFloat(it.away_spread):null);
+                        const lnHome = (it && it.closing_spread_home!=null?parseFloat(it.closing_spread_home):null);
+                        const lnHome2 = (it && it.home_spread!=null?parseFloat(it.home_spread):null);
+                        const lnAway = (it && it.away_spread!=null?parseFloat(it.away_spread):null);
                         let base = null;
                         if(isFinite(lnHome)) base = lnHome; else if(isFinite(lnHome2)) base = lnHome2;
                         if(base!=null){
@@ -218,7 +218,7 @@
                   const tdType=document.createElement('td'); tdType.appendChild(pill(it.rec_code||'Other')); tr.appendChild(tdType);
                   const tdBook=document.createElement('td'); tdBook.textContent = it.book||''; tr.appendChild(tdBook);
                   const lbl=(it.bet_label||it.bet||'').toString();
-                  const tdBet=document.createElement('td'); tdBet.appendChild(betChip((it.rec_code||'Other').toUpperCase(), lbl)); tr.appendChild(tdBet);
+                  const tdBet=document.createElement('td'); tdBet.appendChild(betChip((it.rec_code||'Other').toUpperCase(), lbl, it)); tr.appendChild(tdBet);
                   tr.appendChild(numCell(it.line));
                   tr.appendChild(numCell(it.price));
                   tr.appendChild(numCell(it._abs_edge||it.edge||it.abs_edge||''));

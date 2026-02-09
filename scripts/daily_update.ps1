@@ -15,6 +15,7 @@ param(
   [switch]$SkipRetrain,
   [switch]$ForceModelRetrain,
   [switch]$SkipFinalizePrev,
+  # Deprecated (stake sheets removed from app). Retained for backward compatibility; now a no-op.
   [switch]$SkipStakeSheets,
   [switch]$SkipGitPush,
   [switch]$SkipModelTests,
@@ -1284,7 +1285,7 @@ sys.exit(1 if nan_count>0 else 0)
   } catch { Write-Warning "explain_meta failed: $($_)" }
 
   # Guard: daily-run may overwrite the historical games_with_last.csv with a subset (today's slate).
-  # Reconstruct full historical last odds merge to ensure persistence before filtering for stake sheets.
+  # Reconstruct full historical last odds merge to ensure persistence for downstream joins.
   Write-Section '6a) Restore full games_with_last.csv (historical) after daily-run'
   try {
     $gamesAll = Join-Path $OutDir 'games_all.csv'
@@ -1296,13 +1297,14 @@ sys.exit(1 if nan_count>0 else 0)
     }
   } catch { Write-Warning "Restore games_with_last.csv failed: $($_)" }
 
-  if (-not $SkipStakeSheets) {
-    Write-Section "7) Filter merged last odds to today's slate (with closing fallback)"
-    $mergedAll = Join-Path $OutDir 'games_with_last.csv'
-    $mergedToday = Join-Path $OutDir 'games_with_last_today.csv'
-    $gamesCurrPath = Join-Path $OutDir "games_${todayIso}.csv"
-    if (Test-Path $mergedAll) {
-    $pyFilter = @"
+  # Stake sheets are deprecated and removed from the app; still produce today's
+  # merged/edges/display artifacts for recommendations.
+  Write-Section "7) Filter merged last odds to today's slate (with closing fallback)"
+  $mergedAll = Join-Path $OutDir 'games_with_last.csv'
+  $mergedToday = Join-Path $OutDir 'games_with_last_today.csv'
+  $gamesCurrPath = Join-Path $OutDir "games_${todayIso}.csv"
+  if (Test-Path $mergedAll) {
+  $pyFilter = @"
 import pandas as pd, sys
 inp = r'$mergedAll'
 outp = r'$mergedToday'
@@ -1376,16 +1378,16 @@ print('[debug] gid_today_count=' + str(len(gid_today)))
 df_today.to_csv(outp, index=False)
 print(f'Filtered games_with_last.csv -> {len(df)} total, {len(df_today)} rows for {target}')
 "@
-      & $VenvPython -c $pyFilter
-      # If last odds yielded 0 rows, fallback to closing lines
-      try {
-        $rows = @(Import-Csv -LiteralPath $mergedToday)
-        if (-not $rows -or $rows.Count -le 0) {
-          Write-Host "[fallback] No last-odds rows for $todayIso; using closing lines." -ForegroundColor Yellow
-          $mergedClosingAll = Join-Path $OutDir 'games_with_closing.csv'
-          $mergedClosingToday = Join-Path $OutDir 'games_with_closing_today.csv'
-          if (Test-Path $mergedClosingAll) {
-            $pyFilterClosing = @"
+    & $VenvPython -c $pyFilter
+    # If last odds yielded 0 rows, fallback to closing lines
+    try {
+      $rows = @(Import-Csv -LiteralPath $mergedToday)
+      if (-not $rows -or $rows.Count -le 0) {
+        Write-Host "[fallback] No last-odds rows for $todayIso; using closing lines." -ForegroundColor Yellow
+        $mergedClosingAll = Join-Path $OutDir 'games_with_closing.csv'
+        $mergedClosingToday = Join-Path $OutDir 'games_with_closing_today.csv'
+        if (Test-Path $mergedClosingAll) {
+          $pyFilterClosing = @"
 import pandas as pd, sys
 inp = r'$mergedClosingAll'
 outp = r'$mergedClosingToday'
@@ -1455,221 +1457,87 @@ print('[debug] gid_today_count=' + str(len(gid_today)))
 df_today.to_csv(outp, index=False)
 print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows for {target}')
 "@
-            & $VenvPython -c $pyFilterClosing
-            # Switch mergedToday to closing fallback if it has rows
-            try {
-              $rowsClosing = @(Import-Csv -LiteralPath $mergedClosingToday)
-              if ($rowsClosing -and $rowsClosing.Count -gt 0) {
-                $mergedToday = $mergedClosingToday
-              }
-            } catch { Write-Warning "closing fallback probe failed: $($_)" }
-          } else {
-            Write-Warning "games_with_closing.csv not found; cannot fallback to closing lines."
-          }
-        }
-      } catch { Write-Warning "last-odds filter probe failed: $($_)" }
-    } else {
-      Write-Warning "Merged last odds file not found at $mergedAll; stake sheet generation may fail."
-    }
-
-    Write-Section "7b) Align predictions to period and compute edges"
-    $predsToday = Join-Path $OutDir ("predictions_" + $todayIso + ".csv")
-    $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
-    $alignEdges = Join-Path $OutDir ("align_period_" + $todayIso + "_edges.csv")
-    try {
-      & $VenvPython -m ncaab_model.cli align-period-preds --merged-csv $mergedToday --predictions-csv $predsToday --out $alignCsv --half-ratio 0.485 --margin-half-ratio 0.5
-    }
-    catch {
-      Write-Warning "align-period-preds failed: $($_)"
-    }
-
-    # 7b.post) Ensure display snapshot exists (fallback from edges if enriched had no rows)
-    try {
-      $displaySnap = Join-Path $OutDir ("predictions_display_" + $todayIso + ".csv")
-      $needBuild = $false
-      if (-not (Test-Path -LiteralPath $displaySnap)) {
-        $needBuild = $true
-      } else {
-        try {
-          $rows = Import-Csv -LiteralPath $displaySnap -ErrorAction Stop
-          if (-not $rows -or ($rows | Measure-Object).Count -le 0) { $needBuild = $true }
-        } catch {
-          $needBuild = $true
+          & $VenvPython -c $pyFilterClosing
+          # Switch mergedToday to closing fallback if it has rows
+          try {
+            $rowsClosing = @(Import-Csv -LiteralPath $mergedClosingToday)
+            if ($rowsClosing -and $rowsClosing.Count -gt 0) {
+              $mergedToday = $mergedClosingToday
+            }
+          } catch { Write-Warning "closing fallback probe failed: $($_)" }
+        } else {
+          Write-Warning "games_with_closing.csv not found; cannot fallback to closing lines."
         }
       }
-      if ($needBuild -and (Test-Path -LiteralPath $alignEdges)) {
-        Write-Host "[display] Building predictions_display from edges -> $displaySnap" -ForegroundColor Cyan
-        & $VenvPython (Join-Path $RepoRoot 'scripts\generate_display_from_edges.py') $todayIso
-        # Archive copy for lightweight browsing
-        try {
-          $archiveDir = Join-Path $OutDir ("archive\" + $todayIso)
-          New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
-          if (Test-Path -LiteralPath $displaySnap) {
-            Copy-Item -LiteralPath $displaySnap -Destination (Join-Path $archiveDir ("predictions_display_" + $todayIso + ".csv")) -Force
-          }
-        } catch { Write-Warning "Failed to archive display snapshot: $($_)" }
-      }
-    } catch { Write-Warning "Display-from-edges fallback failed: $($_)" }
-
-    # Determine the actual slate date for stake sheet archiving.
-    # In some runs (timezone / late-night windows), $todayIso can differ from the date inside align edges.
-    $slateIso = $todayIso
-    try {
-      if (Test-Path -LiteralPath $alignEdges) {
-        $rows = @(Import-Csv -LiteralPath $alignEdges -ErrorAction Stop)
-        if ($rows -and $rows.Count -gt 0 -and ($rows[0].PSObject.Properties.Name -contains 'date')) {
-          $g = $rows | Group-Object -Property date | Sort-Object Count -Descending | Select-Object -First 1
-          if ($g -and $g.Name) { $slateIso = [string]$g.Name }
-        }
-      }
-    } catch { Write-Warning "Failed inferring slateIso from align edges: $($_)" }
-
-    Write-Section "8) Generate baseline stake sheet (edge-based Kelly)"
-    $stakeBase = Join-Path $OutDir 'stake_sheet_today.csv'
-    try {
-      & $VenvPython -m ncaab_model.cli bankroll-optimize --merged-csv $alignEdges --out $stakeBase --bankroll 1000 --kelly-fraction 0.5 --include-markets 'totals,spreads' --min-edge-total 0.5 --min-edge-margin 0.5 --min-kelly 0.01 --max-pct-per-bet 0.03 --max-daily-risk-pct 0.10
-    }
-    catch {
-      Write-Warning "bankroll-optimize baseline failed: $($_)"
-    }
-
-    Write-Section "9) Generate calibrated distributional stake sheet (if distributional columns present)"
-  $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
-  $calArtifact = Join-Path $OutDir 'models_dist\calibration_totals.json'
-  $qselForCli = Join-Path $OutDir 'quantiles_selected.csv'
-  # "cal" keeps the existing behavior: distributional + z-recenter probability calibration (from calibration_totals.json)
-  # Keep risk controls aligned with baseline.
-  $distributionalArgs = @(
-    '--merged-csv', $alignEdges,
-    '--out', $stakeCal,
-    '--bankroll', '1000',
-    '--kelly-fraction', '0.5',
-    '--include-markets', 'totals,spreads',
-    '--use-distributional',
-    '--calibrate-probabilities',
-    '--min-edge-total', '0.5',
-    '--min-edge-margin', '0.5',
-    '--min-kelly', '0.01',
-    '--max-pct-per-bet', '0.03',
-    '--max-daily-risk-pct', '0.10'
-  )
-    if (Test-Path $qselForCli) { $distributionalArgs += @('--quantiles-csv', $qselForCli) }
-    if (Test-Path $calArtifact) { $distributionalArgs += @('--calibration-artifact', $calArtifact) }
-    try {
-      & $VenvPython -m ncaab_model.cli bankroll-optimize @distributionalArgs
-    }
-    catch {
-      Write-Warning "bankroll-optimize distributional failed: $($_)"
-    }
-
-    Write-Section "9b) Generate isotonic probability-calibrated stake sheet (distributional + isotonic probs)"
-    $stakeIso = Join-Path $OutDir 'stake_sheet_today_iso.csv'
-    # "iso" adds isotonic probability calibration on top of distributional sizing.
-    # Keep risk controls aligned with baseline.
-    $isoArgs = @(
-      '--merged-csv', $alignEdges,
-      '--out', $stakeIso,
-      '--bankroll', '1000',
-      '--kelly-fraction', '0.5',
-      '--include-markets', 'totals,spreads',
-      '--use-distributional',
-      '--calibrate-probabilities',
-      '--isotonic-prob-calibration',
-      '--min-edge-total', '0.5',
-      '--min-edge-margin', '0.5',
-      '--min-kelly', '0.01',
-      '--max-pct-per-bet', '0.03',
-      '--max-daily-risk-pct', '0.10'
-    )
-    if (Test-Path $qselForCli) { $isoArgs += @('--quantiles-csv', $qselForCli) }
-    if (Test-Path $calArtifact) { $isoArgs += @('--calibration-artifact', $calArtifact) }
-    try {
-      & $VenvPython -m ncaab_model.cli bankroll-optimize @isoArgs
-    }
-    catch {
-      Write-Warning "bankroll-optimize isotonic failed: $($_)"
-    }
-
-    # Enrich stake sheets with quantile columns if available
-    Write-Section "9a) Annotate stake sheets with quantiles (q10/q50/q90)"
-    try {
-      $qselPath = Join-Path $OutDir 'quantiles_selected.csv'
-      if (Test-Path $qselPath) {
-        $pyAnnotate = @"
-import pandas as pd
-from pathlib import Path
-out_dir = Path(r'$OutDir')
-slate = '$slateIso'
-q = pd.read_csv(out_dir/'quantiles_selected.csv')
-q['game_id'] = q['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
-if 'date' in q.columns:
-    q = q[q['date'].astype(str) == slate]
-keep = ['game_id','q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin']
-q = q[[c for c in keep if c in q.columns]].drop_duplicates('game_id')
-for name in ['stake_sheet_today.csv','stake_sheet_today_cal.csv','stake_sheet_today_iso.csv']:
-    p = out_dir/name
-    try:
-        df = pd.read_csv(p)
-    except Exception:
-        continue
-    if 'game_id' not in df.columns:
-        # cannot safely join; skip
-        continue
-    df['game_id'] = df['game_id'].astype(str).str.replace(r'\\.0$','', regex=True)
-    # Drop existing quantile columns to avoid duplicate suffix conflicts
-    df = df[[c for c in df.columns if c not in {'q10_total','q50_total','q90_total','q10_margin','q50_margin','q90_margin'}]]
-    merged = df.merge(q, on='game_id', how='left')
-    # Ensure a date column exists for backtests/inspection.
-    # Keep the stake sheet's existing date values (they should line up with daily_results/results_<date>.csv).
-    # Only fill when missing/all-NA; add slate_date for rollover debugging.
-    if 'date' not in merged.columns or merged['date'].isna().all():
-      merged['date'] = slate
-    elif 'slate_date' not in merged.columns:
-      merged['slate_date'] = slate
-    merged.to_csv(p, index=False)
-print('Annotated stake sheets with quantiles (if matched by game_id).')
-"@
-        & $VenvPython -c $pyAnnotate
-      } else {
-        Write-Host 'quantiles_selected.csv not found; skipping stake sheet annotation.' -ForegroundColor Yellow
-      }
-    } catch { Write-Warning "Stake sheet quantile annotation failed: $($_)" }
-
-    # Archive dated copies of stake sheets for ROI backtests
-    try {
-      # Infer archive slate date from the stake sheet itself (more reliable than align_edges on rollover slates).
-      $stakeSlateIso = $slateIso
-      try {
-        $probe = @($stakeCal, $stakeBase, $stakeIso) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
-        if ($probe) {
-          $rows = @(Import-Csv -LiteralPath $probe -ErrorAction Stop)
-          if ($rows -and $rows.Count -gt 0 -and ($rows[0].PSObject.Properties.Name -contains 'date')) {
-            $g = $rows | Group-Object -Property date | Sort-Object Count -Descending | Select-Object -First 1
-            if ($g -and $g.Name) { $stakeSlateIso = [string]$g.Name }
-          }
-        }
-      } catch { Write-Warning "Failed inferring stakeSlateIso from stake sheet: $($_)" }
-
-      if (Test-Path $stakeBase) { Copy-Item $stakeBase (Join-Path $OutDir ("stake_sheet_" + $stakeSlateIso + "_base.csv")) -Force }
-      if (Test-Path $stakeCal)  { Copy-Item $stakeCal  (Join-Path $OutDir ("stake_sheet_" + $stakeSlateIso + "_cal.csv")) -Force }
-      if (Test-Path $stakeIso)  { Copy-Item $stakeIso  (Join-Path $OutDir ("stake_sheet_" + $stakeSlateIso + "_iso.csv")) -Force }
-    } catch { Write-Warning "Failed archiving dated stake sheets: $($_)" }
-
-    if ((Test-Path $stakeBase) -and (Test-Path $stakeCal)) {
-      Write-Section "10) Compare baseline vs calibrated stake sheets"
-      $stakeCompare = Join-Path $OutDir 'stake_sheet_today_compare.csv'
-      try {
-        & $VenvPython scripts/compare_stake_sheets.py --orig $stakeBase --cal $stakeCal --out $stakeCompare
-      }
-      catch {
-        Write-Warning "Stake sheet comparison failed: $($_)"
-      }
-    } else {
-      Write-Host "Stake sheet comparison skipped (missing one or both stake sheets)." -ForegroundColor Yellow
-    }
+    } catch { Write-Warning "last-odds filter probe failed: $($_)" }
   } else {
-    Write-Host "SkipStakeSheets flag set; skipping stake sheet generation." -ForegroundColor Yellow
+    Write-Warning "Merged last odds file not found at $mergedAll; downstream joins may be sparse."
   }
+
+  Write-Section "7b) Align predictions to period and compute edges"
+  $predsToday = Join-Path $OutDir ("predictions_" + $todayIso + ".csv")
+  $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
+  $alignEdges = Join-Path $OutDir ("align_period_" + $todayIso + "_edges.csv")
+  try {
+    & $VenvPython -m ncaab_model.cli align-period-preds --merged-csv $mergedToday --predictions-csv $predsToday --out $alignCsv --half-ratio 0.485 --margin-half-ratio 0.5
+  }
+  catch {
+    Write-Warning "align-period-preds failed: $($_)"
+  }
+
+  # 7b.post) Ensure display snapshot exists (fallback from edges if enriched had no rows)
+  try {
+    $displaySnap = Join-Path $OutDir ("predictions_display_" + $todayIso + ".csv")
+    $needBuild = $false
+    if (-not (Test-Path -LiteralPath $displaySnap)) {
+      $needBuild = $true
+    } else {
+      try {
+        $rows = Import-Csv -LiteralPath $displaySnap -ErrorAction Stop
+        if (-not $rows -or ($rows | Measure-Object).Count -le 0) { $needBuild = $true }
+      } catch {
+        $needBuild = $true
+      }
+    }
+    if ($needBuild -and (Test-Path -LiteralPath $alignEdges)) {
+      Write-Host "[display] Building predictions_display from edges -> $displaySnap" -ForegroundColor Cyan
+      & $VenvPython (Join-Path $RepoRoot 'scripts\generate_display_from_edges.py') $todayIso
+      # Archive copy for lightweight browsing
+      try {
+        $archiveDir = Join-Path $OutDir ("archive\" + $todayIso)
+        New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
+        if (Test-Path -LiteralPath $displaySnap) {
+          Copy-Item -LiteralPath $displaySnap -Destination (Join-Path $archiveDir ("predictions_display_" + $todayIso + ".csv")) -Force
+        }
+      } catch { Write-Warning "Failed to archive display snapshot: $($_)" }
+    }
+  } catch { Write-Warning "Display-from-edges fallback failed: $($_)" }
+
+  Write-Host "[stake] Stake sheets are deprecated; skipping stake sizing + compare." -ForegroundColor DarkGray
+
+  # Optional hygiene: archive any legacy stake-sheet artifacts that still exist
+  # (from older runs) so they don't confuse day-to-day ops.
+  try {
+    $stakeCandidates = @(
+      (Join-Path $OutDir 'stake_sheet_today.csv'),
+      (Join-Path $OutDir 'stake_sheet_today_cal.csv'),
+      (Join-Path $OutDir 'stake_sheet_today_iso.csv'),
+      (Join-Path $OutDir 'stake_sheet_today_compare.csv'),
+      (Join-Path $OutDir 'stake_sheet_today_summary.csv'),
+      (Join-Path $OutDir 'stake_sheet_calibrated.csv'),
+      (Join-Path $OutDir 'stake_risk_summary.csv'),
+      (Join-Path $OutDir 'stake_sheet.csv')
+    )
+    $existingStake = @($stakeCandidates | Where-Object { Test-Path -LiteralPath $_ })
+    if ($existingStake.Count -gt 0) {
+      $stakeBackupDir = Join-Path $OutDir ("_stake_sheets_backup_{0}" -f (Get-Date).ToString('yyyyMMdd_HHmmss'))
+      New-Item -ItemType Directory -Path $stakeBackupDir -Force | Out-Null
+      foreach ($p in $existingStake) {
+        try { Move-Item -LiteralPath $p -Destination (Join-Path $stakeBackupDir (Split-Path -Leaf $p)) -Force } catch {}
+      }
+      Write-Host "[stake] Archived legacy stake-sheet artifacts -> $stakeBackupDir" -ForegroundColor DarkGray
+    }
+  } catch {}
 
   # Enforce invariant: no NaN/Inf tokens anywhere in persisted outputs
   Write-Section '10.z) Sanitize outputs (eliminate NaN/Inf)'
@@ -1754,7 +1622,7 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   $driftWeekly = Join-Path $OutDir 'drift_summary_weekly.csv'
   if (Test-Path $driftWeekly) { $toStage += $driftWeekly }
 
-  # Newly produced aligned and stake artifacts
+  # Newly produced aligned artifacts
   $alignCsv = Join-Path $OutDir ("align_period_" + $todayIso + ".csv")
   if (Test-Path $alignCsv) { $toStage += $alignCsv }
   $alignEdges = Join-Path $OutDir ("align_period_" + $todayIso + "_edges.csv")
@@ -1762,15 +1630,6 @@ print('Annotated stake sheets with quantiles (if matched by game_id).')
   # Picks raw snapshot for recommendations fallback
   $picksRaw = Join-Path $OutDir 'picks_raw.csv'
   if (Test-Path $picksRaw) { $toStage += $picksRaw }
-  $stakeBase = Join-Path $OutDir 'stake_sheet_today.csv'
-  if (Test-Path $stakeBase) { $toStage += $stakeBase }
-  $stakeCal = Join-Path $OutDir 'stake_sheet_today_cal.csv'
-  if (Test-Path $stakeCal) { $toStage += $stakeCal }
-  # Synthetic calibrated stake sheet and today's calibrated snapshot
-  $stakeCalibrated = Join-Path $OutDir 'stake_sheet_calibrated.csv'
-  if (Test-Path $stakeCalibrated) { $toStage += $stakeCalibrated }
-  $predsTodayCalibrated = Join-Path $OutDir 'predictions_today_calibrated.csv'
-  if (Test-Path $predsTodayCalibrated) { $toStage += $predsTodayCalibrated }
 
   # ATS picks for UI consumption (publish per-date CSV)
   $picksAts = Join-Path $OutDir ("picks\ats_picks_" + $todayIso + ".csv")

@@ -173,10 +173,6 @@
               {% if is_cal_card %}
                 <span class="badge cal" title="Calibrated predictions">CAL</span>
               {% endif %}
-              {% if r.on_stake_sheet is defined and r.on_stake_sheet %}
-                {% set _ss_stake = (r.stake_sheet_total_stake if (r.stake_sheet_total_stake is defined and r.stake_sheet_total_stake is not none and r.stake_sheet_total_stake == r.stake_sheet_total_stake) else none) %}
-                <span class="badge stake" title="{{ (r.stake_sheet_title if (r.stake_sheet_title is defined and r.stake_sheet_title) else 'On stake sheet') }}">STAKE{% if _ss_stake is not none %} ${{ '%.0f' % _ss_stake }}{% endif %}</span>
-              {% endif %}
               {# Meta diagnostics badges: volatility and edge confidence if available #}
               {% if r.volatility_tag is defined and r.volatility_tag %}
                 <span class="badge detailed-only" title="Volatility class from meta diagnostics">Vol {{ r.volatility_tag }}</span>
@@ -832,37 +828,16 @@
                   <div class="pill strong">Total: {{ rec_ou }}</div>
                 </div>
 
-                {# If this game is on the stake sheet, surface the bettable edge here (where you look). #}
-                {% if r.on_stake_sheet is defined and r.on_stake_sheet and r.stake_sheet_entries is defined and r.stake_sheet_entries %}
-                  <div class="bet-callout" title="{{ (r.stake_sheet_title if (r.stake_sheet_title is defined and r.stake_sheet_title) else 'On stake sheet') }}">
-                    <span class="bet-label">BET</span>
-                    {% for e in r.stake_sheet_entries %}
-                      {% set _e_mkt = (e.market if (e is defined and e.market is defined and e.market) else '') %}
-                      {% set _e_sel = (e.selection if (e is defined and e.selection is defined and e.selection) else '') %}
-                      {% set _e_line = (e.line if (e is defined and e.line is defined and e.line is not none and e.line == e.line) else none) %}
-                      {% set _e_price = (e.price if (e is defined and e.price is defined and e.price is not none and e.price == e.price) else none) %}
-                      {% set _e_edge = (e.edge if (e is defined and e.edge is defined and e.edge is not none and e.edge == e.edge) else none) %}
-                      {% set _e_stake = (e.stake if (e is defined and e.stake is defined and e.stake is not none and e.stake == e.stake) else none) %}
-                      <span class="bet-item">
-                        {{ _e_mkt }} {{ _e_sel }}
-                        {% if _e_line is not none %} {{ '%.1f' % _e_line }}{% endif %}
-                        {% if _e_price is not none %} @{{ '%.0f' % _e_price }}{% endif %}
-                        {% if _e_edge is not none %} • Edge {{ '%.2f' % _e_edge }}{% endif %}
-                        {% if _e_stake is not none %} • Stake ${{ '%.0f' % _e_stake }}{% endif %}
-                      </span>
-                    {% endfor %}
-                  </div>
-                {% else %}
-                  {# Best bet selection by Kelly fraction across OU / ATS / ML. #}
-                  {% set k_ou = (r.kelly_fraction_total if (r.kelly_fraction_total is defined and r.kelly_fraction_total is not none and r.kelly_fraction_total == r.kelly_fraction_total) else none) %}
-                  {% set k_ml_h = (r.kelly_fraction_ml_home if (r.kelly_fraction_ml_home is defined and r.kelly_fraction_ml_home is not none and r.kelly_fraction_ml_home == r.kelly_fraction_ml_home) else none) %}
-                  {% set k_ml_a = (r.kelly_fraction_ml_away if (r.kelly_fraction_ml_away is defined and r.kelly_fraction_ml_away is not none and r.kelly_fraction_ml_away == r.kelly_fraction_ml_away) else none) %}
+                {# Best bet selection by Kelly fraction across OU / ATS / ML. #}
+                {% set k_ou = (r.kelly_fraction_total if (r.kelly_fraction_total is defined and r.kelly_fraction_total is not none and r.kelly_fraction_total == r.kelly_fraction_total) else none) %}
+                {% set k_ml_h = (r.kelly_fraction_ml_home if (r.kelly_fraction_ml_home is defined and r.kelly_fraction_ml_home is not none and r.kelly_fraction_ml_home == r.kelly_fraction_ml_home) else none) %}
+                {% set k_ml_a = (r.kelly_fraction_ml_away if (r.kelly_fraction_ml_away is defined and r.kelly_fraction_ml_away is not none and r.kelly_fraction_ml_away == r.kelly_fraction_ml_away) else none) %}
 
-                  {# ATS Kelly computed from p_cover_home + spread prices. #}
-                  {% set p_cov_h = (r.p_cover_home if (r.p_cover_home is defined and r.p_cover_home is not none and r.p_cover_home == r.p_cover_home) else none) %}
-                  {% set p_cov_a = (1.0 - p_cov_h) if p_cov_h is not none else none %}
-                  {% set sp_price_h = (r.home_spread_price if (r.home_spread_price is defined and r.home_spread_price is not none and r.home_spread_price == r.home_spread_price) else none) %}
-                  {% set sp_price_a = (r.away_spread_price if (r.away_spread_price is defined and r.away_spread_price is not none and r.away_spread_price == r.away_spread_price) else none) %}
+                {# ATS Kelly computed from p_cover_home + spread prices. #}
+                {% set p_cov_h = (r.p_cover_home if (r.p_cover_home is defined and r.p_cover_home is not none and r.p_cover_home == r.p_cover_home) else none) %}
+                {% set p_cov_a = (1.0 - p_cov_h) if p_cov_h is not none else none %}
+                {% set sp_price_h = (r.home_spread_price if (r.home_spread_price is defined and r.home_spread_price is not none and r.home_spread_price == r.home_spread_price) else none) %}
+                {% set sp_price_a = (r.away_spread_price if (r.away_spread_price is defined and r.away_spread_price is not none and r.away_spread_price == r.away_spread_price) else none) %}
 
                   {% set k_ats_h = none %}
                   {% set k_ats_a = none %}
@@ -877,9 +852,9 @@
                     {% set k_ats_a = k if k>0 else 0.0 %}
                   {% endif %}
 
-                  {% set ok_ou = (k_ou is not none and mt is not none and rec_t is not none) %}
-                  {% set ok_ml_h = (k_ml_h is not none and mlh is not none) %}
-                  {% set ok_ml_a = (k_ml_a is not none and mla is not none) %}
+                {% set ok_ou = (k_ou is not none and mt is not none and rec_t is not none) %}
+                {% set ok_ml_h = (k_ml_h is not none and mlh is not none) %}
+                {% set ok_ml_a = (k_ml_a is not none and mla is not none) %}
 
                   {% set best_kind = none %}
                   {% set best_k = 0.0 %}
@@ -914,7 +889,6 @@
                       {% if _conf is not none %}<span class="bet-item">Conf {{ '%.0f' % _conf }}%</span>{% endif %}
                     </div>
                   {% endif %}
-                {% endif %}
               </div>
             </div>
           {% else %}
@@ -1236,34 +1210,20 @@
               <div class="seg">Overall: {% if total_full is not none %}{{ '%.1f' % total_full }}{% else %}–{% endif %}</div>
             </div>
 
-            {# Clear best-bet callout (standard/compact view): prefer stake sheet when available, else spread Kelly. #}
-            {% if r.on_stake_sheet is defined and r.on_stake_sheet and r.stake_sheet_entries is defined and r.stake_sheet_entries %}
-              <div class="bet-callout" title="{{ (r.stake_sheet_title if (r.stake_sheet_title is defined and r.stake_sheet_title) else 'On stake sheet') }}">
-                <span class="bet-label">BET</span>
-                {% for e in r.stake_sheet_entries %}
-                  {% set _e_mkt = (e.market if (e is defined and e.market is defined and e.market) else '') %}
-                  {% set _e_sel = (e.selection if (e is defined and e.selection is defined and e.selection) else '') %}
-                  {% set _e_line = (e.line if (e is defined and e.line is defined and e.line is not none and e.line == e.line) else none) %}
-                  {% set _e_price = (e.price if (e is defined and e.price is defined and e.price is not none and e.price == e.price) else none) %}
-                  {% set _e_stake = (e.stake if (e is defined and e.stake is defined and e.stake is not none and e.stake == e.stake) else none) %}
-                  <span class="bet-item">{{ _e_mkt }} {{ _e_sel }}{% if _e_line is not none %} {{ '%.1f' % _e_line }}{% endif %}{% if _e_price is not none %} @{{ '%.0f' % _e_price }}{% endif %}{% if _e_stake is not none %} • Stake ${{ '%.0f' % _e_stake }}{% endif %}</span>
-                {% endfor %}
+            {# Clear best-bet callout (standard/compact view): spread Kelly. #}
+            {% set k_sp = (r.kelly_frac_spread if (r.kelly_frac_spread is defined and r.kelly_frac_spread is not none and r.kelly_frac_spread == r.kelly_frac_spread) else none) %}
+            {% set side_sp = (r.kelly_side_spread if (r.kelly_side_spread is defined and r.kelly_side_spread) else none) %}
+            {% if k_sp is not none and k_sp >= 0.01 and spread_full is not none and side_sp is not none %}
+              <div class="bet-callout edge" title="Recommended bet from spread Kelly (threshold 1%)">
+                <span class="bet-label">KELLY</span>
+                {% if side_sp == 'HOME' %}
+                  <span class="bet-item">ATS: {{ home_disp }} {% if spread_full > 0 %}+{% endif %}{{ '%.1f' % spread_full }}</span>
+                {% elif side_sp == 'AWAY' %}
+                  {% set asp = (-spread_full) %}
+                  <span class="bet-item">ATS: {{ away_disp }} {% if asp > 0 %}+{% endif %}{{ '%.1f' % asp }}</span>
+                {% endif %}
+                <span class="bet-item">Kelly {{ '%.1f' % (k_sp*100) }}%</span>
               </div>
-            {% else %}
-              {% set k_sp = (r.kelly_frac_spread if (r.kelly_frac_spread is defined and r.kelly_frac_spread is not none and r.kelly_frac_spread == r.kelly_frac_spread) else none) %}
-              {% set side_sp = (r.kelly_side_spread if (r.kelly_side_spread is defined and r.kelly_side_spread) else none) %}
-              {% if k_sp is not none and k_sp >= 0.01 and spread_full is not none and side_sp is not none %}
-                <div class="bet-callout edge" title="Recommended bet from spread Kelly (threshold 1%)">
-                  <span class="bet-label">KELLY</span>
-                  {% if side_sp == 'HOME' %}
-                    <span class="bet-item">ATS: {{ home_disp }} {% if spread_full > 0 %}+{% endif %}{{ '%.1f' % spread_full }}</span>
-                  {% elif side_sp == 'AWAY' %}
-                    {% set asp = (-spread_full) %}
-                    <span class="bet-item">ATS: {{ away_disp }} {% if asp > 0 %}+{% endif %}{{ '%.1f' % asp }}</span>
-                  {% endif %}
-                  <span class="bet-item">Kelly {{ '%.1f' % (k_sp*100) }}%</span>
-                </div>
-              {% endif %}
             {% endif %}
             {% endif %}
             {% if r.has_actuals is defined and r.has_actuals %}

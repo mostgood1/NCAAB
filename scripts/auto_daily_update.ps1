@@ -110,9 +110,13 @@ try {
 try {
   Set-Location $repoRoot
 
-  # Force simulations to use feature-derived means (strict, no fallback to model/blend).
-  # This keeps the sim engine independent across both manual and scheduled runs.
-  $env:NCAAB_SIM_MEAN_SOURCE = 'features_strict'
+  # Default sim means to the model/blend columns (auto).
+  # Override by setting NCAAB_SIM_MEAN_SOURCE before running this script.
+  # Default sim means to the model/blend columns (auto). Override by setting
+  # NCAAB_SIM_MEAN_SOURCE before running this script.
+  if (-not $env:NCAAB_SIM_MEAN_SOURCE -or $env:NCAAB_SIM_MEAN_SOURCE.Trim() -eq '') {
+    $env:NCAAB_SIM_MEAN_SOURCE = 'auto'
+  }
 
   $exitCode = 1
   for ($attempt = 1; $attempt -le (1 + [Math]::Max(0,$MaxRetries)); $attempt++) {
