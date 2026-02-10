@@ -21892,6 +21892,59 @@ _LIVE_LINES_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
 _LIVE_LENS_SIGNAL_SEEN: dict[str, float] = {}
 
 
+@app.get("/api/odds_status")
+def api_odds_status():
+    """Debug endpoint to verify OddsAPI configuration in the running environment.
+
+    Returns whether TheOddsAPI is configured and basic cache info for /api/live_lines.
+    Does NOT return the API key.
+    """
+
+    import os
+
+    payload: dict[str, object] = {
+        "status": "ok",
+        "theoddsapi_configured": False,
+        "env_present": {
+            "NCAAB_THEODDS_API_KEY": bool(os.getenv("NCAAB_THEODDS_API_KEY")),
+            "THEODDSAPI_KEY": bool(os.getenv("THEODDSAPI_KEY")),
+            "THEODDS_API_KEY": bool(os.getenv("THEODDS_API_KEY")),
+        },
+    }
+
+    try:
+        from ncaab_model.data.adapters.odds_theoddsapi import TheOddsAPIAdapter  # type: ignore
+
+        try:
+            _ = TheOddsAPIAdapter()
+            payload["theoddsapi_configured"] = True
+        except Exception as e:
+            payload["theoddsapi_error"] = str(e)
+    except Exception as e:
+        payload["theoddsapi_import_error"] = str(e)
+
+    try:
+        import time
+
+        ts0 = float(_LIVE_LINES_CACHE.get("ts") or 0.0)
+        has_payload = _LIVE_LINES_CACHE.get("payload") is not None
+        cnt = None
+        try:
+            if has_payload and isinstance(_LIVE_LINES_CACHE.get("payload"), dict):
+                cnt = (_LIVE_LINES_CACHE.get("payload") or {}).get("count")
+        except Exception:
+            cnt = None
+        payload["live_lines_cache"] = {
+            "has_payload": bool(has_payload),
+            "age_s": (float(time.time()) - ts0) if ts0 else None,
+            "count": cnt,
+        }
+    except Exception:
+        pass
+
+    return jsonify(payload), 200
+
+
 @app.get("/api/live_lines")
 def api_live_lines():
     """Return current full-game live total lines keyed by ESPN event id.

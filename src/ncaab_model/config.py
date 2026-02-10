@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 class Settings(BaseSettings):
@@ -12,7 +12,16 @@ class Settings(BaseSettings):
     outputs_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parents[2] / "outputs")
 
     # API keys (set via env vars)
-    theodds_api_key: str | None = None
+    theodds_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            # Preferred (matches env_prefix + field name)
+            "NCAAB_THEODDS_API_KEY",
+            # Common alternates (Render/GitHub secrets often use these)
+            "THEODDSAPI_KEY",
+            "THEODDS_API_KEY",
+        ),
+    )
 
     # QNN SDK (for Qualcomm NPU via ONNX Runtime QNN EP)
     # If not provided via env var, default to common install path on Windows.

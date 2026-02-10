@@ -2820,7 +2820,12 @@
                       .then(function(r3){ return r3.json(); })
                       .then(function(js3){
                         try {
-                          if(!js3 || js3.status !== 'ok' || !js3.lines) return;
+                          if(!js3) return;
+                          if(js3.status !== 'ok'){
+                            try { console.warn('[live_lines]', js3.message || js3.status || 'error', js3); } catch(eW) {}
+                            return;
+                          }
+                          if(!js3.lines) return;
                           cards.forEach(function(card){
                             applyLiveLinesToCard(card, js3.lines);
                           });
