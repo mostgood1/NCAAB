@@ -58,6 +58,14 @@
     /* Status pills: keep their color always, dim when not selected */
     .pill.status-off{opacity:0.55;}
     .pill.status-off:hover{opacity:0.78;}
+
+    /* Compact ESPN-style live game strip */
+    .compact-game-strip{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;padding:4px 2px;}
+    .compact-game-strip::-webkit-scrollbar{height:8px;}
+    .compact-game-strip::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);border-radius:999px;}
+    .compact-game-strip .pill{flex:0 0 auto;white-space:nowrap;}
+    .compact-game-strip .pill:focus{outline:2px solid var(--accent);outline-offset:2px;}
+    .compact-game-meta{display:inline-block;opacity:0.85;font-weight:700;margin-left:6px;}
   </style>
   {% set e = 2.718281828459045 %}
 </head>
@@ -88,6 +96,10 @@
           <a href="/api/display_predictions?view=cards{% if _nav_date %}&date={{ _nav_date }}{% endif %}">JSON</a>
         </nav>
       </div>
+    </div>
+
+    <div id="compactGameList" class="card" role="region" aria-label="Live games">
+      <div id="compactGameStrip" class="compact-game-strip" aria-label="Live games list"></div>
     </div>
 
     <div id="filtersBar" class="card" role="region" aria-label="Cards filters">
@@ -2871,6 +2883,7 @@
           .finally(function(){
             inFlight = false;
             try { if(window.__ncaabUpdateTopFilters) window.__ncaabUpdateTopFilters(); } catch(e) { /* ignore */ }
+            try { if(window.__ncaabUpdateCompactGameStrip) window.__ncaabUpdateCompactGameStrip(); } catch(e2) { /* ignore */ }
           });
       }
 
@@ -2922,6 +2935,121 @@
         b.textContent = txt;
         b.setAttribute('aria-pressed', 'false');
         return b;
+      }
+
+      function initCompactGameStrip(){
+        var wrap = document.getElementById('compactGameList');
+        var strip = document.getElementById('compactGameStrip');
+        if(!wrap || !strip) return;
+
+        // Rebuild each time (cheap) to reflect live polling class changes.
+        strip.innerHTML = '';
+
+        // List all games on the slate (works for historic days too).
+        // Prefer only visible cards so this stays in sync with top filters.
+        var cards = Array.from(document.querySelectorAll('.game-card[data-game-id]'))
+          .filter(function(card){
+            try { return card && card.style && card.style.display !== 'none'; } catch(eV){ return true; }
+          });
+        if(!cards.length){
+          wrap.style.display = '';
+          try {
+            var empty = document.createElement('span');
+            empty.className = 'pill small neutral';
+            empty.textContent = 'No games';
+            strip.appendChild(empty);
+          } catch(e0) { /* noop */ }
+          return;
+        }
+        wrap.style.display = '';
+
+        // Sort: Live Bet -> Live Watch -> Live -> Non-live, then by edge magnitude desc,
+        // then by start time (when available).
+        function safeNum(v){
+          var x = parseFloat(String(v || ''));
+          return (isFinite(x) ? x : NaN);
+        }
+        function safeStr(v){
+          try { return String(v || '').trim(); } catch(eS){ return ''; }
+        }
+        function parseIsoMs(iso){
+          var s = safeStr(iso);
+          if(!s) return NaN;
+          var t = Date.parse(s);
+          return (isFinite(t) ? t : NaN);
+        }
+        function cardSortKey(card){
+          var isLive = (safeStr(card.getAttribute('data-live')) === '1');
+          var isBet = isLive && card.classList.contains('live-edge-ok');
+          var isWatch = isLive && (!isBet) && card.classList.contains('live-edge-warn');
+          var edge = safeNum(card.getAttribute('data-edge'));
+          var edgeAbs = isFinite(edge) ? Math.abs(edge) : -1;
+          var tier = isBet ? 0 : (isWatch ? 1 : (isLive ? 2 : 3));
+          var startMs = parseIsoMs(card.getAttribute('data-start-iso'));
+          return {tier:tier, edgeAbs:edgeAbs, startMs:startMs};
+        }
+        cards.sort(function(a,b){
+          var ka = cardSortKey(a);
+          var kb = cardSortKey(b);
+          if(ka.tier !== kb.tier) return ka.tier - kb.tier;
+          var dEdge = (kb.edgeAbs - ka.edgeAbs);
+          if(dEdge) return dEdge;
+          var aT = ka.startMs;
+          var bT = kb.startMs;
+          if(isFinite(aT) && isFinite(bT) && aT !== bT) return aT - bT;
+          return 0;
+        });
+
+        cards.forEach(function(card){
+          var isBet = false;
+          var isWatch = false;
+          var isLive = false;
+          try {
+            isLive = (safeStr(card.getAttribute('data-live')) === '1');
+            isBet = isLive && card.classList.contains('live-edge-ok');
+            isWatch = isLive && (!isBet) && card.classList.contains('live-edge-warn');
+          } catch(eS) { /* noop */ }
+
+          var away = 'Away';
+          var home = 'Home';
+          try {
+            var awayEl = card.querySelector('.badge-team.away .name');
+            var homeEl = card.querySelector('.badge-team.home .name');
+            if(awayEl && awayEl.textContent) away = awayEl.textContent.trim();
+            if(homeEl && homeEl.textContent) home = homeEl.textContent.trim();
+          } catch(eN) { /* noop */ }
+
+          var edge = safeNum(card.getAttribute('data-edge'));
+          var label = away + ' @ ' + home;
+          if(isFinite(edge)){
+            label += ' ';
+          }
+
+          // Live games: Bet (green), Watch (yellow), otherwise Live (blue).
+          // Non-live games: neutral.
+          var cls = isBet ? 'ok' : (isWatch ? 'warn' : (isLive ? 'edge-mod' : 'neutral'));
+          var btn = mkPill(label, cls);
+          btn.classList.add('compact-game-item');
+
+          if(isFinite(edge)){
+            var meta = document.createElement('span');
+            meta.className = 'compact-game-meta';
+            meta.textContent = 'E ' + (edge > 0 ? '+' : '') + edge.toFixed(1);
+            btn.appendChild(meta);
+          }
+
+          btn.title = (isBet ? 'Bet' : (isWatch ? 'Watch' : (isLive ? 'Live' : 'Game'))) + ': ' + away + ' @ ' + home;
+          btn.addEventListener('click', function(){
+            try {
+              card.scrollIntoView({behavior:'smooth', block:'start'});
+              // Give the scroll a beat then focus.
+              setTimeout(function(){ try { card.focus({preventScroll:true}); } catch(_eF){} }, 150);
+            } catch(eS2) {
+              try { card.scrollIntoView(true); } catch(_eS3){}
+            }
+          });
+          strip.appendChild(btn);
+        });
       }
 
       function applyFilters(cards, selConfs, selTimes, selStatus){
@@ -3097,6 +3225,9 @@
           });
 
           applyFilters(cards, selConfs, selTimes, selStatus);
+
+          // Keep the compact game strip in sync with what's visible.
+          try { initCompactGameStrip(); } catch(eG) { /* noop */ }
         }
 
         renderGroup(confWrap, confs, selConfs, updateUI);
@@ -3106,6 +3237,10 @@
 
         // Allow the live polling loop to re-apply filters after it updates attributes/classes.
         try { window.__ncaabUpdateTopFilters = updateUI; } catch(e) { /* noop */ }
+
+        // Allow the live polling loop (or manual refresh) to rebuild the compact game list.
+        try { window.__ncaabUpdateCompactGameStrip = initCompactGameStrip; } catch(e2) { /* noop */ }
+        try { initCompactGameStrip(); } catch(e3) { /* noop */ }
       }
 
       // Ensure this runs even when DOMContentLoaded already fired.

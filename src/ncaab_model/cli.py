@@ -15,6 +15,7 @@ try:
 except Exception:
     roc_auc_score = None
 import pandas as pd
+import requests
 import typer
 from rich import print
 import time
@@ -5786,6 +5787,146 @@ def train_distributional(
                     print(f"[yellow]Calibration build skipped: {e}[/yellow]")
         except Exception as e:
             print(f"[yellow]Calibration phase failed: {e}[/yellow]")
+
+
+@app.command(name="train-live-correction")
+def train_live_correction_cmd(
+    start_date: str | None = typer.Option(None, help="Start date YYYY-MM-DD (default: end_date - days + 1)"),
+    end_date: str | None = typer.Option(None, help="End date YYYY-MM-DD (default: today UTC)"),
+    days: int = typer.Option(30, help="Number of days to include when start_date not provided"),
+    algo: str = typer.Option("hgb", help="Algorithm: hgb|ridge"),
+    test_frac: float = typer.Option(0.2, help="Holdout fraction by date (chronological)"),
+    min_elapsed: float = typer.Option(4.0, help="Minimum elapsed minutes to include"),
+    max_elapsed: float = typer.Option(36.0, help="Maximum elapsed minutes to include"),
+    alpha: float = typer.Option(1.0, help="Ridge alpha (when algo=ridge)"),
+    out_dir: Path = typer.Option(settings.outputs_dir / "models_live", help="Output directory for live correction model artifacts"),
+):
+    """Train a live totals correction model from `outputs/live_features_<date>.csv`.
+
+    This learns to predict `actual_total` from live snapshot features (score, time, pbp proxies, and live total line).
+    """
+    try:
+        from .train.live_correction import LiveCorrectionTrainConfig, train_live_correction
+    except Exception as e:
+        print(f"[red]Failed importing trainer:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    # Parse dates
+    def _parse(s: str) -> dt.date:
+        return dt.date.fromisoformat(str(s).strip())
+
+    end_d = _parse(end_date) if end_date else dt.datetime.utcnow().date()
+    if start_date:
+        start_d = _parse(start_date)
+    else:
+        dd = int(days) if days and int(days) > 0 else 30
+        start_d = end_d - dt.timedelta(days=dd - 1)
+
+    cfg = LiveCorrectionTrainConfig(
+        start_date=start_d,
+        end_date=end_d,
+        algo=str(algo),
+        test_frac=float(test_frac),
+        min_elapsed=float(min_elapsed),
+        max_elapsed=float(max_elapsed),
+        alpha=float(alpha),
+        random_state=42,
+    )
+    try:
+        res = train_live_correction(cfg=cfg, outputs_dir=settings.outputs_dir, out_dir=out_dir)
+        print(res)
+    except Exception as e:
+        print(f"[red]train-live-correction failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="eval-live-correction")
+def eval_live_correction_cmd(
+    model_path: Path | None = typer.Option(None, help="Path to a live correction .joblib (default: newest in outputs/models_live)"),
+    start_date: str | None = typer.Option(None, help="Start date YYYY-MM-DD (default: end_date - days + 1)"),
+    end_date: str | None = typer.Option(None, help="End date YYYY-MM-DD (default: today UTC)"),
+    days: int = typer.Option(30, help="Number of days to include when start_date not provided"),
+    test_frac: float = typer.Option(0.2, help="Holdout fraction by date (chronological)"),
+    min_elapsed: float = typer.Option(4.0, help="Minimum elapsed minutes to include"),
+    max_elapsed: float = typer.Option(36.0, help="Maximum elapsed minutes to include"),
+    bucket_step: float = typer.Option(2.0, help="Elapsed-minute bucket size for bias calibration"),
+    min_bucket_n: int = typer.Option(50, help="Minimum rows required to fit a bucket"),
+    calibration_mode: str = typer.Option(
+        "bucket_shrink",
+        help="Calibration mode: none|global|bucket|bucket_shrink",
+    ),
+    shrink_k: float = typer.Option(
+        200.0,
+        help="Shrinkage strength for bucket_shrink (higher = more shrink toward global bias)",
+    ),
+    calibration_fit_last_days: int | None = typer.Option(
+        None,
+        help="If set, fit the calibrator using only the last N train dates (rolling calibration).",
+    ),
+    rolling_calibration: bool = typer.Option(
+        False,
+        help="If true, compute rolling calibrated test predictions (fit on all prior dates, apply to each test date).",
+    ),
+    out_dir: Path = typer.Option(settings.outputs_dir / "eval_live", help="Output directory for eval artifacts"),
+    write_scored_csv: bool = typer.Option(True, help="Write a scored CSV with raw+cal predictions"),
+    write_diagnostics_csv: bool = typer.Option(True, help="Write diagnostics CSVs (by date and by elapsed bucket)"),
+):
+    """Evaluate a trained live correction model and build a simple elapsed-bucket bias calibration artifact."""
+    try:
+        from .eval.live_correction_eval import eval_live_correction
+        from .train.live_correction import LiveCorrectionTrainConfig
+    except Exception as e:
+        print(f"[red]Failed importing evaluator:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    def _parse(s: str) -> dt.date:
+        return dt.date.fromisoformat(str(s).strip())
+
+    end_d = _parse(end_date) if end_date else dt.datetime.utcnow().date()
+    if start_date:
+        start_d = _parse(start_date)
+    else:
+        dd = int(days) if days and int(days) > 0 else 30
+        start_d = end_d - dt.timedelta(days=dd - 1)
+
+    # Default to newest model artifact.
+    if model_path is None:
+        root = settings.outputs_dir / "models_live"
+        cand = sorted(root.glob("live_correction_*.joblib"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+        if not cand:
+            print(f"[red]No models found in[/red] {root}")
+            raise typer.Exit(code=1)
+        model_path = cand[0]
+
+    cfg = LiveCorrectionTrainConfig(
+        start_date=start_d,
+        end_date=end_d,
+        algo="hgb",
+        test_frac=float(test_frac),
+        min_elapsed=float(min_elapsed),
+        max_elapsed=float(max_elapsed),
+        alpha=1.0,
+        random_state=42,
+    )
+    try:
+        res = eval_live_correction(
+            model_path=Path(model_path),
+            cfg=cfg,
+            outputs_dir=settings.outputs_dir,
+            out_dir=out_dir,
+            bucket_step=float(bucket_step),
+            min_bucket_n=int(min_bucket_n),
+            calibration_mode=str(calibration_mode),
+            shrink_k=float(shrink_k),
+            calibration_fit_last_days=(int(calibration_fit_last_days) if calibration_fit_last_days is not None else None),
+            rolling_calibration=bool(rolling_calibration),
+            write_scored_csv=bool(write_scored_csv),
+            write_diagnostics_csv=bool(write_diagnostics_csv),
+        )
+        print(res)
+    except Exception as e:
+        print(f"[red]eval-live-correction failed:[/red] {e}")
+        raise typer.Exit(code=1)
 
 @app.command(name="predict-distributional")
 def predict_distributional(
@@ -12573,6 +12714,365 @@ def build_live_features_cmd(
     except Exception as e:
         print(f"[red]build-live-features failed:[/red] {e}")
         raise typer.Exit(code=1)
+
+
+@app.command(name="backfill-live-features")
+def backfill_live_features_cmd(
+    end_date: str = typer.Option(None, help="End date YYYY-MM-DD (default: today local)."),
+    start_date: str = typer.Option(None, help="Start date YYYY-MM-DD (default: inferred season start)."),
+    base_url: str = typer.Option("https://ncaab.onrender.com", help="Base URL for download/upload endpoints."),
+    download: bool = typer.Option(True, "--download/--no-download", help="Download snapshots from server if missing locally."),
+    upload: bool = typer.Option(True, "--upload/--no-upload", help="Upload generated live_features CSVs to server."),
+    force: bool = typer.Option(False, help="Rebuild live_features even if CSV exists locally."),
+    sleep_sec: float = typer.Option(0.15, help="Sleep between HTTP requests (helps avoid rate limits)."),
+    max_lines: int = typer.Option(400000, help="Max JSONL lines to read per date (safety cap)."),
+):
+    """Backfill live feature tables for a date range.
+
+    For each date in [start_date, end_date], attempts to:
+      1) Ensure outputs/live_snapshots/live_<date>.jsonl exists (download from base_url if needed)
+      2) Build outputs/live_features_<date>.csv
+      3) Upload live_features CSV to base_url
+
+    Dates with missing snapshots are skipped.
+    """
+
+    def _today_local_safe() -> dt.date:
+        try:
+            return _today_local()
+        except Exception:
+            return dt.date.today()
+
+    def _infer_season_start(d: dt.date) -> dt.date:
+        # NCAAB season effectively begins in early November.
+        y = d.year if d.month >= 11 else (d.year - 1)
+        return dt.date(y, 11, 1)
+
+    def _iter_dates(a: dt.date, b: dt.date):
+        cur = a
+        step = dt.timedelta(days=1)
+        while cur <= b:
+            yield cur
+            cur += step
+
+    if not end_date:
+        end_dt = _today_local_safe()
+        end_date = end_dt.isoformat()
+    try:
+        end_dt = dt.date.fromisoformat(str(end_date))
+    except Exception:
+        print(f"[red]Invalid end_date:[/red] {end_date}")
+        raise typer.Exit(code=2)
+
+    if not start_date:
+        start_dt = _infer_season_start(end_dt)
+        start_date = start_dt.isoformat()
+    try:
+        start_dt = dt.date.fromisoformat(str(start_date))
+    except Exception:
+        print(f"[red]Invalid start_date:[/red] {start_date}")
+        raise typer.Exit(code=2)
+
+    if start_dt > end_dt:
+        print(f"[red]start_date after end_date:[/red] {start_date} > {end_date}")
+        raise typer.Exit(code=2)
+
+    base_url = str(base_url or "").strip().rstrip("/")
+    if not base_url.startswith("http"):
+        print(f"[red]Invalid base_url:[/red] {base_url}")
+        raise typer.Exit(code=2)
+
+    snap_dir = Path(os.environ.get("NCAAB_LIVE_SNAPSHOT_DIR") or (settings.outputs_dir / "live_snapshots"))
+    snap_dir.mkdir(parents=True, exist_ok=True)
+
+    from .eval.live_snapshot_features import build_live_feature_table
+
+    counts = {
+        "dates_total": 0,
+        "snapshots_downloaded": 0,
+        "snapshots_missing": 0,
+        "features_built": 0,
+        "features_skipped_existing": 0,
+        "features_uploaded": 0,
+        "errors": 0,
+    }
+
+    t0 = time.time()
+    for i, d in enumerate(_iter_dates(start_dt, end_dt), start=1):
+        date_s = d.isoformat()
+        counts["dates_total"] += 1
+
+        snap_path = snap_dir / f"live_{date_s}.jsonl"
+        have_snap = snap_path.exists() and snap_path.stat().st_size > 2
+
+        if (not have_snap) and download:
+            url = f"{base_url}/api/download_live_snapshots?date={date_s}"
+            try:
+                with requests.get(url, stream=True, timeout=45) as r:
+                    if r.status_code == 200:
+                        snap_path.parent.mkdir(parents=True, exist_ok=True)
+                        tmp = snap_path.with_suffix(".jsonl.tmp")
+                        with tmp.open("wb") as f:
+                            for chunk in r.iter_content(chunk_size=1024 * 64):
+                                if chunk:
+                                    f.write(chunk)
+                        if tmp.exists() and tmp.stat().st_size > 2:
+                            tmp.replace(snap_path)
+                            counts["snapshots_downloaded"] += 1
+                            have_snap = True
+                        else:
+                            try:
+                                tmp.unlink(missing_ok=True)
+                            except Exception:
+                                pass
+                            have_snap = False
+                    elif r.status_code == 404:
+                        have_snap = False
+                    else:
+                        print(f"[yellow]snapshots download non-200:[/yellow] date={date_s} status={r.status_code}")
+                        have_snap = False
+            except Exception as e:
+                counts["errors"] += 1
+                print(f"[yellow]snapshots download error:[/yellow] date={date_s} {e}")
+                have_snap = False
+            finally:
+                if sleep_sec and sleep_sec > 0:
+                    time.sleep(float(sleep_sec))
+
+        if not have_snap:
+            counts["snapshots_missing"] += 1
+            if i % 10 == 0:
+                print({"progress": f"{date_s} ({i})", **counts})
+            continue
+
+        out_csv = settings.outputs_dir / f"live_features_{date_s}.csv"
+        if out_csv.exists() and out_csv.stat().st_size > 2 and (not force):
+            counts["features_skipped_existing"] += 1
+        else:
+            p2 = settings.outputs_dir / f"sim_segments_2min_{date_s}.csv"
+            p1 = settings.outputs_dir / f"sim_segments_{date_s}.csv"
+            segments_path = p2 if p2.exists() else (p1 if p1.exists() else None)
+
+            results_path = settings.outputs_dir / "daily_results" / f"results_{date_s}.csv"
+            results_path = results_path if results_path.exists() else None
+            try:
+                build_live_feature_table(
+                    date=str(date_s),
+                    snapshots_path=Path(snap_path),
+                    out_csv=Path(out_csv),
+                    segments_path=Path(segments_path) if segments_path else None,
+                    results_path=Path(results_path) if results_path else None,
+                    horizon_min=40.0,
+                    max_lines=int(max_lines),
+                )
+                if out_csv.exists() and out_csv.stat().st_size > 2:
+                    counts["features_built"] += 1
+            except Exception as e:
+                counts["errors"] += 1
+                print(f"[yellow]build failed:[/yellow] date={date_s} {e}")
+
+        if upload and out_csv.exists() and out_csv.stat().st_size > 2:
+            url = f"{base_url}/api/upload_live_features?date={date_s}"
+            try:
+                with out_csv.open("rb") as f:
+                    files = {"file": (out_csv.name, f, "text/csv")}
+                    r = requests.post(url, files=files, timeout=60)
+                if r.status_code == 200:
+                    counts["features_uploaded"] += 1
+                else:
+                    counts["errors"] += 1
+                    print(f"[yellow]upload non-200:[/yellow] date={date_s} status={r.status_code}")
+            except Exception as e:
+                counts["errors"] += 1
+                print(f"[yellow]upload error:[/yellow] date={date_s} {e}")
+            finally:
+                if sleep_sec and sleep_sec > 0:
+                    time.sleep(float(sleep_sec))
+
+        if i % 10 == 0:
+            print({"progress": f"{date_s} ({i})", "elapsed_sec": round(time.time() - t0, 1), **counts})
+
+    print({"status": "ok", "start_date": start_date, "end_date": end_date, "elapsed_sec": round(time.time() - t0, 1), **counts})
+
+
+@app.command(name="backfill-live-features-from-pbp-cache")
+def backfill_live_features_from_pbp_cache_cmd(
+    days: int = typer.Option(30, help="Lookback window (days) ending at end_date (inclusive)."),
+    end_date: str = typer.Option(None, help="End date YYYY-MM-DD (default: today local)."),
+    start_date: str = typer.Option(None, help="Start date YYYY-MM-DD (overrides --days)."),
+    base_url: str = typer.Option("https://ncaab.onrender.com", help="Base URL for upload endpoints."),
+    cache_dir: Path = typer.Option(None, help="PBP cache dir (default: data/cache/espn_pbp)."),
+    upload: bool = typer.Option(True, "--upload/--no-upload", help="Upload generated live_features CSVs to server."),
+    force: bool = typer.Option(False, help="Rebuild snapshots/features even if files exist locally."),
+    sleep_sec: float = typer.Option(0.15, help="Sleep between HTTP requests (helps avoid rate limits)."),
+    max_lines: int = typer.Option(400000, help="Max JSONL lines to read per date (safety cap)."),
+    max_cache_files: int = typer.Option(0, help="Optional cap on number of PBP cache files to scan (0 = no cap)."),
+):
+    """Backfill live_features by synthesizing snapshots from local ESPN PBP cache.
+
+    This is the fallback path when Render's ephemeral filesystem doesn't retain
+    historical `live_<date>.jsonl` snapshot files. For each date, we:
+      1) Find cached ESPN PBP event_ids for that date
+      2) Write outputs/live_snapshots_pbp/live_<date>.jsonl
+      3) Build outputs/live_features_<date>.csv via build_live_feature_table
+      4) Optionally upload to Render
+    """
+
+    def _today_local_safe() -> dt.date:
+        try:
+            return _today_local()
+        except Exception:
+            return dt.date.today()
+
+    def _iter_dates(a: dt.date, b: dt.date):
+        cur = a
+        step = dt.timedelta(days=1)
+        while cur <= b:
+            yield cur
+            cur += step
+
+    if not end_date:
+        end_dt = _today_local_safe()
+        end_date = end_dt.isoformat()
+    try:
+        end_dt = dt.date.fromisoformat(str(end_date))
+    except Exception:
+        print(f"[red]Invalid end_date:[/red] {end_date}")
+        raise typer.Exit(code=2)
+
+    if start_date:
+        try:
+            start_dt = dt.date.fromisoformat(str(start_date))
+        except Exception:
+            print(f"[red]Invalid start_date:[/red] {start_date}")
+            raise typer.Exit(code=2)
+    else:
+        n = max(1, int(days))
+        start_dt = end_dt - dt.timedelta(days=n - 1)
+        start_date = start_dt.isoformat()
+
+    if start_dt > end_dt:
+        print(f"[red]start_date after end_date:[/red] {start_date} > {end_date}")
+        raise typer.Exit(code=2)
+
+    base_url = str(base_url or "").strip().rstrip("/")
+    if upload and (not base_url.startswith("http")):
+        print(f"[red]Invalid base_url:[/red] {base_url}")
+        raise typer.Exit(code=2)
+
+    if cache_dir is None:
+        cache_dir = settings.data_dir / "cache" / "espn_pbp"
+    cache_dir = Path(cache_dir)
+    if not cache_dir.exists():
+        print(f"[red]Missing cache_dir:[/red] {cache_dir}")
+        raise typer.Exit(code=1)
+
+    snap_dir = settings.outputs_dir / "live_snapshots_pbp"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+
+    from .eval.live_snapshot_features import build_live_feature_table
+    from .eval.pbp_synthetic_snapshots import index_pbp_cache_by_date, write_synthetic_live_snapshots_jsonl_from_pbp_cache
+
+    idx = index_pbp_cache_by_date(
+        cache_dir=Path(cache_dir),
+        start_date=start_dt,
+        end_date=end_dt,
+        max_files=int(max_cache_files or 0),
+    )
+
+    counts = {
+        "dates_total": 0,
+        "dates_no_games": 0,
+        "snapshots_written": 0,
+        "snapshots_skipped_existing": 0,
+        "features_built": 0,
+        "features_skipped_existing": 0,
+        "features_uploaded": 0,
+        "errors": 0,
+        "cache_scanned_files": int(idx.scanned_files),
+        "cache_used_files": int(idx.used_files),
+        "cache_errors": int(idx.errors),
+    }
+
+    t0 = time.time()
+    for i, d in enumerate(_iter_dates(start_dt, end_dt), start=1):
+        date_s = d.isoformat()
+        counts["dates_total"] += 1
+
+        event_ids = idx.by_date.get(date_s) or []
+        if not event_ids:
+            counts["dates_no_games"] += 1
+            if i % 10 == 0:
+                print({"progress": f"{date_s} ({i})", "elapsed_sec": round(time.time() - t0, 1), **counts})
+            continue
+
+        snap_path = snap_dir / f"live_{date_s}.jsonl"
+        if snap_path.exists() and snap_path.stat().st_size > 2 and (not force):
+            counts["snapshots_skipped_existing"] += 1
+        else:
+            try:
+                payload = write_synthetic_live_snapshots_jsonl_from_pbp_cache(
+                    date=str(date_s),
+                    event_ids=list(event_ids),
+                    cache_dir=Path(cache_dir),
+                    out_jsonl=Path(snap_path),
+                )
+                if snap_path.exists() and snap_path.stat().st_size > 2 and int(payload.get("lines") or 0) > 0:
+                    counts["snapshots_written"] += 1
+            except Exception as e:
+                counts["errors"] += 1
+                print(f"[yellow]snapshot synth failed:[/yellow] date={date_s} {e}")
+                continue
+
+        out_csv = settings.outputs_dir / f"live_features_{date_s}.csv"
+        if out_csv.exists() and out_csv.stat().st_size > 2 and (not force):
+            counts["features_skipped_existing"] += 1
+        else:
+            p2 = settings.outputs_dir / f"sim_segments_2min_{date_s}.csv"
+            p1 = settings.outputs_dir / f"sim_segments_{date_s}.csv"
+            segments_path = p2 if p2.exists() else (p1 if p1.exists() else None)
+
+            results_path = settings.outputs_dir / "daily_results" / f"results_{date_s}.csv"
+            results_path = results_path if results_path.exists() else None
+            try:
+                build_live_feature_table(
+                    date=str(date_s),
+                    snapshots_path=Path(snap_path),
+                    out_csv=Path(out_csv),
+                    segments_path=Path(segments_path) if segments_path else None,
+                    results_path=Path(results_path) if results_path else None,
+                    horizon_min=40.0,
+                    max_lines=int(max_lines),
+                )
+                if out_csv.exists() and out_csv.stat().st_size > 2:
+                    counts["features_built"] += 1
+            except Exception as e:
+                counts["errors"] += 1
+                print(f"[yellow]build failed:[/yellow] date={date_s} {e}")
+                continue
+
+        if upload and out_csv.exists() and out_csv.stat().st_size > 2:
+            url = f"{base_url}/api/upload_live_features?date={date_s}"
+            try:
+                with out_csv.open("rb") as f:
+                    files = {"file": (out_csv.name, f, "text/csv")}
+                    r = requests.post(url, files=files, timeout=60)
+                if r.status_code == 200:
+                    counts["features_uploaded"] += 1
+                else:
+                    counts["errors"] += 1
+                    print(f"[yellow]upload non-200:[/yellow] date={date_s} status={r.status_code}")
+            except Exception as e:
+                counts["errors"] += 1
+                print(f"[yellow]upload error:[/yellow] date={date_s} {e}")
+            finally:
+                if sleep_sec and sleep_sec > 0:
+                    time.sleep(float(sleep_sec))
+
+        if i % 10 == 0:
+            print({"progress": f"{date_s} ({i})", "elapsed_sec": round(time.time() - t0, 1), **counts})
+
+    print({"status": "ok", "start_date": start_date, "end_date": end_date, "elapsed_sec": round(time.time() - t0, 1), **counts})
 
 if __name__ == "__main__":
     app()
