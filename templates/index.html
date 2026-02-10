@@ -2910,8 +2910,9 @@
             var isBet = false;
             var isWatch = false;
             try {
-              // Bet: either a strong live-lens edge highlight or an in-card BET callout (stake sheet).
-              isBet = card.classList.contains('live-edge-ok') || (card.querySelector('.bet-callout') !== null);
+              // Bet: strong live-lens edge highlight.
+              // Note: do not key this off pregame "Kelly" callouts; those can exist for many games and makes the filter look broken.
+              isBet = card.classList.contains('live-edge-ok');
               // Watch: weaker live-lens signal (only shown when not already in Bet).
               isWatch = card.classList.contains('live-edge-warn');
             } catch(eS) { /* noop */ }
