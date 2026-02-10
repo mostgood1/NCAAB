@@ -1961,6 +1961,10 @@
         if(!stats) return null;
         var home = stats.home || {};
         var away = stats.away || {};
+        var poss = num0(home.poss_est) + num0(away.poss_est);
+        var tov = num0(home.to) + num0(away.to);
+        var orb = num0(home.orb) + num0(away.orb);
+        var drb = num0(home.drb) + num0(away.drb);
         var fga2a = num0(home.fga2_att) + num0(away.fga2_att);
         var fga3a = num0(home.fga3_att) + num0(away.fga3_att);
         var fta = num0(home.fta_att) + num0(away.fta_att);
@@ -1973,7 +1977,7 @@
         var tpPct = (fga3a > 0 ? (fga3m / fga3a) : null);
         var ftPct = (fta > 0 ? (ftm / fta) : null);
         var ftr = (fga > 0 ? (fta / fga) : null);
-        return { fga2a:fga2a, fga3a:fga3a, fga:fga, fta:fta, fgPct:fgPct, tpPct:tpPct, ftPct:ftPct, ftr:ftr };
+        return { poss:poss, tov:tov, orb:orb, drb:drb, fga2a:fga2a, fga3a:fga3a, fga:fga, fta:fta, fgPct:fgPct, tpPct:tpPct, ftPct:ftPct, ftr:ftr };
       }
 
       function updateCardLiveEdgeClass(card){
@@ -2255,54 +2259,46 @@
               if(side === 'Under') adj += (delta < 0 ? 1 : (delta > 0 ? -1 : 0));
             }
             if(pbp){
-              // Pace proxy: use (FGA + 0.44*FTA) per minute.
-              // This helps distinguish "fast but cold" from "slow but hot".
-              var shotProxy = null;
-              try {
-                shotProxy = (pbp.fga !== null ? pbp.fga : null);
-                if(shotProxy !== null) shotProxy = shotProxy + ftW * (pbp.fta !== null ? pbp.fta : 0);
-              } catch(eP0) { shotProxy = null; }
-
-              var shotRate = null;
-              if(shotProxy !== null && elapsed !== null && elapsed > 0){
-                shotRate = shotProxy / elapsed;
+              // Prefer possessions-based proxies when available.
+              // Pace proxy: possessions per minute.
+              var poss = (pbp.poss !== null && pbp.poss !== undefined) ? toNum(pbp.poss) : null;
+              var possRate = null;
+              if(poss !== null && elapsed !== null && elapsed > 0){
+                possRate = poss / elapsed;
               }
 
-              // Efficiency proxy: points per shotProxy (rough PPP).
-              var pps = null;
-              if(shotProxy !== null && shotProxy > 0.01 && act !== null){
-                pps = act / shotProxy;
+              // Efficiency proxy: points per possession.
+              var ppp = null;
+              if(poss !== null && poss > 0.01 && act !== null){
+                ppp = act / poss;
               }
 
               // Weight PBP adjustments until there is a little sample size.
-              var pbpN = null;
-              try {
-                pbpN = (pbp.fga !== null ? pbp.fga : 0) + (pbp.fta !== null ? pbp.fta : 0);
-              } catch(eP1) { pbpN = null; }
+              var pbpN = poss;
               var wPbp = 1;
               if(pbpN !== null){
                 wPbp = Math.min(1, Math.max(0, pbpN / pbpNScale));
               }
 
               var paceAdj = 0;
-              if(shotRate !== null){
+              if(possRate !== null){
                 if(side === 'Over'){
-                  if(shotRate >= paceHi) paceAdj += 1;
-                  else if(shotRate <= paceLo) paceAdj -= 1;
+                  if(possRate >= paceHi) paceAdj += 1;
+                  else if(possRate <= paceLo) paceAdj -= 1;
                 } else if(side === 'Under'){
-                  if(shotRate <= paceLo) paceAdj += 1;
-                  else if(shotRate >= paceHi) paceAdj -= 1;
+                  if(possRate <= paceLo) paceAdj += 1;
+                  else if(possRate >= paceHi) paceAdj -= 1;
                 }
               }
 
               var effAdj = 0;
-              if(pps !== null){
+              if(ppp !== null){
                 if(side === 'Over'){
-                  if(pps <= ppsLo) effAdj += 1;
-                  else if(pps >= ppsHi) effAdj -= 1;
+                  if(ppp <= ppsLo) effAdj += 1;
+                  else if(ppp >= ppsHi) effAdj -= 1;
                 } else if(side === 'Under'){
-                  if(pps >= ppsHi) effAdj += 1;
-                  else if(pps <= ppsLo) effAdj -= 1;
+                  if(ppp >= ppsHi) effAdj += 1;
+                  else if(ppp <= ppsLo) effAdj -= 1;
                 }
               }
 
@@ -2361,10 +2357,9 @@
               } catch(eSN) { statsN = null; }
               var pbpN2 = pbpRollup(statsN);
               if(pbpN2){
-                var sp2 = (pbpN2.fga !== null ? pbpN2.fga : null);
-                if(sp2 !== null) sp2 = sp2 + ftW * (pbpN2.fta !== null ? pbpN2.fta : 0);
-                var sr2 = (sp2 !== null && elapsed !== null && elapsed > 0) ? (sp2 / elapsed) : null;
-                var pps2 = (sp2 !== null && sp2 > 0.01 && act !== null) ? (act / sp2) : null;
+                var poss2 = (pbpN2.poss !== null && pbpN2.poss !== undefined) ? toNum(pbpN2.poss) : null;
+                var sr2 = (poss2 !== null && elapsed !== null && elapsed > 0) ? (poss2 / elapsed) : null;
+                var pps2 = (poss2 !== null && poss2 > 0.01 && act !== null) ? (act / poss2) : null;
 
                 // If pace is clearly high, it supports Over candidates; if clearly low, supports Under.
                 if(sr2 !== null){

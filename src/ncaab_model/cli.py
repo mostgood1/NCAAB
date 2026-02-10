@@ -12505,6 +12505,75 @@ def evaluate_live_snapshots_cmd(
 
     print({"wrote_csv": str(out_csv), "wrote_json": str(out_json), "overall": summary.get("overall"), "games": summary.get("games"), "rows": summary.get("rows")})
 
+
+@app.command(name="build-live-features")
+def build_live_features_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: yesterday local)."),
+    snapshots_path: Path = typer.Option(None, help="Snapshots JSONL path (default: outputs/live_snapshots/live_<date>.jsonl)."),
+    segments_path: Path = typer.Option(None, help="Sim segments CSV (default: outputs/sim_segments_2min_<date>.csv, fallback sim_segments_<date>.csv)."),
+    results_path: Path = typer.Option(None, help="Finalized results CSV (default: outputs/daily_results/results_<date>.csv). Optional."),
+    out_csv: Path = typer.Option(None, help="Output CSV (default: outputs/live_features_<date>.csv)."),
+    max_lines: int = typer.Option(400000, help="Max JSONL lines to read (safety cap)."),
+):
+    """Build a per-snapshot live feature table from captured Live Lens JSONL.
+
+    This is the dataset artifact that lets you train live residual models and
+    debug projection behavior. It merges the latest known:
+      - live_state
+      - live_lines
+      - live_pbp_stats
+    into a single row stream keyed by (game_id, ts).
+    """
+
+    def _yesterday_local() -> dt.date:
+        try:
+            return _today_local() - dt.timedelta(days=1)
+        except Exception:
+            return dt.date.today() - dt.timedelta(days=1)
+
+    if not date:
+        date = _yesterday_local().isoformat()
+    try:
+        dt.date.fromisoformat(str(date))
+    except Exception:
+        print(f"[red]Invalid date:[/red] {date}")
+        raise typer.Exit(code=2)
+
+    snap_dir = Path(os.environ.get("NCAAB_LIVE_SNAPSHOT_DIR") or (settings.outputs_dir / "live_snapshots"))
+    if snapshots_path is None:
+        snapshots_path = snap_dir / f"live_{date}.jsonl"
+
+    if segments_path is None:
+        p2 = settings.outputs_dir / f"sim_segments_2min_{date}.csv"
+        p1 = settings.outputs_dir / f"sim_segments_{date}.csv"
+        segments_path = p2 if p2.exists() else p1
+
+    if results_path is None:
+        results_path = settings.outputs_dir / "daily_results" / f"results_{date}.csv"
+
+    if out_csv is None:
+        out_csv = settings.outputs_dir / f"live_features_{date}.csv"
+
+    try:
+        from .eval.live_snapshot_features import build_live_feature_table
+
+        payload = build_live_feature_table(
+            date=str(date),
+            snapshots_path=Path(snapshots_path),
+            out_csv=Path(out_csv),
+            segments_path=Path(segments_path) if segments_path and Path(segments_path).exists() else None,
+            results_path=Path(results_path) if results_path and Path(results_path).exists() else None,
+            horizon_min=40.0,
+            max_lines=int(max_lines),
+        )
+        print(payload)
+    except FileNotFoundError as e:
+        print(f"[yellow]Missing input:[/yellow] {e}")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        print(f"[red]build-live-features failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
 if __name__ == "__main__":
     app()
 

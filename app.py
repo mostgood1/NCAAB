@@ -21516,6 +21516,9 @@ def api_live_state():
             rem_reg, rem_1h = _compute_remaining_seconds(period, clock_seconds) if is_live else (None, None)
 
             games[ev_id] = {
+                # Canonical identifiers (keep event_id for backward compatibility)
+                "game_id": ev_id,
+                "espn_event_id": ev_id,
                 "event_id": ev_id,
                 "state": state,
                 "is_live": bool(is_live),
@@ -21596,7 +21599,7 @@ def api_live_lens_tuning():
     except Exception:
         pass
 
-    defaults = {
+    payload: dict[str, object] = {
         "pace_hi": 3.25,
         "pace_lo": 2.75,
         "pps_hi": 1.18,
@@ -21607,7 +21610,14 @@ def api_live_lens_tuning():
 
         "status": "ok",
         "source": "defaults",
-        "tuning": dict(defaults),
+        "tuning": {
+            "pace_hi": 3.25,
+            "pace_lo": 2.75,
+            "pps_hi": 1.18,
+            "pps_lo": 0.95,
+            "pbp_n_scale": 70.0,
+            "shot_proxy_ft_weight": 0.44,
+        },
         "meta": {},
     }
 
@@ -21625,7 +21635,7 @@ def api_live_lens_tuning():
                 t = j.get("tuning")
                 if isinstance(t, dict):
                     # Merge onto defaults
-                    merged = dict(defaults)
+                    merged = dict(payload.get("tuning") or {})
                     for k, v in t.items():
                         if k in merged:
                             try:
@@ -21904,6 +21914,9 @@ def api_live_pbp_stats():
         stats_1h = _accumulate(payload, max_period=1)
         team_to_side, side_to_team = _team_side_map(payload)
         games[eid_s] = {
+            # Canonical identifiers (keep event_id for backward compatibility)
+            "game_id": eid_s,
+            "espn_event_id": eid_s,
             "event_id": eid_s,
             "fetched_from": fetched_from,
             "teams": {
@@ -22182,6 +22195,9 @@ def api_live_lines():
             continue
         for gid in gids:
             out_lines[str(gid)] = {
+                # Canonical identifiers
+                "game_id": str(gid),
+                "espn_event_id": str(gid),
                 "total": best.get("total"),
                 "book": best.get("book"),
                 "event_id_provider": best.get("event_id_provider"),
@@ -33100,6 +33116,65 @@ def _upload_date_scoped_json(out_path: Path) -> tuple[dict[str, Any], int]:
         return ({"status": "ok", "path": str(out_path), "keys": list(payload.keys()) if isinstance(payload, dict) else None}, 200)
     except Exception as e:
         return ({"status": "error", "message": str(e)}, 500)
+
+
+@app.route("/api/upload_live_features", methods=["POST"])
+def api_upload_live_features():
+    """Upload per-date live feature table CSV.
+
+    Query param: date=YYYY-MM-DD (required)
+    Body: multipart 'file' or raw CSV bytes.
+    Writes to outputs/live_features_<date>.csv
+    """
+
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        try:
+            df = pd.read_csv(io.BytesIO(csv_bytes), low_memory=True)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+
+        out_path = OUT / f"live_features_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "rows": int(len(df))})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/download_live_features")
+def api_download_live_features():
+    """Download per-date live feature table CSV (if present)."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        path = OUT / f"live_features_{date_q}.csv"
+        if not path.exists():
+            return jsonify({"status": "missing", "path": str(path), "date": date_q}), 404
+        return send_file(
+            str(path),
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="text/csv",
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/api/upload_live_snapshot_summary", methods=["POST"])

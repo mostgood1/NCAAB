@@ -422,6 +422,11 @@ print({'path': str(games_path), 'rows': len(df2)})
         } catch {
           Write-Warning "evaluate-live-snapshots failed for ${prevDate}: $($_)"
         }
+        try {
+          & $VenvPython -m ncaab_model.cli build-live-features --date $prevDate --snapshots-path $snapLocal
+        } catch {
+          Write-Warning "build-live-features failed for ${prevDate}: $($_)"
+        }
       } else {
         Write-Host "[snapshots] No snapshots file for $prevDate; skipping summary/eval." -ForegroundColor DarkGray
       }

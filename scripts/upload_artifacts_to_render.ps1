@@ -47,7 +47,7 @@ function Upload-File {
             # Optional endpoints may not exist on older deployments; treat as skip.
             $code = $null
             try { $code = [int]$resp.StatusCode } catch { $code = $null }
-            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval')) {
+            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features')) {
                 Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                 return @{ status = 'skipped'; code = 404; uri = $Uri }
             }
@@ -83,6 +83,7 @@ $liveSnapshotSummaryPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapsho
 $liveSnapshotLinesPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_lines_{0}.csv" -f $Date)
 $liveSnapshotEvalSummaryPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_eval_summary_{0}.json" -f $Date)
 $liveSnapshotEvalCsvPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_eval_{0}.csv" -f $Date)
+$liveFeaturesPath = Join-Path -Path $OutputsDir -ChildPath ("live_features_{0}.csv" -f $Date)
 ${needSimRetry} = $false
 
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
@@ -680,6 +681,14 @@ if (Test-Path -LiteralPath $liveSnapshotEvalCsvPath) {
     elseif ($uLec) { Write-Host "[OK] live_snapshot_eval uploaded" -ForegroundColor Green }
 } else {
     Write-Host "[Skip] live_snapshot_eval missing for $Date" -ForegroundColor Yellow
+}
+
+if (Test-Path -LiteralPath $liveFeaturesPath) {
+    $uLf = Upload-File -Uri "$BaseUrl/api/upload_live_features" -FilePath $liveFeaturesPath -Query @{ date = $Date }
+    if ($uLf -and ($uLf.status -eq 'skipped')) { Write-Host "[Skip] upload_live_features endpoint unavailable" -ForegroundColor Yellow }
+    elseif ($uLf) { Write-Host "[OK] live_features uploaded" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] live_features missing for $Date" -ForegroundColor Yellow
 }
 
 # Proactive: persist display snapshot after uploads (upload-only mode)
