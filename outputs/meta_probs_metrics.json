@@ -1,4 +1,46 @@
 {
-  "cover_error": "Input X contains NaN.\nLogisticRegression does not accept missing values encoded as NaN natively. For supervised learning, you might want to consider sklearn.ensemble.HistGradientBoostingClassifier and Regressor which accept missing values encoded as NaNs natively. Alternatively, it is possible to preprocess the data, for instance by using an imputer transformer in a pipeline or drop samples with missing values. See https://scikit-learn.org/stable/modules/impute.html You can find a list of all estimators that handle NaN values at the following page: https://scikit-learn.org/stable/modules/impute.html#estimators-that-handle-nan-values",
-  "over_error": "Input X contains NaN.\nLogisticRegression does not accept missing values encoded as NaN natively. For supervised learning, you might want to consider sklearn.ensemble.HistGradientBoostingClassifier and Regressor which accept missing values encoded as NaNs natively. Alternatively, it is possible to preprocess the data, for instance by using an imputer transformer in a pipeline or drop samples with missing values. See https://scikit-learn.org/stable/modules/impute.html You can find a list of all estimators that handle NaN values at the following page: https://scikit-learn.org/stable/modules/impute.html#estimators-that-handle-nan-values"
+  "cover": {
+    "auc": 0.0,
+    "base_rate": 0.44385026737967914,
+    "brier": 0.25,
+    "calibrated_features_used": [],
+    "ece": 0.0853658536585366,
+    "features_used": [
+      "p_home_cover_emp",
+      "p_home_cover",
+      "p_home_cover_dist",
+      "p_home_cover_ensemble"
+    ],
+    "ks": 0.0,
+    "legacy_features_present": [
+      "p_home_cover",
+      "p_home_cover_dist",
+      "p_home_cover_ensemble"
+    ],
+    "log_loss": 0.6931471805599453,
+    "n_features": 4,
+    "samples": 187
+  },
+  "over": {
+    "auc": 0.0,
+    "base_rate": 0.37433155080213903,
+    "brier": 0.25,
+    "calibrated_features_used": [],
+    "ece": 0.1097560975609756,
+    "features_used": [
+      "p_over_emp",
+      "p_over",
+      "p_over_dist",
+      "p_over_ensemble"
+    ],
+    "ks": 0.0,
+    "legacy_features_present": [
+      "p_over",
+      "p_over_dist",
+      "p_over_ensemble"
+    ],
+    "log_loss": 0.6931471805599453,
+    "n_features": 4,
+    "samples": 187
+  }
 }

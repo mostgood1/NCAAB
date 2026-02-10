@@ -23,7 +23,7 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401830297,2026-02-10,Drake Bulldogs,Valparaiso Beacons,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401858744,2026-02-10,North Carolina Central Eagles,Delaware State Hornets,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401817686,2026-02-10,IU Indianapolis Jaguars,Milwaukee Panthers,totals,full_game,under,,,,,,Total,OU
-401825507,2026-02-10,Nebraska Cornhuskers,Purdue Boilermakers,totals,full_game,over,,,,,,Total,OU
-401820731,2026-02-10,Miami Hurricanes,North Carolina Tar Heels,totals,full_game,over,,,,,,Total,OU
+401825507,2026-02-10,Nebraska Cornhuskers,Purdue Boilermakers,totals,full_game,under,,,,,,Total,OU
+401820731,2026-02-10,Miami Hurricanes,North Carolina Tar Heels,totals,full_game,under,,,,,,Total,OU
 401820734,2026-02-10,Florida State Seminoles,Virginia Cavaliers,totals,full_game,under,,,,,,Total,OU
 401808229,2026-02-10,Auburn Tigers,Vanderbilt Commodores,totals,full_game,under,,,,,,Total,OU
