@@ -15,7 +15,7 @@ services:
         value: "0"
       - key: NCAAB_THEODDS_API_KEY
         sync: false
-        fromSecret: theoddsapi-key
+        fromSecret: NCAAB_THEODDS_API_KEY
       - key: TZ
         value: UTC
       - key: NCAAB_LIGHT_MODE
