@@ -988,7 +988,12 @@ This repository now includes a production setup for hosting the Flask UI (exact 
   - Start Command: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120`
 4. Add Environment Variables (optional but recommended):
   - `PYTHONUNBUFFERED=1`
-  - `THEODDSAPI_KEY=<your key>` (if you want live odds refresh endpoints later)
+  - `NCAAB_THEODDS_API_KEY=<your key>` (or `THEODDSAPI_KEY`) for live odds refresh endpoints
+  - `NCAAB_LIVE_SNAPSHOT_LOG=1` to persist Live Lens polling payloads as JSONL under `outputs/live_snapshots/`
+    - Optional: `NCAAB_LIVE_SNAPSHOT_DIR=<path>` (default `outputs/live_snapshots`)
+    - Optional: `NCAAB_LIVE_SNAPSHOT_MIN_INTERVAL_S=8` (throttle per endpoint+event)
+    - Optional: `NCAAB_LIVE_SNAPSHOT_UNCHANGED_WINDOW_S=60` (skip unchanged payloads)
+    - Optional: `NCAAB_LIVE_SNAPSHOT_MAX_KB=20480` (per-day file size cap)
   - Any ONNX/QNN related vars if you later deploy custom inference (note: Render’s Linux containers won’t expose Windows DirectML/QNN; CPU inference will run automatically).
 5. Deploy. The app should serve the existing snapshot immediately.
 
@@ -1003,6 +1008,14 @@ The current deployment strategy serves a static snapshot. To update:
 1. Run your local daily pipeline (`scripts/daily_update.ps1`).
 2. Commit updated `outputs/` artifacts.
 3. Push – Render will redeploy with new data.
+
+### Live Lens Snapshot Review (Optional)
+If you enable `NCAAB_LIVE_SNAPSHOT_LOG=1`, the app will write JSONL snapshots under `outputs/live_snapshots/`.
+To summarize a day’s snapshots:
+- `python -m ncaab_model.cli summarize-live-snapshots --date YYYY-MM-DD`
+
+To evaluate projection accuracy (requires snapshots + `outputs/sim_segments_*_<date>.csv` + `outputs/daily_results/results_<date>.csv`):
+- `python -m ncaab_model.cli evaluate-live-snapshots --date YYYY-MM-DD`
 
 Notes on git hygiene for data artifacts:
 - Only dated files are tracked (e.g., `outputs/games_YYYY-MM-DD.csv`, `outputs/odds_YYYY-MM-DD.csv`, `outputs/games_with_odds_YYYY-MM-DD.csv`, `outputs/predictions_YYYY-MM-DD.csv`, and `outputs/odds_history/odds_YYYY-MM-DD.csv`).

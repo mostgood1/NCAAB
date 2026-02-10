@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+import re
 import pandas as pd
 import numpy as np
 try:
@@ -81,8 +82,26 @@ TARGET_MAP = {
 LEGACY_FEATURES_COVER = ['p_home_cover','p_home_cover_dist','p_home_cover_ensemble','p_home_cover_cdf']
 LEGACY_FEATURES_OVER = ['p_over','p_over_dist','p_over_ensemble','p_over_cdf']
 
+# When probability columns are not present in unified enriched predictions, fall back
+# to numeric pregame/sim-derived signals.
+FALLBACK_PREFIXES_COVER = [
+    'pred_margin', 'spread_home', 'closing_spread_home',
+    'edge_ats', 'edge_margin', 'kelly_frac_spread',
+    'neutral_site', 'kelly_side_spread'
+]
+
+FALLBACK_PREFIXES_OVER = [
+    'pred_total', 'market_total', 'closing_total', 'derived_total',
+    'pred_total_sigma', 'edge_total', 'edge_closing', 'kelly_fraction_total'
+]
+
+EXCLUDE_SUFFIXES = ('_1h', '_2h')
+
 def find_prediction_files(limit: int | None = None):
-    files = sorted(OUT.glob('predictions_unified_enriched_*.csv'))
+    # Only keep date-scoped artifacts; exclude synthetic/dev variants that can lack p_* columns.
+    pat = re.compile(r'^predictions_unified_enriched_\d{4}-\d{2}-\d{2}.*\.csv$')
+    files = [f for f in OUT.glob('predictions_unified_enriched_*.csv') if pat.match(f.name)]
+    files = sorted(files)
     if limit:
         files = files[-limit:]
     return files
@@ -126,7 +145,9 @@ def build_training_frame(pred_files):
                 continue
             if 'date' not in df.columns:
                 # infer from filename
-                date_part = pf.name.replace('predictions_unified_enriched_','').replace('.csv','')
+                tail = pf.name.replace('predictions_unified_enriched_', '').replace('.csv', '')
+                # Common variants are YYYY-MM-DD, YYYY-MM-DD_force_fill, etc.
+                date_part = tail[:10] if re.match(r'^\d{4}-\d{2}-\d{2}', tail) else tail
                 df['date'] = date_part
             rows.append(df)
         except Exception:
@@ -167,12 +188,17 @@ def _discover_features(df: pd.DataFrame, prefix: str, exclude_exact: set[str]) -
 def _prune_correlated(df: pd.DataFrame, cols: list[str], threshold: float = 0.995) -> list[str]:
     if len(cols) < 2:
         return cols
-    sub = df[cols].astype(float)
-    # Impute NaN with column mean for correlation stability
+    # Coerce to numeric; impute NaN with column mean for correlation stability.
+    # NOTE: Some columns can be object dtype or entirely missing (all NaN) depending on upstream artifacts.
+    sub = pd.DataFrame(index=df.index)
     for c in cols:
-        col = sub[c]
-        if col.isna().any():
-            sub[c] = col.fillna(col.mean())
+        col = pd.to_numeric(df[c], errors='coerce')
+        col = col.replace([np.inf, -np.inf], np.nan)
+        if col.notna().any():
+            col = col.fillna(col.mean())
+        else:
+            col = col.fillna(0.0)
+        sub[c] = col.astype(float)
     corr = sub.corr().abs()
     to_drop = set()
     # Greedy prune: iterate upper triangle
@@ -196,10 +222,18 @@ def _sanitize_X(df: pd.DataFrame) -> pd.DataFrame:
     X = X.replace([np.inf, -np.inf], np.nan)
     for c in X.columns:
         col = pd.to_numeric(X[c], errors='coerce')
-        if col.isna().any():
+        col = col.replace([np.inf, -np.inf], np.nan)
+        if col.notna().any():
             col = col.fillna(col.mean())
+        else:
+            # All-NaN feature columns can happen (e.g., a method wasn't produced for a day)
+            # and will otherwise keep NaN even after mean-fill.
+            col = col.fillna(0.0)
         X[c] = col
-    return X.astype(float)
+    X = X.astype(float)
+    # Final hard guarantee: no NaN/Inf reaches the classifier.
+    X = X.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+    return X
 
 def _safe_metrics(y: pd.Series, probs: np.ndarray) -> tuple[float, float, float, float]:
     yv = pd.to_numeric(y, errors='coerce')
@@ -266,10 +300,27 @@ def train_meta(all_preds: pd.DataFrame, daily: pd.DataFrame, kind: str):
     calibrated = [c for c in discovered if c.endswith('_cal')]
     non_cal = [c for c in discovered if c not in calibrated]
     ordered = calibrated + non_cal
+
     # Guarantee legacy presence for backward compatibility
     for c in legacy:
         if c not in ordered:
             ordered.append(c)
+
+    # If probability-style features don't exist in this artifact, fall back to
+    # numeric signals that should be present in predictions_unified_enriched_*.
+    if not ordered:
+        prefixes = FALLBACK_PREFIXES_COVER if kind == 'cover' else FALLBACK_PREFIXES_OVER
+        exclude_cols = set(keys + [target_col, 'home_score', 'away_score'])
+        ordered = [
+            c for c in merged.columns
+            if c not in exclude_cols
+            and not any(str(c).endswith(suf) for suf in EXCLUDE_SUFFIXES)
+            and any(str(c).startswith(pref) for pref in prefixes)
+        ]
+
+        # As a last resort, include any edge_* columns
+        if not ordered:
+            ordered = [c for c in merged.columns if str(c).startswith('edge_') and c not in exclude_cols]
     # Prune highly correlated duplicates
     pruned = _prune_correlated(merged, ordered, threshold=0.995)
     if not pruned:

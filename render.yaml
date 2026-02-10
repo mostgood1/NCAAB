@@ -30,6 +30,9 @@ services:
         value: "0"
       - key: SNAPSHOT_ONLY
         value: "0"
+      # Persist Live Lens polling payloads as JSONL under outputs/live_snapshots/
+      - key: NCAAB_LIVE_SNAPSHOT_LOG
+        value: "1"
       - key: NCAAB_TOTALS_MODE
         value: model
       # 2-min point-allocation late-game shaping (proxy-based by spread if present, else model margin)

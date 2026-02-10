@@ -2130,6 +2130,23 @@
         } catch(e) { /* noop */ }
 
         function update(){
+          function marketBlendWeight(elapsedMin, horizonMin){
+            // Blend model projection toward the live market line as the game progresses.
+            // Goal: reduce overconfidence early and follow market more late.
+            // Keep simple and deterministic (no extra endpoints or UI toggles).
+            var e = toNum(elapsedMin);
+            var h = toNum(horizonMin);
+            if(e === null || h === null || !isFinite(e) || !isFinite(h) || h <= 1) return 0;
+            // Ignore first few minutes (noise).
+            var start = (h <= 20.5) ? 3 : 5;
+            if(e <= start) return 0;
+            var maxW = 0.55;
+            var t = (e - start) / Math.max(1e-6, (h - start));
+            if(t < 0) t = 0;
+            if(t > 1) t = 1;
+            return maxW * t;
+          }
+
           var card0 = getCardForWrap(wrap);
           var per0 = null;
           try {
@@ -2171,7 +2188,17 @@
           var simFinalMargin = idx.simFinalMargin;
 
           var delta = (exp !== null && act !== null) ? (exp - act) : null; // + means sim higher than actual so far
-          var paceFinal = (elapsed !== null && act !== null && elapsed > 0) ? (act / elapsed * horizon) : null;
+
+          // Projections:
+          // - projModel uses sim expected remainder (more stable than raw pace)
+          // - projPace is a fallback
+          // - projBlend optionally blends toward live market total when a live line is present
+          var projPace = (elapsed !== null && act !== null && elapsed > 0) ? (act / elapsed * horizon) : null;
+          var simRemainder = (simFinal !== null && exp !== null) ? (simFinal - exp) : null;
+          var projModel = (act !== null && simRemainder !== null) ? (act + simRemainder) : null;
+          var projFinal = (projModel !== null) ? projModel : projPace;
+          var blendW = (line !== null && projFinal !== null) ? marketBlendWeight(elapsed, horizon) : 0;
+          var projBlend = (line !== null && projFinal !== null) ? ((1 - blendW) * projFinal + blendW * line) : projFinal;
 
           // Optional daily-tuned thresholds (best-effort).
           var tune = null;
@@ -2196,7 +2223,7 @@
 
           setText(wrap, 'exp', 'Sim q50 @ time: ' + (exp !== null ? String(round0(exp)) : '–'));
           setText(wrap, 'delta', 'Δ (Sim−Act): ' + (delta !== null ? ((delta > 0 ? '+' : '') + String(round0(delta))) : '–'));
-          setText(wrap, 'pace', 'Pace final (' + String(round0(horizon)) + 'm): ' + (paceFinal !== null ? String(round0(paceFinal)) : '–'));
+          setText(wrap, 'pace', 'Proj final (' + String(round0(horizon)) + 'm): ' + (projBlend !== null ? String(round0(projBlend)) : '–'));
           setText(wrap, 'simfinal', 'Sim q50 final: ' + (simFinal !== null ? String(round0(simFinal)) : '–'));
 
           // Driver + lean
@@ -2205,8 +2232,8 @@
           var isStrong = false;
           var isStrongNoLine = false;
           var logSig = null;
-          if(line !== null && paceFinal !== null){
-            var edge = paceFinal - line;
+          if(line !== null && projBlend !== null){
+            var edge = projBlend - line;
             var side = (edge > 0.01) ? 'Over' : (edge < -0.01 ? 'Under' : 'No edge');
             var edgeAbs = Math.abs(edge);
 
@@ -2400,17 +2427,21 @@
               if(isFinite(s0) && s0 > 0.01) sigma = s0;
             }
 
-            if(simFinalMargin !== null){
-              var pickML = (simFinalMargin > 0.01) ? 'Home' : (simFinalMargin < -0.01 ? 'Away' : 'Pick');
-              var pHome = (sigma !== null) ? normCdf(simFinalMargin / sigma) : null;
+            // Live-adjusted margin projection using sim remainder.
+            var simRemMargin = (simFinalMargin !== null && expMargin !== null) ? (simFinalMargin - expMargin) : null;
+            var projMargin = (actMargin !== null && simRemMargin !== null) ? (actMargin + simRemMargin) : simFinalMargin;
+
+            if(projMargin !== null){
+              var pickML = (projMargin > 0.01) ? 'Home' : (projMargin < -0.01 ? 'Away' : 'Pick');
+              var pHome = (sigma !== null) ? normCdf(projMargin / sigma) : null;
               var pTxt = (pHome !== null) ? (' (H ' + String(pct(pHome)) + '%)') : '';
               setText(wrap, 'ml', 'ML: ' + pickML + pTxt);
             } else {
               setText(wrap, 'ml', 'ML: –');
             }
 
-            if(spreadHome !== null && simFinalMargin !== null){
-              var coverEdge = simFinalMargin + spreadHome; // home covers if > 0
+            if(spreadHome !== null && projMargin !== null){
+              var coverEdge = projMargin + spreadHome; // home covers if > 0
               var pickATS = (coverEdge > 0.01) ? 'Home' : (coverEdge < -0.01 ? 'Away' : 'Push');
               var pCov = (sigma !== null) ? normCdf(coverEdge / sigma) : null;
               var pCovTxt = (pCov !== null) ? (' p' + String(pct(pCov)) + '%') : '';

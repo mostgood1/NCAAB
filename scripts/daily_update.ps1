@@ -70,7 +70,9 @@ param(
   # New: Upload to Render by default; opt-out with -SkipRenderUpload
   [switch]$SkipRenderUpload,
   # New: Redeploy after upload by default; opt-out with -SkipRenderRedeploy
-  [switch]$SkipRenderRedeploy
+  [switch]$SkipRenderRedeploy,
+  # Optional: base URL used to fetch live snapshot JSONL from deployed app (for eval automation)
+  [string]$RenderBaseUrl = $(if ($env:NCAAB_RENDER_BASE_URL) { $env:NCAAB_RENDER_BASE_URL } else { 'https://ncaab.onrender.com' })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -375,6 +377,56 @@ print({'path': str(games_path), 'rows': len(df2)})
       & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy --date $prevDate
     } catch {
       Write-Warning "compute-live-lens-accuracy failed for ${prevDate}: $($_)"
+    }
+
+    # Live snapshots: fetch from Render (if needed) + summarize + evaluate
+    Write-Section "3b.ii) Live snapshots summary + eval for $prevDate"
+    try {
+      $snapDir = Join-Path $OutDir 'live_snapshots'
+      New-Item -ItemType Directory -Path $snapDir -Force | Out-Null
+      $snapLocal = Join-Path $snapDir ("live_" + $prevDate + ".jsonl")
+
+      function Test-HasBytes {
+        param([string]$Path)
+        if (-not (Test-Path -LiteralPath $Path)) { return $false }
+        try { return ((Get-Item -LiteralPath $Path).Length -gt 0) } catch { return $false }
+      }
+
+      if (-not (Test-HasBytes $snapLocal)) {
+        try {
+          $base = ("" + $RenderBaseUrl).Trim()
+          if (-not [string]::IsNullOrWhiteSpace($base)) {
+            $base = $base.TrimEnd('/')
+            $url = "$base/api/download_live_snapshots?date=$prevDate"
+            Write-Host "[snapshots] Attempting download: $url" -ForegroundColor DarkGray
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $snapLocal -UseBasicParsing -TimeoutSec 30 | Out-Null
+            } catch {
+              Write-Warning "[snapshots] Download failed: $($_.Exception.Message)"
+              if (Test-Path -LiteralPath $snapLocal) { Remove-Item -LiteralPath $snapLocal -Force -ErrorAction SilentlyContinue }
+            }
+          }
+        } catch {
+          Write-Warning "[snapshots] Download wrapper failed: $($_)"
+        }
+      }
+
+      if (Test-HasBytes $snapLocal) {
+        try {
+          & $VenvPython -m ncaab_model.cli summarize-live-snapshots --date $prevDate --in-path $snapLocal
+        } catch {
+          Write-Warning "summarize-live-snapshots failed for ${prevDate}: $($_)"
+        }
+        try {
+          & $VenvPython -m ncaab_model.cli evaluate-live-snapshots --date $prevDate --snapshots-path $snapLocal
+        } catch {
+          Write-Warning "evaluate-live-snapshots failed for ${prevDate}: $($_)"
+        }
+      } else {
+        Write-Host "[snapshots] No snapshots file for $prevDate; skipping summary/eval." -ForegroundColor DarkGray
+      }
+    } catch {
+      Write-Warning "Live snapshot summary/eval step failed for ${prevDate}: $($_)"
     }
   } else {
     Write-Host "SkipFinalizePrev flag set; skipping finalize-day for $prevDate." -ForegroundColor Yellow

@@ -11863,6 +11863,648 @@ def compute_live_lens_accuracy_cmd(
     wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
     print(wrote)
 
+
+@app.command(name="summarize-live-snapshots")
+def summarize_live_snapshots_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: yesterday local)."),
+    in_path: Path = typer.Option(None, help="Optional input JSONL path (default: outputs/live_snapshots/live_<date>.jsonl)."),
+    out_json: Path = typer.Option(None, help="Output summary JSON path (default: outputs/live_snapshot_summary_<date>.json)."),
+    out_lines_csv: Path = typer.Option(None, help="Optional live line changes CSV output (default: outputs/live_snapshot_lines_<date>.csv)."),
+    max_lines: int = typer.Option(200000, help="Max JSONL lines to read (safety cap)."),
+):
+    """Summarize Live Lens polling snapshots captured by the web API.
+
+    Reads JSONL produced by:
+      - /api/live_state
+      - /api/live_pbp_stats
+      - /api/live_lines
+
+    Produces a compact JSON summary (coverage + cadence) and (optionally) a CSV
+    of live total line changes by event_id.
+    """
+
+    def _yesterday_local() -> dt.date:
+        try:
+            return _today_local() - dt.timedelta(days=1)
+        except Exception:
+            return dt.date.today() - dt.timedelta(days=1)
+
+    if not date:
+        date = _yesterday_local().isoformat()
+
+    try:
+        dt.date.fromisoformat(str(date))
+    except Exception:
+        print(f"[red]Invalid date:[/red] {date}")
+        raise typer.Exit(code=2)
+
+    snap_dir = Path(os.environ.get("NCAAB_LIVE_SNAPSHOT_DIR") or (settings.outputs_dir / "live_snapshots"))
+    if in_path is None:
+        in_path = snap_dir / f"live_{date}.jsonl"
+
+    if out_json is None:
+        out_json = settings.outputs_dir / f"live_snapshot_summary_{date}.json"
+
+    if out_lines_csv is None:
+        out_lines_csv = settings.outputs_dir / f"live_snapshot_lines_{date}.csv"
+
+    if not in_path.exists():
+        print(f"[yellow]Missing snapshots file:[/yellow] {in_path}")
+        raise typer.Exit(code=1)
+
+    def _parse_ts_to_epoch(ts_s: Any) -> float | None:
+        try:
+            s = str(ts_s or "").strip()
+            if not s:
+                return None
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            d = dt.datetime.fromisoformat(s)
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=dt.timezone.utc)
+            return float(d.timestamp())
+        except Exception:
+            return None
+
+    counts_by_endpoint: dict[str, int] = {}
+    distinct_events: set[str] = set()
+    first_ts_ep: dict[str, float] = {}
+    last_ts_ep: dict[str, float] = {}
+
+    # Cadence estimator (per endpoint+event)
+    last_seen: dict[str, float] = {}
+    cadence_sum: dict[str, float] = {}
+    cadence_n: dict[str, int] = {}
+
+    # Live line change extraction
+    last_line_total: dict[str, float] = {}
+    last_line_book: dict[str, str] = {}
+    line_changes: list[dict[str, Any]] = []
+
+    # Live state progression
+    last_total_points: dict[str, int] = {}
+    state_score_changes: dict[str, int] = {}
+
+    read_n = 0
+    bad_n = 0
+
+    try:
+        with in_path.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                if max_lines and read_n >= int(max_lines):
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                read_n += 1
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    bad_n += 1
+                    continue
+                if not isinstance(rec, dict):
+                    bad_n += 1
+                    continue
+
+                endpoint = str(rec.get("endpoint") or "").strip()
+                if not endpoint:
+                    endpoint = "unknown"
+                event_id = rec.get("event_id")
+                event_id_s = str(event_id).strip() if event_id not in (None, "None") else ""
+                if event_id_s:
+                    distinct_events.add(event_id_s)
+
+                counts_by_endpoint[endpoint] = int(counts_by_endpoint.get(endpoint, 0)) + 1
+
+                ts_epoch = _parse_ts_to_epoch(rec.get("ts"))
+                if ts_epoch is not None:
+                    first_ts_ep[endpoint] = min(float(first_ts_ep.get(endpoint, ts_epoch)), float(ts_epoch)) if endpoint in first_ts_ep else float(ts_epoch)
+                    last_ts_ep[endpoint] = max(float(last_ts_ep.get(endpoint, ts_epoch)), float(ts_epoch)) if endpoint in last_ts_ep else float(ts_epoch)
+
+                    cad_key = f"{endpoint}|{event_id_s or '_bulk'}"
+                    prev = last_seen.get(cad_key)
+                    if prev is not None:
+                        dt_s = float(ts_epoch) - float(prev)
+                        if dt_s >= 0:
+                            cadence_sum[endpoint] = float(cadence_sum.get(endpoint, 0.0)) + dt_s
+                            cadence_n[endpoint] = int(cadence_n.get(endpoint, 0)) + 1
+                    last_seen[cad_key] = float(ts_epoch)
+
+                data0 = rec.get("data")
+
+                if endpoint == "live_lines" and event_id_s and isinstance(data0, dict):
+                    tot = data0.get("total")
+                    book = str(data0.get("book") or "")
+                    try:
+                        tot_f = float(tot) if tot is not None else None
+                    except Exception:
+                        tot_f = None
+                    if tot_f is not None:
+                        prev_tot = last_line_total.get(event_id_s)
+                        prev_book = last_line_book.get(event_id_s)
+                        if prev_tot is None:
+                            last_line_total[event_id_s] = float(tot_f)
+                            last_line_book[event_id_s] = book
+                        else:
+                            if float(tot_f) != float(prev_tot) or (book and book != (prev_book or "")):
+                                line_changes.append(
+                                    {
+                                        "date": date,
+                                        "ts": rec.get("ts"),
+                                        "event_id": event_id_s,
+                                        "total_prev": prev_tot,
+                                        "total": float(tot_f),
+                                        "book_prev": prev_book,
+                                        "book": book,
+                                        "provider_event_id": data0.get("event_id_provider"),
+                                        "last_update": data0.get("last_update"),
+                                    }
+                                )
+                                last_line_total[event_id_s] = float(tot_f)
+                                last_line_book[event_id_s] = book
+
+                if endpoint == "live_state" and event_id_s and isinstance(data0, dict):
+                    tp = data0.get("total_points")
+                    try:
+                        tp_i = int(tp) if tp is not None else None
+                    except Exception:
+                        tp_i = None
+                    if tp_i is not None:
+                        prev_tp = last_total_points.get(event_id_s)
+                        if prev_tp is None:
+                            last_total_points[event_id_s] = int(tp_i)
+                        else:
+                            if int(tp_i) != int(prev_tp):
+                                state_score_changes[event_id_s] = int(state_score_changes.get(event_id_s, 0)) + 1
+                                last_total_points[event_id_s] = int(tp_i)
+    except Exception as e:
+        print(f"[red]Failed reading snapshots:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    def _fmt_epoch(e: float | None) -> str | None:
+        if e is None:
+            return None
+        try:
+            return dt.datetime.fromtimestamp(float(e), tz=dt.timezone.utc).isoformat().replace("+00:00", "Z")
+        except Exception:
+            return None
+
+    cadence_avg: dict[str, float | None] = {}
+    for ep, s in cadence_sum.items():
+        n = int(cadence_n.get(ep, 0))
+        cadence_avg[ep] = (float(s) / float(n)) if n > 0 else None
+
+    summary: dict[str, Any] = {
+        "status": "ok",
+        "date": str(date),
+        "input": str(in_path),
+        "read_lines": int(read_n),
+        "bad_lines": int(bad_n),
+        "counts_by_endpoint": dict(sorted(counts_by_endpoint.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "distinct_event_ids": int(len(distinct_events)),
+        "endpoint_time_range": {
+            ep: {"first_ts": _fmt_epoch(first_ts_ep.get(ep)), "last_ts": _fmt_epoch(last_ts_ep.get(ep))}
+            for ep in sorted(set(list(first_ts_ep.keys()) + list(last_ts_ep.keys())))
+        },
+        "cadence_avg_seconds": cadence_avg,
+        "live_lines": {
+            "events_with_any_line": int(len(last_line_total)),
+            "line_change_events": int(len(set([r.get('event_id') for r in line_changes if r.get('event_id')]))),
+            "line_change_rows": int(len(line_changes)),
+        },
+        "live_state": {
+            "events_with_score": int(len(last_total_points)),
+            "events_with_score_changes": int(len([k for k, v in state_score_changes.items() if int(v) > 0])),
+        },
+    }
+
+    try:
+        out_json.parent.mkdir(parents=True, exist_ok=True)
+        out_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    except Exception as e:
+        print(f"[red]Failed writing summary JSON:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    wrote_csv = False
+    if line_changes:
+        try:
+            pd.DataFrame(line_changes).to_csv(out_lines_csv, index=False)
+            wrote_csv = True
+        except Exception:
+            wrote_csv = False
+
+    print(
+        {
+            "date": date,
+            "input": str(in_path),
+            "wrote_summary": str(out_json),
+            "wrote_lines_csv": str(out_lines_csv) if wrote_csv else None,
+            "counts_by_endpoint": summary.get("counts_by_endpoint"),
+            "distinct_event_ids": summary.get("distinct_event_ids"),
+            "cadence_avg_seconds": summary.get("cadence_avg_seconds"),
+            "live_lines": summary.get("live_lines"),
+        }
+    )
+
+
+@app.command(name="evaluate-live-snapshots")
+def evaluate_live_snapshots_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: yesterday local)."),
+    snapshots_path: Path = typer.Option(None, help="Optional snapshots JSONL path (default: outputs/live_snapshots/live_<date>.jsonl)."),
+    segments_path: Path = typer.Option(None, help="Optional sim segments CSV (default: outputs/sim_segments_2min_<date>.csv)."),
+    results_path: Path = typer.Option(None, help="Optional finalized results CSV (default: outputs/daily_results/results_<date>.csv)."),
+    out_csv: Path = typer.Option(None, help="Output per-snapshot eval CSV (default: outputs/live_snapshot_eval_<date>.csv)."),
+    out_json: Path = typer.Option(None, help="Output summary JSON (default: outputs/live_snapshot_eval_summary_<date>.json)."),
+    max_lines: int = typer.Option(400000, help="Max JSONL lines to read (safety cap)."),
+):
+    """Evaluate Live Lens projection accuracy from captured live snapshots.
+
+    Compares:
+      - pace projection: total_points/elapsed * 40
+      - sim remainder projection: total_points + (sim_final - sim_expected_at_elapsed)
+      - blended projection (if live market total exists): (1-w)*model + w*live_line
+
+    Requires sim segments and finalized results for the same date.
+    """
+
+    def _yesterday_local() -> dt.date:
+        try:
+            return _today_local() - dt.timedelta(days=1)
+        except Exception:
+            return dt.date.today() - dt.timedelta(days=1)
+
+    if not date:
+        date = _yesterday_local().isoformat()
+
+    try:
+        dt.date.fromisoformat(str(date))
+    except Exception:
+        print(f"[red]Invalid date:[/red] {date}")
+        raise typer.Exit(code=2)
+
+    snap_dir = Path(os.environ.get("NCAAB_LIVE_SNAPSHOT_DIR") or (settings.outputs_dir / "live_snapshots"))
+    if snapshots_path is None:
+        snapshots_path = snap_dir / f"live_{date}.jsonl"
+
+    if segments_path is None:
+        p2 = settings.outputs_dir / f"sim_segments_2min_{date}.csv"
+        p1 = settings.outputs_dir / f"sim_segments_{date}.csv"
+        segments_path = p2 if p2.exists() else p1
+
+    if results_path is None:
+        results_path = settings.outputs_dir / "daily_results" / f"results_{date}.csv"
+
+    if out_csv is None:
+        out_csv = settings.outputs_dir / f"live_snapshot_eval_{date}.csv"
+
+    if out_json is None:
+        out_json = settings.outputs_dir / f"live_snapshot_eval_summary_{date}.json"
+
+    if not snapshots_path.exists():
+        print(f"[yellow]Missing snapshots:[/yellow] {snapshots_path}")
+        raise typer.Exit(code=1)
+    if not segments_path.exists():
+        print(f"[yellow]Missing sim segments:[/yellow] {segments_path}")
+        raise typer.Exit(code=1)
+    if not results_path.exists():
+        print(f"[yellow]Missing finalized results:[/yellow] {results_path}")
+        raise typer.Exit(code=1)
+
+    def _parse_ts_to_epoch(ts_s: Any) -> float | None:
+        try:
+            s = str(ts_s or "").strip()
+            if not s:
+                return None
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            d = dt.datetime.fromisoformat(s)
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=dt.timezone.utc)
+            return float(d.timestamp())
+        except Exception:
+            return None
+
+    def _market_blend_weight(elapsed_min: float | None, horizon_min: float = 40.0) -> float:
+        # Mirror the simple JS weight: ramp after a few minutes, capped.
+        if elapsed_min is None:
+            return 0.0
+        e = float(elapsed_min)
+        h = float(horizon_min)
+        if not (e >= 0 and h > 1):
+            return 0.0
+        start = 5.0
+        if e <= start:
+            return 0.0
+        max_w = 0.55
+        t = (e - start) / max(1e-6, (h - start))
+        if t < 0:
+            t = 0
+        if t > 1:
+            t = 1
+        return float(max_w * t)
+
+    # Load segments -> interpolation tables per game.
+    try:
+        usecols = ["game_id", "end_min", "q50_total_score_end", "q50_margin_score_end"]
+        seg = pd.read_csv(segments_path, usecols=lambda c: c in set(usecols))
+    except Exception as e:
+        print(f"[red]Failed reading segments:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    if "game_id" not in seg.columns or "end_min" not in seg.columns or "q50_total_score_end" not in seg.columns:
+        print("[red]Segments CSV missing required columns[/red]")
+        raise typer.Exit(code=1)
+
+    seg["game_id"] = seg["game_id"].astype(str).str.replace(r"\.0$", "", regex=True)
+    seg["end_min"] = pd.to_numeric(seg["end_min"], errors="coerce")
+    seg["q50_total_score_end"] = pd.to_numeric(seg["q50_total_score_end"], errors="coerce")
+    if "q50_margin_score_end" in seg.columns:
+        seg["q50_margin_score_end"] = pd.to_numeric(seg["q50_margin_score_end"], errors="coerce")
+
+    seg = seg.dropna(subset=["game_id", "end_min", "q50_total_score_end"])
+
+    seg_tbl: dict[str, dict[str, Any]] = {}
+    for gid, grp in seg.groupby("game_id"):
+        g2 = grp.sort_values("end_min")
+        xs = g2["end_min"].astype(float).to_list()
+        ys = g2["q50_total_score_end"].astype(float).to_list()
+        ms = g2["q50_margin_score_end"].astype(float).to_list() if "q50_margin_score_end" in g2.columns else None
+        if len(xs) < 2:
+            continue
+        seg_tbl[str(gid)] = {"x": xs, "y": ys, "m": ms}
+
+    def _interp(gid: str, t: float) -> tuple[float | None, float | None]:
+        tab = seg_tbl.get(gid)
+        if not tab:
+            return None, None
+        xs = tab["x"]
+        ys = tab["y"]
+        ms = tab.get("m")
+        if not xs or not ys:
+            return None, None
+        if t <= xs[0]:
+            y0 = float(ys[0])
+            m0 = float(ms[0]) if isinstance(ms, list) and ms else None
+            return y0, m0
+        if t >= xs[-1]:
+            y1 = float(ys[-1])
+            m1 = float(ms[-1]) if isinstance(ms, list) and ms else None
+            return y1, m1
+        # Find bracket.
+        for i in range(1, len(xs)):
+            if t <= xs[i]:
+                x0, x1 = float(xs[i - 1]), float(xs[i])
+                y0, y1 = float(ys[i - 1]), float(ys[i])
+                w = 0.0 if x1 == x0 else (float(t) - x0) / (x1 - x0)
+                y = y0 + w * (y1 - y0)
+                m = None
+                if isinstance(ms, list) and len(ms) == len(xs):
+                    m0, m1 = float(ms[i - 1]), float(ms[i])
+                    m = m0 + w * (m1 - m0)
+                return y, m
+        return None, None
+
+    # Load finalized results.
+    try:
+        res = pd.read_csv(results_path, low_memory=True)
+    except Exception as e:
+        print(f"[red]Failed reading results:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    if "game_id" not in res.columns:
+        print("[red]Results CSV missing game_id[/red]")
+        raise typer.Exit(code=1)
+
+    res["game_id"] = res["game_id"].astype(str).str.replace(r"\.0$", "", regex=True)
+    if "actual_total" in res.columns:
+        res["actual_total"] = pd.to_numeric(res["actual_total"], errors="coerce")
+    else:
+        # Fallback: attempt to compute from final scores if present.
+        h = pd.to_numeric(res.get("home_score"), errors="coerce")
+        a = pd.to_numeric(res.get("away_score"), errors="coerce")
+        res["actual_total"] = h + a
+
+    actual_total_map = {
+        str(r["game_id"]): (float(r["actual_total"]) if pd.notna(r.get("actual_total")) else None)
+        for _, r in res.iterrows()
+    }
+
+    # Parse snapshots: build state rows and line rows per event.
+    state_rows: list[dict[str, Any]] = []
+    line_rows: dict[str, list[tuple[float, float]]] = {}
+    bad = 0
+    read_n = 0
+
+    with snapshots_path.open("r", encoding="utf-8", errors="ignore") as f:
+        for ln in f:
+            if max_lines and read_n >= int(max_lines):
+                break
+            s = ln.strip()
+            if not s:
+                continue
+            read_n += 1
+            try:
+                rec = json.loads(s)
+            except Exception:
+                bad += 1
+                continue
+            if not isinstance(rec, dict):
+                bad += 1
+                continue
+            ep = str(rec.get("endpoint") or "").strip()
+            eid = str(rec.get("event_id") or "").strip()
+            ts_e = _parse_ts_to_epoch(rec.get("ts"))
+            if not eid or ts_e is None:
+                continue
+            data0 = rec.get("data")
+            if ep == "live_lines" and isinstance(data0, dict):
+                try:
+                    tot = data0.get("total")
+                    tot_f = float(tot) if tot is not None else None
+                except Exception:
+                    tot_f = None
+                if tot_f is not None:
+                    line_rows.setdefault(eid, []).append((float(ts_e), float(tot_f)))
+            elif ep == "live_state" and isinstance(data0, dict):
+                state_rows.append(
+                    {
+                        "ts_epoch": float(ts_e),
+                        "ts": rec.get("ts"),
+                        "game_id": eid,
+                        "period": data0.get("period"),
+                        "remaining_reg_seconds": data0.get("remaining_reg_seconds"),
+                        "total_points": data0.get("total_points"),
+                    }
+                )
+
+    if not state_rows:
+        print("[yellow]No live_state rows found in snapshots[/yellow]")
+        raise typer.Exit(code=0)
+
+    # Sort line series.
+    for eid, rows in line_rows.items():
+        rows.sort(key=lambda x: x[0])
+
+    # Join last-known live line to each state row.
+    last_idx: dict[str, int] = {eid: 0 for eid in line_rows.keys()}
+
+    eval_rows: list[dict[str, Any]] = []
+    for r in sorted(state_rows, key=lambda x: (x["game_id"], x["ts_epoch"])):
+        gid = str(r.get("game_id") or "").strip()
+        tp = r.get("total_points")
+        rem_s = r.get("remaining_reg_seconds")
+        try:
+            tp_i = int(tp) if tp is not None else None
+        except Exception:
+            tp_i = None
+        try:
+            rem_f = float(rem_s) if rem_s is not None else None
+        except Exception:
+            rem_f = None
+        if tp_i is None or rem_f is None:
+            continue
+        elapsed_min = 40.0 - (rem_f / 60.0)
+        if elapsed_min < 0:
+            elapsed_min = 0.0
+        if elapsed_min > 40.0:
+            elapsed_min = 40.0
+
+        exp_total, _ = _interp(gid, float(elapsed_min))
+        sim_final_total, _ = _interp(gid, 40.0)
+
+        proj_pace = None
+        if elapsed_min > 0.01:
+            proj_pace = float(tp_i) / float(elapsed_min) * 40.0
+
+        proj_model = None
+        if exp_total is not None and sim_final_total is not None:
+            proj_model = float(tp_i) + (float(sim_final_total) - float(exp_total))
+
+        # Last-known line at or before this ts.
+        live_line = None
+        if gid in line_rows:
+            rows = line_rows[gid]
+            j = int(last_idx.get(gid, 0))
+            while j < len(rows) and float(rows[j][0]) <= float(r["ts_epoch"]):
+                live_line = float(rows[j][1])
+                j += 1
+            last_idx[gid] = max(0, j - 1)
+        else:
+            live_line = None
+
+        proj_blend = None
+        w = 0.0
+        if live_line is not None and proj_model is not None:
+            w = _market_blend_weight(float(elapsed_min), 40.0)
+            proj_blend = (1.0 - w) * float(proj_model) + w * float(live_line)
+
+        actual_total = actual_total_map.get(gid)
+        err_pace = (float(proj_pace) - float(actual_total)) if (proj_pace is not None and actual_total is not None) else None
+        err_model = (float(proj_model) - float(actual_total)) if (proj_model is not None and actual_total is not None) else None
+        err_blend = (float(proj_blend) - float(actual_total)) if (proj_blend is not None and actual_total is not None) else None
+
+        rem_min = 40.0 - float(elapsed_min)
+
+        eval_rows.append(
+            {
+                "date": str(date),
+                "ts": r.get("ts"),
+                "game_id": gid,
+                "elapsed_min": float(elapsed_min),
+                "remaining_min": float(rem_min),
+                "total_points": int(tp_i),
+                "exp_total_at_elapsed": exp_total,
+                "sim_final_total": sim_final_total,
+                "proj_pace_total": proj_pace,
+                "proj_model_total": proj_model,
+                "live_line_total": live_line,
+                "blend_w": float(w),
+                "proj_blend_total": proj_blend,
+                "actual_total": actual_total,
+                "err_pace": err_pace,
+                "err_model": err_model,
+                "err_blend": err_blend,
+            }
+        )
+
+    if not eval_rows:
+        print("[yellow]No evaluable rows after parsing (missing remaining_reg_seconds/total_points?)[/yellow]")
+        raise typer.Exit(code=0)
+
+    df = pd.DataFrame(eval_rows)
+
+    # Buckets by remaining minutes.
+    def _bucket(rem: float) -> str:
+        try:
+            r0 = float(rem)
+        except Exception:
+            return "?"
+        edges = [0, 5, 10, 15, 20, 25, 30, 35, 40]
+        for i in range(1, len(edges)):
+            if r0 <= edges[i]:
+                return f"{edges[i-1]}-{edges[i]}"
+        return "40+"
+
+    df["bucket_remaining"] = df["remaining_min"].map(_bucket)
+
+    def _mae(s: pd.Series) -> float | None:
+        try:
+            s2 = pd.to_numeric(s, errors="coerce").dropna().abs()
+            if s2.empty:
+                return None
+            return float(s2.mean())
+        except Exception:
+            return None
+
+    by_bucket = []
+    for b, g in df.groupby("bucket_remaining"):
+        by_bucket.append(
+            {
+                "bucket_remaining": str(b),
+                "n": int(len(g)),
+                "mae_pace": _mae(g["err_pace"]),
+                "mae_model": _mae(g["err_model"]),
+                "mae_blend": _mae(g["err_blend"]),
+            }
+        )
+    by_bucket = sorted(by_bucket, key=lambda x: (float(str(x["bucket_remaining"]).split("-")[0]) if "-" in str(x["bucket_remaining"]) else 999.0))
+
+    summary = {
+        "status": "ok",
+        "date": str(date),
+        "inputs": {
+            "snapshots": str(snapshots_path),
+            "segments": str(segments_path),
+            "results": str(results_path),
+        },
+        "read_jsonl_lines": int(read_n),
+        "bad_jsonl_lines": int(bad),
+        "rows": int(len(df)),
+        "games": int(df["game_id"].nunique()),
+        "overall": {
+            "mae_pace": _mae(df["err_pace"]),
+            "mae_model": _mae(df["err_model"]),
+            "mae_blend": _mae(df["err_blend"]),
+        },
+        "by_bucket": by_bucket,
+    }
+
+    try:
+        out_csv.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out_csv, index=False)
+    except Exception as e:
+        print(f"[red]Failed writing eval CSV:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    try:
+        out_json.parent.mkdir(parents=True, exist_ok=True)
+        out_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    except Exception as e:
+        print(f"[red]Failed writing eval summary JSON:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    print({"wrote_csv": str(out_csv), "wrote_json": str(out_json), "overall": summary.get("overall"), "games": summary.get("games"), "rows": summary.get("rows")})
+
 if __name__ == "__main__":
     app()
 

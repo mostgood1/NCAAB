@@ -21535,16 +21535,28 @@ def api_live_state():
         except Exception:
             continue
 
-    return jsonify(
-        {
-            "status": "ok",
-            "date": target_date.isoformat(),
-            "refresh": bool(refresh),
-            "ttl": ttl,
-            "count": len(games),
-            "games": games,
-        }
-    ), 200
+    payload = {
+        "status": "ok",
+        "date": target_date.isoformat(),
+        "refresh": bool(refresh),
+        "ttl": ttl,
+        "count": len(games),
+        "games": games,
+    }
+
+    try:
+        from ncaab_model.live_snapshots import log_live_api_payload  # type: ignore
+
+        log_live_api_payload(
+            endpoint="live_state",
+            date_s=str(target_date.isoformat()),
+            request_args=dict(request.args or {}),
+            payload=payload,
+        )
+    except Exception:
+        pass
+
+    return jsonify(payload), 200
 
 
 @app.get("/api/live_lens_tuning")
@@ -21591,9 +21603,8 @@ def api_live_lens_tuning():
         "pps_lo": 0.95,
         "pbp_n_scale": 70.0,
         "shot_proxy_ft_weight": 0.44,
-    }
 
-    payload: dict[str, object] = {
+
         "status": "ok",
         "source": "defaults",
         "tuning": dict(defaults),
@@ -21749,6 +21760,10 @@ def api_live_pbp_stats():
             "fga2_made": 0,
             "fga3_att": 0,
             "fga3_made": 0,
+            "to": 0,
+            "orb": 0,
+            "drb": 0,
+            "poss_est": 0.0,
         }
 
     def _play_period(play: dict) -> int | None:
@@ -21814,6 +21829,33 @@ def api_live_pbp_stats():
                     continue
 
             try:
+                tid = str(((p.get("team") or {}) if isinstance(p.get("team"), dict) else {}).get("id") or "").strip()
+            except Exception:
+                tid = ""
+            side = team_to_side.get(tid) if tid else None
+            if side not in ("home", "away"):
+                side = "unknown"
+
+            # Turnovers / rebounds (best-effort from type/text)
+            try:
+                ttxt = str(((p.get("type") or {}) if isinstance(p.get("type"), dict) else {}).get("text") or "")
+            except Exception:
+                ttxt = ""
+            try:
+                ptxt = str(p.get("text") or "")
+            except Exception:
+                ptxt = ""
+            t_low = ttxt.lower()
+            p_low = ptxt.lower()
+            if "turnover" in t_low or "turnover" in p_low:
+                out[side]["to"] += 1
+            if "offensive rebound" in t_low or "offensive rebound" in p_low:
+                out[side]["orb"] += 1
+            if "defensive rebound" in t_low or "defensive rebound" in p_low:
+                out[side]["drb"] += 1
+
+            # Shooting attempts/makes
+            try:
                 if not bool(p.get("shootingPlay")):
                     continue
                 pa = p.get("pointsAttempted")
@@ -21824,14 +21866,6 @@ def api_live_pbp_stats():
                     continue
             except Exception:
                 continue
-
-            try:
-                tid = str(((p.get("team") or {}) if isinstance(p.get("team"), dict) else {}).get("id") or "").strip()
-            except Exception:
-                tid = ""
-            side = team_to_side.get(tid) if tid else None
-            if side not in ("home", "away"):
-                side = "unknown"
 
             made = bool(p.get("scoringPlay"))
 
@@ -21844,6 +21878,19 @@ def api_live_pbp_stats():
             elif pa_i == 3:
                 out[side]["fga3_att"] += 1
                 out[side]["fga3_made"] += 1 if made else 0
+
+        # Possession estimate (Hollinger-style): FGA + 0.475*FTA - ORB + TO
+        for s in ("home", "away", "unknown"):
+            try:
+                fga = int(out[s].get("fga2_att") or 0) + int(out[s].get("fga3_att") or 0)
+                fta = int(out[s].get("fta_att") or 0)
+                orb = int(out[s].get("orb") or 0)
+                tov = int(out[s].get("to") or 0)
+                poss = float(fga) + 0.475 * float(fta) - float(orb) + float(tov)
+                # Clamp: possessions so far can't be negative.
+                out[s]["poss_est"] = float(max(0.0, poss))
+            except Exception:
+                out[s]["poss_est"] = 0.0
 
         return out
 
@@ -21875,15 +21922,27 @@ def api_live_pbp_stats():
             },
         }
 
-    return jsonify(
-        {
-            "status": "ok",
-            "refresh": bool(refresh),
-            "ttl": ttl,
-            "count": len(games),
-            "games": games,
-        }
-    ), 200
+    payload = {
+        "status": "ok",
+        "refresh": bool(refresh),
+        "ttl": ttl,
+        "count": len(games),
+        "games": games,
+    }
+
+    try:
+        from ncaab_model.live_snapshots import log_live_api_payload  # type: ignore
+
+        log_live_api_payload(
+            endpoint="live_pbp_stats",
+            date_s=str(_today_local().isoformat()),
+            request_args=dict(request.args or {}),
+            payload=payload,
+        )
+    except Exception:
+        pass
+
+    return jsonify(payload), 200
 
 
 # ---- Live odds lines (TheOddsAPI) for Live Lens auto-fill ----
@@ -22136,6 +22195,18 @@ def api_live_lines():
         "count": len(out_lines),
         "lines": out_lines,
     }
+
+    try:
+        from ncaab_model.live_snapshots import log_live_api_payload  # type: ignore
+
+        log_live_api_payload(
+            endpoint="live_lines",
+            date_s=str(target_date.isoformat()),
+            request_args=dict(request.args or {}),
+            payload=payload,
+        )
+    except Exception:
+        pass
 
     try:
         import time
@@ -32929,6 +33000,186 @@ def api_upload_sim_inputs_diagnostic():
         except Exception:
             rows = None
         return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "rows": rows})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# Live snapshots + evaluation artifact uploads/downloads
+@app.route("/api/upload_live_snapshots", methods=["POST"])
+def api_upload_live_snapshots():
+    """Upload per-date live snapshot JSONL.
+
+    Query param: date=YYYY-MM-DD (required)
+    Body: multipart 'file' or raw JSONL bytes.
+    Writes to outputs/live_snapshots/live_<date>.jsonl
+    """
+
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        body_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            body_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            body_bytes = data if data else None
+        if not body_bytes:
+            return jsonify({"status": "error", "message": "no JSONL content provided"}), 400
+
+        # Best-effort validate: ensure at least one non-empty line parses as JSON.
+        try:
+            ok = False
+            txt = body_bytes.decode("utf-8", errors="ignore")
+            for line in txt.splitlines():
+                s = line.strip()
+                if not s:
+                    continue
+                _ = json.loads(s)
+                ok = True
+                break
+            if not ok:
+                return jsonify({"status": "error", "message": "empty/invalid JSONL"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid JSONL: {e}"}), 400
+
+        out_dir = OUT / "live_snapshots"
+        out_path = out_dir / f"live_{date_q}.jsonl"
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(body_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "bytes": int(len(body_bytes))})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/download_live_snapshots")
+def api_download_live_snapshots():
+    """Download per-date live snapshot JSONL (if present)."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        path = OUT / "live_snapshots" / f"live_{date_q}.jsonl"
+        if not path.exists():
+            return jsonify({"status": "missing", "path": str(path), "date": date_q}), 404
+        return send_file(
+            str(path),
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/x-ndjson",
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+def _upload_date_scoped_json(out_path: Path) -> tuple[dict[str, Any], int]:
+    try:
+        body_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            body_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            body_bytes = data if data else None
+        if not body_bytes:
+            return ({"status": "error", "message": "no JSON content provided"}, 400)
+        try:
+            payload = json.loads(body_bytes.decode("utf-8", errors="ignore"))
+        except Exception as e:
+            return ({"status": "error", "message": f"invalid JSON: {e}"}, 400)
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        except Exception as e:
+            return ({"status": "error", "message": f"write failed: {e}"}, 500)
+        return ({"status": "ok", "path": str(out_path), "keys": list(payload.keys()) if isinstance(payload, dict) else None}, 200)
+    except Exception as e:
+        return ({"status": "error", "message": str(e)}, 500)
+
+
+@app.route("/api/upload_live_snapshot_summary", methods=["POST"])
+def api_upload_live_snapshot_summary():
+    """Upload per-date live snapshot summary JSON."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    payload, code = _upload_date_scoped_json(OUT / f"live_snapshot_summary_{date_q}.json")
+    return jsonify(payload), code
+
+
+@app.route("/api/upload_live_snapshot_eval_summary", methods=["POST"])
+def api_upload_live_snapshot_eval_summary():
+    """Upload per-date live snapshot eval summary JSON."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    payload, code = _upload_date_scoped_json(OUT / f"live_snapshot_eval_summary_{date_q}.json")
+    return jsonify(payload), code
+
+
+@app.route("/api/upload_live_snapshot_lines", methods=["POST"])
+def api_upload_live_snapshot_lines():
+    """Upload per-date live snapshot line-changes CSV (optional)."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        try:
+            df = pd.read_csv(io.BytesIO(csv_bytes))
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / f"live_snapshot_lines_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "rows": int(len(df))})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/upload_live_snapshot_eval", methods=["POST"])
+def api_upload_live_snapshot_eval():
+    """Upload per-date live snapshot eval per-row CSV (optional)."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        csv_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            csv_bytes = data if data else None
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        try:
+            df = pd.read_csv(io.BytesIO(csv_bytes))
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        out_path = OUT / f"live_snapshot_eval_{date_q}.csv"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(csv_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+        return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "rows": int(len(df))})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
