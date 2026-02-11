@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: "Base URL of the deployed Render service (e.g., https://ncaab-frontend.onrender.com)"
+        description: "Base URL of the deployed Render service (e.g., https://ncaab.onrender.com)"
         required: false
-        default: "https://ncaab-frontend.onrender.com"
+        default: "https://ncaab.onrender.com"
 
 jobs:
   smoke:

@@ -33093,6 +33093,77 @@ def api_download_live_snapshots():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/upload_live_lens_signals", methods=["POST"])
+def api_upload_live_lens_signals():
+    """Upload per-date Live Lens signals JSONL.
+
+    Query param: date=YYYY-MM-DD (required)
+    Body: multipart 'file' or raw JSONL bytes.
+    Writes to outputs/live_lens_signals_<date>.jsonl
+    """
+
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        body_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            body_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            body_bytes = data if data else None
+        if not body_bytes:
+            return jsonify({"status": "error", "message": "no JSONL content provided"}), 400
+
+        # Best-effort validate: ensure at least one non-empty line parses as JSON.
+        try:
+            ok = False
+            txt = body_bytes.decode("utf-8", errors="ignore")
+            for line in txt.splitlines():
+                s = line.strip()
+                if not s:
+                    continue
+                _ = json.loads(s)
+                ok = True
+                break
+            if not ok:
+                return jsonify({"status": "error", "message": "empty/invalid JSONL"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid JSONL: {e}"}), 400
+
+        out_path = OUT / f"live_lens_signals_{date_q}.jsonl"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(body_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "bytes": int(len(body_bytes))})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/download_live_lens_signals")
+def api_download_live_lens_signals():
+    """Download per-date Live Lens signals JSONL (if present)."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        path = OUT / f"live_lens_signals_{date_q}.jsonl"
+        if not path.exists():
+            return jsonify({"status": "missing", "path": str(path), "date": date_q}), 404
+        return send_file(
+            str(path),
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/x-ndjson",
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 def _upload_date_scoped_json(out_path: Path) -> tuple[dict[str, Any], int]:
     try:
         body_bytes: bytes | None = None
@@ -33116,6 +33187,19 @@ def _upload_date_scoped_json(out_path: Path) -> tuple[dict[str, Any], int]:
         return ({"status": "ok", "path": str(out_path), "keys": list(payload.keys()) if isinstance(payload, dict) else None}, 200)
     except Exception as e:
         return ({"status": "error", "message": str(e)}, 500)
+
+
+@app.route("/api/upload_live_lens_tuning", methods=["POST"])
+def api_upload_live_lens_tuning():
+    """Upload Live Lens tuning JSON.
+
+    Body: multipart 'file' or raw JSON bytes.
+    Writes to outputs/live_lens_tuning.json
+    """
+
+    out_path = OUT / "live_lens_tuning.json"
+    payload, code = _upload_date_scoped_json(out_path)
+    return jsonify(payload), int(code)
 
 
 @app.route("/api/upload_live_features", methods=["POST"])

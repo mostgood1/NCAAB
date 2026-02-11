@@ -35,7 +35,7 @@ function Upload-File {
         $fs = [System.IO.File]::OpenRead($FilePath)
         $fileContent = New-Object System.Net.Http.StreamContent($fs)
         $ext = ([System.IO.Path]::GetExtension($FilePath) | ForEach-Object { $_.ToLowerInvariant() })
-        $ct = if ($ext -eq '.json') { 'application/json' } elseif ($ext -eq '.csv') { 'text/csv' } else { 'application/octet-stream' }
+        $ct = if ($ext -eq '.json') { 'application/json' } elseif ($ext -eq '.jsonl') { 'application/x-ndjson' } elseif ($ext -eq '.csv') { 'text/csv' } else { 'application/octet-stream' }
         $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse($ct)
         $fileName = [System.IO.Path]::GetFileName($FilePath)
         $content.Add($fileContent, 'file', $fileName)
@@ -47,7 +47,7 @@ function Upload-File {
             # Optional endpoints may not exist on older deployments; treat as skip.
             $code = $null
             try { $code = [int]$resp.StatusCode } catch { $code = $null }
-            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features')) {
+            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_tuning')) {
                 Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                 return @{ status = 'skipped'; code = 404; uri = $Uri }
             }
@@ -84,6 +84,10 @@ $liveSnapshotLinesPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_
 $liveSnapshotEvalSummaryPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_eval_summary_{0}.json" -f $Date)
 $liveSnapshotEvalCsvPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_eval_{0}.csv" -f $Date)
 $liveFeaturesPath = Join-Path -Path $OutputsDir -ChildPath ("live_features_{0}.csv" -f $Date)
+
+# Live Lens artifacts (optional)
+$liveLensSignalsPath = Join-Path -Path $OutputsDir -ChildPath ("live_lens_signals_{0}.jsonl" -f $Date)
+$liveLensTuningPath = Join-Path -Path $OutputsDir -ChildPath 'live_lens_tuning.json'
 ${needSimRetry} = $false
 
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
@@ -689,6 +693,22 @@ if (Test-Path -LiteralPath $liveFeaturesPath) {
     elseif ($uLf) { Write-Host "[OK] live_features uploaded" -ForegroundColor Green }
 } else {
     Write-Host "[Skip] live_features missing for $Date" -ForegroundColor Yellow
+}
+
+# Upload Live Lens artifacts if present
+if (Test-Path -LiteralPath $liveLensSignalsPath) {
+    $uLls = Upload-File -Uri "$BaseUrl/api/upload_live_lens_signals" -FilePath $liveLensSignalsPath -Query @{ date = $Date }
+    if ($uLls -and ($uLls.status -eq 'skipped')) { Write-Host "[Skip] upload_live_lens_signals endpoint unavailable" -ForegroundColor Yellow }
+    elseif ($uLls) { Write-Host "[OK] live_lens_signals uploaded" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] live_lens_signals missing for $Date" -ForegroundColor Yellow
+}
+if (Test-Path -LiteralPath $liveLensTuningPath) {
+    $uLlt = Upload-File -Uri "$BaseUrl/api/upload_live_lens_tuning" -FilePath $liveLensTuningPath
+    if ($uLlt -and ($uLlt.status -eq 'skipped')) { Write-Host "[Skip] upload_live_lens_tuning endpoint unavailable" -ForegroundColor Yellow }
+    elseif ($uLlt) { Write-Host "[OK] live_lens_tuning uploaded" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] live_lens_tuning.json missing" -ForegroundColor Yellow
 }
 
 # Proactive: persist display snapshot after uploads (upload-only mode)

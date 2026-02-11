@@ -374,6 +374,55 @@ print({'path': str(games_path), 'rows': len(df2)})
     # Live Lens bet accuracy (requires UI-captured signals + finalized results)
     Write-Section "3b.i) Live Lens bet accuracy (win-rate/ROI) for $prevDate"
     try {
+      function Test-HasBytes {
+        param([string]$Path)
+        if (-not (Test-Path -LiteralPath $Path)) { return $false }
+        try { return ((Get-Item -LiteralPath $Path).Length -gt 0) } catch { return $false }
+      }
+
+      # Ensure outputs/live_lens_signals_<date>.jsonl is local so accuracy + tuning can be computed locally.
+      $signalsLocal = Join-Path $OutDir ("live_lens_signals_" + $prevDate + ".jsonl")
+      if (-not (Test-HasBytes $signalsLocal)) {
+        try {
+          function Try-DownloadSignals {
+            param(
+              [string]$BaseUrl,
+              [string]$Date,
+              [string]$OutFile
+            )
+            $b = ("" + $BaseUrl).Trim()
+            if ([string]::IsNullOrWhiteSpace($b)) { return $false }
+            $b = $b.TrimEnd('/')
+            $url = "$b/api/download_live_lens_signals?date=$Date"
+            Write-Host "[live_lens] Attempting signals download: $url" -ForegroundColor DarkGray
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
+              return (Test-HasBytes $OutFile)
+            } catch {
+              $resp = $_.Exception.Response
+              if ($resp) {
+                Write-Warning ("[live_lens] Signals download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
+              } else {
+                Write-Warning "[live_lens] Signals download failed: $($_.Exception.Message)"
+              }
+              if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+              return $false
+            }
+          }
+
+          $primary = ("" + $RenderBaseUrl).Trim()
+          $ok = Try-DownloadSignals -BaseUrl $primary -Date $prevDate -OutFile $signalsLocal
+          if (-not $ok) {
+            $fallback = 'https://ncaab.onrender.com'
+            if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
+              $ok = Try-DownloadSignals -BaseUrl $fallback -Date $prevDate -OutFile $signalsLocal
+            }
+          }
+        } catch {
+          Write-Warning "[live_lens] Signals download wrapper failed: $($_)"
+        }
+      }
+
       & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy --date $prevDate
     } catch {
       Write-Warning "compute-live-lens-accuracy failed for ${prevDate}: $($_)"
@@ -394,16 +443,40 @@ print({'path': str(games_path), 'rows': len(df2)})
 
       if (-not (Test-HasBytes $snapLocal)) {
         try {
-          $base = ("" + $RenderBaseUrl).Trim()
-          if (-not [string]::IsNullOrWhiteSpace($base)) {
-            $base = $base.TrimEnd('/')
-            $url = "$base/api/download_live_snapshots?date=$prevDate"
+          function Try-DownloadSnapshot {
+            param(
+              [string]$BaseUrl,
+              [string]$Date,
+              [string]$OutFile
+            )
+            $b = ("" + $BaseUrl).Trim()
+            if ([string]::IsNullOrWhiteSpace($b)) { return $false }
+            $b = $b.TrimEnd('/')
+            $url = "$b/api/download_live_snapshots?date=$Date"
             Write-Host "[snapshots] Attempting download: $url" -ForegroundColor DarkGray
             try {
-              Invoke-WebRequest -Uri $url -OutFile $snapLocal -UseBasicParsing -TimeoutSec 30 | Out-Null
+              Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
+              return (Test-HasBytes $OutFile)
             } catch {
-              Write-Warning "[snapshots] Download failed: $($_.Exception.Message)"
-              if (Test-Path -LiteralPath $snapLocal) { Remove-Item -LiteralPath $snapLocal -Force -ErrorAction SilentlyContinue }
+              $resp = $_.Exception.Response
+              if ($resp) {
+                Write-Warning ("[snapshots] Download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
+              } else {
+                Write-Warning "[snapshots] Download failed: $($_.Exception.Message)"
+              }
+              if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+              return $false
+            }
+          }
+
+          $primary = ("" + $RenderBaseUrl).Trim()
+          $ok = Try-DownloadSnapshot -BaseUrl $primary -Date $prevDate -OutFile $snapLocal
+
+          # Common mismatch: some docs/workflows used ncaab-frontend.onrender.com, but the live service is reachable at ncaab.onrender.com.
+          if (-not $ok) {
+            $fallback = 'https://ncaab.onrender.com'
+            if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
+              $ok = Try-DownloadSnapshot -BaseUrl $fallback -Date $prevDate -OutFile $snapLocal
             }
           }
         } catch {
