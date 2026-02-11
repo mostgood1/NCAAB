@@ -120,16 +120,28 @@ def compute_live_lens_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str, Any]:
     # Normalize ids
     if "game_id" not in sig_df.columns and "event_id" in sig_df.columns:
         sig_df["game_id"] = sig_df["event_id"]
-    sig_df["game_id"] = sig_df.get("game_id").astype(str).str.strip()
+    if "game_id" not in sig_df.columns:
+        return {
+            "status": "empty",
+            "date": date,
+            "message": "Signals missing game_id/event_id; cannot evaluate",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "signals_cols": list(sig_df.columns),
+            "n_signals_raw": int(len(sig_df)),
+        }
+    sig_df["game_id"] = sig_df["game_id"].astype(str).str.strip()
 
     # Filter to bet signals with a line
-    sig_df["is_bet"] = sig_df.get("is_bet")
     if "is_bet" in sig_df.columns:
         sig_df["is_bet"] = sig_df["is_bet"].astype(bool)
     else:
         sig_df["is_bet"] = True
 
-    sig_df["live_line"] = pd.to_numeric(sig_df.get("live_line"), errors="coerce")
+    if "live_line" in sig_df.columns:
+        sig_df["live_line"] = pd.to_numeric(sig_df["live_line"], errors="coerce")
+    else:
+        sig_df["live_line"] = math.nan
     sig_df = sig_df[sig_df["is_bet"] & sig_df["live_line"].notna()].copy()
 
     if cfg.full_game_only and "horizon" in sig_df.columns:
@@ -183,7 +195,18 @@ def compute_live_lens_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str, Any]:
 
     merged = sig_df.merge(res_df[["game_id", "final_total"]], on="game_id", how="left")
 
-    merged["side"] = merged.get("side").astype(str).str.strip().str.lower()
+    if "side" not in merged.columns:
+        return {
+            "status": "empty",
+            "date": date,
+            "message": "Signals missing side (over/under); cannot settle",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals": int(len(merged)),
+            "signals_cols": list(sig_df.columns),
+        }
+
+    merged["side"] = merged["side"].astype(str).str.strip().str.lower()
     merged = merged[merged["side"].isin(["over", "under"])].copy()
 
     # Outcome
