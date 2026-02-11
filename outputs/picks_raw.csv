@@ -20,3 +20,8 @@ game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,p
 401828932,2026-02-11,Utah State Aggies,Fresno State Bulldogs,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401829244,2026-02-11,Gonzaga Bulldogs,Washington State Cougars,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
 401829332,2026-02-11,UNLV Rebels,San José State Spartans,spreads,full_game,home,-0.0,,,0.0,,Spread,ATS
+401825508,2026-02-11,Maryland Terrapins,Iowa Hawkeyes,totals,full_game,over,,,,,,Total,OU
+401824393,2026-02-11,Holy Cross Crusaders,Colgate Raiders,totals,full_game,over,,,,,,Total,OU
+401824372,2026-02-11,Army Black Knights,Boston University Terriers,totals,full_game,under,,,,,,Total,OU
+401809367,2026-02-11,Western Carolina Catamounts,The Citadel Bulldogs,totals,full_game,under,,,,,,Total,OU
+401828423,2026-02-11,La Salle Explorers,VCU Rams,totals,full_game,over,,,,,,Total,OU
