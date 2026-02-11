@@ -28,11 +28,16 @@
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
   [Parameter(Mandatory = $false)]
-  [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
+  [string]$RepoRoot,
 
   [Parameter(Mandatory = $false)]
   [string[]]$TaskName
 )
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+  $scriptDir = Split-Path -Parent $PSCommandPath
+  $RepoRoot = Split-Path -Parent $scriptDir
+}
 
 function Test-TaskMatchesRepo {
   param(
