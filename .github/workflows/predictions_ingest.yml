@@ -1,9 +1,6 @@
 name: Predictions Ingest
 on:
   workflow_dispatch:
-  schedule:
-    # UTC cron: every day at 12:05 UTC (adjust as needed)
-    - cron: '5 12 * * *'
 
 permissions:
   contents: write
@@ -39,11 +36,6 @@ jobs:
             python -m src.cli fetch-odds --date today || true
             python -m src.cli daily-run --date today --preseason-weight 0.15 || true
           fi
-
-      - name: Finalize previous day (optional)
-        if: github.event_name == 'schedule'
-        run: |
-          python -m src.cli finalize-day --date $(date -u -d 'yesterday' +'%Y-%m-%d') || true
 
       - name: Persist artifacts
         run: |

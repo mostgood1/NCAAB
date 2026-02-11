@@ -1,9 +1,6 @@
 name: Daily Update
 
 on:
-  schedule:
-    # Run at 11:10 UTC daily (adjust for desired local time)
-    - cron: '10 11 * * *'
   workflow_dispatch:
 
 concurrency:

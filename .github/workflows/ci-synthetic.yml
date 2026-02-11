@@ -1,8 +1,6 @@
 name: CI Synthetic Harness
 on:
   workflow_dispatch: {}
-  schedule:
-    - cron: '0 13 * * *' # 13:00 UTC daily (~8am ET)
   push:
     branches:
       - main
