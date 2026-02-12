@@ -81,6 +81,20 @@
 
     /* Prevent scroll-to-card landing under the sticky header */
     .game-card{scroll-margin-top:130px;}
+
+    /* Mobile visual tightening */
+    @media (max-width:760px){
+      .sticky-top{padding-top:6px;margin-top:-6px;}
+      .sticky-top .card{padding:10px;}
+      .filters-bar-row{gap:6px;}
+      .pill.small{font-size:11px;padding:2px 7px;}
+
+      .compact-game-strip{gap:3px;padding:2px 0;}
+      .compact-game-strip .compact-game-item{min-width:140px;max-width:170px;padding:4px 6px;line-height:1.04;}
+      .compact-game-strip .compact-game-top{font-size:11px;}
+      .compact-game-strip .compact-game-team{font-size:12px;}
+      .compact-game-strip .compact-game-score{font-size:12px;}
+    }
   </style>
   {% set e = 2.718281828459045 %}
 </head>
