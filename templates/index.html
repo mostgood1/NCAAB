@@ -60,9 +60,19 @@
     .pill.status-off:hover{opacity:0.78;}
 
     /* Compact ESPN-style game strip (wrap, no scroll) */
-    .compact-game-strip{display:flex;gap:6px;overflow-x:hidden;overflow-y:visible;flex-wrap:wrap;padding:4px 2px;}
+    .compact-game-strip{display:flex;gap:4px;overflow-x:hidden;overflow-y:visible;flex-wrap:wrap;padding:3px 1px;}
     .compact-game-strip .pill{flex:0 0 auto;white-space:nowrap;}
     .compact-game-strip .pill:focus{outline:2px solid var(--accent);outline-offset:2px;}
+    /* Compact box-score tiles (not pill-shaped) */
+    .compact-game-strip .compact-game-item{white-space:normal;text-align:left;display:flex;flex-direction:column;align-items:stretch;gap:2px;line-height:1.06;padding:5px 7px;border-radius:10px;min-width:160px;max-width:200px;}
+    .compact-game-strip .compact-game-line{display:block;}
+    .compact-game-strip .compact-game-status{opacity:0.92;font-size:10px;}
+    .compact-game-strip .compact-game-callout{opacity:0.95;font-size:10px;}
+    .compact-game-strip .compact-game-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .compact-game-strip .compact-game-team{min-width:0;flex:1 1 auto;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .compact-game-strip .compact-game-team.away{font-weight:700;}
+    .compact-game-strip .compact-game-team.home{font-weight:700;}
+    .compact-game-strip .compact-game-score{flex:0 0 auto;font-weight:700;}
     .compact-game-meta{display:inline-block;opacity:0.85;font-weight:700;margin-left:6px;}
   </style>
   {% set e = 2.718281828459045 %}
@@ -2251,6 +2261,15 @@
             var side = (edge > 0.01) ? 'Over' : (edge < -0.01 ? 'Under' : 'No edge');
             var edgeAbs = Math.abs(edge);
 
+            // Persist latest live-total edge on the card for compact strip callouts.
+            try {
+              var cardE = card0 || getCardForWrap(wrap);
+              if(cardE && (side === 'Over' || side === 'Under')){
+                cardE.setAttribute('data-live-total-side', side.toLowerCase());
+                cardE.setAttribute('data-live-total-edge', String(round1(edge)));
+              }
+            } catch(_eEdge) { /* noop */ }
+
             // Basic strength threshold based on horizon; avoid early-noise signals.
             var minElapsed = (horizon <= 20.5) ? 4 : 6;
             var thr = (horizon <= 20.5) ? 5 : 7;
@@ -2660,6 +2679,15 @@
           }
         } catch(_e1) { /* ignore */ }
 
+        // Persist additional live metadata for compact strip rendering.
+        try {
+          card.__liveIsLive = !!live.is_live;
+          card.__liveIsFinal = !!live.is_final;
+          card.__liveDisplayClock = (live.display_clock !== null && live.display_clock !== undefined) ? String(live.display_clock) : '';
+          var cs = (live.clock_seconds !== null && live.clock_seconds !== undefined) ? parseInt(String(live.clock_seconds), 10) : NaN;
+          if(isFinite(cs)) card.__liveClockSeconds = cs; else try { delete card.__liveClockSeconds; } catch(_eCS) {}
+        } catch(_eMeta) { /* ignore */ }
+
         var wraps = card.querySelectorAll('.live-lens-wrap');
         if(!wraps || !wraps.length) return;
         wraps.forEach(function(wrap){
@@ -2801,7 +2829,11 @@
       function pollOnce(){
         if(inFlight) return;
         var hasWrap = document.querySelector('.live-lens-wrap') !== null;
-        if(!hasWrap) return;
+        var hasCompact = false;
+        try { hasCompact = document.getElementById('compactGameStrip') !== null; } catch(_eC){ hasCompact = false; }
+        // We still want to poll live state to keep the compact game strip status/score current,
+        // even on views that don't render Live Lens widgets.
+        if(!hasWrap && !hasCompact) return;
 
         var cards = Array.from(document.querySelectorAll('.game-card[data-game-id]'));
         if(!cards.length) return;
@@ -2961,8 +2993,7 @@
         }
         wrap.style.display = '';
 
-        // Sort: Live Bet -> Live Watch -> Live -> Non-live, then by edge magnitude desc,
-        // then by start time (when available).
+        // Sort: by game start time (when available), ascending.
         function safeNum(v){
           var x = parseFloat(String(v || ''));
           return (isFinite(x) ? x : NaN);
@@ -2977,24 +3008,25 @@
           return (isFinite(t) ? t : NaN);
         }
         function cardSortKey(card){
-          var isLive = (safeStr(card.getAttribute('data-live')) === '1');
-          var isBet = isLive && card.classList.contains('live-edge-ok');
-          var isWatch = isLive && (!isBet) && card.classList.contains('live-edge-warn');
-          var edge = safeNum(card.getAttribute('data-edge'));
-          var edgeAbs = isFinite(edge) ? Math.abs(edge) : -1;
-          var tier = isBet ? 0 : (isWatch ? 1 : (isLive ? 2 : 3));
           var startMs = parseIsoMs(card.getAttribute('data-start-iso'));
-          return {tier:tier, edgeAbs:edgeAbs, startMs:startMs};
+          // Fall back to time label for scheduled games where ISO may be missing.
+          var timeLbl = safeStr(card.getAttribute('data-time-label'));
+          var gid = safeStr(card.getAttribute('data-game-id'));
+          return {startMs:startMs, timeLbl:timeLbl, gid:gid};
         }
         cards.sort(function(a,b){
           var ka = cardSortKey(a);
           var kb = cardSortKey(b);
-          if(ka.tier !== kb.tier) return ka.tier - kb.tier;
-          var dEdge = (kb.edgeAbs - ka.edgeAbs);
-          if(dEdge) return dEdge;
           var aT = ka.startMs;
           var bT = kb.startMs;
-          if(isFinite(aT) && isFinite(bT) && aT !== bT) return aT - bT;
+          var aHas = isFinite(aT);
+          var bHas = isFinite(bT);
+          if(aHas && bHas && aT !== bT) return aT - bT;
+          if(aHas && !bHas) return -1;
+          if(!aHas && bHas) return 1;
+          // If both missing, keep a stable, deterministic order.
+          if(ka.timeLbl && kb.timeLbl && ka.timeLbl !== kb.timeLbl) return ka.timeLbl.localeCompare(kb.timeLbl);
+          if(ka.gid && kb.gid && ka.gid !== kb.gid) return ka.gid.localeCompare(kb.gid);
           return 0;
         });
 
@@ -3002,10 +3034,12 @@
           var isBet = false;
           var isWatch = false;
           var isLive = false;
+          var isFinal = false;
           try {
             isLive = (safeStr(card.getAttribute('data-live')) === '1');
             isBet = isLive && card.classList.contains('live-edge-ok');
             isWatch = isLive && (!isBet) && card.classList.contains('live-edge-warn');
+            try { isFinal = !!(card && card.__liveIsFinal); } catch(_eF){ isFinal = false; }
           } catch(eS) { /* noop */ }
 
           var away = 'Away';
@@ -3017,24 +3051,138 @@
             if(homeEl && homeEl.textContent) home = homeEl.textContent.trim();
           } catch(eN) { /* noop */ }
 
-          var edge = safeNum(card.getAttribute('data-edge'));
-          var label = away + ' @ ' + home;
-          if(isFinite(edge)){
-            label += ' ';
+          function periodLabel(per){
+            var p = parseInt(String(per || ''), 10);
+            if(!isFinite(p)) return '';
+            if(p === 1) return '1st';
+            if(p === 2) return '2nd';
+            if(p === 3) return 'OT';
+            if(p === 4) return '2OT';
+            if(p === 5) return '3OT';
+            return 'P' + String(p);
+          }
+
+          function statusText(){
+            try {
+              if(card && card.__liveIsFinal) return 'Final';
+            } catch(_eF) { /* noop */ }
+            if(isLive){
+              var clk = '';
+              var clkSec = null;
+              var per = null;
+              try {
+                if(card && typeof card.__liveDisplayClock === 'string') clk = card.__liveDisplayClock;
+                if(card && typeof card.__liveClockSeconds === 'number' && isFinite(card.__liveClockSeconds)) clkSec = card.__liveClockSeconds;
+                if(card && typeof card.__livePeriod === 'number' && isFinite(card.__livePeriod)) per = card.__livePeriod;
+              } catch(_eP) { /* noop */ }
+              if(per === null){
+                try {
+                  var pAttr = safeStr(card.getAttribute('data-live-period'));
+                  var pn = pAttr ? parseInt(pAttr, 10) : NaN;
+                  if(isFinite(pn)) per = pn;
+                } catch(_ePA) { /* noop */ }
+              }
+              if(per === 1 && clkSec === 0) return 'Halftime';
+              if(clk) return clk + ' - ' + (periodLabel(per) || 'Live');
+              return 'Live';
+            }
+            var tl = safeStr(card.getAttribute('data-time-label'));
+            return tl || '—';
+          }
+
+          function scoreText(){
+            var hs = null;
+            var as = null;
+            try {
+              if(card && typeof card.__liveHomeScore === 'number' && isFinite(card.__liveHomeScore)) hs = card.__liveHomeScore;
+              if(card && typeof card.__liveAwayScore === 'number' && isFinite(card.__liveAwayScore)) as = card.__liveAwayScore;
+            } catch(_eS) { /* noop */ }
+            if(hs !== null && as !== null) return {away: String(as), home: String(hs)};
+            return {away: '–', home: '–'};
+          }
+
+          function calloutText(){
+            var show = isBet || isWatch;
+            if(!show) return '';
+
+            var side = safeStr(card.getAttribute('data-live-total-side')).toLowerCase();
+            var edge = safeNum(card.getAttribute('data-live-total-edge'));
+            var action = isBet ? 'BET' : 'WATCH';
+
+            var sideTxt = '';
+            if(side === 'over') sideTxt = 'Over';
+            else if(side === 'under') sideTxt = 'Under';
+
+            if(sideTxt && isFinite(edge)){
+              var edgeTxt = (edge > 0 ? '+' : '') + edge.toFixed(1);
+              return 'Total ' + action + ' ' + sideTxt + ' (' + edgeTxt + ')';
+            }
+
+            // Fallback: use the full-game Live Lens lean text when available.
+            try {
+              var best = null;
+              var bestHz = -1;
+              Array.from(card.querySelectorAll('.live-lens-wrap')).forEach(function(w){
+                try {
+                  var hz = parseFloat(String(w.getAttribute('data-lens-horizon') || '').trim());
+                  if(isFinite(hz) && hz > 20.5 && hz > bestHz){ bestHz = hz; best = w; }
+                } catch(_eHz) { /* noop */ }
+              });
+              if(best){
+                var leanEl = best.querySelector('[data-out="lean"]');
+                var t = (leanEl && leanEl.textContent) ? String(leanEl.textContent) : '';
+                t = t.replace(/^Lean:\s*/i, '').trim();
+                if(t) return 'Total ' + t;
+              }
+            } catch(_eLean) { /* noop */ }
+
+            return action;
           }
 
           // Live games: Bet (green), Watch (yellow), otherwise Live (blue).
           // Non-live games: neutral.
-          var cls = isBet ? 'ok' : (isWatch ? 'warn' : (isLive ? 'edge-mod' : 'neutral'));
-          var btn = mkPill(label, cls);
+          var cls = isBet ? 'ok' : (isWatch ? 'warn' : (isLive ? 'edge-mod' : (isFinal ? 'edge-zero' : 'neutral')));
+          var btn = mkPill('', cls);
           btn.classList.add('compact-game-item');
 
-          if(isFinite(edge)){
-            var meta = document.createElement('span');
-            meta.className = 'compact-game-meta';
-            meta.textContent = 'E ' + (edge > 0 ? '+' : '') + edge.toFixed(1);
-            btn.appendChild(meta);
-          }
+          // Compact box-score tile.
+          try {
+            var st = document.createElement('span');
+            st.className = 'compact-game-line compact-game-status';
+            st.textContent = statusText();
+
+            var sc = scoreText();
+            var rowA = document.createElement('div');
+            rowA.className = 'compact-game-row';
+            var aName = document.createElement('span');
+            aName.className = 'compact-game-team away';
+            aName.textContent = away;
+            var aScore = document.createElement('span');
+            aScore.className = 'compact-game-score';
+            aScore.textContent = sc.away;
+            rowA.appendChild(aName);
+            rowA.appendChild(aScore);
+
+            var rowH = document.createElement('div');
+            rowH.className = 'compact-game-row';
+            var hName = document.createElement('span');
+            hName.className = 'compact-game-team home';
+            hName.textContent = home;
+            var hScore = document.createElement('span');
+            hScore.className = 'compact-game-score';
+            hScore.textContent = sc.home;
+            rowH.appendChild(hName);
+            rowH.appendChild(hScore);
+
+            var co = document.createElement('span');
+            co.className = 'compact-game-line compact-game-callout';
+            co.textContent = calloutText();
+
+            btn.appendChild(st);
+            btn.appendChild(rowA);
+            btn.appendChild(rowH);
+            btn.appendChild(co);
+          } catch(_eBuild) { /* noop */ }
 
           btn.title = (isBet ? 'Bet' : (isWatch ? 'Watch' : (isLive ? 'Live' : 'Game'))) + ': ' + away + ' @ ' + home;
           btn.addEventListener('click', function(){

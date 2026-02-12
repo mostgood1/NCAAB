@@ -14,18 +14,25 @@ def run(date_str: str) -> None:
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     app_mod = importlib.import_module("app")
-    app = getattr(app_mod, "app")
-    app.testing = True
-    with app.test_client() as c:
-        # Include diag=1 to encourage full instrumentation
-        resp = c.get(f"/?date={date_str}&diag=1")
-        print(f"GET /?date={date_str} -> {resp.status_code}")
-        # Best-effort: check for enriched artifact written by the route
-        p = OUT / f"predictions_unified_enriched_{date_str}.csv"
-        if p.exists():
-            print(f"Found enriched: {p}")
-        else:
-            print("Enriched artifact not found; check server logs.")
+
+    post = getattr(app_mod, "_postprocess_enriched_file", None)
+    if callable(post):
+        ok = bool(post(date_str))
+        print(f"postprocess_enriched({date_str}) -> {ok}")
+    else:
+        # Fallback to hitting the route (older app versions)
+        app = getattr(app_mod, "app")
+        app.testing = True
+        with app.test_client() as c:
+            resp = c.get(f"/?date={date_str}&diag=1")
+            print(f"GET /?date={date_str} -> {resp.status_code}")
+
+    # Best-effort: check for enriched artifact written by the postprocess/route
+    p = OUT / f"predictions_unified_enriched_{date_str}.csv"
+    if p.exists():
+        print(f"Found enriched: {p}")
+    else:
+        print("Enriched artifact not found; check server logs.")
 
 
 def main(argv=None) -> int:

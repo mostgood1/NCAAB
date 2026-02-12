@@ -2866,6 +2866,50 @@ def _postprocess_enriched_file(date_q: str):
                             enr.loc[fill, 'edge_ats'] = (-pm - sh).loc[fill]
                 except Exception:
                     pass
+
+                # Coverage status may have been computed before market lines existed;
+                # recompute after backfill so downstream UI/recs don't show `no_odds`.
+                try:
+                    if enr is not None and not enr.empty:
+                        pt = pd.to_numeric(enr.get('pred_total'), errors='coerce') if 'pred_total' in enr.columns else None
+                        pm = pd.to_numeric(enr.get('pred_margin'), errors='coerce') if 'pred_margin' in enr.columns else None
+                        mt = pd.to_numeric(enr.get('market_total'), errors='coerce') if 'market_total' in enr.columns else None
+                        sh = pd.to_numeric(enr.get('spread_home'), errors='coerce') if 'spread_home' in enr.columns else None
+                        ct = pd.to_numeric(enr.get('closing_total'), errors='coerce') if 'closing_total' in enr.columns else None
+                        cs = pd.to_numeric(enr.get('closing_spread_home'), errors='coerce') if 'closing_spread_home' in enr.columns else None
+                        ht = enr.get('home_team')
+                        at = enr.get('away_team')
+
+                        if isinstance(pt, pd.Series) and isinstance(pm, pd.Series):
+                            has_preds = pt.notna() & pm.notna()
+                        elif isinstance(pt, pd.Series):
+                            has_preds = pt.notna()
+                        elif isinstance(pm, pd.Series):
+                            has_preds = pm.notna()
+                        else:
+                            has_preds = pd.Series([False] * len(enr), index=enr.index)
+
+                        has_odds = pd.Series([False] * len(enr), index=enr.index)
+                        for s in (mt, sh, ct, cs):
+                            if isinstance(s, pd.Series):
+                                has_odds = has_odds | s.notna()
+
+                        cov = pd.Series(['missing_preds'] * len(enr), index=enr.index, dtype=object)
+                        cov.loc[has_preds & ~has_odds] = 'no_odds'
+                        cov.loc[has_preds & has_odds] = 'full'
+
+                        # Preserve placeholders if present.
+                        try:
+                            if isinstance(ht, pd.Series) and isinstance(at, pd.Series):
+                                tbd = ht.astype(str).str.strip().eq('TBD') & at.astype(str).str.strip().eq('TBD')
+                                if tbd.any():
+                                    cov.loc[tbd] = 'placeholder'
+                        except Exception:
+                            pass
+
+                        enr['coverage_status'] = cov
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -22071,13 +22115,47 @@ def api_live_lines():
     except Exception:
         pass
 
-    # Load the display snapshot for the date so we can map ESPN event id -> teams.
+    # Load a snapshot for the date so we can map ESPN event id -> teams.
+    # This is strictly for auto-fill and should never hard-fail the UI.
+    df_full = None
+    snapshot_used = None
+    snapshot_candidates = [
+        OUT / f"predictions_display_{target_date.isoformat()}.csv",
+        OUT / f"predictions_unified_enriched_{target_date.isoformat()}.csv",
+        OUT / f"predictions_unified_enriched_{target_date.isoformat()}_force_fill.csv",
+        OUT / f"predictions_unified_{target_date.isoformat()}.csv",
+    ]
     try:
-        path = OUT / f"predictions_display_{target_date.isoformat()}.csv"
-        if not path.exists():
-            return jsonify({"status": "error", "message": f"Missing display snapshot: {path.name}"}), 404
+        for cand in snapshot_candidates:
+            try:
+                if cand.exists():
+                    snapshot_used = cand
+                    break
+            except Exception:
+                continue
 
-        df_full = pd.read_csv(path, low_memory=True)
+        if snapshot_used is None:
+            payload = {
+                "status": "ok",
+                "date": target_date.isoformat(),
+                "bookmakers": bookmakers,
+                "count": 0,
+                "lines": {},
+                "warning": "snapshot_missing",
+                "snapshot_tried": [p.name for p in snapshot_candidates],
+            }
+            try:
+                import time
+
+                if cache_key:
+                    _LIVE_LINES_CACHE["ts"] = float(time.time())
+                    _LIVE_LINES_CACHE["key"] = cache_key
+                    _LIVE_LINES_CACHE["payload"] = payload
+            except Exception:
+                pass
+            return jsonify(payload), 200
+
+        df_full = pd.read_csv(snapshot_used, low_memory=True)
 
         def _pick_col(df_, opts):
             for c in opts:
@@ -22089,7 +22167,26 @@ def api_live_lines():
         home_col = _pick_col(df_full, ["home_team", "home_team_name", "home"])
         away_col = _pick_col(df_full, ["away_team", "away_team_name", "away"])
         if not (gid_col and home_col and away_col):
-            return jsonify({"status": "error", "message": "Display snapshot missing required columns"}), 500
+            payload = {
+                "status": "ok",
+                "date": target_date.isoformat(),
+                "bookmakers": bookmakers,
+                "count": 0,
+                "lines": {},
+                "warning": "snapshot_missing_columns",
+                "snapshot_used": (snapshot_used.name if snapshot_used else None),
+                "snapshot_columns": list(getattr(df_full, "columns", [])[:50]),
+            }
+            try:
+                import time
+
+                if cache_key:
+                    _LIVE_LINES_CACHE["ts"] = float(time.time())
+                    _LIVE_LINES_CACHE["key"] = cache_key
+                    _LIVE_LINES_CACHE["payload"] = payload
+            except Exception:
+                pass
+            return jsonify(payload), 200
 
         core = df_full[[gid_col, home_col, away_col]].copy()
         core = core.rename(columns={gid_col: "game_id", home_col: "home_team", away_col: "away_team"})
@@ -22106,7 +22203,26 @@ def api_live_lines():
                 pass
             return jsonify(payload), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to load display snapshot: {e}"}), 500
+        payload = {
+            "status": "ok",
+            "date": target_date.isoformat(),
+            "bookmakers": bookmakers,
+            "count": 0,
+            "lines": {},
+            "warning": "snapshot_load_failed",
+            "snapshot_used": (snapshot_used.name if snapshot_used else None),
+            "message": str(e)[:200],
+        }
+        try:
+            import time
+
+            if cache_key:
+                _LIVE_LINES_CACHE["ts"] = float(time.time())
+                _LIVE_LINES_CACHE["key"] = cache_key
+                _LIVE_LINES_CACHE["payload"] = payload
+        except Exception:
+            pass
+        return jsonify(payload), 200
 
     try:
         from ncaab_model.data.team_normalize import pair_key as _pair_key  # type: ignore
@@ -22129,12 +22245,30 @@ def api_live_lines():
     try:
         from ncaab_model.data.adapters.odds_theoddsapi import TheOddsAPIAdapter  # type: ignore
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Odds adapter import failed: {e}"}), 500
+        payload = {
+            "status": "ok",
+            "date": target_date.isoformat(),
+            "bookmakers": bookmakers,
+            "count": 0,
+            "lines": {},
+            "warning": "odds_adapter_import_failed",
+            "message": str(e)[:200],
+        }
+        return jsonify(payload), 200
 
     try:
         adapter = TheOddsAPIAdapter()
     except Exception as e:
-        return jsonify({"status": "error", "message": f"TheOddsAPI not configured: {e}"}), 400
+        payload = {
+            "status": "ok",
+            "date": target_date.isoformat(),
+            "bookmakers": bookmakers,
+            "count": 0,
+            "lines": {},
+            "warning": "theoddsapi_not_configured",
+            "message": str(e)[:200],
+        }
+        return jsonify(payload), 200
 
     now_utc = dt.datetime.now(dt.timezone.utc)
     preferred = ["draftkings", "fanduel", "betmgm"]
@@ -22177,7 +22311,16 @@ def api_live_lines():
             except Exception:
                 continue
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Odds fetch failed: {e}"}), 502
+        payload = {
+            "status": "ok",
+            "date": target_date.isoformat(),
+            "bookmakers": bookmakers,
+            "count": 0,
+            "lines": {},
+            "warning": "odds_fetch_failed",
+            "message": str(e)[:200],
+        }
+        return jsonify(payload), 200
 
     def _pick_best(cands: list[dict]) -> dict | None:
         if not cands:
