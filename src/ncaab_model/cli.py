@@ -12895,6 +12895,211 @@ def backfill_live_features_cmd(
     print({"status": "ok", "start_date": start_date, "end_date": end_date, "elapsed_sec": round(time.time() - t0, 1), **counts})
 
 
+@app.command(name="backfill-live-lens-signals")
+def backfill_live_lens_signals_cmd(
+    days: int = typer.Option(30, help="Lookback window (days) ending at end_date (inclusive)."),
+    end_date: str = typer.Option(None, help="End date YYYY-MM-DD (default: yesterday local)."),
+    start_date: str = typer.Option(None, help="Start date YYYY-MM-DD (overrides --days)."),
+    base_url: str = typer.Option("https://ncaab.onrender.com", help="Base URL for download endpoints."),
+    download: bool = typer.Option(True, "--download/--no-download", help="Download signals from server if missing locally."),
+    force: bool = typer.Option(False, help="Re-download even if signals JSONL exists locally."),
+    compute_accuracy: bool = typer.Option(True, "--compute-accuracy/--no-compute-accuracy", help="Compute per-day Live Lens accuracy locally."),
+    assume_price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    full_game_only: bool = typer.Option(True, help="Only evaluate full-game (horizon>=39) signals when present."),
+    sleep_sec: float = typer.Option(0.12, help="Sleep between HTTP requests (helps avoid rate limits)."),
+):
+    """Pull Live Lens bet/watch signals into local outputs for iteration.
+
+    Produces per-date files:
+      - outputs/live_lens_signals_<date>.jsonl
+    Optionally produces per-date accuracy artifacts:
+      - outputs/live_lens_accuracy_<date>.json
+      - outputs/live_lens_accuracy_<date>.csv
+    And a range summary:
+      - outputs/live_lens_accuracy_range_<start>_<end>.csv
+      - outputs/live_lens_accuracy_range_<start>_<end>.json
+    """
+
+    def _today_local_safe() -> dt.date:
+        try:
+            return _today_local()
+        except Exception:
+            return dt.date.today()
+
+    def _iter_dates(a: dt.date, b: dt.date):
+        cur = a
+        step = dt.timedelta(days=1)
+        while cur <= b:
+            yield cur
+            cur += step
+
+    if not end_date:
+        # Default to yesterday so finalized results are more likely to exist.
+        end_dt = _today_local_safe() - dt.timedelta(days=1)
+        end_date = end_dt.isoformat()
+    try:
+        end_dt = dt.date.fromisoformat(str(end_date))
+    except Exception:
+        print(f"[red]Invalid end_date:[/red] {end_date}")
+        raise typer.Exit(code=2)
+
+    if start_date:
+        try:
+            start_dt = dt.date.fromisoformat(str(start_date))
+        except Exception:
+            print(f"[red]Invalid start_date:[/red] {start_date}")
+            raise typer.Exit(code=2)
+    else:
+        n = max(1, int(days))
+        start_dt = end_dt - dt.timedelta(days=n - 1)
+        start_date = start_dt.isoformat()
+
+    if start_dt > end_dt:
+        print(f"[red]start_date after end_date:[/red] {start_date} > {end_date}")
+        raise typer.Exit(code=2)
+
+    base_url = str(base_url or "").strip().rstrip("/")
+    if download and (not base_url.startswith("http")):
+        print(f"[red]Invalid base_url:[/red] {base_url}")
+        raise typer.Exit(code=2)
+
+    out_root = settings.outputs_dir
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    from .live_lens_accuracy import LiveLensAccuracyConfig, compute_live_lens_accuracy, write_live_lens_accuracy
+
+    counts = {
+        "dates_total": 0,
+        "signals_downloaded": 0,
+        "signals_missing_remote": 0,
+        "signals_skipped_existing": 0,
+        "accuracy_written": 0,
+        "accuracy_status_ok": 0,
+        "accuracy_status_empty": 0,
+        "accuracy_status_missing": 0,
+        "errors": 0,
+    }
+    summary_rows: list[dict[str, Any]] = []
+
+    t0 = time.time()
+    for i, d in enumerate(_iter_dates(start_dt, end_dt), start=1):
+        date_s = d.isoformat()
+        counts["dates_total"] += 1
+
+        sig_path = out_root / f"live_lens_signals_{date_s}.jsonl"
+        have_local = sig_path.exists() and sig_path.stat().st_size > 2
+
+        if have_local and (not force):
+            counts["signals_skipped_existing"] += 1
+        else:
+            if download:
+                url = f"{base_url}/api/download_live_lens_signals?date={date_s}"
+                try:
+                    with requests.get(url, stream=True, timeout=45) as r:
+                        if r.status_code == 200:
+                            sig_path.parent.mkdir(parents=True, exist_ok=True)
+                            tmp = sig_path.with_suffix(".jsonl.tmp")
+                            with tmp.open("wb") as f:
+                                for chunk in r.iter_content(chunk_size=1024 * 64):
+                                    if chunk:
+                                        f.write(chunk)
+                            if tmp.exists() and tmp.stat().st_size > 2:
+                                tmp.replace(sig_path)
+                                counts["signals_downloaded"] += 1
+                                have_local = True
+                            else:
+                                try:
+                                    tmp.unlink(missing_ok=True)
+                                except Exception:
+                                    pass
+                                have_local = False
+                        elif r.status_code == 404:
+                            counts["signals_missing_remote"] += 1
+                            have_local = False
+                        else:
+                            counts["errors"] += 1
+                            print(f"[yellow]signals download non-200:[/yellow] date={date_s} status={r.status_code}")
+                            have_local = False
+                except Exception as e:
+                    counts["errors"] += 1
+                    print(f"[yellow]signals download error:[/yellow] date={date_s} {e}")
+                    have_local = False
+                finally:
+                    if sleep_sec and sleep_sec > 0:
+                        time.sleep(float(sleep_sec))
+
+        # Optionally compute accuracy for this date.
+        day_summary: dict[str, Any] = {"date": date_s}
+        if compute_accuracy and have_local:
+            try:
+                cfg = LiveLensAccuracyConfig(
+                    date=str(date_s),
+                    out_dir=Path(out_root),
+                    daily_results_dir=None,
+                    assume_price=float(assume_price),
+                    full_game_only=bool(full_game_only),
+                )
+                payload = compute_live_lens_accuracy(cfg)
+                out_json = out_root / f"live_lens_accuracy_{date_s}.json"
+                out_csv = out_root / f"live_lens_accuracy_{date_s}.csv"
+                wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
+                counts["accuracy_written"] += 1
+
+                # Normalize status for range report
+                status = None
+                if isinstance(payload, dict) and "summary" in payload and isinstance(payload.get("summary"), dict):
+                    status = str(payload["summary"].get("status") or "ok")
+                    day_summary.update(dict(payload["summary"]))
+                elif isinstance(payload, dict):
+                    status = str(payload.get("status") or "unknown")
+                    day_summary.update({"status": status, "message": payload.get("message")})
+                else:
+                    status = "unknown"
+                    day_summary.update({"status": status})
+
+                if status == "ok":
+                    counts["accuracy_status_ok"] += 1
+                elif status == "empty":
+                    counts["accuracy_status_empty"] += 1
+                elif status == "missing":
+                    counts["accuracy_status_missing"] += 1
+
+                day_summary.update({"accuracy_out_json": str(out_json), "accuracy_out_csv": str(out_csv) if out_csv.exists() else None})
+                day_summary.update({"signals_path": str(sig_path), "signals_bytes": int(sig_path.stat().st_size) if sig_path.exists() else 0})
+                day_summary.update({"write_status": wrote.get("status") if isinstance(wrote, dict) else None})
+            except Exception as e:
+                counts["errors"] += 1
+                day_summary.update({"status": "error", "message": str(e), "signals_path": str(sig_path)})
+        else:
+            if have_local:
+                day_summary.update({"signals_path": str(sig_path), "signals_bytes": int(sig_path.stat().st_size) if sig_path.exists() else 0})
+            else:
+                day_summary.update({"status": "missing", "signals_path": str(sig_path)})
+
+        summary_rows.append(day_summary)
+
+        if i % 10 == 0:
+            print({"progress": f"{date_s} ({i})", "elapsed_sec": round(time.time() - t0, 1), **counts})
+
+    # Write range summary
+    out_csv = out_root / f"live_lens_accuracy_range_{start_date}_{end_date}.csv"
+    out_json = out_root / f"live_lens_accuracy_range_{start_date}_{end_date}.json"
+    try:
+        df = pd.DataFrame(summary_rows)
+        df.to_csv(out_csv, index=False)
+    except Exception as e:
+        counts["errors"] += 1
+        print(f"[yellow]Failed writing range CSV:[/yellow] {e}")
+
+    try:
+        out_json.write_text(json.dumps({"status": "ok", "start_date": start_date, "end_date": end_date, "counts": counts, "rows": summary_rows}, indent=2), encoding="utf-8")
+    except Exception as e:
+        counts["errors"] += 1
+        print(f"[yellow]Failed writing range JSON:[/yellow] {e}")
+
+    print({"status": "ok", "start_date": start_date, "end_date": end_date, "elapsed_sec": round(time.time() - t0, 1), "range_csv": str(out_csv), "range_json": str(out_json), **counts})
+
+
 @app.command(name="backfill-live-features-from-pbp-cache")
 def backfill_live_features_from_pbp_cache_cmd(
     days: int = typer.Option(30, help="Lookback window (days) ending at end_date (inclusive)."),
