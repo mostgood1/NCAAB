@@ -2864,12 +2864,15 @@
               if(!liveEventIds.length) return null;
               // De-dupe + cap to avoid huge URLs.
               var uniq = Array.from(new Set(liveEventIds)).slice(0, 50);
+              // Run PBP fetch and live-lines fetch independently so one failure doesn't block the other.
               var pbpUrl = '/api/live_pbp_stats?ttl=20&event_ids=' + encodeURIComponent(uniq.join(','));
-              return fetch(pbpUrl, { cache: 'no-store' })
+              var oddsUrl = '/api/live_lines?ttl=20&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniq.join(','));
+
+              var pPbp = fetch(pbpUrl, { cache: 'no-store' })
                 .then(function(r2){ return r2.json(); })
                 .then(function(js2){
                   try {
-                    if(!js2 || js2.status !== 'ok' || !js2.games) return;
+                    if(!js2 || js2.status !== 'ok' || !js2.games) return null;
                     cards.forEach(function(card){
                       var gid = String(card.getAttribute('data-game-id') || '').trim();
                       if(!gid) return;
@@ -2880,31 +2883,30 @@
                   } catch(e) { /* ignore */ }
                   return true;
                 })
-                .then(function(){
-                  // Fetch live full-game total lines (if available) and auto-fill Live Lens.
+                .catch(function(){ return null; });
+
+              var pLines = fetch(oddsUrl, { cache: 'no-store' })
+                .then(function(r3){ return r3.json(); })
+                .then(function(js3){
                   try {
-                    var oddsUrl = '/api/live_lines?ttl=20&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniq.join(','));
-                    return fetch(oddsUrl, { cache: 'no-store' })
-                      .then(function(r3){ return r3.json(); })
-                      .then(function(js3){
-                        try {
-                          if(!js3) return;
-                          if(js3.status !== 'ok'){
-                            try { console.warn('[live_lines]', js3.message || js3.status || 'error', js3); } catch(eW) {}
-                            return;
-                          }
-                          if(!js3.lines) return;
-                          cards.forEach(function(card){
-                            applyLiveLinesToCard(card, js3.lines);
-                          });
-                        } catch(e) { /* ignore */ }
-                      })
-                      .catch(function(){ /* ignore */ });
-                  } catch(e) {
-                    return null;
-                  }
+                    if(!js3) return null;
+                    if(js3.status !== 'ok'){
+                      try { console.warn('[live_lines]', js3.message || js3.status || 'error', js3); } catch(eW) {}
+                      return null;
+                    }
+                    if(js3.warning){
+                      try { console.warn('[live_lines]', js3.warning, js3); } catch(eW2) {}
+                    }
+                    if(!js3.lines) return null;
+                    cards.forEach(function(card){
+                      applyLiveLinesToCard(card, js3.lines);
+                    });
+                  } catch(e) { /* ignore */ }
+                  return true;
                 })
-                .catch(function(){ /* ignore */ });
+                .catch(function(){ return null; });
+
+              return Promise.all([pPbp, pLines]);
             } catch(e) {
               return null;
             }
