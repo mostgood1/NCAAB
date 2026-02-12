@@ -40,7 +40,16 @@ function Upload-File {
         $fileName = [System.IO.Path]::GetFileName($FilePath)
         $content.Add($fileContent, 'file', $fileName)
         $resp = $client.PostAsync($target, $content).Result
-        $text = $resp.Content.ReadAsStringAsync().Result
+        if (-not $resp) { throw "HTTP POST returned null response" }
+        $text = ''
+        try {
+            if ($resp.Content) {
+                $text = $resp.Content.ReadAsStringAsync().Result
+            }
+        } catch {
+            # Some responses may have no content body; treat as empty.
+            $text = ''
+        }
         try { $fs.Dispose() } catch {}
         try { $client.Dispose() } catch {}
         if (-not $resp.IsSuccessStatusCode) {
