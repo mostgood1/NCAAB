@@ -74,6 +74,13 @@
     .compact-game-strip .compact-game-team.home{font-weight:700;}
     .compact-game-strip .compact-game-score{flex:0 0 auto;font-weight:700;}
     .compact-game-meta{display:inline-block;opacity:0.85;font-weight:700;margin-left:6px;}
+
+    /* Keep Filters + Compact strip visible while scrolling to cards */
+    .sticky-top{position:sticky;top:0;z-index:50;background:var(--bg);padding-top:8px;margin-top:-8px;}
+    .sticky-top .card{background:var(--card);}
+
+    /* Prevent scroll-to-card landing under the sticky header */
+    .game-card{scroll-margin-top:130px;}
   </style>
   {% set e = 2.718281828459045 %}
 </head>
@@ -106,24 +113,26 @@
       </div>
     </div>
 
-    <div id="compactGameList" class="card" role="region" aria-label="Live games">
-      <div id="compactGameStrip" class="compact-game-strip" aria-label="Live games list"></div>
-    </div>
+    <div class="sticky-top" role="region" aria-label="Top controls">
+      <div id="filtersBar" class="card" role="region" aria-label="Cards filters">
+        <div class="flex-row-wrap filters-bar-row">
+          <div class="flex-row-wrap">
+            <span class="pill small neutral" aria-hidden="true">Conferences</span>
+            <div id="confPills" class="flex-row-wrap" aria-label="Conference filter pills"></div>
+          </div>
+          <div class="flex-row-wrap">
+            <span class="pill small neutral" aria-hidden="true">Times</span>
+            <div id="timePills" class="flex-row-wrap" aria-label="Time filter pills"></div>
+          </div>
+          <div class="flex-row-wrap">
+            <span class="pill small neutral" aria-hidden="true">Status</span>
+            <div id="statusPills" class="flex-row-wrap" aria-label="Status filter pills"></div>
+          </div>
+        </div>
+      </div>
 
-    <div id="filtersBar" class="card" role="region" aria-label="Cards filters">
-      <div class="flex-row-wrap filters-bar-row">
-        <div class="flex-row-wrap">
-          <span class="pill small neutral" aria-hidden="true">Conferences</span>
-          <div id="confPills" class="flex-row-wrap" aria-label="Conference filter pills"></div>
-        </div>
-        <div class="flex-row-wrap">
-          <span class="pill small neutral" aria-hidden="true">Times</span>
-          <div id="timePills" class="flex-row-wrap" aria-label="Time filter pills"></div>
-        </div>
-        <div class="flex-row-wrap">
-          <span class="pill small neutral" aria-hidden="true">Status</span>
-          <div id="statusPills" class="flex-row-wrap" aria-label="Status filter pills"></div>
-        </div>
+      <div id="compactGameList" class="card" role="region" aria-label="Live games">
+        <div id="compactGameStrip" class="compact-game-strip" aria-label="Live games list"></div>
       </div>
     </div>
 
