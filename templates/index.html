@@ -80,7 +80,7 @@
     .sticky-top .card{background:var(--card);}
 
     /* Prevent scroll-to-card landing under the sticky header */
-    .game-card{scroll-margin-top:130px;}
+    .game-card{scroll-margin-top:130px;content-visibility:auto;contain-intrinsic-size:240px;}
   </style>
   {% set e = 2.718281828459045 %}
 </head>
@@ -2835,7 +2835,25 @@
       }
 
       var inFlight = false;
+      var pollTimer = null;
+      var aborters = { live: null, pbp: null, lines: null };
+
+      function isMobileView(){
+        try { return !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches); } catch(e){ return false; }
+      }
+      function desiredPollMs(){
+        // Mobile: slightly slower to save battery/data.
+        return isMobileView() ? 18000 : 12000;
+      }
+      function abortInflight(){
+        try { if(aborters.live) aborters.live.abort(); } catch(e) {}
+        try { if(aborters.pbp) aborters.pbp.abort(); } catch(e2) {}
+        try { if(aborters.lines) aborters.lines.abort(); } catch(e3) {}
+        aborters.live = null; aborters.pbp = null; aborters.lines = null;
+      }
+
       function pollOnce(){
+        if(document.hidden) return;
         if(inFlight) return;
         var hasWrap = document.querySelector('.live-lens-wrap') !== null;
         var hasCompact = false;
@@ -2851,9 +2869,20 @@
         if(!slate) return;
 
         inFlight = true;
-        var url = '/api/live_state?date=' + encodeURIComponent(slate) + '&ttl=12';
+        var ttlState = isMobileView() ? 18 : 12;
+        var ttlPbp = isMobileView() ? 30 : 20;
+        var ttlLines = isMobileView() ? 30 : 20;
+        var url = '/api/live_state?date=' + encodeURIComponent(slate) + '&ttl=' + encodeURIComponent(String(ttlState));
 
-        fetch(url, { cache: 'no-store' })
+        abortInflight();
+        var acLive = null;
+        try { acLive = new AbortController(); aborters.live = acLive; } catch(e) { acLive = null; }
+        var liveTimeout = null;
+        try {
+          if(acLive){ liveTimeout = setTimeout(function(){ try { acLive.abort(); } catch(eT) {} }, 9000); }
+        } catch(eTO) {}
+
+        fetch(url, { cache: 'no-store', signal: (acLive ? acLive.signal : undefined) })
           .then(function(r){ return r.json(); })
           .then(function(js){
             try {
@@ -2874,10 +2903,19 @@
               // De-dupe + cap to avoid huge URLs.
               var uniq = Array.from(new Set(liveEventIds)).slice(0, 50);
               // Run PBP fetch and live-lines fetch independently so one failure doesn't block the other.
-              var pbpUrl = '/api/live_pbp_stats?ttl=20&event_ids=' + encodeURIComponent(uniq.join(','));
-              var oddsUrl = '/api/live_lines?ttl=20&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniq.join(','));
+              var pbpUrl = '/api/live_pbp_stats?ttl=' + encodeURIComponent(String(ttlPbp)) + '&event_ids=' + encodeURIComponent(uniq.join(','));
+              var oddsUrl = '/api/live_lines?ttl=' + encodeURIComponent(String(ttlLines)) + '&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniq.join(','));
 
-              var pPbp = fetch(pbpUrl, { cache: 'no-store' })
+              var acPbp = null;
+              var acLines = null;
+              try { acPbp = new AbortController(); aborters.pbp = acPbp; } catch(eA1) { acPbp = null; }
+              try { acLines = new AbortController(); aborters.lines = acLines; } catch(eA2) { acLines = null; }
+              var pbpTimeout = null;
+              var linesTimeout = null;
+              try { if(acPbp){ pbpTimeout = setTimeout(function(){ try { acPbp.abort(); } catch(ePT) {} }, 9000); } } catch(ePTO) {}
+              try { if(acLines){ linesTimeout = setTimeout(function(){ try { acLines.abort(); } catch(eLT) {} }, 9000); } } catch(eLTO) {}
+
+              var pPbp = fetch(pbpUrl, { cache: 'no-store', signal: (acPbp ? acPbp.signal : undefined) })
                 .then(function(r2){ return r2.json(); })
                 .then(function(js2){
                   try {
@@ -2894,7 +2932,7 @@
                 })
                 .catch(function(){ return null; });
 
-              var pLines = fetch(oddsUrl, { cache: 'no-store' })
+              var pLines = fetch(oddsUrl, { cache: 'no-store', signal: (acLines ? acLines.signal : undefined) })
                 .then(function(r3){ return r3.json(); })
                 .then(function(js3){
                   try {
@@ -2915,7 +2953,10 @@
                 })
                 .catch(function(){ return null; });
 
-              return Promise.all([pPbp, pLines]);
+              return Promise.all([pPbp, pLines]).finally(function(){
+                try { if(pbpTimeout) clearTimeout(pbpTimeout); } catch(eC1) {}
+                try { if(linesTimeout) clearTimeout(linesTimeout); } catch(eC2) {}
+              });
             } catch(e) {
               return null;
             }
@@ -2923,9 +2964,18 @@
           .catch(function(){ /* ignore */ })
           .finally(function(){
             inFlight = false;
+            try { if(liveTimeout) clearTimeout(liveTimeout); } catch(eC0) {}
+            aborters.live = null; aborters.pbp = null; aborters.lines = null;
             try { if(window.__ncaabUpdateTopFilters) window.__ncaabUpdateTopFilters(); } catch(e) { /* ignore */ }
             try { if(window.__ncaabUpdateCompactGameStrip) window.__ncaabUpdateCompactGameStrip(); } catch(e2) { /* ignore */ }
           });
+      }
+
+      function restartPolling(){
+        try { if(pollTimer) clearInterval(pollTimer); } catch(e) {}
+        pollTimer = null;
+        pollOnce();
+        pollTimer = setInterval(pollOnce, desiredPollMs());
       }
 
       document.addEventListener('DOMContentLoaded', function(){
@@ -2935,8 +2985,19 @@
           setStamp(wrap, 'Live: –');
         });
 
-        pollOnce();
-        setInterval(pollOnce, 12000);
+        restartPolling();
+        try {
+          document.addEventListener('visibilitychange', function(){
+            if(document.hidden){ abortInflight(); inFlight = false; return; }
+            restartPolling();
+          });
+        } catch(eV) {}
+        try {
+          window.addEventListener('resize', function(){
+            // Cheap restart to adapt poll interval to viewport changes.
+            restartPolling();
+          }, { passive: true });
+        } catch(eR) {}
       });
     })();
   </script>
