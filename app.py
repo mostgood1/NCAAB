@@ -22029,6 +22029,51 @@ _LIVE_LENS_TUNING_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload":
 _LIVE_LINES_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
 _LIVE_LENS_SIGNAL_SEEN: dict[str, float] = {}
 
+# Provider name aliases (provider_aliases.csv), cached for live lines matching.
+_PROVIDER_TEAM_ALIAS_MAP: dict[str, str] | None = None
+
+
+def _get_provider_team_alias_map() -> dict[str, str]:
+    """Return a lowercased raw->canonical team name mapping (best-effort).
+
+    Used primarily to improve matching between provider odds team names and our
+    schedule/prediction snapshots.
+    """
+
+    global _PROVIDER_TEAM_ALIAS_MAP
+    if _PROVIDER_TEAM_ALIAS_MAP is not None:
+        return _PROVIDER_TEAM_ALIAS_MAP
+
+    m: dict[str, str] = {}
+    try:
+        cand_paths: list[Path] = []
+        try:
+            cand_paths.append(settings.data_dir / "provider_aliases.csv")
+        except Exception:
+            pass
+        try:
+            cand_paths.append(ROOT / "data" / "provider_aliases.csv")
+        except Exception:
+            pass
+        path = next((p for p in cand_paths if isinstance(p, Path) and p.exists()), None)
+        if path is not None:
+            df = pd.read_csv(path, dtype=str)
+            cols = {str(c).strip().lower(): c for c in df.columns}
+            src_col = cols.get("from") or cols.get("raw") or cols.get("source") or cols.get("alias")
+            dst_col = cols.get("to") or cols.get("canonical") or cols.get("canon") or cols.get("target")
+            if src_col and dst_col:
+                for _, r in df[[src_col, dst_col]].dropna().iterrows():
+                    src = str(r.get(src_col) or "").strip()
+                    dst = str(r.get(dst_col) or "").strip()
+                    if not src or not dst:
+                        continue
+                    m[src.lower()] = dst
+    except Exception:
+        m = {}
+
+    _PROVIDER_TEAM_ALIAS_MAP = m
+    return m
+
 
 @app.get("/api/odds_status")
 def api_odds_status():
@@ -22098,6 +22143,21 @@ def api_live_lines():
     Returns:
       { status:'ok', lines: { <event_id>: { total:<float>, book:<str>, event_id_provider:<str>, last_update:<iso or null> } } }
     """
+
+    alias_map = _get_provider_team_alias_map()
+
+    def _alias_team_name(name: object) -> str:
+        try:
+            s = str(name or "").strip()
+        except Exception:
+            return ""
+        if not s:
+            return ""
+        return alias_map.get(s.lower(), s)
+
+    def _pair_key(a: object, b: object) -> str:
+        # Unordered key over canonical slugs, applying provider aliases first.
+        return "::".join(sorted([_canon_slug(_alias_team_name(a)), _canon_slug(_alias_team_name(b))]))
     date_param = (request.args.get("date") or "").strip()
     event_ids_raw = (request.args.get("event_ids") or "").strip()
     bookmakers = (request.args.get("bookmakers") or "draftkings,fanduel,betmgm").strip() or "draftkings,fanduel,betmgm"
@@ -22146,6 +22206,11 @@ def api_live_lines():
         OUT / f"predictions_unified_enriched_{target_date.isoformat()}.csv",
         OUT / f"predictions_unified_enriched_{target_date.isoformat()}_force_fill.csv",
         OUT / f"predictions_unified_{target_date.isoformat()}.csv",
+        # Broader schedule fallbacks (some slates include games not present in predictions artifacts).
+        OUT / f"games_with_odds_{target_date.isoformat()}.csv",
+        OUT / f"games_{target_date.isoformat()}_fused.csv",
+        OUT / f"games_{target_date.isoformat()}.csv",
+        OUT / "games_curr.csv",
     ]
     try:
         for cand in snapshot_candidates:
