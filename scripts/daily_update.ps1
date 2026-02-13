@@ -72,7 +72,20 @@ param(
   # New: Redeploy after upload by default; opt-out with -SkipRenderRedeploy
   [switch]$SkipRenderRedeploy,
   # Optional: base URL used to fetch live snapshot JSONL from deployed app (for eval automation)
-  [string]$RenderBaseUrl = $(if ($env:NCAAB_RENDER_BASE_URL) { $env:NCAAB_RENDER_BASE_URL } else { 'https://ncaab.onrender.com' })
+  [string]$RenderBaseUrl = $(if ($env:NCAAB_RENDER_BASE_URL) { $env:NCAAB_RENDER_BASE_URL } else { 'https://ncaab.onrender.com' }),
+
+  # Live Lens interval evaluation (optional)
+  [switch]$RunLiveIntervalEval,
+  [int]$LiveIntervalEvalLookbackDays = 21,
+  [int]$LiveIntervalEvalMaxFiles = 0,
+
+  # Live Lens OVER penalty tuning (optional; requires live_lens_signals_*.jsonl + daily_results/results_*.csv)
+  [switch]$RunLiveLensOverTuning,
+  [int]$LiveLensOverTuningLookbackDays = 21,
+  [double]$LiveLensOverTuningAssumePrice = -110.0,
+  [switch]$ApplyLiveLensOverTuning,
+  [int]$LiveLensOverTuningMinBucketN = 10,
+  [int]$LiveLensOverTuningMinOverallN = 25
 )
 
 $ErrorActionPreference = 'Stop'
@@ -424,6 +437,58 @@ print({'path': str(games_path), 'rows': len(df2)})
       }
 
       & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy --date $prevDate
+
+      if ($RunLiveLensOverTuning.IsPresent) {
+        Write-Section "3b.i.a) Live Lens OVER tuning sweep (lookback=$LiveLensOverTuningLookbackDays; apply=$($ApplyLiveLensOverTuning.IsPresent))"
+        try {
+          $prevDt = [datetime]::ParseExact($prevDate, 'yyyy-MM-dd', $null)
+          $lb = [int]$LiveLensOverTuningLookbackDays
+          if ($lb -lt 1) { $lb = 1 }
+          $startDt = $prevDt.AddDays(-1 * ($lb - 1))
+          $startIso = $startDt.ToString('yyyy-MM-dd')
+
+          # Best-effort: download any missing signals files from Render for the lookback window.
+          try {
+            $downloaded = 0
+            for ($i = 0; $i -lt $lb; $i++) {
+              $dIso = $startDt.AddDays($i).ToString('yyyy-MM-dd')
+              $p = Join-Path $OutDir ("live_lens_signals_${dIso}.jsonl")
+              if (-not (Test-HasBytes $p)) {
+                $primary = ("" + $RenderBaseUrl).Trim()
+                $ok = Try-DownloadSignals -BaseUrl $primary -Date $dIso -OutFile $p
+                if (-not $ok) {
+                  $fallback = 'https://ncaab.onrender.com'
+                  if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
+                    $ok = Try-DownloadSignals -BaseUrl $fallback -Date $dIso -OutFile $p
+                  }
+                }
+                if ($ok) { $downloaded++ }
+              }
+            }
+            if ($downloaded -gt 0) { Write-Host "[live_lens] Downloaded ${downloaded} missing signals files" -ForegroundColor DarkGray }
+          } catch {
+            Write-Warning "[live_lens] Signals range download failed: $($_)"
+          }
+
+          $tuneArgs = @(
+            'scripts/run_live_lens_over_tuning.py',
+            '--start', "$startIso",
+            '--end', "$prevDate",
+            '--assume-price', "$LiveLensOverTuningAssumePrice",
+            '--out-dir', "$OutDir",
+            '--tuning-json', (Join-Path $OutDir 'live_lens_tuning.json'),
+            '--min-bucket-n', "$LiveLensOverTuningMinBucketN",
+            '--min-overall-n', "$LiveLensOverTuningMinOverallN"
+          )
+          if ($ApplyLiveLensOverTuning.IsPresent) { $tuneArgs += '--apply' }
+          $tuneOut = (& $VenvPython @tuneArgs) | Out-String
+          if ($tuneOut) { Write-Host ($tuneOut.Trim()) }
+        } catch {
+          Write-Warning "Live Lens OVER tuning sweep failed: $($_)"
+        }
+      } else {
+        Write-Host '[skip] Live Lens OVER tuning sweep' -ForegroundColor Yellow
+      }
     } catch {
       Write-Warning "compute-live-lens-accuracy failed for ${prevDate}: $($_)"
     }
@@ -767,6 +832,63 @@ print({'path': str(games_path), 'rows': len(df2)})
     } catch {
       Write-Warning "sim accuracy rolling backtest failed: $($_)"
     }
+  }
+
+  # 3h.ii) Live Lens interval evaluation (optional): compare 15s vs 30s sampling using cached ESPN PBP
+  if ($RunLiveIntervalEval.IsPresent) {
+    Write-Section "3h.ii) Live Lens interval eval (lookback=$LiveIntervalEvalLookbackDays days; max_files=$LiveIntervalEvalMaxFiles)"
+    try {
+      $prevDt = [datetime]::ParseExact($prevDate, 'yyyy-MM-dd', $null)
+      $lb = [int]$LiveIntervalEvalLookbackDays
+      if ($lb -lt 1) { $lb = 1 }
+      $startDt = $prevDt.AddDays(-1 * ($lb - 1))
+      $startIso = $startDt.ToString('yyyy-MM-dd')
+
+      $csv15 = Join-Path $OutDir ("live_interval_backtest_${startIso}_${prevDate}_15s.csv")
+      $csv30 = Join-Path $OutDir ("live_interval_backtest_${startIso}_${prevDate}_30s.csv")
+
+      $bt15Args = @(
+        'backtest-live-intervals',
+        '--start-date', "$startIso",
+        '--end-date', "$prevDate",
+        '--step-sec', '15',
+        '--out-csv', "$csv15",
+        '--max-files', "$LiveIntervalEvalMaxFiles"
+      )
+      $bt30Args = @(
+        'backtest-live-intervals',
+        '--start-date', "$startIso",
+        '--end-date', "$prevDate",
+        '--step-sec', '30',
+        '--out-csv', "$csv30",
+        '--max-files', "$LiveIntervalEvalMaxFiles"
+      )
+
+      $o15 = (& $VenvPython -m ncaab_model.cli @bt15Args) | Out-String
+      if ($o15) { Write-Host ($o15.Trim()) }
+      $o30 = (& $VenvPython -m ncaab_model.cli @bt30Args) | Out-String
+      if ($o30) { Write-Host ($o30.Trim()) }
+
+      if ((Test-Path -LiteralPath $csv15) -and (Test-Path -LiteralPath $csv30)) {
+        $cmpPrefix = Join-Path $OutDir ("live_interval_compare_${startIso}_${prevDate}_15s_vs_30s")
+        $cmpArgs = @(
+          'compare-live-intervals',
+          '--csv-a', "$csv15",
+          '--csv-b', "$csv30",
+          '--label-a', '15s',
+          '--label-b', '30s',
+          '--out-prefix', "$cmpPrefix"
+        )
+        $cmpOut = (& $VenvPython -m ncaab_model.cli @cmpArgs) | Out-String
+        if ($cmpOut) { Write-Host ($cmpOut.Trim()) }
+      } else {
+        Write-Warning "[live-interval-eval] Missing backtest CSVs; skipping compare. csv15=$csv15 csv30=$csv30"
+      }
+    } catch {
+      Write-Warning "Live interval eval failed: $($_)"
+    }
+  } else {
+    Write-Host '[skip] Live Lens interval eval' -ForegroundColor Yellow
   }
 
   # 3e) Fit global simulation calibration (from recent finalized results + existing sim outputs)

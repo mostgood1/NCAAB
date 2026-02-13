@@ -1955,6 +1955,8 @@
         });
         rows.sort(function(a,b){ return a.end_min - b.end_min; });
 
+        var mins = rows.map(function(r){ return r.end_min; }).filter(function(x){ return x !== null && isFinite(x); });
+
         var expTotalByMin = {};
         var expMarginByMin = {};
         var q10MarginByMin = {};
@@ -1984,6 +1986,7 @@
 
         return {
           rows: rows,
+          mins: mins,
           expTotalByMin: expTotalByMin,
           simFinal: simFinal,
           expMarginByMin: expMarginByMin,
@@ -1991,6 +1994,40 @@
           q10FinalMargin: q10FinalMargin,
           q90FinalMargin: q90FinalMargin
         };
+      }
+
+      function interpByMin(mapObj, mins, x){
+        if(x === null || x === undefined) return null;
+        if(!isFinite(x)) return null;
+        try {
+          // Exact key match first.
+          var k = String(x);
+          if(mapObj && mapObj[k] !== undefined && mapObj[k] !== null) return mapObj[k];
+        } catch(_eK){ /* noop */ }
+        if(!mins || !mins.length || !mapObj) return null;
+        var lo = null;
+        var hi = null;
+        for(var i=0;i<mins.length;i++){
+          var m = mins[i];
+          if(m === null || m === undefined) continue;
+          if(!isFinite(m)) continue;
+          if(m <= x) lo = m;
+          if(m >= x){ hi = m; break; }
+        }
+        if(lo === null) lo = mins[0];
+        if(hi === null) hi = mins[mins.length-1];
+        var vlo = mapObj[String(lo)];
+        var vhi = mapObj[String(hi)];
+        if(vlo === undefined || vlo === null){
+          return (vhi !== undefined && vhi !== null) ? vhi : null;
+        }
+        if(vhi === undefined || vhi === null) return vlo;
+        if(hi === lo) return vlo;
+        var t = (x - lo) / (hi - lo);
+        if(!isFinite(t)) return vlo;
+        if(t < 0) t = 0;
+        if(t > 1) t = 1;
+        return vlo + t * (vhi - vlo);
       }
 
       function setText(root, key, txt){
@@ -2197,17 +2234,26 @@
         } catch(e) { /* noop */ }
 
         function update(){
-          function marketBlendWeight(elapsedMin, horizonMin){
+          // Optional daily-tuned thresholds (best-effort).
+          var tune = null;
+          try {
+            tune = (window.__ncaabLiveLensTuning && window.__ncaabLiveLensTuning.tuning) ? window.__ncaabLiveLensTuning.tuning : null;
+          } catch(eTune){ tune = null; }
+
+          function marketBlendWeight(elapsedMin, horizonMin, opts){
             // Blend model projection toward the live market line as the game progresses.
             // Goal: reduce overconfidence early and follow market more late.
             // Keep simple and deterministic (no extra endpoints or UI toggles).
             var e = toNum(elapsedMin);
             var h = toNum(horizonMin);
             if(e === null || h === null || !isFinite(e) || !isFinite(h) || h <= 1) return 0;
+            opts = (opts && typeof opts === 'object') ? opts : null;
+            var maxW = (opts && opts.maxW !== undefined) ? toNum(opts.maxW) : null;
+            var start = (opts && opts.start !== undefined) ? toNum(opts.start) : null;
+            if(maxW === null || !isFinite(maxW) || maxW <= 0) maxW = 0.55;
             // Ignore first few minutes (noise).
-            var start = (h <= 20.5) ? 3 : 5;
+            if(start === null || !isFinite(start)) start = (h <= 20.5) ? 3 : 5;
             if(e <= start) return 0;
-            var maxW = 0.55;
             var t = (e - start) / Math.max(1e-6, (h - start));
             if(t < 0) t = 0;
             if(t > 1) t = 1;
@@ -2229,7 +2275,15 @@
           var is2H0 = (per0 !== null && per0 >= 2);
           var lock1H = (horizon <= 20.5) && is2H0;
 
-          var remaining = toNum(selMin.value);
+          var remaining = null;
+          try {
+            // When live polling is active, use the raw fractional remaining minutes derived from seconds.
+            // This enables smoother updates (effectively 15s/30s resolution) without changing the dropdown options.
+            if(card0 && card0.__liveIsLive && typeof wrap.__liveRemMinRaw === 'number' && isFinite(wrap.__liveRemMinRaw)){
+              remaining = wrap.__liveRemMinRaw;
+            }
+          } catch(_eRem){ remaining = null; }
+          if(remaining === null) remaining = toNum(selMin.value);
           var act = toNum(inpTot.value);
           var line = inpLine ? toNum(inpLine.value) : null;
 
@@ -2248,10 +2302,10 @@
           var elapsed = (remaining !== null) ? (horizon - remaining) : null;
           if(elapsed !== null && elapsed < 0) elapsed = 0;
 
-          var exp = (elapsed !== null && elapsed > 0) ? (idx.expTotalByMin[String(elapsed)] ?? null) : null;
+          var exp = (elapsed !== null && elapsed > 0) ? (interpByMin(idx.expTotalByMin, idx.mins, elapsed) ?? null) : null;
           var simFinal = idx.simFinal;
 
-          var expMargin = (elapsed !== null && elapsed > 0) ? (idx.expMarginByMin[String(elapsed)] ?? null) : null;
+          var expMargin = (elapsed !== null && elapsed > 0) ? (interpByMin(idx.expMarginByMin, idx.mins, elapsed) ?? null) : null;
           var simFinalMargin = idx.simFinalMargin;
 
           var delta = (exp !== null && act !== null) ? (exp - act) : null; // + means sim higher than actual so far
@@ -2264,14 +2318,18 @@
           var simRemainder = (simFinal !== null && exp !== null) ? (simFinal - exp) : null;
           var projModel = (act !== null && simRemainder !== null) ? (act + simRemainder) : null;
           var projFinal = (projModel !== null) ? projModel : projPace;
-          var blendW = (line !== null && projFinal !== null) ? marketBlendWeight(elapsed, horizon) : 0;
+          var mbMaxW = null;
+          var mbStart = null;
+          try {
+            if(tune){
+              mbMaxW = toNum(tune.market_blend_max_w);
+              mbStart = toNum(tune.market_blend_start_min);
+            }
+          } catch(_eMB){ mbMaxW = null; mbStart = null; }
+
+          var blendW = (line !== null && projFinal !== null) ? marketBlendWeight(elapsed, horizon, {maxW: mbMaxW, start: mbStart}) : 0;
           var projBlend = (line !== null && projFinal !== null) ? ((1 - blendW) * projFinal + blendW * line) : projFinal;
 
-          // Optional daily-tuned thresholds (best-effort).
-          var tune = null;
-          try {
-            tune = (window.__ncaabLiveLensTuning && window.__ncaabLiveLensTuning.tuning) ? window.__ncaabLiveLensTuning.tuning : null;
-          } catch(eTune){ tune = null; }
           var ftW = 0.44;
           var pbpNScale = 70;
           var paceHi = 3.25;
@@ -2915,6 +2973,7 @@
             // setSelectClosest will snap to the nearest available segment endpoint.
             var remMin = (Math.max(0, toNum(remSec) || 0) / 60);
             if(remMin > horizon) remMin = horizon;
+            try { wrap.__liveRemMinRaw = remMin; } catch(_eStore) { /* ignore */ }
             setSelectClosest(selMin, remMin);
           }
         });
@@ -3075,9 +3134,29 @@
                       try { console.warn('[live_lines]', js3.warning, js3); } catch(eW2) {}
                     }
                     if(!js3.lines) return null;
+                    var want = null;
+                    try { want = new Set(uniq || []); } catch(_eSet){ want = null; }
+                    var missing = [];
                     cards.forEach(function(card){
-                      applyLiveLinesToCard(card, js3.lines);
+                      try {
+                        var gid = String(card.getAttribute('data-game-id') || '').trim();
+                        if(!gid) return;
+                        if(want && !want.has(gid)) return;
+                        if(!js3.lines[gid]) missing.push(gid);
+                        applyLiveLinesToCard(card, js3.lines);
+                      } catch(_eC){ /* ignore */ }
                     });
+                    try {
+                      var dbg = false;
+                      try { dbg = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD){ dbg = false; }
+                      if(dbg && missing.length){
+                        var key = missing.slice().sort().join(',');
+                        if(window.__ncaabMissingLiveLinesKey !== key){
+                          window.__ncaabMissingLiveLinesKey = key;
+                          try { console.warn('[live_lines] missing totals for game_ids', missing, (js3.debug || null)); } catch(_eW3) {}
+                        }
+                      }
+                    } catch(_eDbg){ /* ignore */ }
                   } catch(e) { /* ignore */ }
                   return true;
                 })

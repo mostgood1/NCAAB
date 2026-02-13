@@ -99,7 +99,13 @@ def _interp_total(seg: dict[str, SegmentIndex], game_id: str, end_min: float) ->
     return None
 
 
-def market_blend_weight(elapsed_min: Optional[float], horizon_min: float = 40.0) -> float:
+def market_blend_weight(
+    elapsed_min: Optional[float],
+    horizon_min: float = 40.0,
+    *,
+    start_min: Optional[float] = None,
+    max_w: float = 0.55,
+) -> float:
     # Keep aligned with templates/index.html.
     if elapsed_min is None:
         return 0.0
@@ -107,16 +113,21 @@ def market_blend_weight(elapsed_min: Optional[float], horizon_min: float = 40.0)
     h = float(horizon_min)
     if not (e >= 0 and h > 1):
         return 0.0
-    start = 3.0 if h <= 20.5 else 5.0
+
+    start = float(start_min) if start_min is not None else (3.0 if h <= 20.5 else 5.0)
     if e <= start:
         return 0.0
-    max_w = 0.55
+
+    mw = float(max_w)
+    if not (mw > 0):
+        return 0.0
+
     t = (e - start) / max(1e-6, (h - start))
     if t < 0:
         t = 0.0
     if t > 1:
         t = 1.0
-    return float(max_w * t)
+    return float(mw * t)
 
 
 def _load_results_actual_total(results_path: Path) -> dict[str, Optional[float]]:

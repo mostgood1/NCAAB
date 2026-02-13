@@ -21651,6 +21651,11 @@ def api_live_lens_tuning():
         "pbp_n_scale": 70.0,
         "shot_proxy_ft_weight": 0.44,
 
+        # Optional market blend knobs (defaults match templates/index.html)
+        # Used by Live Lens projection blending against the live market total.
+        "market_blend_max_w": 0.55,
+        "market_blend_start_min": None,
+
         # Optional retune knobs (defaults disabled)
         # Used by templates/index.html Live Lens logic.
         "late_over_strength_penalty": 0.0,
@@ -21673,6 +21678,9 @@ def api_live_lens_tuning():
             "pps_lo": 0.95,
             "pbp_n_scale": 70.0,
             "shot_proxy_ft_weight": 0.44,
+
+            "market_blend_max_w": 0.55,
+            "market_blend_start_min": None,
 
             "late_over_strength_penalty": 0.0,
             "late_over_remaining_lo": 5.0,
@@ -22161,6 +22169,8 @@ def api_live_lines():
     date_param = (request.args.get("date") or "").strip()
     event_ids_raw = (request.args.get("event_ids") or "").strip()
     bookmakers = (request.args.get("bookmakers") or "draftkings,fanduel,betmgm").strip() or "draftkings,fanduel,betmgm"
+    debug = str(request.args.get("debug") or "").strip().lower() in ("1", "true", "yes", "y")
+    allow_future = str(request.args.get("allow_future") or "").strip().lower() in ("1", "true", "yes", "y")
     try:
         ttl = int((request.args.get("ttl") or "20").strip())
     except Exception:
@@ -22174,28 +22184,32 @@ def api_live_lines():
     except Exception:
         return jsonify({"status": "error", "message": f"Invalid date: {date_param}"}), 400
 
-    event_ids = [x.strip() for x in event_ids_raw.split(",") if x.strip()]
+    use_all_from_snapshot = debug and (event_ids_raw.strip().lower() == "all")
+
+    event_ids = [x.strip() for x in event_ids_raw.split(",") if x.strip() and x.strip().lower() != "all"]
     # Defensive cap to prevent giant query strings / heavy processing.
     if len(event_ids) > 60:
         event_ids = event_ids[:60]
 
-    if not event_ids:
+    if not event_ids and not use_all_from_snapshot:
         return jsonify({"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}), 200
 
     # In-memory TTL cache to avoid burning odds credits during frequent polling.
+    # Skip caching for debug-driven `event_ids=all` runs since event_ids are derived later.
     cache_key = None
-    try:
-        import time
+    if not use_all_from_snapshot:
+        try:
+            import time
 
-        now_ts = float(time.time())
-        cache_key = f"{target_date.isoformat()}|{bookmakers}|{','.join(sorted(event_ids))}"
-        if ttl > 0 and _LIVE_LINES_CACHE.get("payload") is not None:
-            ts0 = float(_LIVE_LINES_CACHE.get("ts") or 0.0)
-            k0 = _LIVE_LINES_CACHE.get("key")
-            if k0 == cache_key and (now_ts - ts0) <= float(ttl):
-                return jsonify(_LIVE_LINES_CACHE.get("payload")), 200
-    except Exception:
-        pass
+            now_ts = float(time.time())
+            cache_key = f"{target_date.isoformat()}|{bookmakers}|{','.join(sorted(event_ids))}"
+            if ttl > 0 and _LIVE_LINES_CACHE.get("payload") is not None:
+                ts0 = float(_LIVE_LINES_CACHE.get("ts") or 0.0)
+                k0 = _LIVE_LINES_CACHE.get("key")
+                if k0 == cache_key and (now_ts - ts0) <= float(ttl):
+                    return jsonify(_LIVE_LINES_CACHE.get("payload")), 200
+        except Exception:
+            pass
 
     # Load a snapshot for the date so we can map ESPN event id -> teams.
     # This is strictly for auto-fill and should never hard-fail the UI.
@@ -22278,9 +22292,23 @@ def api_live_lines():
         core = df_full[[gid_col, home_col, away_col]].copy()
         core = core.rename(columns={gid_col: "game_id", home_col: "home_team", away_col: "away_team"})
         core["game_id"] = core["game_id"].astype(str).str.replace(r"\.0$", "", regex=True)
+
+        if use_all_from_snapshot and not event_ids:
+            try:
+                event_ids = [str(x).strip() for x in core["game_id"].dropna().astype(str).tolist() if str(x).strip()]
+                # De-dupe preserving order, cap.
+                seen = set()
+                event_ids = [x for x in event_ids if not (x in seen or seen.add(x))][:60]
+            except Exception:
+                event_ids = []
+
         core = core[core["game_id"].isin(set(event_ids))]
         if core.empty:
-            payload = {"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}
+            payload: dict[str, object] = {"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}
+            if debug:
+                payload["warning"] = "snapshot_no_matching_event_ids"
+                payload["snapshot_used"] = (snapshot_used.name if snapshot_used else None)
+                payload["requested_event_ids"] = event_ids
             try:
                 if cache_key:
                     _LIVE_LINES_CACHE["ts"] = float(time.time())
@@ -22315,6 +22343,13 @@ def api_live_lines():
         from ncaab_model.data.team_normalize import pair_key as _pair_key  # type: ignore
     except Exception as e:
         return jsonify({"status": "error", "message": f"Team normalize import failed: {e}"}), 500
+
+    missing_event_ids: list[str] = []
+    try:
+        have_ids = set(core["game_id"].astype(str).tolist())
+        missing_event_ids = [x for x in event_ids if x not in have_ids]
+    except Exception:
+        missing_event_ids = []
 
     game_pair_to_ids: dict[str, list[str]] = {}
     for _, r in core.iterrows():
@@ -22360,9 +22395,11 @@ def api_live_lines():
     now_utc = dt.datetime.now(dt.timezone.utc)
     preferred = ["draftkings", "fanduel", "betmgm"]
     by_pair: dict[str, list[dict]] = {}
+    odds_diag: dict[str, int] = {"rows_seen": 0, "rows_matched_pair": 0, "rows_skipped_future": 0, "rows_skipped_unmatched": 0}
     try:
         for row in adapter.iter_current_odds_expanded(markets="totals", bookmakers=bookmakers):
             try:
+                odds_diag["rows_seen"] += 1
                 if (row.period or "") != "full_game":
                     continue
                 if (row.market or "") != "totals":
@@ -22374,7 +22411,8 @@ def api_live_lines():
                         ct = row.commence_time
                         if ct.tzinfo is None:
                             ct = ct.replace(tzinfo=dt.timezone.utc)
-                        if ct > now_utc:
+                        if (not allow_future) and ct > now_utc:
+                            odds_diag["rows_skipped_future"] += 1
                             continue
                     except Exception:
                         pass
@@ -22384,7 +22422,9 @@ def api_live_lines():
                     continue
                 pk = _pair_key(ht, at)
                 if pk not in game_pair_to_ids:
+                    odds_diag["rows_skipped_unmatched"] += 1
                     continue
+                odds_diag["rows_matched_pair"] += 1
                 book = str(row.book or "").strip()
                 book_key = "".join(ch for ch in book.lower() if ch.isalnum())
                 last_update = getattr(row, "last_update", None)
@@ -22441,6 +22481,20 @@ def api_live_lines():
         "count": len(out_lines),
         "lines": out_lines,
     }
+
+    if debug:
+        try:
+            payload["debug"] = {
+                "allow_future": bool(allow_future),
+                "event_ids_mode": ("all" if use_all_from_snapshot else "explicit"),
+                "requested_event_ids": event_ids,
+                "missing_event_ids_in_snapshot": missing_event_ids[:50],
+                "snapshot_used": (snapshot_used.name if snapshot_used else None),
+                "odds_diag": odds_diag,
+                "alias_map_size": int(len(alias_map)),
+            }
+        except Exception:
+            pass
 
     try:
         from ncaab_model.live_snapshots import log_live_api_payload  # type: ignore

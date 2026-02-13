@@ -12558,6 +12558,8 @@ def evaluate_live_snapshots_cmd(
     out_csv: Path = typer.Option(None, help="Output per-snapshot eval CSV (default: outputs/live_snapshot_eval_<date>.csv)."),
     out_json: Path = typer.Option(None, help="Output summary JSON (default: outputs/live_snapshot_eval_summary_<date>.json)."),
     max_lines: int = typer.Option(400000, help="Max JSONL lines to read (safety cap)."),
+    market_blend_max_w: float = typer.Option(0.55, help="Market blend max weight (w in (1-w)*model + w*line)."),
+    market_blend_start_min: float = typer.Option(None, help="Market blend ramp start minute elapsed (default: 5 for 40m, 3 for 20m)."),
 ):
     """Evaluate Live Lens projection accuracy from captured live snapshots.
 
@@ -12626,24 +12628,7 @@ def evaluate_live_snapshots_cmd(
         except Exception:
             return None
 
-    def _market_blend_weight(elapsed_min: float | None, horizon_min: float = 40.0) -> float:
-        # Mirror the simple JS weight: ramp after a few minutes, capped.
-        if elapsed_min is None:
-            return 0.0
-        e = float(elapsed_min)
-        h = float(horizon_min)
-        if not (e >= 0 and h > 1):
-            return 0.0
-        start = 5.0
-        if e <= start:
-            return 0.0
-        max_w = 0.55
-        t = (e - start) / max(1e-6, (h - start))
-        if t < 0:
-            t = 0
-        if t > 1:
-            t = 1
-        return float(max_w * t)
+    from .eval.live_snapshot_features import market_blend_weight
 
     # Load segments -> interpolation tables per game.
     try:
@@ -12837,7 +12822,12 @@ def evaluate_live_snapshots_cmd(
         proj_blend = None
         w = 0.0
         if live_line is not None and proj_model is not None:
-            w = _market_blend_weight(float(elapsed_min), 40.0)
+            w = market_blend_weight(
+                float(elapsed_min),
+                40.0,
+                start_min=(float(market_blend_start_min) if market_blend_start_min is not None else None),
+                max_w=float(market_blend_max_w),
+            )
             proj_blend = (1.0 - w) * float(proj_model) + w * float(live_line)
 
         actual_total = actual_total_map.get(gid)
@@ -13193,9 +13183,6 @@ def backfill_live_features_cmd(
         if i % 10 == 0:
             print({"progress": f"{date_s} ({i})", "elapsed_sec": round(time.time() - t0, 1), **counts})
 
-    print({"status": "ok", "start_date": start_date, "end_date": end_date, "elapsed_sec": round(time.time() - t0, 1), **counts})
-
-
 @app.command(name="backfill-live-lens-signals")
 def backfill_live_lens_signals_cmd(
     days: int = typer.Option(30, help="Lookback window (days) ending at end_date (inclusive)."),
@@ -13393,12 +13380,150 @@ def backfill_live_lens_signals_cmd(
         print(f"[yellow]Failed writing range CSV:[/yellow] {e}")
 
     try:
-        out_json.write_text(json.dumps({"status": "ok", "start_date": start_date, "end_date": end_date, "counts": counts, "rows": summary_rows}, indent=2), encoding="utf-8")
+        out_json.write_text(
+            json.dumps({"status": "ok", "start_date": start_date, "end_date": end_date, "counts": counts, "rows": summary_rows}, indent=2),
+            encoding="utf-8",
+        )
     except Exception as e:
         counts["errors"] += 1
         print(f"[yellow]Failed writing range JSON:[/yellow] {e}")
 
     print({"status": "ok", "start_date": start_date, "end_date": end_date, "elapsed_sec": round(time.time() - t0, 1), "range_csv": str(out_csv), "range_json": str(out_json), **counts})
+
+
+@app.command(name="backtest-live-intervals")
+def backtest_live_intervals_cmd(
+    start_date: str = typer.Option(None, help="Start date YYYY-MM-DD (default: 21 days before end_date)."),
+    end_date: str = typer.Option(None, help="End date YYYY-MM-DD (default: yesterday local)."),
+    step_sec: int = typer.Option(30, help="Sampling interval in game seconds (e.g., 15 or 30)."),
+    min_elapsed_min: float = typer.Option(6.0, help="Start sampling after this many elapsed minutes."),
+    max_elapsed_min: float = typer.Option(39.5, help="Stop sampling at this many elapsed minutes."),
+    cache_dir: Path = typer.Option(None, help="PBP cache dir (default: data/cache/espn_pbp)."),
+    out_csv: Path = typer.Option(None, help="Output CSV path (default: outputs/live_interval_backtest_<start>_<end>_<step>s.csv)."),
+    max_files: int = typer.Option(0, help="Optional cap on cache files scanned (0=all)."),
+    no_tuning_clamps: bool = typer.Option(False, help="Disable tuning-based pace/pps clamps."),
+):
+    """Backtest Live Lens-style projections at 15s/30s intervals using cached ESPN PBP.
+
+    This uses only data already in data/cache/espn_pbp/*.json (scores + pickcenter O/U).
+    It produces a dense per-snapshot table plus summary MAE/RMSE/bias by elapsed bucket.
+    """
+
+    def _today_local_safe() -> dt.date:
+        try:
+            return _today_local()
+        except Exception:
+            return dt.date.today()
+
+    if not end_date:
+        end_dt = _today_local_safe() - dt.timedelta(days=1)
+        end_date = end_dt.isoformat()
+    try:
+        end_dt = dt.date.fromisoformat(str(end_date))
+    except Exception:
+        print(f"[red]Invalid end_date:[/red] {end_date}")
+        raise typer.Exit(code=2)
+
+    if not start_date:
+        start_dt = end_dt - dt.timedelta(days=21)
+        start_date = start_dt.isoformat()
+    try:
+        start_dt = dt.date.fromisoformat(str(start_date))
+    except Exception:
+        print(f"[red]Invalid start_date:[/red] {start_date}")
+        raise typer.Exit(code=2)
+
+    if start_dt > end_dt:
+        print(f"[red]start_date after end_date:[/red] {start_date} > {end_date}")
+        raise typer.Exit(code=2)
+
+    if cache_dir is None:
+        cache_dir = settings.data_dir / "cache" / "espn_pbp"
+
+    if out_csv is None:
+        out_csv = settings.outputs_dir / f"live_interval_backtest_{start_dt.isoformat()}_{end_dt.isoformat()}_{int(step_sec)}s.csv"
+
+    try:
+        from .eval.live_lens_interval_backtest import run_interval_backtest
+
+        payload = run_interval_backtest(
+            cache_dir=Path(cache_dir),
+            start_date=start_dt,
+            end_date=end_dt,
+            out_csv=Path(out_csv),
+            step_sec=int(step_sec),
+            min_elapsed_min=float(min_elapsed_min),
+            max_elapsed_min=float(max_elapsed_min),
+            max_files=int(max_files),
+            use_tuning_clamps=(not bool(no_tuning_clamps)),
+        )
+        print(payload)
+
+        # Also write a small JSON summary next to the CSV for quick inspection.
+        try:
+            import json as _json
+
+            p_sum = Path(out_csv).with_suffix(".summary.json")
+            with p_sum.open("w", encoding="utf-8") as f:
+                _json.dump(payload.get("summary") or {}, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"[red]backtest-live-intervals failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    # Important: exit cleanly. (Avoid accidentally executing unrelated command logic
+    # if this file is edited/merged incorrectly in the future.)
+    return
+
+
+@app.command(name="compare-live-intervals")
+def compare_live_intervals_cmd(
+    csv_a: Path = typer.Option(..., help="First interval backtest CSV (e.g., outputs/..._15s.csv)."),
+    csv_b: Path = typer.Option(..., help="Second interval backtest CSV (e.g., outputs/..._30s.csv)."),
+    label_a: str = typer.Option("15s", help="Label for first CSV (used in output columns)."),
+    label_b: str = typer.Option("30s", help="Label for second CSV (used in output columns)."),
+    out_prefix: Path = typer.Option(None, help="Output prefix path (writes .per_event.csv and .summary.json)."),
+):
+    """Compare two interval backtests (e.g., 15s vs 30s) in decision terms.
+
+    Reads the dense per-snapshot CSVs produced by `backtest-live-intervals` and:
+      - recomputes a UI-like action flag (none/watch/bet)
+      - derives per-event first WATCH/BET times
+      - computes lead-time deltas and one-sided trigger counts
+    Writes:
+      - <out_prefix>.per_event.csv
+      - <out_prefix>.summary.json
+    """
+
+    if out_prefix is None:
+        out_prefix = settings.outputs_dir / f"live_interval_compare_{label_a}_vs_{label_b}"
+
+    if not Path(csv_a).exists():
+        print(f"[red]Missing csv_a:[/red] {csv_a}")
+        raise typer.Exit(code=2)
+    if not Path(csv_b).exists():
+        print(f"[red]Missing csv_b:[/red] {csv_b}")
+        raise typer.Exit(code=2)
+
+    try:
+        from .eval.live_lens_interval_compare import compare_interval_backtests
+
+        payload = compare_interval_backtests(
+            csv_a=Path(csv_a),
+            csv_b=Path(csv_b),
+            out_prefix=Path(out_prefix),
+            label_a=str(label_a),
+            label_b=str(label_b),
+        )
+        print(payload.get("summary") or payload)
+    except Exception as e:
+        print(f"[red]compare-live-intervals failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    # Important: exit cleanly. (Avoid accidentally executing unrelated command logic
+    # if this file is edited/merged incorrectly in the future.)
+    return
 
 
 @app.command(name="backfill-live-features-from-pbp-cache")
@@ -13517,17 +13642,21 @@ def backfill_live_features_from_pbp_cache_cmd(
             counts["snapshots_skipped_existing"] += 1
         else:
             try:
-                payload = write_synthetic_live_snapshots_jsonl_from_pbp_cache(
+                wrote = write_synthetic_live_snapshots_jsonl_from_pbp_cache(
                     date=str(date_s),
-                    event_ids=list(event_ids),
+                    event_ids=list(map(str, event_ids)),
                     cache_dir=Path(cache_dir),
                     out_jsonl=Path(snap_path),
                 )
-                if snap_path.exists() and snap_path.stat().st_size > 2 and int(payload.get("lines") or 0) > 0:
+                if Path(snap_path).exists() and Path(snap_path).stat().st_size > 2:
                     counts["snapshots_written"] += 1
+                else:
+                    counts["errors"] += 1
+                    print(f"[yellow]snapshots empty:[/yellow] date={date_s} wrote={wrote}")
+                    continue
             except Exception as e:
                 counts["errors"] += 1
-                print(f"[yellow]snapshot synth failed:[/yellow] date={date_s} {e}")
+                print(f"[yellow]snapshots write failed:[/yellow] date={date_s} {e}")
                 continue
 
         out_csv = settings.outputs_dir / f"live_features_{date_s}.csv"
@@ -13540,6 +13669,7 @@ def backfill_live_features_from_pbp_cache_cmd(
 
             results_path = settings.outputs_dir / "daily_results" / f"results_{date_s}.csv"
             results_path = results_path if results_path.exists() else None
+
             try:
                 build_live_feature_table(
                     date=str(date_s),
@@ -13555,7 +13685,6 @@ def backfill_live_features_from_pbp_cache_cmd(
             except Exception as e:
                 counts["errors"] += 1
                 print(f"[yellow]build failed:[/yellow] date={date_s} {e}")
-                continue
 
         if upload and out_csv.exists() and out_csv.stat().st_size > 2:
             url = f"{base_url}/api/upload_live_features?date={date_s}"
@@ -13580,6 +13709,11 @@ def backfill_live_features_from_pbp_cache_cmd(
 
     print({"status": "ok", "start_date": start_date, "end_date": end_date, "elapsed_sec": round(time.time() - t0, 1), **counts})
 
-if __name__ == "__main__":
+
+def main() -> None:
     app()
+
+
+if __name__ == "__main__":
+    main()
 
