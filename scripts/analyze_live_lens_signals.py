@@ -76,34 +76,39 @@ class ClassKey:
     side: str  # over/under
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--path", type=str, help="Path to NDJSON log file")
-    g.add_argument("--date", type=str, help="Slate date YYYY-MM-DD (reads outputs/live_lens_signals_<date>.jsonl)")
-    ap.add_argument("--full-game-only", action="store_true", help="Filter to horizon>=39 (default: keep all)")
-    args = ap.parse_args()
+@dataclass(frozen=True)
+class AnalysisResult:
+    path: Path
+    rows_parsed: int
+    by_kind: dict[str, Counter]
+    candidate_kinds: Counter
+    candidate_miss_deltas: list[float]
+    candidate_edges: list[float]
+    candidate_remaining: list[float]
+    meta_has_candidate: int
+    meta_has_thresholds: int
 
-    path = Path(args.path) if args.path else Path("outputs") / f"live_lens_signals_{args.date}.jsonl"
-    if not path.exists():
-        raise SystemExit(f"File not found: {path}")
 
+def analyze_path(path: Path, *, full_game_only: bool = False) -> AnalysisResult:
     rows = list(_iter_ndjson(path))
     if not rows:
-        print(f"No valid rows parsed from {path}")
-        return 0
+        return AnalysisResult(
+            path=path,
+            rows_parsed=0,
+            by_kind={},
+            candidate_kinds=Counter(),
+            candidate_miss_deltas=[],
+            candidate_edges=[],
+            candidate_remaining=[],
+            meta_has_candidate=0,
+            meta_has_thresholds=0,
+        )
 
-    # Core tallies
-    counts = Counter()
-    by_kind = defaultdict(Counter)  # kind -> Counter(side)
+    by_kind: dict[str, Counter] = defaultdict(Counter)
     cand_kind = Counter()
-
-    # Candidate distance diagnostics
     cand_miss_deltas: list[float] = []
     cand_edges: list[float] = []
     cand_remaining: list[float] = []
-
-    # Metadata coverage
     meta_has_candidate = 0
     meta_has_thresholds = 0
 
@@ -113,7 +118,7 @@ def main() -> int:
             continue
 
         hz = _fnum(r.get("horizon"))
-        if args.full_game_only and (hz is None or hz < 39):
+        if full_game_only and (hz is None or hz < 39):
             continue
 
         is_bet = _truthy(r.get("is_bet"))
@@ -127,18 +132,14 @@ def main() -> int:
 
         if is_bet:
             by_kind["BET"][side] += 1
-            counts[ClassKey("BET", side)] += 1
         if is_watch:
             by_kind["WATCH"][side] += 1
-            counts[ClassKey("WATCH", side)] += 1
         if is_cand:
             by_kind["CANDIDATE"][side] += 1
-            counts[ClassKey("CANDIDATE", side)] += 1
             ck = r.get("candidate_kind")
             if ck:
                 cand_kind[str(ck)] += 1
 
-            # Miss distance to threshold when present
             strength = _fnum(r.get("strength"))
             thr_watch = _fnum(r.get("thr_watch"))
             if strength is not None and thr_watch is not None:
@@ -150,6 +151,20 @@ def main() -> int:
             if rem is not None:
                 cand_remaining.append(rem)
 
+    return AnalysisResult(
+        path=path,
+        rows_parsed=len(rows),
+        by_kind=dict(by_kind),
+        candidate_kinds=cand_kind,
+        candidate_miss_deltas=cand_miss_deltas,
+        candidate_edges=cand_edges,
+        candidate_remaining=cand_remaining,
+        meta_has_candidate=meta_has_candidate,
+        meta_has_thresholds=meta_has_thresholds,
+    )
+
+
+def print_summary(result: AnalysisResult) -> None:
     def _share(ctr: Counter, side_key: str) -> float:
         total = sum(ctr.values())
         return (ctr.get(side_key, 0) / total) if total else 0.0
@@ -157,10 +172,10 @@ def main() -> int:
     def _pct(x: float) -> str:
         return f"{100.0 * x:.1f}%"
 
-    print(f"File: {path}  (rows parsed: {len(rows)})")
+    print(f"File: {result.path}  (rows parsed: {result.rows_parsed})")
 
     for kind in ("BET", "WATCH", "CANDIDATE"):
-        ctr = by_kind.get(kind, Counter())
+        ctr = result.by_kind.get(kind, Counter())
         total = sum(ctr.values())
         if total == 0:
             print(f"{kind}: (none)")
@@ -169,38 +184,56 @@ def main() -> int:
         un = ctr.get("under", 0)
         print(f"{kind}: total {total} | over {ov} | under {un} | over share {_pct(_share(ctr, 'over'))}")
 
-    if meta_has_candidate == 0:
+    if result.meta_has_candidate == 0:
         print("\nNote: no `is_candidate` rows found in this file.")
-        print("      That usually means the log predates the under-candidate logging change.")
+        print("      That usually means the log predates the under-candidate logging change, or no near-threshold UNDERs occurred yet.")
 
-    if meta_has_thresholds == 0:
+    if result.meta_has_thresholds == 0:
         print("Note: no threshold metadata (`thr`, `thr_watch`) found in this file.")
 
-    if cand_kind:
+    if result.candidate_kinds:
         print("\nCandidate kinds:")
-        for k, n in cand_kind.most_common():
+        for k, n in result.candidate_kinds.most_common():
             print(f"  {k}: {n}")
 
-    if cand_miss_deltas:
-        cand_miss_deltas.sort()
-        p50 = cand_miss_deltas[len(cand_miss_deltas) // 2]
-        p90 = cand_miss_deltas[int(0.9 * (len(cand_miss_deltas) - 1))]
+    if result.candidate_miss_deltas:
+        xs = sorted(result.candidate_miss_deltas)
+        p50 = xs[len(xs) // 2]
+        p90 = xs[int(0.9 * (len(xs) - 1))]
         print("\nCandidate miss distance (thr_watch - strength):")
-        print(f"  n={len(cand_miss_deltas)} | p50={p50:.2f} | p90={p90:.2f} | min={cand_miss_deltas[0]:.2f} | max={cand_miss_deltas[-1]:.2f}")
+        print(f"  n={len(xs)} | p50={p50:.2f} | p90={p90:.2f} | min={xs[0]:.2f} | max={xs[-1]:.2f}")
 
-    if cand_edges:
-        # Expect candidate under edges to be negative; print a quick summary.
-        cand_edges.sort()
-        p50e = cand_edges[len(cand_edges) // 2]
+    if result.candidate_edges:
+        xs = sorted(result.candidate_edges)
+        p50e = xs[len(xs) // 2]
         print("\nCandidate edges (projBlend - live_line):")
-        print(f"  n={len(cand_edges)} | p50={p50e:.2f} | min={cand_edges[0]:.2f} | max={cand_edges[-1]:.2f}")
+        print(f"  n={len(xs)} | p50={p50e:.2f} | min={xs[0]:.2f} | max={xs[-1]:.2f}")
 
-    if cand_remaining:
-        cand_remaining.sort()
-        p50r = cand_remaining[len(cand_remaining) // 2]
+    if result.candidate_remaining:
+        xs = sorted(result.candidate_remaining)
+        p50r = xs[len(xs) // 2]
         print("\nCandidate remaining minutes:")
-        print(f"  n={len(cand_remaining)} | p50={p50r:.1f} | min={cand_remaining[0]:.1f} | max={cand_remaining[-1]:.1f}")
+        print(f"  n={len(xs)} | p50={p50r:.1f} | min={xs[0]:.1f} | max={xs[-1]:.1f}")
 
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--path", type=str, help="Path to NDJSON log file")
+    g.add_argument("--date", type=str, help="Slate date YYYY-MM-DD (reads outputs/live_lens_signals_<date>.jsonl)")
+    ap.add_argument("--full-game-only", action="store_true", help="Filter to horizon>=39 (default: keep all)")
+    args = ap.parse_args()
+
+    path = Path(args.path) if args.path else Path("outputs") / f"live_lens_signals_{args.date}.jsonl"
+    if not path.exists():
+        raise SystemExit(f"File not found: {path}")
+
+    result = analyze_path(path, full_game_only=args.full_game_only)
+    if result.rows_parsed == 0:
+        print(f"No valid rows parsed from {path}")
+        return 0
+
+    print_summary(result)
     return 0
 
 
