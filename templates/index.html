@@ -2080,7 +2080,7 @@
           // Log BET and (high-confidence) WATCH signals for later analysis.
           // (We still default accuracy/ROI evals to BET-only, but we want the
           // raw stream available to diagnose late-game regime shifts.)
-          if(!sig.is_bet && !sig.is_watch) return;
+          if(!sig.is_bet && !sig.is_watch && !sig.is_candidate) return;
           if(sig.live_line === null || sig.live_line === undefined) return;
           if(sig.side !== 'over' && sig.side !== 'under') return;
           if(sig.horizon !== null && sig.horizon !== undefined){
@@ -2096,7 +2096,8 @@
           var line = toNum(sig.live_line);
           var lineQ = (line !== null) ? (Math.round(line * 2) / 2) : null;
 
-          var key = gid + '|' + String(sig.side) + '|' + String(sig.horizon) + '|' + String(bucket) + '|' + String(lineQ) + '|' + (sig.is_bet ? 'B' : 'W');
+          var cls = sig.is_bet ? 'B' : (sig.is_watch ? 'W' : (sig.is_candidate ? 'C' : 'X'));
+          var key = gid + '|' + String(sig.side) + '|' + String(sig.horizon) + '|' + String(bucket) + '|' + String(lineQ) + '|' + cls;
           if(wrap && wrap.__lastLiveLensLogKey === key) return;
           if(wrap) wrap.__lastLiveLensLogKey = key;
 
@@ -2123,6 +2124,10 @@
             strength: sig.strength,
             is_bet: !!sig.is_bet,
             is_watch: !!sig.is_watch,
+            is_candidate: !!sig.is_candidate,
+            candidate_kind: (sig.candidate_kind !== undefined ? sig.candidate_kind : null),
+            thr: (sig.thr !== undefined ? sig.thr : null),
+            thr_watch: (sig.thr_watch !== undefined ? sig.thr_watch : null),
             tuning_source: tuneSrc,
             pbp: pbp,
             home_score: (sig.home_score !== undefined ? sig.home_score : null),
@@ -2483,7 +2488,18 @@
             else if(side === 'Under') lean = (isStrong ? 'BET ' : 'Watch ') + 'Under (pace ' + edgeTxt + ')';
             else lean = 'No edge';
 
-            if((isStrong || isWatchLine) && (side === 'Over' || side === 'Under')){
+            // If we're *just* below the WATCH threshold on an UNDER, log a candidate.
+            // This does not change the UI recommendation; it only helps diagnose
+            // whether UNDER opportunities are being filtered out.
+            var isUnderCandidate = false;
+            try {
+              if(!isStrong && !isWatchLine && side === 'Under' && elapsed !== null && elapsed >= minElapsed && thrWatch !== null){
+                var candMin = Math.max(0, thrWatch - 1);
+                if(strength >= candMin && strength < thrWatch) isUnderCandidate = true;
+              }
+            } catch(_eCand){ isUnderCandidate = false; }
+
+            if((isStrong || isWatchLine || isUnderCandidate) && (side === 'Over' || side === 'Under')){
               // Include game-state context to help explain late-game pace/strategy shifts.
               var perLog = null;
               try {
@@ -2499,6 +2515,8 @@
               logSig = {
                 is_bet: !!isStrong,
                 is_watch: !!isWatchLine,
+                is_candidate: !!isUnderCandidate,
+                candidate_kind: (isUnderCandidate ? 'under_below_watch' : null),
                 side: (side === 'Over' ? 'over' : 'under'),
                 horizon: horizon,
                 elapsed: elapsed,
@@ -2507,6 +2525,8 @@
                 live_line: line,
                 edge: edge,
                 strength: strength,
+                thr: thr,
+                thr_watch: thrWatch,
                 home_score: liveHome,
                 away_score: liveAway,
                 margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
@@ -2756,6 +2776,7 @@
       function setSelectClosest(sel, targetMinutes){
         if(!sel) return false;
         var best = null;
+        var bestNum = null;
         var bestDiff = 1e9;
         for(var i=0;i<sel.options.length;i++){
           var opt = sel.options[i];
@@ -2763,7 +2784,17 @@
           var v = toNum(opt.value);
           if(v === null) continue;
           var d = Math.abs(v - targetMinutes);
-          if(d < bestDiff){ bestDiff = d; best = opt.value; }
+          // Prefer the closest option; on ties, bias slightly toward *lower* remaining
+          // (later game state) to avoid systematic over-projection.
+          if(d < bestDiff || (d === bestDiff && bestNum !== null && v < bestNum)){
+            bestDiff = d;
+            best = opt.value;
+            bestNum = v;
+          } else if(d === bestDiff && bestNum === null){
+            bestDiff = d;
+            best = opt.value;
+            bestNum = v;
+          }
         }
         if(best !== null){
           if(sel.value !== best){
@@ -2880,7 +2911,9 @@
           else remSec = live.remaining_reg_seconds;
 
           if(selMin && remSec !== null && remSec !== undefined){
-            var remMin = Math.ceil(Math.max(0, toNum(remSec) || 0) / 60);
+            // Use fractional minutes (no ceil) to avoid systematic "too early" bias.
+            // setSelectClosest will snap to the nearest available segment endpoint.
+            var remMin = (Math.max(0, toNum(remSec) || 0) / 60);
             if(remMin > horizon) remMin = horizon;
             setSelectClosest(selMin, remMin);
           }
