@@ -20,6 +20,18 @@ class LiveLensTuning:
     pbp_n_scale: float = 70.0
     shot_proxy_ft_weight: float = 0.44
 
+    # Optional retune knobs (defaults disabled). These are not derived from PBP;
+    # they exist so a daily recompute doesn't wipe manual adjustments.
+    late_over_strength_penalty: float = 0.0
+    late_over_remaining_lo: float = 5.0
+    late_over_remaining_hi: float = 10.0
+    late_over_margin_abs_min: float = 0.0
+    late_over_period_min: float = 2.0
+
+    early_over_strength_penalty: float = 0.0
+    early_over_remaining_min: float = 20.0
+    early_over_period_max: float = 1.0
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "pace_hi": float(self.pace_hi),
@@ -28,6 +40,16 @@ class LiveLensTuning:
             "pps_lo": float(self.pps_lo),
             "pbp_n_scale": float(self.pbp_n_scale),
             "shot_proxy_ft_weight": float(self.shot_proxy_ft_weight),
+
+            "late_over_strength_penalty": float(self.late_over_strength_penalty),
+            "late_over_remaining_lo": float(self.late_over_remaining_lo),
+            "late_over_remaining_hi": float(self.late_over_remaining_hi),
+            "late_over_margin_abs_min": float(self.late_over_margin_abs_min),
+            "late_over_period_min": float(self.late_over_period_min),
+
+            "early_over_strength_penalty": float(self.early_over_strength_penalty),
+            "early_over_remaining_min": float(self.early_over_remaining_min),
+            "early_over_period_max": float(self.early_over_period_max),
         }
 
 
@@ -268,9 +290,24 @@ def compute_live_lens_tuning(
 
 
 def write_live_lens_tuning(out_path: Path, tuning: LiveLensTuning, meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    tuning_dict = tuning.to_dict()
+
+    # Preserve any existing extra tuning keys (e.g., manual retune knobs)
+    # so daily recompute doesn't wipe them.
+    try:
+        if out_path.exists():
+            raw = out_path.read_text(encoding="utf-8", errors="ignore")
+            prev = json.loads(raw)
+            if isinstance(prev, dict) and isinstance(prev.get("tuning"), dict):
+                merged = dict(prev["tuning"])
+                merged.update(tuning_dict)
+                tuning_dict = merged
+    except Exception:
+        pass
+
     payload: dict[str, Any] = {
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
-        "tuning": tuning.to_dict(),
+        "tuning": tuning_dict,
         "meta": meta or {},
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)

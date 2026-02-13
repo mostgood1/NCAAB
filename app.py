@@ -21651,6 +21651,18 @@ def api_live_lens_tuning():
         "pbp_n_scale": 70.0,
         "shot_proxy_ft_weight": 0.44,
 
+        # Optional retune knobs (defaults disabled)
+        # Used by templates/index.html Live Lens logic.
+        "late_over_strength_penalty": 0.0,
+        "late_over_remaining_lo": 5.0,
+        "late_over_remaining_hi": 10.0,
+        "late_over_margin_abs_min": 0.0,
+        "late_over_period_min": 2.0,
+
+        "early_over_strength_penalty": 0.0,
+        "early_over_remaining_min": 20.0,
+        "early_over_period_max": 1.0,
+
 
         "status": "ok",
         "source": "defaults",
@@ -21661,6 +21673,16 @@ def api_live_lens_tuning():
             "pps_lo": 0.95,
             "pbp_n_scale": 70.0,
             "shot_proxy_ft_weight": 0.44,
+
+            "late_over_strength_penalty": 0.0,
+            "late_over_remaining_lo": 5.0,
+            "late_over_remaining_hi": 10.0,
+            "late_over_margin_abs_min": 0.0,
+            "late_over_period_min": 2.0,
+
+            "early_over_strength_penalty": 0.0,
+            "early_over_remaining_min": 20.0,
+            "early_over_period_max": 1.0,
         },
         "meta": {},
     }
@@ -22430,6 +22452,10 @@ def api_live_lens_signal():
         "is_watch": bool(payload.get("is_watch")) if payload.get("is_watch") is not None else None,
         "tuning_source": payload.get("tuning_source"),
         "pbp": payload.get("pbp"),
+        "home_score": payload.get("home_score"),
+        "away_score": payload.get("away_score"),
+        "margin_home": payload.get("margin_home"),
+        "period": payload.get("period"),
     }
 
     # Compute signal_id for de-dupe.
@@ -22478,8 +22504,14 @@ def api_live_lens_signal():
     try:
         out_path = OUT / f"live_lens_signals_{date_s}.jsonl"
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        with out_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(_sanitize_json_obj_strict(keep), ensure_ascii=False) + "\n")
+        import os
+
+        line = json.dumps(_sanitize_json_obj_strict(keep), ensure_ascii=False) + "\n"
+        fd = os.open(str(out_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND)
+        try:
+            os.write(fd, line.encode("utf-8", errors="replace"))
+        finally:
+            os.close(fd)
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to write signal: {e}"}), 500
 

@@ -47,6 +47,9 @@ from .train.calibration import build_z_recenter_artifact, save_artifact, load_ar
 from .store.sqlite import connect as sqlite_connect, ingest_csv as sqlite_ingest
 from .live_lens_tuning import compute_live_lens_tuning, write_live_lens_tuning
 from .live_lens_accuracy import LiveLensAccuracyConfig, compute_live_lens_accuracy, write_live_lens_accuracy
+from .live_lens_buckets import LiveLensBucketReportConfig, compute_live_lens_bucket_report, iter_date_range
+from .live_lens_retune_search import LateOverSearchConfig, search_late_over_retune
+from .live_lens_early_retune_search import EarlyOverSearchConfig, search_early_over_retune
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -12003,6 +12006,304 @@ def compute_live_lens_accuracy_cmd(
 
     wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
     print(wrote)
+
+
+@app.command(name="report-live-lens-buckets")
+def report_live_lens_buckets_cmd(
+    date: str = typer.Option(None, help="Single slate date YYYY-MM-DD (default: yesterday local)."),
+    start_date: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive)."),
+    end_date: str = typer.Option(None, help="End date YYYY-MM-DD (inclusive)."),
+    include_watch: bool = typer.Option(True, help="Include WATCH signals (default true)."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    # Counterfactual retune knobs
+    late_over_penalty: float = typer.Option(0.0, help="Counterfactual: subtract from strength for OVER in late window (default 0=off)."),
+    late_over_lo: float = typer.Option(5.0, help="Counterfactual: remaining window low bound (exclusive)."),
+    late_over_hi: float = typer.Option(10.0, help="Counterfactual: remaining window high bound (inclusive)."),
+    late_over_margin_abs_min: float = typer.Option(0.0, help="Counterfactual: only apply if abs(margin_home) >= this (default 0=any)."),
+    late_over_period_min: float = typer.Option(2.0, help="Counterfactual: only apply if period >= this (default 2=2H only)."),
+    early_over_penalty: float = typer.Option(0.0, help="Counterfactual: subtract from strength for OVER early in game (default 0=off)."),
+    early_over_remaining_min: float = typer.Option(20.0, help="Counterfactual: apply early penalty when remaining >= this (default 20)."),
+    early_over_period_max: float = typer.Option(1.0, help="Counterfactual: apply early penalty only when period <= this (default 1)."),
+    out_csv: Path = typer.Option(None, help="Optional CSV output path (bucket x type)."),
+    out_side_csv: Path = typer.Option(None, help="Optional CSV output path (bucket x type x side)."),
+):
+    """Report Live Lens performance by remaining-time buckets.
+
+    Requires, per date:
+      - outputs/live_lens_signals_<date>.jsonl
+      - outputs/daily_results/results_<date>.csv
+    """
+
+    def _yesterday_local() -> dt.date:
+        try:
+            return _today_local() - dt.timedelta(days=1)
+        except Exception:
+            return dt.date.today() - dt.timedelta(days=1)
+
+    if date and (start_date or end_date):
+        print("[red]Provide either --date OR --start-date/--end-date (not both).[/red]")
+        raise typer.Exit(code=2)
+
+    if not date and not start_date and not end_date:
+        date = _yesterday_local().isoformat()
+
+    dates: list[str]
+    if date:
+        dates = [str(date).strip()]
+    else:
+        if not start_date or not end_date:
+            print("[red]Missing --start-date or --end-date.[/red]")
+            raise typer.Exit(code=2)
+        dates = iter_date_range(str(start_date).strip(), str(end_date).strip())
+
+    base_cfg = LiveLensBucketReportConfig(
+        dates=dates,
+        out_dir=settings.outputs_dir,
+        daily_results_dir=settings.outputs_dir / "daily_results",
+        assume_price=float(price),
+        include_watch=bool(include_watch),
+        full_game_only=True,
+        apply_retune=False,
+    )
+
+    payload0 = compute_live_lens_bucket_report(base_cfg)
+    if payload0.get("status") != "ok":
+        print(payload0)
+        raise typer.Exit(code=1)
+
+    bucket0 = payload0["bucket_table"]
+    side0 = payload0["bucket_side_table"]
+
+    print({"status": "ok", "policy": "logged", "dates": payload0.get("dates"), "n_settled": payload0.get("n_settled"), "missing": payload0.get("missing")})
+    try:
+        print("\n[logged] bucket x signal_type")
+        print(bucket0.to_string(index=False))
+        print("\n[logged] bucket x signal_type x side")
+        print(side0.to_string(index=False))
+    except Exception:
+        print(bucket0)
+        print(side0)
+
+    # Optional counterfactual
+    if float(late_over_penalty or 0.0) > 0 or float(early_over_penalty or 0.0) > 0:
+        def _run_cf(include_watch_cf: bool, label: str) -> None:
+            cf_cfg = LiveLensBucketReportConfig(
+                dates=dates,
+                out_dir=settings.outputs_dir,
+                daily_results_dir=settings.outputs_dir / "daily_results",
+                assume_price=float(price),
+                include_watch=bool(include_watch_cf),
+                full_game_only=True,
+                apply_retune=True,
+                late_over_strength_penalty=float(late_over_penalty),
+                late_over_remaining_lo=float(late_over_lo),
+                late_over_remaining_hi=float(late_over_hi),
+                late_over_margin_abs_min=float(late_over_margin_abs_min),
+                late_over_period_min=float(late_over_period_min),
+                early_over_strength_penalty=float(early_over_penalty),
+                early_over_remaining_min=float(early_over_remaining_min),
+                early_over_period_max=float(early_over_period_max),
+            )
+            payload1 = compute_live_lens_bucket_report(cf_cfg)
+            if payload1.get("status") != "ok":
+                print(payload1)
+                raise typer.Exit(code=1)
+            bucket1 = payload1["bucket_table"]
+            side1 = payload1["bucket_side_table"]
+            print({
+                "status": "ok",
+                "policy": "retuned",
+                "mode": label,
+                "late_over": {
+                    "penalty": float(late_over_penalty),
+                    "remaining_window": [float(late_over_lo), float(late_over_hi)],
+                    "margin_abs_min": float(late_over_margin_abs_min),
+                    "period_min": float(late_over_period_min),
+                },
+                "early_over": {
+                    "penalty": float(early_over_penalty),
+                    "remaining_min": float(early_over_remaining_min),
+                    "period_max": float(early_over_period_max),
+                },
+                "dates": payload1.get("dates"),
+                "n_settled": payload1.get("n_settled"),
+                "missing": payload1.get("missing"),
+            })
+            try:
+                print(f"\n[{label}] bucket x signal_type")
+                print(bucket1.to_string(index=False))
+                print(f"\n[{label}] bucket x signal_type x side")
+                print(side1.to_string(index=False))
+            except Exception:
+                print(bucket1)
+                print(side1)
+
+        # Two perspectives:
+        # - retuned+watch: shows where suppressed BETs land as WATCH (diagnostic)
+        # - retuned bet-only: reflects actual betting behavior if WATCH means no action
+        _run_cf(include_watch_cf=True, label="retuned+watch")
+        _run_cf(include_watch_cf=False, label="retuned bet-only")
+
+    if out_csv is not None:
+        Path(out_csv).parent.mkdir(parents=True, exist_ok=True)
+        bucket0.to_csv(Path(out_csv), index=False)
+        print({"wrote": str(out_csv)})
+    if out_side_csv is not None:
+        Path(out_side_csv).parent.mkdir(parents=True, exist_ok=True)
+        side0.to_csv(Path(out_side_csv), index=False)
+        print({"wrote": str(out_side_csv)})
+
+
+@app.command(name="tune-live-lens-late-over")
+def tune_live_lens_late_over_cmd(
+    start_date: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)."),
+    end_date: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    remaining_lo: float = typer.Option(5.0, help="Late window low bound (exclusive)."),
+    remaining_hi: float = typer.Option(10.0, help="Late window high bound (inclusive)."),
+    period_min: float = typer.Option(2.0, help="Only apply when period >= this (default 2=2H only)."),
+    penalties: str = typer.Option("0,1,1.5,2,2.5,3", help="Comma-separated penalty grid."),
+    margins: str = typer.Option("0,5,8,10", help="Comma-separated abs(margin) thresholds grid."),
+    top_k: int = typer.Option(10, help="Show top K configs."),
+):
+    """Grid-search late-game OVER dampener settings using logged strength.
+
+    This searches penalty and margin threshold values and reports which settings
+    improve 5-10 minute remaining performance while tracking overall ROI.
+    """
+
+    dates = iter_date_range(str(start_date).strip(), str(end_date).strip())
+
+    def _parse_floats(s: str) -> list[float]:
+        out: list[float] = []
+        for tok in str(s or "").split(","):
+            t = tok.strip()
+            if not t:
+                continue
+            try:
+                out.append(float(t))
+            except Exception:
+                continue
+        return out
+
+    pen_grid = _parse_floats(penalties)
+    if not pen_grid:
+        pen_grid = [0.0, 1.0, 1.5, 2.0, 2.5, 3.0]
+    m_grid = _parse_floats(margins)
+    if not m_grid:
+        m_grid = [0.0, 5.0, 8.0, 10.0]
+
+    base_cfg = LiveLensBucketReportConfig(
+        dates=dates,
+        out_dir=settings.outputs_dir,
+        daily_results_dir=settings.outputs_dir / "daily_results",
+        assume_price=float(price),
+        include_watch=False,
+        full_game_only=True,
+        apply_retune=False,
+    )
+    search_cfg = LateOverSearchConfig(
+        dates=dates,
+        assume_price=float(price),
+        remaining_lo=float(remaining_lo),
+        remaining_hi=float(remaining_hi),
+        period_min=float(period_min),
+        penalties=pen_grid,
+        margin_abs_mins=m_grid,
+    )
+
+    payload = search_late_over_retune(base_cfg=base_cfg, search_cfg=search_cfg)
+    df = payload.get("table")
+    print({
+        "status": payload.get("status"),
+        "dates": payload.get("dates"),
+        "remaining_window": payload.get("remaining_window"),
+        "period_min": payload.get("period_min"),
+        "grid": {"penalties": pen_grid, "margins": m_grid},
+    })
+    if df is None:
+        raise typer.Exit(code=1)
+    try:
+        import pandas as _pd
+
+        df2: _pd.DataFrame = df
+        cols = [c for c in ["penalty", "margin_abs_min", "roi_5_10", "n_5_10", "overall_roi", "overall_n"] if c in df2.columns]
+        print(df2[cols].head(int(top_k)).to_string(index=False))
+    except Exception:
+        print(df)
+
+
+@app.command(name="tune-live-lens-early-over")
+def tune_live_lens_early_over_cmd(
+    start_date: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)."),
+    end_date: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    remaining_min: float = typer.Option(20.0, help="Apply early penalty when remaining >= this (default 20)."),
+    period_max: float = typer.Option(1.0, help="Apply early penalty only when period <= this (default 1)."),
+    penalties: str = typer.Option("0,0.5,1,1.5,2", help="Comma-separated penalty grid."),
+    top_k: int = typer.Option(10, help="Show top K configs."),
+):
+    """Grid-search early-game OVER dampener settings using logged strength.
+
+    Optimizes primarily for the >20 minutes remaining bucket ROI (bet-only), while
+    reporting the overall ROI as a sanity check.
+    """
+
+    dates = iter_date_range(str(start_date).strip(), str(end_date).strip())
+
+    def _parse_floats(s: str) -> list[float]:
+        out: list[float] = []
+        for tok in str(s or "").split(","):
+            t = tok.strip()
+            if not t:
+                continue
+            try:
+                out.append(float(t))
+            except Exception:
+                continue
+        return out
+
+    pen_grid = _parse_floats(penalties)
+    if not pen_grid:
+        pen_grid = [0.0, 0.5, 1.0, 1.5, 2.0]
+
+    # Base cfg can carry current late-over knobs if desired later; keep defaults for now.
+    base_cfg = LiveLensBucketReportConfig(
+        dates=dates,
+        out_dir=settings.outputs_dir,
+        daily_results_dir=settings.outputs_dir / "daily_results",
+        assume_price=float(price),
+        include_watch=False,
+        full_game_only=True,
+        apply_retune=False,
+    )
+
+    search_cfg = EarlyOverSearchConfig(
+        dates=dates,
+        assume_price=float(price),
+        remaining_min=float(remaining_min),
+        period_max=float(period_max),
+        penalties=pen_grid,
+    )
+
+    payload = search_early_over_retune(base_cfg=base_cfg, search_cfg=search_cfg)
+    df = payload.get("table")
+    print({
+        "status": payload.get("status"),
+        "dates": payload.get("dates"),
+        "early": payload.get("early"),
+        "grid": {"penalties": pen_grid},
+    })
+    if df is None:
+        raise typer.Exit(code=1)
+    try:
+        import pandas as _pd
+
+        df2: _pd.DataFrame = df
+        cols = [c for c in ["penalty", "roi_gt20", "n_gt20", "overall_roi", "overall_n"] if c in df2.columns]
+        print(df2[cols].head(int(top_k)).to_string(index=False))
+    except Exception:
+        print(df)
 
 
 @app.command(name="summarize-live-snapshots")

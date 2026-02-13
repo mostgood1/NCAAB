@@ -2070,7 +2070,10 @@
       function maybeLogLiveLensSignal(wrap, card, sig){
         try {
           if(!sig || !card) return;
-          if(!sig.is_bet) return; // Only log BET signals for accuracy/ROI.
+          // Log BET and (high-confidence) WATCH signals for later analysis.
+          // (We still default accuracy/ROI evals to BET-only, but we want the
+          // raw stream available to diagnose late-game regime shifts.)
+          if(!sig.is_bet && !sig.is_watch) return;
           if(sig.live_line === null || sig.live_line === undefined) return;
           if(sig.side !== 'over' && sig.side !== 'under') return;
           if(sig.horizon !== null && sig.horizon !== undefined){
@@ -2086,7 +2089,7 @@
           var line = toNum(sig.live_line);
           var lineQ = (line !== null) ? (Math.round(line * 2) / 2) : null;
 
-          var key = gid + '|' + String(sig.side) + '|' + String(sig.horizon) + '|' + String(bucket) + '|' + String(lineQ);
+          var key = gid + '|' + String(sig.side) + '|' + String(sig.horizon) + '|' + String(bucket) + '|' + String(lineQ) + '|' + (sig.is_bet ? 'B' : 'W');
           if(wrap && wrap.__lastLiveLensLogKey === key) return;
           if(wrap) wrap.__lastLiveLensLogKey = key;
 
@@ -2111,9 +2114,14 @@
             side: sig.side,
             edge: sig.edge,
             strength: sig.strength,
-            is_bet: true,
+            is_bet: !!sig.is_bet,
+            is_watch: !!sig.is_watch,
             tuning_source: tuneSrc,
-            pbp: pbp
+            pbp: pbp,
+            home_score: (sig.home_score !== undefined ? sig.home_score : null),
+            away_score: (sig.away_score !== undefined ? sig.away_score : null),
+            margin_home: (sig.margin_home !== undefined ? sig.margin_home : null),
+            period: (sig.period !== undefined ? sig.period : null)
           };
 
           fetch('/api/live_lens_signal', {
@@ -2258,6 +2266,19 @@
           var paceLo = 2.75;
           var ppsHi = 1.18;
           var ppsLo = 0.95;
+          // Optional late-game retune knobs (defaults: disabled).
+          // Intended to dampen fragile late-game OVER edges (e.g., 5–10 min remaining).
+          var lateOverPenalty = 0;
+          var lateOverRemainingLo = 5;
+          var lateOverRemainingHi = 10;
+          var lateOverMarginAbsMin = 0;
+          var lateOverPeriodMin = 2;
+
+          // Optional early-game OVER dampener (defaults: disabled).
+          // Intended to reduce noisy early OVER edges (e.g., >20 minutes remaining).
+          var earlyOverPenalty = 0;
+          var earlyOverRemainingMin = 20;
+          var earlyOverPeriodMax = 1;
           if(tune){
             var v;
             v = toNum(tune.shot_proxy_ft_weight); if(v !== null) ftW = v;
@@ -2266,6 +2287,15 @@
             v = toNum(tune.pace_lo); if(v !== null) paceLo = v;
             v = toNum(tune.pps_hi); if(v !== null) ppsHi = v;
             v = toNum(tune.pps_lo); if(v !== null) ppsLo = v;
+            v = toNum(tune.late_over_strength_penalty); if(v !== null) lateOverPenalty = v;
+            v = toNum(tune.late_over_remaining_lo); if(v !== null) lateOverRemainingLo = v;
+            v = toNum(tune.late_over_remaining_hi); if(v !== null) lateOverRemainingHi = v;
+            v = toNum(tune.late_over_margin_abs_min); if(v !== null) lateOverMarginAbsMin = v;
+            v = toNum(tune.late_over_period_min); if(v !== null) lateOverPeriodMin = v;
+
+            v = toNum(tune.early_over_strength_penalty); if(v !== null) earlyOverPenalty = v;
+            v = toNum(tune.early_over_remaining_min); if(v !== null) earlyOverRemainingMin = v;
+            v = toNum(tune.early_over_period_max); if(v !== null) earlyOverPeriodMax = v;
           }
 
           setText(wrap, 'exp', 'Sim q50 @ time: ' + (exp !== null ? String(round0(exp)) : '–'));
@@ -2277,6 +2307,7 @@
           var driver = '–';
           var lean = '–';
           var isStrong = false;
+          var isWatchLine = false;
           var isStrongNoLine = false;
           var logSig = null;
           if(line !== null && projBlend !== null){
@@ -2373,15 +2404,94 @@
             }
 
             var strength = edgeAbs + adj;
+
+            // Late-game OVER dampener (optional): subtract penalty in (lo, hi] remaining window.
+            // Defaults: remaining in (5,10] and any margin.
+            try {
+              if(lateOverPenalty !== null && lateOverPenalty > 0 && side === 'Over' && remaining !== null){
+                // Only retune full-game totals by default (avoid impacting 1H lens).
+                if(horizon !== null && horizon <= 20.5) {
+                  // no-op
+                } else {
+                var loR = (lateOverRemainingLo !== null) ? lateOverRemainingLo : 5;
+                var hiR = (lateOverRemainingHi !== null) ? lateOverRemainingHi : 10;
+                if(hiR < loR){ var tmpR = loR; loR = hiR; hiR = tmpR; }
+                var inWindow = (remaining > loR) && (remaining <= hiR);
+
+                // Optional period gate: if set >1, only apply when we have a known live period >= threshold.
+                var periodOk = true;
+                if(lateOverPeriodMin !== null && lateOverPeriodMin > 1){
+                  if(per0 !== null) periodOk = (per0 >= lateOverPeriodMin);
+                  else {
+                    // Fallback: infer 2H from elapsed for full-game horizon.
+                    periodOk = (elapsed !== null && elapsed >= 20);
+                  }
+                }
+
+                var marginOk = true;
+                if(lateOverMarginAbsMin !== null && lateOverMarginAbsMin > 0){
+                  marginOk = (actMargin !== null) ? (Math.abs(actMargin) >= lateOverMarginAbsMin) : false;
+                }
+                if(inWindow && periodOk && marginOk){
+                  strength = strength - lateOverPenalty;
+                }
+                }
+              }
+            } catch(eLate){ /* ignore */ }
+
+            // Early-game OVER dampener (optional): subtract penalty when remaining is high (early-game).
+            try {
+              if(earlyOverPenalty !== null && earlyOverPenalty > 0 && side === 'Over' && remaining !== null){
+                // Only retune full-game totals by default (avoid impacting 1H lens).
+                if(horizon !== null && horizon <= 20.5) {
+                  // no-op
+                } else {
+                  var minRem = (earlyOverRemainingMin !== null) ? earlyOverRemainingMin : 20;
+                  var inEarly = (remaining >= minRem);
+
+                  // Optional period gate: only apply in early periods (default <=1).
+                  var periodOk2 = true;
+                  if(earlyOverPeriodMax !== null && earlyOverPeriodMax >= 0){
+                    if(per0 !== null) periodOk2 = (per0 <= earlyOverPeriodMax);
+                    else {
+                      // Fallback: infer 1H from elapsed for full-game horizon.
+                      periodOk2 = (elapsed !== null && elapsed < 20);
+                    }
+                  }
+
+                  if(inEarly && periodOk2){
+                    strength = strength - earlyOverPenalty;
+                  }
+                }
+              }
+            } catch(eEarly){ /* ignore */ }
             isStrong = (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thr);
+
+            // WATCH threshold for line-based signals: slightly lower than BET.
+            var thrWatch = thr - ((horizon <= 20.5) ? 1 : 2);
+            thrWatch = Math.max((horizon <= 20.5) ? 3 : 4, thrWatch);
+            isWatchLine = (!isStrong) && (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thrWatch);
             var edgeTxt = (edge > 0 ? '+' : '') + String(round0(edge));
             if(side === 'Over') lean = (isStrong ? 'BET ' : 'Watch ') + 'Over (pace ' + edgeTxt + ')';
             else if(side === 'Under') lean = (isStrong ? 'BET ' : 'Watch ') + 'Under (pace ' + edgeTxt + ')';
             else lean = 'No edge';
 
-            if(isStrong && (side === 'Over' || side === 'Under')){
+            if((isStrong || isWatchLine) && (side === 'Over' || side === 'Under')){
+              // Include game-state context to help explain late-game pace/strategy shifts.
+              var perLog = null;
+              try {
+                var cardP = card0 || getCardForWrap(wrap);
+                if(cardP && typeof cardP.__livePeriod === 'number' && isFinite(cardP.__livePeriod)) perLog = cardP.__livePeriod;
+                else if(cardP){
+                  var pAttr = cardP.getAttribute('data-live-period');
+                  var pn = pAttr !== null ? parseInt(String(pAttr), 10) : NaN;
+                  if(isFinite(pn)) perLog = pn;
+                }
+              } catch(ePL){ perLog = null; }
+
               logSig = {
-                is_bet: true,
+                is_bet: !!isStrong,
+                is_watch: !!isWatchLine,
                 side: (side === 'Over' ? 'over' : 'under'),
                 horizon: horizon,
                 elapsed: elapsed,
@@ -2389,7 +2499,11 @@
                 total_points: act,
                 live_line: line,
                 edge: edge,
-                strength: strength
+                strength: strength,
+                home_score: liveHome,
+                away_score: liveAway,
+                margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
+                period: perLog
               };
             }
           } else if(delta !== null){
