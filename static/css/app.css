@@ -69,8 +69,11 @@
 .pill.neutral{background:#3f3f46;color:#fff}
 /* Sentinel spacer for lazy rendering */
 .sentinel{height:24px}
-/* Sticky controls bar */
-#filtersBar,#sortBar{position:sticky; top:0; z-index:10}
+/* Sticky controls bar (desktop/tablet only) */
+#filtersBar,#sortBar{position:static; top:auto; z-index:10}
+@media (min-width: 761px){
+  #filtersBar,#sortBar{position:sticky; top:0}
+}
 .filters-bar-row{justify-content:space-between; width:100%;}
 .sticky-shadow{box-shadow:0 2px 8px rgba(0,0,0,0.35);}
 .sticky-holder{position:relative}

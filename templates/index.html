@@ -84,8 +84,15 @@
 
     /* Mobile visual tightening */
     @media (max-width:760px){
-      .sticky-top{padding-top:6px;margin-top:-6px;}
+      /* Mobile: disable persistence (too tall / hard to jump to cards) */
+      .sticky-top{position:static;top:auto;padding-top:0;margin-top:0;}
       .sticky-top .card{padding:10px;}
+
+      /* With non-sticky header, reduce scroll offset */
+      .game-card{scroll-margin-top:12px;}
+
+      /* Keep compact strip short: single-row horizontal scroll */
+      .compact-game-strip{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
       .filters-bar-row{gap:6px;}
       .pill.small{font-size:11px;padding:2px 7px;}
 
