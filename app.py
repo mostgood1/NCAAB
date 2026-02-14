@@ -22138,7 +22138,7 @@ def api_odds_status():
 
 @app.get("/api/live_lines")
 def api_live_lines():
-    """Return current full-game live total lines keyed by ESPN event id.
+    """Return current live total lines keyed by ESPN event id.
 
     Intended for Live Lens auto-fill. Uses TheOddsAPI current odds endpoint.
 
@@ -22146,10 +22146,11 @@ def api_live_lines():
       - date: YYYY-MM-DD (used to map ESPN event ids -> home/away team names)
       - event_ids: comma-separated ESPN event ids (optional; when omitted returns empty mapping)
       - ttl: seconds for in-memory cache (default 20; max 120)
-      - bookmakers: comma-separated bookmaker keys (default draftkings,fanduel,betmgm)
+            - bookmakers: comma-separated bookmaker keys (default draftkings,fanduel,betmgm)
+            - period: one of {full_game,1h,2h} (default full_game)
 
-    Returns:
-      { status:'ok', lines: { <event_id>: { total:<float>, book:<str>, event_id_provider:<str>, last_update:<iso or null> } } }
+        Returns:
+            { status:'ok', lines: { <event_id>: { total:<float|None>, spread_home:<float|None>, spread_away:<float|None>, period:<str>, book:<str>, event_id_provider:<str>, last_update:<iso or null> } } }
     """
 
     alias_map = _get_provider_team_alias_map()
@@ -22169,6 +22170,9 @@ def api_live_lines():
     date_param = (request.args.get("date") or "").strip()
     event_ids_raw = (request.args.get("event_ids") or "").strip()
     bookmakers = (request.args.get("bookmakers") or "draftkings,fanduel,betmgm").strip() or "draftkings,fanduel,betmgm"
+    period = (request.args.get("period") or "full_game").strip().lower() or "full_game"
+    if period not in ("full_game", "1h", "2h"):
+        period = "full_game"
     debug = str(request.args.get("debug") or "").strip().lower() in ("1", "true", "yes", "y")
     allow_future = str(request.args.get("allow_future") or "").strip().lower() in ("1", "true", "yes", "y")
     try:
@@ -22202,7 +22206,7 @@ def api_live_lines():
             import time
 
             now_ts = float(time.time())
-            cache_key = f"{target_date.isoformat()}|{bookmakers}|{','.join(sorted(event_ids))}"
+            cache_key = f"{target_date.isoformat()}|{period}|{bookmakers}|{','.join(sorted(event_ids))}"
             if ttl > 0 and _LIVE_LINES_CACHE.get("payload") is not None:
                 ts0 = float(_LIVE_LINES_CACHE.get("ts") or 0.0)
                 k0 = _LIVE_LINES_CACHE.get("key")
@@ -22211,133 +22215,140 @@ def api_live_lines():
         except Exception:
             pass
 
-    # Load a snapshot for the date so we can map ESPN event id -> teams.
-    # This is strictly for auto-fill and should never hard-fail the UI.
+    # For full-game totals, we do a single /odds call and match by (home,away) pairs.
+    # For period markets (1H/2H), TheOddsAPI requires the event-level endpoint, so we use event_ids directly.
+    need_snapshot_pair_match = (period == "full_game")
+
+    # Load a snapshot only when we need to match by (home,away) pairs (full_game)
+    # or when debug wants event_ids derived from the snapshot (event_ids=all).
     df_full = None
     snapshot_used = None
-    snapshot_candidates = [
-        OUT / f"predictions_display_{target_date.isoformat()}.csv",
-        OUT / f"predictions_unified_enriched_{target_date.isoformat()}.csv",
-        OUT / f"predictions_unified_enriched_{target_date.isoformat()}_force_fill.csv",
-        OUT / f"predictions_unified_{target_date.isoformat()}.csv",
-        # Broader schedule fallbacks (some slates include games not present in predictions artifacts).
-        OUT / f"games_with_odds_{target_date.isoformat()}.csv",
-        OUT / f"games_{target_date.isoformat()}_fused.csv",
-        OUT / f"games_{target_date.isoformat()}.csv",
-        OUT / "games_curr.csv",
-    ]
-    try:
-        for cand in snapshot_candidates:
-            try:
-                if cand.exists():
-                    snapshot_used = cand
-                    break
-            except Exception:
-                continue
-
-        if snapshot_used is None:
-            payload = {
-                "status": "ok",
-                "date": target_date.isoformat(),
-                "bookmakers": bookmakers,
-                "count": 0,
-                "lines": {},
-                "warning": "snapshot_missing",
-                "snapshot_tried": [p.name for p in snapshot_candidates],
-            }
-            try:
-                import time
-
-                if cache_key:
-                    _LIVE_LINES_CACHE["ts"] = float(time.time())
-                    _LIVE_LINES_CACHE["key"] = cache_key
-                    _LIVE_LINES_CACHE["payload"] = payload
-            except Exception:
-                pass
-            return jsonify(payload), 200
-
-        df_full = pd.read_csv(snapshot_used, low_memory=True)
-
-        def _pick_col(df_, opts):
-            for c in opts:
-                if c in df_.columns:
-                    return c
-            return None
-
-        gid_col = _pick_col(df_full, ["game_id", "id", "gid"])
-        home_col = _pick_col(df_full, ["home_team", "home_team_name", "home"])
-        away_col = _pick_col(df_full, ["away_team", "away_team_name", "away"])
-        if not (gid_col and home_col and away_col):
-            payload = {
-                "status": "ok",
-                "date": target_date.isoformat(),
-                "bookmakers": bookmakers,
-                "count": 0,
-                "lines": {},
-                "warning": "snapshot_missing_columns",
-                "snapshot_used": (snapshot_used.name if snapshot_used else None),
-                "snapshot_columns": list(getattr(df_full, "columns", [])[:50]),
-            }
-            try:
-                import time
-
-                if cache_key:
-                    _LIVE_LINES_CACHE["ts"] = float(time.time())
-                    _LIVE_LINES_CACHE["key"] = cache_key
-                    _LIVE_LINES_CACHE["payload"] = payload
-            except Exception:
-                pass
-            return jsonify(payload), 200
-
-        core = df_full[[gid_col, home_col, away_col]].copy()
-        core = core.rename(columns={gid_col: "game_id", home_col: "home_team", away_col: "away_team"})
-        core["game_id"] = core["game_id"].astype(str).str.replace(r"\.0$", "", regex=True)
-
-        if use_all_from_snapshot and not event_ids:
-            try:
-                event_ids = [str(x).strip() for x in core["game_id"].dropna().astype(str).tolist() if str(x).strip()]
-                # De-dupe preserving order, cap.
-                seen = set()
-                event_ids = [x for x in event_ids if not (x in seen or seen.add(x))][:60]
-            except Exception:
-                event_ids = []
-
-        core = core[core["game_id"].isin(set(event_ids))]
-        if core.empty:
-            payload: dict[str, object] = {"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}
-            if debug:
-                payload["warning"] = "snapshot_no_matching_event_ids"
-                payload["snapshot_used"] = (snapshot_used.name if snapshot_used else None)
-                payload["requested_event_ids"] = event_ids
-            try:
-                if cache_key:
-                    _LIVE_LINES_CACHE["ts"] = float(time.time())
-                    _LIVE_LINES_CACHE["key"] = cache_key
-                    _LIVE_LINES_CACHE["payload"] = payload
-            except Exception:
-                pass
-            return jsonify(payload), 200
-    except Exception as e:
-        payload = {
-            "status": "ok",
-            "date": target_date.isoformat(),
-            "bookmakers": bookmakers,
-            "count": 0,
-            "lines": {},
-            "warning": "snapshot_load_failed",
-            "snapshot_used": (snapshot_used.name if snapshot_used else None),
-            "message": str(e)[:200],
-        }
+    core = None
+    if need_snapshot_pair_match or use_all_from_snapshot:
+        # This is strictly for auto-fill and should never hard-fail the UI.
+        snapshot_candidates = [
+            OUT / f"predictions_display_{target_date.isoformat()}.csv",
+            OUT / f"predictions_unified_enriched_{target_date.isoformat()}.csv",
+            OUT / f"predictions_unified_enriched_{target_date.isoformat()}_force_fill.csv",
+            OUT / f"predictions_unified_{target_date.isoformat()}.csv",
+            # Broader schedule fallbacks (some slates include games not present in predictions artifacts).
+            OUT / f"games_with_odds_{target_date.isoformat()}.csv",
+            OUT / f"games_{target_date.isoformat()}_fused.csv",
+            OUT / f"games_{target_date.isoformat()}.csv",
+            OUT / "games_curr.csv",
+        ]
         try:
-            import time
+            for cand in snapshot_candidates:
+                try:
+                    if cand.exists():
+                        snapshot_used = cand
+                        break
+                except Exception:
+                    continue
 
-            if cache_key:
-                _LIVE_LINES_CACHE["ts"] = float(time.time())
-                _LIVE_LINES_CACHE["key"] = cache_key
-                _LIVE_LINES_CACHE["payload"] = payload
-        except Exception:
-            pass
-        return jsonify(payload), 200
+            if snapshot_used is None:
+                payload = {
+                    "status": "ok",
+                    "date": target_date.isoformat(),
+                    "bookmakers": bookmakers,
+                    "count": 0,
+                    "lines": {},
+                    "warning": "snapshot_missing",
+                    "snapshot_tried": [p.name for p in snapshot_candidates],
+                }
+                try:
+                    import time
+
+                    if cache_key:
+                        _LIVE_LINES_CACHE["ts"] = float(time.time())
+                        _LIVE_LINES_CACHE["key"] = cache_key
+                        _LIVE_LINES_CACHE["payload"] = payload
+                except Exception:
+                    pass
+                return jsonify(payload), 200
+
+            df_full = pd.read_csv(snapshot_used, low_memory=True)
+
+            def _pick_col(df_, opts):
+                for c in opts:
+                    if c in df_.columns:
+                        return c
+                return None
+
+            gid_col = _pick_col(df_full, ["game_id", "id", "gid"])
+            home_col = _pick_col(df_full, ["home_team", "home_team_name", "home"])
+            away_col = _pick_col(df_full, ["away_team", "away_team_name", "away"])
+            if not (gid_col and home_col and away_col):
+                payload = {
+                    "status": "ok",
+                    "date": target_date.isoformat(),
+                    "bookmakers": bookmakers,
+                    "count": 0,
+                    "lines": {},
+                    "warning": "snapshot_missing_columns",
+                    "snapshot_used": (snapshot_used.name if snapshot_used else None),
+                    "snapshot_columns": list(getattr(df_full, "columns", [])[:50]),
+                }
+                try:
+                    import time
+
+                    if cache_key:
+                        _LIVE_LINES_CACHE["ts"] = float(time.time())
+                        _LIVE_LINES_CACHE["key"] = cache_key
+                        _LIVE_LINES_CACHE["payload"] = payload
+                except Exception:
+                    pass
+                return jsonify(payload), 200
+
+            core = df_full[[gid_col, home_col, away_col]].copy()
+            core = core.rename(columns={gid_col: "game_id", home_col: "home_team", away_col: "away_team"})
+            core["game_id"] = core["game_id"].astype(str).str.replace(r"\.0$", "", regex=True)
+
+            if use_all_from_snapshot and not event_ids:
+                try:
+                    event_ids = [str(x).strip() for x in core["game_id"].dropna().astype(str).tolist() if str(x).strip()]
+                    # De-dupe preserving order, cap.
+                    seen = set()
+                    event_ids = [x for x in event_ids if not (x in seen or seen.add(x))][:60]
+                except Exception:
+                    event_ids = []
+
+            core = core[core["game_id"].isin(set(event_ids))]
+            if need_snapshot_pair_match and core.empty:
+                payload: dict[str, object] = {"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}
+                if debug:
+                    payload["warning"] = "snapshot_no_matching_event_ids"
+                    payload["snapshot_used"] = (snapshot_used.name if snapshot_used else None)
+                    payload["requested_event_ids"] = event_ids
+                try:
+                    if cache_key:
+                        _LIVE_LINES_CACHE["ts"] = float(time.time())
+                        _LIVE_LINES_CACHE["key"] = cache_key
+                        _LIVE_LINES_CACHE["payload"] = payload
+                except Exception:
+                    pass
+                return jsonify(payload), 200
+        except Exception as e:
+            payload = {
+                "status": "ok",
+                "date": target_date.isoformat(),
+                "bookmakers": bookmakers,
+                "count": 0,
+                "lines": {},
+                "warning": "snapshot_load_failed",
+                "snapshot_used": (snapshot_used.name if snapshot_used else None),
+                "message": str(e)[:200],
+            }
+            try:
+                import time
+
+                if cache_key:
+                    _LIVE_LINES_CACHE["ts"] = float(time.time())
+                    _LIVE_LINES_CACHE["key"] = cache_key
+                    _LIVE_LINES_CACHE["payload"] = payload
+            except Exception:
+                pass
+            return jsonify(payload), 200
 
     try:
         from ncaab_model.data.team_normalize import pair_key as _pair_key  # type: ignore
@@ -22345,24 +22356,26 @@ def api_live_lines():
         return jsonify({"status": "error", "message": f"Team normalize import failed: {e}"}), 500
 
     missing_event_ids: list[str] = []
-    try:
-        have_ids = set(core["game_id"].astype(str).tolist())
-        missing_event_ids = [x for x in event_ids if x not in have_ids]
-    except Exception:
-        missing_event_ids = []
+    if core is not None:
+        try:
+            have_ids = set(core["game_id"].astype(str).tolist())
+            missing_event_ids = [x for x in event_ids if x not in have_ids]
+        except Exception:
+            missing_event_ids = []
 
     game_pair_to_ids: dict[str, list[str]] = {}
-    for _, r in core.iterrows():
-        try:
-            gid = str(r.get("game_id") or "").strip()
-            ht = str(r.get("home_team") or "").strip()
-            at = str(r.get("away_team") or "").strip()
-            if not gid or not ht or not at:
+    if need_snapshot_pair_match:
+        for _, r in core.iterrows():
+            try:
+                gid = str(r.get("game_id") or "").strip()
+                ht = str(r.get("home_team") or "").strip()
+                at = str(r.get("away_team") or "").strip()
+                if not gid or not ht or not at:
+                    continue
+                pk = _pair_key(ht, at)
+                game_pair_to_ids.setdefault(pk, []).append(gid)
+            except Exception:
                 continue
-            pk = _pair_key(ht, at)
-            game_pair_to_ids.setdefault(pk, []).append(gid)
-        except Exception:
-            continue
 
     try:
         from ncaab_model.data.adapters.odds_theoddsapi import TheOddsAPIAdapter  # type: ignore
@@ -22394,49 +22407,120 @@ def api_live_lines():
 
     now_utc = dt.datetime.now(dt.timezone.utc)
     preferred = ["draftkings", "fanduel", "betmgm"]
-    by_pair: dict[str, list[dict]] = {}
     odds_diag: dict[str, int] = {"rows_seen": 0, "rows_matched_pair": 0, "rows_skipped_future": 0, "rows_skipped_unmatched": 0}
+
+    # Collect candidate quotes.
+    by_pair: dict[str, list[dict]] = {}
+    # For event-level (period) mode, group by event_id then book_key so we can merge totals + spreads.
+    by_event_book: dict[str, dict[str, dict]] = {}
     try:
-        for row in adapter.iter_current_odds_expanded(markets="totals", bookmakers=bookmakers):
-            try:
-                odds_diag["rows_seen"] += 1
-                if (row.period or "") != "full_game":
+        if need_snapshot_pair_match:
+            for row in adapter.iter_current_odds_expanded(markets="totals", bookmakers=bookmakers):
+                try:
+                    odds_diag["rows_seen"] += 1
+                    if (row.period or "") != "full_game":
+                        continue
+                    if (row.market or "") != "totals":
+                        continue
+                    if row.total is None:
+                        continue
+                    if getattr(row, "commence_time", None) is not None:
+                        try:
+                            ct = row.commence_time
+                            if ct.tzinfo is None:
+                                ct = ct.replace(tzinfo=dt.timezone.utc)
+                            if (not allow_future) and ct > now_utc:
+                                odds_diag["rows_skipped_future"] += 1
+                                continue
+                        except Exception:
+                            pass
+                    ht = str(row.home_team_name or "").strip()
+                    at = str(row.away_team_name or "").strip()
+                    if not ht or not at:
+                        continue
+                    pk = _pair_key(ht, at)
+                    if pk not in game_pair_to_ids:
+                        odds_diag["rows_skipped_unmatched"] += 1
+                        continue
+                    odds_diag["rows_matched_pair"] += 1
+                    book = str(row.book or "").strip()
+                    book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                    last_update = getattr(row, "last_update", None)
+                    by_pair.setdefault(pk, []).append({
+                        "total": float(row.total),
+                        "book": book,
+                        "book_key": book_key,
+                        "event_id_provider": str(row.event_id or ""),
+                        "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                    })
+                except Exception:
                     continue
-                if (row.market or "") != "totals":
+        else:
+            # Period markets require the event-level endpoint.
+            totals_key = "totals_h1" if period == "1h" else ("totals_h2" if period == "2h" else "totals")
+            spreads_key = "spreads_h1" if period == "1h" else ("spreads_h2" if period == "2h" else "spreads")
+            market_key = f"{totals_key},{spreads_key}"
+            for eid in event_ids:
+                eid_s = str(eid).strip()
+                if not eid_s:
                     continue
-                if row.total is None:
-                    continue
-                if getattr(row, "commence_time", None) is not None:
+                for row in adapter.iter_event_odds(eid_s, markets=market_key, bookmakers=bookmakers):
                     try:
-                        ct = row.commence_time
-                        if ct.tzinfo is None:
-                            ct = ct.replace(tzinfo=dt.timezone.utc)
-                        if (not allow_future) and ct > now_utc:
-                            odds_diag["rows_skipped_future"] += 1
+                        odds_diag["rows_seen"] += 1
+                        # Ensure we only keep the desired period.
+                        if period == "1h" and (row.period or "") != "1h":
                             continue
+                        if period == "2h" and (row.period or "") != "2h":
+                            continue
+
+                        mkt = (row.market or "").strip().lower()
+                        if mkt not in ("totals", "spreads"):
+                            continue
+
+                        book = str(row.book or "").strip()
+                        book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                        last_update = getattr(row, "last_update", None)
+
+                        slot = by_event_book.setdefault(eid_s, {}).setdefault(
+                            book_key,
+                            {
+                                "book": book,
+                                "book_key": book_key,
+                                "event_id_provider": str(row.event_id or ""),
+                                "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                                "total": None,
+                                "spread_home": None,
+                                "spread_away": None,
+                                "spread_home_price": None,
+                                "spread_away_price": None,
+                            },
+                        )
+
+                        # Keep the most recent last_update if we see multiple markets.
+                        try:
+                            lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+                            if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
+                                slot["last_update"] = lu_new
+                        except Exception:
+                            pass
+
+                        if mkt == "totals":
+                            if row.total is not None:
+                                slot["total"] = float(row.total)
+                        elif mkt == "spreads":
+                            try:
+                                if getattr(row, "home_spread", None) is not None:
+                                    slot["spread_home"] = float(row.home_spread)
+                                if getattr(row, "away_spread", None) is not None:
+                                    slot["spread_away"] = float(row.away_spread)
+                                if getattr(row, "home_spread_price", None) is not None:
+                                    slot["spread_home_price"] = float(row.home_spread_price)
+                                if getattr(row, "away_spread_price", None) is not None:
+                                    slot["spread_away_price"] = float(row.away_spread_price)
+                            except Exception:
+                                pass
                     except Exception:
-                        pass
-                ht = str(row.home_team_name or "").strip()
-                at = str(row.away_team_name or "").strip()
-                if not ht or not at:
-                    continue
-                pk = _pair_key(ht, at)
-                if pk not in game_pair_to_ids:
-                    odds_diag["rows_skipped_unmatched"] += 1
-                    continue
-                odds_diag["rows_matched_pair"] += 1
-                book = str(row.book or "").strip()
-                book_key = "".join(ch for ch in book.lower() if ch.isalnum())
-                last_update = getattr(row, "last_update", None)
-                by_pair.setdefault(pk, []).append({
-                    "total": float(row.total),
-                    "book": book,
-                    "book_key": book_key,
-                    "event_id_provider": str(row.event_id or ""),
-                    "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
-                })
-            except Exception:
-                continue
+                        continue
     except Exception as e:
         payload = {
             "status": "ok",
@@ -22459,16 +22543,48 @@ def api_live_lines():
         return cands[0]
 
     out_lines: dict[str, dict] = {}
-    for pk, gids in game_pair_to_ids.items():
-        best = _pick_best(by_pair.get(pk) or [])
-        if not best:
-            continue
-        for gid in gids:
-            out_lines[str(gid)] = {
-                # Canonical identifiers
-                "game_id": str(gid),
-                "espn_event_id": str(gid),
+    if need_snapshot_pair_match:
+        for pk, gids in game_pair_to_ids.items():
+            best = _pick_best(by_pair.get(pk) or [])
+            if not best:
+                continue
+            for gid in gids:
+                out_lines[str(gid)] = {
+                    "game_id": str(gid),
+                    "espn_event_id": str(gid),
+                    "total": best.get("total"),
+                    "period": "full_game",
+                    "book": best.get("book"),
+                    "event_id_provider": best.get("event_id_provider"),
+                    "last_update": best.get("last_update"),
+                }
+    else:
+        def _pick_best_merged(book_map: dict[str, dict]) -> dict | None:
+            if not book_map:
+                return None
+            # Prefer books in order; allow partial (only total or only spread) but require at least one.
+            for pref in preferred:
+                for bk, obj in book_map.items():
+                    if pref in str(obj.get("book_key") or "") and (obj.get("total") is not None or obj.get("spread_home") is not None):
+                        return obj
+            for obj in book_map.values():
+                if obj.get("total") is not None or obj.get("spread_home") is not None:
+                    return obj
+            return None
+
+        for eid_s, book_map in by_event_book.items():
+            best = _pick_best_merged(book_map or {})
+            if not best:
+                continue
+            out_lines[eid_s] = {
+                "game_id": eid_s,
+                "espn_event_id": eid_s,
                 "total": best.get("total"),
+                "spread_home": best.get("spread_home"),
+                "spread_away": best.get("spread_away"),
+                "spread_home_price": best.get("spread_home_price"),
+                "spread_away_price": best.get("spread_away_price"),
+                "period": period,
                 "book": best.get("book"),
                 "event_id_provider": best.get("event_id_provider"),
                 "last_update": best.get("last_update"),
@@ -22481,6 +22597,14 @@ def api_live_lines():
         "count": len(out_lines),
         "lines": out_lines,
     }
+    if debug:
+        try:
+            payload["period"] = period
+            payload["odds_diag"] = odds_diag
+            payload["snapshot_used"] = (snapshot_used.name if snapshot_used else None)
+            payload["missing_event_ids"] = missing_event_ids
+        except Exception:
+            pass
 
     if debug:
         try:

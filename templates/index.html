@@ -3034,22 +3034,38 @@
         } catch(e) { /* ignore */ }
       }
 
-      function applyLiveLinesToCard(card, liveLineByEventId){
+      function applyLiveLinesToCard(card, liveLineByEventId, period){
         if(!card || !liveLineByEventId) return;
         try {
           var gid = String(card.getAttribute('data-game-id') || '').trim();
           if(!gid) return;
           var rec = liveLineByEventId[gid];
           if(!rec) return;
+          var per = (period !== null && period !== undefined && String(period).trim() !== '') ? String(period).trim().toLowerCase() : 'full_game';
+
+          // If spreads are present, store them on the card for other UI/widgets.
+          try {
+            var sprH = toNum(rec.spread_home);
+            if(sprH !== null){
+              if(per === '1h') card.setAttribute('data-spread-home-1h', String(sprH));
+              else if(per === 'full_game') card.setAttribute('data-spread-home', String(sprH));
+            }
+          } catch(_eSpA){ /* ignore */ }
+
           var total = toNum(rec.total);
           if(total === null) return;
 
           var wraps = card.querySelectorAll('.live-lens-wrap');
           if(!wraps || !wraps.length) return;
           wraps.forEach(function(wrap){
-            // Only apply to the full-game Live Lens (horizon > 20).
+            // Apply to the correct Live Lens widget based on horizon.
             var horizon = parseHorizon(wrap);
-            if(!(horizon > 20.5)) return;
+            var is1H = (horizon <= 20.5);
+            if(per === '1h'){
+              if(!is1H) return;
+            } else {
+              if(is1H) return;
+            }
             var inpLine = wrap.querySelector('.live-lens-line');
             if(!inpLine) return;
             var next = String(total);
@@ -3121,6 +3137,13 @@
                 })
                 .catch(function(){ return null; });
 
+              var want1h = false;
+              try {
+                want1h = Array.from(document.querySelectorAll('.live-lens-wrap')).some(function(w){
+                  try { return parseHorizon(w) <= 20.5; } catch(_eH){ return false; }
+                });
+              } catch(_eWant){ want1h = false; }
+
               var pLines = fetch(oddsUrl, { cache: 'no-store' })
                 .then(function(r3){ return r3.json(); })
                 .then(function(js3){
@@ -3143,7 +3166,7 @@
                         if(!gid) return;
                         if(want && !want.has(gid)) return;
                         if(!js3.lines[gid]) missing.push(gid);
-                        applyLiveLinesToCard(card, js3.lines);
+                        applyLiveLinesToCard(card, js3.lines, 'full_game');
                       } catch(_eC){ /* ignore */ }
                     });
                     try {
@@ -3162,7 +3185,29 @@
                 })
                 .catch(function(){ return null; });
 
-              return Promise.all([pPbp, pLines]);
+              var pLines1H = Promise.resolve(null);
+              if(want1h){
+                var oddsUrl1h = oddsUrl + '&period=1h';
+                pLines1H = fetch(oddsUrl1h, { cache: 'no-store' })
+                  .then(function(r4){ return r4.json(); })
+                  .then(function(js4){
+                    try {
+                      if(!js4 || js4.status !== 'ok' || !js4.lines) return null;
+                      cards.forEach(function(card){
+                        try {
+                          var gid = String(card.getAttribute('data-game-id') || '').trim();
+                          if(!gid) return;
+                          if(want && !want.has(gid)) return;
+                          applyLiveLinesToCard(card, js4.lines, '1h');
+                        } catch(_eC2){ /* ignore */ }
+                      });
+                    } catch(_eJ4){ /* ignore */ }
+                    return true;
+                  })
+                  .catch(function(){ return null; });
+              }
+
+              return Promise.all([pPbp, pLines, pLines1H]);
             } catch(e) {
               return null;
             }

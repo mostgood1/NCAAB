@@ -3,7 +3,7 @@ param(
   [string]$Start = (Get-Date).AddDays(-30).ToString('yyyy-MM-dd'),
   [string]$End = (Get-Date).ToString('yyyy-MM-dd'),
   [string]$Region = 'us',
-  [string]$Markets = 'h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half'
+  [string]$Markets = 'h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2'
 )
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot

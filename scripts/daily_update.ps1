@@ -304,7 +304,7 @@ print({'path': str(games_path), 'rows': len(df2)})
   & $VenvPython -m ncaab_model.cli fetch-games --season $todayDate.Year --start $prevDate --end $prevDate --provider $Provider @noCacheFlag --out (Join-Path $OutDir 'games_prev.csv')
 
   Write-Section "2) Fetch odds snapshots for $prevDate and build last/closing lines"
-  & $VenvPython -m ncaab_model.cli fetch-odds-history --start $prevDate --end $prevDate --region $Region --markets "h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half" --out-dir (Join-Path $OutDir 'odds_history') --mode current
+  & $VenvPython -m ncaab_model.cli fetch-odds-history --start $prevDate --end $prevDate --region $Region --markets "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2" --out-dir (Join-Path $OutDir 'odds_history') --mode current
   & $VenvPython -m ncaab_model.cli make-closing-lines --in-dir (Join-Path $OutDir 'odds_history') --out (Join-Path $OutDir 'closing_lines.csv')
   & $VenvPython -m ncaab_model.cli join-closing (Join-Path $OutDir 'games_prev.csv') (Join-Path $OutDir 'closing_lines.csv') --out (Join-Path $OutDir 'games_with_closing_prev.csv')
   # Also refresh master merged closing across all days using games_all.csv to avoid losing previous-day lines

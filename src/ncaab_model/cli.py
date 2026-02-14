@@ -3849,8 +3849,8 @@ def fetch_odds_history(
     end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
     region: str = typer.Option("us", help="Odds region for TheOddsAPI (e.g., us, uk, eu, au)"),
     markets: str = typer.Option(
-        "h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half",
-        help="Comma-separated markets to request; include halves variants if your plan supports them.",
+        "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2",
+        help="Comma-separated markets to request; include half markets if your plan supports them.",
     ),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory to write per-day CSVs"),
     mode: str = typer.Option("current", help="'current' to snapshot current odds; 'history' to call odds-history endpoint"),

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Iterable, Optional
+import re
 import requests
 
 from ..schemas import Odds, OddsHistoryRow
@@ -109,14 +110,19 @@ class TheOddsAPIAdapter:
     def list_events_by_date(self, date_iso: str) -> list[dict]:
         """List NCAAB events for a given ISO date.
 
-        Note: Endpoint path/params may vary by TheOddsAPI version/plan. This uses the common
-        v4 pattern. Adjust if your plan differs.
+        Uses commence-time bounds (UTC) to avoid relying on undocumented `date` params.
         """
         url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/events"
+        # UTC day bounds (best-effort). The Odds API uses ISO 8601 timestamps with Z.
+        # This is intentionally simple; callers can always override by using list_events_no_date
+        # and filtering locally.
+        commence_from = f"{date_iso}T00:00:00Z"
+        commence_to = f"{date_iso}T23:59:59Z"
         params = {
             "apiKey": self.api_key,
             "dateFormat": "iso",
-            "date": date_iso,
+            "commenceTimeFrom": commence_from,
+            "commenceTimeTo": commence_to,
         }
         r = requests.get(url, params=params, timeout=20)
         r.raise_for_status()
@@ -137,14 +143,82 @@ class TheOddsAPIAdapter:
         r.raise_for_status()
         return r.json()
 
+    def get_event_odds(
+        self,
+        event_id: str,
+        *,
+        markets: str = "h2h,spreads,totals",
+        bookmakers: str | None = None,
+        odds_format: str = "american",
+        date_format: str = "iso",
+    ) -> dict:
+        """Fetch odds for a single event via the event-level endpoint.
+
+        This endpoint supports additional markets such as period markets (e.g. totals_h1).
+
+        Docs: GET /v4/sports/{sport}/events/{eventId}/odds
+        """
+        eid = str(event_id or "").strip()
+        if not eid:
+            return {}
+        url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/events/{eid}/odds"
+        params: dict[str, object] = {
+            "apiKey": self.api_key,
+            "regions": self.region,
+            "markets": markets,
+            "oddsFormat": odds_format,
+            "dateFormat": date_format,
+        }
+        if bookmakers:
+            params["bookmakers"] = bookmakers
+
+        # Be resilient to plans/market coverage: some combinations return 422.
+        try:
+            r = requests.get(url, params=params, timeout=30)
+            r.raise_for_status()
+            data = r.json() or {}
+            return data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else {})
+        except requests.HTTPError as e:
+            status = getattr(e.response, "status_code", None) if hasattr(e, "response") else None
+            if status in (400, 422):
+                # Retry with featured markets only.
+                params2 = dict(params)
+                params2["markets"] = "h2h,spreads,totals"
+                r2 = requests.get(url, params=params2, timeout=30)
+                r2.raise_for_status()
+                data = r2.json() or {}
+                return data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else {})
+            raise
+
+    def iter_event_odds(
+        self,
+        event_id: str,
+        *,
+        markets: str = "h2h,spreads,totals",
+        bookmakers: str | None = None,
+    ) -> Iterable[OddsHistoryRow]:
+        """Yield normalized odds rows for a single event (event-level endpoint)."""
+        now = datetime.now(timezone.utc)
+        event = {}
+        try:
+            event = self.get_event_odds(event_id, markets=markets, bookmakers=bookmakers)
+        except Exception:
+            event = {}
+        if not isinstance(event, dict) or not event:
+            return
+        for book in event.get("bookmakers", []) or []:
+            for market in book.get("markets", []) or []:
+                for row in self._normalize_market_rows(event, book, market, now):
+                    yield row
+
     @staticmethod
     def _infer_period_from_key(market_key: str) -> str:
         key = (market_key or "").lower().strip()
 
         # Prefer explicit half markers first.
-        if any(tok in key for tok in ("_1st_half", "1st_half", "first_half", "1st", "_1h", "1h_")):
+        if any(tok in key for tok in ("_1st_half", "1st_half", "first_half", "_1h", "1h_")) or re.search(r"(^|_)h1($|_)", key):
             return "1h"
-        if any(tok in key for tok in ("_2nd_half", "2nd_half", "second_half", "2nd", "_2h", "2h_")):
+        if any(tok in key for tok in ("_2nd_half", "2nd_half", "second_half", "_2h", "2h_")) or re.search(r"(^|_)h2($|_)", key):
             return "2h"
 
         # Special-case common full-game market keys to avoid substring false positives.
@@ -153,9 +227,9 @@ class TheOddsAPIAdapter:
             return "full_game"
 
         # Conservative defaults.
-        if "first_half" in key or "1st_half" in key or "1h" in key:
+        if "first_half" in key or "1st_half" in key or "1h" in key or re.search(r"(^|_)h1($|_)", key):
             return "1h"
-        if "second_half" in key or "2nd_half" in key or "2h" in key:
+        if "second_half" in key or "2nd_half" in key or "2h" in key or re.search(r"(^|_)h2($|_)", key):
             return "2h"
         return "full_game"
 
