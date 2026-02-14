@@ -185,6 +185,10 @@ try:
             # Allow version and health endpoints for diagnostics
             allowed.add('/api/version')
             allowed.add('/api/health')
+            # Stake sheets/archive are used by smoke tests and ops tooling
+            allowed.add('/api/stake_sheet_dates')
+            allowed.add('/api/stake_sheets')
+            allowed.add('/stake-archive')
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
                 return None
@@ -20820,6 +20824,26 @@ def api_health():
             results_latest = dates[-1] if dates else None
         except Exception:
             results_latest = None
+
+        # Latest stake sheet date (best-effort)
+        stake_latest = None
+        try:
+            import re as _re
+            pat_stake = _re.compile(r'^stake_sheet_(\d{4}-\d{2}-\d{2})_.*\.csv$')
+            sdates: list[str] = []
+            for p in out_dir.glob('stake_sheet_*.csv'):
+                m = pat_stake.match(p.name)
+                if m:
+                    sdates.append(m.group(1))
+            sdates = sorted(set(sdates))
+            if sdates:
+                stake_latest = sdates[-1]
+            else:
+                # Fallback: if a today stake sheet exists, treat as today's date
+                if (out_dir / 'stake_sheet_today.csv').exists() or (out_dir / 'stake_sheet_today_cal.csv').exists():
+                    stake_latest = dt.datetime.utcnow().strftime('%Y-%m-%d')
+        except Exception:
+            stake_latest = None
         # Finalize hint
         finalize = None
         try:
@@ -20911,6 +20935,7 @@ def api_health():
             # Display predictions hash for alignment
             "display_hash": display_hash,
             "results_latest": results_latest,
+            "stake_latest": stake_latest,
             "finalize": finalize,
             "display_rows": display_rows,
             "enriched_rows": enriched_rows,
@@ -20978,6 +21003,25 @@ def api_status():
             results_latest = (sorted(set(dates))[-1] if dates else None)
         except Exception:
             results_latest = None
+
+        # Latest stake sheet date
+        stake_latest = None
+        try:
+            import re as _re
+            pat_stake = _re.compile(r'^stake_sheet_(\d{4}-\d{2}-\d{2})_.*\.csv$')
+            sdates: list[str] = []
+            for p in OUT.glob('stake_sheet_*.csv'):
+                m = pat_stake.match(p.name)
+                if m:
+                    sdates.append(m.group(1))
+            sdates = sorted(set(sdates))
+            if sdates:
+                stake_latest = sdates[-1]
+            else:
+                if (OUT / 'stake_sheet_today.csv').exists() or (OUT / 'stake_sheet_today_cal.csv').exists():
+                    stake_latest = dt.datetime.utcnow().strftime('%Y-%m-%d')
+        except Exception:
+            stake_latest = None
         # Finalize hint
         finalize = None
         try:
@@ -21117,6 +21161,7 @@ def api_status():
             risk = None
         return jsonify({
             'results_latest': results_latest,
+            'stake_latest': stake_latest,
             'finalize': finalize,
             'display_hash': display_hash,
             'basis_share_total_cal': basis_share_total_cal,
@@ -22493,7 +22538,7 @@ def api_live_lines():
     odds_diag: dict[str, int] = {"rows_seen": 0, "rows_matched_pair": 0, "rows_skipped_future": 0, "rows_skipped_unmatched": 0}
 
     # Collect candidate quotes.
-    by_pair: dict[str, list[dict]] = {}
+    by_pair: dict[str, dict[str, dict]] = {}
     # For event-level (period) mode, group by event_id then book_key so we can merge totals + spreads.
     by_event_book: dict[str, dict[str, dict]] = {}
     live_lines_mode = None
@@ -22501,14 +22546,10 @@ def api_live_lines():
     try:
         if need_snapshot_pair_match:
             live_lines_mode = "full_game_sport_level_pair_match"
-            for row in adapter.iter_current_odds_expanded(markets="totals", bookmakers=bookmakers):
+            for row in adapter.iter_current_odds_expanded(markets="totals,spreads,h2h", bookmakers=bookmakers):
                 try:
                     odds_diag["rows_seen"] += 1
                     if (row.period or "") != "full_game":
-                        continue
-                    if (row.market or "") != "totals":
-                        continue
-                    if row.total is None:
                         continue
                     if getattr(row, "commence_time", None) is not None:
                         try:
@@ -22533,13 +22574,65 @@ def api_live_lines():
                     book = str(row.book or "").strip()
                     book_key = "".join(ch for ch in book.lower() if ch.isalnum())
                     last_update = getattr(row, "last_update", None)
-                    by_pair.setdefault(pk, []).append({
-                        "total": float(row.total),
-                        "book": book,
-                        "book_key": book_key,
-                        "event_id_provider": str(row.event_id or ""),
-                        "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
-                    })
+
+                    slot = by_pair.setdefault(pk, {}).setdefault(
+                        book_key,
+                        {
+                            "book": book,
+                            "book_key": book_key,
+                            "event_id_provider": str(row.event_id or ""),
+                            "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                            "total": None,
+                            "over_price": None,
+                            "under_price": None,
+                            "spread_home": None,
+                            "spread_away": None,
+                            "spread_home_price": None,
+                            "spread_away_price": None,
+                            "moneyline_home": None,
+                            "moneyline_away": None,
+                        },
+                    )
+
+                    # Keep the most recent last_update if we see multiple markets.
+                    try:
+                        lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+                        if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
+                            slot["last_update"] = lu_new
+                    except Exception:
+                        pass
+
+                    mkt = (row.market or "").strip().lower()
+                    if mkt == "totals":
+                        try:
+                            if row.total is not None:
+                                slot["total"] = float(row.total)
+                            if getattr(row, "over_price", None) is not None:
+                                slot["over_price"] = float(row.over_price)
+                            if getattr(row, "under_price", None) is not None:
+                                slot["under_price"] = float(row.under_price)
+                        except Exception:
+                            pass
+                    elif mkt == "spreads":
+                        try:
+                            if getattr(row, "home_spread", None) is not None:
+                                slot["spread_home"] = float(row.home_spread)
+                            if getattr(row, "away_spread", None) is not None:
+                                slot["spread_away"] = float(row.away_spread)
+                            if getattr(row, "home_spread_price", None) is not None:
+                                slot["spread_home_price"] = float(row.home_spread_price)
+                            if getattr(row, "away_spread_price", None) is not None:
+                                slot["spread_away_price"] = float(row.away_spread_price)
+                        except Exception:
+                            pass
+                    elif mkt == "h2h":
+                        try:
+                            if getattr(row, "moneyline_home", None) is not None:
+                                slot["moneyline_home"] = float(row.moneyline_home)
+                            if getattr(row, "moneyline_away", None) is not None:
+                                slot["moneyline_away"] = float(row.moneyline_away)
+                        except Exception:
+                            pass
                 except Exception:
                     continue
         else:
@@ -22549,7 +22642,12 @@ def api_live_lines():
             # to provider ids by matching home/away pairs against TheOddsAPI /events.
             totals_key = "totals_h1" if period == "1h" else ("totals_h2" if period == "2h" else "totals")
             spreads_key = "spreads_h1" if period == "1h" else ("spreads_h2" if period == "2h" else "spreads")
-            market_key = f"{totals_key},{spreads_key}"
+            # Some plans/books expose period moneylines as h2h_h1/h2h_h2 or h2h_1st_half/h2h_2nd_half.
+            if period == "1h":
+                h2h_key = "h2h_h1,h2h_1st_half"
+            else:
+                h2h_key = "h2h_h2,h2h_2nd_half"
+            market_key = f"{totals_key},{spreads_key},{h2h_key}"
 
             # Build mapping pair_key -> provider event id once per request.
             # Note: TheOddsAPI commenceTimeFrom/To bounds are interpreted as UTC, which can
@@ -22745,7 +22843,7 @@ def api_live_lines():
                             continue
 
                         mkt = (row.market or "").strip().lower()
-                        if mkt not in ("totals", "spreads"):
+                        if mkt not in ("totals", "spreads", "h2h"):
                             continue
 
                         book = str(row.book or "").strip()
@@ -22764,6 +22862,8 @@ def api_live_lines():
                                 "spread_away": None,
                                 "spread_home_price": None,
                                 "spread_away_price": None,
+                                "moneyline_home": None,
+                                "moneyline_away": None,
                             },
                         )
 
@@ -22790,6 +22890,14 @@ def api_live_lines():
                                     slot["spread_away_price"] = float(row.away_spread_price)
                             except Exception:
                                 pass
+                        elif mkt == "h2h":
+                            try:
+                                if getattr(row, "moneyline_home", None) is not None:
+                                    slot["moneyline_home"] = float(row.moneyline_home)
+                                if getattr(row, "moneyline_away", None) is not None:
+                                    slot["moneyline_away"] = float(row.moneyline_away)
+                            except Exception:
+                                pass
                     except Exception:
                         continue
 
@@ -22807,7 +22915,7 @@ def api_live_lines():
                                 if period == "2h" and (row.period or "") != "2h":
                                     continue
                                 mkt = (row.market or "").strip().lower()
-                                if mkt not in ("totals", "spreads"):
+                                if mkt not in ("totals", "spreads", "h2h"):
                                     continue
                                 book = str(row.book or "").strip()
                                 book_key = "".join(ch for ch in book.lower() if ch.isalnum())
@@ -22824,6 +22932,8 @@ def api_live_lines():
                                         "spread_away": None,
                                         "spread_home_price": None,
                                         "spread_away_price": None,
+                                        "moneyline_home": None,
+                                        "moneyline_away": None,
                                     },
                                 )
                                 try:
@@ -22845,6 +22955,14 @@ def api_live_lines():
                                             slot["spread_home_price"] = float(row.home_spread_price)
                                         if getattr(row, "away_spread_price", None) is not None:
                                             slot["spread_away_price"] = float(row.away_spread_price)
+                                    except Exception:
+                                        pass
+                                elif mkt == "h2h":
+                                    try:
+                                        if getattr(row, "moneyline_home", None) is not None:
+                                            slot["moneyline_home"] = float(row.moneyline_home)
+                                        if getattr(row, "moneyline_away", None) is not None:
+                                            slot["moneyline_away"] = float(row.moneyline_away)
                                     except Exception:
                                         pass
                             except Exception:
@@ -22869,9 +22987,9 @@ def api_live_lines():
                         sport_level_fallback_diag["reason"] = "no_target_pairs"
                     else:
                         if period == "1h":
-                            sport_markets = "totals_h1,spreads_h1,totals_1st_half,spreads_1st_half"
+                            sport_markets = "totals_h1,spreads_h1,h2h_h1,totals_1st_half,spreads_1st_half,h2h_1st_half"
                         else:
-                            sport_markets = "totals_h2,spreads_h2,totals_2nd_half,spreads_2nd_half"
+                            sport_markets = "totals_h2,spreads_h2,h2h_h2,totals_2nd_half,spreads_2nd_half,h2h_2nd_half"
                         sport_level_fallback_diag["markets"] = sport_markets
                         sport_level_fallback_diag["mode"] = "sport_level_pair_match"
                         matched_pairs = 0
@@ -22883,7 +23001,7 @@ def api_live_lines():
                                 if period == "2h" and (row.period or "") != "2h":
                                     continue
                                 mkt = (row.market or "").strip().lower()
-                                if mkt not in ("totals", "spreads"):
+                                if mkt not in ("totals", "spreads", "h2h"):
                                     continue
                                 ht = _alias_team_name(row.home_team_name)
                                 at = _alias_team_name(row.away_team_name)
@@ -22912,6 +23030,8 @@ def api_live_lines():
                                             "spread_away": None,
                                             "spread_home_price": None,
                                             "spread_away_price": None,
+                                            "moneyline_home": None,
+                                            "moneyline_away": None,
                                         },
                                     )
                                     try:
@@ -22935,6 +23055,14 @@ def api_live_lines():
                                                 slot["spread_away_price"] = float(row.away_spread_price)
                                         except Exception:
                                             pass
+                                    elif mkt == "h2h":
+                                        try:
+                                            if getattr(row, "moneyline_home", None) is not None:
+                                                slot["moneyline_home"] = float(row.moneyline_home)
+                                            if getattr(row, "moneyline_away", None) is not None:
+                                                slot["moneyline_away"] = float(row.moneyline_away)
+                                        except Exception:
+                                            pass
                             except Exception:
                                 continue
                         sport_level_fallback_diag["matched_pairs"] = int(matched_pairs)
@@ -22952,19 +23080,30 @@ def api_live_lines():
         }
         return jsonify(payload), 200
 
-    def _pick_best(cands: list[dict]) -> dict | None:
-        if not cands:
+    def _pick_best_merged(book_map: dict[str, dict]) -> dict | None:
+        if not book_map:
             return None
+        # Prefer books in order; allow partial but require at least one usable field.
+        def _usable(obj: dict) -> bool:
+            return bool(
+                obj.get("total") is not None
+                or obj.get("spread_home") is not None
+                or obj.get("moneyline_home") is not None
+            )
+
         for pref in preferred:
-            for c in cands:
-                if pref in str(c.get("book_key") or ""):
-                    return c
-        return cands[0]
+            for _bk, obj in book_map.items():
+                if pref in str(obj.get("book_key") or "") and _usable(obj):
+                    return obj
+        for obj in book_map.values():
+            if _usable(obj):
+                return obj
+        return None
 
     out_lines: dict[str, dict] = {}
     if need_snapshot_pair_match:
         for pk, gids in game_pair_to_ids.items():
-            best = _pick_best(by_pair.get(pk) or [])
+            best = _pick_best_merged(by_pair.get(pk) or {})
             if not best:
                 continue
             for gid in gids:
@@ -22972,25 +23111,20 @@ def api_live_lines():
                     "game_id": str(gid),
                     "espn_event_id": str(gid),
                     "total": best.get("total"),
+                    "over_price": best.get("over_price"),
+                    "under_price": best.get("under_price"),
+                    "spread_home": best.get("spread_home"),
+                    "spread_away": best.get("spread_away"),
+                    "spread_home_price": best.get("spread_home_price"),
+                    "spread_away_price": best.get("spread_away_price"),
+                    "moneyline_home": best.get("moneyline_home"),
+                    "moneyline_away": best.get("moneyline_away"),
                     "period": "full_game",
                     "book": best.get("book"),
                     "event_id_provider": best.get("event_id_provider"),
                     "last_update": best.get("last_update"),
                 }
     else:
-        def _pick_best_merged(book_map: dict[str, dict]) -> dict | None:
-            if not book_map:
-                return None
-            # Prefer books in order; allow partial (only total or only spread) but require at least one.
-            for pref in preferred:
-                for bk, obj in book_map.items():
-                    if pref in str(obj.get("book_key") or "") and (obj.get("total") is not None or obj.get("spread_home") is not None):
-                        return obj
-            for obj in book_map.values():
-                if obj.get("total") is not None or obj.get("spread_home") is not None:
-                    return obj
-            return None
-
         for eid_s, book_map in by_event_book.items():
             best = _pick_best_merged(book_map or {})
             if not best:
@@ -23003,6 +23137,8 @@ def api_live_lines():
                 "spread_away": best.get("spread_away"),
                 "spread_home_price": best.get("spread_home_price"),
                 "spread_away_price": best.get("spread_away_price"),
+                "moneyline_home": best.get("moneyline_home"),
+                "moneyline_away": best.get("moneyline_away"),
                 "period": period,
                 "book": best.get("book"),
                 "event_id_provider": best.get("event_id_provider"),
@@ -23113,6 +23249,7 @@ def api_live_lens_signal():
         "ts": str(payload.get("ts") or dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")),
         "date": date_s,
         "game_id": game_id,
+        "kind": payload.get("kind"),
         "horizon": payload.get("horizon"),
         "elapsed": payload.get("elapsed"),
         "remaining": payload.get("remaining"),
@@ -23121,6 +23258,10 @@ def api_live_lens_signal():
         "side": payload.get("side"),
         "strength": payload.get("strength"),
         "edge": payload.get("edge"),
+        "price": payload.get("price"),
+        "model_prob": payload.get("model_prob"),
+        "market_prob": payload.get("market_prob"),
+        "edge_prob": payload.get("edge_prob"),
         "is_bet": bool(payload.get("is_bet")) if payload.get("is_bet") is not None else None,
         "is_watch": bool(payload.get("is_watch")) if payload.get("is_watch") is not None else None,
         "tuning_source": payload.get("tuning_source"),
@@ -23142,10 +23283,12 @@ def api_live_lens_signal():
                 {
                     "date": keep.get("date"),
                     "game_id": keep.get("game_id"),
+                    "kind": keep.get("kind"),
                     "horizon": keep.get("horizon"),
                     "side": keep.get("side"),
                     "elapsed": keep.get("elapsed"),
                     "live_line": keep.get("live_line"),
+                    "price": keep.get("price"),
                     "is_bet": keep.get("is_bet"),
                 },
                 sort_keys=True,
@@ -39437,11 +39580,92 @@ def api_finalize_hint():
 
 @app.route('/api/stake_sheet_dates')
 def api_stake_sheet_dates():
-    return jsonify({'status': 'gone', 'message': 'Stake sheet artifacts are deprecated.'}), 410
+    try:
+        import re as _re
+        pat = _re.compile(r'^stake_sheet_(\d{4}-\d{2}-\d{2})_.*\.csv$')
+        dates: list[str] = []
+        for p in OUT.glob('stake_sheet_*.csv'):
+            m = pat.match(p.name)
+            if m:
+                dates.append(m.group(1))
+        # Fallback for "today" stake sheets that don't include date in filename
+        if not dates:
+            if (OUT / 'stake_sheet_today.csv').exists() or (OUT / 'stake_sheet_today_cal.csv').exists():
+                dates.append(dt.datetime.utcnow().strftime('%Y-%m-%d'))
+        dates = sorted(set(dates))
+        latest = dates[-1] if dates else None
+        return jsonify({'dates': dates, 'latest': latest}), 200
+    except Exception as e:
+        return jsonify({'dates': [], 'latest': None, 'error': str(e)}), 200
 
 @app.route('/api/stake_sheets')
 def api_stake_sheets():
-    return jsonify({'status': 'gone', 'message': 'Stake sheet artifacts are deprecated.'}), 410
+    try:
+        # Choose date (query param) or infer latest
+        date_q = (request.args.get('date') or '').strip()
+        if not date_q:
+            # Infer latest from dated stake sheets
+            dates_resp = api_stake_sheet_dates()
+            try:
+                # api_stake_sheet_dates returns (resp, code) or resp
+                _resp = dates_resp[0] if isinstance(dates_resp, tuple) else dates_resp
+                _j = _resp.get_json() if hasattr(_resp, 'get_json') else {}
+                date_q = (_j or {}).get('latest') or ''
+            except Exception:
+                date_q = ''
+        if not date_q:
+            date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+
+        # Select best available file for that date
+        candidates = [
+            OUT / f'stake_sheet_{date_q}_cal.csv',
+            OUT / f'stake_sheet_{date_q}_calcap.csv',
+            OUT / f'stake_sheet_{date_q}_base.csv',
+            OUT / f'stake_sheet_{date_q}_iso.csv',
+            OUT / f'stake_sheet_{date_q}_isocap.csv',
+            OUT / f'stake_sheet_{date_q}.csv',
+            # Non-dated fallback (commonly used by ops scripts)
+            OUT / 'stake_sheet_today_cal.csv',
+            OUT / 'stake_sheet_today.csv',
+        ]
+        chosen = next((p for p in candidates if p.exists()), None)
+        if chosen is None:
+            return jsonify({'error': 'stake sheet file not found', 'date': date_q, 'file': None, 'count': 0, 'rows': []}), 404
+
+        try:
+            df = pd.read_csv(chosen)
+        except Exception:
+            df = pd.DataFrame()
+        rows = df.to_dict(orient='records') if not df.empty else []
+        return jsonify({'date': date_q, 'file': chosen.name, 'count': len(rows), 'rows': rows}), 200
+    except Exception as e:
+        return jsonify({'error': str(e), 'date': None, 'file': None, 'count': 0, 'rows': []}), 500
+
+
+@app.route('/stake-archive')
+def stake_archive():
+    """Minimal HTML archive for stake sheets (compat / smoke tests)."""
+    try:
+        dates_payload = api_stake_sheet_dates()
+        _resp = dates_payload[0] if isinstance(dates_payload, tuple) else dates_payload
+        j = _resp.get_json() if hasattr(_resp, 'get_json') else {}
+        dates = (j or {}).get('dates') or []
+        latest = (j or {}).get('latest')
+    except Exception:
+        dates, latest = [], None
+    # Lightweight HTML to avoid adding a new template
+    items = "\n".join([
+        f'<li><a href="/api/stake_sheets?date={d}">{d}</a></li>' for d in dates
+    ])
+    html = f"""<!doctype html>
+<html><head><meta charset='utf-8'><title>Stake Archive</title></head>
+<body>
+  <h2>Stake Archive</h2>
+  <div>Latest: <code>{latest or ''}</code></div>
+  <ul>{items}</ul>
+  <div><a href="/home">Back</a></div>
+</body></html>"""
+    return make_response(html, 200)
 
 @app.route('/download/display-predictions')
 def download_display_predictions_csv():

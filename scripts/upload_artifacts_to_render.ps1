@@ -577,12 +577,23 @@ if (Test-Path -LiteralPath $simSegmentsPath) {
 if (Test-Path -LiteralPath $simSegments2MinPath) {
     $seg2Rows = Get-CsvRowCount -Path $simSegments2MinPath
     if ($seg2Rows -gt 0) {
-        $uSimS2 = Upload-File -Uri "$BaseUrl/api/upload_sim_segments_2min" -FilePath $simSegments2MinPath -Query @{ date = $Date }
-        if ($uSimS2 -and ($uSimS2.status -eq 'skipped')) {
-            Write-Host "[Skip] sim_segments_2min endpoint unavailable" -ForegroundColor Yellow
-        } elseif ($uSimS2) {
-            Write-Host "[OK] sim_segments_2min uploaded: rows=$($uSimS2.rows)" -ForegroundColor Green
-        } else {
+        $uSimS2 = $null
+        for ($attempt = 1; $attempt -le 3; $attempt += 1) {
+            $uSimS2 = Upload-File -Uri "$BaseUrl/api/upload_sim_segments_2min" -FilePath $simSegments2MinPath -Query @{ date = $Date }
+            if ($uSimS2 -and ($uSimS2.status -eq 'skipped')) {
+                Write-Host "[Skip] sim_segments_2min endpoint unavailable" -ForegroundColor Yellow
+                break
+            }
+            if ($uSimS2) {
+                Write-Host "[OK] sim_segments_2min uploaded: rows=$($uSimS2.rows)" -ForegroundColor Green
+                break
+            }
+            if ($attempt -lt 3) {
+                Write-Host "[Warn] sim_segments_2min upload failed (attempt $attempt); retrying..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 2
+            }
+        }
+        if (-not $uSimS2) {
             ${needSimRetry} = $true
         }
     } else {

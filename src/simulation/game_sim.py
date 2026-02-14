@@ -838,6 +838,12 @@ def _segment_5min_quantiles_from_points(
         h_full_pts = _to_nonneg_int(home_pts[i])
         a_full_pts = _to_nonneg_int(away_pts[i])
 
+        # Robustness: if caller provides incoherent 1H/full samples (possible when
+        # 1H and full-game are simulated independently), clamp 1H to full so that
+        # segment sums match full-game totals and 2H residuals are non-negative.
+        h1_pts = min(h1_pts, h_full_pts)
+        a1_pts = min(a1_pts, a_full_pts)
+
         h2_pts = max(0, h_full_pts - h1_pts)
         a2_pts = max(0, a_full_pts - a1_pts)
 
@@ -852,6 +858,9 @@ def _segment_5min_quantiles_from_points(
                 one_h = _to_nonneg_int(float(home_stats.get(f"{m}_1h")[i]))
                 full_a = _to_nonneg_int(float(away_stats.get(m)[i]))
                 one_a = _to_nonneg_int(float(away_stats.get(f"{m}_1h")[i]))
+
+                one_h = min(one_h, full_h)
+                one_a = min(one_a, full_a)
 
                 two_h = max(0, full_h - one_h)
                 two_a = max(0, full_a - one_a)
@@ -2152,6 +2161,17 @@ def simulate_game_row(
     if margin_mean_1h is None:
         margin_mean_1h = float(margin_mean) * 0.5
 
+    # Guardrail: if an explicit 1H total mean is wildly inconsistent with the full-game
+    # mean, treat it as untrusted and fall back to proportional scaling.
+    # This avoids pathological implied 2H totals (e.g., 1H ~ 75 with full-game ~ 106).
+    try:
+        if total_mean_1h is not None and total_mean is not None:
+            frac_1h = float(total_mean_1h) / float(max(float(total_mean), 1e-6))
+            if not np.isfinite(frac_1h) or frac_1h < 0.30 or frac_1h > 0.70:
+                total_mean_1h = float(total_mean) * float(half_frac)
+    except Exception:
+        pass
+
     # Apply same override/calibration deltas to 1H means (scaled by minutes).
     try:
         delta_total_applied = float(applied.get("delta_total", 0.0)) if applied else 0.0
@@ -3030,6 +3050,15 @@ def simulate_game_row(
         ])
     home_1h = np.clip(s1[:, 0], 0.0, None)
     away_1h = np.clip(s1[:, 1], 0.0, None)
+
+    # Enforce coherence between 1H and full-game samples for point-allocation segments.
+    # Without this, independent sampling can yield 1H > full, producing zeroed 2H
+    # residuals and implausibly low 2H projections.
+    try:
+        home_1h = np.minimum(home_1h, home_pts)
+        away_1h = np.minimum(away_1h, away_pts)
+    except Exception:
+        pass
     totals_1h = home_1h + away_1h
     margins_1h = home_1h - away_1h
 

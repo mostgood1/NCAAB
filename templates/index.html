@@ -491,6 +491,7 @@
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
                         <span class="pill small live-lens-out" data-out="ml">ML: –</span>
                         <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
+                        <span class="pill small live-lens-out" data-out="market_meta">Live conf: –</span>
                       </div>
                       <div class="kpi mt8">
                         <span class="pill small live-lens-out" data-out="score">Score: –</span>
@@ -607,6 +608,7 @@
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
                         <span class="pill small live-lens-out" data-out="ml">ML: –</span>
                         <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
+                        <span class="pill small live-lens-out" data-out="market_meta">Live conf: –</span>
                       </div>
                       <div class="kpi mt8">
                         <span class="pill small live-lens-out" data-out="score">Score: –</span>
@@ -786,6 +788,7 @@
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
                         <span class="pill small live-lens-out" data-out="ml">ML: –</span>
                         <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
+                        <span class="pill small live-lens-out" data-out="market_meta">Live conf: –</span>
                       </div>
                       <div class="kpi mt8">
                         <span class="pill small live-lens-out" data-out="score">Score: –</span>
@@ -2159,12 +2162,10 @@
           // (We still default accuracy/ROI evals to BET-only, but we want the
           // raw stream available to diagnose late-game regime shifts.)
           if(!sig.is_bet && !sig.is_watch && !sig.is_candidate) return;
-          if(sig.live_line === null || sig.live_line === undefined) return;
-          if(sig.side !== 'over' && sig.side !== 'under') return;
-          if(sig.horizon !== null && sig.horizon !== undefined){
-            var hz = toNum(sig.horizon);
-            if(hz !== null && hz < 39) return; // full-game only for now
-          }
+
+          var kind = null;
+          try { kind = sig.kind ? String(sig.kind).trim().toLowerCase() : 'total'; } catch(_eK){ kind = 'total'; }
+          if(!kind) kind = 'total';
 
           var gid = String(card.getAttribute('data-game-id') || '').trim();
           if(!gid) return;
@@ -2173,9 +2174,26 @@
           var bucket = (elapsed !== null) ? Math.floor(elapsed) : null;
           var line = toNum(sig.live_line);
           var lineQ = (line !== null) ? (Math.round(line * 2) / 2) : null;
+          var price = (sig.price !== undefined && sig.price !== null) ? toNum(sig.price) : null;
+
+          // Basic validation by kind.
+          if(kind === 'total'){
+            if(line === null || line === undefined) return;
+            if(sig.side !== 'over' && sig.side !== 'under') return;
+          } else if(kind === 'ml'){
+            if(sig.side !== 'home' && sig.side !== 'away') return;
+            if(price === null) return;
+          } else if(kind === 'ats'){
+            if(sig.side !== 'home' && sig.side !== 'away') return;
+            if(line === null || line === undefined) return;
+            if(price === null) return;
+          } else {
+            return;
+          }
 
           var cls = sig.is_bet ? 'B' : (sig.is_watch ? 'W' : (sig.is_candidate ? 'C' : 'X'));
-          var key = gid + '|' + String(sig.side) + '|' + String(sig.horizon) + '|' + String(bucket) + '|' + String(lineQ) + '|' + cls;
+          var priceQ = (price !== null) ? Math.round(price) : null;
+          var key = gid + '|' + String(kind) + '|' + String(sig.side) + '|' + String(sig.horizon) + '|' + String(bucket) + '|' + String(lineQ) + '|' + String(priceQ) + '|' + cls;
           if(wrap && wrap.__lastLiveLensLogKey === key) return;
           if(wrap) wrap.__lastLiveLensLogKey = key;
 
@@ -2188,10 +2206,16 @@
             pbp = pbpRollup(stats);
           } catch(eP){ pbp = null; }
 
+          var lensKind = null;
+          try { lensKind = wrap ? String(wrap.getAttribute('data-lens-kind') || '').trim() : null; } catch(_eLK){ lensKind = null; }
+          if(!lensKind) lensKind = null;
+
           var payload = {
             ts: (new Date()).toISOString(),
             date: getSlateDate() || null,
             game_id: gid,
+            lens: lensKind,
+            kind: kind,
             horizon: sig.horizon,
             elapsed: sig.elapsed,
             remaining: sig.remaining,
@@ -2200,6 +2224,10 @@
             side: sig.side,
             edge: sig.edge,
             strength: sig.strength,
+            price: (price !== null ? price : null),
+            model_prob: (sig.model_prob !== undefined ? sig.model_prob : null),
+            market_prob: (sig.market_prob !== undefined ? sig.market_prob : null),
+            edge_prob: (sig.edge_prob !== undefined ? sig.edge_prob : null),
             is_bet: !!sig.is_bet,
             is_watch: !!sig.is_watch,
             is_candidate: !!sig.is_candidate,
@@ -2540,6 +2568,7 @@
           var isStrong = false;
           var isWatchLine = false;
           var isStrongNoLine = false;
+          var logSigs = [];
           var logSig = null;
           if(line !== null && projBlend !== null){
             var edge = projBlend - line;
@@ -2547,11 +2576,24 @@
             var edgeAbs = Math.abs(edge);
 
             // Persist latest live-total edge on the card for compact strip callouts.
+            // Write both the legacy attributes and per-lens attributes.
             try {
               var cardE = card0 || getCardForWrap(wrap);
-              if(cardE && (side === 'Over' || side === 'Under')){
-                cardE.setAttribute('data-live-total-side', side.toLowerCase());
-                cardE.setAttribute('data-live-total-edge', String(round1(edge)));
+              var lensKey = (lens === '1h') ? '1h' : ((lens === 'full_game') ? 'fg' : null);
+              if(cardE){
+                if(side === 'Over' || side === 'Under'){
+                  cardE.setAttribute('data-live-total-side', side.toLowerCase());
+                  cardE.setAttribute('data-live-total-edge', String(round1(edge)));
+                  if(lensKey){
+                    cardE.setAttribute('data-live-total-side-' + lensKey, side.toLowerCase());
+                    cardE.setAttribute('data-live-total-edge-' + lensKey, String(round1(edge)));
+                  }
+                } else {
+                  if(lensKey){
+                    try { cardE.removeAttribute('data-live-total-side-' + lensKey); } catch(_eR1) { /* noop */ }
+                    try { cardE.removeAttribute('data-live-total-edge-' + lensKey); } catch(_eR2) { /* noop */ }
+                  }
+                }
               }
             } catch(_eEdge) { /* noop */ }
 
@@ -2732,6 +2774,7 @@
               } catch(ePL){ perLog = null; }
 
               logSig = {
+                kind: 'total',
                 is_bet: !!isStrong,
                 is_watch: !!isWatchLine,
                 is_candidate: !!isUnderCandidate,
@@ -2751,6 +2794,7 @@
                 margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
                 period: perLog
               };
+              logSigs.push(logSig);
             }
           } else if(delta !== null){
             var minElapsed2 = (horizon <= 20.5) ? 4 : 6;
@@ -2804,6 +2848,15 @@
           setText(wrap, 'driver', 'Driver: ' + driver);
           setText(wrap, 'lean', 'Lean: ' + lean);
 
+          // Persist per-lens lean text for compact strip fallback.
+          try {
+            var cardLean = card0 || getCardForWrap(wrap);
+            var lensKey2 = (lens === '1h') ? '1h' : ((lens === 'full_game') ? 'fg' : null);
+            if(cardLean && lensKey2){
+              cardLean.setAttribute('data-live-lean-' + lensKey2, String(lean || '').trim());
+            }
+          } catch(_eLeanAttr){ /* noop */ }
+
           // Score display (auto from live polling)
           if(liveHome !== null && liveAway !== null){
             setText(wrap, 'score', 'Score: A ' + String(round0(liveAway)) + ' · H ' + String(round0(liveHome)));
@@ -2812,17 +2865,33 @@
           }
 
           // ML / ATS recommendations (full-game lens only).
-          if(horizon <= 20.5){
+          var doMarketSignals = (lens === 'full_game' || lens === '1h');
+          if(!doMarketSignals){
             setText(wrap, 'ml', 'ML: –');
             setText(wrap, 'ats', 'ATS: –');
+            setText(wrap, 'market_meta', 'Live conf: –');
           } else {
             // Spread lines from the card; prefer live/full spread.
             var spreadHome = null;
             try {
               if(card0){
-                spreadHome = toNum(card0.getAttribute('data-spread-home'));
+                if(lens === '1h') spreadHome = toNum(card0.getAttribute('data-spread-home-1h'));
+                if(spreadHome === null) spreadHome = toNum(card0.getAttribute('data-spread-home'));
               }
             } catch(eSp){ spreadHome = null; }
+
+            function americanImplied(odds){
+              var o = toNum(odds);
+              if(o === null || !isFinite(o) || o === 0) return null;
+              if(o > 0) return 100 / (o + 100);
+              return (-o) / ((-o) + 100);
+            }
+            function devig2(pA, pB){
+              if(pA === null || pB === null) return {a:null, b:null};
+              var s = pA + pB;
+              if(!isFinite(s) || s <= 0) return {a:null, b:null};
+              return {a:(pA/s), b:(pB/s)};
+            }
 
             // Estimate sigma from (q10,q90) if available.
             var sigma = null;
@@ -2834,28 +2903,272 @@
               if(isFinite(s0) && s0 > 0.01) sigma = s0;
             }
 
+            // Additional live info for ML/ATS: use PBP possessions as a sample-size proxy.
+            // Early in the game (few possessions), inflate sigma to reduce overconfident edges.
+            var sigmaProb = sigma;
+            var confW = 1;
+            var possLive = null;
+            try {
+              var cardPB = card0 || getCardForWrap(wrap);
+              var statsPB = null;
+              if(cardPB){
+                if(lens === '1h' && cardPB.__livePbpStats1H) statsPB = cardPB.__livePbpStats1H;
+                else if(cardPB.__livePbpStats) statsPB = cardPB.__livePbpStats;
+              }
+              var pbpPB = pbpRollup(statsPB);
+              var possPB = pbpPB ? toNum(pbpPB.poss) : null;
+              possLive = possPB;
+              if(sigma !== null && possPB !== null && isFinite(possPB) && possPB > 0){
+                // Typical scale: ~60-75 possessions full game, ~30-40 per half.
+                var nScale = (lens === '1h') ? 34 : 60;
+                var w = Math.min(1, Math.max(0, possPB / nScale));
+                // Cap how much we inflate sigma to avoid extreme swings.
+                var wMin = 0.35;
+                var wUse = Math.max(wMin, w);
+                sigmaProb = sigma / wUse;
+                confW = wUse;
+              }
+            } catch(_ePB){ sigmaProb = sigma; }
+
+            // Tighten probability-edge thresholds when live sample is small.
+            // (confW ~ 0.35 early -> stricter; confW -> 1 later -> baseline thresholds)
+            var mlBetThr = 0.05;
+            var mlWatchThr = 0.03;
+            var atsBetThr = 0.05;
+            var atsWatchThr = 0.03;
+            try {
+              var bumpBet = (1 - confW) * 0.03;
+              var bumpWatch = (1 - confW) * 0.02;
+              mlBetThr += bumpBet;
+              mlWatchThr += bumpWatch;
+              atsBetThr += bumpBet;
+              atsWatchThr += bumpWatch;
+              // Safety: enforce ordering.
+              if(mlWatchThr > mlBetThr) mlWatchThr = mlBetThr;
+              if(atsWatchThr > atsBetThr) atsWatchThr = atsBetThr;
+            } catch(_eThr){ /* noop */ }
+
+            // Surface live context so it is obvious why ML/ATS is conservative early.
+            try {
+              var possTxt = (possLive !== null && isFinite(possLive)) ? String(Math.round(possLive)) : '–';
+              var wTxt = (confW !== null && isFinite(confW)) ? confW.toFixed(2) : '–';
+              var mlB = (mlBetThr !== null && isFinite(mlBetThr)) ? (mlBetThr*100).toFixed(1) : '–';
+              var mlW = (mlWatchThr !== null && isFinite(mlWatchThr)) ? (mlWatchThr*100).toFixed(1) : '–';
+              var atsB = (atsBetThr !== null && isFinite(atsBetThr)) ? (atsBetThr*100).toFixed(1) : '–';
+              var atsW = (atsWatchThr !== null && isFinite(atsWatchThr)) ? (atsWatchThr*100).toFixed(1) : '–';
+              setText(wrap, 'market_meta', 'Live conf: poss ' + possTxt + ' · w ' + wTxt + ' · ML thr ' + mlB + '/' + mlW + '% · ATS thr ' + atsB + '/' + atsW + '%');
+            } catch(_eMeta){ /* noop */ }
+
             // Live-adjusted margin projection using sim remainder.
             var simRemMargin = (simFinalMargin !== null && expMargin !== null) ? (simFinalMargin - expMargin) : null;
             var projMargin = (actMargin !== null && simRemMargin !== null) ? (actMargin + simRemMargin) : simFinalMargin;
 
+            // ML/ATS action flags (used to drive compact Bet/Watch state).
+            var mlIsBet = false;
+            var mlIsWatch = false;
+            var atsIsBet = false;
+            var atsIsWatch = false;
+
             if(projMargin !== null){
               var pickML = (projMargin > 0.01) ? 'Home' : (projMargin < -0.01 ? 'Away' : 'Pick');
-              var pHome = (sigma !== null) ? normCdf(projMargin / sigma) : null;
+              var pHome = (sigmaProb !== null) ? normCdf(projMargin / sigmaProb) : null;
+
+              // Market ML (live) when available.
+              var mlHomePx = null;
+              var mlAwayPx = null;
+              try {
+                if(card0){
+                  if(lens === '1h'){
+                    mlHomePx = toNum(card0.getAttribute('data-live-ml-home-1h'));
+                    mlAwayPx = toNum(card0.getAttribute('data-live-ml-away-1h'));
+                  } else {
+                    mlHomePx = toNum(card0.getAttribute('data-live-ml-home'));
+                    mlAwayPx = toNum(card0.getAttribute('data-live-ml-away'));
+                  }
+                }
+              } catch(_eMLPx){ mlHomePx = null; mlAwayPx = null; }
+
+              var pMktH = americanImplied(mlHomePx);
+              var pMktA = americanImplied(mlAwayPx);
+              var dv = devig2(pMktH, pMktA);
+              if(dv.a !== null) pMktH = dv.a;
+              if(dv.b !== null) pMktA = dv.b;
+
+              var edgeH = (pHome !== null && pMktH !== null) ? (pHome - pMktH) : null;
+              var edgeA = (pHome !== null && pMktA !== null) ? ((1 - pHome) - pMktA) : null;
+
+              var bestSide = pickML;
+              var bestEdge = null;
+              if(edgeH !== null || edgeA !== null){
+                if(edgeH !== null && (bestEdge === null || edgeH > bestEdge)) { bestEdge = edgeH; bestSide = 'Home'; }
+                if(edgeA !== null && (bestEdge === null || edgeA > bestEdge)) { bestEdge = edgeA; bestSide = 'Away'; }
+              }
+
+              var mlAction = '';
+              if(bestEdge !== null){
+                if(bestEdge >= mlBetThr) { mlAction = 'BET '; mlIsBet = true; }
+                else if(bestEdge >= mlWatchThr) { mlAction = 'WATCH '; mlIsWatch = true; }
+              }
+
               var pTxt = (pHome !== null) ? (' (H ' + String(pct(pHome)) + '%)') : '';
-              setText(wrap, 'ml', 'ML: ' + pickML + pTxt);
+              var eTxt = (bestEdge !== null) ? (' ' + (bestEdge >= 0 ? '+' : '') + String((bestEdge*100).toFixed(1)) + '% vs mkt') : '';
+              var mlTxt = 'ML: ' + mlAction + bestSide + pTxt + eTxt;
+              setText(wrap, 'ml', mlTxt);
+
+              // Persist for compact strip (1H + FG).
+              try {
+                var cardM = card0 || getCardForWrap(wrap);
+                if(cardM){
+                  if(lens === 'full_game') cardM.setAttribute('data-live-ml-fg', String(mlTxt).replace(/^ML:\s*/i,'').trim());
+                  if(lens === '1h') cardM.setAttribute('data-live-ml-1h', String(mlTxt).replace(/^ML:\s*/i,'').trim());
+                }
+              } catch(_eML){ /* noop */ }
+
+              // Log ML signal when actionable.
+              try {
+                if((mlIsBet || mlIsWatch) && bestEdge !== null){
+                  var sideKey = (bestSide === 'Home') ? 'home' : ((bestSide === 'Away') ? 'away' : null);
+                  var px = (sideKey === 'home') ? mlHomePx : (sideKey === 'away' ? mlAwayPx : null);
+                  var mp = (sideKey === 'home') ? pMktH : (sideKey === 'away' ? pMktA : null);
+                  var modp = (sideKey === 'home') ? pHome : (sideKey === 'away' ? (pHome !== null ? (1-pHome) : null) : null);
+                  if(sideKey && px !== null){
+                    logSigs.push({
+                      kind: 'ml',
+                      is_bet: !!mlIsBet,
+                      is_watch: !!mlIsWatch,
+                      side: sideKey,
+                      horizon: horizon,
+                      elapsed: elapsed,
+                      remaining: remaining,
+                      total_points: act,
+                      live_line: null,
+                      price: px,
+                      model_prob: modp,
+                      market_prob: mp,
+                      edge_prob: bestEdge,
+                      edge: bestEdge,
+                      strength: bestEdge,
+                      thr: mlBetThr,
+                      thr_watch: mlWatchThr,
+                      home_score: liveHome,
+                      away_score: liveAway,
+                      margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
+                      period: per0
+                    });
+                  }
+                }
+              } catch(_eMLLog){ /* noop */ }
             } else {
               setText(wrap, 'ml', 'ML: –');
+              try {
+                var cardM2 = card0 || getCardForWrap(wrap);
+                if(cardM2){
+                  if(lens === 'full_game') cardM2.removeAttribute('data-live-ml-fg');
+                  if(lens === '1h') cardM2.removeAttribute('data-live-ml-1h');
+                }
+              } catch(_eML2){ /* noop */ }
             }
 
             if(spreadHome !== null && projMargin !== null){
               var coverEdge = projMargin + spreadHome; // home covers if > 0
               var pickATS = (coverEdge > 0.01) ? 'Home' : (coverEdge < -0.01 ? 'Away' : 'Push');
-              var pCov = (sigma !== null) ? normCdf(coverEdge / sigma) : null;
+              var pCov = (sigmaProb !== null) ? normCdf(coverEdge / sigmaProb) : null;
+
+              // Market ATS (live) when available.
+              var spHomePx = null;
+              var spAwayPx = null;
+              try {
+                if(card0){
+                  if(lens === '1h'){
+                    spHomePx = toNum(card0.getAttribute('data-live-spread-home-price-1h'));
+                    spAwayPx = toNum(card0.getAttribute('data-live-spread-away-price-1h'));
+                  } else {
+                    spHomePx = toNum(card0.getAttribute('data-live-spread-home-price'));
+                    spAwayPx = toNum(card0.getAttribute('data-live-spread-away-price'));
+                  }
+                }
+              } catch(_eSpPx){ spHomePx = null; spAwayPx = null; }
+
+              var pMktCovH = americanImplied(spHomePx);
+              var pMktCovA = americanImplied(spAwayPx);
+              var dv2 = devig2(pMktCovH, pMktCovA);
+              if(dv2.a !== null) pMktCovH = dv2.a;
+              if(dv2.b !== null) pMktCovA = dv2.b;
+
+              var edgeCovH = (pCov !== null && pMktCovH !== null) ? (pCov - pMktCovH) : null;
+              var edgeCovA = (pCov !== null && pMktCovA !== null) ? ((1 - pCov) - pMktCovA) : null;
+              var bestATS = pickATS;
+              var bestAEdge = null;
+              if(edgeCovH !== null || edgeCovA !== null){
+                if(edgeCovH !== null && (bestAEdge === null || edgeCovH > bestAEdge)) { bestAEdge = edgeCovH; bestATS = 'Home'; }
+                if(edgeCovA !== null && (bestAEdge === null || edgeCovA > bestAEdge)) { bestAEdge = edgeCovA; bestATS = 'Away'; }
+              }
+
+              var atsAction = '';
+              if(bestAEdge !== null){
+                if(bestAEdge >= atsBetThr) { atsAction = 'BET '; atsIsBet = true; }
+                else if(bestAEdge >= atsWatchThr) { atsAction = 'WATCH '; atsIsWatch = true; }
+              }
+
               var pCovTxt = (pCov !== null) ? (' p' + String(pct(pCov)) + '%') : '';
               var edgeTxt2 = (coverEdge > 0 ? '+' : '') + String(round1(coverEdge));
-              setText(wrap, 'ats', 'ATS: ' + pickATS + ' (' + edgeTxt2 + ')' + pCovTxt);
+              var eTxt2 = (bestAEdge !== null) ? (' ' + (bestAEdge >= 0 ? '+' : '') + String((bestAEdge*100).toFixed(1)) + '% vs mkt') : '';
+              var atsTxt = 'ATS: ' + atsAction + bestATS + ' (' + edgeTxt2 + ')' + pCovTxt + eTxt2;
+              setText(wrap, 'ats', atsTxt);
+
+              // Persist for compact strip (1H + FG).
+              try {
+                var cardA = card0 || getCardForWrap(wrap);
+                if(cardA){
+                  if(lens === 'full_game') cardA.setAttribute('data-live-ats-fg', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
+                  if(lens === '1h') cardA.setAttribute('data-live-ats-1h', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
+                }
+              } catch(_eATS){ /* noop */ }
+
+              // Log ATS signal when actionable.
+              try {
+                if((atsIsBet || atsIsWatch) && bestAEdge !== null){
+                  var sideKey2 = (bestATS === 'Home') ? 'home' : ((bestATS === 'Away') ? 'away' : null);
+                  var px2 = (sideKey2 === 'home') ? spHomePx : (sideKey2 === 'away' ? spAwayPx : null);
+                  var mp2 = (sideKey2 === 'home') ? pMktCovH : (sideKey2 === 'away' ? pMktCovA : null);
+                  var modp2 = (sideKey2 === 'home') ? pCov : (sideKey2 === 'away' ? (pCov !== null ? (1-pCov) : null) : null);
+                  var line2 = (sideKey2 === 'home') ? spreadHome : (sideKey2 === 'away' ? (spreadHome !== null ? -spreadHome : null) : null);
+                  if(sideKey2 && px2 !== null && line2 !== null){
+                    logSigs.push({
+                      kind: 'ats',
+                      is_bet: !!atsIsBet,
+                      is_watch: !!atsIsWatch,
+                      side: sideKey2,
+                      horizon: horizon,
+                      elapsed: elapsed,
+                      remaining: remaining,
+                      total_points: act,
+                      live_line: line2,
+                      price: px2,
+                      model_prob: modp2,
+                      market_prob: mp2,
+                      edge_prob: bestAEdge,
+                      edge: bestAEdge,
+                      strength: bestAEdge,
+                      thr: atsBetThr,
+                      thr_watch: atsWatchThr,
+                      home_score: liveHome,
+                      away_score: liveAway,
+                      margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
+                      period: per0
+                    });
+                  }
+                }
+              } catch(_eATSLog){ /* noop */ }
             } else {
               setText(wrap, 'ats', 'ATS: –');
+              try {
+                var cardA2 = card0 || getCardForWrap(wrap);
+                if(cardA2){
+                  if(lens === 'full_game') cardA2.removeAttribute('data-live-ats-fg');
+                  if(lens === '1h') cardA2.removeAttribute('data-live-ats-1h');
+                }
+              } catch(_eATS2){ /* noop */ }
             }
           }
 
@@ -2866,22 +3179,34 @@
               // In 2H, suppress 1H lens bet indicators.
               var suppress = (is2H0 && lens === '1h');
               leanEl.classList.toggle('ok', (!suppress && !!isStrong));
-              leanEl.classList.toggle('warn', (!suppress && !isStrong && !!isStrongNoLine));
+              leanEl.classList.toggle('warn', (!suppress && !isStrong && (!!isWatchLine || !!isStrongNoLine)));
             }
           } catch(e) { /* noop */ }
           try {
             var suppress2 = (is2H0 && lens === '1h');
-            wrap.setAttribute('data-live-edge-ok', (!suppress2 && isStrong) ? '1' : '0');
-            wrap.setAttribute('data-live-edge-warn', (!suppress2 && !isStrong && isStrongNoLine) ? '1' : '0');
+            var okNow = (!suppress2 && (!!isStrong || !!mlIsBet || !!atsIsBet));
+            var warnNow = (!suppress2 && !okNow && (!!isWatchLine || !!isStrongNoLine || !!mlIsWatch || !!atsIsWatch));
+            wrap.setAttribute('data-live-edge-ok', okNow ? '1' : '0');
+            wrap.setAttribute('data-live-edge-warn', warnNow ? '1' : '0');
             var card2 = card0 || getCardForWrap(wrap);
+
+            // Persist per-lens signal flags on the card for compact strip.
+            try {
+              var lensKey3 = (lens === '1h') ? '1h' : ((lens === 'full_game') ? 'fg' : null);
+              if(card2 && lensKey3){
+                card2.setAttribute('data-live-edge-ok-' + lensKey3, okNow ? '1' : '0');
+                card2.setAttribute('data-live-edge-warn-' + lensKey3, (!okNow && warnNow) ? '1' : '0');
+              }
+            } catch(_eSigAttr){ /* noop */ }
+
             updateCardLiveEdgeClass(card2);
           } catch(e) { /* noop */ }
 
           // Best-effort bet logging for ROI backtests.
           try {
-            if(logSig){
+            if(logSigs && logSigs.length){
               var cardL = card0 || getCardForWrap(wrap);
-              maybeLogLiveLensSignal(wrap, cardL, logSig);
+              logSigs.forEach(function(s){ maybeLogLiveLensSignal(wrap, cardL, s); });
             }
           } catch(eLog){ /* ignore */ }
         }
@@ -3297,6 +3622,42 @@
             }
           } catch(_eSpA){ /* ignore */ }
 
+          // Persist live spread prices (best-effort; primarily used for full-game ML/ATS logic).
+          try {
+            var pxH = toNum(rec.spread_home_price);
+            var pxA = toNum(rec.spread_away_price);
+            if(per === 'full_game'){
+              if(pxH !== null) card.setAttribute('data-live-spread-home-price', String(pxH));
+              if(pxA !== null) card.setAttribute('data-live-spread-away-price', String(pxA));
+            } else if(per === '1h'){
+              if(pxH !== null) card.setAttribute('data-live-spread-home-price-1h', String(pxH));
+              if(pxA !== null) card.setAttribute('data-live-spread-away-price-1h', String(pxA));
+            }
+          } catch(_eSpPx){ /* ignore */ }
+
+          // Persist live moneyline (best-effort; full-game).
+          try {
+            var mlH = toNum(rec.moneyline_home);
+            var mlA = toNum(rec.moneyline_away);
+            if(per === 'full_game'){
+              if(mlH !== null) card.setAttribute('data-live-ml-home', String(mlH));
+              if(mlA !== null) card.setAttribute('data-live-ml-away', String(mlA));
+            } else if(per === '1h'){
+              if(mlH !== null) card.setAttribute('data-live-ml-home-1h', String(mlH));
+              if(mlA !== null) card.setAttribute('data-live-ml-away-1h', String(mlA));
+            }
+          } catch(_eMLPx){ /* ignore */ }
+
+          // Persist totals prices (best-effort; full-game).
+          try {
+            var oPx = toNum(rec.over_price);
+            var uPx = toNum(rec.under_price);
+            if(per === 'full_game'){
+              if(oPx !== null) card.setAttribute('data-live-total-over-price', String(oPx));
+              if(uPx !== null) card.setAttribute('data-live-total-under-price', String(uPx));
+            }
+          } catch(_eTotPx){ /* ignore */ }
+
           var total = toNum(rec.total);
           if(total === null) return;
 
@@ -3674,11 +4035,39 @@
           var isWatch = false;
           var isLive = false;
           var isFinal = false;
+          var perCompact = null;
           try {
             isLive = (safeStr(card.getAttribute('data-live')) === '1');
-            isBet = isLive && card.classList.contains('live-edge-ok');
-            isWatch = isLive && (!isBet) && card.classList.contains('live-edge-warn');
             try { isFinal = !!(card && card.__liveIsFinal); } catch(_eF){ isFinal = false; }
+
+            try {
+              if(card && typeof card.__livePeriod === 'number' && isFinite(card.__livePeriod)) perCompact = card.__livePeriod;
+            } catch(_eP){ perCompact = null; }
+            if(perCompact === null){
+              try {
+                var pAttrC = safeStr(card.getAttribute('data-live-period'));
+                var pnC = pAttrC ? parseInt(pAttrC, 10) : NaN;
+                if(isFinite(pnC)) perCompact = pnC;
+              } catch(_ePA){ perCompact = null; }
+            }
+
+            var ok1h = (safeStr(card.getAttribute('data-live-edge-ok-1h')) === '1');
+            var warn1h = (safeStr(card.getAttribute('data-live-edge-warn-1h')) === '1');
+            var okFg = (safeStr(card.getAttribute('data-live-edge-ok-fg')) === '1');
+            var warnFg = (safeStr(card.getAttribute('data-live-edge-warn-fg')) === '1');
+
+            // In 2H+ we don't want 1H callouts (1H is over).
+            var use1h = (perCompact === null || perCompact < 2);
+
+            // Primary compact pill state: any BET wins; otherwise any WATCH.
+            isBet = isLive && (okFg || (use1h && ok1h));
+            isWatch = isLive && (!isBet) && (warnFg || (use1h && warn1h));
+
+            // Back-compat fallback: if per-lens attrs aren't populated yet, use legacy classes.
+            if(isLive && !isBet && !isWatch){
+              isBet = card.classList.contains('live-edge-ok');
+              isWatch = (!isBet) && card.classList.contains('live-edge-warn');
+            }
           } catch(eS) { /* noop */ }
 
           var away = 'Away';
@@ -3744,38 +4133,86 @@
             var show = isBet || isWatch;
             if(!show) return '';
 
-            var side = safeStr(card.getAttribute('data-live-total-side')).toLowerCase();
-            var edge = safeNum(card.getAttribute('data-live-total-edge'));
-            var action = isBet ? 'BET' : 'WATCH';
+            function lensPiece(label, lensKey, ok, warn){
+              if(!ok && !warn) return '';
+              var action = ok ? 'BET' : 'WATCH';
+              var side = safeStr(card.getAttribute('data-live-total-side-' + lensKey)).toLowerCase();
+              var edge = safeNum(card.getAttribute('data-live-total-edge-' + lensKey));
+              var lean = safeStr(card.getAttribute('data-live-lean-' + lensKey));
 
-            var sideTxt = '';
-            if(side === 'over') sideTxt = 'Over';
-            else if(side === 'under') sideTxt = 'Under';
+              var sideTxt = '';
+              if(side === 'over') sideTxt = 'Over';
+              else if(side === 'under') sideTxt = 'Under';
 
-            if(sideTxt && isFinite(edge)){
-              var edgeTxt = (edge > 0 ? '+' : '') + edge.toFixed(1);
-              return 'Total ' + action + ' ' + sideTxt + ' (' + edgeTxt + ')';
+              if(sideTxt && isFinite(edge)){
+                var edgeTxt = (edge > 0 ? '+' : '') + edge.toFixed(1);
+                return label + ': Total ' + action + ' ' + sideTxt + ' (' + edgeTxt + ')';
+              }
+
+              if(lean) return label + ': ' + lean;
+              return label + ': ' + action;
             }
 
-            // Fallback: use the full-game Live Lens lean text when available.
-            try {
-              var best = null;
-              var bestHz = -1;
-              Array.from(card.querySelectorAll('.live-lens-wrap')).forEach(function(w){
-                try {
-                  var hz = parseFloat(String(w.getAttribute('data-lens-horizon') || '').trim());
-                  if(isFinite(hz) && hz > 20.5 && hz > bestHz){ bestHz = hz; best = w; }
-                } catch(_eHz) { /* noop */ }
-              });
-              if(best){
-                var leanEl = best.querySelector('[data-out="lean"]');
-                var t = (leanEl && leanEl.textContent) ? String(leanEl.textContent) : '';
-                t = t.replace(/^Lean:\s*/i, '').trim();
-                if(t) return 'Total ' + t;
-              }
-            } catch(_eLean) { /* noop */ }
+            var ok1h2 = (safeStr(card.getAttribute('data-live-edge-ok-1h')) === '1');
+            var warn1h2 = (safeStr(card.getAttribute('data-live-edge-warn-1h')) === '1');
+            var okFg2 = (safeStr(card.getAttribute('data-live-edge-ok-fg')) === '1');
+            var warnFg2 = (safeStr(card.getAttribute('data-live-edge-warn-fg')) === '1');
+            var use1h2 = (perCompact === null || perCompact < 2);
 
-            return action;
+            var parts = [];
+            if(use1h2){
+              var p1 = lensPiece('1H', '1h', ok1h2, warn1h2);
+              if(p1){
+                var ml1 = safeStr(card.getAttribute('data-live-ml-1h'));
+                var ats1 = safeStr(card.getAttribute('data-live-ats-1h'));
+                if(ml1) p1 += ' · ML ' + ml1;
+                if(ats1) p1 += ' · ATS ' + ats1;
+                parts.push(p1);
+              } else {
+                var ml1b = safeStr(card.getAttribute('data-live-ml-1h'));
+                var ats1b = safeStr(card.getAttribute('data-live-ats-1h'));
+                if((ok1h2 || warn1h2) && (ml1b || ats1b)){
+                  var bits1 = [];
+                  if(ml1b) bits1.push('ML ' + ml1b);
+                  if(ats1b) bits1.push('ATS ' + ats1b);
+                  if(bits1.length) parts.push('1H: ' + bits1.join(' · '));
+                }
+              }
+            }
+            var pF = lensPiece('FG', 'fg', okFg2, warnFg2);
+            if(pF){
+              // Append ML/ATS (full-game only) when available.
+              var ml = safeStr(card.getAttribute('data-live-ml-fg'));
+              var ats = safeStr(card.getAttribute('data-live-ats-fg'));
+              if(ml) pF += ' · ML ' + ml;
+              if(ats) pF += ' · ATS ' + ats;
+              parts.push(pF);
+            } else {
+              // If FG status is driven by ML/ATS (no totals text), still show something useful.
+              var ml2 = safeStr(card.getAttribute('data-live-ml-fg'));
+              var ats2 = safeStr(card.getAttribute('data-live-ats-fg'));
+              if((okFg2 || warnFg2) && (ml2 || ats2)){
+                var bits = [];
+                if(ml2) bits.push('ML ' + ml2);
+                if(ats2) bits.push('ATS ' + ats2);
+                if(bits.length) parts.push('FG: ' + bits.join(' · '));
+              }
+            }
+
+            if(parts.length) return parts.join(' | ');
+
+            // Legacy fallback (should be rare now): single total callout.
+            try {
+              var side0 = safeStr(card.getAttribute('data-live-total-side')).toLowerCase();
+              var edge0 = safeNum(card.getAttribute('data-live-total-edge'));
+              var action0 = isBet ? 'BET' : 'WATCH';
+              var sideTxt0 = (side0 === 'over') ? 'Over' : (side0 === 'under' ? 'Under' : '');
+              if(sideTxt0 && isFinite(edge0)){
+                var edgeTxt0 = (edge0 > 0 ? '+' : '') + edge0.toFixed(1);
+                return 'Total ' + action0 + ' ' + sideTxt0 + ' (' + edgeTxt0 + ')';
+              }
+            } catch(_eLegacy){ /* noop */ }
+            return isBet ? 'BET' : 'WATCH';
           }
 
           // Live games: Bet (green), Watch (yellow), otherwise Live (blue).
