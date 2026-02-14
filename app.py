@@ -22255,15 +22255,20 @@ def api_live_lines():
             pass
 
     # For full-game totals, we do a single /odds call and match by (home,away) pairs.
-    # For period markets (1H/2H), TheOddsAPI requires the event-level endpoint, so we use event_ids directly.
+    # For period markets (1H/2H), TheOddsAPI requires the event-level endpoint, but the
+    # event_id is TheOddsAPI's provider id (NOT the ESPN numeric event id). Therefore we
+    # load a snapshot to get team names for the ESPN ids, map to TheOddsAPI event ids via
+    # the /events list, then call /events/{eventId}/odds with the mapped provider id.
     need_snapshot_pair_match = (period == "full_game")
+    need_snapshot_for_mapping = (period in ("1h", "2h"))
 
-    # Load a snapshot only when we need to match by (home,away) pairs (full_game)
-    # or when debug wants event_ids derived from the snapshot (event_ids=all).
+    # Load a snapshot when we need to match by (home,away) pairs (full_game), when debug
+    # wants event_ids derived from the snapshot (event_ids=all), or when period mode needs
+    # team names to map ESPN event ids -> TheOddsAPI event ids.
     df_full = None
     snapshot_used = None
     core = None
-    if need_snapshot_pair_match or use_all_from_snapshot:
+    if need_snapshot_pair_match or use_all_from_snapshot or need_snapshot_for_mapping:
         # This is strictly for auto-fill and should never hard-fail the UI.
         snapshot_candidates = [
             OUT / f"predictions_display_{target_date.isoformat()}.csv",
@@ -22353,7 +22358,7 @@ def api_live_lines():
                     event_ids = []
 
             core = core[core["game_id"].isin(set(event_ids))]
-            if need_snapshot_pair_match and core.empty:
+            if (need_snapshot_pair_match or need_snapshot_for_mapping) and core.empty:
                 payload: dict[str, object] = {"status": "ok", "date": target_date.isoformat(), "bookmakers": bookmakers, "count": 0, "lines": {}}
                 if debug:
                     payload["warning"] = "snapshot_no_matching_event_ids"
@@ -22403,7 +22408,8 @@ def api_live_lines():
             missing_event_ids = []
 
     game_pair_to_ids: dict[str, list[str]] = {}
-    if need_snapshot_pair_match:
+    game_id_to_pair: dict[str, str] = {}
+    if core is not None:
         for _, r in core.iterrows():
             try:
                 gid = str(r.get("game_id") or "").strip()
@@ -22413,6 +22419,7 @@ def api_live_lines():
                     continue
                 pk = _pair_key(ht, at)
                 game_pair_to_ids.setdefault(pk, []).append(gid)
+                game_id_to_pair[gid] = pk
             except Exception:
                 continue
 
@@ -22497,9 +22504,32 @@ def api_live_lines():
                     continue
         else:
             # Period markets require the event-level endpoint.
+            # The event id must be TheOddsAPI's provider id, so we map ESPN event ids
+            # to provider ids by matching home/away pairs against TheOddsAPI /events.
             totals_key = "totals_h1" if period == "1h" else ("totals_h2" if period == "2h" else "totals")
             spreads_key = "spreads_h1" if period == "1h" else ("spreads_h2" if period == "2h" else "spreads")
             market_key = f"{totals_key},{spreads_key}"
+
+            # Build mapping pair_key -> provider event id once per request.
+            pair_to_provider_ids: dict[str, list[dict[str, object]]] = {}
+            try:
+                events = adapter.list_events_by_date(target_date.isoformat())
+                for ev in events or []:
+                    try:
+                        pid = str((ev or {}).get("id") or "").strip()
+                        ht = str((ev or {}).get("home_team") or "").strip()
+                        at = str((ev or {}).get("away_team") or "").strip()
+                        if not pid or not ht or not at:
+                            continue
+                        pk = _pair_key(ht, at)
+                        pair_to_provider_ids.setdefault(pk, []).append({
+                            "id": pid,
+                            "commence_time": (ev or {}).get("commence_time"),
+                        })
+                    except Exception:
+                        continue
+            except Exception:
+                pair_to_provider_ids = {}
 
             # Per-event fetch diagnostics (debug only)
             event_fetch_diag: dict[str, dict] = {}
@@ -22509,8 +22539,28 @@ def api_live_lines():
                     continue
 
                 diag_slot: dict | None = event_fetch_diag.setdefault(eid_s, {}) if debug else None
+                # Map ESPN event id -> TheOddsAPI provider event id.
+                provider_event_id = None
+                try:
+                    pk = game_id_to_pair.get(eid_s)
+                    if pk:
+                        cand = (pair_to_provider_ids.get(pk) or [])
+                        if cand:
+                            provider_event_id = str((cand[0] or {}).get("id") or "").strip() or None
+                            if debug and isinstance(diag_slot, dict):
+                                diag_slot["provider_event_id"] = provider_event_id
+                                diag_slot["provider_event_id_candidates"] = [str((c or {}).get("id") or "") for c in cand][:10]
+                    if debug and isinstance(diag_slot, dict) and not pk:
+                        diag_slot["mapping_error"] = "missing_pair_key_for_event_id"
+                except Exception:
+                    provider_event_id = None
+
+                if not provider_event_id:
+                    if debug and isinstance(diag_slot, dict):
+                        diag_slot["mapping_error"] = diag_slot.get("mapping_error") or "no_provider_event_id_match"
+                    continue
                 saw_any = False
-                for row in adapter.iter_event_odds(eid_s, markets=market_key, bookmakers=bookmakers, diag=diag_slot):
+                for row in adapter.iter_event_odds(provider_event_id, markets=market_key, bookmakers=bookmakers, diag=diag_slot):
                     try:
                         saw_any = True
                         odds_diag["rows_seen"] += 1
@@ -22575,7 +22625,7 @@ def api_live_lines():
                     try:
                         if isinstance(diag_slot, dict):
                             diag_slot["fallback_bookmakers_all_attempted"] = True
-                        for row in adapter.iter_event_odds(eid_s, markets=market_key, bookmakers=None, diag=diag_slot):
+                        for row in adapter.iter_event_odds(provider_event_id, markets=market_key, bookmakers=None, diag=diag_slot):
                             try:
                                 odds_diag["rows_seen"] += 1
                                 if period == "1h" and (row.period or "") != "1h":
