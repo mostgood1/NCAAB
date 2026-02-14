@@ -3190,6 +3190,7 @@
             // Totals-only flags (for compact strip + totals-only status cues).
             var totalOkNow = (!suppress2 && !!isStrong);
             var totalWarnNow = (!suppress2 && !totalOkNow && (!!isWatchLine || !!isStrongNoLine));
+            var marketOppNow = (!suppress2 && (!!mlIsBet || !!mlIsWatch || !!atsIsBet || !!atsIsWatch));
             wrap.setAttribute('data-live-edge-ok', okNow ? '1' : '0');
             wrap.setAttribute('data-live-edge-warn', warnNow ? '1' : '0');
             var card2 = card0 || getCardForWrap(wrap);
@@ -3204,6 +3205,9 @@
                 // Totals-only (compact strip): do not include ML/ATS.
                 card2.setAttribute('data-live-total-ok-' + lensKey3, totalOkNow ? '1' : '0');
                 card2.setAttribute('data-live-total-warn-' + lensKey3, (!totalOkNow && totalWarnNow) ? '1' : '0');
+
+                // Market opportunity flag (ML/ATS actionable). Compact strip shows only a subtle dot indicator.
+                card2.setAttribute('data-live-market-opp-' + lensKey3, marketOppNow ? '1' : '0');
               }
             } catch(_eSigAttr){ /* noop */ }
 
@@ -4043,6 +4047,7 @@
           var isWatch = false;
           var isLive = false;
           var isFinal = false;
+          var hasMarketOpp = false;
           var perCompact = null;
           try {
             isLive = (safeStr(card.getAttribute('data-live')) === '1');
@@ -4067,6 +4072,13 @@
 
             // In 2H+ we don't want 1H callouts (1H is over).
             var use1h = (perCompact === null || perCompact < 2);
+
+            // Market opportunity indicator (ML/ATS actionable) — shown as a subtle dot.
+            try {
+              var mkFg = (safeStr(card.getAttribute('data-live-market-opp-fg')) === '1');
+              var mk1h = (safeStr(card.getAttribute('data-live-market-opp-1h')) === '1');
+              hasMarketOpp = isLive && (mkFg || (use1h && mk1h));
+            } catch(_eMk){ hasMarketOpp = false; }
 
             // Primary compact pill state: totals-only BET wins; otherwise totals-only WATCH.
             isBet = isLive && (okFg || (use1h && ok1h));
@@ -4203,6 +4215,15 @@
             var st = document.createElement('span');
             st.className = 'compact-game-line compact-game-status';
             st.textContent = statusText();
+            if(hasMarketOpp){
+              try {
+                var dot = document.createElement('span');
+                dot.className = 'compact-game-meta';
+                dot.textContent = '•';
+                dot.title = 'ML/ATS opportunity (see game card)';
+                st.appendChild(dot);
+              } catch(_eDot){ /* noop */ }
+            }
 
             var sc = scoreText();
             var rowA = document.createElement('div');
