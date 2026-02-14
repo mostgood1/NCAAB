@@ -183,15 +183,33 @@ def normalize_slug(name: str) -> str:
         s = re.sub(pat, repl, s)
     # Remove stop tokens as whole words
     toks = [t for t in MULTISPACE.sub(" ", s).strip().split(" ") if t]
-    # Contextual disambiguation for 'st' -> 'state' vs 'saint':
-    # Heuristic: if 'st' occurs at the beginning of the name, interpret as 'saint';
-    # otherwise (mid or end), interpret as 'state'. This matches common NCAA usage like
-    # 'Arkansas St' (state) vs 'St John's' (saint).
-    disamb = []
+    # Contextual disambiguation for 'st' -> 'state' vs 'saint'.
+    # We want:
+    #   - 'Arkansas St' -> 'arkansas state'
+    #   - 'St John's' -> 'st johns'
+    #   - 'Mount St. Mary's' -> 'mount st marys'
+    # Heuristic: keep 'st' as saint marker when it's the first token OR when it
+    # is immediately followed by a common saint-name token; otherwise treat as 'state'.
+    _SAINT_FOLLOWERS = {
+        "john", "johns",
+        "joseph", "josephs",
+        "peter", "peters",
+        "mary", "marys",
+        "louis",
+        "bonaventure",
+        "thomas",
+        "francis",
+    }
+
+    disamb: list[str] = []
     for i, t in enumerate(toks):
         if t in {"st", "st."}:
             if i == 0:
-                disamb.append("st")  # keep as saint marker
+                disamb.append("st")
+                continue
+            nxt = toks[i + 1] if (i + 1) < len(toks) else ""
+            if nxt in _SAINT_FOLLOWERS:
+                disamb.append("st")
             else:
                 disamb.append("state")
         else:

@@ -22540,6 +22540,7 @@ def api_live_lines():
             # miss late-night US slates that cross UTC midnight. Fall back to the unfiltered
             # events list when date-filtered results are empty.
             pair_to_provider_ids: dict[str, list[dict[str, object]]] = {}
+            provider_pair_keys: list[str] = []
             provider_events_count = 0
             provider_events_source = None
             try:
@@ -22568,6 +22569,12 @@ def api_live_lines():
                         })
                     except Exception:
                         continue
+
+                # Cache keys for debug-only similarity hints.
+                try:
+                    provider_pair_keys = list(pair_to_provider_ids.keys())
+                except Exception:
+                    provider_pair_keys = []
 
                 # 2) If we still didn't cover any of the requested pair keys, merge in the unfiltered list.
                 try:
@@ -22636,6 +22643,28 @@ def api_live_lines():
                 if not provider_event_id:
                     if debug and isinstance(diag_slot, dict):
                         diag_slot["mapping_error"] = diag_slot.get("mapping_error") or "no_provider_event_id_match"
+                        # Provide a few closest provider pair keys to help diagnose whether this is
+                        # a naming normalization issue vs a true provider coverage gap.
+                        try:
+                            from difflib import SequenceMatcher
+
+                            keys0 = (game_id_to_pair_candidates.get(eid_s) or [])[:8]
+                            scored: list[tuple[float, str, str]] = []
+                            for cand_pk in keys0:
+                                for prov_pk in (provider_pair_keys or [])[:2000]:
+                                    try:
+                                        s = float(SequenceMatcher(None, str(cand_pk), str(prov_pk)).ratio())
+                                        scored.append((s, str(cand_pk), str(prov_pk)))
+                                    except Exception:
+                                        continue
+                            scored.sort(key=lambda x: x[0], reverse=True)
+                            diag_slot["closest_provider_pair_keys"] = [
+                                {"score": round(s, 3), "candidate": c, "provider": p}
+                                for s, c, p in scored[:8]
+                                if s >= 0.6
+                            ]
+                        except Exception:
+                            pass
                     continue
                 saw_any = False
                 for row in adapter.iter_event_odds(provider_event_id, markets=market_key, bookmakers=bookmakers, diag=diag_slot):

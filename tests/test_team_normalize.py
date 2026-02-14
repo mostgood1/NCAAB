@@ -23,3 +23,7 @@ def test_alias_east_tennessee_state():
 
 def test_alias_app_state_appalachian_state():
     assert canonical_slug("App State Mountaineers") == canonical_slug("Appalachian St Mountaineers")
+
+
+def test_mount_st_marys_is_saint_not_state():
+    assert canonical_slug("Mount St. Mary's Mountaineers") == canonical_slug("Mount St Marys")
