@@ -22637,6 +22637,57 @@ def api_live_lines():
                             break
                     if debug and isinstance(diag_slot, dict) and not keys:
                         diag_slot["mapping_error"] = "missing_snapshot_team_names"
+
+                    # Fuzzy fallback for common provider abbreviations/variants.
+                    # Only used when exact pair-key match fails.
+                    if (not provider_event_id) and keys and pair_to_provider_ids and provider_pair_keys:
+                        try:
+                            from difflib import SequenceMatcher
+
+                            def _split_pk(p: str) -> tuple[str, str]:
+                                parts = str(p or "").split("::", 1)
+                                if len(parts) == 2:
+                                    return parts[0], parts[1]
+                                return str(p or ""), ""
+
+                            best: tuple[float, float, str, str] | None = None  # (score, min_side, provider_pk, cand_pk)
+                            for cand_pk in keys[:8]:
+                                ca, cb = _split_pk(cand_pk)
+                                if not ca or not cb:
+                                    continue
+                                for prov_pk in provider_pair_keys:
+                                    pa, pb = _split_pk(prov_pk)
+                                    if not pa or not pb:
+                                        continue
+                                    s1 = float(SequenceMatcher(None, ca, pa).ratio())
+                                    s2 = float(SequenceMatcher(None, cb, pb).ratio())
+                                    s1b = float(SequenceMatcher(None, ca, pb).ratio())
+                                    s2b = float(SequenceMatcher(None, cb, pa).ratio())
+                                    # Unordered: allow swapped alignment.
+                                    score_a = (s1 + s2) / 2.0
+                                    min_a = min(s1, s2)
+                                    score_b = (s1b + s2b) / 2.0
+                                    min_b = min(s1b, s2b)
+                                    if score_b > score_a:
+                                        score_a, min_a = score_b, min_b
+                                    if best is None or score_a > best[0]:
+                                        best = (score_a, min_a, prov_pk, cand_pk)
+
+                            # Safety gate: require both sides to be fairly close.
+                            if best is not None:
+                                best_score, best_min_side, best_prov_pk, best_cand_pk = best
+                                if best_score >= 0.90 and best_min_side >= 0.85:
+                                    cand = (pair_to_provider_ids.get(best_prov_pk) or [])
+                                    if cand:
+                                        provider_event_id = str((cand[0] or {}).get("id") or "").strip() or None
+                                        if debug and isinstance(diag_slot, dict):
+                                            diag_slot["provider_event_id"] = provider_event_id
+                                            diag_slot["provider_event_id_candidates"] = [str((c or {}).get("id") or "") for c in cand][:10]
+                                            diag_slot["matched_pair_key"] = best_cand_pk
+                                            diag_slot["matched_pair_key_fuzzy"] = best_prov_pk
+                                            diag_slot["matched_pair_key_fuzzy_score"] = round(float(best_score), 3)
+                        except Exception:
+                            pass
                 except Exception:
                     provider_event_id = None
 
@@ -22658,10 +22709,10 @@ def api_live_lines():
                                     except Exception:
                                         continue
                             scored.sort(key=lambda x: x[0], reverse=True)
+                            # Always include the top few to aid diagnosis (even if low similarity).
                             diag_slot["closest_provider_pair_keys"] = [
                                 {"score": round(s, 3), "candidate": c, "provider": p}
                                 for s, c, p in scored[:8]
-                                if s >= 0.6
                             ]
                         except Exception:
                             pass
