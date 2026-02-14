@@ -21590,7 +21590,18 @@ def api_live_state():
 
             total_points_1h = (home_score_1h + away_score_1h) if (home_score_1h is not None and away_score_1h is not None) else None
 
-            is_live = (state == "in")
+            # ESPN typically uses state in {pre,in,post}, but some feeds occasionally
+            # vary (e.g. 'in_progress'). Be conservative, but avoid missing live games.
+            live_states = {"in", "live", "in_progress", "inprogress"}
+            is_live = (state in live_states)
+            if not is_live:
+                try:
+                    # Fallback: if not completed and we have a positive period + a clock,
+                    # treat as live even if the state string is unexpected.
+                    if (not bool(completed)) and (period is not None) and int(period) > 0 and (clock_seconds is not None):
+                        is_live = True
+                except Exception:
+                    is_live = False
             is_final = bool(completed or state == "post")
             rem_reg, rem_1h = _compute_remaining_seconds(period, clock_seconds) if is_live else (None, None)
 

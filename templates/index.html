@@ -3079,6 +3079,17 @@
           k = (k !== null && k !== undefined) ? String(k).trim().toLowerCase() : '';
           if(k) return k;
         } catch(e){ /* ignore */ }
+
+        // Next best: infer directly from the embedded Live Lens JSON.
+        try {
+          var dataEl = wrap ? wrap.querySelector('.live-lens-data') : null;
+          if(dataEl){
+            var data = JSON.parse(dataEl.textContent || '{}');
+            var lk = (data && data.lens !== null && data.lens !== undefined) ? String(data.lens).trim().toLowerCase() : '';
+            if(lk) return lk;
+          }
+        } catch(e2){ /* ignore */ }
+
         // Fallback: infer from horizon.
         var hz = parseHorizon(wrap);
         return (hz <= 20.5) ? '1h' : 'full_game';
