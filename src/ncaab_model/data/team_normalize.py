@@ -137,6 +137,8 @@ ALIAS_MAP: Dict[str, str] = {
         "arizonastatesundevils": "arizonastate",
         "evansvillepurpleaces": "evansville",
         "loyolachicagoramblers": "loyolachicago",
+        # Provider abbreviation variants
+        "loyolachi": "loyolachicago",
         "sandiegostateaztecs": "sandiegostate",
         "coloradostaterams": "coloradostate",
         "howardbison": "howard",

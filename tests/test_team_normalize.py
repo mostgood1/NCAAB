@@ -27,3 +27,7 @@ def test_alias_app_state_appalachian_state():
 
 def test_mount_st_marys_is_saint_not_state():
     assert canonical_slug("Mount St. Mary's Mountaineers") == canonical_slug("Mount St Marys")
+
+
+def test_alias_loyola_chi_abbrev():
+    assert canonical_slug("Loyola Chi") == canonical_slug("Loyola Chicago")
