@@ -3379,6 +3379,9 @@
               if(!liveEventIds.length) return null;
               // De-dupe + cap to avoid huge URLs.
               var uniq = Array.from(new Set(liveEventIds)).slice(0, 50);
+              // Shared set of live event ids for all live-lines handlers.
+              var wantSet = null;
+              try { wantSet = new Set(uniq || []); } catch(_eWantSet){ wantSet = null; }
               // Run PBP fetch and live-lines fetch independently so one failure doesn't block the other.
               var pbpUrl = '/api/live_pbp_stats?ttl=20&event_ids=' + encodeURIComponent(uniq.join(','));
               var oddsUrl = '/api/live_lines?ttl=20&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniq.join(','));
@@ -3424,14 +3427,12 @@
                       try { console.warn('[live_lines]', js3.warning, js3); } catch(eW2) {}
                     }
                     if(!js3.lines) return null;
-                    var want = null;
-                    try { want = new Set(uniq || []); } catch(_eSet){ want = null; }
                     var missing = [];
                     cards.forEach(function(card){
                       try {
                         var gid = String(card.getAttribute('data-game-id') || '').trim();
                         if(!gid) return;
-                        if(want && !want.has(gid)) return;
+                        if(wantSet && !wantSet.has(gid)) return;
                         if(!js3.lines[gid]) missing.push(gid);
                         applyLiveLinesToCard(card, js3.lines, 'full_game');
                       } catch(_eC){ /* ignore */ }
@@ -3465,7 +3466,7 @@
                         try {
                           var gid = String(card.getAttribute('data-game-id') || '').trim();
                           if(!gid) return;
-                          if(want && !want.has(gid)) return;
+                          if(wantSet && !wantSet.has(gid)) return;
                           if(!js4.lines[gid] || js4.lines[gid].total === null || js4.lines[gid].total === undefined) missing1.push(gid);
 
                           // Debug aid: confirm we have a 1H lens input to write into.
@@ -3520,7 +3521,7 @@
                         try {
                           var gid = String(card.getAttribute('data-game-id') || '').trim();
                           if(!gid) return;
-                          if(want && !want.has(gid)) return;
+                          if(wantSet && !wantSet.has(gid)) return;
                           if(!js5.lines[gid] || js5.lines[gid].total === null || js5.lines[gid].total === undefined) missing2.push(gid);
                           applyLiveLinesToCard(card, js5.lines, '2h');
                         } catch(_eC3){ /* ignore */ }
