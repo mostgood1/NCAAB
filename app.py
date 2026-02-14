@@ -22394,10 +22394,10 @@ def api_live_lines():
                 pass
             return jsonify(payload), 200
 
-    try:
-        from ncaab_model.data.team_normalize import pair_key as _pair_key  # type: ignore
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Team normalize import failed: {e}"}), 500
+    # NOTE: Do not import/override `_pair_key` here.
+    # This handler defines a local `_pair_key(a,b)` earlier that applies provider alias
+    # mapping + custom canonicalization. Overriding it with another implementation
+    # breaks odds matching and provider event-id mapping.
 
     missing_event_ids: list[str] = []
     if core is not None:
@@ -22408,7 +22408,22 @@ def api_live_lines():
             missing_event_ids = []
 
     game_pair_to_ids: dict[str, list[str]] = {}
-    game_id_to_pair: dict[str, str] = {}
+    game_id_to_pair_candidates: dict[str, list[str]] = {}
+
+    def _name_variants(name: str) -> list[str]:
+        s = str(name or "").strip()
+        if not s:
+            return []
+        out: list[str] = [s]
+        toks = [t for t in s.split() if t.strip()]
+        # ESPN often includes nicknames/mascots; provider often uses school-only.
+        if len(toks) >= 2:
+            out.append(" ".join(toks[:-1]))
+        # Some nicknames are two words (e.g. "Red Storm"); try dropping last 2.
+        if len(toks) >= 3:
+            out.append(" ".join(toks[:-2]))
+        seen: set[str] = set()
+        return [x for x in out if x and not (x.lower() in seen or seen.add(x.lower()))]
     if core is not None:
         for _, r in core.iterrows():
             try:
@@ -22419,7 +22434,13 @@ def api_live_lines():
                     continue
                 pk = _pair_key(ht, at)
                 game_pair_to_ids.setdefault(pk, []).append(gid)
-                game_id_to_pair[gid] = pk
+                cand_keys: list[str] = []
+                for hv in _name_variants(ht):
+                    for av in _name_variants(at):
+                        cand_keys.append(_pair_key(hv, av))
+                seen2: set[str] = set()
+                cand_keys = [x for x in cand_keys if x and not (x in seen2 or seen2.add(x))]
+                game_id_to_pair_candidates[gid] = cand_keys
             except Exception:
                 continue
 
@@ -22522,12 +22543,16 @@ def api_live_lines():
             provider_events_count = 0
             provider_events_source = None
             try:
+                # 1) Try date-bounded events first (cheap/smaller payload)
                 events = adapter.list_events_by_date(target_date.isoformat())
-                if not events:
+                provider_events_source = "events_by_date"
+
+                # If the date-bounded view is suspiciously small, it's likely a UTC-midnight issue.
+                # Fall back to the unfiltered list which spans multiple dates.
+                if not events or len(events) < 20:
                     provider_events_source = "events_no_date"
                     events = adapter.list_events_no_date()
-                else:
-                    provider_events_source = "events_by_date"
+
                 provider_events_count = int(len(events or []))
                 for ev in events or []:
                     try:
@@ -22543,6 +22568,37 @@ def api_live_lines():
                         })
                     except Exception:
                         continue
+
+                # 2) If we still didn't cover any of the requested pair keys, merge in the unfiltered list.
+                try:
+                    needed_pks = set()
+                    for _eid in event_ids:
+                        e0 = str(_eid).strip()
+                        for pk0 in (game_id_to_pair_candidates.get(e0) or [])[:1]:
+                            needed_pks.add(pk0)
+                    if needed_pks:
+                        have_pks = set(pair_to_provider_ids.keys())
+                        if not (needed_pks & have_pks):
+                            # Merge additional candidates
+                            events2 = adapter.list_events_no_date()
+                            provider_events_source = "events_no_date"
+                            provider_events_count = int(len(events2 or []))
+                            for ev in events2 or []:
+                                try:
+                                    pid = str((ev or {}).get("id") or "").strip()
+                                    ht = str((ev or {}).get("home_team") or "").strip()
+                                    at = str((ev or {}).get("away_team") or "").strip()
+                                    if not pid or not ht or not at:
+                                        continue
+                                    pk = _pair_key(ht, at)
+                                    pair_to_provider_ids.setdefault(pk, []).append({
+                                        "id": pid,
+                                        "commence_time": (ev or {}).get("commence_time"),
+                                    })
+                                except Exception:
+                                    continue
+                except Exception:
+                    pass
             except Exception:
                 pair_to_provider_ids = {}
 
@@ -22560,16 +22616,20 @@ def api_live_lines():
                 # Map ESPN event id -> TheOddsAPI provider event id.
                 provider_event_id = None
                 try:
-                    pk = game_id_to_pair.get(eid_s)
-                    if pk:
+                    keys = game_id_to_pair_candidates.get(eid_s) or []
+                    if debug and isinstance(diag_slot, dict):
+                        diag_slot["candidate_pair_keys"] = keys[:8]
+                    for pk in keys:
                         cand = (pair_to_provider_ids.get(pk) or [])
                         if cand:
                             provider_event_id = str((cand[0] or {}).get("id") or "").strip() or None
                             if debug and isinstance(diag_slot, dict):
                                 diag_slot["provider_event_id"] = provider_event_id
                                 diag_slot["provider_event_id_candidates"] = [str((c or {}).get("id") or "") for c in cand][:10]
-                    if debug and isinstance(diag_slot, dict) and not pk:
-                        diag_slot["mapping_error"] = "missing_pair_key_for_event_id"
+                                diag_slot["matched_pair_key"] = pk
+                            break
+                    if debug and isinstance(diag_slot, dict) and not keys:
+                        diag_slot["mapping_error"] = "missing_snapshot_team_names"
                 except Exception:
                     provider_event_id = None
 
