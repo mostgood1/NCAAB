@@ -3467,6 +3467,26 @@
                           if(!gid) return;
                           if(want && !want.has(gid)) return;
                           if(!js4.lines[gid] || js4.lines[gid].total === null || js4.lines[gid].total === undefined) missing1.push(gid);
+
+                          // Debug aid: confirm we have a 1H lens input to write into.
+                          try {
+                            var dbgApply = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || ''));
+                            if(dbgApply && js4.lines[gid] && js4.lines[gid].total !== null && js4.lines[gid].total !== undefined){
+                              var has1HLens = false;
+                              try {
+                                var wraps = card.querySelectorAll('.live-lens-wrap');
+                                wraps.forEach(function(w){
+                                  try {
+                                    if(parseLensKind(w) === '1h' && w.querySelector('.live-lens-line')) has1HLens = true;
+                                  } catch(_eW){ /* ignore */ }
+                                });
+                              } catch(_eWrap){ /* ignore */ }
+                              if(!has1HLens){
+                                console.warn('[live_lines 1h] line received but no 1H lens input on card', gid, js4.lines[gid]);
+                              }
+                            }
+                          } catch(_eDbgApply){ /* ignore */ }
+
                           applyLiveLinesToCard(card, js4.lines, '1h');
                         } catch(_eC2){ /* ignore */ }
                       });
