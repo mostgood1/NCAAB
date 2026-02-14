@@ -22459,8 +22459,11 @@ def api_live_lines():
     by_pair: dict[str, list[dict]] = {}
     # For event-level (period) mode, group by event_id then book_key so we can merge totals + spreads.
     by_event_book: dict[str, dict[str, dict]] = {}
+    live_lines_mode = None
+    sport_level_fallback_diag: dict[str, object] = {}
     try:
         if need_snapshot_pair_match:
+            live_lines_mode = "full_game_sport_level_pair_match"
             for row in adapter.iter_current_odds_expanded(markets="totals", bookmakers=bookmakers):
                 try:
                     odds_diag["rows_seen"] += 1
@@ -22503,134 +22506,280 @@ def api_live_lines():
                 except Exception:
                     continue
         else:
-            # 1H/2H markets: prefer the sport-level odds endpoint (single call) and match
-            # by (home,away) pairs from the snapshot. This avoids needing TheOddsAPI's
-            # provider event ids, which do not equal ESPN event ids and may be absent from
-            # date-filtered event listings for games after UTC midnight.
+            live_lines_mode = "period_event_level_mapped"
+            # Period markets require the event-level endpoint.
+            # The event id must be TheOddsAPI's provider id, so we map ESPN event ids
+            # to provider ids by matching home/away pairs against TheOddsAPI /events.
+            totals_key = "totals_h1" if period == "1h" else ("totals_h2" if period == "2h" else "totals")
+            spreads_key = "spreads_h1" if period == "1h" else ("spreads_h2" if period == "2h" else "spreads")
+            market_key = f"{totals_key},{spreads_key}"
 
-            if period == "1h":
-                markets = "totals_h1,spreads_h1,totals_1st_half,spreads_1st_half"
-            elif period == "2h":
-                markets = "totals_h2,spreads_h2,totals_2nd_half,spreads_2nd_half"
-            else:
-                markets = "totals,spreads"
+            # Build mapping pair_key -> provider event id once per request.
+            # Note: TheOddsAPI commenceTimeFrom/To bounds are interpreted as UTC, which can
+            # miss late-night US slates that cross UTC midnight. Fall back to the unfiltered
+            # events list when date-filtered results are empty.
+            pair_to_provider_ids: dict[str, list[dict[str, object]]] = {}
+            provider_events_count = 0
+            provider_events_source = None
+            try:
+                events = adapter.list_events_by_date(target_date.isoformat())
+                if not events:
+                    provider_events_source = "events_no_date"
+                    events = adapter.list_events_no_date()
+                else:
+                    provider_events_source = "events_by_date"
+                provider_events_count = int(len(events or []))
+                for ev in events or []:
+                    try:
+                        pid = str((ev or {}).get("id") or "").strip()
+                        ht = str((ev or {}).get("home_team") or "").strip()
+                        at = str((ev or {}).get("away_team") or "").strip()
+                        if not pid or not ht or not at:
+                            continue
+                        pk = _pair_key(ht, at)
+                        pair_to_provider_ids.setdefault(pk, []).append({
+                            "id": pid,
+                            "commence_time": (ev or {}).get("commence_time"),
+                        })
+                    except Exception:
+                        continue
+            except Exception:
+                pair_to_provider_ids = {}
 
-            by_pair_period: dict[str, dict[str, dict]] = {}
-
-            # Per-event diagnostics (debug only)
+            # Per-event fetch diagnostics (debug only)
             event_fetch_diag: dict[str, dict] = {}
             for eid in event_ids:
-                if debug:
-                    event_fetch_diag.setdefault(str(eid), {})["mode"] = "sport_level_pair_match"
-                    event_fetch_diag.setdefault(str(eid), {})["markets"] = markets
+                eid_s = str(eid).strip()
+                if not eid_s:
+                    continue
 
-            for row in adapter.iter_current_odds_expanded(markets=markets, bookmakers=bookmakers):
+                diag_slot: dict | None = event_fetch_diag.setdefault(eid_s, {}) if debug else None
+                if debug and isinstance(diag_slot, dict):
+                    diag_slot["provider_events_source"] = provider_events_source
+                    diag_slot["provider_events_count"] = provider_events_count
+                # Map ESPN event id -> TheOddsAPI provider event id.
+                provider_event_id = None
                 try:
-                    odds_diag["rows_seen"] += 1
-                    if period == "1h" and (row.period or "") != "1h":
-                        continue
-                    if period == "2h" and (row.period or "") != "2h":
-                        continue
-                    mkt = (row.market or "").strip().lower()
-                    if mkt not in ("totals", "spreads"):
-                        continue
+                    pk = game_id_to_pair.get(eid_s)
+                    if pk:
+                        cand = (pair_to_provider_ids.get(pk) or [])
+                        if cand:
+                            provider_event_id = str((cand[0] or {}).get("id") or "").strip() or None
+                            if debug and isinstance(diag_slot, dict):
+                                diag_slot["provider_event_id"] = provider_event_id
+                                diag_slot["provider_event_id_candidates"] = [str((c or {}).get("id") or "") for c in cand][:10]
+                    if debug and isinstance(diag_slot, dict) and not pk:
+                        diag_slot["mapping_error"] = "missing_pair_key_for_event_id"
+                except Exception:
+                    provider_event_id = None
 
-                    if getattr(row, "commence_time", None) is not None:
+                if not provider_event_id:
+                    if debug and isinstance(diag_slot, dict):
+                        diag_slot["mapping_error"] = diag_slot.get("mapping_error") or "no_provider_event_id_match"
+                    continue
+                saw_any = False
+                for row in adapter.iter_event_odds(provider_event_id, markets=market_key, bookmakers=bookmakers, diag=diag_slot):
+                    try:
+                        saw_any = True
+                        odds_diag["rows_seen"] += 1
+                        # Ensure we only keep the desired period.
+                        if period == "1h" and (row.period or "") != "1h":
+                            continue
+                        if period == "2h" and (row.period or "") != "2h":
+                            continue
+
+                        mkt = (row.market or "").strip().lower()
+                        if mkt not in ("totals", "spreads"):
+                            continue
+
+                        book = str(row.book or "").strip()
+                        book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                        last_update = getattr(row, "last_update", None)
+
+                        slot = by_event_book.setdefault(eid_s, {}).setdefault(
+                            book_key,
+                            {
+                                "book": book,
+                                "book_key": book_key,
+                                "event_id_provider": str(row.event_id or ""),
+                                "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                                "total": None,
+                                "spread_home": None,
+                                "spread_away": None,
+                                "spread_home_price": None,
+                                "spread_away_price": None,
+                            },
+                        )
+
+                        # Keep the most recent last_update if we see multiple markets.
                         try:
-                            ct = row.commence_time
-                            if ct.tzinfo is None:
-                                ct = ct.replace(tzinfo=dt.timezone.utc)
-                            if (not allow_future) and ct > now_utc:
-                                odds_diag["rows_skipped_future"] += 1
-                                continue
+                            lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+                            if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
+                                slot["last_update"] = lu_new
                         except Exception:
                             pass
 
-                    ht = _alias_team_name(row.home_team_name)
-                    at = _alias_team_name(row.away_team_name)
-                    if not ht or not at:
+                        if mkt == "totals":
+                            if row.total is not None:
+                                slot["total"] = float(row.total)
+                        elif mkt == "spreads":
+                            try:
+                                if getattr(row, "home_spread", None) is not None:
+                                    slot["spread_home"] = float(row.home_spread)
+                                if getattr(row, "away_spread", None) is not None:
+                                    slot["spread_away"] = float(row.away_spread)
+                                if getattr(row, "home_spread_price", None) is not None:
+                                    slot["spread_home_price"] = float(row.home_spread_price)
+                                if getattr(row, "away_spread_price", None) is not None:
+                                    slot["spread_away_price"] = float(row.away_spread_price)
+                            except Exception:
+                                pass
+                    except Exception:
                         continue
-                    pk = _pair_key(ht, at)
-                    if pk not in game_pair_to_ids:
-                        odds_diag["rows_skipped_unmatched"] += 1
-                        continue
-                    odds_diag["rows_matched_pair"] += 1
 
-                    book = str(row.book or "").strip()
-                    book_key = "".join(ch for ch in book.lower() if ch.isalnum())
-                    last_update = getattr(row, "last_update", None)
-
-                    slot = by_pair_period.setdefault(pk, {}).setdefault(
-                        book_key,
-                        {
-                            "book": book,
-                            "book_key": book_key,
-                            "event_id_provider": str(row.event_id or ""),
-                            "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
-                            "total": None,
-                            "spread_home": None,
-                            "spread_away": None,
-                            "spread_home_price": None,
-                            "spread_away_price": None,
-                        },
-                    )
-
+                # Debug-only probe: if no rows at all were returned, retry without a bookmakers filter.
+                # This helps diagnose whether period markets exist but are only offered by other books.
+                if debug and (not saw_any):
                     try:
-                        lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
-                        if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
-                            slot["last_update"] = lu_new
+                        if isinstance(diag_slot, dict):
+                            diag_slot["fallback_bookmakers_all_attempted"] = True
+                        for row in adapter.iter_event_odds(provider_event_id, markets=market_key, bookmakers=None, diag=diag_slot):
+                            try:
+                                odds_diag["rows_seen"] += 1
+                                if period == "1h" and (row.period or "") != "1h":
+                                    continue
+                                if period == "2h" and (row.period or "") != "2h":
+                                    continue
+                                mkt = (row.market or "").strip().lower()
+                                if mkt not in ("totals", "spreads"):
+                                    continue
+                                book = str(row.book or "").strip()
+                                book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                                last_update = getattr(row, "last_update", None)
+                                slot = by_event_book.setdefault(eid_s, {}).setdefault(
+                                    book_key,
+                                    {
+                                        "book": book,
+                                        "book_key": book_key,
+                                        "event_id_provider": str(row.event_id or ""),
+                                        "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                                        "total": None,
+                                        "spread_home": None,
+                                        "spread_away": None,
+                                        "spread_home_price": None,
+                                        "spread_away_price": None,
+                                    },
+                                )
+                                try:
+                                    lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+                                    if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
+                                        slot["last_update"] = lu_new
+                                except Exception:
+                                    pass
+                                if mkt == "totals":
+                                    if row.total is not None:
+                                        slot["total"] = float(row.total)
+                                elif mkt == "spreads":
+                                    try:
+                                        if getattr(row, "home_spread", None) is not None:
+                                            slot["spread_home"] = float(row.home_spread)
+                                        if getattr(row, "away_spread", None) is not None:
+                                            slot["spread_away"] = float(row.away_spread)
+                                        if getattr(row, "home_spread_price", None) is not None:
+                                            slot["spread_home_price"] = float(row.home_spread_price)
+                                        if getattr(row, "away_spread_price", None) is not None:
+                                            slot["spread_away_price"] = float(row.away_spread_price)
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                continue
                     except Exception:
                         pass
 
-                    if mkt == "totals":
-                        if row.total is not None:
-                            slot["total"] = float(row.total)
-                    elif mkt == "spreads":
-                        try:
-                            if getattr(row, "home_spread", None) is not None:
-                                slot["spread_home"] = float(row.home_spread)
-                            if getattr(row, "away_spread", None) is not None:
-                                slot["spread_away"] = float(row.away_spread)
-                            if getattr(row, "home_spread_price", None) is not None:
-                                slot["spread_home_price"] = float(row.home_spread_price)
-                            if getattr(row, "away_spread_price", None) is not None:
-                                slot["spread_away_price"] = float(row.away_spread_price)
-                        except Exception:
-                            pass
-                except Exception:
-                    continue
-
-            def _pick_best_merged(book_map: dict[str, dict]) -> dict | None:
-                if not book_map:
-                    return None
-                for pref in preferred:
-                    for obj in book_map.values():
-                        if pref in str(obj.get("book_key") or "") and (obj.get("total") is not None or obj.get("spread_home") is not None):
-                            return obj
-                for obj in book_map.values():
-                    if obj.get("total") is not None or obj.get("spread_home") is not None:
-                        return obj
-                return None
-
-            out_lines = {}
-            for pk, gids in game_pair_to_ids.items():
-                best = _pick_best_merged(by_pair_period.get(pk) or {})
-                if not best:
-                    continue
-                for gid in gids:
-                    out_lines[str(gid)] = {
-                        "game_id": str(gid),
-                        "espn_event_id": str(gid),
-                        "total": best.get("total"),
-                        "spread_home": best.get("spread_home"),
-                        "spread_away": best.get("spread_away"),
-                        "spread_home_price": best.get("spread_home_price"),
-                        "spread_away_price": best.get("spread_away_price"),
-                        "period": period,
-                        "book": best.get("book"),
-                        "event_id_provider": best.get("event_id_provider"),
-                        "last_update": best.get("last_update"),
-                    }
+            # Fallback: if period event-level produced no usable rows, attempt a sport-level odds call
+            # using likely half-market keys and match by snapshot pair key.
+            # This helps in cases where event-level endpoint/markets are unavailable on the plan.
+            if not by_event_book:
+                try:
+                    live_lines_mode = "period_sport_level_pair_match_fallback"
+                    # Build a set of target pair keys for the requested event ids.
+                    target_pairs = set(game_id_to_pair.get(eid) for eid in event_ids if game_id_to_pair.get(eid))
+                    if not target_pairs:
+                        sport_level_fallback_diag["skipped"] = True
+                        sport_level_fallback_diag["reason"] = "no_target_pairs"
+                    else:
+                        if period == "1h":
+                            sport_markets = "totals_h1,spreads_h1,totals_1st_half,spreads_1st_half"
+                        else:
+                            sport_markets = "totals_h2,spreads_h2,totals_2nd_half,spreads_2nd_half"
+                        sport_level_fallback_diag["markets"] = sport_markets
+                        sport_level_fallback_diag["mode"] = "sport_level_pair_match"
+                        matched_pairs = 0
+                        for row in adapter.iter_current_odds_expanded(markets=sport_markets, bookmakers=bookmakers):
+                            try:
+                                odds_diag["rows_seen"] += 1
+                                if period == "1h" and (row.period or "") != "1h":
+                                    continue
+                                if period == "2h" and (row.period or "") != "2h":
+                                    continue
+                                mkt = (row.market or "").strip().lower()
+                                if mkt not in ("totals", "spreads"):
+                                    continue
+                                ht = _alias_team_name(row.home_team_name)
+                                at = _alias_team_name(row.away_team_name)
+                                if not ht or not at:
+                                    continue
+                                pk = _pair_key(ht, at)
+                                if pk not in target_pairs:
+                                    continue
+                                matched_pairs += 1
+                                book = str(row.book or "").strip()
+                                book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                                last_update = getattr(row, "last_update", None)
+                                # Assign to all ESPN event ids whose pair matches this provider row.
+                                for gid in (game_pair_to_ids.get(pk) or []):
+                                    if gid not in set(event_ids):
+                                        continue
+                                    slot = by_event_book.setdefault(gid, {}).setdefault(
+                                        book_key,
+                                        {
+                                            "book": book,
+                                            "book_key": book_key,
+                                            "event_id_provider": str(row.event_id or ""),
+                                            "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                                            "total": None,
+                                            "spread_home": None,
+                                            "spread_away": None,
+                                            "spread_home_price": None,
+                                            "spread_away_price": None,
+                                        },
+                                    )
+                                    try:
+                                        lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+                                        if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
+                                            slot["last_update"] = lu_new
+                                    except Exception:
+                                        pass
+                                    if mkt == "totals":
+                                        if row.total is not None:
+                                            slot["total"] = float(row.total)
+                                    elif mkt == "spreads":
+                                        try:
+                                            if getattr(row, "home_spread", None) is not None:
+                                                slot["spread_home"] = float(row.home_spread)
+                                            if getattr(row, "away_spread", None) is not None:
+                                                slot["spread_away"] = float(row.away_spread)
+                                            if getattr(row, "home_spread_price", None) is not None:
+                                                slot["spread_home_price"] = float(row.home_spread_price)
+                                            if getattr(row, "away_spread_price", None) is not None:
+                                                slot["spread_away_price"] = float(row.away_spread_price)
+                                        except Exception:
+                                            pass
+                            except Exception:
+                                continue
+                        sport_level_fallback_diag["matched_pairs"] = int(matched_pairs)
+                except Exception as _e:
+                    sport_level_fallback_diag["error"] = str(_e)[:200]
     except Exception as e:
         payload = {
             "status": "ok",
@@ -22719,6 +22868,7 @@ def api_live_lines():
     if debug:
         try:
             payload["debug"] = {
+                "mode": live_lines_mode,
                 "allow_future": bool(allow_future),
                 "event_ids_mode": ("all" if use_all_from_snapshot else "explicit"),
                 "requested_event_ids": event_ids,
@@ -22733,6 +22883,8 @@ def api_live_lines():
             try:
                 if period in ("1h", "2h"):
                     payload["debug"]["event_fetch_diag"] = event_fetch_diag
+                    if sport_level_fallback_diag:
+                        payload["debug"]["sport_level_fallback_diag"] = sport_level_fallback_diag
             except Exception:
                 pass
         except Exception:
