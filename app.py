@@ -34413,6 +34413,22 @@ def api_debug_artifacts():
         except Exception as e:
             resp["artifacts"][f"sim_blend_{date_q}.csv"] = {"error": str(e)}
 
+        # Simulation segments (5-min)
+        try:
+            ss_date = OUT / f"sim_segments_{date_q}.csv"
+            ssdf = _safe_read_csv(ss_date)
+            resp["artifacts"][f"sim_segments_{date_q}.csv"] = {"exists": ss_date.exists(), "rows": int(len(ssdf)) if not ssdf.empty else 0, "path": str(ss_date)}
+        except Exception as e:
+            resp["artifacts"][f"sim_segments_{date_q}.csv"] = {"error": str(e)}
+
+        # Simulation segments (2-min)
+        try:
+            ss2_date = OUT / f"sim_segments_2min_{date_q}.csv"
+            ss2df = _safe_read_csv(ss2_date)
+            resp["artifacts"][f"sim_segments_2min_{date_q}.csv"] = {"exists": ss2_date.exists(), "rows": int(len(ss2df)) if not ss2df.empty else 0, "path": str(ss2_date)}
+        except Exception as e:
+            resp["artifacts"][f"sim_segments_2min_{date_q}.csv"] = {"error": str(e)}
+
         # Simulation input diagnostics
         try:
             sd_date = OUT / f"sim_inputs_diagnostic_{date_q}.json"

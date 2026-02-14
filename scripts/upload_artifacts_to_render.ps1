@@ -765,6 +765,9 @@ $local_picks_rows = Get-CsvRowCount -Path $picksPath
 $local_ats_rows = Get-CsvRowCount -Path $picksAtsPath
 $local_edges_rows = Get-CsvRowCount -Path $edgesPath
 $local_display_rows = Get-CsvRowCount -Path $displayPath
+$local_simq_rows = Get-CsvRowCount -Path $simQuantilesPath
+$local_simseg_rows = Get-CsvRowCount -Path $simSegmentsPath
+$local_simseg2_rows = Get-CsvRowCount -Path $simSegments2MinPath
 try {
     $debug = Invoke-RestMethod -Uri "$BaseUrl/api/debug_artifacts?date=$Date" -Method Get
     $art = $debug.artifacts
@@ -782,26 +785,41 @@ try {
     $e_key = "align_period_${Date}_edges.csv"
     $d_key = "predictions_display_${Date}.csv"
     $ap_key = "picks/ats_picks_${Date}.csv"
+    $sq_key = "sim_quantiles_${Date}.csv"
+    $ss_key = "sim_segments_${Date}.csv"
+    $ss2_key = "sim_segments_2min_${Date}.csv"
     $e_val = Get-ArtifactValue -obj $art -name $e_key
     $d_val = Get-ArtifactValue -obj $art -name $d_key
     $ap_val = Get-ArtifactValue -obj $art -name $ap_key
+    $sq_val = Get-ArtifactValue -obj $art -name $sq_key
+    $ss_val = Get-ArtifactValue -obj $art -name $ss_key
+    $ss2_val = Get-ArtifactValue -obj $art -name $ss2_key
     $e_rows = if ($e_val) { $e_val.rows } else { $null }
     $d_rows = if ($d_val) { $d_val.rows } else { $null }
     $ap_rows = if ($ap_val) { $ap_val.rows } else { $null }
-    Write-Host "[Debug] picks_raw_rows=$p_rows ats_picks_rows=$ap_rows edges_rows=$e_rows display_rows=$d_rows" -ForegroundColor White
+    $sq_rows = if ($sq_val) { $sq_val.rows } else { $null }
+    $ss_rows = if ($ss_val) { $ss_val.rows } else { $null }
+    $ss2_rows = if ($ss2_val) { $ss2_val.rows } else { $null }
+    Write-Host "[Debug] picks_raw_rows=$p_rows ats_picks_rows=$ap_rows edges_rows=$e_rows display_rows=$d_rows simq_rows=$sq_rows simseg_rows=$ss_rows simseg2_rows=$ss2_rows" -ForegroundColor White
 
     # If a redeploy is still in progress, uploads can land on the old instance and then get wiped.
     # Compare local row counts to remote and retry once for critical artifacts.
     $remote_edges_rows = if ($null -ne $e_rows) { [int]$e_rows } else { 0 }
     $remote_display_rows = if ($null -ne $d_rows) { [int]$d_rows } else { 0 }
     $remote_ats_rows = if ($null -ne $ap_rows) { [int]$ap_rows } else { 0 }
+    $remote_simq_rows = if ($null -ne $sq_rows) { [int]$sq_rows } else { 0 }
+    $remote_simseg_rows = if ($null -ne $ss_rows) { [int]$ss_rows } else { 0 }
+    $remote_simseg2_rows = if ($null -ne $ss2_rows) { [int]$ss2_rows } else { 0 }
     $needsRetry = $false
     if ($local_edges_rows -gt 0 -and $remote_edges_rows -ne $local_edges_rows) { $needsRetry = $true }
     if ($local_display_rows -gt 0 -and $remote_display_rows -ne $local_display_rows) { $needsRetry = $true }
     if ($local_ats_rows -gt 0 -and $remote_ats_rows -ne $local_ats_rows) { $needsRetry = $true }
+    if ($local_simq_rows -gt 0 -and $remote_simq_rows -ne $local_simq_rows) { $needsRetry = $true }
+    if ($local_simseg_rows -gt 0 -and $remote_simseg_rows -ne $local_simseg_rows) { $needsRetry = $true }
+    if ($local_simseg2_rows -gt 0 -and $remote_simseg2_rows -ne $local_simseg2_rows) { $needsRetry = $true }
 
     if ($needsRetry) {
-        Write-Host ("[Warn] Remote artifacts don't match local rows (local edges={0} display={1} ats={2}; remote edges={3} display={4} ats={5}). Retrying uploads once..." -f $local_edges_rows, $local_display_rows, $local_ats_rows, $remote_edges_rows, $remote_display_rows, $remote_ats_rows) -ForegroundColor Yellow
+        Write-Host ("[Warn] Remote artifacts don't match local rows (local edges={0} display={1} ats={2} simq={3} simseg={4} simseg2={5}; remote edges={6} display={7} ats={8} simq={9} simseg={10} simseg2={11}). Retrying uploads once..." -f $local_edges_rows, $local_display_rows, $local_ats_rows, $local_simq_rows, $local_simseg_rows, $local_simseg2_rows, $remote_edges_rows, $remote_display_rows, $remote_ats_rows, $remote_simq_rows, $remote_simseg_rows, $remote_simseg2_rows) -ForegroundColor Yellow
         Start-Sleep -Seconds 10
         if ($local_ats_rows -gt 0 -and $remote_ats_rows -ne $local_ats_rows) {
             $null = Upload-File -Uri "$BaseUrl/api/upload_ats_picks" -FilePath $picksAtsPath -Query @{ date = $Date }
@@ -827,20 +845,40 @@ try {
                 }
             } catch {}
         }
+
+        # Retry critical sim artifacts (cards + Live Lens)
+        if ($local_simq_rows -gt 0 -and $remote_simq_rows -ne $local_simq_rows) {
+            $null = Upload-File -Uri "$BaseUrl/api/upload_sim_quantiles" -FilePath $simQuantilesPath -Query @{ date = $Date }
+        }
+        if ($local_simseg_rows -gt 0 -and $remote_simseg_rows -ne $local_simseg_rows) {
+            $null = Upload-File -Uri "$BaseUrl/api/upload_sim_segments" -FilePath $simSegmentsPath -Query @{ date = $Date }
+        }
+        if ($local_simseg2_rows -gt 0 -and $remote_simseg2_rows -ne $local_simseg2_rows) {
+            $null = Upload-File -Uri "$BaseUrl/api/upload_sim_segments_2min" -FilePath $simSegments2MinPath -Query @{ date = $Date }
+        }
         # Re-check debug after retry
         $debug2 = Invoke-RestMethod -Uri "$BaseUrl/api/debug_artifacts?date=$Date" -Method Get
         $art2 = $debug2.artifacts
         $e_val2 = Get-ArtifactValue -obj $art2 -name $e_key
         $d_val2 = Get-ArtifactValue -obj $art2 -name $d_key
         $ap_val2 = Get-ArtifactValue -obj $art2 -name $ap_key
+        $sq_val2 = Get-ArtifactValue -obj $art2 -name $sq_key
+        $ss_val2 = Get-ArtifactValue -obj $art2 -name $ss_key
+        $ss2_val2 = Get-ArtifactValue -obj $art2 -name $ss2_key
         $e_rows2 = if ($e_val2) { [int]$e_val2.rows } else { 0 }
         $d_rows2 = if ($d_val2) { [int]$d_val2.rows } else { 0 }
         $ap_rows2 = if ($ap_val2) { [int]$ap_val2.rows } else { 0 }
-        Write-Host "[Debug] (after retry) ats_picks_rows=$ap_rows2 edges_rows=$e_rows2 display_rows=$d_rows2" -ForegroundColor White
+        $sq_rows2 = if ($sq_val2) { [int]$sq_val2.rows } else { 0 }
+        $ss_rows2 = if ($ss_val2) { [int]$ss_val2.rows } else { 0 }
+        $ss2_rows2 = if ($ss2_val2) { [int]$ss2_val2.rows } else { 0 }
+        Write-Host "[Debug] (after retry) ats_picks_rows=$ap_rows2 edges_rows=$e_rows2 display_rows=$d_rows2 simq_rows=$sq_rows2 simseg_rows=$ss_rows2 simseg2_rows=$ss2_rows2" -ForegroundColor White
         $stillBad = $false
         if ($local_edges_rows -gt 0 -and $e_rows2 -ne $local_edges_rows) { $stillBad = $true }
         if ($local_display_rows -gt 0 -and $d_rows2 -ne $local_display_rows) { $stillBad = $true }
         if ($local_ats_rows -gt 0 -and $ap_rows2 -ne $local_ats_rows) { $stillBad = $true }
+        if ($local_simq_rows -gt 0 -and $sq_rows2 -ne $local_simq_rows) { $stillBad = $true }
+        if ($local_simseg_rows -gt 0 -and $ss_rows2 -ne $local_simseg_rows) { $stillBad = $true }
+        if ($local_simseg2_rows -gt 0 -and $ss2_rows2 -ne $local_simseg2_rows) { $stillBad = $true }
         if ($stillBad) {
             Write-Host "[Error] Remote artifacts still out of sync after retry; failing upload script." -ForegroundColor Red
             exit 1

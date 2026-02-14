@@ -1923,6 +1923,10 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
   $simSegmentsToday = Join-Path $OutDir ("sim_segments_" + $todayIso + ".csv")
   if (Test-Path $simSegmentsToday) { $toStage += $simSegmentsToday }
 
+  # 2-min trajectory artifact (preferred by cards + Live Lens)
+  $simSegments2MinToday = Join-Path $OutDir ("sim_segments_2min_" + $todayIso + ".csv")
+  if (Test-Path $simSegments2MinToday) { $toStage += $simSegments2MinToday }
+
   # Rolling 5-min reconciliation + calibration artifacts
   $segCalib = Join-Path $OutDir 'segment_calibration_5min.json'
   if (Test-Path $segCalib) { $toStage += $segCalib }
@@ -2153,7 +2157,8 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
           $simQuantilesToday = Join-Path $OutDir ("sim_quantiles_" + $todayIso + ".csv")
           $simBlendToday     = Join-Path $OutDir ("sim_blend_" + $todayIso + ".csv")
           $simSegmentsToday2 = Join-Path $OutDir ("sim_segments_" + $todayIso + ".csv")
-          $needSim = (-not (Test-HasDataRow $simQuantilesToday)) -or (-not (Test-HasDataRow $simBlendToday)) -or (-not (Test-HasDataRow $simSegmentsToday2))
+          $simSegments2MinToday2 = Join-Path $OutDir ("sim_segments_2min_" + $todayIso + ".csv")
+          $needSim = (-not (Test-HasDataRow $simQuantilesToday)) -or (-not (Test-HasDataRow $simBlendToday)) -or (-not (Test-HasDataRow $simSegmentsToday2)) -or (-not (Test-HasDataRow $simSegments2MinToday2))
 
           if ($needSim) {
             Write-Section "11b.pre) Missing local sim artifacts; regenerating sims for $todayIso"
@@ -2166,6 +2171,8 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
               }
               try { & $VenvPython scripts/validate_sim_inputs.py $todayIso $OutDir } catch { Write-Warning "validate_sim_inputs retry failed: $($_)" }
               try { & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir } catch { Write-Warning "run_game_simulations retry failed: $($_)" }
+              # Ensure 2-min segments exist for cards + Live Lens.
+              try { & $VenvPython scripts/run_game_simulations.py $todayIso $OutDir --segments-grid-min 2 --segments-out-prefix sim_segments_2min_ --quantiles-out-prefix sim_quantiles_2min_ --meta-out-prefix sim_meta_2min_ } catch { Write-Warning "run_game_simulations (2-min) retry failed: $($_)" }
               try {
                 $BlendSimWeight = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
                 & $VenvPython scripts/blend_sim_quantiles.py $todayIso $OutDir $BlendSimWeight
@@ -2174,7 +2181,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
               Write-Warning "Sim regeneration preflight failed: $($_)"
             }
 
-            $needSimAfter = (-not (Test-HasDataRow $simQuantilesToday)) -or (-not (Test-HasDataRow $simBlendToday)) -or (-not (Test-HasDataRow $simSegmentsToday2))
+            $needSimAfter = (-not (Test-HasDataRow $simQuantilesToday)) -or (-not (Test-HasDataRow $simBlendToday)) -or (-not (Test-HasDataRow $simSegmentsToday2)) -or (-not (Test-HasDataRow $simSegments2MinToday2))
             if ($needSimAfter) {
               Write-Warning "Local sim artifacts are still missing/empty after retry; Render cards may lack Sim rows. Expected: $simQuantilesToday"
             } else {
@@ -2324,10 +2331,12 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
             $needAtsTopUp = ($displayRows -gt 0 -and $atsRowsInt -lt $displayRows)
 
             # If sim artifacts are missing or incomplete on Render, regenerate locally (best-effort) and re-upload.
+            # NOTE: debug_artifacts now includes sim_segments + sim_segments_2min, so we can gate on those too.
             $needSimTopUp = ($displayRows -gt 0 -and ($null -eq $simRows -or $simRowsInt -lt $displayRows))
             $simQuantLocal = Join-Path $outsDir "sim_quantiles_${todayIso}.csv"
             $simBlendLocal = Join-Path $outsDir "sim_blend_${todayIso}.csv"
             $simSegLocal   = Join-Path $outsDir "sim_segments_${todayIso}.csv"
+            $simSeg2Local  = Join-Path $outsDir "sim_segments_2min_${todayIso}.csv"
             $simDiagLocal  = Join-Path $outsDir "sim_inputs_diagnostic_${todayIso}.json"
             $simCalibLocal = Join-Path $outsDir "sim_calibration.json"
 
@@ -2345,8 +2354,9 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
               $simLocalRows = Get-LocalRows $simQuantLocal
               $blendLocalRows = Get-LocalRows $simBlendLocal
               $segLocalRows = Get-LocalRows $simSegLocal
+              $seg2LocalRows = Get-LocalRows $simSeg2Local
 
-              if ($simLocalRows -lt $displayRows -or $blendLocalRows -lt $displayRows -or $segLocalRows -le 0) {
+              if ($simLocalRows -lt $displayRows -or $blendLocalRows -lt $displayRows -or $segLocalRows -le 0 -or $seg2LocalRows -le 0) {
                 Write-Host ("[Sim] Local sim artifacts missing/incomplete; regenerating for {0}" -f $todayIso) -ForegroundColor DarkCyan
                 try {
                   if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') { $env:NCAAB_SIM_SEED = $todayIso.Replace('-','') }
@@ -2355,6 +2365,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
                   }
                   try { & $VenvPython scripts/validate_sim_inputs.py $todayIso $outsDir } catch { Write-Warning ("validate_sim_inputs (health retry) failed: {0}" -f $_.Exception.Message) }
                   try { & $VenvPython scripts/run_game_simulations.py $todayIso $outsDir } catch { Write-Warning ("run_game_simulations (health retry) failed: {0}" -f $_.Exception.Message) }
+                  try { & $VenvPython scripts/run_game_simulations.py $todayIso $outsDir --segments-grid-min 2 --segments-out-prefix sim_segments_2min_ --quantiles-out-prefix sim_quantiles_2min_ --meta-out-prefix sim_meta_2min_ } catch { Write-Warning ("run_game_simulations (2-min, health retry) failed: {0}" -f $_.Exception.Message) }
                   try {
                     $BlendSimWeight2 = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
                     & $VenvPython scripts/blend_sim_quantiles.py $todayIso $outsDir $BlendSimWeight2
@@ -2364,44 +2375,17 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
                 }
               }
 
-              # Re-upload sim artifacts only (avoid touching display snapshots here)
+              # Re-upload sim artifacts via the canonical uploader script (multipart/form-data).
+              # This avoids brittle raw-body uploads that can silently fail on the Flask side.
               try {
-                $simLocalRows = Get-LocalRows $simQuantLocal
-                if ($simLocalRows -gt 0) {
-                  Write-Host ("[Re-upload] Posting sim_quantiles -> {0}" -f $simQuantLocal) -ForegroundColor DarkCyan
-                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_quantiles?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simQuantLocal -ContentType 'text/csv' | Out-Null
+                $uploader2 = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
+                if (Test-Path -LiteralPath $uploader2) {
+                  Write-Host ("[Re-upload] Running uploader (SlimSimOnly) for {0}" -f $todayIso) -ForegroundColor DarkCyan
+                  powershell.exe -ExecutionPolicy Bypass -File $uploader2 -Date $todayIso -SlimSimOnly
+                } else {
+                  Write-Warning "Uploader script not found for sim-only re-upload; skipping."
                 }
-              } catch { Write-Warning ("sim_quantiles re-upload failed: {0}" -f $_.Exception.Message) }
-
-              try {
-                $blendLocalRows = Get-LocalRows $simBlendLocal
-                if ($blendLocalRows -gt 0) {
-                  Write-Host ("[Re-upload] Posting sim_blend -> {0}" -f $simBlendLocal) -ForegroundColor DarkCyan
-                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_blend?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simBlendLocal -ContentType 'text/csv' | Out-Null
-                }
-              } catch { Write-Warning ("sim_blend re-upload failed: {0}" -f $_.Exception.Message) }
-
-              try {
-                $segLocalRows = Get-LocalRows $simSegLocal
-                if ($segLocalRows -gt 0) {
-                  Write-Host ("[Re-upload] Posting sim_segments -> {0}" -f $simSegLocal) -ForegroundColor DarkCyan
-                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_segments?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simSegLocal -ContentType 'text/csv' | Out-Null
-                }
-              } catch { Write-Warning ("sim_segments re-upload failed: {0}" -f $_.Exception.Message) }
-
-              try {
-                if (Test-Path -LiteralPath $simDiagLocal) {
-                  Write-Host ("[Re-upload] Posting sim_inputs_diagnostic -> {0}" -f $simDiagLocal) -ForegroundColor DarkCyan
-                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_inputs_diagnostic?date={1}" -f $baseUrl, $todayIso) -Method Post -InFile $simDiagLocal -ContentType 'application/json' | Out-Null
-                }
-              } catch { Write-Warning ("sim_inputs_diagnostic re-upload failed (optional): {0}" -f $_.Exception.Message) }
-
-              try {
-                if (Test-Path -LiteralPath $simCalibLocal) {
-                  Write-Host ("[Re-upload] Posting sim_calibration -> {0}" -f $simCalibLocal) -ForegroundColor DarkCyan
-                  Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri ("{0}/api/upload_sim_calibration" -f $baseUrl) -Method Post -InFile $simCalibLocal -ContentType 'application/json' | Out-Null
-                }
-              } catch { Write-Warning ("sim_calibration re-upload failed (optional): {0}" -f $_.Exception.Message) }
+              } catch { Write-Warning ("sim artifacts re-upload via uploader failed: {0}" -f $_.Exception.Message) }
             }
 
             # Option A (expanded): if ATS picks are missing or incomplete on Render, synthesize full-slate from display snapshot
