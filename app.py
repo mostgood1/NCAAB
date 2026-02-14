@@ -22642,11 +22642,12 @@ def api_live_lines():
             # to provider ids by matching home/away pairs against TheOddsAPI /events.
             totals_key = "totals_h1" if period == "1h" else ("totals_h2" if period == "2h" else "totals")
             spreads_key = "spreads_h1" if period == "1h" else ("spreads_h2" if period == "2h" else "spreads")
-            # Some plans/books expose period moneylines as h2h_h1/h2h_h2 or h2h_1st_half/h2h_2nd_half.
-            if period == "1h":
-                h2h_key = "h2h_h1,h2h_1st_half"
-            else:
-                h2h_key = "h2h_h2,h2h_2nd_half"
+
+            # Period moneylines: request only the canonical h2h_h1/h2h_h2 keys.
+            # Including unsupported alternates (e.g. h2h_1st_half/h2h_2nd_half) causes
+            # TheOddsAPI to reject the entire markets list, forcing our adapter to fall
+            # back to full-game markets and effectively breaking 1H/2H totals.
+            h2h_key = "h2h_h1" if period == "1h" else "h2h_h2"
             market_key = f"{totals_key},{spreads_key},{h2h_key}"
 
             # Build mapping pair_key -> provider event id once per request.
@@ -22987,9 +22988,9 @@ def api_live_lines():
                         sport_level_fallback_diag["reason"] = "no_target_pairs"
                     else:
                         if period == "1h":
-                            sport_markets = "totals_h1,spreads_h1,h2h_h1,totals_1st_half,spreads_1st_half,h2h_1st_half"
+                            sport_markets = "totals_h1,spreads_h1,h2h_h1"
                         else:
-                            sport_markets = "totals_h2,spreads_h2,h2h_h2,totals_2nd_half,spreads_2nd_half,h2h_2nd_half"
+                            sport_markets = "totals_h2,spreads_h2,h2h_h2"
                         sport_level_fallback_diag["markets"] = sport_markets
                         sport_level_fallback_diag["mode"] = "sport_level_pair_match"
                         matched_pairs = 0
