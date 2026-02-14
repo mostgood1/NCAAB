@@ -3186,6 +3186,10 @@
             var suppress2 = (is2H0 && lens === '1h');
             var okNow = (!suppress2 && (!!isStrong || !!mlIsBet || !!atsIsBet));
             var warnNow = (!suppress2 && !okNow && (!!isWatchLine || !!isStrongNoLine || !!mlIsWatch || !!atsIsWatch));
+
+            // Totals-only flags (for compact strip + totals-only status cues).
+            var totalOkNow = (!suppress2 && !!isStrong);
+            var totalWarnNow = (!suppress2 && !totalOkNow && (!!isWatchLine || !!isStrongNoLine));
             wrap.setAttribute('data-live-edge-ok', okNow ? '1' : '0');
             wrap.setAttribute('data-live-edge-warn', warnNow ? '1' : '0');
             var card2 = card0 || getCardForWrap(wrap);
@@ -3196,6 +3200,10 @@
               if(card2 && lensKey3){
                 card2.setAttribute('data-live-edge-ok-' + lensKey3, okNow ? '1' : '0');
                 card2.setAttribute('data-live-edge-warn-' + lensKey3, (!okNow && warnNow) ? '1' : '0');
+
+                // Totals-only (compact strip): do not include ML/ATS.
+                card2.setAttribute('data-live-total-ok-' + lensKey3, totalOkNow ? '1' : '0');
+                card2.setAttribute('data-live-total-warn-' + lensKey3, (!totalOkNow && totalWarnNow) ? '1' : '0');
               }
             } catch(_eSigAttr){ /* noop */ }
 
@@ -4051,15 +4059,16 @@
               } catch(_ePA){ perCompact = null; }
             }
 
-            var ok1h = (safeStr(card.getAttribute('data-live-edge-ok-1h')) === '1');
-            var warn1h = (safeStr(card.getAttribute('data-live-edge-warn-1h')) === '1');
-            var okFg = (safeStr(card.getAttribute('data-live-edge-ok-fg')) === '1');
-            var warnFg = (safeStr(card.getAttribute('data-live-edge-warn-fg')) === '1');
+            // Totals-only signals for compact cards.
+            var ok1h = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
+            var warn1h = (safeStr(card.getAttribute('data-live-total-warn-1h')) === '1');
+            var okFg = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
+            var warnFg = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
 
             // In 2H+ we don't want 1H callouts (1H is over).
             var use1h = (perCompact === null || perCompact < 2);
 
-            // Primary compact pill state: any BET wins; otherwise any WATCH.
+            // Primary compact pill state: totals-only BET wins; otherwise totals-only WATCH.
             isBet = isLive && (okFg || (use1h && ok1h));
             isWatch = isLive && (!isBet) && (warnFg || (use1h && warn1h));
 
@@ -4153,51 +4162,19 @@
               return label + ': ' + action;
             }
 
-            var ok1h2 = (safeStr(card.getAttribute('data-live-edge-ok-1h')) === '1');
-            var warn1h2 = (safeStr(card.getAttribute('data-live-edge-warn-1h')) === '1');
-            var okFg2 = (safeStr(card.getAttribute('data-live-edge-ok-fg')) === '1');
-            var warnFg2 = (safeStr(card.getAttribute('data-live-edge-warn-fg')) === '1');
+            var ok1h2 = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
+            var warn1h2 = (safeStr(card.getAttribute('data-live-total-warn-1h')) === '1');
+            var okFg2 = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
+            var warnFg2 = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
             var use1h2 = (perCompact === null || perCompact < 2);
 
             var parts = [];
             if(use1h2){
               var p1 = lensPiece('1H', '1h', ok1h2, warn1h2);
-              if(p1){
-                var ml1 = safeStr(card.getAttribute('data-live-ml-1h'));
-                var ats1 = safeStr(card.getAttribute('data-live-ats-1h'));
-                if(ml1) p1 += ' · ML ' + ml1;
-                if(ats1) p1 += ' · ATS ' + ats1;
-                parts.push(p1);
-              } else {
-                var ml1b = safeStr(card.getAttribute('data-live-ml-1h'));
-                var ats1b = safeStr(card.getAttribute('data-live-ats-1h'));
-                if((ok1h2 || warn1h2) && (ml1b || ats1b)){
-                  var bits1 = [];
-                  if(ml1b) bits1.push('ML ' + ml1b);
-                  if(ats1b) bits1.push('ATS ' + ats1b);
-                  if(bits1.length) parts.push('1H: ' + bits1.join(' · '));
-                }
-              }
+              if(p1) parts.push(p1);
             }
             var pF = lensPiece('FG', 'fg', okFg2, warnFg2);
-            if(pF){
-              // Append ML/ATS (full-game only) when available.
-              var ml = safeStr(card.getAttribute('data-live-ml-fg'));
-              var ats = safeStr(card.getAttribute('data-live-ats-fg'));
-              if(ml) pF += ' · ML ' + ml;
-              if(ats) pF += ' · ATS ' + ats;
-              parts.push(pF);
-            } else {
-              // If FG status is driven by ML/ATS (no totals text), still show something useful.
-              var ml2 = safeStr(card.getAttribute('data-live-ml-fg'));
-              var ats2 = safeStr(card.getAttribute('data-live-ats-fg'));
-              if((okFg2 || warnFg2) && (ml2 || ats2)){
-                var bits = [];
-                if(ml2) bits.push('ML ' + ml2);
-                if(ats2) bits.push('ATS ' + ats2);
-                if(bits.length) parts.push('FG: ' + bits.join(' · '));
-              }
-            }
+            if(pF) parts.push(pF);
 
             if(parts.length) return parts.join(' | ');
 
@@ -4283,6 +4260,11 @@
           var okStatus = true;
           if(selStatus && selStatus.size){
             var isLive = (normStr(card.getAttribute('data-live')) === '1');
+            var isFinal = false;
+            try { isFinal = !!(card && card.__liveIsFinal); } catch(_eF){ isFinal = false; }
+            if(!isFinal){
+              try { isFinal = (normStr(card.getAttribute('data-has-actuals')) === '1'); } catch(_eF2){ isFinal = false; }
+            }
             var isBet = false;
             var isWatch = false;
             try {
@@ -4296,7 +4278,8 @@
             okStatus = (
               (selStatus.has('Live') && isLive) ||
               (selStatus.has('Watch') && isWatch) ||
-              (selStatus.has('Bet') && isBet)
+              (selStatus.has('Bet') && isBet) ||
+              (selStatus.has('Final') && isFinal)
             );
           }
 
@@ -4375,7 +4358,13 @@
         function setStatusActive(btn, on){
           btn.setAttribute('aria-pressed', on ? 'true' : 'false');
           btn.classList.toggle('status-off', !on);
-          btn.classList.toggle('strong', !!on);
+          // Keep "Final" chip visually grey even when selected.
+          if(btn.classList.contains('final-chip')){
+            btn.classList.toggle('strong', false);
+            btn.classList.toggle('edge-mod', false);
+          } else {
+            btn.classList.toggle('strong', !!on);
+          }
         }
 
         function renderGroup(wrap, items, selSet, onChange){
@@ -4404,6 +4393,14 @@
             onChange();
           });
           wrap.appendChild(allBtn);
+
+          var finalBtn = mkPill('Final', 'neutral status-off');
+          finalBtn.classList.add('final-chip');
+          finalBtn.addEventListener('click', function(){
+            if(selStatus.has('Final')) selStatus.delete('Final'); else selStatus.add('Final');
+            onChange();
+          });
+          wrap.appendChild(finalBtn);
 
           var liveBtn = mkPill('Live', 'edge-weak status-off');
           liveBtn.addEventListener('click', function(){
