@@ -22763,7 +22763,11 @@ def api_live_lines():
                 try:
                     live_lines_mode = "period_sport_level_pair_match_fallback"
                     # Build a set of target pair keys for the requested event ids.
-                    target_pairs = set(game_id_to_pair.get(eid) for eid in event_ids if game_id_to_pair.get(eid))
+                    target_pairs: set[str] = set()
+                    for eid in event_ids:
+                        for pk0 in (game_id_to_pair_candidates.get(str(eid).strip()) or []):
+                            if pk0:
+                                target_pairs.add(pk0)
                     if not target_pairs:
                         sport_level_fallback_diag["skipped"] = True
                         sport_level_fallback_diag["reason"] = "no_target_pairs"
