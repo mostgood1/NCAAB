@@ -497,7 +497,7 @@
                         <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
                         <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
                       </div>
-                      <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'segments': segs_1h, 'recon': recon_1h} | tojson }}</script>
+                      <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'lens': '1h', 'segments': segs_1h, 'recon': recon_1h} | tojson }}</script>
                     </div>
 
                     <details>
@@ -574,6 +574,47 @@
                         <div class="note muted">Use cumulative columns for rollups; segment quantiles (q10/q90) are not additive.</div>
                       </div>
                     </details>
+                  </div>
+                {% endif %}
+
+                {# 2H Live Lens interval: reuse full-game segments, rebased in JS to 2H-only #}
+                {% set segs_2h_src = (r.segments_2min if (r.has_segments_2min is defined and r.has_segments_2min and (r.segments_2min is defined) and r.segments_2min) else r.segments_5min) %}
+                {% set recon_2h_src = (r.segments_2min_recon if (r.has_segments_2min_recon is defined and r.has_segments_2min_recon and (r.segments_2min_recon is defined) and r.segments_2min_recon) else (r.segments_5min_recon if (r.has_segments_5min_recon is defined and r.has_segments_5min_recon and (r.segments_5min_recon is defined) and r.segments_5min_recon) else [])) %}
+                {% if segs_2h_src is defined and segs_2h_src %}
+                  <div class="section-block">
+                    <div class="section-title">2H Interval</div>
+                    <div class="live-lens-wrap muted m4v8">
+                      <div class="note muted">Live lens (2H; enter minutes remaining + 2H points; optional live 2H total):</div>
+                      <div class="kpi mt8">
+                        <span class="pill small">Min remaining
+                          <select class="date-input live-lens-min" aria-label="Minutes remaining (2H)">
+                            <option value="">–</option>
+                          </select>
+                        </span>
+                        <span class="pill small">2H pts
+                          <input class="date-input live-lens-total" type="number" step="1" min="0" inputmode="numeric" aria-label="Current total points (2H)" placeholder="e.g. 34" />
+                        </span>
+                        <span class="pill small">Live total
+                          <input class="date-input live-lens-line" type="number" step="0.5" min="0" inputmode="decimal" aria-label="Live total line (2H)" placeholder="optional" />
+                        </span>
+                      </div>
+                      <div class="kpi mt8">
+                        <span class="pill small live-lens-out" data-out="exp">Sim q50 @ time: –</span>
+                        <span class="pill small live-lens-out" data-out="delta">Δ (Sim−Act): –</span>
+                        <span class="pill small live-lens-out" data-out="pace">Pace final: –</span>
+                        <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
+                        <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
+                        <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                        <span class="pill small live-lens-out" data-out="ml">ML: –</span>
+                        <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
+                      </div>
+                      <div class="kpi mt8">
+                        <span class="pill small live-lens-out" data-out="score">Score: –</span>
+                        <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
+                        <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
+                      </div>
+                      <script type="application/json" class="live-lens-data">{{ {'horizon': 20, 'lens': '2h', 'segments': segs_2h_src, 'recon': recon_2h_src} | tojson }}</script>
+                    </div>
                   </div>
                 {% endif %}
               </div>
@@ -751,7 +792,7 @@
                         <span class="pill small muted live-lens-pbp" data-side="away">A FTA – · 2PA – · 3PA –</span>
                         <span class="pill small muted live-lens-pbp" data-side="home">H FTA – · 2PA – · 3PA –</span>
                       </div>
-                      <script type="application/json" class="live-lens-data">{{ {'horizon': 40, 'segments': segs_g, 'recon': recon_g} | tojson }}</script>
+                      <script type="application/json" class="live-lens-data">{{ {'horizon': 40, 'lens': 'full_game', 'segments': segs_g, 'recon': recon_g} | tojson }}</script>
                     </div>
 
                     <details>
@@ -2189,8 +2230,113 @@
 
         var horizon = toNum(data.horizon);
         if(horizon === null) horizon = 40;
+        var lens = null;
+        try { lens = (data && data.lens !== undefined && data.lens !== null) ? String(data.lens).trim().toLowerCase() : null; } catch(_eLens){ lens = null; }
+        if(!lens){
+          lens = (horizon <= 20.5) ? '1h' : 'full_game';
+        }
+        try { wrap.setAttribute('data-lens-kind', String(lens)); } catch(_eLK) { /* noop */ }
         try { wrap.setAttribute('data-lens-horizon', String(horizon)); } catch(eh) { /* noop */ }
-        var idx = buildIndex(data.segments || [], horizon);
+
+        function rebase2HSegments(segments){
+          try {
+            var segs = Array.isArray(segments) ? segments : [];
+            if(!segs.length) return [];
+            // Find baseline at halftime (elapsed=20 in full-game coordinate).
+            var base = null;
+            segs.forEach(function(s){
+              var em = toNum(s && s.end_min);
+              if(em !== null && Math.abs(em - 20) < 1e-6) base = s;
+            });
+            // If no exact 20, take the closest below 20.
+            if(!base){
+              var best = null;
+              var bestEm = null;
+              segs.forEach(function(s){
+                var em = toNum(s && s.end_min);
+                if(em === null) return;
+                if(em > 20) return;
+                if(bestEm === null || em > bestEm){ bestEm = em; best = s; }
+              });
+              base = best;
+            }
+
+            var baseTot = base ? toNum(base.q50_total_score_end) : null;
+            var baseM50 = base ? toNum(base.q50_margin_score_end) : null;
+            var baseM10 = base ? toNum(base.q10_margin_score_end) : null;
+            var baseM90 = base ? toNum(base.q90_margin_score_end) : null;
+
+            var out = [];
+            segs.forEach(function(s){
+              var em = toNum(s && s.end_min);
+              if(em === null) return;
+              if(em <= 20) return;
+              if(em > 40) return;
+              var r = Object.assign({}, s);
+              r.end_min = em - 20;
+              var t50 = toNum(s.q50_total_score_end);
+              if(t50 !== null && baseTot !== null) r.q50_total_score_end = (t50 - baseTot);
+              var m50 = toNum(s.q50_margin_score_end);
+              if(m50 !== null && baseM50 !== null) r.q50_margin_score_end = (m50 - baseM50);
+              var m10 = toNum(s.q10_margin_score_end);
+              if(m10 !== null && baseM10 !== null) r.q10_margin_score_end = (m10 - baseM10);
+              var m90 = toNum(s.q90_margin_score_end);
+              if(m90 !== null && baseM90 !== null) r.q90_margin_score_end = (m90 - baseM90);
+              out.push(r);
+            });
+            return out;
+          } catch(e){
+            return [];
+          }
+        }
+
+        function rebase2HRecon(recon){
+          try {
+            var xs = Array.isArray(recon) ? recon : [];
+            if(!xs.length) return [];
+            var base = null;
+            xs.forEach(function(x){
+              var em = toNum(x && x.end_min);
+              if(em !== null && Math.abs(em - 20) < 1e-6) base = x;
+            });
+            if(!base){
+              var best = null;
+              var bestEm = null;
+              xs.forEach(function(x){
+                var em = toNum(x && x.end_min);
+                if(em === null) return;
+                if(em > 20) return;
+                if(bestEm === null || em > bestEm){ bestEm = em; best = x; }
+              });
+              base = best;
+            }
+            var baseTot = base ? toNum(base.actual_total_score_end) : null;
+            var out = [];
+            xs.forEach(function(x){
+              var em = toNum(x && x.end_min);
+              if(em === null) return;
+              if(em <= 20) return;
+              if(em > 40) return;
+              var t = toNum(x.actual_total_score_end);
+              var r = Object.assign({}, x);
+              r.end_min = em - 20;
+              if(t !== null && baseTot !== null) r.actual_total_score_end = (t - baseTot);
+              out.push(r);
+            });
+            return out;
+          } catch(e){
+            return [];
+          }
+        }
+
+        var segsForIdx = (data.segments || []);
+        var reconForIdx = (data.recon || []);
+        if(lens === '2h'){
+          segsForIdx = rebase2HSegments(segsForIdx);
+          reconForIdx = rebase2HRecon(reconForIdx);
+        }
+
+        var idx = buildIndex(segsForIdx, horizon);
         var selMin = wrap.querySelector('.live-lens-min');
         var inpTot = wrap.querySelector('.live-lens-total');
         var inpLine = wrap.querySelector('.live-lens-line');
@@ -2214,7 +2360,7 @@
 
         // Defaults from recon (last endpoint within horizon)
         try {
-          var recon = (data.recon || []).slice();
+          var recon = (reconForIdx || []).slice();
           recon = recon.map(function(x){ return { end_min: toNum(x.end_min), actual_total_score_end: toNum(x.actual_total_score_end) }; })
                        .filter(function(x){
                          if(x.end_min === null || x.actual_total_score_end === null) return false;
@@ -2273,7 +2419,7 @@
             } catch(e00) { /* noop */ }
           }
           var is2H0 = (per0 !== null && per0 >= 2);
-          var lock1H = (horizon <= 20.5) && is2H0;
+          var lock1H = (lens === '1h') && is2H0;
 
           var remaining = null;
           try {
@@ -2291,10 +2437,25 @@
           var liveHome = null;
           var liveAway = null;
           try {
-            if(lock1H && card0 && typeof card0.__liveHomeScore1H === 'number') liveHome = card0.__liveHomeScore1H;
-            else if(card0 && typeof card0.__liveHomeScore === 'number') liveHome = card0.__liveHomeScore;
-            if(lock1H && card0 && typeof card0.__liveAwayScore1H === 'number') liveAway = card0.__liveAwayScore1H;
-            else if(card0 && typeof card0.__liveAwayScore === 'number') liveAway = card0.__liveAwayScore;
+            if(lens === '2h'){
+              var curH2 = (card0 && typeof card0.__liveHomeScore === 'number') ? card0.__liveHomeScore : null;
+              var curA2 = (card0 && typeof card0.__liveAwayScore === 'number') ? card0.__liveAwayScore : null;
+              var htH2 = (card0 && typeof card0.__liveHomeScore1H === 'number') ? card0.__liveHomeScore1H : null;
+              var htA2 = (card0 && typeof card0.__liveAwayScore1H === 'number') ? card0.__liveAwayScore1H : null;
+              if(curH2 !== null && curA2 !== null && htH2 !== null && htA2 !== null){
+                liveHome = (curH2 - htH2);
+                liveAway = (curA2 - htA2);
+              } else {
+                // Fallback: show overall score if halftime split isn't available.
+                liveHome = curH2;
+                liveAway = curA2;
+              }
+            } else {
+              if(lock1H && card0 && typeof card0.__liveHomeScore1H === 'number') liveHome = card0.__liveHomeScore1H;
+              else if(card0 && typeof card0.__liveHomeScore === 'number') liveHome = card0.__liveHomeScore;
+              if(lock1H && card0 && typeof card0.__liveAwayScore1H === 'number') liveAway = card0.__liveAwayScore1H;
+              else if(card0 && typeof card0.__liveAwayScore === 'number') liveAway = card0.__liveAwayScore;
+            }
           } catch(eLS) { /* noop */ }
           var actMargin = (liveHome !== null && liveAway !== null) ? (toNum(liveHome) - toNum(liveAway)) : null;
 
@@ -2703,13 +2864,13 @@
             var leanEl = wrap.querySelector('[data-out="lean"]');
             if(leanEl){
               // In 2H, suppress 1H lens bet indicators.
-              var suppress = (is2H0 && horizon <= 20.5);
+              var suppress = (is2H0 && lens === '1h');
               leanEl.classList.toggle('ok', (!suppress && !!isStrong));
               leanEl.classList.toggle('warn', (!suppress && !isStrong && !!isStrongNoLine));
             }
           } catch(e) { /* noop */ }
           try {
-            var suppress2 = (is2H0 && horizon <= 20.5);
+            var suppress2 = (is2H0 && lens === '1h');
             wrap.setAttribute('data-live-edge-ok', (!suppress2 && isStrong) ? '1' : '0');
             wrap.setAttribute('data-live-edge-warn', (!suppress2 && !isStrong && isStrongNoLine) ? '1' : '0');
             var card2 = card0 || getCardForWrap(wrap);
@@ -2831,6 +2992,42 @@
         if(el) el.textContent = txt;
       }
 
+      function _fmtLastUpdateShort(iso){
+        try {
+          var s = String(iso || '').trim();
+          if(!s) return '';
+          // Prefer showing HH:MM:SSZ if present.
+          var m = s.match(/T(\d{2}:\d{2}:\d{2})(?:\.\d+)?Z$/);
+          if(m) return m[1] + 'Z';
+          return s;
+        } catch(e){
+          return '';
+        }
+      }
+
+      function _lineSuffixForWrap(wrap){
+        try {
+          if(!wrap) return '';
+          var t = (wrap.__liveLineTotal !== null && wrap.__liveLineTotal !== undefined) ? toNum(wrap.__liveLineTotal) : null;
+          if(t === null) return '';
+          var per = (wrap.__liveLinePeriod !== null && wrap.__liveLinePeriod !== undefined) ? String(wrap.__liveLinePeriod) : '';
+          per = per ? per.toUpperCase() : '';
+          var book = (wrap.__liveLineBook !== null && wrap.__liveLineBook !== undefined) ? String(wrap.__liveLineBook) : '';
+          var lu = _fmtLastUpdateShort(wrap.__liveLineLastUpdate);
+          var s = ' · Line' + (per ? (' ' + per) : '') + ': ' + String(t);
+          if(book) s += ' (' + book + ')';
+          if(lu) s += ' @ ' + lu;
+          return s;
+        } catch(e){
+          return '';
+        }
+      }
+
+      function setStampWithLine(wrap, baseTxt){
+        var suffix = _lineSuffixForWrap(wrap);
+        setStamp(wrap, String(baseTxt || '') + suffix);
+      }
+
       function setSelectClosest(sel, targetMinutes){
         if(!sel) return false;
         var best = null;
@@ -2874,6 +3071,17 @@
         } catch(e){
           return 40;
         }
+      }
+
+      function parseLensKind(wrap){
+        try {
+          var k = wrap ? wrap.getAttribute('data-lens-kind') : null;
+          k = (k !== null && k !== undefined) ? String(k).trim().toLowerCase() : '';
+          if(k) return k;
+        } catch(e){ /* ignore */ }
+        // Fallback: infer from horizon.
+        var hz = parseHorizon(wrap);
+        return (hz <= 20.5) ? '1h' : 'full_game';
       }
 
       function applyLiveStateToCard(card, live){
@@ -2929,33 +3137,56 @@
 
           // Forced: always overwrite from live polling when game is live.
           var autoOn = true;
+          var lensKind = parseLensKind(wrap);
           var horizon = parseHorizon(wrap);
           var selMin = wrap.querySelector('.live-lens-min');
           var inpTot = wrap.querySelector('.live-lens-total');
 
           var pn2 = (live.period !== null && live.period !== undefined) ? parseInt(String(live.period), 10) : NaN;
           var is2H = (isFinite(pn2) && pn2 >= 2);
-          var lock1H = (horizon <= 20.5) && (is2H || !!live.is_final);
+          var lock1H = (lensKind === '1h') && (is2H || !!live.is_final);
+
+          // For 2H lens, do not start auto-fill until we are actually in 2H.
+          var lock2H = (lensKind === '2h') && (!is2H && !live.is_final);
 
           if(lock1H){
-            setStamp(wrap, 'Live: 1H Locked');
+            setStampWithLine(wrap, 'Live: 1H Locked');
+          } else if(lock2H){
+            setStampWithLine(wrap, 'Live: 2H Pending');
           } else if(live.is_live){
             var clk = live.display_clock ? String(live.display_clock) : '';
             var per = (live.period !== null && live.period !== undefined) ? String(live.period) : '';
-            setStamp(wrap, 'Live: P' + per + ' ' + (clk || ''));
+            setStampWithLine(wrap, 'Live: P' + per + ' ' + (clk || ''));
           } else if(live.is_final){
-            setStamp(wrap, 'Live: Final');
+            setStampWithLine(wrap, 'Live: Final');
           } else {
-            setStamp(wrap, 'Live: –');
+            setStampWithLine(wrap, 'Live: –');
           }
 
           if(!autoOn) return;
           if(!live.is_live) return;
+          if(lock2H) return;
 
           if(inpTot){
             var vTot = null;
-            if(lock1H && live.total_points_1h !== null && live.total_points_1h !== undefined) vTot = live.total_points_1h;
-            else if(live.total_points !== null && live.total_points !== undefined) vTot = live.total_points;
+            if(lensKind === '1h'){
+              if(lock1H && live.total_points_1h !== null && live.total_points_1h !== undefined) vTot = live.total_points_1h;
+              else if(live.total_points !== null && live.total_points !== undefined) vTot = live.total_points;
+            } else if(lensKind === '2h'){
+              // Prefer explicit 1H total if present; otherwise derive from halftime scores.
+              var tp = (live.total_points !== null && live.total_points !== undefined) ? toNum(live.total_points) : null;
+              var tp1 = (live.total_points_1h !== null && live.total_points_1h !== undefined) ? toNum(live.total_points_1h) : null;
+              if(tp1 === null){
+                try {
+                  var hs1 = (typeof card.__liveHomeScore1H === 'number') ? card.__liveHomeScore1H : null;
+                  var as1 = (typeof card.__liveAwayScore1H === 'number') ? card.__liveAwayScore1H : null;
+                  if(hs1 !== null && as1 !== null) tp1 = toNum(hs1) + toNum(as1);
+                } catch(_eHT){ /* ignore */ }
+              }
+              if(tp !== null && tp1 !== null) vTot = Math.max(0, tp - tp1);
+            } else {
+              if(live.total_points !== null && live.total_points !== undefined) vTot = live.total_points;
+            }
             if(vTot !== null && vTot !== undefined){
               var next = String(vTot);
               inpTot.value = next;
@@ -2965,7 +3196,8 @@
 
           var remSec = null;
           if(lock1H) remSec = 0;
-          else if(horizon <= 20.5) remSec = live.remaining_1h_seconds;
+          else if(lensKind === '1h') remSec = live.remaining_1h_seconds;
+          else if(lensKind === '2h') remSec = live.remaining_reg_seconds;
           else remSec = live.remaining_reg_seconds;
 
           if(selMin && remSec !== null && remSec !== undefined){
@@ -3000,9 +3232,10 @@
             if(!pills || !pills.length) return;
 
             var hz = parseHorizon(wrap);
+            var lk = parseLensKind(wrap);
             var per = null;
             try { if(card && typeof card.__livePeriod === 'number' && isFinite(card.__livePeriod)) per = card.__livePeriod; } catch(_eP) { per = null; }
-            var lock1H = (hz <= 20.5) && (per !== null && per >= 2);
+            var lock1H = (lk === '1h') && (hz <= 20.5) && (per !== null && per >= 2);
 
             pills.forEach(function(pill){
               var side = String(pill.getAttribute('data-side') || '').trim().toLowerCase();
@@ -3048,6 +3281,7 @@
             var sprH = toNum(rec.spread_home);
             if(sprH !== null){
               if(per === '1h') card.setAttribute('data-spread-home-1h', String(sprH));
+              else if(per === '2h') card.setAttribute('data-spread-home-2h', String(sprH));
               else if(per === 'full_game') card.setAttribute('data-spread-home', String(sprH));
             }
           } catch(_eSpA){ /* ignore */ }
@@ -3060,11 +3294,15 @@
           wraps.forEach(function(wrap){
             // Apply to the correct Live Lens widget based on horizon.
             var horizon = parseHorizon(wrap);
-            var is1H = (horizon <= 20.5);
+            var lensKind = parseLensKind(wrap);
+            var is1H = (lensKind === '1h');
+            var is2H = (lensKind === '2h');
             if(per === '1h'){
               if(!is1H) return;
+            } else if(per === '2h'){
+              if(!is2H) return;
             } else {
-              if(is1H) return;
+              if(is1H || is2H) return;
             }
             var inpLine = wrap.querySelector('.live-lens-line');
             if(!inpLine) return;
@@ -3073,6 +3311,20 @@
               inpLine.value = next;
               try { inpLine.dispatchEvent(new Event('input', {bubbles:true})); } catch(e) {}
             }
+
+            // Persist latest line metadata for visual confirmation in the stamp.
+            try {
+              wrap.__liveLineTotal = total;
+              wrap.__liveLineBook = (rec.book !== null && rec.book !== undefined) ? String(rec.book) : '';
+              wrap.__liveLineLastUpdate = (rec.last_update !== null && rec.last_update !== undefined) ? String(rec.last_update) : '';
+              wrap.__liveLinePeriod = per;
+              // Refresh stamp immediately (live_state poll may also refresh it).
+              var cur = wrap.querySelector('.live-lens-auto-stamp');
+              if(cur){
+                var base = String(cur.textContent || '').split(' · Line')[0];
+                setStampWithLine(wrap, base);
+              }
+            } catch(_eMeta){ /* ignore */ }
           });
         } catch(e) { /* ignore */ }
       }
@@ -3138,9 +3390,13 @@
                 .catch(function(){ return null; });
 
               var want1h = false;
+              var want2h = false;
               try {
                 want1h = Array.from(document.querySelectorAll('.live-lens-wrap')).some(function(w){
-                  try { return parseHorizon(w) <= 20.5; } catch(_eH){ return false; }
+                  try { return parseLensKind(w) === '1h'; } catch(_eH){ return false; }
+                });
+                want2h = Array.from(document.querySelectorAll('.live-lens-wrap')).some(function(w){
+                  try { return parseLensKind(w) === '2h'; } catch(_eH2){ return false; }
                 });
               } catch(_eWant){ want1h = false; }
 
@@ -3193,21 +3449,69 @@
                   .then(function(js4){
                     try {
                       if(!js4 || js4.status !== 'ok' || !js4.lines) return null;
+                      var missing1 = [];
                       cards.forEach(function(card){
                         try {
                           var gid = String(card.getAttribute('data-game-id') || '').trim();
                           if(!gid) return;
                           if(want && !want.has(gid)) return;
+                          if(!js4.lines[gid] || js4.lines[gid].total === null || js4.lines[gid].total === undefined) missing1.push(gid);
                           applyLiveLinesToCard(card, js4.lines, '1h');
                         } catch(_eC2){ /* ignore */ }
                       });
+                      try {
+                        var dbg1 = false;
+                        try { dbg1 = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD1){ dbg1 = false; }
+                        if(dbg1 && missing1.length){
+                          var key1 = missing1.slice().sort().join(',');
+                          if(window.__ncaabMissingLiveLines1HKey !== key1){
+                            window.__ncaabMissingLiveLines1HKey = key1;
+                            try { console.warn('[live_lines 1h] missing totals for game_ids', missing1, (js4.debug || null)); } catch(_eW1) {}
+                          }
+                        }
+                      } catch(_eDbg1){ /* ignore */ }
                     } catch(_eJ4){ /* ignore */ }
                     return true;
                   })
                   .catch(function(){ return null; });
               }
 
-              return Promise.all([pPbp, pLines, pLines1H]);
+              var pLines2H = Promise.resolve(null);
+              if(want2h){
+                var oddsUrl2h = oddsUrl + '&period=2h';
+                pLines2H = fetch(oddsUrl2h, { cache: 'no-store' })
+                  .then(function(r5){ return r5.json(); })
+                  .then(function(js5){
+                    try {
+                      if(!js5 || js5.status !== 'ok' || !js5.lines) return null;
+                      var missing2 = [];
+                      cards.forEach(function(card){
+                        try {
+                          var gid = String(card.getAttribute('data-game-id') || '').trim();
+                          if(!gid) return;
+                          if(want && !want.has(gid)) return;
+                          if(!js5.lines[gid] || js5.lines[gid].total === null || js5.lines[gid].total === undefined) missing2.push(gid);
+                          applyLiveLinesToCard(card, js5.lines, '2h');
+                        } catch(_eC3){ /* ignore */ }
+                      });
+                      try {
+                        var dbg2 = false;
+                        try { dbg2 = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD2){ dbg2 = false; }
+                        if(dbg2 && missing2.length){
+                          var key2 = missing2.slice().sort().join(',');
+                          if(window.__ncaabMissingLiveLines2HKey !== key2){
+                            window.__ncaabMissingLiveLines2HKey = key2;
+                            try { console.warn('[live_lines 2h] missing totals for game_ids', missing2, (js5.debug || null)); } catch(_eW2) {}
+                          }
+                        }
+                      } catch(_eDbg2){ /* ignore */ }
+                    } catch(_eJ5){ /* ignore */ }
+                    return true;
+                  })
+                  .catch(function(){ return null; });
+              }
+
+              return Promise.all([pPbp, pLines, pLines1H, pLines2H]);
             } catch(e) {
               return null;
             }
