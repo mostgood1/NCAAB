@@ -69,7 +69,7 @@ param(
   [switch]$TriggerRenderRedeploy,
   # New: Upload to Render by default; opt-out with -SkipRenderUpload
   [switch]$SkipRenderUpload,
-  # New: Redeploy after upload by default; opt-out with -SkipRenderRedeploy
+  # Redeploy after upload only when explicitly requested; opt-out with -SkipRenderRedeploy
   [switch]$SkipRenderRedeploy,
   # Optional: base URL used to fetch live snapshot JSONL from deployed app (for eval automation)
   [string]$RenderBaseUrl = $(if ($env:NCAAB_RENDER_BASE_URL) { $env:NCAAB_RENDER_BASE_URL } else { 'https://ncaab.onrender.com' }),
@@ -176,6 +176,13 @@ try {
   $todayDate = [DateTime]::ParseExact($Today, 'yyyy-MM-dd', $null)
   $prevDate = $todayDate.AddDays(-1).ToString('yyyy-MM-dd')
   $todayIso = $todayDate.ToString('yyyy-MM-dd')
+
+  # Normalize Render base URL (used for upload/health checks). Allow override via -RenderBaseUrl or env.
+  $script:RenderBaseUrlEff = $RenderBaseUrl
+  if (-not $script:RenderBaseUrlEff -or $script:RenderBaseUrlEff.Trim() -eq '') {
+    $script:RenderBaseUrlEff = 'https://ncaab.onrender.com'
+  }
+  $script:RenderBaseUrlEff = $script:RenderBaseUrlEff.Trim().TrimEnd('/')
 
   # Quantile heavy task gating setup
   $qselPath = Join-Path $OutDir 'quantile_model_selection.json'
@@ -397,7 +404,7 @@ print({'path': str(games_path), 'rows': len(df2)})
       $signalsLocal = Join-Path $OutDir ("live_lens_signals_" + $prevDate + ".jsonl")
       if (-not (Test-HasBytes $signalsLocal)) {
         try {
-          function Try-DownloadSignals {
+          function Invoke-DownloadSignals {
             param(
               [string]$BaseUrl,
               [string]$Date,
@@ -423,12 +430,12 @@ print({'path': str(games_path), 'rows': len(df2)})
             }
           }
 
-          $primary = ("" + $RenderBaseUrl).Trim()
-          $ok = Try-DownloadSignals -BaseUrl $primary -Date $prevDate -OutFile $signalsLocal
+          $primary = $script:RenderBaseUrlEff
+          $ok = Invoke-DownloadSignals -BaseUrl $primary -Date $prevDate -OutFile $signalsLocal
           if (-not $ok) {
             $fallback = 'https://ncaab.onrender.com'
             if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
-              $ok = Try-DownloadSignals -BaseUrl $fallback -Date $prevDate -OutFile $signalsLocal
+              $ok = Invoke-DownloadSignals -BaseUrl $fallback -Date $prevDate -OutFile $signalsLocal
             }
           }
         } catch {
@@ -454,12 +461,12 @@ print({'path': str(games_path), 'rows': len(df2)})
               $dIso = $startDt.AddDays($i).ToString('yyyy-MM-dd')
               $p = Join-Path $OutDir ("live_lens_signals_${dIso}.jsonl")
               if (-not (Test-HasBytes $p)) {
-                $primary = ("" + $RenderBaseUrl).Trim()
-                $ok = Try-DownloadSignals -BaseUrl $primary -Date $dIso -OutFile $p
+                $primary = $script:RenderBaseUrlEff
+                $ok = Invoke-DownloadSignals -BaseUrl $primary -Date $dIso -OutFile $p
                 if (-not $ok) {
                   $fallback = 'https://ncaab.onrender.com'
                   if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
-                    $ok = Try-DownloadSignals -BaseUrl $fallback -Date $dIso -OutFile $p
+                    $ok = Invoke-DownloadSignals -BaseUrl $fallback -Date $dIso -OutFile $p
                   }
                 }
                 if ($ok) { $downloaded++ }
@@ -508,7 +515,7 @@ print({'path': str(games_path), 'rows': len(df2)})
 
       if (-not (Test-HasBytes $snapLocal)) {
         try {
-          function Try-DownloadSnapshot {
+          function Invoke-DownloadSnapshot {
             param(
               [string]$BaseUrl,
               [string]$Date,
@@ -534,14 +541,14 @@ print({'path': str(games_path), 'rows': len(df2)})
             }
           }
 
-          $primary = ("" + $RenderBaseUrl).Trim()
-          $ok = Try-DownloadSnapshot -BaseUrl $primary -Date $prevDate -OutFile $snapLocal
+          $primary = $script:RenderBaseUrlEff
+          $ok = Invoke-DownloadSnapshot -BaseUrl $primary -Date $prevDate -OutFile $snapLocal
 
           # Common mismatch: some docs/workflows used ncaab-frontend.onrender.com, but the live service is reachable at ncaab.onrender.com.
           if (-not $ok) {
             $fallback = 'https://ncaab.onrender.com'
             if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
-              $ok = Try-DownloadSnapshot -BaseUrl $fallback -Date $prevDate -OutFile $snapLocal
+              $ok = Invoke-DownloadSnapshot -BaseUrl $fallback -Date $prevDate -OutFile $snapLocal
             }
           }
         } catch {
@@ -712,16 +719,16 @@ print({'path': str(games_path), 'rows': len(df2)})
   if (-not $SkipIntervalActuals5Min.IsPresent) {
     Write-Section "3f.h) Build interval actuals (5-min) for $prevDate"
     try {
-      $iaArgs = @(
+      $iaArgv = @(
         'build-interval-actuals-5min',
         '--date', "$prevDate",
         '--sleep-seconds', '0.10',
         '--include-ot-endpoints',
         '--max-ot-periods', '4'
       )
-      if ($NoCache.IsPresent) { $iaArgs += '--no-use-cache' }
+      if ($NoCache.IsPresent) { $iaArgv += '--no-use-cache' }
 
-      $iaOut = (& $VenvPython -m ncaab_model.cli @iaArgs) | Out-String
+      $iaOut = (& $VenvPython -m ncaab_model.cli @iaArgv) | Out-String
       if ($iaOut) { Write-Host ($iaOut.Trim()) }
     } catch {
       Write-Warning "build-interval-actuals-5min failed for ${prevDate}: $($_)"
@@ -734,9 +741,9 @@ print({'path': str(games_path), 'rows': len(df2)})
   if ($RunSimAccuracyBacktest.IsPresent) {
     Write-Section "3f.i) Evaluate sim accuracy for $prevDate (winners/totals/ATS)"
     try {
-      $args = @('backtest-sim-accuracy', '--start', "$prevDate", '--end', "$prevDate", '--engine', "$SimAccuracyBacktestEngine", '--samples', "$SimAccuracyBacktestSamples")
-      if ($SimAccuracyBacktestRecompute.IsPresent) { $args += '--recompute' }
-      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      $cliArgv = @('backtest-sim-accuracy', '--start', "$prevDate", '--end', "$prevDate", '--engine', "$SimAccuracyBacktestEngine", '--samples', "$SimAccuracyBacktestSamples")
+      if ($SimAccuracyBacktestRecompute.IsPresent) { $cliArgv += '--recompute' }
+      $btOut = (& $VenvPython -m ncaab_model.cli @cliArgv) | Out-String
       if ($btOut) { Write-Host ($btOut.Trim()) }
 
       $metricsDir = Join-Path $OutDir 'metrics'
@@ -761,9 +768,9 @@ print({'path': str(games_path), 'rows': len(df2)})
   if ($RunSimBacktest.IsPresent) {
     Write-Section "3g) Backtest sim engine (recent=$SimBacktestRecent, engine=$SimBacktestEngine, samples=$SimBacktestSamples)"
     try {
-      $args = @('backtest-sim-engine', '--recent', "$SimBacktestRecent", '--engine', "$SimBacktestEngine", '--samples', "$SimBacktestSamples")
-      if ($SimBacktestRecompute.IsPresent) { $args += '--recompute' }
-      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      $cliArgv = @('backtest-sim-engine', '--recent', "$SimBacktestRecent", '--engine', "$SimBacktestEngine", '--samples', "$SimBacktestSamples")
+      if ($SimBacktestRecompute.IsPresent) { $cliArgv += '--recompute' }
+      $btOut = (& $VenvPython -m ncaab_model.cli @cliArgv) | Out-String
       if ($btOut) { Write-Host ($btOut.Trim()) }
 
       # Copy newest summary into metrics as a "latest" snapshot for quick inspection.
@@ -788,8 +795,8 @@ print({'path': str(games_path), 'rows': len(df2)})
   if ($RunAccuracyBacktest.IsPresent) {
     Write-Section "3h) Backtest accuracy (recent=$AccuracyBacktestRecent)"
     try {
-      $args = @('backtest-accuracy', '--recent', "$AccuracyBacktestRecent")
-      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      $cliArgv = @('backtest-accuracy', '--recent', "$AccuracyBacktestRecent")
+      $btOut = (& $VenvPython -m ncaab_model.cli @cliArgv) | Out-String
       if ($btOut) { Write-Host ($btOut.Trim()) }
 
       # Copy newest summary into metrics as a "latest" snapshot.
@@ -814,9 +821,9 @@ print({'path': str(games_path), 'rows': len(df2)})
   if ($RunSimAccuracyBacktest.IsPresent) {
     Write-Section "3h.i) Backtest sim accuracy (recent=$SimAccuracyBacktestRecent, engine=$SimAccuracyBacktestEngine, samples=$SimAccuracyBacktestSamples)"
     try {
-      $args = @('backtest-sim-accuracy', '--recent', "$SimAccuracyBacktestRecent", '--engine', "$SimAccuracyBacktestEngine", '--samples', "$SimAccuracyBacktestSamples")
-      if ($SimAccuracyBacktestRecompute.IsPresent) { $args += '--recompute' }
-      $btOut = (& $VenvPython -m ncaab_model.cli @args) | Out-String
+      $cliArgv = @('backtest-sim-accuracy', '--recent', "$SimAccuracyBacktestRecent", '--engine', "$SimAccuracyBacktestEngine", '--samples', "$SimAccuracyBacktestSamples")
+      if ($SimAccuracyBacktestRecompute.IsPresent) { $cliArgv += '--recompute' }
+      $btOut = (& $VenvPython -m ncaab_model.cli @cliArgv) | Out-String
       if ($btOut) { Write-Host ($btOut.Trim()) }
 
       $metricsDir = Join-Path $OutDir 'metrics'
@@ -2058,7 +2065,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
           Write-Warning "Failed to enforce allowlist on staged files: $($_)"
         }
         # Capture Render baseline version BEFORE pushing, so we can wait for auto-deploy to finish
-        $baseUrl = "https://ncaab.onrender.com"
+        $baseUrl = $script:RenderBaseUrlEff
         function Get-RenderVersion {
           param()
           try {
@@ -2213,8 +2220,9 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
     # Verify Render health: ensure today's predictions rows recognized and bootstrap not needed
     try {
       Write-Section "11c) Render health verification ($todayIso)"
-      $healthUri = "https://ncaab.onrender.com/api/health?date=$todayIso"
-      $rowsTodayUri = "https://ncaab.onrender.com/api/rows-today"
+      $baseUrl = $script:RenderBaseUrlEff
+      $healthUri = "$baseUrl/api/health?date=$todayIso"
+      $rowsTodayUri = "$baseUrl/api/rows-today"
       $health = Invoke-RestMethod -Uri $healthUri -Method Get
       $predsTodayRows = if ($health.today) { $health.today.preds_today_rows } else { $null }
       $displayRows = $health.display_rows
@@ -2230,7 +2238,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
       } catch { Write-Warning "rows-today check failed: $($_.Exception.Message)" }
       # Recommendations parity verification (robust count)
       try {
-        $recUri = "https://ncaab.onrender.com/api/recommendations?date=$todayIso"
+        $recUri = "$baseUrl/api/recommendations?date=$todayIso"
         $recs = Invoke-RestMethod -Uri $recUri -Method Get
         $recCount = if ($recs) {
           if ($recs.PSObject.Properties.Name -contains 'rows' -and ($recs.rows -is [int])) {
@@ -2267,7 +2275,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
         }
         # Debug artifacts: confirm ATS picks and picks_raw presence for the date
         try {
-          $dbgUri = "https://ncaab.onrender.com/api/debug_artifacts?date=$todayIso"
+          $dbgUri = "$baseUrl/api/debug_artifacts?date=$todayIso"
           $dbg = Invoke-RestMethod -Uri $dbgUri -Method Get
           $atsKey = "picks/ats_picks_${todayIso}.csv"
           $atsInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq $atsKey } | Select-Object -First 1
@@ -2277,15 +2285,15 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
           $simRows = if ($simInfoProp) { $simInfoProp.Value.rows } else { $null }
           $prInfoProp = $dbg.artifacts.PSObject.Properties | Where-Object { $_.Name -eq 'picks_raw.csv' } | Select-Object -First 1
           $prRows = if ($prInfoProp) { $prInfoProp.Value.rows } else { $null }
-          $atsRowsInt = if ($atsRows -ne $null) { [int]$atsRows } else { 0 }
-          $simRowsInt = if ($simRows -ne $null) { [int]$simRows } else { 0 }
+          $atsRowsInt = if ($null -ne $atsRows) { [int]$atsRows } else { 0 }
+          $simRowsInt = if ($null -ne $simRows) { [int]$simRows } else { 0 }
           Write-Host ("[Artifacts] picks_raw_rows={0} ats_picks_rows={1} sim_quantiles_rows={2}" -f $prRows, $atsRows, $simRows) -ForegroundColor Gray
-          if (($atsRows -eq $null -or $atsRowsInt -le 0) -and $displayRows -gt 0) {
+          if (($null -eq $atsRows -or $atsRowsInt -le 0) -and $displayRows -gt 0) {
             Write-Warning "ATS picks artifact missing or empty; API will synthesize spreads fallback, but consider re-generating ats_picks for full coverage."
           } elseif ($displayRows -gt 0 -and $atsRowsInt -lt $displayRows) {
             Write-Warning ("ATS picks artifact incomplete: ats_picks_rows={0} < display_rows={1}; topping up from display is recommended." -f $atsRowsInt, $displayRows)
           }
-          if (($simRows -eq $null -or $simRowsInt -le 0) -and $displayRows -gt 0) {
+          if (($null -eq $simRows -or $simRowsInt -le 0) -and $displayRows -gt 0) {
             Write-Warning "sim_quantiles artifact missing or empty; Cards will show no Sim row. Consider re-running sims + upload_artifacts_to_render.ps1 for today."
           } elseif ($displayRows -gt 0 -and $simRowsInt -gt 0 -and $simRowsInt -lt $displayRows) {
             Write-Warning ("sim_quantiles artifact incomplete: sim_rows={0} < display_rows={1}; Sim row coverage may be partial." -f $simRowsInt, $displayRows)
@@ -2316,7 +2324,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
             $needAtsTopUp = ($displayRows -gt 0 -and $atsRowsInt -lt $displayRows)
 
             # If sim artifacts are missing or incomplete on Render, regenerate locally (best-effort) and re-upload.
-            $needSimTopUp = ($displayRows -gt 0 -and ($simRows -eq $null -or $simRowsInt -lt $displayRows))
+            $needSimTopUp = ($displayRows -gt 0 -and ($null -eq $simRows -or $simRowsInt -lt $displayRows))
             $simQuantLocal = Join-Path $outsDir "sim_quantiles_${todayIso}.csv"
             $simBlendLocal = Join-Path $outsDir "sim_blend_${todayIso}.csv"
             $simSegLocal   = Join-Path $outsDir "sim_segments_${todayIso}.csv"

@@ -33,6 +33,9 @@ services:
       # Persist Live Lens polling payloads as JSONL under outputs/live_snapshots/
       - key: NCAAB_LIVE_SNAPSHOT_LOG
         value: "1"
+      # Persist all outputs (including live lens signals/snapshots) on the Render disk.
+      - key: NCAAB_OUTPUTS_DIR
+        value: /opt/render/project/data/outputs
       - key: NCAAB_TOTALS_MODE
         value: model
       # 2-min point-allocation late-game shaping (proxy-based by spread if present, else model margin)
@@ -48,8 +51,7 @@ services:
         value: "0.65"
     healthCheckPath: /healthz
     
-    # Optional persistent disk if you later want to write outputs on Render
-    # disks:
-    #   - name: data
-    #     mountPath: /opt/render/project/data
-    #     sizeGB: 1
+    disks:
+      - name: data
+        mountPath: /opt/render/project/data
+        sizeGB: 1

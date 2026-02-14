@@ -5034,9 +5034,14 @@ def _resolve_outputs_dir() -> Path:
     if env_dir:
         try:
             p = Path(env_dir).resolve()
-            if p.exists() and p.is_dir():
-                logger.info("Using outputs dir (env): %s", p)
-                return p
+            # If explicitly configured, create the directory if needed.
+            # This is important for Render persistent disk mount paths where
+            # the mount exists but the subfolder may not yet.
+            if p.exists() and not p.is_dir():
+                raise ValueError(f"NCAAB_OUTPUTS_DIR is not a directory: {p}")
+            p.mkdir(parents=True, exist_ok=True)
+            logger.info("Using outputs dir (env): %s", p)
+            return p
         except Exception:
             pass
     # settings.outputs_dir may be a Path-like or string
