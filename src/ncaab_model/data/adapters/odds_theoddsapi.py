@@ -190,20 +190,113 @@ class TheOddsAPIAdapter:
                 return data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else {})
             raise
 
+    def get_event_odds_with_diag(
+        self,
+        event_id: str,
+        *,
+        markets: str = "h2h,spreads,totals",
+        bookmakers: str | None = None,
+        odds_format: str = "american",
+        date_format: str = "iso",
+    ) -> tuple[dict, dict]:
+        """Fetch event odds and return (event_json, diag).
+
+        This is a non-raising wrapper intended for debugging/telemetry.
+        """
+        eid = str(event_id or "").strip()
+        diag: dict[str, object] = {
+            "event_id": eid,
+            "requested_markets": markets,
+            "requested_bookmakers": bookmakers,
+            "http_status": None,
+            "used_markets": markets,
+            "fallback_used": False,
+            "error": None,
+            "bookmakers_count": None,
+            "market_keys": None,
+        }
+        if not eid:
+            diag["error"] = "missing_event_id"
+            return {}, diag
+
+        url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/events/{eid}/odds"
+        params: dict[str, object] = {
+            "apiKey": self.api_key,
+            "regions": self.region,
+            "markets": markets,
+            "oddsFormat": odds_format,
+            "dateFormat": date_format,
+        }
+        if bookmakers:
+            params["bookmakers"] = bookmakers
+
+        def _coerce_event(data: object) -> dict:
+            if isinstance(data, dict):
+                return data
+            if isinstance(data, list) and data:
+                return data[0] if isinstance(data[0], dict) else {}
+            return {}
+
+        try:
+            r = requests.get(url, params=params, timeout=30)
+            diag["http_status"] = getattr(r, "status_code", None)
+            if r.status_code in (400, 422):
+                # Retry with featured markets only.
+                diag["fallback_used"] = True
+                params2 = dict(params)
+                params2["markets"] = "h2h,spreads,totals"
+                diag["used_markets"] = params2["markets"]
+                r2 = requests.get(url, params=params2, timeout=30)
+                diag["http_status"] = getattr(r2, "status_code", None)
+                r2.raise_for_status()
+                event = _coerce_event(r2.json() or {})
+            else:
+                r.raise_for_status()
+                event = _coerce_event(r.json() or {})
+
+            try:
+                bks = event.get("bookmakers", []) if isinstance(event, dict) else []
+                if isinstance(bks, list):
+                    diag["bookmakers_count"] = len(bks)
+                    keys = []
+                    for b in bks:
+                        for m in (b or {}).get("markets", []) or []:
+                            k = (m or {}).get("key")
+                            if k:
+                                keys.append(str(k))
+                    if keys:
+                        # De-dupe preserve order
+                        seen = set()
+                        diag["market_keys"] = [k for k in keys if not (k in seen or seen.add(k))][:80]
+            except Exception:
+                pass
+
+            return event, diag
+        except Exception as e:
+            diag["error"] = str(e)
+            return {}, diag
+
     def iter_event_odds(
         self,
         event_id: str,
         *,
         markets: str = "h2h,spreads,totals",
         bookmakers: str | None = None,
+        diag: dict | None = None,
     ) -> Iterable[OddsHistoryRow]:
         """Yield normalized odds rows for a single event (event-level endpoint)."""
         now = datetime.now(timezone.utc)
         event = {}
+        d = None
         try:
-            event = self.get_event_odds(event_id, markets=markets, bookmakers=bookmakers)
+            event, d = self.get_event_odds_with_diag(event_id, markets=markets, bookmakers=bookmakers)
         except Exception:
-            event = {}
+            event, d = {}, {"error": "get_event_odds_with_diag_failed"}
+        if isinstance(diag, dict) and isinstance(d, dict):
+            try:
+                diag.update(d)
+            except Exception:
+                pass
         if not isinstance(event, dict) or not event:
             return
         for book in event.get("bookmakers", []) or []:
