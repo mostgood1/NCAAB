@@ -23023,21 +23023,54 @@ def api_live_lines():
                     except Exception:
                         pass
 
-            # Fallback: if period event-level produced no usable rows, attempt a sport-level odds call
+            # Fallback: for any events still missing period (1H/2H) lines, attempt a sport-level odds call
             # using likely half-market keys and match by snapshot pair key.
-            # This helps in cases where event-level endpoint/markets are unavailable on the plan.
-            if not by_event_book:
+            #
+            # Previously this only ran when *no* events returned anything (by_event_book empty), which
+            # caused partial slates to silently drop missing 1H totals/spreads.
+            try:
+                def _has_any_total(book_map: dict[str, dict] | None) -> bool:
+                    if not book_map:
+                        return False
+                    for obj in (book_map or {}).values():
+                        try:
+                            if (obj or {}).get("total") is not None:
+                                return True
+                        except Exception:
+                            continue
+                    return False
+
+                # Trigger fallback for events that have no book_map at all OR have a book_map but
+                # still lack a period total. Live Lens auto-fill primarily needs `total`.
+                missing_after_event_level = []
+                by_event_ids = set(str(k) for k in (by_event_book or {}).keys())
+                for eid in event_ids:
+                    eid_s = str(eid).strip()
+                    if not eid_s:
+                        continue
+                    if eid_s not in by_event_ids:
+                        missing_after_event_level.append(eid_s)
+                        continue
+                    if not _has_any_total((by_event_book or {}).get(eid_s) or {}):
+                        missing_after_event_level.append(eid_s)
+            except Exception:
+                missing_after_event_level = []
+
+            if missing_after_event_level:
                 try:
                     live_lines_mode = "period_sport_level_pair_match_fallback"
-                    # Build a set of target pair keys for the requested event ids.
+                    missing_set = set(str(x).strip() for x in missing_after_event_level if str(x).strip())
+                    # Build a set of target pair keys for the missing event ids.
                     target_pairs: set[str] = set()
-                    for eid in event_ids:
+                    for eid in missing_set:
                         for pk0 in (game_id_to_pair_candidates.get(str(eid).strip()) or []):
                             if pk0:
                                 target_pairs.add(pk0)
+
                     if not target_pairs:
                         sport_level_fallback_diag["skipped"] = True
-                        sport_level_fallback_diag["reason"] = "no_target_pairs"
+                        sport_level_fallback_diag["reason"] = "no_target_pairs_for_missing"
+                        sport_level_fallback_diag["missing_event_ids"] = list(missing_set)[:50]
                     else:
                         if period == "1h":
                             sport_market_variants = [
@@ -23053,11 +23086,11 @@ def api_live_lines():
                             ]
 
                         sport_level_fallback_diag["mode"] = "sport_level_pair_match"
-                        matched_pairs = 0
-                        for sport_markets in sport_market_variants:
+                        sport_level_fallback_diag["missing_event_ids"] = list(missing_set)[:50]
+
+                        def _consume_sport_level(*, sport_markets: str, bm_filter: str | None) -> int:
                             matched_pairs = 0
-                            sport_level_fallback_diag["markets"] = sport_markets
-                            for row in adapter.iter_current_odds_expanded(markets=sport_markets, bookmakers=bookmakers):
+                            for row in adapter.iter_current_odds_expanded(markets=sport_markets, bookmakers=bm_filter):
                                 try:
                                     odds_diag["rows_seen"] += 1
                                     if period == "1h" and (row.period or "") != "1h":
@@ -23078,9 +23111,10 @@ def api_live_lines():
                                     book = str(row.book or "").strip()
                                     book_key = "".join(ch for ch in book.lower() if ch.isalnum())
                                     last_update = getattr(row, "last_update", None)
-                                    # Assign to all ESPN event ids whose pair matches this provider row.
+
+                                    # Assign to missing ESPN event ids whose pair matches this provider row.
                                     for gid in (game_pair_to_ids.get(pk) or []):
-                                        if gid not in set(event_ids):
+                                        if gid not in missing_set:
                                             continue
                                         slot = by_event_book.setdefault(gid, {}).setdefault(
                                             book_key,
@@ -23129,10 +23163,48 @@ def api_live_lines():
                                                 pass
                                 except Exception:
                                     continue
+                            return int(matched_pairs)
+
+                        matched_pairs = 0
+                        used_bookmakers_filter: str | None = bookmakers
+                        for sport_markets in sport_market_variants:
+                            sport_level_fallback_diag["markets"] = sport_markets
+                            sport_level_fallback_diag["bookmakers"] = used_bookmakers_filter
+                            matched_pairs = _consume_sport_level(sport_markets=sport_markets, bm_filter=used_bookmakers_filter)
                             if matched_pairs > 0:
                                 break
 
+                        # If we still didn't match anything for the missing set, retry once without a bookmakers filter.
+                        if matched_pairs == 0 and bookmakers:
+                            used_bookmakers_filter = None
+                            for sport_markets in sport_market_variants:
+                                sport_level_fallback_diag["markets"] = sport_markets
+                                sport_level_fallback_diag["bookmakers"] = "ALL"
+                                matched_pairs = _consume_sport_level(sport_markets=sport_markets, bm_filter=None)
+                                if matched_pairs > 0:
+                                    break
+
                         sport_level_fallback_diag["matched_pairs"] = int(matched_pairs)
+                        try:
+                            still_missing_entries = [eid for eid in missing_set if eid not in set(by_event_book.keys())]
+                            sport_level_fallback_diag["still_missing"] = still_missing_entries[:50]
+
+                            still_missing_totals: list[str] = []
+                            for eid in missing_set:
+                                bm = (by_event_book or {}).get(eid) or {}
+                                has_total = False
+                                for obj in bm.values():
+                                    try:
+                                        if (obj or {}).get("total") is not None:
+                                            has_total = True
+                                            break
+                                    except Exception:
+                                        continue
+                                if not has_total:
+                                    still_missing_totals.append(eid)
+                            sport_level_fallback_diag["still_missing_totals"] = still_missing_totals[:50]
+                        except Exception:
+                            pass
                 except Exception as _e:
                     sport_level_fallback_diag["error"] = str(_e)[:200]
     except Exception as e:
@@ -23219,6 +23291,35 @@ def api_live_lines():
         "count": len(out_lines),
         "lines": out_lines,
     }
+
+    # Operational logging: if we are missing lots of requested period totals, surface a warning.
+    # This helps detect provider outages / market-key regressions in Render logs.
+    try:
+        if period in ("1h", "2h") and event_ids:
+            req_ids = [str(x).strip() for x in event_ids if str(x).strip()]
+            missing_totals = [
+                eid for eid in req_ids
+                if (out_lines.get(eid) or {}).get("total") is None
+            ]
+            if req_ids:
+                miss_n = int(len(missing_totals))
+                req_n = int(len(req_ids))
+                # Threshold: >=3 missing or >=30% missing.
+                if miss_n >= 3 or (req_n > 0 and (miss_n / max(1, req_n)) >= 0.30):
+                    try:
+                        logger.warning(
+                            "live_lines missing period totals: period=%s missing=%s/%s mode=%s books=%s sample=%s",
+                            period,
+                            miss_n,
+                            req_n,
+                            live_lines_mode,
+                            bookmakers,
+                            ",".join(missing_totals[:10]),
+                        )
+                    except Exception:
+                        pass
+    except Exception:
+        pass
     if debug:
         try:
             payload["period"] = period
