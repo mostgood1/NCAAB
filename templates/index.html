@@ -59,12 +59,12 @@
     .pill.status-off{opacity:0.55;}
     .pill.status-off:hover{opacity:0.78;}
 
-    /* Compact ESPN-style game strip: keep it short (single row) so sticky header doesn't consume the viewport */
-    .compact-game-strip{display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;padding:3px 1px;}
+    /* Compact ESPN-style game strip: two-row scrollable panel on desktop so sticky header stays usable */
+    .compact-game-strip{display:flex;gap:4px;overflow-x:hidden;overflow-y:auto;flex-wrap:wrap;align-content:flex-start;padding:3px 1px;max-height:168px;}
     .compact-game-strip .pill{flex:0 0 auto;white-space:nowrap;}
     .compact-game-strip .pill:focus{outline:2px solid var(--accent);outline-offset:2px;}
     /* Compact box-score tiles (not pill-shaped) */
-    .compact-game-strip .compact-game-item{white-space:normal;text-align:left;display:flex;flex-direction:column;align-items:stretch;gap:2px;line-height:1.06;padding:5px 7px;border-radius:10px;min-width:160px;max-width:200px;}
+    .compact-game-strip .compact-game-item{white-space:normal;text-align:left;display:flex;flex-direction:column;align-items:stretch;gap:2px;line-height:1.06;padding:5px 7px;border-radius:10px;min-width:160px;max-width:200px;max-height:78px;overflow:hidden;}
     .compact-game-strip .compact-game-line{display:block;}
     .compact-game-strip .compact-game-status{opacity:0.92;font-size:10px;}
     .compact-game-strip .compact-game-callout{opacity:0.95;font-size:10px;}
@@ -92,7 +92,7 @@
       .game-card{scroll-margin-top:12px;}
 
       /* Keep compact strip short: single-row horizontal scroll */
-      .compact-game-strip{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;}
+      .compact-game-strip{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;max-height:none;}
       .filters-bar-row{gap:6px;}
       .pill.small{font-size:11px;padding:2px 7px;}
 
@@ -4005,7 +4005,10 @@
         }
         wrap.style.display = '';
 
-        // Sort: by game start time (when available), ascending.
+        // Sort:
+        // 1) Live games first, by time remaining (asc: most urgent first)
+        // 2) Unstarted games next, by earliest start time
+        // 3) Final/completed games last, by earliest start time
         function safeNum(v){
           var x = parseFloat(String(v || ''));
           return (isFinite(x) ? x : NaN);
@@ -4019,16 +4022,77 @@
           var t = Date.parse(s);
           return (isFinite(t) ? t : NaN);
         }
+
+        function parseClockSec(txt){
+          var s = safeStr(txt);
+          if(!s) return null;
+          var m = s.match(/\b(\d{1,2})\s*:\s*(\d{2})\b/);
+          if(!m) return null;
+          var mm = parseInt(m[1], 10);
+          var ss = parseInt(m[2], 10);
+          if(!isFinite(mm) || !isFinite(ss)) return null;
+          if(mm < 0 || ss < 0 || ss >= 60) return null;
+          return (mm * 60 + ss);
+        }
+
+        function getLiveMeta(card){
+          var isLive = (safeStr(card.getAttribute('data-live')) === '1');
+          var isFinal = false;
+          try { isFinal = !!(card && card.__liveIsFinal); } catch(_eF){ isFinal = false; }
+          if(!isFinal){
+            try { isFinal = (safeStr(card.getAttribute('data-has-actuals')) === '1'); } catch(_eF2){ isFinal = false; }
+          }
+          var per = null;
+          var clk = '';
+          var clkSec = null;
+          try {
+            if(card && typeof card.__livePeriod === 'number' && isFinite(card.__livePeriod)) per = card.__livePeriod;
+            if(card && typeof card.__liveDisplayClock === 'string') clk = card.__liveDisplayClock;
+            if(card && typeof card.__liveClockSeconds === 'number' && isFinite(card.__liveClockSeconds)) clkSec = card.__liveClockSeconds;
+          } catch(_eM){ /* noop */ }
+          if(clkSec === null){
+            var p = parseClockSec(clk);
+            if(p !== null) clkSec = p;
+          }
+          if(per === null){
+            try {
+              var pAttr = safeStr(card.getAttribute('data-live-period'));
+              var pn = pAttr ? parseInt(pAttr, 10) : NaN;
+              if(isFinite(pn)) per = pn;
+            } catch(_ePA){ per = null; }
+          }
+
+          // Approx remaining seconds in the game.
+          // - Period 1: remaining = 20:00 + remaining in current half
+          // - Period 2: remaining = remaining in half
+          // - OT+: remaining = remaining in OT period
+          var rem = null;
+          if(isLive && clkSec !== null && isFinite(clkSec)){
+            if(per === 1) rem = (20 * 60) + clkSec;
+            else rem = clkSec;
+          }
+          return { live:isLive, final:isFinal, per:per, rem:rem };
+        }
+
         function cardSortKey(card){
           var startMs = parseIsoMs(card.getAttribute('data-start-iso'));
           // Fall back to time label for scheduled games where ISO may be missing.
           var timeLbl = safeStr(card.getAttribute('data-time-label'));
           var gid = safeStr(card.getAttribute('data-game-id'));
-          return {startMs:startMs, timeLbl:timeLbl, gid:gid};
+          var m = getLiveMeta(card);
+          var group = m.final ? 2 : (m.live ? 0 : 1);
+          var rem = (m.rem !== null && isFinite(m.rem)) ? m.rem : 1e12;
+          return {group:group, rem:rem, startMs:startMs, timeLbl:timeLbl, gid:gid};
         }
         cards.sort(function(a,b){
           var ka = cardSortKey(a);
           var kb = cardSortKey(b);
+          if(ka.group !== kb.group) return ka.group - kb.group;
+          // Live: by remaining time (asc)
+          if(ka.group === 0){
+            if(ka.rem !== kb.rem) return ka.rem - kb.rem;
+          }
+          // Unstarted + Final: by earliest start time
           var aT = ka.startMs;
           var bT = kb.startMs;
           var aHas = isFinite(aT);
@@ -4036,7 +4100,7 @@
           if(aHas && bHas && aT !== bT) return aT - bT;
           if(aHas && !bHas) return -1;
           if(!aHas && bHas) return 1;
-          // If both missing, keep a stable, deterministic order.
+          // Stable fallback
           if(ka.timeLbl && kb.timeLbl && ka.timeLbl !== kb.timeLbl) return ka.timeLbl.localeCompare(kb.timeLbl);
           if(ka.gid && kb.gid && ka.gid !== kb.gid) return ka.gid.localeCompare(kb.gid);
           return 0;
