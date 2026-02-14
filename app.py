@@ -22511,9 +22511,20 @@ def api_live_lines():
             market_key = f"{totals_key},{spreads_key}"
 
             # Build mapping pair_key -> provider event id once per request.
+            # Note: TheOddsAPI commenceTimeFrom/To bounds are interpreted as UTC, which can
+            # miss late-night US slates that cross UTC midnight. Fall back to the unfiltered
+            # events list when date-filtered results are empty.
             pair_to_provider_ids: dict[str, list[dict[str, object]]] = {}
+            provider_events_count = 0
+            provider_events_source = None
             try:
                 events = adapter.list_events_by_date(target_date.isoformat())
+                if not events:
+                    provider_events_source = "events_no_date"
+                    events = adapter.list_events_no_date()
+                else:
+                    provider_events_source = "events_by_date"
+                provider_events_count = int(len(events or []))
                 for ev in events or []:
                     try:
                         pid = str((ev or {}).get("id") or "").strip()
@@ -22539,6 +22550,9 @@ def api_live_lines():
                     continue
 
                 diag_slot: dict | None = event_fetch_diag.setdefault(eid_s, {}) if debug else None
+                if debug and isinstance(diag_slot, dict):
+                    diag_slot["provider_events_source"] = provider_events_source
+                    diag_slot["provider_events_count"] = provider_events_count
                 # Map ESPN event id -> TheOddsAPI provider event id.
                 provider_event_id = None
                 try:
