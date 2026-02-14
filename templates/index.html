@@ -59,8 +59,8 @@
     .pill.status-off{opacity:0.55;}
     .pill.status-off:hover{opacity:0.78;}
 
-    /* Compact ESPN-style game strip (wrap, no scroll) */
-    .compact-game-strip{display:flex;gap:4px;overflow-x:hidden;overflow-y:visible;flex-wrap:wrap;padding:3px 1px;}
+    /* Compact ESPN-style game strip: keep it short (single row) so sticky header doesn't consume the viewport */
+    .compact-game-strip{display:flex;gap:4px;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;padding:3px 1px;}
     .compact-game-strip .pill{flex:0 0 auto;white-space:nowrap;}
     .compact-game-strip .pill:focus{outline:2px solid var(--accent);outline-offset:2px;}
     /* Compact box-score tiles (not pill-shaped) */
