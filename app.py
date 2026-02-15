@@ -5110,6 +5110,16 @@ def _resolve_outputs_dir() -> Path:
     return ROOT
 
 OUT = _resolve_outputs_dir()
+
+# Keep environment + resolved path consistent.
+# Some Render deployments may not surface blueprint env vars in the runtime
+# process environment; ensuring this is set makes diagnostics clearer and keeps
+# any downstream code that reads the env var aligned with `OUT`.
+try:
+    if not (os.getenv("NCAAB_OUTPUTS_DIR") or "").strip():
+        os.environ["NCAAB_OUTPUTS_DIR"] = str(OUT)
+except Exception:
+    pass
                     
 
 # Normalize basis labels in existing unified artifacts on import (best-effort)
