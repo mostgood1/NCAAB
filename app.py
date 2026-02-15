@@ -2713,9 +2713,14 @@ def _postprocess_enriched_file(date_q: str):
                     # Keep only full-game when the column exists.
                     try:
                         if 'period' in df.columns:
-                            m = df['period'].astype(str).str.lower().isin(['full_game', 'full', 'game', 'fg'])
-                            if m.any():
-                                df = df[m].copy()
+                            p = df['period']
+                            # Mixed-schema concatenations are common (some files have period, others don't).
+                            # If we naively filter on period, we can drop legacy rows (period missing) that
+                            # still contain valid full-game totals.
+                            p_missing = p.isna() | p.astype(str).str.strip().eq('') | p.astype(str).str.strip().str.lower().isin(['nan', 'none', 'null'])
+                            p_full = p.astype(str).str.lower().isin(['full_game', 'full', 'game', 'fg'])
+                            if p_full.any():
+                                df = df[p_missing | p_full].copy()
                     except Exception:
                         pass
 
