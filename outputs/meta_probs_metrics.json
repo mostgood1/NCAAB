@@ -1,7 +1,7 @@
 {
   "cover": {
     "auc": null,
-    "base_rate": 0.46,
+    "base_rate": 0.47129909365558914,
     "brier": null,
     "calibrated_features_used": [],
     "ece": null,
@@ -19,11 +19,11 @@
     ],
     "log_loss": null,
     "n_features": 4,
-    "samples": 400
+    "samples": 662
   },
   "over": {
     "auc": null,
-    "base_rate": 0.49246231155778897,
+    "base_rate": 0.49544072948328266,
     "brier": null,
     "calibrated_features_used": [],
     "ece": null,
@@ -41,6 +41,6 @@
     ],
     "log_loss": null,
     "n_features": 4,
-    "samples": 398
+    "samples": 658
   }
 }

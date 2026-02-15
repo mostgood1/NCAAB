@@ -23560,9 +23560,15 @@ def api_live_lens_signal():
         import os
 
         line = json.dumps(_sanitize_json_obj_strict(keep), ensure_ascii=False) + "\n"
+        data = line.encode("utf-8", errors="replace")
         fd = os.open(str(out_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND)
         try:
-            os.write(fd, line.encode("utf-8", errors="replace"))
+            # os.write() can legally perform partial writes; loop to ensure the
+            # full JSONL record lands on disk to avoid corrupted lines.
+            view = memoryview(data)
+            while view:
+                n = os.write(fd, view)
+                view = view[n:]
         finally:
             os.close(fd)
     except Exception as e:

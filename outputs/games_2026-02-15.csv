@@ -1,0 +1,33 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,completed,neutral_site,venue
+401828229,2026,2026-02-15,2026-02-15 17:00:00+00:00,2026-02-15 12:00,EST,Charlotte 49ers,UTSA Roadrunners,0,0,,,,,STATUS_SCHEDULED,False,False,Halton Arena
+401827685,2026,2026-02-15,2026-02-15 17:00:00+00:00,2026-02-15 12:00,EST,Cincinnati Bearcats,Utah Utes,0,0,,,,,STATUS_SCHEDULED,False,False,Fifth Third Arena
+401825519,2026,2026-02-15,2026-02-15 17:00:00+00:00,2026-02-15 12:00,EST,Rutgers Scarlet Knights,Maryland Terrapins,0,0,,,,,STATUS_SCHEDULED,False,False,Jersey Mike’s Arena
+401825518,2026,2026-02-15,2026-02-15 18:00:00+00:00,2026-02-15 13:00,EST,Illinois Fighting Illini,Indiana Hoosiers,0,0,,,,,STATUS_SCHEDULED,False,False,State Farm Center
+401820205,2026,2026-02-15,2026-02-15 18:00:00+00:00,2026-02-15 13:00,EST,Loyola Maryland Greyhounds,Holy Cross Crusaders,0,0,,,,,STATUS_SCHEDULED,False,False,Reitz Arena
+401818423,2026,2026-02-15,2026-02-15 18:00:00+00:00,2026-02-15 13:00,EST,Omaha Mavericks,Denver Pioneers,0,0,,,,,STATUS_SCHEDULED,False,False,Baxter Arena
+401817668,2026,2026-02-15,2026-02-15 18:00:00+00:00,2026-02-15 13:00,EST,Detroit Mercy Titans,Youngstown State Penguins,0,0,,,,,STATUS_SCHEDULED,False,False,Calihan Hall
+401813317,2026,2026-02-15,2026-02-15 18:00:00+00:00,2026-02-15 13:00,EST,Canisius Golden Griffins,Manhattan Jaspers,0,0,,,,,STATUS_SCHEDULED,False,False,Koessler Athletic Center
+401830304,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Valparaiso Beacons,Indiana State Sycamores,0,0,,,,,STATUS_SCHEDULED,False,False,Athletics-Recreation Center
+401830225,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Southern Illinois Salukis,Bradley Braves,0,0,,,,,STATUS_SCHEDULED,False,False,Banterra Center
+401828231,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Temple Owls,North Texas Mean Green,0,0,,,,,STATUS_SCHEDULED,False,False,Liacouras Center
+401828230,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Florida Atlantic Owls,South Florida Bulls,0,0,,,,,STATUS_SCHEDULED,False,False,Eleanor R. Baldwin Arena
+401828228,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,UAB Blazers,Tulane Green Wave,0,0,,,,,STATUS_SCHEDULED,False,False,Bartow Arena
+401823755,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Sacred Heart Pioneers,Rider Broncs,0,0,,,,,STATUS_SCHEDULED,False,False,William H. Pitt Center
+401823319,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Saint Peter's Peacocks,Fairfield Stags,0,0,,,,,STATUS_SCHEDULED,False,False,Yanitelli Center
+401820592,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Quinnipiac Bobcats,Merrimack Warriors,0,0,,,,,STATUS_SCHEDULED,False,False,M&T Bank Arena
+401817670,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Robert Morris Colonials,Oakland Golden Grizzlies,0,0,,,,,STATUS_SCHEDULED,False,False,UPMC Events Center
+401817669,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Cleveland State Vikings,Wright State Raiders,0,0,,,,,STATUS_SCHEDULED,False,False,Wolstein Center
+401817667,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Purdue Fort Wayne Mastodons,IU Indianapolis Jaguars,0,0,,,,,STATUS_SCHEDULED,False,False,Memorial Coliseum (IN)
+401813392,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Niagara Purple Eagles,Iona Gaels,0,0,,,,,STATUS_SCHEDULED,False,False,Gallagher Center
+401813342,2026,2026-02-15,2026-02-15 19:00:00+00:00,2026-02-15 14:00,EST,Marist Red Foxes,Siena Saints,0,0,,,,,STATUS_SCHEDULED,False,False,McCann Arena
+401830303,2026,2026-02-15,2026-02-15 20:00:00+00:00,2026-02-15 15:00,EST,Northern Iowa Panthers,Drake Bulldogs,0,0,,,,,STATUS_SCHEDULED,False,False,McLeod Center
+401830302,2026,2026-02-15,2026-02-15 20:00:00+00:00,2026-02-15 15:00,EST,UIC Flames,Illinois State Redbirds,0,0,,,,,STATUS_SCHEDULED,False,False,Credit Union 1 Arena
+401817666,2026,2026-02-15,2026-02-15 20:00:00+00:00,2026-02-15 15:00,EST,Milwaukee Panthers,Green Bay Phoenix,0,0,,,,,STATUS_SCHEDULED,False,False,UW-Milwaukee Panther Arena
+401828429,2026,2026-02-15,2026-02-15 21:00:00+00:00,2026-02-15 16:00,EST,Dayton Flyers,Davidson Wildcats,0,0,,,,,STATUS_SCHEDULED,False,False,UD Arena
+401807740,2026,2026-02-15,2026-02-15 21:00:00+00:00,2026-02-15 16:00,EST,North Alabama Lions,Eastern Kentucky Colonels,0,0,,,,,STATUS_SCHEDULED,False,False,Flowers Hall
+401812069,2026,2026-02-15,2026-02-15 22:00:00+00:00,2026-02-15 17:00,EST,Campbell Fighting Camels,Charleston Cougars,0,0,,,,,STATUS_SCHEDULED,False,False,John W. Pope Jr. Convocation Center
+401830214,2026,2026-02-15,2026-02-15 23:00:00+00:00,2026-02-15 18:00,EST,Murray State Racers,Belmont Bruins,0,0,,,,,STATUS_SCHEDULED,False,False,CFSB Center
+401829249,2026,2026-02-15,2026-02-15 23:00:00+00:00,2026-02-15 18:00,EST,San Diego Toreros,San Francisco Dons,0,0,,,,,STATUS_SCHEDULED,False,False,Jenny Craig Pavilion
+401822946,2026,2026-02-15,2026-02-15 23:00:00+00:00,2026-02-15 18:00,EST,Butler Bulldogs,Seton Hall Pirates,0,0,,,,,STATUS_SCHEDULED,False,False,Hinkle Fieldhouse
+401812067,2026,2026-02-15,2026-02-16 00:00:00+00:00,2026-02-15 19:00,EST,Monmouth Hawks,Towson Tigers,0,0,,,,,STATUS_SCHEDULED,False,False,OceanFirst Bank Center
+401829247,2026,2026-02-15,2026-02-16 01:00:00+00:00,2026-02-15 20:00,EST,Seattle U Redhawks,Oregon State Beavers,0,0,,,,,STATUS_SCHEDULED,False,False,Redhawk Center
