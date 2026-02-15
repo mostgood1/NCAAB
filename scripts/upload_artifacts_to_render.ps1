@@ -28,47 +28,94 @@ function Upload-File {
     $q = if ($Query.Count -gt 0) { '?' + ((($Query.GetEnumerator() | ForEach-Object { "{0}={1}" -f $_.Key, $_.Value }) -join '&')) } else { '' }
     $target = "$Uri$q"
     Write-Step "POST $target with $(Split-Path -Leaf $FilePath)"
-    try {
-        try { Add-Type -AssemblyName System.Net.Http } catch {}
-        $client = New-Object System.Net.Http.HttpClient
-        $content = New-Object System.Net.Http.MultipartFormDataContent
-        $fs = [System.IO.File]::OpenRead($FilePath)
-        $fileContent = New-Object System.Net.Http.StreamContent($fs)
-        $ext = ([System.IO.Path]::GetExtension($FilePath) | ForEach-Object { $_.ToLowerInvariant() })
-        $ct = if ($ext -eq '.json') { 'application/json' } elseif ($ext -eq '.jsonl') { 'application/x-ndjson' } elseif ($ext -eq '.csv') { 'text/csv' } else { 'application/octet-stream' }
-        $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse($ct)
-        $fileName = [System.IO.Path]::GetFileName($FilePath)
-        $content.Add($fileContent, 'file', $fileName)
-        $resp = $client.PostAsync($target, $content).Result
-        if (-not $resp) { throw "HTTP POST returned null response" }
-        $text = ''
+
+    $maxAttempts = 4
+    $sleepMs = 1500
+    $retryStatus = @(408, 425, 429, 500, 502, 503, 504)
+
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt += 1) {
+        $client = $null
+        $content = $null
+        $fs = $null
         try {
-            if ($resp.Content) {
-                $text = $resp.Content.ReadAsStringAsync().Result
-            }
-        } catch {
-            # Some responses may have no content body; treat as empty.
+            try { Add-Type -AssemblyName System.Net.Http } catch {}
+            $client = New-Object System.Net.Http.HttpClient
+            $content = New-Object System.Net.Http.MultipartFormDataContent
+            $fs = [System.IO.File]::OpenRead($FilePath)
+            $fileContent = New-Object System.Net.Http.StreamContent($fs)
+            $ext = ([System.IO.Path]::GetExtension($FilePath) | ForEach-Object { $_.ToLowerInvariant() })
+            $ct = if ($ext -eq '.json') { 'application/json' } elseif ($ext -eq '.jsonl') { 'application/x-ndjson' } elseif ($ext -eq '.csv') { 'text/csv' } else { 'application/octet-stream' }
+            $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse($ct)
+            $fileName = [System.IO.Path]::GetFileName($FilePath)
+            $content.Add($fileContent, 'file', $fileName)
+
+            $resp = $client.PostAsync($target, $content).Result
+            if (-not $resp) { throw "HTTP POST returned null response" }
+
             $text = ''
-        }
-        try { $fs.Dispose() } catch {}
-        try { $client.Dispose() } catch {}
-        if (-not $resp.IsSuccessStatusCode) {
-            # Optional endpoints may not exist on older deployments; treat as skip.
+            try {
+                if ($resp.Content) {
+                    $text = $resp.Content.ReadAsStringAsync().Result
+                }
+            } catch {
+                # Some responses may have no content body; treat as empty.
+                $text = ''
+            }
+
             $code = $null
             try { $code = [int]$resp.StatusCode } catch { $code = $null }
-            if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_tuning')) {
-                Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
-                return @{ status = 'skipped'; code = 404; uri = $Uri }
+
+            if (-not $resp.IsSuccessStatusCode) {
+                # Optional endpoints may not exist on older deployments; treat as skip.
+                if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_tuning')) {
+                    Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
+                    return @{ status = 'skipped'; code = 404; uri = $Uri }
+                }
+
+                $shouldRetry = ($attempt -lt $maxAttempts) -and ($code -ne $null) -and ($retryStatus -contains $code)
+                if ($shouldRetry) {
+                    Write-Host ("[Warn] Upload HTTP {0} (attempt {1}/{2}); retrying in {3}ms" -f $code, $attempt, $maxAttempts, $sleepMs) -ForegroundColor Yellow
+                    Start-Sleep -Milliseconds $sleepMs
+                    $sleepMs = [Math]::Min([int]($sleepMs * 2), 15000) + (Get-Random -Minimum 0 -Maximum 250)
+                    continue
+                }
+
+                Write-Host "[Error] Upload HTTP $($resp.StatusCode): $text" -ForegroundColor Red
+                return $null
             }
-            Write-Host "[Error] Upload HTTP $($resp.StatusCode): $text" -ForegroundColor Red
+
+            # Success: try JSON parse, else return raw text
+            try { return ($text | ConvertFrom-Json) } catch { return @{ status = 'ok'; raw = $text } }
+        } catch {
+            $msg = $null
+            try { $msg = $_.Exception.Message } catch { $msg = 'unknown error' }
+
+            $shouldRetry = $false
+            if ($attempt -lt $maxAttempts) {
+                # Best-effort transient detection (Render 502s, connection resets, timeouts)
+                if ($msg -match '(?i)null response|502|503|504|timeout|timed out|Unable to connect|underlying connection was closed|An error occurred while sending the request') {
+                    $shouldRetry = $true
+                }
+            }
+
+            if ($shouldRetry) {
+                Write-Host ("[Warn] Upload failed (attempt {0}/{1}): {2}; retrying in {3}ms" -f $attempt, $maxAttempts, $msg, $sleepMs) -ForegroundColor Yellow
+                Start-Sleep -Milliseconds $sleepMs
+                $sleepMs = [Math]::Min([int]($sleepMs * 2), 15000) + (Get-Random -Minimum 0 -Maximum 250)
+                continue
+            }
+
+            Write-Host "[Error] Upload failed: $msg" -ForegroundColor Red
             return $null
+        } finally {
+            try { if ($fs) { $fs.Dispose() } } catch {}
+            try { if ($content) { $content.Dispose() } } catch {}
+            try { if ($client) { $client.Dispose() } } catch {}
         }
-        # Try JSON parse, else return raw text
-        try { return ($text | ConvertFrom-Json) } catch { return @{ status = 'ok'; raw = $text } }
-    } catch {
-        Write-Host "[Error] Upload failed: $($_.Exception.Message)" -ForegroundColor Red
-        return $null
     }
+
+    Write-Host ("[Error] Upload failed after {0} attempts: {1}" -f $maxAttempts, $target) -ForegroundColor Red
+    return $null
 }
 
 # Resolve artifact paths
@@ -472,13 +519,20 @@ try {
     }
 } catch {}
 if (-not $SlimSimOnly.IsPresent) {
-    $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayToUpload -Query @{ date = $Date }
-    if ($u3) {
-        $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
-        $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
-        $sha = if ($u3.sha) { $u3.sha } else { $null }
-        $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
-        Write-Host ("[OK] display uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+    $dispRows = Get-CsvRowCount -Path $displayToUpload
+    $dispBytes = 0
+    try { $dispBytes = (Get-Item -LiteralPath $displayToUpload -ErrorAction Stop).Length } catch { $dispBytes = 0 }
+    if ($dispRows -le 0 -or $dispBytes -lt 16) {
+        Write-Host ("[Warn] display CSV appears empty/small (rows={0} bytes={1}); not uploading to avoid clobber" -f $dispRows, $dispBytes) -ForegroundColor Yellow
+    } else {
+        $u3 = Upload-File -Uri "$BaseUrl/api/upload_predictions_display" -FilePath $displayToUpload -Query @{ date = $Date }
+        if ($u3) {
+            $rv = if ($u3.rows_verified) { $u3.rows_verified } elseif ($u3.rows) { $u3.rows } else { $null }
+            $ru = if ($u3.rows_uploaded) { $u3.rows_uploaded } else { $null }
+            $sha = if ($u3.sha) { $u3.sha } else { $null }
+            $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+            Write-Host ("[OK] display uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+        }
     }
 } else {
     Write-Host "[Skip] SlimSimOnly: skipping predictions_display upload" -ForegroundColor Yellow
@@ -514,13 +568,20 @@ try {
 } catch {}
 
 if (-not $SlimSimOnly.IsPresent) {
-    $u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedToUpload -Query @{ date = $Date }
-    if ($u3b) {
-        $rv = if ($u3b.rows_verified) { $u3b.rows_verified } elseif ($u3b.rows) { $u3b.rows } else { $null }
-        $ru = if ($u3b.rows_uploaded) { $u3b.rows_uploaded } else { $null }
-        $sha = if ($u3b.sha) { $u3b.sha } else { $null }
-        $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
-        Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+    $enrRows = Get-CsvRowCount -Path $enrichedToUpload
+    $enrBytes = 0
+    try { $enrBytes = (Get-Item -LiteralPath $enrichedToUpload -ErrorAction Stop).Length } catch { $enrBytes = 0 }
+    if ($enrRows -le 0 -or $enrBytes -lt 16) {
+        Write-Host ("[Warn] enriched CSV appears empty/small (rows={0} bytes={1}); not uploading to avoid clobber" -f $enrRows, $enrBytes) -ForegroundColor Yellow
+    } else {
+        $u3b = Upload-File -Uri "$BaseUrl/api/upload_predictions_enriched" -FilePath $enrichedToUpload -Query @{ date = $Date }
+        if ($u3b) {
+            $rv = if ($u3b.rows_verified) { $u3b.rows_verified } elseif ($u3b.rows) { $u3b.rows } else { $null }
+            $ru = if ($u3b.rows_uploaded) { $u3b.rows_uploaded } else { $null }
+            $sha = if ($u3b.sha) { $u3b.sha } else { $null }
+            $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+            Write-Host ("[OK] enriched uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+        }
     }
 } else {
     Write-Host "[Skip] SlimSimOnly: skipping predictions_enriched upload" -ForegroundColor Yellow

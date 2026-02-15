@@ -46,66 +46,76 @@ def _fetch_scoreboard(date: dt.date, use_cache: bool = True) -> dict | None:
 def _parse_games(date: dt.date, payload: dict) -> List[Game]:
     games: List[Game] = []
     # The schema may vary; attempt to parse conservatively.
-    # Expected keys: 'scoreboard' -> list of events with 'id', 'game', 'teams', 'status'
-    items = payload.get("scoreboard") or payload.get("games") or []
+    # Common schema: payload['games'] is list of {'game': {...}} objects.
+    items = payload.get("games") or payload.get("scoreboard") or payload.get("events") or []
     for item in items:
         try:
-            game_id = str(item.get("id") or item.get("gameId") or f"{date.isoformat()}-{len(games)}")
-            # Teams
+            gobj = item.get("game") if isinstance(item, dict) and isinstance(item.get("game"), dict) else item
+            if not isinstance(gobj, dict):
+                continue
+
+            game_id = str(
+                gobj.get("gameID")
+                or gobj.get("gameId")
+                or gobj.get("id")
+                or item.get("id")
+                or f"{date.isoformat()}-{len(games)}"
+            )
+
+            # Teams + scores (new NCAA schema: game.home / game.away)
             home_team = None
             away_team = None
-            # Try multiple possible structures
-            teams = item.get("teams") or item.get("participants") or []
-            if isinstance(teams, list) and len(teams) >= 2:
-                # assume first is away, second is home, but attempt to check a 'isHome' flag
-                t0 = teams[0]
-                t1 = teams[1]
-                if (t0.get("isHome") or t0.get("homeAway") == "home") and not (t1.get("isHome") or t1.get("homeAway") == "home"):
-                    home_team = t0.get("name") or t0.get("displayName") or t0.get("shortName")
-                    away_team = t1.get("name") or t1.get("displayName") or t1.get("shortName")
-                elif (t1.get("isHome") or t1.get("homeAway") == "home"):
-                    home_team = t1.get("name") or t1.get("displayName") or t1.get("shortName")
-                    away_team = t0.get("name") or t0.get("displayName") or t0.get("shortName")
-                else:
-                    away_team = t0.get("name") or t0.get("displayName") or t0.get("shortName")
-                    home_team = t1.get("name") or t1.get("displayName") or t1.get("shortName")
-            # Scores
             home_score = away_score = None
             home_score_1h = away_score_1h = None
             home_score_2h = away_score_2h = None
-            score_obj = item.get("status") or item.get("score") or {}
-            if isinstance(score_obj, dict):
-                # Try totals
+
+            home = gobj.get("home") or {}
+            away = gobj.get("away") or {}
+            try:
+                home_names = home.get("names") or {}
+                away_names = away.get("names") or {}
+                home_team = home_names.get("short") or home_names.get("full") or home.get("name")
+                away_team = away_names.get("short") or away_names.get("full") or away.get("name")
+            except Exception:
+                home_team = None
+                away_team = None
+
+            def _int(x):
                 try:
-                    home_score = int(score_obj.get("homeScore")) if score_obj.get("homeScore") is not None else None
-                    away_score = int(score_obj.get("awayScore")) if score_obj.get("awayScore") is not None else None
+                    return int(x) if x is not None and str(x).strip() != "" else None
                 except Exception:
-                    pass
-                # Try periods array
-                periods = score_obj.get("periods") or score_obj.get("linescores") or []
-                if isinstance(periods, list) and len(periods) >= 2:
-                    # Sum period scores to halves if labeled, else split first half of periods as 1H
-                    try:
-                        # attempt direct half labels
-                        for p in periods:
-                            label = str(p.get("label") or p.get("sequence") or "").lower()
-                            h = p.get("home") or p.get("homeScore") or p.get("home_points")
-                            a = p.get("away") or p.get("awayScore") or p.get("away_points")
-                            if label.startswith("1"):
-                                home_score_1h = int(h) if h is not None else home_score_1h
-                                away_score_1h = int(a) if a is not None else away_score_1h
-                            elif label.startswith("2"):
-                                home_score_2h = int(h) if h is not None else home_score_2h
-                                away_score_2h = int(a) if a is not None else away_score_2h
-                    except Exception:
-                        pass
+                    return None
+
+            home_score = _int(home.get("score"))
+            away_score = _int(away.get("score"))
+
+            # Status/completion (heuristics)
+            status = None
+            completed: Optional[bool] = None
+            try:
+                status = (
+                    gobj.get("gameState")
+                    or gobj.get("finalMessage")
+                    or gobj.get("currentPeriod")
+                    or gobj.get("contestClock")
+                )
+                gs = str(gobj.get("gameState") or "").strip().lower()
+                fm = str(gobj.get("finalMessage") or "").strip().upper()
+                if gs:
+                    completed = gs in {"final", "completed", "complete"}
+                if completed is None and fm:
+                    completed = fm.startswith("FINAL")
+            except Exception:
+                status = None
+                completed = None
 
             # NCAA feed often lacks explicit tipoff time; derive approximate local schedule time if available from item
+            start_time = None
             start_time_local = None
             start_tz_abbr = None
             try:
                 # Some feeds include 'startTime' or 'game'->'startTime'
-                raw_start = item.get('startTime') or (item.get('game') or {}).get('startTime')
+                raw_start = gobj.get('startTime') or item.get('startTime')
                 if raw_start:
                     # Attempt ISO parse; treat as UTC if 'Z' present else naive assume Eastern
                     try:
@@ -118,11 +128,20 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
                         pass
             except Exception:
                 pass
+
+            # Prefer epoch time when present
+            try:
+                epoch = gobj.get("startTimeEpoch")
+                if epoch is not None and str(epoch).strip() != "":
+                    start_time = dt.datetime.fromtimestamp(int(epoch), tz=dt.timezone.utc)
+            except Exception:
+                start_time = None
             games.append(
                 Game(
                     game_id=game_id,
                     season=date.year,
                     date=dt.datetime.combine(date, dt.time(0, 0)),
+                    start_time=start_time,
                     start_time_local=start_time_local,
                     start_tz_abbr=start_tz_abbr,
                     home_team=home_team or "HOME",
@@ -133,6 +152,8 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
                     away_score_1h=away_score_1h,
                     home_score_2h=home_score_2h,
                     away_score_2h=away_score_2h,
+                    status=status,
+                    completed=completed,
                 )
             )
         except Exception:

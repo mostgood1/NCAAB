@@ -21,6 +21,9 @@ class Game(BaseModel):
     away_score_1h: Optional[int] = None
     home_score_2h: Optional[int] = None
     away_score_2h: Optional[int] = None
+    # Game status when available from provider
+    status: Optional[str] = None  # e.g. 'STATUS_FINAL', 'STATUS_IN_PROGRESS'
+    completed: Optional[bool] = None
     neutral_site: Optional[bool] = None
     venue: Optional[str] = None
 

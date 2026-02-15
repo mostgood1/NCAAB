@@ -33552,6 +33552,7 @@ def api_upload_predictions_display():
     if not date_q:
         return jsonify({"status": "error", "message": "missing date"}), 400
     try:
+        allow_empty = (request.args.get("allow_empty") or "").strip().lower() in ("1", "true", "yes")
         csv_bytes: bytes | None = None
         if 'file' in request.files:
             f = request.files['file']
@@ -33561,12 +33562,18 @@ def api_upload_predictions_display():
             csv_bytes = data if data else None
         if not csv_bytes:
             return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        # Guardrails: do not allow accidental clobber of good artifacts with tiny/empty payloads.
+        # (This has caused the Render UI to appear blank when a 1-byte file overwrote a real CSV.)
+        if (not allow_empty) and len(csv_bytes) < 16:
+            return jsonify({"status": "error", "message": f"CSV payload too small ({len(csv_bytes)} bytes)"}), 400
         # Validate CSV
         try:
             buf = io.BytesIO(csv_bytes)
             df = pd.read_csv(buf)
         except Exception as e:
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        if (not allow_empty) and (not isinstance(df, pd.DataFrame) or df.empty or len(df.columns) == 0):
+            return jsonify({"status": "error", "message": "empty CSV (0 rows)"}), 400
         # Write atomically to outputs/predictions_display_<date>.csv and verify
         out_path = OUT / f"predictions_display_{date_q}.csv"
         try:
@@ -33753,6 +33760,7 @@ def api_upload_predictions_enriched():
     if not date_q:
         return jsonify({"status": "error", "message": "missing date"}), 400
     try:
+        allow_empty = (request.args.get("allow_empty") or "").strip().lower() in ("1", "true", "yes")
         csv_bytes: bytes | None = None
         if 'file' in request.files:
             f = request.files['file']
@@ -33762,12 +33770,16 @@ def api_upload_predictions_enriched():
             csv_bytes = data if data else None
         if not csv_bytes:
             return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        if (not allow_empty) and len(csv_bytes) < 16:
+            return jsonify({"status": "error", "message": f"CSV payload too small ({len(csv_bytes)} bytes)"}), 400
         # Validate CSV
         try:
             buf = io.BytesIO(csv_bytes)
             df = pd.read_csv(buf)
         except Exception as e:
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        if (not allow_empty) and (not isinstance(df, pd.DataFrame) or df.empty or len(df.columns) == 0):
+            return jsonify({"status": "error", "message": "empty CSV (0 rows)"}), 400
         # Write atomically to outputs/predictions_unified_enriched_<date>.csv and verify
         out_path = OUT / f"predictions_unified_enriched_{date_q}.csv"
         try:

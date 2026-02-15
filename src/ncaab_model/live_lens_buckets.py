@@ -8,7 +8,14 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from .live_lens_accuracy import _final_total_from_results, _pick_col, _read_jsonl, results_path, signals_path
+from .live_lens_accuracy import (
+    _final_total_from_results,
+    _filter_results_to_finals,
+    _pick_col,
+    _read_jsonl,
+    results_path,
+    signals_path,
+)
 
 
 @dataclass(frozen=True)
@@ -236,6 +243,13 @@ def compute_live_lens_bucket_report(cfg: LiveLensBucketReportConfig) -> dict[str
             continue
 
         res_df["game_id"] = res_df[gid_col].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+        # If this is a same-day / in-progress results file, avoid settling against partial scores.
+        res_df = _filter_results_to_finals(res_df)
+        if res_df.empty:
+            missing.append({"date": d, "status": "no_finals", "signals_path": str(sig_p), "results_path": str(res_p)})
+            continue
+
         res_df["final_total"] = _final_total_from_results(res_df)
 
         merged = sig_df.merge(res_df[["game_id", "final_total"]], on="game_id", how="left")

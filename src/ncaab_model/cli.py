@@ -2035,6 +2035,7 @@ def finalize_day(
                     "neutral_site": model.get("neutral_site"),
                     "venue": model.get("venue"),
                     "status": model.get("status"),
+                    "completed": model.get("completed"),
                 })
     except Exception as e:
         print(f"[yellow]Provider fetch failed[/yellow]: {e}")
@@ -2068,6 +2069,7 @@ def finalize_day(
                         "home_score": m.get("home_score"),
                         "away_score": m.get("away_score"),
                         "status": m.get("status"),
+                        "completed": m.get("completed"),
                         "start_time": m.get("start_time"),
                         "home_score_1h": m.get("home_score_1h"),
                         "away_score_1h": m.get("away_score_1h"),
@@ -2079,7 +2081,7 @@ def finalize_day(
                 if games_df.empty:
                     games_df = ref_df
                 else:
-                    merged = games_df.merge(ref_df[["game_id","home_score","away_score","status","home_score_1h","away_score_1h","home_score_2h","away_score_2h"]], on="game_id", how="left", suffixes=("","_ref"))
+                    merged = games_df.merge(ref_df[["game_id","home_score","away_score","status","completed","home_score_1h","away_score_1h","home_score_2h","away_score_2h"]], on="game_id", how="left", suffixes=("","_ref"))
                     for side in ("home","away"):
                         cur = pd.to_numeric(merged.get(f"{side}_score"), errors="coerce")
                         rf = pd.to_numeric(merged.get(f"{side}_score_ref"), errors="coerce")
@@ -2090,6 +2092,8 @@ def finalize_day(
                             merged[col] = merged[col].where(merged[col].notna(), merged[f"{col}_ref"])
                     if "status_ref" in merged.columns:
                         merged["status"] = merged["status"].where(merged["status"].notna(), merged["status_ref"])
+                    if "completed" in merged.columns and "completed_ref" in merged.columns:
+                        merged["completed"] = merged["completed"].where(merged["completed"].notna(), merged["completed_ref"])
                     games_df = merged.drop(columns=[c for c in merged.columns if c.endswith("_ref")])
         except Exception as e:
             print(f"[yellow]Primary refresh fetch failed[/yellow]: {e}")
@@ -2108,6 +2112,7 @@ def finalize_day(
                         "home_score": m.get("home_score"),
                         "away_score": m.get("away_score"),
                         "status": m.get("status"),
+                        "completed": m.get("completed"),
                         "home_score_1h": m.get("home_score_1h"),
                         "away_score_1h": m.get("away_score_1h"),
                         "home_score_2h": m.get("home_score_2h"),
@@ -2120,7 +2125,7 @@ def finalize_day(
                     games_df = sec_df
                 else:
                     # Coalesce scores where primary has zeros; also fill halves when missing
-                    merged = games_df.merge(sec_df[["game_id","home_score","away_score","status","home_score_1h","away_score_1h","home_score_2h","away_score_2h"]], on="game_id", how="left", suffixes=("","_sec"))
+                    merged = games_df.merge(sec_df[["game_id","home_score","away_score","status","completed","home_score_1h","away_score_1h","home_score_2h","away_score_2h"]], on="game_id", how="left", suffixes=("","_sec"))
                     for side in ("home","away"):
                         cur = pd.to_numeric(merged.get(f"{side}_score"), errors="coerce")
                         secv = pd.to_numeric(merged.get(f"{side}_score_sec"), errors="coerce")
@@ -2130,6 +2135,8 @@ def finalize_day(
                             merged[col] = merged[col].where(merged[col].notna(), merged[f"{col}_sec"])
                     if "status_sec" in merged.columns:
                         merged["status"] = merged["status"].where(merged["status"].notna(), merged["status_sec"])
+                    if "completed" in merged.columns and "completed_sec" in merged.columns:
+                        merged["completed"] = merged["completed"].where(merged["completed"].notna(), merged["completed_sec"])
                     games_df = merged.drop(columns=[c for c in merged.columns if c.endswith("_sec")])
         except Exception as e:
             print(f"[yellow]Secondary provider fetch failed[/yellow]: {e}")
@@ -2168,7 +2175,7 @@ def finalize_day(
                     tmp["_home_key"] = tmp.get("home_team", pd.Series(dtype=str)).astype(str).map(lambda x: _norm(x))
                     tmp["_away_key"] = tmp.get("away_team", pd.Series(dtype=str)).astype(str).map(lambda x: _norm(x))
                     tmp["_fuse_key"] = date + "|" + tmp["_home_key"] + "|" + tmp["_away_key"]
-                    tmp = tmp.merge(best[["_fuse_key","home_score","away_score","status","home_score_1h","away_score_1h","home_score_2h","away_score_2h"]], on="_fuse_key", how="left", suffixes=("","_fused"))
+                    tmp = tmp.merge(best[["_fuse_key","home_score","away_score","status","completed","home_score_1h","away_score_1h","home_score_2h","away_score_2h"]], on="_fuse_key", how="left", suffixes=("","_fused"))
                     for side in ("home","away"):
                         cur = pd.to_numeric(tmp.get(f"{side}_score"), errors="coerce")
                         fv = pd.to_numeric(tmp.get(f"{side}_score_fused"), errors="coerce")
@@ -2178,6 +2185,8 @@ def finalize_day(
                             tmp[col] = tmp[col].where(tmp[col].notna(), tmp[f"{col}_fused"])
                     if "status_fused" in tmp.columns:
                         tmp["status"] = tmp["status"].where(tmp["status"].notna(), tmp["status_fused"])
+                    if "completed" in tmp.columns and "completed_fused" in tmp.columns:
+                        tmp["completed"] = tmp["completed"].where(tmp["completed"].notna(), tmp["completed_fused"])
                     games_df = tmp.drop(columns=[c for c in tmp.columns if c.startswith("_fuse") or c.endswith("_fused")])
     except Exception as e:
         print(f"[yellow]Fused fallback failed[/yellow]: {e}")
@@ -2480,6 +2489,7 @@ def fetch_scores(
                         "home_score_2h": m.get("home_score_2h"),
                         "away_score_2h": m.get("away_score_2h"),
                         "status": m.get("status"),
+                        "completed": m.get("completed"),
                         "venue": m.get("venue"),
                         "neutral_site": m.get("neutral_site"),
                     })
@@ -12152,6 +12162,281 @@ def report_live_lens_buckets_cmd(
         Path(out_side_csv).parent.mkdir(parents=True, exist_ok=True)
         side0.to_csv(Path(out_side_csv), index=False)
         print({"wrote": str(out_side_csv)})
+
+
+@app.command(name="report-live-lens-today")
+def report_live_lens_today_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: today local)."),
+    full_game_only: bool = typer.Option(True, help="Only consider full-game signals (horizon>=39)."),
+    include_watch: bool = typer.Option(True, help="Include WATCH signals in distribution output."),
+    write: bool = typer.Option(True, help="Write JSON/CSV artifacts to outputs/ (default true)."),
+    out_json: Path = typer.Option(None, help="Output JSON path (default: outputs/live_lens_today_<date>.json)."),
+    out_bets_csv: Path = typer.Option(None, help="Output CSV for bet distribution table (default: outputs/live_lens_today_bets_<date>.csv)."),
+    out_sweep_csv: Path = typer.Option(None, help="Output CSV for counterfactual sweep table (default: outputs/live_lens_today_sweep_<date>.csv)."),
+    # Counterfactual sweep knobs
+    early_over_max_penalty: float = typer.Option(3.0, help="Max early OVER penalty to sweep (step=1)."),
+    late_over_max_penalty: float = typer.Option(2.0, help="Max late OVER penalty to sweep (step=1)."),
+    early_over_remaining_min: float = typer.Option(20.0, help="Early OVER penalty applies when remaining >= this."),
+    early_over_period_max: float = typer.Option(1.0, help="Early OVER penalty applies when period <= this (if available)."),
+    late_over_lo: float = typer.Option(5.0, help="Late OVER penalty remaining window low bound (exclusive)."),
+    late_over_hi: float = typer.Option(10.0, help="Late OVER penalty remaining window high bound (inclusive)."),
+    late_over_period_min: float = typer.Option(2.0, help="Late OVER penalty applies when period >= this (if available)."),
+):
+    """Summarize Live Lens signals for a given date ("today so far" diagnostics).
+
+    This is intentionally *distributional* (bet/watch counts, remaining buckets, side skew)
+    and optionally runs a small counterfactual sweep to estimate how penalties would
+    change bet volume before outcomes are known.
+
+    Inputs:
+      - outputs/live_lens_signals_<date>.jsonl
+      - outputs/daily_results/results_<date>.csv (optional; used for status/final counts)
+    """
+
+    import json
+    import math
+    import time
+
+    import pandas as pd
+
+    from .live_lens_accuracy import _filter_results_to_finals, _read_jsonl
+    from .live_lens_buckets import _bucket_remaining, _classify_bet_watch, _remaining_from_row
+
+    def _today_local() -> dt.date:
+        try:
+            return _today_local_dt().date()  # type: ignore[name-defined]
+        except Exception:
+            # Fallback: assume local machine date
+            return dt.date.today()
+
+    if not date:
+        date = _today_local().isoformat()
+
+    if out_json is None:
+        out_json = settings.outputs_dir / f"live_lens_today_{date}.json"
+    if out_bets_csv is None:
+        out_bets_csv = settings.outputs_dir / f"live_lens_today_bets_{date}.csv"
+    if out_sweep_csv is None:
+        out_sweep_csv = settings.outputs_dir / f"live_lens_today_sweep_{date}.csv"
+
+    sig_p = settings.outputs_dir / f"live_lens_signals_{date}.jsonl"
+    res_p = settings.outputs_dir / "daily_results" / f"results_{date}.csv"
+
+    signals = _read_jsonl(sig_p)
+    if not signals:
+        print({"status": "missing", "date": date, "message": f"No signals found at {sig_p}"})
+        raise typer.Exit(code=1)
+
+    df = pd.DataFrame(signals)
+    if df.empty:
+        print({"status": "missing", "date": date, "message": f"No signals rows parsed from {sig_p}"})
+        raise typer.Exit(code=1)
+
+    # Normalize ids
+    if "game_id" not in df.columns and "event_id" in df.columns:
+        df["game_id"] = df["event_id"]
+    if "game_id" not in df.columns:
+        print({"status": "error", "date": date, "message": "Signals missing game_id/event_id", "signals_cols": list(df.columns)})
+        raise typer.Exit(code=2)
+    df["game_id"] = df["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+    # Core fields
+    df["side"] = df.get("side").astype(str).str.strip().str.lower()
+    if "is_bet" in df.columns:
+        df["is_bet"] = df["is_bet"].astype(bool)
+    else:
+        df["is_bet"] = True
+    if "is_watch" in df.columns:
+        df["is_watch"] = df["is_watch"].astype(bool)
+    else:
+        df["is_watch"] = False
+
+    df["live_line"] = pd.to_numeric(df.get("live_line"), errors="coerce")
+    df["horizon"] = pd.to_numeric(df.get("horizon"), errors="coerce")
+    df["elapsed"] = pd.to_numeric(df.get("elapsed"), errors="coerce")
+    if "remaining" in df.columns:
+        df["remaining"] = pd.to_numeric(df.get("remaining"), errors="coerce")
+
+    # Filter to usable market calls
+    df0 = df[df["live_line"].notna() & df["side"].isin(["over", "under"])].copy()
+    if full_game_only:
+        df0 = df0[df0["horizon"].notna() & (df0["horizon"] >= 39)].copy()
+
+    if not include_watch:
+        df0 = df0[df0["is_bet"]].copy()
+    else:
+        df0 = df0[df0["is_bet"] | df0["is_watch"]].copy()
+
+    if df0.empty:
+        print({"status": "empty", "date": date, "message": "No full-game signals with live_line/side to summarize"})
+        raise typer.Exit(code=0)
+
+    # Remaining + buckets
+    df0["remaining"] = df0.apply(_remaining_from_row, axis=1)
+    df0["remaining_bucket"] = df0["remaining"].map(_bucket_remaining)
+
+    # Status join (optional)
+    finals_ids: set[str] = set()
+    status_counts = None
+    if res_p.exists():
+        try:
+            res = pd.read_csv(res_p)
+            if not res.empty:
+                gid_col = "game_id" if "game_id" in res.columns else ("event_id" if "event_id" in res.columns else None)
+                if gid_col:
+                    res["game_id"] = res[gid_col].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+                    # If completion metadata exists, compute finals.
+                    res_f = _filter_results_to_finals(res)
+                    finals_ids = set(res_f["game_id"].astype(str).tolist())
+                    if "status" in res.columns:
+                        status_counts = res["status"].fillna("MISSING").astype(str).value_counts().head(10).to_dict()
+        except Exception:
+            finals_ids = set()
+
+    # Headline counts
+    bets = df0[df0["is_bet"]].copy()
+    watches = df0[df0["is_watch"] & (~df0["is_bet"])].copy()
+
+    summary = {
+        "status": "ok",
+        "date": date,
+        "signals_path": str(sig_p),
+        "results_path": str(res_p),
+        "generated_at_epoch": int(time.time()),
+        "signals_raw": int(len(df)),
+        "signals_used": int(len(df0)),
+        "bets": int(len(bets)),
+        "watches": int(len(watches)),
+        "over_share_used": float((df0["side"] == "over").mean()) if len(df0) else None,
+        "over_share_bets": float((bets["side"] == "over").mean()) if len(bets) else None,
+        "results_status_top": status_counts,
+        "final_games_in_results": int(len(finals_ids)) if finals_ids else None,
+        "settleable_bets": int(bets["game_id"].isin(finals_ids).sum()) if finals_ids else None,
+    }
+    print(summary)
+
+    # Distribution tables
+    for col in ["strength", "edge", "edge_prob", "period", "margin_home", "total_points"]:
+        if col in bets.columns:
+            bets[col] = pd.to_numeric(bets[col], errors="coerce")
+
+    def _agg(g: pd.DataFrame) -> dict[str, Any]:
+        wins = {}
+        if "strength" in g.columns:
+            wins["avg_strength"] = float(g["strength"].mean())
+        if "edge" in g.columns:
+            wins["avg_edge"] = float(g["edge"].mean())
+        if "period" in g.columns:
+            try:
+                wins["avg_period"] = float(pd.to_numeric(g["period"], errors="coerce").mean())
+            except Exception:
+                wins["avg_period"] = None
+        return wins
+
+    if not bets.empty:
+        rows = []
+        for (bucket, side), g in bets.groupby(["remaining_bucket", "side"], dropna=False):
+            rec = {"bucket": str(bucket), "side": str(side), "n": int(len(g))}
+            rec.update(_agg(g))
+            rows.append(rec)
+        t = pd.DataFrame(rows).sort_values(["bucket", "side"], kind="stable")
+        print("\n[bets] remaining_bucket x side")
+        print(t.to_string(index=False))
+
+        if write and out_bets_csv is not None:
+            Path(out_bets_csv).parent.mkdir(parents=True, exist_ok=True)
+            t.to_csv(Path(out_bets_csv), index=False)
+
+        if "strength" in bets.columns:
+            q = bets["strength"].dropna().quantile([0.1, 0.25, 0.5, 0.75, 0.9]).to_dict()
+            print("\n[bets] strength_quantiles", {str(k): float(v) for k, v in q.items()})
+            summary["bet_strength_quantiles"] = {str(k): float(v) for k, v in q.items()}
+
+        summary["bets_table"] = t.to_dict(orient="records")
+
+    # Counterfactual sweep: estimate impact on bet volume
+    if "strength" in df0.columns:
+        base = df0.copy()
+        base["strength"] = pd.to_numeric(base.get("strength"), errors="coerce")
+        base = base[base["strength"].notna() & base["elapsed"].notna() & base["horizon"].notna()].copy()
+        if not base.empty:
+            base["period"] = pd.to_numeric(base.get("period"), errors="coerce") if "period" in base.columns else math.nan
+
+            def _apply_cf(dfin: pd.DataFrame, early_pen: float, late_pen: float) -> pd.DataFrame:
+                out = dfin.copy()
+                out["cf_strength"] = out["strength"].astype(float)
+                side = out["side"].astype(str).str.lower().str.strip()
+                is_over = side.eq("over")
+                rem = pd.to_numeric(out.get("remaining"), errors="coerce")
+                el = pd.to_numeric(out.get("elapsed"), errors="coerce")
+                per = pd.to_numeric(out.get("period"), errors="coerce") if "period" in out.columns else pd.Series([math.nan] * len(out))
+
+                # Early penalty: remaining >= early_over_remaining_min and (period<=max OR elapsed<20)
+                if early_pen > 0:
+                    try:
+                        per_ok = (per.notna() & (per <= float(early_over_period_max))) if per.notna().any() else (el < 20)
+                        m = is_over & (rem >= float(early_over_remaining_min)) & per_ok
+                        out.loc[m, "cf_strength"] = out.loc[m, "cf_strength"] - float(early_pen)
+                    except Exception:
+                        pass
+
+                # Late penalty: remaining in (lo,hi] and (period>=min OR elapsed>=20)
+                if late_pen > 0:
+                    try:
+                        lo = float(late_over_lo)
+                        hi = float(late_over_hi)
+                        if hi < lo:
+                            lo, hi = hi, lo
+                        per_ok2 = (per.notna() & (per >= float(late_over_period_min))) if per.notna().any() else (el >= 20)
+                        m2 = is_over & (rem > lo) & (rem <= hi) & per_ok2
+                        out.loc[m2, "cf_strength"] = out.loc[m2, "cf_strength"] - float(late_pen)
+                    except Exception:
+                        pass
+
+                cf_bet = []
+                cf_watch = []
+                for h, e, s in zip(out["horizon"], out["elapsed"], out["cf_strength"]):
+                    try:
+                        b, w = _classify_bet_watch(float(h), float(e), float(s))
+                        cf_bet.append(b)
+                        cf_watch.append(w)
+                    except Exception:
+                        cf_bet.append(False)
+                        cf_watch.append(False)
+                out["cf_is_bet"] = cf_bet
+                out["cf_is_watch"] = cf_watch
+                return out
+
+            emax = max(0.0, float(early_over_max_penalty or 0.0))
+            lmax = max(0.0, float(late_over_max_penalty or 0.0))
+            e_vals = [float(x) for x in range(int(emax) + 1)]
+            l_vals = [float(x) for x in range(int(lmax) + 1)]
+
+            sweep_rows = []
+            for epen in e_vals:
+                for lpen in l_vals:
+                    cf = _apply_cf(base, early_pen=epen, late_pen=lpen)
+                    nb = int(cf["cf_is_bet"].sum())
+                    sweep_rows.append({
+                        "early_pen": epen,
+                        "late_pen": lpen,
+                        "cf_bets": nb,
+                        "cf_watches": int(cf["cf_is_watch"].sum()),
+                        "over_share_bets": float(cf[cf["cf_is_bet"]]["side"].eq("over").mean()) if nb else None,
+                    })
+            s_df = pd.DataFrame(sweep_rows).sort_values(["early_pen", "late_pen"], kind="stable")
+            print("\n[counterfactual] bet/watch counts after penalties")
+            print(s_df.to_string(index=False))
+
+            summary["sweep_table"] = s_df.to_dict(orient="records")
+            if write and out_sweep_csv is not None:
+                Path(out_sweep_csv).parent.mkdir(parents=True, exist_ok=True)
+                s_df.to_csv(Path(out_sweep_csv), index=False)
+
+    if write and out_json is not None:
+        Path(out_json).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_json).write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        print({"wrote": {"json": str(out_json), "bets_csv": str(out_bets_csv) if out_bets_csv else None, "sweep_csv": str(out_sweep_csv) if out_sweep_csv else None}})
 
 
 @app.command(name="tune-live-lens-late-over")

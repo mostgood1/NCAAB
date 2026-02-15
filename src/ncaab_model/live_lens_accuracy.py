@@ -90,6 +90,39 @@ def _final_total_from_results(df: pd.DataFrame) -> pd.Series:
     return pd.Series([math.nan] * len(df))
 
 
+def _filter_results_to_finals(res_df: pd.DataFrame) -> pd.DataFrame:
+    """Return only final/settled games when the results file provides that metadata.
+
+    Backward compatible: if status/completed info isn't present (or is empty), returns res_df unchanged.
+    """
+
+    df = res_df
+    # Prefer explicit completed flag.
+    if "completed" in df.columns:
+        try:
+            c = df["completed"]
+            if c.notna().any():
+                # Pandas may treat booleans as objects/strings; normalize.
+                c2 = c.astype(str).str.strip().str.lower()
+                mask = c2.isin(["true", "1", "yes"])  # conservative
+                return df[mask].copy()
+        except Exception:
+            pass
+
+    # Fallback to status strings when present.
+    if "status" in df.columns:
+        try:
+            s = df["status"]
+            if s.notna().any():
+                s2 = s.astype(str).str.strip().str.upper()
+                mask = s2.eq("STATUS_FINAL") | s2.eq("FINAL") | s2.str.contains("FINAL", na=False)
+                return df[mask].copy()
+        except Exception:
+            pass
+
+    return df
+
+
 def compute_live_lens_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str, Any]:
     date = _safe_date(cfg.date)
     out_root = Path(cfg.out_dir) if cfg.out_dir is not None else _root_outputs()
@@ -191,6 +224,19 @@ def compute_live_lens_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str, Any]:
             "results_cols": list(res_df.columns),
         }
     res_df["game_id"] = res_df[gid_col].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+    # If this is a same-day / in-progress results file, avoid settling against partial scores.
+    res_df = _filter_results_to_finals(res_df)
+    if res_df.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": "Results file has no final/completed games to settle against",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals": int(len(sig_df)),
+        }
+
     res_df["final_total"] = _final_total_from_results(res_df)
 
     merged = sig_df.merge(res_df[["game_id", "final_total"]], on="game_id", how="left")

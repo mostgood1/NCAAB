@@ -112,6 +112,21 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
             home_score = parse_int(home.get("score"))
             away_score = parse_int(away.get("score"))
 
+            # Game status
+            status_name = None
+            completed = None
+            try:
+                st = comps.get("status") or ev.get("status") or {}
+                st_type = (st.get("type") or {}) if isinstance(st, dict) else {}
+                if isinstance(st_type, dict):
+                    status_name = st_type.get("name") or st_type.get("description") or st_type.get("state")
+                    c = st_type.get("completed")
+                    if isinstance(c, bool):
+                        completed = c
+            except Exception:
+                status_name = None
+                completed = None
+
             # Linescores contain period scoring
             def sum_period(competitor, period_numbers):
                 total = 0
@@ -168,6 +183,8 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
                     away_score_1h=away_1h,
                     home_score_2h=home_2h,
                     away_score_2h=away_2h,
+                    status=status_name,
+                    completed=completed,
                     neutral_site=bool(neutral_site) if neutral_site is not None else None,
                     venue=venue_name,
                 )
