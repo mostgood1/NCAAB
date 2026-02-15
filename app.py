@@ -34646,15 +34646,72 @@ def api_debug_artifacts():
                 return {"error": str(e)}
 
         # Write probe (detects ephemeral vs persistent across restarts)
-        probe = {"attempted": False, "ok": False}
+        # Append-only so the file can demonstrate persistence across restarts.
+        probe: dict[str, Any] = {"attempted": False, "ok": False}
         try:
+            import hashlib as _hashlib
+
             probe_path = out_root / "_disk_probe.txt"
-            probe_payload = f"ts_utc={dt.datetime.utcnow().isoformat()}Z\n"
             probe["attempted"] = True
             probe_path.parent.mkdir(parents=True, exist_ok=True)
-            probe_path.write_text(probe_payload, encoding="utf-8")
-            back = probe_path.read_text(encoding="utf-8", errors="ignore")
-            probe.update({"ok": True, "path": str(probe_path), "bytes": len(back), "sample": back[:120]})
+
+            prev: dict[str, Any] = {"exists": probe_path.exists()}
+            try:
+                if probe_path.exists():
+                    pst = probe_path.stat()
+                    prev["mtime_utc"] = dt.datetime.utcfromtimestamp(float(pst.st_mtime)).isoformat() + "Z"
+                    prev["size"] = int(pst.st_size)
+                    # Read a small tail sample (avoid large reads)
+                    if pst.st_size <= 12_000:
+                        prev_bytes = probe_path.read_bytes()
+                    else:
+                        with probe_path.open("rb") as _f:
+                            _f.seek(max(0, int(pst.st_size) - 12_000))
+                            prev_bytes = _f.read(12_000)
+                    prev["tail_md5"] = _hashlib.md5(prev_bytes).hexdigest()
+                    try:
+                        prev["tail_sample"] = prev_bytes.decode("utf-8", errors="ignore")[-200:]
+                    except Exception:
+                        prev["tail_sample"] = None
+            except Exception as e:
+                prev["error"] = str(e)
+
+            boot_id = None
+            try:
+                if os.name != "nt":
+                    boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="utf-8", errors="ignore").strip() or None
+            except Exception:
+                boot_id = None
+            pid = None
+            try:
+                pid = int(os.getpid())
+            except Exception:
+                pid = None
+
+            stamp = dt.datetime.utcnow().isoformat() + "Z"
+            line = f"ts_utc={stamp} pid={pid} boot_id={boot_id}\n"
+            with probe_path.open("a", encoding="utf-8", errors="ignore") as _f:
+                _f.write(line)
+
+            # Read back a small tail after append
+            try:
+                st2 = probe_path.stat()
+                if st2.st_size <= 12_000:
+                    back_bytes = probe_path.read_bytes()
+                else:
+                    with probe_path.open("rb") as _f:
+                        _f.seek(max(0, int(st2.st_size) - 12_000))
+                        back_bytes = _f.read(12_000)
+                back_txt = back_bytes.decode("utf-8", errors="ignore")
+                probe.update({
+                    "ok": True,
+                    "path": str(probe_path),
+                    "bytes": int(st2.st_size),
+                    "prev": prev,
+                    "tail_sample": back_txt[-200:],
+                })
+            except Exception as e:
+                probe.update({"ok": True, "path": str(probe_path), "prev": prev, "warn": f"post_read_failed: {e}"})
         except Exception as e:
             probe.update({"ok": False, "error": str(e)})
 
