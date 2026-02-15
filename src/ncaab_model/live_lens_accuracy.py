@@ -23,6 +23,14 @@ class LiveLensAccuracyConfig:
 
 
 @dataclass(frozen=True)
+class LiveLensProjectionAccuracyConfig:
+    date: str
+    out_dir: Path = Path("outputs")
+    daily_results_dir: Path | None = None
+    full_game_only: bool = False
+
+
+@dataclass(frozen=True)
 class LiveLensAccuracyRetunedConfig:
     """Counterfactual accuracy config.
 
@@ -66,6 +74,12 @@ def signals_path(date: str, out_dir: Path | None = None) -> Path:
     return out_root / f"live_lens_signals_{d}.jsonl"
 
 
+def projections_path(date: str, out_dir: Path | None = None) -> Path:
+    d = _safe_date(date)
+    out_root = Path(out_dir) if out_dir is not None else _root_outputs()
+    return out_root / f"live_lens_projections_{d}.jsonl"
+
+
 def results_path(date: str, out_dir: Path | None = None, daily_results_dir: Path | None = None) -> Path:
     d = _safe_date(date)
     if daily_results_dir is not None:
@@ -103,7 +117,7 @@ def _pick_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
 
 def _final_total_from_results(df: pd.DataFrame) -> pd.Series:
     # Prefer explicit total if present.
-    c_total = _pick_col(df, ["total_points", "final_total", "scored_total", "total", "points_total"])
+    c_total = _pick_col(df, ["actual_total", "total_points", "final_total", "scored_total", "total", "points_total"])
     if c_total:
         return pd.to_numeric(df[c_total], errors="coerce")
 
@@ -794,6 +808,277 @@ def write_live_lens_accuracy(out_json: Path, payload: dict[str, Any], out_csv: P
         return {"status": "ok", "out_json": str(out_json), "out_csv": str(out_csv) if out_csv else None, "summary": summary}
 
     # Error payload
+    out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return {"status": "ok", "out_json": str(out_json), "out_csv": None, "payload": payload}
+
+
+def compute_live_lens_projection_accuracy(cfg: LiveLensProjectionAccuracyConfig) -> dict[str, Any]:
+    date = _safe_date(cfg.date)
+    out_root = Path(cfg.out_dir) if cfg.out_dir is not None else _root_outputs()
+
+    proj_p = projections_path(date, out_dir=out_root)
+    res_p = results_path(date, out_dir=out_root, daily_results_dir=cfg.daily_results_dir)
+
+    rows = _read_jsonl(proj_p)
+    if not rows:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"No projections found at {proj_p}",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+        }
+
+    proj_df = pd.DataFrame(rows)
+    if proj_df.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"No projection rows parsed from {proj_p}",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+        }
+
+    if "game_id" not in proj_df.columns and "event_id" in proj_df.columns:
+        proj_df["game_id"] = proj_df["event_id"]
+    if "game_id" not in proj_df.columns:
+        return {
+            "status": "empty",
+            "date": date,
+            "message": "Projections missing game_id/event_id; cannot evaluate",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+            "projection_cols": list(proj_df.columns),
+            "n_projections_raw": int(len(proj_df)),
+        }
+
+    proj_df["game_id"] = proj_df["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+    if cfg.full_game_only and "lens" in proj_df.columns:
+        try:
+            lens = proj_df["lens"].astype(str).str.strip().str.lower()
+            proj_df = proj_df[lens.isin(["full_game", "fg", "full", "game"])].copy()
+        except Exception:
+            pass
+
+    if proj_df.empty:
+        return {
+            "status": "empty",
+            "date": date,
+            "message": "No projections remaining after filters",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+        }
+
+    # Load results
+    if not res_p.exists():
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"Missing results file at {res_p}",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+            "n_projections": int(len(proj_df)),
+        }
+
+    res_df = pd.read_csv(res_p)
+    if res_df.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"Empty results file at {res_p}",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+            "n_projections": int(len(proj_df)),
+        }
+
+    gid_col = _pick_col(res_df, ["game_id", "event_id", "id", "gid"])
+    if not gid_col:
+        return {
+            "status": "error",
+            "date": date,
+            "message": "Results file missing game_id/event_id column",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+            "results_cols": list(res_df.columns),
+        }
+
+    res_df["game_id"] = res_df[gid_col].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+    res_df = _filter_results_to_finals(res_df)
+    if res_df.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": "Results file has no final/completed games to settle against",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+            "n_projections": int(len(proj_df)),
+        }
+
+    res_df["final_total"] = _final_total_from_results(res_df)
+
+    c_1h = _pick_col(res_df, ["actual_total_1h", "total_1h", "first_half_total", "total_points_1h"])
+    c_2h = _pick_col(res_df, ["actual_total_2h", "total_2h", "second_half_total", "total_points_2h"])
+    if c_1h:
+        res_df["total_1h"] = pd.to_numeric(res_df[c_1h], errors="coerce")
+    else:
+        res_df["total_1h"] = math.nan
+    if c_2h:
+        res_df["total_2h"] = pd.to_numeric(res_df[c_2h], errors="coerce")
+    else:
+        res_df["total_2h"] = math.nan
+
+    merged = proj_df.merge(res_df[["game_id", "final_total", "total_1h", "total_2h"]], on="game_id", how="left")
+
+    # Pick target per lens when possible.
+    if "lens" in merged.columns:
+        lens = merged["lens"].astype(str).str.strip().str.lower()
+    else:
+        lens = pd.Series([""] * len(merged))
+
+    y_final = pd.to_numeric(merged["final_total"], errors="coerce")
+    y_1h = pd.to_numeric(merged["total_1h"], errors="coerce")
+    y_2h = pd.to_numeric(merged["total_2h"], errors="coerce")
+
+    y = y_final.copy()
+    try:
+        mask_1h = lens.eq("1h") & y_1h.notna()
+        mask_2h = lens.eq("2h") & y_2h.notna()
+        y.loc[mask_1h] = y_1h.loc[mask_1h]
+        y.loc[mask_2h] = y_2h.loc[mask_2h]
+    except Exception:
+        pass
+
+    merged["target_total"] = y
+
+    p_blend = pd.to_numeric(merged["proj_blend"], errors="coerce") if "proj_blend" in merged.columns else pd.Series([math.nan] * len(merged))
+    p_final = pd.to_numeric(merged["proj_final"], errors="coerce") if "proj_final" in merged.columns else pd.Series([math.nan] * len(merged))
+
+    merged["abs_err_blend"] = (p_blend - y).abs()
+    merged["abs_err_final"] = (p_final - y).abs()
+    merged["sq_err_blend"] = (p_blend - y) ** 2
+    merged["sq_err_final"] = (p_final - y) ** 2
+
+    settled = merged[y.notna()].copy()
+    if settled.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": "No settled projections (missing final totals for game_id join)",
+            "projections_path": str(proj_p),
+            "results_path": str(res_p),
+            "n_projections": int(len(merged)),
+            "n_results": int(len(res_df)),
+        }
+
+    def _mae(s: pd.Series) -> float | None:
+        v = pd.to_numeric(s, errors="coerce").dropna()
+        return float(v.mean()) if not v.empty else None
+
+    def _rmse(s: pd.Series) -> float | None:
+        v = pd.to_numeric(s, errors="coerce").dropna()
+        return float(math.sqrt(float(v.mean()))) if not v.empty else None
+
+    by_remaining: list[dict[str, Any]] = []
+    if "remaining_bucket" in settled.columns:
+        try:
+            rb = pd.to_numeric(settled["remaining_bucket"], errors="coerce").astype("Int64")
+            settled["remaining_bucket"] = rb
+            for b, g in settled.dropna(subset=["remaining_bucket"]).groupby("remaining_bucket"):
+                by_remaining.append(
+                    {
+                        "remaining_bucket": int(b),
+                        "n": int(len(g)),
+                        "mae_proj_blend": _mae(g["abs_err_blend"]),
+                        "rmse_proj_blend": _rmse(g["sq_err_blend"]),
+                        "mae_proj_final": _mae(g["abs_err_final"]),
+                        "rmse_proj_final": _rmse(g["sq_err_final"]),
+                    }
+                )
+            by_remaining.sort(key=lambda x: x["remaining_bucket"], reverse=True)
+        except Exception:
+            by_remaining = []
+
+    by_lens: list[dict[str, Any]] = []
+    if "lens" in settled.columns:
+        try:
+            settled["lens"] = settled["lens"].astype(str).str.strip().str.lower()
+            for l, g in settled.groupby("lens"):
+                by_lens.append(
+                    {
+                        "lens": str(l),
+                        "n": int(len(g)),
+                        "mae_proj_blend": _mae(g["abs_err_blend"]),
+                        "rmse_proj_blend": _rmse(g["sq_err_blend"]),
+                        "mae_proj_final": _mae(g["abs_err_final"]),
+                        "rmse_proj_final": _rmse(g["sq_err_final"]),
+                    }
+                )
+            by_lens.sort(key=lambda x: x["n"], reverse=True)
+        except Exception:
+            by_lens = []
+
+    summary: dict[str, Any] = {
+        "status": "ok",
+        "date": date,
+        "projections_path": str(proj_p),
+        "results_path": str(res_p),
+        "full_game_only": bool(cfg.full_game_only),
+        "n_projections": int(len(merged)),
+        "n_settled": int(len(settled)),
+        "n_games": int(settled["game_id"].nunique()),
+        "mae_proj_blend": _mae(settled["abs_err_blend"]),
+        "rmse_proj_blend": _rmse(settled["sq_err_blend"]),
+        "mae_proj_final": _mae(settled["abs_err_final"]),
+        "rmse_proj_final": _rmse(settled["sq_err_final"]),
+        "by_remaining_bucket": by_remaining,
+        "by_lens": by_lens,
+    }
+
+    return {
+        "summary": summary,
+        "rows": settled,
+    }
+
+
+def write_live_lens_projection_accuracy(
+    out_json: Path,
+    payload: dict[str, Any],
+    out_csv: Path | None = None,
+) -> dict[str, Any]:
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+
+    if "summary" in payload and isinstance(payload.get("rows"), pd.DataFrame):
+        summary = payload["summary"]
+        rows_df: pd.DataFrame = payload["rows"]
+        out_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        if out_csv is not None:
+            out_csv.parent.mkdir(parents=True, exist_ok=True)
+            keep = [
+                c
+                for c in [
+                    "ts",
+                    "date",
+                    "game_id",
+                    "lens",
+                    "horizon",
+                    "elapsed",
+                    "remaining",
+                    "remaining_bucket",
+                    "total_points",
+                    "live_line",
+                    "proj_final",
+                    "proj_blend",
+                    "target_total",
+                    "abs_err_final",
+                    "abs_err_blend",
+                    "tuning_source",
+                ]
+                if c in rows_df.columns
+            ]
+            rows_df[keep].to_csv(out_csv, index=False)
+        return {"status": "ok", "out_json": str(out_json), "out_csv": str(out_csv) if out_csv else None, "summary": summary}
+
     out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return {"status": "ok", "out_json": str(out_json), "out_csv": None, "payload": payload}
 

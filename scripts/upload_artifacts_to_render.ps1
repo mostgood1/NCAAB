@@ -67,7 +67,7 @@ function Upload-File {
 
             if (-not $resp.IsSuccessStatusCode) {
                 # Optional endpoints may not exist on older deployments; treat as skip.
-                if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_tuning')) {
+                if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_projections|upload_live_lens_tuning')) {
                     Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                     return @{ status = 'skipped'; code = 404; uri = $Uri }
                 }
@@ -143,6 +143,7 @@ $liveFeaturesPath = Join-Path -Path $OutputsDir -ChildPath ("live_features_{0}.c
 
 # Live Lens artifacts (optional)
 $liveLensSignalsPath = Join-Path -Path $OutputsDir -ChildPath ("live_lens_signals_{0}.jsonl" -f $Date)
+$liveLensProjectionsPath = Join-Path -Path $OutputsDir -ChildPath ("live_lens_projections_{0}.jsonl" -f $Date)
 $liveLensTuningPath = Join-Path -Path $OutputsDir -ChildPath 'live_lens_tuning.json'
 ${needSimRetry} = $false
 
@@ -783,6 +784,13 @@ if (Test-Path -LiteralPath $liveLensSignalsPath) {
     elseif ($uLls) { Write-Host "[OK] live_lens_signals uploaded" -ForegroundColor Green }
 } else {
     Write-Host "[Skip] live_lens_signals missing for $Date" -ForegroundColor Yellow
+}
+if (Test-Path -LiteralPath $liveLensProjectionsPath) {
+    $uLlp = Upload-File -Uri "$BaseUrl/api/upload_live_lens_projections" -FilePath $liveLensProjectionsPath -Query @{ date = $Date }
+    if ($uLlp -and ($uLlp.status -eq 'skipped')) { Write-Host "[Skip] upload_live_lens_projections endpoint unavailable" -ForegroundColor Yellow }
+    elseif ($uLlp) { Write-Host "[OK] live_lens_projections uploaded" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] live_lens_projections missing for $Date" -ForegroundColor Yellow
 }
 if (Test-Path -LiteralPath $liveLensTuningPath) {
     $uLlt = Upload-File -Uri "$BaseUrl/api/upload_live_lens_tuning" -FilePath $liveLensTuningPath

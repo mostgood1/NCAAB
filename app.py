@@ -22205,6 +22205,7 @@ def api_live_pbp_stats():
 _LIVE_LENS_TUNING_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
 _LIVE_LINES_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
 _LIVE_LENS_SIGNAL_SEEN: dict[str, float] = {}
+_LIVE_LENS_PROJECTION_SEEN: dict[str, float] = {}
 
 # Provider name aliases (provider_aliases.csv), cached for live lines matching.
 _PROVIDER_TEAM_ALIAS_MAP: dict[str, str] | None = None
@@ -23575,6 +23576,124 @@ def api_live_lens_signal():
         return jsonify({"status": "error", "message": f"Failed to write signal: {e}"}), 500
 
     return jsonify({"status": "ok", "signal_id": signal_id}), 200
+
+
+@app.post("/api/live_lens_projection")
+def api_live_lens_projection():
+    """Log Live Lens projected totals for later accuracy evaluation.
+
+    Appends a JSON line to outputs/live_lens_projections_<date>.jsonl.
+    Best-effort + idempotent-ish: uses projection_id if provided, otherwise hashes a
+    compact subset of fields.
+    """
+
+    try:
+        payload = request.get_json(silent=True) or {}
+    except Exception:
+        payload = {}
+
+    if not isinstance(payload, dict):
+        return jsonify({"status": "error", "message": "Invalid JSON payload"}), 400
+
+    date_s = str(payload.get("date") or "").strip()
+    if not date_s:
+        try:
+            date_s = _today_local().isoformat()
+        except Exception:
+            date_s = dt.date.today().isoformat()
+    try:
+        dt.date.fromisoformat(date_s)
+    except Exception:
+        return jsonify({"status": "error", "message": f"Invalid date: {date_s}"}), 400
+
+    game_id = str(payload.get("game_id") or payload.get("event_id") or "").strip()
+    if not game_id:
+        return jsonify({"status": "error", "message": "Missing game_id"}), 400
+
+    keep: dict[str, Any] = {
+        "ts": str(payload.get("ts") or dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")),
+        "date": date_s,
+        "game_id": game_id,
+        "lens": payload.get("lens"),
+        "horizon": payload.get("horizon"),
+        "elapsed": payload.get("elapsed"),
+        "remaining": payload.get("remaining"),
+        "remaining_bucket": payload.get("remaining_bucket"),
+        "total_points": payload.get("total_points"),
+        "live_line": payload.get("live_line"),
+        "proj_final": payload.get("proj_final"),
+        "proj_blend": payload.get("proj_blend"),
+        "blend_w": payload.get("blend_w"),
+        "sim_exp_total": payload.get("sim_exp_total"),
+        "sim_final": payload.get("sim_final"),
+        "pbp": payload.get("pbp"),
+        "home_score": payload.get("home_score"),
+        "away_score": payload.get("away_score"),
+        "period": payload.get("period"),
+        "tuning_source": payload.get("tuning_source"),
+    }
+
+    projection_id = str(payload.get("projection_id") or payload.get("signal_id") or "").strip()
+    if not projection_id:
+        try:
+            import hashlib
+            import json as _json3
+
+            raw = _json3.dumps(
+                {
+                    "date": keep.get("date"),
+                    "game_id": keep.get("game_id"),
+                    "lens": keep.get("lens"),
+                    "horizon": keep.get("horizon"),
+                    "remaining_bucket": keep.get("remaining_bucket"),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            projection_id = hashlib.sha1(raw.encode("utf-8", errors="ignore")).hexdigest()
+        except Exception:
+            projection_id = ""
+    keep["projection_id"] = projection_id
+
+    try:
+        import time
+
+        now_ts = float(time.time())
+        if len(_LIVE_LENS_PROJECTION_SEEN) > 120_000:
+            cutoff = now_ts - 6 * 3600
+            for k, ts0 in list(_LIVE_LENS_PROJECTION_SEEN.items())[:30_000]:
+                if float(ts0) < cutoff:
+                    _LIVE_LENS_PROJECTION_SEEN.pop(k, None)
+        if (
+            projection_id
+            and projection_id in _LIVE_LENS_PROJECTION_SEEN
+            and (now_ts - float(_LIVE_LENS_PROJECTION_SEEN.get(projection_id) or 0.0)) < 6 * 3600
+        ):
+            return jsonify({"status": "ok", "duplicate": True, "projection_id": projection_id}), 200
+        if projection_id:
+            _LIVE_LENS_PROJECTION_SEEN[projection_id] = now_ts
+    except Exception:
+        pass
+
+    try:
+        out_path = OUT / f"live_lens_projections_{date_s}.jsonl"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        import os
+
+        line = json.dumps(_sanitize_json_obj_strict(keep), ensure_ascii=False) + "\n"
+        data = line.encode("utf-8", errors="replace")
+        fd = os.open(str(out_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND)
+        try:
+            view = memoryview(data)
+            while view:
+                n = os.write(fd, view)
+                view = view[n:]
+        finally:
+            os.close(fd)
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to write projection: {e}"}), 500
+
+    return jsonify({"status": "ok", "projection_id": projection_id}), 200
 
 
 # ---------------------------------
@@ -34398,6 +34517,77 @@ def api_download_live_lens_signals():
         return jsonify({"status": "error", "message": "missing date"}), 400
     try:
         path = OUT / f"live_lens_signals_{date_q}.jsonl"
+        if not path.exists():
+            return jsonify({"status": "missing", "path": str(path), "date": date_q}), 404
+        return send_file(
+            str(path),
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/x-ndjson",
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/upload_live_lens_projections", methods=["POST"])
+def api_upload_live_lens_projections():
+    """Upload per-date Live Lens projections JSONL.
+
+    Query param: date=YYYY-MM-DD (required)
+    Body: multipart 'file' or raw JSONL bytes.
+    Writes to outputs/live_lens_projections_<date>.jsonl
+    """
+
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        body_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            body_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            body_bytes = data if data else None
+        if not body_bytes:
+            return jsonify({"status": "error", "message": "no JSONL content provided"}), 400
+
+        # Best-effort validate: ensure at least one non-empty line parses as JSON.
+        try:
+            ok = False
+            txt = body_bytes.decode("utf-8", errors="ignore")
+            for line in txt.splitlines():
+                s = line.strip()
+                if not s:
+                    continue
+                _ = json.loads(s)
+                ok = True
+                break
+            if not ok:
+                return jsonify({"status": "error", "message": "empty/invalid JSONL"}), 400
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid JSONL: {e}"}), 400
+
+        out_path = OUT / f"live_lens_projections_{date_q}.jsonl"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(body_bytes)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        return jsonify({"status": "ok", "date": date_q, "path": str(out_path), "bytes": int(len(body_bytes))})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/download_live_lens_projections")
+def api_download_live_lens_projections():
+    """Download per-date Live Lens projections JSONL (if present)."""
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        path = OUT / f"live_lens_projections_{date_q}.jsonl"
         if not path.exists():
             return jsonify({"status": "missing", "path": str(path), "date": date_q}), 404
         return send_file(

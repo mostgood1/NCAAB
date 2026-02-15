@@ -2263,6 +2263,73 @@
         } catch(e){ /* ignore */ }
       }
 
+      function maybeLogLiveLensProjection(wrap, card, info){
+        try {
+          if(!info || !card) return;
+          var gid = String(card.getAttribute('data-game-id') || '').trim();
+          if(!gid) return;
+
+          var horizon = (info.horizon !== undefined && info.horizon !== null) ? toNum(info.horizon) : null;
+          var lensKind = null;
+          try { lensKind = wrap ? String(wrap.getAttribute('data-lens-kind') || '').trim() : null; } catch(_eLK2){ lensKind = null; }
+          if(!lensKind) lensKind = null;
+
+          var elapsed = (info.elapsed !== undefined && info.elapsed !== null) ? toNum(info.elapsed) : null;
+          var remaining = (info.remaining !== undefined && info.remaining !== null) ? toNum(info.remaining) : null;
+          var remBucket = (remaining !== null && isFinite(remaining)) ? Math.round(remaining) : null;
+          var elBucket = (elapsed !== null && isFinite(elapsed)) ? Math.floor(elapsed) : null;
+
+          var projFinal = (info.proj_final !== undefined && info.proj_final !== null) ? toNum(info.proj_final) : null;
+          var projBlend = (info.proj_blend !== undefined && info.proj_blend !== null) ? toNum(info.proj_blend) : null;
+          if(projFinal === null && projBlend === null) return;
+
+          var line = (info.live_line !== undefined && info.live_line !== null) ? toNum(info.live_line) : null;
+          var lineQ = (line !== null) ? (Math.round(line * 2) / 2) : null;
+
+          var key = gid + '|' + String(lensKind) + '|' + String(horizon) + '|' + String(remBucket) + '|' + String(elBucket) + '|' + String(lineQ) + '|' + String(projBlend !== null ? round0(projBlend) : '');
+          if(wrap && wrap.__lastLiveLensProjKey === key) return;
+          if(wrap) wrap.__lastLiveLensProjKey = key;
+
+          var tuneSrc = null;
+          try { tuneSrc = (window.__ncaabLiveLensTuning && window.__ncaabLiveLensTuning.source) ? window.__ncaabLiveLensTuning.source : null; } catch(eTS2){ tuneSrc = null; }
+
+          var pbp = null;
+          try {
+            var stats = card.__livePbpStats ? card.__livePbpStats : null;
+            pbp = pbpRollup(stats);
+          } catch(eP2){ pbp = null; }
+
+          var payload = {
+            ts: (new Date()).toISOString(),
+            date: getSlateDate() || null,
+            game_id: gid,
+            lens: lensKind,
+            horizon: (horizon !== null ? horizon : null),
+            elapsed: (elapsed !== null ? elapsed : null),
+            remaining: (remaining !== null ? remaining : null),
+            remaining_bucket: (remBucket !== null ? remBucket : null),
+            total_points: (info.total_points !== undefined ? info.total_points : null),
+            live_line: (lineQ !== null ? lineQ : null),
+            proj_final: (projFinal !== null ? projFinal : null),
+            proj_blend: (projBlend !== null ? projBlend : null),
+            blend_w: (info.blend_w !== undefined ? info.blend_w : null),
+            sim_exp_total: (info.sim_exp_total !== undefined ? info.sim_exp_total : null),
+            sim_final: (info.sim_final !== undefined ? info.sim_final : null),
+            pbp: pbp,
+            home_score: (info.home_score !== undefined ? info.home_score : null),
+            away_score: (info.away_score !== undefined ? info.away_score : null),
+            period: (info.period !== undefined ? info.period : null),
+            tuning_source: tuneSrc
+          };
+
+          fetch('/api/live_lens_projection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).catch(function(){ /* ignore */ });
+        } catch(e){ /* ignore */ }
+      }
+
       function wireOne(wrap){
         var dataEl = wrap.querySelector('.live-lens-data');
         if(!dataEl) return;
@@ -2532,6 +2599,28 @@
 
           var blendW = (line !== null && projFinal !== null) ? marketBlendWeight(elapsed, horizon, {maxW: mbMaxW, start: mbStart}) : 0;
           var projBlend = (line !== null && projFinal !== null) ? ((1 - blendW) * projFinal + blendW * line) : projFinal;
+
+          // Log projection snapshots (rate-limited via per-minute buckets).
+          try {
+            var cardP = card0 || getCardForWrap(wrap);
+            var perP = null;
+            try { perP = (cardP && typeof cardP.__livePeriod === 'number') ? cardP.__livePeriod : null; } catch(_ePer){ perP = null; }
+            maybeLogLiveLensProjection(wrap, cardP, {
+              horizon: horizon,
+              elapsed: elapsed,
+              remaining: remaining,
+              total_points: act,
+              live_line: line,
+              proj_final: projFinal,
+              proj_blend: projBlend,
+              blend_w: blendW,
+              sim_exp_total: exp,
+              sim_final: simFinal,
+              home_score: liveHome,
+              away_score: liveAway,
+              period: perP
+            });
+          } catch(_eLogP){ /* ignore */ }
 
           // If we don't have a usable live line for this lens, clear side/edge so compact strip can't show stale line-based callouts.
           try {
@@ -3066,7 +3155,11 @@
             var simRemMargin = (simFinalMargin !== null && expMargin !== null) ? (simFinalMargin - expMargin) : null;
             var remW = 1;
             try {
-              if(confW !== null && isFinite(confW)) remW = Math.max(0, Math.min(1, 1 - confW));
+              // Fade sim remainder faster than linear as we gain live confidence.
+              if(confW !== null && isFinite(confW)){
+                var r0 = Math.max(0, Math.min(1, 1 - confW));
+                remW = r0 * r0;
+              }
             } catch(_eRW){ remW = 1; }
             var simRemAdj = (simRemMargin !== null && isFinite(simRemMargin)) ? (simRemMargin * remW) : null;
             var projMargin = (actMargin !== null && simRemAdj !== null) ? (actMargin + simRemAdj) : simFinalMargin;
@@ -3325,6 +3418,12 @@
                 // Totals-only (compact strip): do not include ML/ATS.
                 card2.setAttribute('data-live-total-ok-' + lensKey3, totalOkNow ? '1' : '0');
                 card2.setAttribute('data-live-total-warn-' + lensKey3, (!totalOkNow && totalWarnNow) ? '1' : '0');
+
+                // If no current totals signal for this lens, clear side/edge to avoid stale compact callouts.
+                if(!totalOkNow && !totalWarnNow){
+                  try { card2.removeAttribute('data-live-total-side-' + lensKey3); } catch(_eCT1) { /* noop */ }
+                  try { card2.removeAttribute('data-live-total-edge-' + lensKey3); } catch(_eCT2) { /* noop */ }
+                }
 
                 // Market-only (compact strip): ML/ATS actionable.
                 card2.setAttribute('data-live-market-ok-' + lensKey3, marketOkNow ? '1' : '0');
@@ -4249,7 +4348,6 @@
           var isWatch = false;
           var isLive = false;
           var isFinal = false;
-          var hasMarketOpp = false;
           var perCompact = null;
           try {
             isLive = (safeStr(card.getAttribute('data-live')) === '1');
@@ -4274,39 +4372,17 @@
             var okFg = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
             var warnFg = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
 
-            var mkOk1h = (safeStr(card.getAttribute('data-live-market-ok-1h')) === '1');
-            var mkWarn1h = (safeStr(card.getAttribute('data-live-market-warn-1h')) === '1');
-            var mkOk2h = (safeStr(card.getAttribute('data-live-market-ok-2h')) === '1');
-            var mkWarn2h = (safeStr(card.getAttribute('data-live-market-warn-2h')) === '1');
-            var mkOkFg = (safeStr(card.getAttribute('data-live-market-ok-fg')) === '1');
-            var mkWarnFg = (safeStr(card.getAttribute('data-live-market-warn-fg')) === '1');
-
             // In 2H+ we don't want 1H callouts (1H is over).
             var use1h = (perCompact === null || perCompact < 2);
             var use2h = (perCompact !== null && perCompact >= 2);
 
-            // Market opportunity indicator (ML/ATS actionable) — shown as a subtle dot.
-            try {
-              var mkFg = (safeStr(card.getAttribute('data-live-market-opp-fg')) === '1');
-              var mk1h = (safeStr(card.getAttribute('data-live-market-opp-1h')) === '1');
-              var mk2h = (safeStr(card.getAttribute('data-live-market-opp-2h')) === '1');
-              hasMarketOpp = isLive && (mkFg || (use1h && mk1h) || (use2h && mk2h));
-            } catch(_eMk){ hasMarketOpp = false; }
-
-            // Primary compact pill state: totals BET wins; otherwise market BET; then totals WATCH; then market WATCH.
+            // Primary compact pill state: TOTALS only.
             var totBet = (okFg || (use1h && ok1h) || (use2h && ok2h));
-            var mkBet = (mkOkFg || (use1h && mkOk1h) || (use2h && mkOk2h));
             var totWatch = (warnFg || (use1h && warn1h) || (use2h && warn2h));
-            var mkWatch = (mkWarnFg || (use1h && mkWarn1h) || (use2h && mkWarn2h));
 
-            isBet = isLive && (totBet || mkBet);
-            isWatch = isLive && (!isBet) && (totWatch || mkWatch);
+            isBet = isLive && totBet;
+            isWatch = isLive && (!isBet) && totWatch;
 
-            // Back-compat fallback: if per-lens attrs aren't populated yet, use legacy classes.
-            if(isLive && !isBet && !isWatch){
-              isBet = card.classList.contains('live-edge-ok');
-              isWatch = (!isBet) && card.classList.contains('live-edge-warn');
-            }
           } catch(eS) { /* noop */ }
 
           var away = 'Away';
@@ -4376,21 +4452,28 @@
               try {
                 var raw = safeStr(card.getAttribute('data-live-driver-' + lensKey));
                 if(!raw) return '';
-                // Keep only the most actionable driver tokens.
+                // Convert detailed driver tokens into a short, plain-English tag.
+                // Example output: "PACE" or "PACE+PPP".
                 var toks = raw.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
-                var keep = [];
+                var tags = [];
+                function addTag(t){
+                  if(!t) return;
+                  if(tags.indexOf(t) >= 0) return;
+                  tags.push(t);
+                }
                 toks.forEach(function(t){
                   var tl = t.toLowerCase();
-                  if(tl.indexOf('pace ') === 0) keep.push(t);
-                  else if(tl.indexOf('ppp ') === 0) keep.push(t);
-                  else if(tl.indexOf('shooting ') === 0) keep.push(t);
-                  else if(tl.indexOf('ft rate ') === 0) keep.push(t);
-                  else if(tl.indexOf('late-over') >= 0 || tl.indexOf('early-over') >= 0) keep.push(t);
+                  if(tl.indexOf('pace ') === 0) addTag('PACE');
+                  else if(tl.indexOf('ppp ') === 0) addTag('PPP');
+                  else if(tl.indexOf('shooting ') === 0) addTag('SHOOTING');
+                  else if(tl.indexOf('ft rate ') === 0) addTag('FT');
+                  else if(tl.indexOf('edge ') === 0) addTag('EDGE');
+                  else if(tl.indexOf('d ') === 0) addTag('SIM-GAP');
+                  else if(tl.indexOf('late-over') >= 0) addTag('LATE-OVER');
+                  else if(tl.indexOf('early-over') >= 0) addTag('EARLY-OVER');
                 });
-                if(!keep.length) return '';
-                var s = keep.slice(0, 3).join(', ');
-                if(s.length > 64) s = s.slice(0, 61) + '...';
-                return s;
+                if(!tags.length) return '';
+                return tags.slice(0, 3).join('+');
               } catch(_eDrv){
                 return '';
               }
@@ -4404,31 +4487,20 @@
               var lean = safeStr(card.getAttribute('data-live-lean-' + lensKey));
 
               var sideTxt = '';
-              if(side === 'over') sideTxt = 'Over';
-              else if(side === 'under') sideTxt = 'Under';
+              if(side === 'over') sideTxt = 'OVER';
+              else if(side === 'under') sideTxt = 'UNDER';
 
-              if(sideTxt && isFinite(edge)){
-                var edgeTxt = (edge > 0 ? '+' : '') + edge.toFixed(1);
-                var drv = shortDriver(lensKey);
-                return label + ': Total ' + action + ' ' + sideTxt + ' (' + edgeTxt + ')' + (drv ? ' | ' + drv : '');
+              var drv = shortDriver(lensKey);
+              if(sideTxt){
+                var s0 = label + ' ' + action + ' ' + sideTxt;
+                return (s0 + (drv ? ' - ' + drv : '')).toUpperCase();
               }
 
-              if(lean) return label + ': ' + lean;
-              return label + ': ' + action;
-            }
-
-            function lensMarketPiece(label, lensKey, ok, warn){
-              if(!ok && !warn) return '';
-              var action = ok ? 'BET' : 'WATCH';
-              var ml = safeStr(card.getAttribute('data-live-ml-' + lensKey));
-              var ats = safeStr(card.getAttribute('data-live-ats-' + lensKey));
-              var drv = shortDriver(lensKey);
-              // Prefer ML/ATS text that already includes side and edge-vs-market.
-              var txt = '';
-              if(ml) txt = 'ML ' + action + ' ' + ml;
-              else if(ats) txt = 'ATS ' + action + ' ' + ats;
-              else txt = 'Market ' + action;
-              return label + ': ' + txt + (drv ? ' | ' + drv : '');
+              if(lean){
+                var s1 = label + ' ' + action + ' NO LINE';
+                return (s1 + (drv ? ' - ' + drv : '')).toUpperCase();
+              }
+              return (label + ' ' + action + ' NO LINE' + (drv ? ' - ' + drv : '')).toUpperCase();
             }
 
             var ok1h2 = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
@@ -4451,25 +4523,13 @@
             if(use1h2){
               var p1 = lensPiece('1H', '1h', ok1h2, warn1h2);
               if(p1) parts.push(p1);
-              else {
-                var m1 = lensMarketPiece('1H', '1h', mkOk1h2, mkWarn1h2);
-                if(m1) parts.push(m1);
-              }
             }
             if(use2h2){
               var p2 = lensPiece('2H', '2h', ok2h2, warn2h2);
               if(p2) parts.push(p2);
-              else {
-                var m2 = lensMarketPiece('2H', '2h', mkOk2h2, mkWarn2h2);
-                if(m2) parts.push(m2);
-              }
             }
             var pF = lensPiece('FG', 'fg', okFg2, warnFg2);
             if(pF) parts.push(pF);
-            else {
-              var mF = lensMarketPiece('FG', 'fg', mkOkFg2, mkWarnFg2);
-              if(mF) parts.push(mF);
-            }
 
             if(parts.length) return parts.join(' | ');
 
@@ -4482,7 +4542,7 @@
               if(sideTxt0 && isFinite(edge0)){
                 var edgeTxt0 = (edge0 > 0 ? '+' : '') + edge0.toFixed(1);
                 var lbl0 = (perCompact !== null && perCompact >= 2) ? '2H' : (use1h2 ? '1H' : 'FG');
-                return lbl0 + ': Total ' + action0 + ' ' + sideTxt0 + ' (' + edgeTxt0 + ')';
+                return (lbl0 + ': TOTAL ' + action0 + ' ' + sideTxt0 + ' (' + edgeTxt0 + ')').toUpperCase();
               }
             } catch(_eLegacy){ /* noop */ }
             return isBet ? 'BET' : 'WATCH';
@@ -4499,15 +4559,7 @@
             var st = document.createElement('span');
             st.className = 'compact-game-line compact-game-status';
             st.textContent = statusText();
-            if(hasMarketOpp){
-              try {
-                var dot = document.createElement('span');
-                dot.className = 'compact-game-meta';
-                dot.textContent = '•';
-                dot.title = 'ML/ATS opportunity (see game card)';
-                st.appendChild(dot);
-              } catch(_eDot){ /* noop */ }
-            }
+            
 
             var sc = scoreText();
             var rowA = document.createElement('div');
@@ -4573,18 +4625,38 @@
             var isBet = false;
             var isWatch = false;
             try {
-              // Bet: strong live-lens edge highlight.
-              // Note: do not key this off pregame "Kelly" callouts; those can exist for many games and makes the filter look broken.
-              isBet = card.classList.contains('live-edge-ok');
-              // Watch: weaker live-lens signal (only shown when not already in Bet).
-              isWatch = card.classList.contains('live-edge-warn');
+              // BET/WATCH filters should reflect TOTAL opportunities only.
+              // (ML/ATS are shown on the full game cards but not used for the Status filter.)
+              var per = null;
+              try { if(card && typeof card.__livePeriod === 'number' && isFinite(card.__livePeriod)) per = card.__livePeriod; } catch(_eP){ per = null; }
+              if(per === null){
+                try {
+                  var pAttr = normStr(card.getAttribute('data-live-period'));
+                  var pn = pAttr ? parseInt(pAttr, 10) : NaN;
+                  if(isFinite(pn)) per = pn;
+                } catch(_ePA){ per = null; }
+              }
+              var use1h = (per === null || per < 2);
+              var use2h = (per !== null && per >= 2);
+
+              var ok1h = (normStr(card.getAttribute('data-live-total-ok-1h')) === '1');
+              var warn1h = (normStr(card.getAttribute('data-live-total-warn-1h')) === '1');
+              var ok2h = (normStr(card.getAttribute('data-live-total-ok-2h')) === '1');
+              var warn2h = (normStr(card.getAttribute('data-live-total-warn-2h')) === '1');
+              var okFg = (normStr(card.getAttribute('data-live-total-ok-fg')) === '1');
+              var warnFg = (normStr(card.getAttribute('data-live-total-warn-fg')) === '1');
+
+              var totBet = (okFg || (use1h && ok1h) || (use2h && ok2h));
+              var totWatch = (warnFg || (use1h && warn1h) || (use2h && warn2h));
+              isBet = isLive && totBet;
+              isWatch = isLive && (!isBet) && totWatch;
             } catch(eS) { /* noop */ }
 
             okStatus = (
-              (selStatus.has('Live') && isLive) ||
-              (selStatus.has('Watch') && isWatch) ||
-              (selStatus.has('Bet') && isBet) ||
-              (selStatus.has('Final') && isFinal)
+              (selStatus.has('LIVE') && isLive) ||
+              (selStatus.has('WATCH') && isWatch) ||
+              (selStatus.has('BET') && isBet) ||
+              (selStatus.has('FINAL') && isFinal)
             );
           }
 
@@ -4692,38 +4764,38 @@
 
         function renderStatusGroup(wrap, onChange){
           wrap.innerHTML = '';
-          var allBtn = mkPill('All', 'neutral');
+          var allBtn = mkPill('ALL', 'neutral');
           allBtn.addEventListener('click', function(){
             selStatus.clear();
             onChange();
           });
           wrap.appendChild(allBtn);
 
-          var finalBtn = mkPill('Final', 'neutral status-off');
+          var finalBtn = mkPill('FINAL', 'neutral status-off');
           finalBtn.classList.add('final-chip');
           finalBtn.addEventListener('click', function(){
-            if(selStatus.has('Final')) selStatus.delete('Final'); else selStatus.add('Final');
+            if(selStatus.has('FINAL')) selStatus.delete('FINAL'); else selStatus.add('FINAL');
             onChange();
           });
           wrap.appendChild(finalBtn);
 
-          var liveBtn = mkPill('Live', 'edge-weak status-off');
+          var liveBtn = mkPill('LIVE', 'edge-weak status-off');
           liveBtn.addEventListener('click', function(){
-            if(selStatus.has('Live')) selStatus.delete('Live'); else selStatus.add('Live');
+            if(selStatus.has('LIVE')) selStatus.delete('LIVE'); else selStatus.add('LIVE');
             onChange();
           });
           wrap.appendChild(liveBtn);
 
-          var watchBtn = mkPill('Watch', 'warn status-off');
+          var watchBtn = mkPill('WATCH', 'warn status-off');
           watchBtn.addEventListener('click', function(){
-            if(selStatus.has('Watch')) selStatus.delete('Watch'); else selStatus.add('Watch');
+            if(selStatus.has('WATCH')) selStatus.delete('WATCH'); else selStatus.add('WATCH');
             onChange();
           });
           wrap.appendChild(watchBtn);
 
-          var betBtn = mkPill('Bet', 'ok status-off');
+          var betBtn = mkPill('BET', 'ok status-off');
           betBtn.addEventListener('click', function(){
-            if(selStatus.has('Bet')) selStatus.delete('Bet'); else selStatus.add('Bet');
+            if(selStatus.has('BET')) selStatus.delete('BET'); else selStatus.add('BET');
             onChange();
           });
           wrap.appendChild(betBtn);
