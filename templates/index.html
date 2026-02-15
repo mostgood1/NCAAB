@@ -2917,6 +2917,15 @@
           setText(wrap, 'driver', 'Driver: ' + driver);
           setText(wrap, 'lean', 'Lean: ' + lean);
 
+          // Persist per-lens driver text for compact strip.
+          try {
+            var cardDrv = card0 || getCardForWrap(wrap);
+            var lensKeyD2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+            if(cardDrv && lensKeyD2){
+              cardDrv.setAttribute('data-live-driver-' + lensKeyD2, String(driver || '').trim());
+            }
+          } catch(_eDrvAttr){ /* noop */ }
+
           // Persist per-lens lean text for compact strip fallback.
           try {
             var cardLean = card0 || getCardForWrap(wrap);
@@ -2933,8 +2942,8 @@
             setText(wrap, 'score', 'Score: –');
           }
 
-          // ML / ATS recommendations (full-game lens only).
-          var doMarketSignals = (lens === 'full_game' || lens === '1h');
+          // ML / ATS recommendations.
+          var doMarketSignals = (lens === 'full_game' || lens === '1h' || lens === '2h');
           if(!doMarketSignals){
             setText(wrap, 'ml', 'ML: –');
             setText(wrap, 'ats', 'ATS: –');
@@ -2945,6 +2954,7 @@
             try {
               if(card0){
                 if(lens === '1h') spreadHome = toNum(card0.getAttribute('data-spread-home-1h'));
+                if(lens === '2h') spreadHome = toNum(card0.getAttribute('data-spread-home-2h'));
                 if(spreadHome === null) spreadHome = toNum(card0.getAttribute('data-spread-home'));
               }
             } catch(eSp){ spreadHome = null; }
@@ -2988,8 +2998,9 @@
               var possPB = pbpPB ? toNum(pbpPB.poss) : null;
               possLive = possPB;
               if(sigma !== null && possPB !== null && isFinite(possPB) && possPB > 0){
-                // Typical scale: ~60-75 possessions full game, ~30-40 per half.
-                var nScale = (lens === '1h') ? 34 : 60;
+                // possPB is a combined-possession proxy (home+away).
+                // Typical combined scale: ~120-150 full game, ~60-75 per half.
+                var nScale = (lens === '1h' || lens === '2h') ? 68 : 120;
                 var w = Math.min(1, Math.max(0, possPB / nScale));
                 // Cap how much we inflate sigma to avoid extreme swings.
                 var wMin = 0.35;
@@ -3029,8 +3040,14 @@
             } catch(_eMeta){ /* noop */ }
 
             // Live-adjusted margin projection using sim remainder.
+            // As live sample grows (confW -> 1), rely more on live margin and less on pregame sim remainder.
             var simRemMargin = (simFinalMargin !== null && expMargin !== null) ? (simFinalMargin - expMargin) : null;
-            var projMargin = (actMargin !== null && simRemMargin !== null) ? (actMargin + simRemMargin) : simFinalMargin;
+            var remW = 1;
+            try {
+              if(confW !== null && isFinite(confW)) remW = Math.max(0, Math.min(1, 1 - confW));
+            } catch(_eRW){ remW = 1; }
+            var simRemAdj = (simRemMargin !== null && isFinite(simRemMargin)) ? (simRemMargin * remW) : null;
+            var projMargin = (actMargin !== null && simRemAdj !== null) ? (actMargin + simRemAdj) : simFinalMargin;
 
             // ML/ATS action flags (used to drive compact Bet/Watch state).
             var mlIsBet = false;
@@ -3050,6 +3067,9 @@
                   if(lens === '1h'){
                     mlHomePx = toNum(card0.getAttribute('data-live-ml-home-1h'));
                     mlAwayPx = toNum(card0.getAttribute('data-live-ml-away-1h'));
+                  } else if(lens === '2h'){
+                    mlHomePx = toNum(card0.getAttribute('data-live-ml-home-2h'));
+                    mlAwayPx = toNum(card0.getAttribute('data-live-ml-away-2h'));
                   } else {
                     mlHomePx = toNum(card0.getAttribute('data-live-ml-home'));
                     mlAwayPx = toNum(card0.getAttribute('data-live-ml-away'));
@@ -3090,6 +3110,7 @@
                 if(cardM){
                   if(lens === 'full_game') cardM.setAttribute('data-live-ml-fg', String(mlTxt).replace(/^ML:\s*/i,'').trim());
                   if(lens === '1h') cardM.setAttribute('data-live-ml-1h', String(mlTxt).replace(/^ML:\s*/i,'').trim());
+                  if(lens === '2h') cardM.setAttribute('data-live-ml-2h', String(mlTxt).replace(/^ML:\s*/i,'').trim());
                 }
               } catch(_eML){ /* noop */ }
 
@@ -3134,6 +3155,7 @@
                 if(cardM2){
                   if(lens === 'full_game') cardM2.removeAttribute('data-live-ml-fg');
                   if(lens === '1h') cardM2.removeAttribute('data-live-ml-1h');
+                  if(lens === '2h') cardM2.removeAttribute('data-live-ml-2h');
                 }
               } catch(_eML2){ /* noop */ }
             }
@@ -3151,6 +3173,9 @@
                   if(lens === '1h'){
                     spHomePx = toNum(card0.getAttribute('data-live-spread-home-price-1h'));
                     spAwayPx = toNum(card0.getAttribute('data-live-spread-away-price-1h'));
+                  } else if(lens === '2h'){
+                    spHomePx = toNum(card0.getAttribute('data-live-spread-home-price-2h'));
+                    spAwayPx = toNum(card0.getAttribute('data-live-spread-away-price-2h'));
                   } else {
                     spHomePx = toNum(card0.getAttribute('data-live-spread-home-price'));
                     spAwayPx = toNum(card0.getAttribute('data-live-spread-away-price'));
@@ -3191,6 +3216,7 @@
                 if(cardA){
                   if(lens === 'full_game') cardA.setAttribute('data-live-ats-fg', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
                   if(lens === '1h') cardA.setAttribute('data-live-ats-1h', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
+                  if(lens === '2h') cardA.setAttribute('data-live-ats-2h', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
                 }
               } catch(_eATS){ /* noop */ }
 
@@ -3236,6 +3262,7 @@
                 if(cardA2){
                   if(lens === 'full_game') cardA2.removeAttribute('data-live-ats-fg');
                   if(lens === '1h') cardA2.removeAttribute('data-live-ats-1h');
+                  if(lens === '2h') cardA2.removeAttribute('data-live-ats-2h');
                 }
               } catch(_eATS2){ /* noop */ }
             }
@@ -3259,6 +3286,8 @@
             // Totals-only flags (for compact strip + totals-only status cues).
             var totalOkNow = (!suppress2 && !!isStrong);
             var totalWarnNow = (!suppress2 && !totalOkNow && (!!isWatchLine || !!isStrongNoLine));
+            var marketOkNow = (!suppress2 && (!!mlIsBet || !!atsIsBet));
+            var marketWarnNow = (!suppress2 && !marketOkNow && (!!mlIsWatch || !!atsIsWatch));
             var marketOppNow = (!suppress2 && (!!mlIsBet || !!mlIsWatch || !!atsIsBet || !!atsIsWatch));
             wrap.setAttribute('data-live-edge-ok', okNow ? '1' : '0');
             wrap.setAttribute('data-live-edge-warn', warnNow ? '1' : '0');
@@ -3274,6 +3303,10 @@
                 // Totals-only (compact strip): do not include ML/ATS.
                 card2.setAttribute('data-live-total-ok-' + lensKey3, totalOkNow ? '1' : '0');
                 card2.setAttribute('data-live-total-warn-' + lensKey3, (!totalOkNow && totalWarnNow) ? '1' : '0');
+
+                // Market-only (compact strip): ML/ATS actionable.
+                card2.setAttribute('data-live-market-ok-' + lensKey3, marketOkNow ? '1' : '0');
+                card2.setAttribute('data-live-market-warn-' + lensKey3, (!marketOkNow && marketWarnNow) ? '1' : '0');
 
                 // Market opportunity flag (ML/ATS actionable). Compact strip shows only a subtle dot indicator.
                 card2.setAttribute('data-live-market-opp-' + lensKey3, marketOppNow ? '1' : '0');
@@ -3713,6 +3746,9 @@
             } else if(per === '1h'){
               if(pxH !== null) card.setAttribute('data-live-spread-home-price-1h', String(pxH));
               if(pxA !== null) card.setAttribute('data-live-spread-away-price-1h', String(pxA));
+            } else if(per === '2h'){
+              if(pxH !== null) card.setAttribute('data-live-spread-home-price-2h', String(pxH));
+              if(pxA !== null) card.setAttribute('data-live-spread-away-price-2h', String(pxA));
             }
           } catch(_eSpPx){ /* ignore */ }
 
@@ -3726,6 +3762,9 @@
             } else if(per === '1h'){
               if(mlH !== null) card.setAttribute('data-live-ml-home-1h', String(mlH));
               if(mlA !== null) card.setAttribute('data-live-ml-away-1h', String(mlA));
+            } else if(per === '2h'){
+              if(mlH !== null) card.setAttribute('data-live-ml-home-2h', String(mlH));
+              if(mlA !== null) card.setAttribute('data-live-ml-away-2h', String(mlA));
             }
           } catch(_eMLPx){ /* ignore */ }
 
@@ -3736,6 +3775,12 @@
             if(per === 'full_game'){
               if(oPx !== null) card.setAttribute('data-live-total-over-price', String(oPx));
               if(uPx !== null) card.setAttribute('data-live-total-under-price', String(uPx));
+            } else if(per === '1h'){
+              if(oPx !== null) card.setAttribute('data-live-total-over-price-1h', String(oPx));
+              if(uPx !== null) card.setAttribute('data-live-total-under-price-1h', String(uPx));
+            } else if(per === '2h'){
+              if(oPx !== null) card.setAttribute('data-live-total-over-price-2h', String(oPx));
+              if(uPx !== null) card.setAttribute('data-live-total-under-price-2h', String(uPx));
             }
           } catch(_eTotPx){ /* ignore */ }
 
@@ -3762,7 +3807,7 @@
             var next = String(total);
             if(inpLine.value !== next){
               inpLine.value = next;
-              try { inpLine.dispatchEvent(new Event('input', {bubbles:true})); } catch(e) {}
+              try { inpLine.dispatchEvent(new Event('input', {bubbles:true})); } catch(_eIn) {}
             }
 
             // Persist latest line metadata for visual confirmation in the stamp.
@@ -3794,7 +3839,6 @@
 
         var cards = Array.from(document.querySelectorAll('.game-card[data-game-id]'));
         if(!cards.length) return;
-
         var slate = getSlateDate();
         if(!slate) return;
 
@@ -3806,7 +3850,6 @@
           .then(function(js){
             try {
               if(!js || js.status !== 'ok' || !js.games) return null;
-
               var liveEventIds = [];
               cards.forEach(function(card){
                 var gid = String(card.getAttribute('data-game-id') || '').trim();
@@ -4197,13 +4240,20 @@
               } catch(_ePA){ perCompact = null; }
             }
 
-            // Totals-only signals for compact cards.
+            // Totals + market signals for compact cards.
             var ok1h = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
             var warn1h = (safeStr(card.getAttribute('data-live-total-warn-1h')) === '1');
             var ok2h = (safeStr(card.getAttribute('data-live-total-ok-2h')) === '1');
             var warn2h = (safeStr(card.getAttribute('data-live-total-warn-2h')) === '1');
             var okFg = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
             var warnFg = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
+
+            var mkOk1h = (safeStr(card.getAttribute('data-live-market-ok-1h')) === '1');
+            var mkWarn1h = (safeStr(card.getAttribute('data-live-market-warn-1h')) === '1');
+            var mkOk2h = (safeStr(card.getAttribute('data-live-market-ok-2h')) === '1');
+            var mkWarn2h = (safeStr(card.getAttribute('data-live-market-warn-2h')) === '1');
+            var mkOkFg = (safeStr(card.getAttribute('data-live-market-ok-fg')) === '1');
+            var mkWarnFg = (safeStr(card.getAttribute('data-live-market-warn-fg')) === '1');
 
             // In 2H+ we don't want 1H callouts (1H is over).
             var use1h = (perCompact === null || perCompact < 2);
@@ -4213,12 +4263,18 @@
             try {
               var mkFg = (safeStr(card.getAttribute('data-live-market-opp-fg')) === '1');
               var mk1h = (safeStr(card.getAttribute('data-live-market-opp-1h')) === '1');
-              hasMarketOpp = isLive && (mkFg || (use1h && mk1h));
+              var mk2h = (safeStr(card.getAttribute('data-live-market-opp-2h')) === '1');
+              hasMarketOpp = isLive && (mkFg || (use1h && mk1h) || (use2h && mk2h));
             } catch(_eMk){ hasMarketOpp = false; }
 
-            // Primary compact pill state: totals-only BET wins; otherwise totals-only WATCH.
-            isBet = isLive && (okFg || (use1h && ok1h) || (use2h && ok2h));
-            isWatch = isLive && (!isBet) && (warnFg || (use1h && warn1h) || (use2h && warn2h));
+            // Primary compact pill state: totals BET wins; otherwise market BET; then totals WATCH; then market WATCH.
+            var totBet = (okFg || (use1h && ok1h) || (use2h && ok2h));
+            var mkBet = (mkOkFg || (use1h && mkOk1h) || (use2h && mkOk2h));
+            var totWatch = (warnFg || (use1h && warn1h) || (use2h && warn2h));
+            var mkWatch = (mkWarnFg || (use1h && mkWarn1h) || (use2h && mkWarn2h));
+
+            isBet = isLive && (totBet || mkBet);
+            isWatch = isLive && (!isBet) && (totWatch || mkWatch);
 
             // Back-compat fallback: if per-lens attrs aren't populated yet, use legacy classes.
             if(isLive && !isBet && !isWatch){
@@ -4290,6 +4346,30 @@
             var show = isBet || isWatch;
             if(!show) return '';
 
+            function shortDriver(lensKey){
+              try {
+                var raw = safeStr(card.getAttribute('data-live-driver-' + lensKey));
+                if(!raw) return '';
+                // Keep only the most actionable driver tokens.
+                var toks = raw.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+                var keep = [];
+                toks.forEach(function(t){
+                  var tl = t.toLowerCase();
+                  if(tl.indexOf('pace ') === 0) keep.push(t);
+                  else if(tl.indexOf('ppp ') === 0) keep.push(t);
+                  else if(tl.indexOf('shooting ') === 0) keep.push(t);
+                  else if(tl.indexOf('ft rate ') === 0) keep.push(t);
+                  else if(tl.indexOf('late-over') >= 0 || tl.indexOf('early-over') >= 0) keep.push(t);
+                });
+                if(!keep.length) return '';
+                var s = keep.slice(0, 3).join(', ');
+                if(s.length > 64) s = s.slice(0, 61) + '...';
+                return s;
+              } catch(_eDrv){
+                return '';
+              }
+            }
+
             function lensPiece(label, lensKey, ok, warn){
               if(!ok && !warn) return '';
               var action = ok ? 'BET' : 'WATCH';
@@ -4303,11 +4383,26 @@
 
               if(sideTxt && isFinite(edge)){
                 var edgeTxt = (edge > 0 ? '+' : '') + edge.toFixed(1);
-                return label + ': Total ' + action + ' ' + sideTxt + ' (' + edgeTxt + ')';
+                var drv = shortDriver(lensKey);
+                return label + ': Total ' + action + ' ' + sideTxt + ' (' + edgeTxt + ')' + (drv ? ' | ' + drv : '');
               }
 
               if(lean) return label + ': ' + lean;
               return label + ': ' + action;
+            }
+
+            function lensMarketPiece(label, lensKey, ok, warn){
+              if(!ok && !warn) return '';
+              var action = ok ? 'BET' : 'WATCH';
+              var ml = safeStr(card.getAttribute('data-live-ml-' + lensKey));
+              var ats = safeStr(card.getAttribute('data-live-ats-' + lensKey));
+              var drv = shortDriver(lensKey);
+              // Prefer ML/ATS text that already includes side and edge-vs-market.
+              var txt = '';
+              if(ml) txt = 'ML ' + action + ' ' + ml;
+              else if(ats) txt = 'ATS ' + action + ' ' + ats;
+              else txt = 'Market ' + action;
+              return label + ': ' + txt + (drv ? ' | ' + drv : '');
             }
 
             var ok1h2 = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
@@ -4316,6 +4411,13 @@
             var warn2h2 = (safeStr(card.getAttribute('data-live-total-warn-2h')) === '1');
             var okFg2 = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
             var warnFg2 = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
+
+            var mkOk1h2 = (safeStr(card.getAttribute('data-live-market-ok-1h')) === '1');
+            var mkWarn1h2 = (safeStr(card.getAttribute('data-live-market-warn-1h')) === '1');
+            var mkOk2h2 = (safeStr(card.getAttribute('data-live-market-ok-2h')) === '1');
+            var mkWarn2h2 = (safeStr(card.getAttribute('data-live-market-warn-2h')) === '1');
+            var mkOkFg2 = (safeStr(card.getAttribute('data-live-market-ok-fg')) === '1');
+            var mkWarnFg2 = (safeStr(card.getAttribute('data-live-market-warn-fg')) === '1');
             var use1h2 = (perCompact === null || perCompact < 2);
             var use2h2 = (perCompact !== null && perCompact >= 2);
 
@@ -4323,13 +4425,25 @@
             if(use1h2){
               var p1 = lensPiece('1H', '1h', ok1h2, warn1h2);
               if(p1) parts.push(p1);
+              else {
+                var m1 = lensMarketPiece('1H', '1h', mkOk1h2, mkWarn1h2);
+                if(m1) parts.push(m1);
+              }
             }
             if(use2h2){
               var p2 = lensPiece('2H', '2h', ok2h2, warn2h2);
               if(p2) parts.push(p2);
+              else {
+                var m2 = lensMarketPiece('2H', '2h', mkOk2h2, mkWarn2h2);
+                if(m2) parts.push(m2);
+              }
             }
             var pF = lensPiece('FG', 'fg', okFg2, warnFg2);
             if(pF) parts.push(pF);
+            else {
+              var mF = lensMarketPiece('FG', 'fg', mkOkFg2, mkWarnFg2);
+              if(mF) parts.push(mF);
+            }
 
             if(parts.length) return parts.join(' | ');
 
