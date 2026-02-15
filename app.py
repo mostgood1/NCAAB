@@ -6949,19 +6949,54 @@ def index():
     # Optional view preference: force-calibrated display precedence even for tiny diffs
     prefer_cal_param = (request.args.get("prefer_cal") or "").strip().lower() in ("1","true","yes")
     prefer_cal_eff = prefer_cal_param
-    # If no explicit date was provided, redirect to today's ET date to pin the UI
-    # This avoids Render showing an older snapshot implicitly and ensures a stable slate.
+    def _latest_nonempty_display_date_index() -> str | None:
+        try:
+            import re as _re_mod
+            pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
+            candidates: list[tuple[str, Path]] = []
+            for p in OUT.glob('predictions_display_*.csv'):
+                m = pat.match(p.name)
+                if not m:
+                    continue
+                candidates.append((m.group(1), p))
+            if not candidates:
+                return None
+            for d, p in sorted(candidates, key=lambda x: x[0], reverse=True):
+                try:
+                    if p.stat().st_size < 32:
+                        continue
+                except Exception:
+                    pass
+                try:
+                    head = pd.read_csv(p, nrows=1)
+                    if isinstance(head, pd.DataFrame) and len(head) > 0:
+                        return d
+                except Exception:
+                    try:
+                        df_all = _safe_read_csv(p)
+                        if isinstance(df_all, pd.DataFrame) and len(df_all) > 0:
+                            return d
+                    except Exception:
+                        continue
+            return None
+        except Exception:
+            return None
+
+    # If no explicit date was provided, prefer latest non-empty snapshot (prevents blank UI when "today" exists but is empty)
     try:
         if not date_q:
-            try:
-                from zoneinfo import ZoneInfo as _ZI
-                _today_et = dt.datetime.now(_ZI("America/New_York")).date().isoformat()
-            except Exception:
-                _today_et = dt.datetime.utcnow().strftime('%Y-%m-%d')
-            # Do not redirect; set default date and continue rendering
-            date_q = _today_et
+            d0 = _latest_nonempty_display_date_index()
+            if d0:
+                date_q = d0
+            else:
+                try:
+                    from zoneinfo import ZoneInfo as _ZI
+                    date_q = dt.datetime.now(_ZI("America/New_York")).date().isoformat()
+                except Exception:
+                    date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
     except Exception:
         pass
+
     # Strong fallback: if no date provided, prefer the latest predictions_display_<date>.csv in outputs
     try:
         if not date_q:
@@ -7148,18 +7183,7 @@ def index():
         # Use explicit date if provided; else resolve from latest display
         api_date = (request.args.get("date") or "").strip()
         if not api_date:
-            try:
-                import re as _re_mod
-                pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
-                _dates = []
-                for _p in OUT.glob('predictions_display_*.csv'):
-                    m = pat.match(_p.name)
-                    if m:
-                        _dates.append(m.group(1))
-                if _dates:
-                    api_date = sorted(_dates)[-1]
-            except Exception:
-                api_date = None
+            api_date = _latest_nonempty_display_date_index()
         if api_date:
             try:
                 with app.test_request_context(f"/api/display_predictions?date={api_date}&view=cards"):
