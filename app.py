@@ -34611,8 +34611,66 @@ def api_debug_artifacts():
             "NCAAB_OUTPUTS_DIR": (os.getenv("NCAAB_OUTPUTS_DIR") or ""),
             "RENDER_DISK_PATH": (os.getenv("RENDER_DISK_PATH") or ""),
         },
+        "disk": {},
         "artifacts": {},
     }
+
+    # Persistent disk diagnostics (best-effort)
+    try:
+        import shutil as _shutil
+        data_root = Path("/opt/render/project/data")
+        out_root = OUT if isinstance(OUT, Path) else Path(str(OUT))
+        def _stat_safe(p: Path) -> dict:
+            try:
+                st = p.stat()
+                return {"exists": p.exists(), "is_dir": p.is_dir(), "st_dev": int(getattr(st, "st_dev", -1)), "st_ino": int(getattr(st, "st_ino", -1))}
+            except Exception as e:
+                return {"exists": p.exists(), "is_dir": p.is_dir(), "error": str(e)}
+
+        # Mount checks (Linux only; harmless elsewhere)
+        try:
+            data_is_mount = bool(os.path.ismount(str(data_root)))
+        except Exception:
+            data_is_mount = None
+        try:
+            out_is_mount = bool(os.path.ismount(str(out_root)))
+        except Exception:
+            out_is_mount = None
+
+        # Disk usage
+        def _usage(p: Path) -> dict:
+            try:
+                u = _shutil.disk_usage(str(p))
+                return {"total": int(u.total), "used": int(u.used), "free": int(u.free)}
+            except Exception as e:
+                return {"error": str(e)}
+
+        # Write probe (detects ephemeral vs persistent across restarts)
+        probe = {"attempted": False, "ok": False}
+        try:
+            probe_path = out_root / "_disk_probe.txt"
+            probe_payload = f"ts_utc={dt.datetime.utcnow().isoformat()}Z\n"
+            probe["attempted"] = True
+            probe_path.parent.mkdir(parents=True, exist_ok=True)
+            probe_path.write_text(probe_payload, encoding="utf-8")
+            back = probe_path.read_text(encoding="utf-8", errors="ignore")
+            probe.update({"ok": True, "path": str(probe_path), "bytes": len(back), "sample": back[:120]})
+        except Exception as e:
+            probe.update({"ok": False, "error": str(e)})
+
+        resp["disk"] = {
+            "data_root": str(data_root),
+            "out_root": str(out_root),
+            "data_is_mount": data_is_mount,
+            "out_is_mount": out_is_mount,
+            "stat_data_root": _stat_safe(data_root),
+            "stat_out_root": _stat_safe(out_root),
+            "usage_data_root": _usage(data_root if data_root.exists() else Path("/")),
+            "usage_out_root": _usage(out_root if out_root.exists() else Path("/")),
+            "probe": probe,
+        }
+    except Exception as e:
+        resp["disk"] = {"error": str(e)}
     # Global picks
     try:
         p_global = OUT / "picks_raw.csv"
