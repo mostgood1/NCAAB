@@ -2083,6 +2083,19 @@
         try { return wrap ? wrap.closest('.game-card') : null; } catch(e) { return null; }
       }
 
+      function scheduleCompactStripRefresh(){
+        try {
+          if(!window.__ncaabUpdateCompactGameStrip) return;
+          if(window.__ncaabCompactStripRefreshPending) return;
+          window.__ncaabCompactStripRefreshPending = true;
+          var raf = window.requestAnimationFrame || function(cb){ return setTimeout(cb, 0); };
+          raf(function(){
+            try { window.__ncaabCompactStripRefreshPending = false; } catch(_eP) { /* noop */ }
+            try { window.__ncaabUpdateCompactGameStrip(); } catch(_eU) { /* noop */ }
+          });
+        } catch(_e){ /* noop */ }
+      }
+
       function num0(v){
         var x = toNum(v);
         return (x === null ? 0 : x);
@@ -2435,6 +2448,7 @@
           }
 
           var card0 = getCardForWrap(wrap);
+          var lensKey0 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
           var per0 = null;
           try {
             if(card0 && typeof card0.__livePeriod === 'number' && isFinite(card0.__livePeriod)) per0 = card0.__livePeriod;
@@ -2518,6 +2532,14 @@
 
           var blendW = (line !== null && projFinal !== null) ? marketBlendWeight(elapsed, horizon, {maxW: mbMaxW, start: mbStart}) : 0;
           var projBlend = (line !== null && projFinal !== null) ? ((1 - blendW) * projFinal + blendW * line) : projFinal;
+
+          // If we don't have a usable live line for this lens, clear side/edge so compact strip can't show stale line-based callouts.
+          try {
+            if(card0 && lensKey0 && (line === null || projBlend === null)){
+              try { card0.removeAttribute('data-live-total-side-' + lensKey0); } catch(_eC1) { /* noop */ }
+              try { card0.removeAttribute('data-live-total-edge-' + lensKey0); } catch(_eC2) { /* noop */ }
+            }
+          } catch(_eClr){ /* noop */ }
 
           var ftW = 0.44;
           var pbpNScale = 70;
@@ -3323,6 +3345,10 @@
               logSigs.forEach(function(s){ maybeLogLiveLensSignal(wrap, cardL, s); });
             }
           } catch(eLog){ /* ignore */ }
+
+          // Keep compact strip in sync with any local changes
+          // (polling updates, auto-forced remaining/score, or manual edits).
+          scheduleCompactStripRefresh();
         }
 
         ['change','input'].forEach(function(evt){
