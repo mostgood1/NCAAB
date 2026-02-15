@@ -36165,16 +36165,49 @@ def api_display_predictions():
             return sorted(_rows, key=_sort_key)
         except Exception:
             return _rows
-    # Infer date if not provided: prefer latest available display snapshot, then last_index_df, else today
-    if not date_q:
+    def _latest_nonempty_display_date() -> str | None:
         try:
             import re as _re_mod
             pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
-            _dates = [m.group(1) for m in (pat.match(p.name) for p in OUT.glob('predictions_display_*.csv')) if m]
-            if _dates:
-                date_q = sorted(_dates)[-1]
+            candidates: list[tuple[str, Path]] = []
+            for p in OUT.glob('predictions_display_*.csv'):
+                m = pat.match(p.name)
+                if not m:
+                    continue
+                d = m.group(1)
+                candidates.append((d, p))
+            if not candidates:
+                return None
+            # Prefer latest date with at least one data row (not header-only / tiny clobbers).
+            for d, p in sorted(candidates, key=lambda x: x[0], reverse=True):
+                try:
+                    if p.stat().st_size < 32:
+                        continue
+                except Exception:
+                    pass
+                try:
+                    head = pd.read_csv(p, nrows=1)
+                    if isinstance(head, pd.DataFrame) and len(head) > 0:
+                        return d
+                except Exception:
+                    try:
+                        df_all = _safe_read_csv(p)
+                        if isinstance(df_all, pd.DataFrame) and len(df_all) > 0:
+                            return d
+                    except Exception:
+                        continue
+            return None
+        except Exception:
+            return None
+
+    # Infer date if not provided: prefer latest non-empty display snapshot, then last_index_df, else today
+    if not date_q:
+        try:
+            d0 = _latest_nonempty_display_date()
+            if d0:
+                date_q = d0
             else:
-                raise RuntimeError('no_display_snapshots')
+                raise RuntimeError('no_nonempty_display_snapshots')
         except Exception:
             base_df = getattr(app, 'last_index_df', pd.DataFrame())
             if isinstance(base_df, pd.DataFrame) and 'date' in base_df.columns and base_df['date'].notna().any():
@@ -39465,8 +39498,26 @@ def api_display_prediction_dates():
     try:
         for p in OUT.glob('predictions_display_*.csv'):
             m = pat.match(p.name)
-            if m:
-                dates.append(m.group(1))
+            if not m:
+                continue
+            # Exclude empty/header-only snapshots so the UI doesn't pick a blank "latest" date.
+            try:
+                if p.stat().st_size < 32:
+                    continue
+            except Exception:
+                pass
+            try:
+                head = pd.read_csv(p, nrows=1)
+                if not (isinstance(head, pd.DataFrame) and len(head) > 0):
+                    continue
+            except Exception:
+                try:
+                    df_all = _safe_read_csv(p)
+                    if not (isinstance(df_all, pd.DataFrame) and len(df_all) > 0):
+                        continue
+                except Exception:
+                    continue
+            dates.append(m.group(1))
     except Exception:
         pass
     dates = sorted(set(dates))
