@@ -46,7 +46,13 @@ from .eval.accuracy import compute_accuracy, compare_vs_closing
 from .train.calibration import build_z_recenter_artifact, save_artifact, load_artifact
 from .store.sqlite import connect as sqlite_connect, ingest_csv as sqlite_ingest
 from .live_lens_tuning import compute_live_lens_tuning, write_live_lens_tuning
-from .live_lens_accuracy import LiveLensAccuracyConfig, compute_live_lens_accuracy, write_live_lens_accuracy
+from .live_lens_accuracy import (
+    LiveLensAccuracyConfig,
+    LiveLensAccuracyRetunedConfig,
+    compute_live_lens_accuracy,
+    compute_live_lens_accuracy_retuned,
+    write_live_lens_accuracy,
+)
 from .live_lens_buckets import LiveLensBucketReportConfig, compute_live_lens_bucket_report, iter_date_range
 from .live_lens_retune_search import LateOverSearchConfig, search_late_over_retune
 from .live_lens_early_retune_search import EarlyOverSearchConfig, search_early_over_retune
@@ -12013,6 +12019,66 @@ def compute_live_lens_accuracy_cmd(
 
     if out_csv is None:
         out_csv = Path("outputs") / f"live_lens_accuracy_{cfg.date}.csv"
+
+    wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
+    print(wrote)
+
+
+@app.command(name="compute-live-lens-accuracy-retuned")
+def compute_live_lens_accuracy_retuned_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: yesterday local)."),
+    tuning_json: Path = typer.Option(Path("outputs/live_lens_tuning.json"), help="Tuning JSON used by the web UI."),
+    out_json: Path = typer.Option(None, help="Output JSON path (default: outputs/live_lens_accuracy_retuned_<date>.json)."),
+    out_csv: Path = typer.Option(None, help="Optional per-signal settled rows CSV output."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+):
+    """Compute counterfactual Live Lens ROI / win-rate under the current tuning.
+
+    Reads logged signals (including WATCH), applies retune penalties, reclassifies
+    BET/WATCH from strength, then settles only the counterfactual BETs.
+    """
+
+    if not date:
+        date = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+
+    tuning: dict[str, Any] = {}
+    try:
+        if tuning_json and Path(tuning_json).exists():
+            tuning = json.loads(Path(tuning_json).read_text(encoding="utf-8"))
+    except Exception:
+        tuning = {}
+
+    t = tuning.get("tuning") if isinstance(tuning.get("tuning"), dict) else tuning
+    if not isinstance(t, dict):
+        t = {}
+
+    def _get_float(key: str, default: float) -> float:
+        v = t.get(key, default)
+        try:
+            return float(v)
+        except Exception:
+            return float(default)
+
+    cfg = LiveLensAccuracyRetunedConfig(
+        date=str(date),
+        assume_price=float(price),
+        apply_retune=True,
+        late_over_strength_penalty=_get_float("late_over_strength_penalty", 0.0),
+        late_over_remaining_lo=_get_float("late_over_remaining_lo", 5.0),
+        late_over_remaining_hi=_get_float("late_over_remaining_hi", 10.0),
+        late_over_margin_abs_min=_get_float("late_over_margin_abs_min", 0.0),
+        late_over_period_min=_get_float("late_over_period_min", 2.0),
+        early_over_strength_penalty=_get_float("early_over_strength_penalty", 0.0),
+        early_over_remaining_min=_get_float("early_over_remaining_min", 20.0),
+        early_over_period_max=_get_float("early_over_period_max", 1.0),
+    )
+
+    payload = compute_live_lens_accuracy_retuned(cfg)
+
+    if out_json is None:
+        out_json = Path("outputs") / f"live_lens_accuracy_retuned_{cfg.date}.json"
+    if out_csv is None:
+        out_csv = Path("outputs") / f"live_lens_accuracy_retuned_{cfg.date}.csv"
 
     wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
     print(wrote)

@@ -2132,10 +2132,10 @@
         wraps.forEach(function(w){
           if(!w) return;
           if(is2H){
-            // In 2H, ignore 1H lens indicators; only consider full-game horizon.
+            // In 2H, ignore 1H lens indicators.
             try {
-              var hz = parseFloat(String(w.getAttribute('data-lens-horizon') || '').trim());
-              if(isFinite(hz) && hz <= 20.5) return;
+              var knd = parseLensKind(w);
+              if(knd === '1h') return;
             } catch(e3) { /* noop */ }
           }
           if(w.getAttribute('data-live-edge-ok') === '1') anyOk = true;
@@ -2575,11 +2575,19 @@
             var side = (edge > 0.01) ? 'Over' : (edge < -0.01 ? 'Under' : 'No edge');
             var edgeAbs = Math.abs(edge);
 
+            // Build a human-readable driver summary (explanation only).
+            var driverParts = [];
+            try {
+              if(isFinite(edge)){
+                driverParts.push('Edge ' + ((edge > 0 ? '+' : '') + String(round1(edge))));
+              }
+            } catch(_eDP0){ /* noop */ }
+
             // Persist latest live-total edge on the card for compact strip callouts.
             // Write both the legacy attributes and per-lens attributes.
             try {
               var cardE = card0 || getCardForWrap(wrap);
-              var lensKey = (lens === '1h') ? '1h' : ((lens === 'full_game') ? 'fg' : null);
+              var lensKey = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
               if(cardE){
                 if(side === 'Over' || side === 'Under'){
                   cardE.setAttribute('data-live-total-side', side.toLowerCase());
@@ -2660,6 +2668,40 @@
 
               var hot = ((pbp.fgPct !== null && pbp.fgPct >= 0.60) || (pbp.tpPct !== null && pbp.tpPct >= 0.52) || (pbp.ftPct !== null && pbp.ftPct >= 0.92));
               var cold = ((pbp.fgPct !== null && pbp.fgPct <= 0.38) || (pbp.tpPct !== null && pbp.tpPct <= 0.22));
+
+              // Explanation string (does not impact adj/strength): surface pace/eff/shooting.
+              try {
+                if(delta !== null && isFinite(delta)){
+                  driverParts.push('d ' + ((delta > 0 ? '+' : '') + String(round1(delta))));
+                }
+              } catch(_eDPd){ /* noop */ }
+              try {
+                if(possRate !== null && isFinite(possRate)){
+                  var paceTag = 'pace ' + possRate.toFixed(2);
+                  if(possRate >= paceHi) paceTag += ' hi';
+                  else if(possRate <= paceLo) paceTag += ' lo';
+                  driverParts.push(paceTag);
+                }
+              } catch(_eDPp){ /* noop */ }
+              try {
+                if(ppp !== null && isFinite(ppp)){
+                  var effTag = 'ppp ' + ppp.toFixed(2);
+                  if(ppp >= ppsHi) effTag += ' hi';
+                  else if(ppp <= ppsLo) effTag += ' lo';
+                  driverParts.push(effTag);
+                }
+              } catch(_eDPe){ /* noop */ }
+              try {
+                if(hot) driverParts.push('shooting hot');
+                else if(cold) driverParts.push('shooting cold');
+              } catch(_eDPs){ /* noop */ }
+              try {
+                if(pbp.ftr !== null && isFinite(pbp.ftr)){
+                  if(pbp.ftr >= 0.55) driverParts.push('FT rate high');
+                  else if(pbp.ftr <= 0.22) driverParts.push('FT rate low');
+                }
+              } catch(_eDPf){ /* noop */ }
+
               if(side === 'Over'){
                 if(hot) adj -= 2;
                 if(cold) adj += 1;
@@ -2677,6 +2719,10 @@
             }
 
             var strength = edgeAbs + adj;
+
+            // Track whether a retune penalty was applied (explanation only).
+            var latePenApplied = false;
+            var earlyPenApplied = false;
 
             // Late-game OVER dampener (optional): subtract penalty in (lo, hi] remaining window.
             // Defaults: remaining in (5,10] and any margin.
@@ -2707,6 +2753,7 @@
                 }
                 if(inWindow && periodOk && marginOk){
                   strength = strength - lateOverPenalty;
+                  latePenApplied = true;
                 }
                 }
               }
@@ -2734,6 +2781,7 @@
 
                   if(inEarly && periodOk2){
                     strength = strength - earlyOverPenalty;
+                    earlyPenApplied = true;
                   }
                 }
               }
@@ -2796,6 +2844,19 @@
               };
               logSigs.push(logSig);
             }
+
+            // Finalize driver explanation for the UI.
+            try {
+              if(latePenApplied) driverParts.push('late-OVER dampener');
+              if(earlyPenApplied) driverParts.push('early-OVER dampener');
+            } catch(_eDPt){ /* noop */ }
+            try {
+              if(driverParts && driverParts.length){
+                driver = driverParts.join(' | ');
+              } else if(delta !== null) {
+                driver = (delta > 0 ? 'Below sim (so far)' : (delta < 0 ? 'Above sim (so far)' : 'On sim'));
+              }
+            } catch(_eDPx){ /* noop */ }
           } else if(delta !== null){
             var minElapsed2 = (horizon <= 20.5) ? 4 : 6;
             var thrDelta = (horizon <= 20.5) ? 8 : 12;
@@ -2839,9 +2900,17 @@
             } else {
               lean = 'On track';
             }
+
+            // Explanation for no-line case: delta + small PBP confirmation.
+            try {
+              var dTag = 'd ' + (delta > 0 ? '+' : '') + String(round1(delta));
+              if(pbpAdj2 > 0) dTag += ' | pbp+' + String(round0(pbpAdj2));
+              driver = dTag;
+            } catch(_eDrv2){ /* noop */ }
           }
 
-          if(delta !== null){
+          // If nothing else set driver, keep the legacy sim-vs-actual label.
+          if(driver === '–' && delta !== null){
             driver = (delta > 0 ? 'Below sim (so far)' : (delta < 0 ? 'Above sim (so far)' : 'On sim'));
           }
 
@@ -2851,7 +2920,7 @@
           // Persist per-lens lean text for compact strip fallback.
           try {
             var cardLean = card0 || getCardForWrap(wrap);
-            var lensKey2 = (lens === '1h') ? '1h' : ((lens === 'full_game') ? 'fg' : null);
+            var lensKey2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
             if(cardLean && lensKey2){
               cardLean.setAttribute('data-live-lean-' + lensKey2, String(lean || '').trim());
             }
@@ -3197,7 +3266,7 @@
 
             // Persist per-lens signal flags on the card for compact strip.
             try {
-              var lensKey3 = (lens === '1h') ? '1h' : ((lens === 'full_game') ? 'fg' : null);
+              var lensKey3 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
               if(card2 && lensKey3){
                 card2.setAttribute('data-live-edge-ok-' + lensKey3, okNow ? '1' : '0');
                 card2.setAttribute('data-live-edge-warn-' + lensKey3, (!okNow && warnNow) ? '1' : '0');
@@ -4131,11 +4200,14 @@
             // Totals-only signals for compact cards.
             var ok1h = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
             var warn1h = (safeStr(card.getAttribute('data-live-total-warn-1h')) === '1');
+            var ok2h = (safeStr(card.getAttribute('data-live-total-ok-2h')) === '1');
+            var warn2h = (safeStr(card.getAttribute('data-live-total-warn-2h')) === '1');
             var okFg = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
             var warnFg = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
 
             // In 2H+ we don't want 1H callouts (1H is over).
             var use1h = (perCompact === null || perCompact < 2);
+            var use2h = (perCompact !== null && perCompact >= 2);
 
             // Market opportunity indicator (ML/ATS actionable) — shown as a subtle dot.
             try {
@@ -4145,8 +4217,8 @@
             } catch(_eMk){ hasMarketOpp = false; }
 
             // Primary compact pill state: totals-only BET wins; otherwise totals-only WATCH.
-            isBet = isLive && (okFg || (use1h && ok1h));
-            isWatch = isLive && (!isBet) && (warnFg || (use1h && warn1h));
+            isBet = isLive && (okFg || (use1h && ok1h) || (use2h && ok2h));
+            isWatch = isLive && (!isBet) && (warnFg || (use1h && warn1h) || (use2h && warn2h));
 
             // Back-compat fallback: if per-lens attrs aren't populated yet, use legacy classes.
             if(isLive && !isBet && !isWatch){
@@ -4240,14 +4312,21 @@
 
             var ok1h2 = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
             var warn1h2 = (safeStr(card.getAttribute('data-live-total-warn-1h')) === '1');
+            var ok2h2 = (safeStr(card.getAttribute('data-live-total-ok-2h')) === '1');
+            var warn2h2 = (safeStr(card.getAttribute('data-live-total-warn-2h')) === '1');
             var okFg2 = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
             var warnFg2 = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
             var use1h2 = (perCompact === null || perCompact < 2);
+            var use2h2 = (perCompact !== null && perCompact >= 2);
 
             var parts = [];
             if(use1h2){
               var p1 = lensPiece('1H', '1h', ok1h2, warn1h2);
               if(p1) parts.push(p1);
+            }
+            if(use2h2){
+              var p2 = lensPiece('2H', '2h', ok2h2, warn2h2);
+              if(p2) parts.push(p2);
             }
             var pF = lensPiece('FG', 'fg', okFg2, warnFg2);
             if(pF) parts.push(pF);
@@ -4262,7 +4341,8 @@
               var sideTxt0 = (side0 === 'over') ? 'Over' : (side0 === 'under' ? 'Under' : '');
               if(sideTxt0 && isFinite(edge0)){
                 var edgeTxt0 = (edge0 > 0 ? '+' : '') + edge0.toFixed(1);
-                return 'Total ' + action0 + ' ' + sideTxt0 + ' (' + edgeTxt0 + ')';
+                var lbl0 = (perCompact !== null && perCompact >= 2) ? '2H' : (use1h2 ? '1H' : 'FG');
+                return lbl0 + ': Total ' + action0 + ' ' + sideTxt0 + ' (' + edgeTxt0 + ')';
               }
             } catch(_eLegacy){ /* noop */ }
             return isBet ? 'BET' : 'WATCH';
