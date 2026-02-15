@@ -2309,10 +2309,11 @@ def page_quantile_trend_weekly():
 @app.get('/static/outputs/<path:fname>')
 def serve_outputs_file(fname: str):
     try:
-        base = ROOT / 'outputs'
+        base = OUT
         # prevent path traversal
         target = (base / fname).resolve()
-        if base.resolve() not in target.parents and base.resolve() != target.parent:
+        base_resolved = base.resolve()
+        if base_resolved not in target.parents and base_resolved != target.parent:
             return jsonify({'status':'error','message':'invalid path'})
         if not target.exists():
             return jsonify({'status':'missing'})
@@ -5039,20 +5040,49 @@ def _load_eval_metrics() -> dict[str, Any]:
 
 def _resolve_outputs_dir() -> Path:
     """Determine outputs directory using env override, settings, or fallback."""
+    def _try_dir(candidate: str | Path, label: str, create: bool = True) -> Path | None:
+        try:
+            p = Path(candidate).expanduser().resolve()
+            if p.exists() and not p.is_dir():
+                raise ValueError(f"{label} is not a directory: {p}")
+            if create:
+                p.mkdir(parents=True, exist_ok=True)
+            if not p.exists() or not p.is_dir():
+                return None
+            # Verify writability (best-effort): try a short create+delete.
+            try:
+                probe = p / ".__ncaab_write_probe"
+                probe.write_text("ok\n", encoding="utf-8")
+                try:
+                    probe.unlink()
+                except Exception:
+                    pass
+            except Exception:
+                return None
+            logger.info("Using outputs dir (%s): %s", label, p)
+            return p
+        except Exception as e:
+            logger.warning("Outputs dir candidate rejected (%s): %s", label, e)
+            return None
+
+    # 1) Explicit env override
     env_dir = os.getenv("NCAAB_OUTPUTS_DIR", "").strip()
     if env_dir:
-        try:
-            p = Path(env_dir).resolve()
-            # If explicitly configured, create the directory if needed.
-            # This is important for Render persistent disk mount paths where
-            # the mount exists but the subfolder may not yet.
-            if p.exists() and not p.is_dir():
-                raise ValueError(f"NCAAB_OUTPUTS_DIR is not a directory: {p}")
-            p.mkdir(parents=True, exist_ok=True)
-            logger.info("Using outputs dir (env): %s", p)
+        p = _try_dir(env_dir, "env:NCAAB_OUTPUTS_DIR")
+        if p is not None:
             return p
-        except Exception:
-            pass
+
+    # 2) Render persistent disk conventions (Linux/Render). Guard against Windows
+    # accidentally creating C:\opt\render\... during local runs.
+    if os.name != "nt":
+        render_disk = os.getenv("RENDER_DISK_PATH", "").strip()
+        if render_disk:
+            p = _try_dir(Path(render_disk) / "outputs", "env:RENDER_DISK_PATH/outputs")
+            if p is not None:
+                return p
+        p = _try_dir("/opt/render/project/data/outputs", "render:/opt/render/project/data/outputs")
+        if p is not None:
+            return p
     # settings.outputs_dir may be a Path-like or string
     try:
         p2 = Path(str(settings.outputs_dir))
@@ -34527,7 +34557,16 @@ def api_debug_artifacts():
     except Exception:
         date_q = ""
     out_path = str(OUT)
-    resp = {"ok": True, "OUT": out_path, "date": date_q or None, "artifacts": {}}
+    resp = {
+        "ok": True,
+        "OUT": out_path,
+        "date": date_q or None,
+        "env": {
+            "NCAAB_OUTPUTS_DIR": (os.getenv("NCAAB_OUTPUTS_DIR") or ""),
+            "RENDER_DISK_PATH": (os.getenv("RENDER_DISK_PATH") or ""),
+        },
+        "artifacts": {},
+    }
     # Global picks
     try:
         p_global = OUT / "picks_raw.csv"
