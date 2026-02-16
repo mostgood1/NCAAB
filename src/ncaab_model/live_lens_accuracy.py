@@ -298,8 +298,16 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
 
     # Compute counterfactual strength + reclassify
     sig_df["remaining"] = sig_df.apply(_remaining_from_row, axis=1)
-    hz2 = pd.to_numeric(sig_df.get("horizon"), errors="coerce") if "horizon" in sig_df.columns else pd.Series([40.0] * len(sig_df))
-    el2 = pd.to_numeric(sig_df.get("elapsed"), errors="coerce") if "elapsed" in sig_df.columns else pd.Series([math.nan] * len(sig_df))
+    hz2 = (
+        pd.to_numeric(sig_df.get("horizon"), errors="coerce")
+        if "horizon" in sig_df.columns
+        else pd.Series([40.0] * len(sig_df), index=sig_df.index)
+    )
+    el2 = (
+        pd.to_numeric(sig_df.get("elapsed"), errors="coerce")
+        if "elapsed" in sig_df.columns
+        else pd.Series([math.nan] * len(sig_df), index=sig_df.index)
+    )
     rem2 = pd.to_numeric(sig_df.get("remaining"), errors="coerce")
     if el2.isna().any():
         try:
@@ -307,7 +315,11 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
         except Exception:
             pass
 
-    cf_strength = pd.to_numeric(sig_df.get("strength"), errors="coerce") if "strength" in sig_df.columns else pd.Series([math.nan] * len(sig_df))
+    cf_strength = (
+        pd.to_numeric(sig_df.get("strength"), errors="coerce")
+        if "strength" in sig_df.columns
+        else pd.Series([math.nan] * len(sig_df), index=sig_df.index)
+    )
 
     if cfg.apply_retune:
         pen = float(cfg.late_over_strength_penalty or 0.0)
@@ -326,7 +338,7 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
         is_over = side.eq("over")
         in_window = (rem2 > lo_r) & (rem2 <= hi_r)
 
-        period_ok = pd.Series([True] * len(sig_df))
+        period_ok = pd.Series([True] * len(sig_df), index=sig_df.index)
         if period_min > 1:
             if "period" in sig_df.columns:
                 per = pd.to_numeric(sig_df.get("period"), errors="coerce")
@@ -334,7 +346,7 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
             else:
                 period_ok = (hz2 >= 39) & el2.notna() & (el2 >= 20)
 
-        margin_ok = pd.Series([True] * len(sig_df))
+        margin_ok = pd.Series([True] * len(sig_df), index=sig_df.index)
         if margin_abs_min > 0:
             if "margin_home" in sig_df.columns:
                 m = pd.to_numeric(sig_df.get("margin_home"), errors="coerce")
@@ -864,7 +876,8 @@ def compute_live_lens_total_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[s
     if "lens" in sig_df.columns:
         lens0 = sig_df["lens"].astype(str).str.strip().str.lower()
     else:
-        lens0 = pd.Series([""] * len(sig_df))
+        # Preserve index alignment (sig_df is typically filtered and keeps original indices).
+        lens0 = pd.Series([""] * len(sig_df), index=sig_df.index)
 
     lens_norm = lens0
     lens_norm = lens_norm.replace({
@@ -882,7 +895,11 @@ def compute_live_lens_total_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[s
     # If lens is missing, fall back to horizon heuristic.
     if lens_norm.eq("").any() and "horizon" in sig_df.columns:
         hz = pd.to_numeric(sig_df.get("horizon"), errors="coerce")
-        per = pd.to_numeric(sig_df.get("period"), errors="coerce") if "period" in sig_df.columns else pd.Series([math.nan] * len(sig_df))
+        per = (
+            pd.to_numeric(sig_df.get("period"), errors="coerce")
+            if "period" in sig_df.columns
+            else pd.Series([math.nan] * len(sig_df), index=sig_df.index)
+        )
 
         def _infer(h: float | None, p: float | None) -> str:
             try:
@@ -905,7 +922,8 @@ def compute_live_lens_total_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[s
             _infer((float(h) if pd.notna(h) else None), (float(p) if pd.notna(p) else None))
             for h, p in zip(hz.tolist(), per.tolist())
         ]
-        lens_norm = lens_norm.where(~lens_norm.eq(""), other=pd.Series(inferred))
+        # IMPORTANT: preserve index alignment (sig_df likely has a filtered/non-contiguous index).
+        lens_norm = lens_norm.where(~lens_norm.eq(""), other=pd.Series(inferred, index=lens_norm.index))
 
     sig_df["lens"] = lens_norm
     sig_df = sig_df[sig_df["lens"].isin(["fg", "1h", "2h"])].copy()
@@ -929,7 +947,7 @@ def compute_live_lens_total_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[s
         sig_df["ts"] = sig_df["ts"].astype(str)
         ts_parsed = pd.to_datetime(sig_df["ts"], errors="coerce", utc=True)
     else:
-        ts_parsed = pd.Series([pd.NaT] * len(sig_df))
+        ts_parsed = pd.Series([pd.NaT] * len(sig_df), index=sig_df.index)
         sig_df["ts"] = None
 
     sig_df["_ts_parsed"] = ts_parsed
