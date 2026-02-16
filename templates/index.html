@@ -2226,6 +2226,8 @@
           if(!lensKind) lensKind = null;
 
           var payload = {
+            schema_version: 2,
+            logic_version: 'live_lens_v2',
             ts: (new Date()).toISOString(),
             date: getSlateDate() || null,
             game_id: gid,
@@ -2302,6 +2304,8 @@
           } catch(eP2){ pbp = null; }
 
           var payload = {
+            schema_version: 2,
+            logic_version: 'live_lens_v2',
             ts: (new Date()).toISOString(),
             date: getSlateDate() || null,
             game_id: gid,
