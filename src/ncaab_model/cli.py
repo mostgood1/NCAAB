@@ -2017,6 +2017,39 @@ def finalize_day(
 
     Intended to run after games finish. Safe to re-run; will overwrite unless disabled.
     """
+    # When called programmatically (e.g., from Flask) rather than via Typer CLI,
+    # Typer's OptionInfo objects can leak into defaulted parameters. Normalize
+    # them to concrete defaults so the function can run.
+    try:
+        from typer.models import OptionInfo as _TyperOptionInfo  # type: ignore
+    except Exception:  # pragma: no cover
+        _TyperOptionInfo = None  # type: ignore
+    if _TyperOptionInfo is not None:
+        if isinstance(provider, _TyperOptionInfo):
+            provider = "espn"
+        if isinstance(secondary_provider, _TyperOptionInfo):
+            secondary_provider = "ncaa"
+        if isinstance(games_csv, _TyperOptionInfo):
+            games_csv = settings.outputs_dir / "games_all.csv"
+        if isinstance(predictions_csv, _TyperOptionInfo):
+            predictions_csv = settings.outputs_dir / "predictions_week.csv"
+        if isinstance(odds_csv, _TyperOptionInfo):
+            odds_csv = settings.outputs_dir / "games_with_last.csv"
+        if isinstance(boxscores_csv, _TyperOptionInfo):
+            boxscores_csv = settings.outputs_dir / "boxscores_prev.csv"
+        if isinstance(out_dir, _TyperOptionInfo):
+            out_dir = settings.outputs_dir / "daily_results"
+        if isinstance(overwrite, _TyperOptionInfo):
+            overwrite = True
+        if isinstance(include_halves, _TyperOptionInfo):
+            include_halves = True
+        if isinstance(halftime_cutoff_min, _TyperOptionInfo):
+            halftime_cutoff_min = 45
+        if isinstance(use_cache, _TyperOptionInfo):
+            use_cache = True
+        if isinstance(overrides_csv, _TyperOptionInfo):
+            overrides_csv = None
+
     try:
         d_obj = dt.date.fromisoformat(date)
     except Exception:
