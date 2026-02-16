@@ -12061,6 +12061,146 @@ def compute_live_lens_side_accuracy_cmd(
     print(wrote)
 
 
+@app.command(name="report-live-lens-side-accuracy")
+def report_live_lens_side_accuracy_cmd(
+    date: str = typer.Option(None, help="Single slate date YYYY-MM-DD (mutually exclusive with start/end)."),
+    start_date: str | None = typer.Option(None, help="Start date YYYY-MM-DD (inclusive). Defaults to end_date - days + 1."),
+    end_date: str | None = typer.Option(None, help="End date YYYY-MM-DD (inclusive). Defaults to yesterday local."),
+    days: int = typer.Option(5, help="Number of days to include when start_date not provided (default 5)."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    full_game_only: bool = typer.Option(False, help="Only evaluate full-game lens (default false)."),
+    out_json: Path = typer.Option(None, help="Output JSON path (default: outputs/live_lens_side_accuracy_rollup_<start>_<end>.json)."),
+    out_csv: Path = typer.Option(None, help="Output CSV path (default: outputs/live_lens_side_accuracy_rollup_<start>_<end>.csv)."),
+):
+    """Roll up Live Lens totals side-based accuracy across multiple days.
+
+    This uses the same logic as `compute-live-lens-side-accuracy` (one row per game/lens/side)
+    but runs it across a date window for quick “last few days” assessment.
+    """
+
+    import math
+
+    import pandas as pd
+
+    def _yesterday_local() -> dt.date:
+        try:
+            return _today_local() - dt.timedelta(days=1)
+        except Exception:
+            return dt.date.today() - dt.timedelta(days=1)
+
+    if date and (start_date or end_date):
+        print("[red]Provide either --date OR --start-date/--end-date (not both).[/red]")
+        raise typer.Exit(code=2)
+
+    dates: list[str]
+    if date:
+        dates = [str(date).strip()]
+        start_s = dates[0]
+        end_s = dates[0]
+    else:
+        end_d = dt.date.fromisoformat(str(end_date).strip()) if end_date else _yesterday_local()
+        if start_date:
+            start_d = dt.date.fromisoformat(str(start_date).strip())
+        else:
+            dd = int(days) if int(days) > 0 else 1
+            start_d = end_d - dt.timedelta(days=dd - 1)
+        if start_d > end_d:
+            print("[red]start_date must be <= end_date[/red]")
+            raise typer.Exit(code=2)
+        start_s = start_d.isoformat()
+        end_s = end_d.isoformat()
+        dates = iter_date_range(start_s, end_s)
+
+    if out_json is None:
+        out_json = Path("outputs") / f"live_lens_side_accuracy_rollup_{start_s}_{end_s}.json"
+    if out_csv is None:
+        out_csv = Path("outputs") / f"live_lens_side_accuracy_rollup_{start_s}_{end_s}.csv"
+
+    roll_rows: list[dict[str, Any]] = []
+    summary_rows: list[dict[str, Any]] = []
+    missing: list[dict[str, Any]] = []
+
+    for d in dates:
+        cfg = LiveLensAccuracyConfig(date=str(d), assume_price=float(price), full_game_only=bool(full_game_only))
+        payload = compute_live_lens_total_side_accuracy(cfg)
+        if payload.get("summary") is None:
+            missing.append({"date": str(d), "status": payload.get("status"), "message": payload.get("message"), "signals_path": payload.get("signals_path"), "results_path": payload.get("results_path")})
+            continue
+
+        summ = payload["summary"]
+        summary_rows.append({
+            "date": str(d),
+            "n_signals_raw": int(summ.get("n_signals_raw") or 0),
+            "n_signals_used": int(summ.get("n_signals_used") or 0),
+            "n_settled": int(summ.get("n_settled") or 0),
+            "wins": int(summ.get("wins") or 0),
+            "losses": int(summ.get("losses") or 0),
+            "pushes": int(summ.get("pushes") or 0),
+            "win_rate": summ.get("win_rate"),
+            "roi_units_per_bet": summ.get("roi_units_per_bet"),
+        })
+
+        by_ls = summ.get("by_lens_side") if isinstance(summ.get("by_lens_side"), list) else []
+        for r in by_ls:
+            try:
+                n = int(r.get("n") or 0)
+                roi = r.get("roi_units_per_bet")
+                roi_f = float(roi) if roi is not None and roi != "" else math.nan
+            except Exception:
+                n = 0
+                roi_f = math.nan
+            roll_rows.append({
+                "date": str(d),
+                "lens": r.get("lens"),
+                "side": r.get("side"),
+                "n": int(r.get("n") or 0),
+                "wins": int(r.get("wins") or 0),
+                "losses": int(r.get("losses") or 0),
+                "pushes": int(r.get("pushes") or 0),
+                "win_rate": r.get("win_rate"),
+                "roi_units_per_bet": roi_f,
+                "profit_units_est": (roi_f * n) if (n > 0 and math.isfinite(roi_f)) else math.nan,
+            })
+
+    df = pd.DataFrame(roll_rows)
+    if not df.empty:
+        out_csv.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(Path(out_csv), index=False)
+
+    # Build an aggregate across the window (lens x side)
+    agg: list[dict[str, Any]] = []
+    if not df.empty:
+        for (lens, side), g in df.groupby(["lens", "side"]):
+            n = int(g["n"].fillna(0).sum())
+            w = int(g["wins"].fillna(0).sum())
+            l = int(g["losses"].fillna(0).sum())
+            p = int(g["pushes"].fillna(0).sum())
+            denom = w + l
+            win_rate = (w / denom) if denom > 0 else None
+            profit = float(g["profit_units_est"].replace([math.inf, -math.inf], math.nan).fillna(0.0).sum())
+            roi = (profit / n) if n > 0 else None
+            agg.append({"lens": str(lens), "side": str(side), "n": n, "wins": w, "losses": l, "pushes": p, "win_rate": win_rate, "roi_units_per_bet": roi})
+        agg.sort(key=lambda x: (x["lens"], x["side"]))
+
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    payload_out = {
+        "status": "ok",
+        "policy": "signal_side",
+        "start_date": start_s,
+        "end_date": end_s,
+        "dates": dates,
+        "assume_price": float(price),
+        "full_game_only": bool(full_game_only),
+        "missing": missing,
+        "by_date": summary_rows,
+        "by_lens_side": agg,
+        "out_csv": str(out_csv),
+    }
+    out_json.write_text(json.dumps(payload_out, indent=2), encoding="utf-8")
+
+    print({"status": "ok", "out_json": str(out_json), "out_csv": str(out_csv), "dates": dates, "missing": len(missing)})
+
+
 @app.command(name="compute-live-lens-projection-accuracy")
 def compute_live_lens_projection_accuracy_cmd(
     date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: yesterday local)."),
