@@ -35513,6 +35513,78 @@ def api_finalize_day():
         return jsonify({"ok": False, "date": date_q, "error": str(e)}), 500
 
 
+@app.route("/api/live_lens_side_accuracy")
+def api_live_lens_side_accuracy():
+    """Compute Live Lens totals O/U side accuracy for a date.
+
+    Example:
+      - /api/live_lens_side_accuracy?date=YYYY-MM-DD
+      - /api/live_lens_side_accuracy?date=YYYY-MM-DD&download=csv
+
+    Writes:
+      - outputs/live_lens_side_accuracy_<date>.json
+      - outputs/live_lens_side_accuracy_<date>.csv
+    """
+    date_q = (request.args.get("date") or "").strip()
+    download = (request.args.get("download") or "").strip().lower()
+    full_game_only_q = (request.args.get("full_game_only") or "").strip().lower()
+    assume_price_q = (request.args.get("assume_price") or "").strip()
+
+    if not date_q:
+        try:
+            from zoneinfo import ZoneInfo as _ZoneInfo
+
+            tz_name = os.getenv("NCAAB_SCHEDULE_TZ", "America/New_York")
+            date_q = dt.datetime.now(_ZoneInfo(tz_name)).date().isoformat()
+        except Exception:
+            date_q = dt.date.today().isoformat()
+
+    try:
+        from ncaab_model.live_lens_accuracy import (
+            LiveLensAccuracyConfig,
+            compute_live_lens_total_side_accuracy,
+            write_live_lens_accuracy,
+        )
+    except Exception as e:
+        return jsonify({"ok": False, "date": date_q, "error": f"import_failed: {e}"}), 500
+
+    try:
+        full_game_only = full_game_only_q in ("1", "true", "yes", "on")
+        assume_price = float(assume_price_q) if assume_price_q else -110.0
+
+        cfg = LiveLensAccuracyConfig(
+            date=str(date_q),
+            out_dir=OUT,
+            daily_results_dir=(OUT / "daily_results"),
+            assume_price=assume_price,
+            full_game_only=bool(full_game_only),
+        )
+        payload = compute_live_lens_total_side_accuracy(cfg)
+
+        out_json = OUT / f"live_lens_side_accuracy_{date_q}.json"
+        out_csv = OUT / f"live_lens_side_accuracy_{date_q}.csv"
+        write_info = write_live_lens_accuracy(out_json, payload, out_csv=out_csv)
+
+        if download == "csv":
+            if out_csv.exists():
+                return send_file(out_csv, as_attachment=True, download_name=out_csv.name, mimetype="text/csv")
+            return jsonify({"ok": False, "date": date_q, "error": "csv_missing_after_compute"}), 500
+        if download == "json":
+            if out_json.exists():
+                return send_file(out_json, as_attachment=True, download_name=out_json.name, mimetype="application/json")
+            return jsonify({"ok": False, "date": date_q, "error": "json_missing_after_compute"}), 500
+
+        summary = payload.get("summary") if isinstance(payload, dict) else None
+        return jsonify({
+            "ok": True,
+            "date": date_q,
+            "write": write_info,
+            "summary": summary,
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "date": date_q, "error": str(e)}), 500
+
+
 @app.route("/api/refresh-odds")
 def api_refresh_odds():
     """Refresh today's (or provided date's) odds snapshot and rebuild last odds merge.
