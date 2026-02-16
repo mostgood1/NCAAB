@@ -114,6 +114,22 @@ def main() -> int:
         help="If --rebuild-sims is set, override simulator sample count (default: simulator's internal default)",
     )
     ap.add_argument("--min-games", type=int, default=50, help="Minimum merged games required")
+    ap.add_argument(
+        "--write-market-total-bins",
+        action="store_true",
+        help="Also fit and write market-total bucket calibration under 'market_total_bins'.",
+    )
+    ap.add_argument(
+        "--market-total-bins",
+        default="0,135,145,155,999",
+        help="Comma-separated bin edges for market_total bucket calibration (e.g. '0,135,145,155,999').",
+    )
+    ap.add_argument(
+        "--min-games-bin",
+        type=int,
+        default=60,
+        help="Minimum games required per market_total bin to write that bin's calibration.",
+    )
     ap.add_argument("--cap-abs-delta", type=float, default=25.0, help="Clamp |delta_total| and |delta_margin| to this value")
     ap.add_argument("--cap-abs-delta-1h", type=float, default=15.0, help="Clamp |delta_total_1h| and |delta_margin_1h| to this value")
     ap.add_argument("--cap-sigma-mult", type=float, default=3.0, help="Clamp sigma_total_mult and sigma_margin_mult to [0.5, cap]")
@@ -224,6 +240,9 @@ def main() -> int:
             "mu_margin",
             "sigma_total",
             "sigma_margin",
+            "market_total",
+            "q50_total",
+            "q50_margin",
             "mu_total_1h",
             "mu_margin_1h",
             "sigma_total_1h",
@@ -267,6 +286,11 @@ def main() -> int:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
+    # Optional quantile centers (prefer these for totals calibration when present)
+    for c in ["q50_total", "q50_margin"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+
     # Filter to real finals and derive actual_total/actual_margin from the final score columns.
     # Some results rows can contain placeholder 0/0 scores; those must not influence calibration.
     if "home_score" in df.columns and "away_score" in df.columns:
@@ -280,9 +304,17 @@ def main() -> int:
         if "actual_total" in df.columns:
             df = df[df["actual_total"].notna() & (df["actual_total"] > 0)].copy()
 
-    df = df.dropna(subset=["actual_total", "actual_margin", "mu_total", "mu_margin", "sigma_total"])
+    # Prefer q50_* as the center if present; fallback to mu_*.
+    center_total_col = "q50_total" if "q50_total" in df.columns else "mu_total"
+    center_margin_col = "q50_margin" if "q50_margin" in df.columns else "mu_margin"
+
+    df = df.dropna(subset=["actual_total", "actual_margin", center_total_col, center_margin_col, "sigma_total"])
     df = df[df["actual_total"] > 0]
     df = df[df["sigma_total"] > 0]
+
+    # Optional market_total (for bucket calibration)
+    if "market_total" in df.columns:
+        df["market_total"] = pd.to_numeric(df["market_total"], errors="coerce")
 
     if len(df) < int(args.min_games):
         print(json.dumps({"error": "too_few_games", "n_games": int(len(df)), "min_games": int(args.min_games)}))
@@ -331,8 +363,8 @@ def main() -> int:
                 pass
     else:
         # Mean shifts (residual-on-current outputs); optionally accumulate on top of any prior calibration.
-        delta_total_resid = float(np.mean((df["actual_total"] - df["mu_total"]).astype(float)))
-        delta_margin_resid = float(np.mean((df["actual_margin"] - df["mu_margin"]).astype(float)))
+        delta_total_resid = float(np.mean((df["actual_total"] - df[center_total_col]).astype(float)))
+        delta_margin_resid = float(np.mean((df["actual_margin"] - df[center_margin_col]).astype(float)))
         delta_total = float(prior_delta_total + delta_total_resid)
         delta_margin = float(prior_delta_margin + delta_margin_resid)
         delta_total = _clamp_abs(delta_total, float(args.cap_abs_delta))
@@ -341,7 +373,7 @@ def main() -> int:
         # Sigma inflation: use absolute normalized residuals
         # Compute z on *current* sigma columns (may already include prior inflation)
         # and then scale multipliers on top of prior multipliers.
-        z_total = ((df["actual_total"] - (df["mu_total"] + delta_total_resid)) / df["sigma_total"]).astype(float)
+        z_total = ((df["actual_total"] - (df[center_total_col] + delta_total_resid)) / df["sigma_total"]).astype(float)
         z_total = z_total.replace([np.inf, -np.inf], np.nan).dropna()
         if len(z_total) == 0:
             sigma_total_mult_upd = 1.0
@@ -374,6 +406,62 @@ def main() -> int:
             "sigma_total_mult": sigma_total_mult,
             "sigma_margin_mult": sigma_margin_mult,
         })
+
+        # Optional: market_total bucket calibration (totals only)
+        if args.write_market_total_bins and "market_total" in df.columns:
+            try:
+                edges = [float(x.strip()) for x in str(args.market_total_bins).split(",") if str(x).strip()]
+                edges = sorted(set(edges))
+            except Exception:
+                edges = []
+            if len(edges) >= 2:
+                bins_out: list[dict] = []
+                for lo, hi in zip(edges[:-1], edges[1:]):
+                    try:
+                        dfi = df[(df["market_total"].notna()) & (df["market_total"] >= float(lo)) & (df["market_total"] < float(hi))].copy()
+                    except Exception:
+                        continue
+                    if len(dfi) < int(args.min_games_bin):
+                        continue
+
+                    # Bin residuals vs the same center used for global.
+                    dt_resid = float(np.mean((dfi["actual_total"] - dfi[center_total_col]).astype(float)))
+                    # Shrink bin adjustment toward global residual to reduce noise.
+                    shrink = float(len(dfi) / (len(dfi) + 200.0))
+                    shrink = float(np.clip(shrink, 0.0, 1.0))
+                    delta_add = float(shrink * (dt_resid - delta_total_resid))
+                    delta_add = _clamp_abs(delta_add, 12.0)
+
+                    zt = ((dfi["actual_total"] - (dfi[center_total_col] + dt_resid)) / dfi["sigma_total"]).astype(float)
+                    zt = zt.replace([np.inf, -np.inf], np.nan).dropna()
+                    if len(zt) == 0:
+                        mult_upd = 1.0
+                    else:
+                        q = float(np.quantile(np.abs(zt), 0.80))
+                        mult_upd = float(max(0.5, min(5.0, q / Z_80)))
+
+                    # Express sigma adjustment as a multiplicative factor on top of global update.
+                    try:
+                        ratio = float(mult_upd) / float(sigma_total_mult_upd if sigma_total_mult_upd else 1.0)
+                    except Exception:
+                        ratio = 1.0
+                    if not np.isfinite(ratio) or ratio <= 0:
+                        ratio = 1.0
+                    sigma_mult_mult = float(ratio ** shrink)
+                    sigma_mult_mult = float(np.clip(sigma_mult_mult, 0.75, 1.35))
+
+                    bins_out.append(
+                        {
+                            "min": float(lo),
+                            "max": float(hi),
+                            "n_games": int(len(dfi)),
+                            "delta_total_add": float(delta_add),
+                            "sigma_total_mult_mult": float(sigma_mult_mult),
+                        }
+                    )
+
+                if bins_out:
+                    calib["market_total_bins"] = bins_out
 
     # Estimate global rho from historical games by correlating centered per-team residuals.
     # Use the calibrated mean shifts so we don't bake in simple bias.

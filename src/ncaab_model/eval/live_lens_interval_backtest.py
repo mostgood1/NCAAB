@@ -31,6 +31,17 @@ class LiveLensClamps:
     pps_hi: float
 
 
+@dataclass(frozen=True)
+class IntervalCalibrationFitConfig:
+    bucket_min: float = 2.0
+    min_bucket_n: int = 250
+    shrink_tau: float = 1500.0
+    delta_cap: float = 18.0
+    target_cov: float = 0.80
+    sigma_mult_clip_lo: float = 0.70
+    sigma_mult_clip_hi: float = 1.60
+
+
 def _safe_read_json(path: Path) -> dict[str, Any] | None:
     try:
         with path.open("r", encoding="utf-8") as f:
@@ -153,6 +164,174 @@ def _clamp(v: float, lo: float, hi: float) -> float:
 
 def _period_from_elapsed(elapsed_min: float) -> int:
     return 1 if float(elapsed_min) <= 20.0 else 2
+
+
+def _elapsed_bucket_min(elapsed_min: float, bucket_min: float) -> int:
+    b = float(bucket_min)
+    if not np.isfinite(b) or b <= 0:
+        b = 2.0
+    try:
+        return int(np.floor(float(elapsed_min) / b) * b)
+    except Exception:
+        return int(float(elapsed_min))
+
+
+def fit_interval_calibration(
+    df: pd.DataFrame,
+    *,
+    cfg: IntervalCalibrationFitConfig | None = None,
+    projection_col: str = "proj_blend",
+    actual_col: str = "actual_total",
+    elapsed_col: str = "elapsed_min",
+) -> dict[str, Any]:
+    """Fit a simple elapsed-bucket calibration for live projections.
+
+    Model:
+      mu_cal = mu + global_delta_add + bucket_delta_add
+      sigma_cal = global_sigma * bucket_sigma_mult
+
+    where bucket adjustments are shrunk towards 0 based on bucket sample size.
+    """
+
+    cfg2 = cfg or IntervalCalibrationFitConfig()
+    if df is None or df.empty:
+        return {"status": "empty", "message": "No rows", "projection_col": projection_col}
+
+    d = df.copy()
+    mu = pd.to_numeric(d.get(projection_col), errors="coerce")
+    y = pd.to_numeric(d.get(actual_col), errors="coerce")
+    em = pd.to_numeric(d.get(elapsed_col), errors="coerce")
+    m = mu.notna() & y.notna() & em.notna()
+    if int(m.sum()) <= 0:
+        return {"status": "empty", "message": "No valid rows", "projection_col": projection_col}
+
+    mu = mu.loc[m]
+    y = y.loc[m]
+    em = em.loc[m]
+    err = (mu - y).astype(float)
+
+    global_bias = float(err.mean())
+    # Estimate sigma from residual 10/90 span so that a Normal(0,sigma)
+    # would imply ~80% central mass between q10 and q90.
+    z80 = 1.2815515655446004
+    denom = float(2.0 * z80)
+    resid_g = (err.values - global_bias).astype(float)
+    try:
+        q90 = float(np.quantile(resid_g, 0.90))
+        q10 = float(np.quantile(resid_g, 0.10))
+        span = float(q90 - q10)
+        global_sigma = float(span / denom) if abs(span) > 1e-9 else float("nan")
+    except Exception:
+        global_sigma = float("nan")
+    if not np.isfinite(global_sigma) or global_sigma <= 1e-6:
+        global_sigma = float(np.std(resid_g))
+    if not np.isfinite(global_sigma) or global_sigma <= 1e-6:
+        global_sigma = 12.0
+
+    global_delta_add = float(-global_bias)
+
+    bucket_min = float(cfg2.bucket_min)
+    bkeys = em.apply(lambda v: _elapsed_bucket_min(float(v), bucket_min))
+    tmp = pd.DataFrame({"bucket": bkeys, "err": err.values})
+
+    buckets: list[dict[str, Any]] = []
+    for b, g in tmp.groupby("bucket"):
+        n = int(len(g))
+        if n < int(cfg2.min_bucket_n):
+            continue
+        b_bias = float(g["err"].mean())
+        b_sigma = float("nan")
+        try:
+            resid_b = (g["err"].values.astype(float) - b_bias).astype(float)
+            q90b = float(np.quantile(resid_b, 0.90))
+            q10b = float(np.quantile(resid_b, 0.10))
+            span_b = float(q90b - q10b)
+            if abs(span_b) > 1e-9:
+                b_sigma = float(span_b / denom)
+        except Exception:
+            b_sigma = float("nan")
+        if not np.isfinite(b_sigma) or b_sigma <= 1e-6:
+            try:
+                b_sigma = float(np.std((g["err"].values.astype(float) - b_bias).astype(float)))
+            except Exception:
+                b_sigma = float("nan")
+        if not np.isfinite(b_sigma) or b_sigma <= 1e-6:
+            b_sigma = global_sigma
+
+        # Shrink factor towards global based on sample size.
+        shrink = float(n / (n + float(cfg2.shrink_tau)))
+        # Bucket delta is relative to global correction.
+        raw_bucket_delta = -(b_bias - global_bias)
+        bucket_delta_add = float(shrink * raw_bucket_delta)
+        if np.isfinite(cfg2.delta_cap) and cfg2.delta_cap > 0:
+            bucket_delta_add = float(np.clip(bucket_delta_add, -float(cfg2.delta_cap), float(cfg2.delta_cap)))
+
+        # Bucket sigma multiplier relative to global.
+        raw_mult = float(b_sigma / global_sigma) if global_sigma > 1e-6 else 1.0
+        raw_mult = float(np.clip(raw_mult, float(cfg2.sigma_mult_clip_lo), float(cfg2.sigma_mult_clip_hi)))
+        sigma_mult = float(1.0 + shrink * (raw_mult - 1.0))
+
+        buckets.append(
+            {
+                "elapsed_bucket_min": int(b),
+                "n": int(n),
+                "bucket_bias": float(b_bias),
+                "delta_add": float(bucket_delta_add),
+                "sigma_mult": float(sigma_mult),
+            }
+        )
+
+    buckets.sort(key=lambda r: int(r.get("elapsed_bucket_min") or 0))
+    return {
+        "status": "ok",
+        "version": 1,
+        "projection_col": str(projection_col),
+        "actual_col": str(actual_col),
+        "elapsed_col": str(elapsed_col),
+        "fit": {
+            "bucket_min": float(bucket_min),
+            "min_bucket_n": int(cfg2.min_bucket_n),
+            "shrink_tau": float(cfg2.shrink_tau),
+            "delta_cap": float(cfg2.delta_cap),
+            "target_cov": float(cfg2.target_cov),
+            "sigma_mult_clip": [float(cfg2.sigma_mult_clip_lo), float(cfg2.sigma_mult_clip_hi)],
+            "n_rows": int(len(err)),
+        },
+        "global": {"delta_add": float(global_delta_add), "sigma": float(global_sigma)},
+        "elapsed_buckets": buckets,
+    }
+
+
+def _apply_interval_calibration_row(
+    *,
+    elapsed_min: float | None,
+    mu: float | None,
+    calib: dict[str, Any] | None,
+) -> tuple[float | None, float | None]:
+    if mu is None or elapsed_min is None or calib is None:
+        return mu, None
+    try:
+        g = calib.get("global") if isinstance(calib, dict) else None
+        delta_g = float(g.get("delta_add")) if isinstance(g, dict) and g.get("delta_add") is not None else 0.0
+        sigma_g = float(g.get("sigma")) if isinstance(g, dict) and g.get("sigma") is not None else None
+        bucket_min = float(calib.get("fit", {}).get("bucket_min", 2.0))
+        bkey = _elapsed_bucket_min(float(elapsed_min), bucket_min)
+        delta_b = 0.0
+        sigma_mult = 1.0
+        for r in calib.get("elapsed_buckets") or []:
+            if isinstance(r, dict) and int(r.get("elapsed_bucket_min") or -999) == int(bkey):
+                if r.get("delta_add") is not None:
+                    delta_b = float(r.get("delta_add"))
+                if r.get("sigma_mult") is not None:
+                    sigma_mult = float(r.get("sigma_mult"))
+                break
+        mu2 = float(mu) + float(delta_g) + float(delta_b)
+        sigma2 = None
+        if sigma_g is not None and np.isfinite(float(sigma_g)) and float(sigma_g) > 1e-6:
+            sigma2 = float(sigma_g) * float(sigma_mult)
+        return mu2, sigma2
+    except Exception:
+        return mu, None
 
 
 def iter_interval_rows_for_game(
@@ -303,6 +482,7 @@ def run_interval_backtest(
     max_elapsed_min: float = 39.5,
     max_files: int = 0,
     use_tuning_clamps: bool = True,
+    calibration: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     from .pbp_synthetic_snapshots import index_pbp_cache_by_date
 
@@ -330,6 +510,32 @@ def run_interval_backtest(
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(rows)
+
+    # Optional: apply elapsed-bucket calibration to blend projection, and attach sigma + 80% interval coverage.
+    try:
+        if isinstance(calibration, dict) and ("global" in calibration):
+            mu = pd.to_numeric(df.get("proj_blend"), errors="coerce")
+            em = pd.to_numeric(df.get("elapsed_min"), errors="coerce")
+            y = pd.to_numeric(df.get("actual_total"), errors="coerce")
+            mu_cal: list[float | None] = []
+            sg_cal: list[float | None] = []
+            for e0, m0 in zip(em.to_numpy(dtype=float, na_value=np.nan), mu.to_numpy(dtype=float, na_value=np.nan)):
+                e1 = None if (not np.isfinite(e0)) else float(e0)
+                m1 = None if (not np.isfinite(m0)) else float(m0)
+                m2, s2 = _apply_interval_calibration_row(elapsed_min=e1, mu=m1, calib=calibration)
+                mu_cal.append(m2)
+                sg_cal.append(s2)
+            df["proj_blend_cal"] = pd.to_numeric(pd.Series(mu_cal), errors="coerce")
+            df["sigma_blend_cal"] = pd.to_numeric(pd.Series(sg_cal), errors="coerce")
+            df["err_blend_cal"] = df["proj_blend_cal"] - y
+            # Central 80% interval coverage based on calibrated sigma.
+            z80 = 1.2815515655446004
+            lo = df["proj_blend_cal"] - z80 * df["sigma_blend_cal"]
+            hi = df["proj_blend_cal"] + z80 * df["sigma_blend_cal"]
+            df["cov80_blend_cal"] = (y >= lo) & (y <= hi)
+    except Exception:
+        pass
+
     df.to_csv(out_csv, index=False)
 
     summary = summarize_interval_backtest(df)
@@ -370,6 +576,18 @@ def summarize_interval_backtest(df: pd.DataFrame) -> dict[str, Any]:
         "blend": _metric_block(df.get("err_blend")),
     }
 
+    # Optional calibrated projection summary.
+    try:
+        if "err_blend_cal" in df.columns:
+            out["overall"]["blend_cal"] = _metric_block(df.get("err_blend_cal"))
+        if "cov80_blend_cal" in df.columns:
+            cov = df.get("cov80_blend_cal")
+            cov2 = cov.dropna() if isinstance(cov, pd.Series) else None
+            if cov2 is not None and not cov2.empty:
+                out["overall"]["blend_cal_cov80"] = {"n": int(len(cov2)), "coverage": float(cov2.mean())}
+    except Exception:
+        pass
+
     # Bucket by elapsed minutes into 2-min bins for readability.
     try:
         em = pd.to_numeric(df.get("elapsed_min"), errors="coerce")
@@ -378,14 +596,23 @@ def summarize_interval_backtest(df: pd.DataFrame) -> dict[str, Any]:
         df2["elapsed_bucket_min"] = bucket
         rows: list[dict[str, Any]] = []
         for b, g in df2.dropna(subset=["elapsed_bucket_min"]).groupby("elapsed_bucket_min"):
-            rows.append(
-                {
-                    "elapsed_bucket_min": int(b),
-                    "pace": _metric_block(g.get("err_pace")),
-                    "clamped": _metric_block(g.get("err_clamped")),
-                    "blend": _metric_block(g.get("err_blend")),
-                }
-            )
+            row = {
+                "elapsed_bucket_min": int(b),
+                "pace": _metric_block(g.get("err_pace")),
+                "clamped": _metric_block(g.get("err_clamped")),
+                "blend": _metric_block(g.get("err_blend")),
+            }
+            if "err_blend_cal" in g.columns:
+                row["blend_cal"] = _metric_block(g.get("err_blend_cal"))
+            if "cov80_blend_cal" in g.columns:
+                try:
+                    cov = g.get("cov80_blend_cal")
+                    cov2 = cov.dropna() if isinstance(cov, pd.Series) else None
+                    if cov2 is not None and not cov2.empty:
+                        row["blend_cal_cov80"] = {"n": int(len(cov2)), "coverage": float(cov2.mean())}
+                except Exception:
+                    pass
+            rows.append(row)
         rows.sort(key=lambda r: r["elapsed_bucket_min"])
         out["by_elapsed_bucket"] = rows
     except Exception:

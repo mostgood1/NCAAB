@@ -207,6 +207,26 @@ try {
     Write-Warning "Live Lens tuning compute failed: $($_)"
   }
 
+  # 0.interval-cal) Ensure canonical Live Lens interval calibration artifact is present
+  # Used by /api/live_interval_calibration -> templates/index.html (Live Lens totals).
+  Write-Section "0.interval-cal) Ensure Live Lens interval calibration artifact"
+  try {
+    $calCanon = Join-Path $OutDir 'live_interval_calibration.json'
+    if (-not (Test-Path -LiteralPath $calCanon)) {
+      $cands = Get-ChildItem -Path $OutDir -Filter 'live_interval_calibration_*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+      if ($cands -and $cands.Count -gt 0) {
+        Copy-Item -LiteralPath $cands[0].FullName -Destination $calCanon -Force
+        Write-Host "[interval-cal] Copied newest -> live_interval_calibration.json ($($cands[0].Name))" -ForegroundColor DarkGray
+      } else {
+        Write-Host "[interval-cal] No calibration artifacts found; Live Lens will run uncalibrated." -ForegroundColor DarkGray
+      }
+    } else {
+      Write-Host "[interval-cal] Found live_interval_calibration.json" -ForegroundColor DarkGray
+    }
+  } catch {
+    Write-Warning "interval calibration artifact ensure failed: $($_)"
+  }
+
   # 0.weights) Refresh 5-min segment weights from season master backtest (fast, no network)
   Write-Section "0.weights) Refresh 5-min segment weights (from master backtest)"
   try {
@@ -1820,6 +1840,10 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
       if (Test-Path $gwc) { $toStage += $gwc }
       $pri = Join-Path $OutDir 'priors.csv'
       if (Test-Path $pri) { $toStage += $pri }
+
+      # Live Lens interval calibration (small JSON). If missing, Live Lens will fallback to uncalibrated.
+      $liveIntervalCal = Join-Path $OutDir 'live_interval_calibration.json'
+      if (Test-Path $liveIntervalCal) { $toStage += $liveIntervalCal }
 
       # Dated artifacts for reproducibility (allowlisted in .gitignore)
       $gamesToday = Join-Path $OutDir ("games_" + $todayIso + ".csv")

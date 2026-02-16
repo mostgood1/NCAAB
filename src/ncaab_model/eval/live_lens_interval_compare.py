@@ -44,7 +44,11 @@ def _compute_strength_and_action(df: pd.DataFrame, cfg: IntervalCompareConfig) -
     out["elapsed_min"] = _coerce_float_series(out.get("elapsed_min"))
     out["elapsed_sec"] = pd.to_numeric(out.get("elapsed_sec"), errors="coerce").astype("Int64")
     out["line_total"] = _coerce_float_series(out.get("line_total"))
-    out["proj_blend"] = _coerce_float_series(out.get("proj_blend"))
+
+    # Prefer calibrated blend projection when present.
+    proj_col = "proj_blend_cal" if ("proj_blend_cal" in out.columns) else "proj_blend"
+    out["proj_blend"] = _coerce_float_series(out.get(proj_col))
+    out["proj_blend_source"] = proj_col
 
     edge = out["proj_blend"] - out["line_total"]
     out["edge"] = edge

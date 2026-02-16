@@ -67,7 +67,7 @@ function Upload-File {
 
             if (-not $resp.IsSuccessStatusCode) {
                 # Optional endpoints may not exist on older deployments; treat as skip.
-                if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_projections|upload_live_lens_tuning')) {
+                if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_projections|upload_live_lens_tuning|upload_live_interval_calibration')) {
                     Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                     return @{ status = 'skipped'; code = 404; uri = $Uri }
                 }
@@ -145,6 +145,7 @@ $liveFeaturesPath = Join-Path -Path $OutputsDir -ChildPath ("live_features_{0}.c
 $liveLensSignalsPath = Join-Path -Path $OutputsDir -ChildPath ("live_lens_signals_{0}.jsonl" -f $Date)
 $liveLensProjectionsPath = Join-Path -Path $OutputsDir -ChildPath ("live_lens_projections_{0}.jsonl" -f $Date)
 $liveLensTuningPath = Join-Path -Path $OutputsDir -ChildPath 'live_lens_tuning.json'
+$liveIntervalCalibrationPath = Join-Path -Path $OutputsDir -ChildPath 'live_interval_calibration.json'
 ${needSimRetry} = $false
 
 Write-Step "Using date=$Date, baseUrl=$BaseUrl"
@@ -798,6 +799,14 @@ if (Test-Path -LiteralPath $liveLensTuningPath) {
     elseif ($uLlt) { Write-Host "[OK] live_lens_tuning uploaded" -ForegroundColor Green }
 } else {
     Write-Host "[Skip] live_lens_tuning.json missing" -ForegroundColor Yellow
+}
+
+if (Test-Path -LiteralPath $liveIntervalCalibrationPath) {
+    $uLic = Upload-File -Uri "$BaseUrl/api/upload_live_interval_calibration" -FilePath $liveIntervalCalibrationPath
+    if ($uLic -and ($uLic.status -eq 'skipped')) { Write-Host "[Skip] upload_live_interval_calibration endpoint unavailable" -ForegroundColor Yellow }
+    elseif ($uLic) { Write-Host "[OK] live_interval_calibration uploaded" -ForegroundColor Green }
+} else {
+    Write-Host "[Skip] live_interval_calibration.json missing" -ForegroundColor Yellow
 }
 
 # Proactive: persist display snapshot after uploads (upload-only mode)

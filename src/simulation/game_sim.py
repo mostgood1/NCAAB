@@ -1515,12 +1515,15 @@ def _resolve_mean_total_margin(
 
     if total_candidates:
         total = total_candidates[0][1]
-        if allow_market_guardrails and market_total is not None and abs(float(total) - float(market_total)) > 35.0:
-            alt = next((v for _, v in total_candidates if abs(float(v) - float(market_total)) <= 35.0), None)
-            if alt is not None:
-                total = float(alt)
-            else:
-                total = float(market_total)
+        if allow_market_guardrails and market_total is not None:
+            try:
+                diff = float(total) - float(market_total)
+                # Guardrail goal: prevent wrong-scale blowups, not hug market.
+                # Soft clamp keeps the selected mean within a wide band around market.
+                if np.isfinite(diff) and abs(diff) > 35.0:
+                    total = float(market_total) + float(np.clip(diff, -35.0, 35.0))
+            except Exception:
+                pass
     else:
         total = None
 
@@ -1536,12 +1539,13 @@ def _resolve_mean_total_margin(
 
     if margin_candidates:
         margin = margin_candidates[0][1]
-        if allow_market_guardrails and market_margin is not None and abs(float(margin) - float(market_margin)) > 25.0:
-            alt = next((v for _, v in margin_candidates if abs(float(v) - float(market_margin)) <= 25.0), None)
-            if alt is not None:
-                margin = float(alt)
-            else:
-                margin = float(market_margin)
+        if allow_market_guardrails and market_margin is not None:
+            try:
+                diff = float(margin) - float(market_margin)
+                if np.isfinite(diff) and abs(diff) > 25.0:
+                    margin = float(market_margin) + float(np.clip(diff, -25.0, 25.0))
+            except Exception:
+                pass
     else:
         margin = None
 
@@ -1743,10 +1747,95 @@ def _apply_sim_calibration(
     if not calibration:
         return total_mean, margin_mean, sigma_total, sigma_margin, {}
 
+    # Optional: bucketed calibration by market total.
+    # Format:
+    #   {
+    #     "market_total_bins": [
+    #       {"min": 0, "max": 130, "delta_total": ..., "sigma_total_mult": ...},
+    #       ...
+    #     ],
+    #     ... (global fallback keys)
+    #   }
+    # If a bin matches and contains keys, they override the global values.
+    try:
+        mt = calibration.get("_market_total")
+    except Exception:
+        mt = None
+    bin_applied: dict = {}
+    if mt is not None:
+        try:
+            mtf = float(mt)
+        except Exception:
+            mtf = None
+        if mtf is not None and np.isfinite(mtf):
+            try:
+                bins = calibration.get("market_total_bins")
+            except Exception:
+                bins = None
+            if isinstance(bins, list) and bins:
+                chosen = None
+                for b in bins:
+                    if not isinstance(b, dict):
+                        continue
+                    bmin = b.get("min", None)
+                    bmax = b.get("max", None)
+                    try:
+                        lo = float(bmin) if bmin is not None else -np.inf
+                        hi = float(bmax) if bmax is not None else np.inf
+                    except Exception:
+                        continue
+                    if mtf >= lo and mtf < hi:
+                        chosen = b
+                        break
+                if isinstance(chosen, dict):
+                    bin_applied = {
+                        "market_total_bin_min": chosen.get("min"),
+                        "market_total_bin_max": chosen.get("max"),
+                    }
+                    # Prefer additive/multiplicative adjustments; fall back to legacy overrides.
+                    bin_delta_total_add = chosen.get("delta_total_add", None)
+                    bin_sigma_total_mult_mult = chosen.get("sigma_total_mult_mult", None)
+                    bin_delta_total = chosen.get("delta_total", None)
+                    bin_delta_margin = chosen.get("delta_margin", None)
+                    bin_sigma_total_mult = chosen.get("sigma_total_mult", None)
+                    bin_sigma_margin_mult = chosen.get("sigma_margin_mult", None)
+                else:
+                    bin_delta_total_add = bin_sigma_total_mult_mult = None
+                    bin_delta_total = bin_delta_margin = bin_sigma_total_mult = bin_sigma_margin_mult = None
+            else:
+                bin_delta_total_add = bin_sigma_total_mult_mult = None
+                bin_delta_total = bin_delta_margin = bin_sigma_total_mult = bin_sigma_margin_mult = None
+        else:
+            bin_delta_total_add = bin_sigma_total_mult_mult = None
+            bin_delta_total = bin_delta_margin = bin_sigma_total_mult = bin_sigma_margin_mult = None
+    else:
+        bin_delta_total_add = bin_sigma_total_mult_mult = None
+        bin_delta_total = bin_delta_margin = bin_sigma_total_mult = bin_sigma_margin_mult = None
+
     delta_total = float(calibration.get("delta_total", 0.0) or 0.0)
     delta_margin = float(calibration.get("delta_margin", 0.0) or 0.0)
     sigma_total_mult = float(calibration.get("sigma_total_mult", 1.0) or 1.0)
     sigma_margin_mult = float(calibration.get("sigma_margin_mult", 1.0) or 1.0)
+
+    # Apply bin adjustments / overrides if provided.
+    try:
+        # Preferred: adjustments on top of globals.
+        if bin_delta_total_add is not None:
+            delta_total = float(delta_total) + float(bin_delta_total_add)
+        if bin_sigma_total_mult_mult is not None:
+            sigma_total_mult = float(sigma_total_mult) * float(bin_sigma_total_mult_mult)
+
+        # Legacy: absolute overrides (kept for backward compatibility).
+        if bin_delta_total is not None:
+            delta_total = float(bin_delta_total)
+        if bin_delta_margin is not None:
+            delta_margin = float(bin_delta_margin)
+        if bin_sigma_total_mult is not None:
+            sigma_total_mult = float(bin_sigma_total_mult)
+        if bin_sigma_margin_mult is not None:
+            sigma_margin_mult = float(bin_sigma_margin_mult)
+    except Exception:
+        pass
 
     # Guardrails: calibration artifacts can drift/accumulate; never allow extreme
     # global uncertainty inflation to dominate outputs.
@@ -1770,6 +1859,8 @@ def _apply_sim_calibration(
         "sigma_total_mult": sigma_total_mult,
         "sigma_margin_mult": sigma_margin_mult,
     }
+    if bin_applied:
+        meta.update(bin_applied)
     return total_mean2, margin_mean2, sigma_total2, sigma_margin2, meta
 
 
@@ -2113,12 +2204,22 @@ def simulate_game_row(
 
     calib_applied = {}
     if sim_calibration:
+        # Provide current market_total (if present) for optional bucketed calibration.
+        sim_calibration_ctx = sim_calibration
+        try:
+            if isinstance(sim_calibration, dict):
+                mt_for_bin = _resolve_market_total(row)
+                if mt_for_bin is not None and np.isfinite(float(mt_for_bin)):
+                    sim_calibration_ctx = dict(sim_calibration)
+                    sim_calibration_ctx["_market_total"] = float(mt_for_bin)
+        except Exception:
+            sim_calibration_ctx = sim_calibration
         total_mean, margin_mean, sigma_total, sigma_margin, calib_applied = _apply_sim_calibration(
             float(total_mean),
             float(margin_mean),
             float(sigma_total),
             sigma_margin,
-            sim_calibration,
+            sim_calibration_ctx,
         )
 
     # Preserve trace of what ultimately became the targets.

@@ -177,10 +177,13 @@ try:
                 '/api/recommendations-display',
                 '/api/picks_raw',
                 '/api/debug_artifacts',
+                '/api/live_lens_tuning',
+                '/api/live_interval_calibration',
                 '/api/upload_picks_raw',
                 '/api/upload_predictions_display',
                 '/api/upload_align_edges',
-                '/api/upload_daily_results'
+                '/api/upload_daily_results',
+                '/api/upload_live_interval_calibration'
             }
             # Allow version and health endpoints for diagnostics
             allowed.add('/api/version')
@@ -21913,6 +21916,121 @@ def api_live_lens_tuning():
     return jsonify(payload), 200
 
 
+@app.get("/api/live_interval_calibration")
+def api_live_interval_calibration():
+    """Serve Live Lens interval calibration artifact for totals projections.
+
+    Source (best-effort):
+      - outputs/live_interval_calibration.json
+      - else newest outputs/live_interval_calibration_*.json
+
+    If missing/invalid, returns a no-op default calibration.
+    """
+
+    try:
+        ttl = int((request.args.get("ttl") or "3600").strip())
+    except Exception:
+        ttl = 3600
+    ttl = max(0, min(ttl, 24 * 3600))
+
+    # Minimal in-memory cache.
+    global _LIVE_INTERVAL_CALIBRATION_CACHE
+    try:
+        import time
+
+        now_ts = float(time.time())
+        mtime = None
+        sel_name = None
+        try:
+            p0 = OUT / "live_interval_calibration.json"
+            if p0.exists():
+                mtime = float(p0.stat().st_mtime)
+                sel_name = "live_interval_calibration.json"
+            else:
+                cands = list(OUT.glob("live_interval_calibration_*.json"))
+                if cands:
+                    best = max(cands, key=lambda p: float(p.stat().st_mtime))
+                    mtime = float(best.stat().st_mtime)
+                    sel_name = str(best.name)
+        except Exception:
+            mtime = None
+            sel_name = None
+
+        cache_key = f"live_interval_calibration|{ttl}|{sel_name}|{mtime}"
+        if ttl > 0 and isinstance(_LIVE_INTERVAL_CALIBRATION_CACHE.get("payload"), dict):
+            ts0 = float(_LIVE_INTERVAL_CALIBRATION_CACHE.get("ts") or 0.0)
+            k0 = _LIVE_INTERVAL_CALIBRATION_CACHE.get("key")
+            if k0 == cache_key and (now_ts - ts0) <= float(ttl):
+                payload0 = dict(_LIVE_INTERVAL_CALIBRATION_CACHE.get("payload") or {})
+                return jsonify(payload0), 200
+    except Exception:
+        pass
+
+    payload: dict[str, object] = {
+        "status": "ok",
+        "version": 1,
+        "source": "defaults",
+        "projection_col": "proj_blend",
+        "actual_col": "actual_total",
+        "elapsed_col": "elapsed_min",
+        "fit": {"bucket_min": 2.0},
+        "global": {"delta_add": 0.0, "sigma": None},
+        "elapsed_buckets": [],
+    }
+
+    p_sel: Path | None = None
+    try:
+        p = OUT / "live_interval_calibration.json"
+        if p.exists():
+            p_sel = p
+        else:
+            cands = list(OUT.glob("live_interval_calibration_*.json"))
+            if cands:
+                p_sel = max(cands, key=lambda pp: float(pp.stat().st_mtime))
+    except Exception:
+        p_sel = None
+
+    try:
+        if p_sel is not None and p_sel.exists():
+            try:
+                raw = p_sel.read_text(encoding="utf-8")
+            except Exception:
+                raw = p_sel.read_text(encoding="utf-8", errors="ignore")
+            import json as _json2
+
+            j = _json2.loads(raw)
+            if isinstance(j, dict):
+                merged = dict(payload)
+                merged.update(j)
+                merged["status"] = "ok"
+                merged["source"] = f"outputs/{p_sel.name}"
+                payload = merged
+    except Exception:
+        pass
+
+    # Cache.
+    try:
+        import time
+
+        mtime = None
+        sel_name = None
+        try:
+            if p_sel is not None and p_sel.exists():
+                mtime = float(p_sel.stat().st_mtime)
+                sel_name = str(p_sel.name)
+        except Exception:
+            mtime = None
+            sel_name = None
+
+        _LIVE_INTERVAL_CALIBRATION_CACHE["ts"] = float(time.time())
+        _LIVE_INTERVAL_CALIBRATION_CACHE["key"] = f"live_interval_calibration|{ttl}|{sel_name}|{mtime}"
+        _LIVE_INTERVAL_CALIBRATION_CACHE["payload"] = dict(payload)
+    except Exception:
+        pass
+
+    return jsonify(payload), 200
+
+
 @app.get("/api/live_pbp_stats")
 def api_live_pbp_stats():
     """Return ESPN play-by-play derived stats keyed by ESPN event id.
@@ -22203,6 +22321,7 @@ def api_live_pbp_stats():
 
 # ---- Live odds lines (TheOddsAPI) for Live Lens auto-fill ----
 _LIVE_LENS_TUNING_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
+_LIVE_INTERVAL_CALIBRATION_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
 _LIVE_LINES_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
 _LIVE_LENS_SIGNAL_SEEN: dict[str, float] = {}
 _LIVE_LENS_PROJECTION_SEEN: dict[str, float] = {}
@@ -33893,6 +34012,57 @@ def api_upload_daily_results():
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
         return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q, "path": str(out_path)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/upload_live_interval_calibration", methods=["POST"])
+def api_upload_live_interval_calibration():
+    """Upload a Live Lens interval calibration JSON artifact to outputs.
+
+    Accepts either a multipart file field named 'file' or raw JSON text in the request body.
+    Writes to outputs/live_interval_calibration.json.
+    """
+    try:
+        json_bytes: bytes | None = None
+        if "file" in request.files:
+            f = request.files["file"]
+            json_bytes = f.read()
+        else:
+            data = request.get_data() or b""
+            json_bytes = data if data else None
+
+        if not json_bytes:
+            return jsonify({"status": "error", "message": "no JSON content provided"}), 400
+
+        try:
+            raw = json_bytes.decode("utf-8")
+        except Exception:
+            raw = json_bytes.decode("utf-8", errors="ignore")
+
+        import json as _json2
+
+        j = _json2.loads(raw)
+        if not isinstance(j, dict):
+            return jsonify({"status": "error", "message": "invalid JSON: expected object"}), 400
+
+        out_path = OUT / "live_interval_calibration.json"
+        try:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(_json2.dumps(j, indent=2, sort_keys=True), encoding="utf-8")
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        # Bust cache.
+        try:
+            global _LIVE_INTERVAL_CALIBRATION_CACHE
+            _LIVE_INTERVAL_CALIBRATION_CACHE["ts"] = 0.0
+            _LIVE_INTERVAL_CALIBRATION_CACHE["key"] = None
+            _LIVE_INTERVAL_CALIBRATION_CACHE["payload"] = None
+        except Exception:
+            pass
+
+        return jsonify({"status": "ok", "path": str(out_path)})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

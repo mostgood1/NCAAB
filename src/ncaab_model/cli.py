@@ -13990,6 +13990,7 @@ def backtest_live_intervals_cmd(
     max_elapsed_min: float = typer.Option(39.5, help="Stop sampling at this many elapsed minutes."),
     cache_dir: Path = typer.Option(None, help="PBP cache dir (default: data/cache/espn_pbp)."),
     out_csv: Path = typer.Option(None, help="Output CSV path (default: outputs/live_interval_backtest_<start>_<end>_<step>s.csv)."),
+    calibration_json: Path = typer.Option(None, help="Optional calibration JSON (from fit-live-interval-calibration) to apply; writes proj_blend_cal/sigma_blend_cal columns."),
     max_files: int = typer.Option(0, help="Optional cap on cache files scanned (0=all)."),
     no_tuning_clamps: bool = typer.Option(False, help="Disable tuning-based pace/pps clamps."),
 ):
@@ -14036,6 +14037,15 @@ def backtest_live_intervals_cmd(
     try:
         from .eval.live_lens_interval_backtest import run_interval_backtest
 
+        calib = None
+        if calibration_json is not None and Path(calibration_json).exists():
+            try:
+                import json as _json
+
+                calib = _json.loads(Path(calibration_json).read_text(encoding="utf-8"))
+            except Exception:
+                calib = None
+
         payload = run_interval_backtest(
             cache_dir=Path(cache_dir),
             start_date=start_dt,
@@ -14046,6 +14056,7 @@ def backtest_live_intervals_cmd(
             max_elapsed_min=float(max_elapsed_min),
             max_files=int(max_files),
             use_tuning_clamps=(not bool(no_tuning_clamps)),
+            calibration=calib,
         )
         print(payload)
 
@@ -14064,6 +14075,45 @@ def backtest_live_intervals_cmd(
 
     # Important: exit cleanly. (Avoid accidentally executing unrelated command logic
     # if this file is edited/merged incorrectly in the future.)
+    return
+
+
+@app.command(name="fit-live-interval-calibration")
+def fit_live_interval_calibration_cmd(
+    backtest_csv: Path = typer.Option(..., help="Interval backtest CSV produced by backtest-live-intervals."),
+    out_json: Path = typer.Option(None, help="Output calibration JSON (default: alongside CSV with .calibration.json suffix)."),
+    bucket_min: float = typer.Option(2.0, help="Elapsed bucket size in minutes (default 2)."),
+    min_bucket_n: int = typer.Option(250, help="Minimum rows per elapsed bucket to include."),
+    shrink_tau: float = typer.Option(1500.0, help="Shrinkage strength (larger = more shrink towards global)."),
+):
+    """Fit an elapsed-bucket calibration artifact for live interval projections.
+
+    Reads the dense per-snapshot CSV and writes a small JSON that can be applied
+    during backtests via --calibration-json.
+    """
+
+    if not Path(backtest_csv).exists():
+        print(f"[red]Missing backtest_csv:[/red] {backtest_csv}")
+        raise typer.Exit(code=2)
+
+    if out_json is None:
+        out_json = Path(str(backtest_csv) + ".calibration.json")
+
+    try:
+        import json as _json
+
+        from .eval.live_lens_interval_backtest import IntervalCalibrationFitConfig, fit_interval_calibration
+
+        df = pd.read_csv(Path(backtest_csv))
+        cfg = IntervalCalibrationFitConfig(bucket_min=float(bucket_min), min_bucket_n=int(min_bucket_n), shrink_tau=float(shrink_tau))
+        calib = fit_interval_calibration(df, cfg=cfg, projection_col="proj_blend")
+        Path(out_json).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_json).write_text(_json.dumps(calib, indent=2), encoding="utf-8")
+        print({"status": calib.get("status"), "out_json": str(out_json), "global": calib.get("global"), "n_buckets": len(calib.get("elapsed_buckets") or [])})
+    except Exception as e:
+        print(f"[red]fit-live-interval-calibration failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
     return
 
 

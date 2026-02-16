@@ -2285,6 +2285,7 @@
 
           var projFinal = (info.proj_final !== undefined && info.proj_final !== null) ? toNum(info.proj_final) : null;
           var projBlend = (info.proj_blend !== undefined && info.proj_blend !== null) ? toNum(info.proj_blend) : null;
+          var projBlendUncal = (info.proj_blend_uncal !== undefined && info.proj_blend_uncal !== null) ? toNum(info.proj_blend_uncal) : null;
           if(projFinal === null && projBlend === null) return;
 
           var line = (info.live_line !== undefined && info.live_line !== null) ? toNum(info.live_line) : null;
@@ -2318,6 +2319,9 @@
             live_line: (lineQ !== null ? lineQ : null),
             proj_final: (projFinal !== null ? projFinal : null),
             proj_blend: (projBlend !== null ? projBlend : null),
+            proj_blend_uncal: (projBlendUncal !== null ? projBlendUncal : null),
+            interval_cal_source: (info.interval_cal_source !== undefined ? info.interval_cal_source : null),
+            interval_cal_delta_add: (info.interval_cal_delta_add !== undefined ? info.interval_cal_delta_add : null),
             blend_w: (info.blend_w !== undefined ? info.blend_w : null),
             sim_exp_total: (info.sim_exp_total !== undefined ? info.sim_exp_total : null),
             sim_final: (info.sim_final !== undefined ? info.sim_final : null),
@@ -2500,6 +2504,100 @@
             tune = (window.__ncaabLiveLensTuning && window.__ncaabLiveLensTuning.tuning) ? window.__ncaabLiveLensTuning.tuning : null;
           } catch(eTune){ tune = null; }
 
+          // Optional interval calibration artifact (best-effort).
+          var intervalCal = null;
+          var intervalCalSrc = null;
+          try {
+            intervalCal = (window.__ncaabLiveIntervalCalibration && window.__ncaabLiveIntervalCalibration.status === 'ok') ? window.__ncaabLiveIntervalCalibration : null;
+            intervalCalSrc = intervalCal ? (intervalCal.source || null) : null;
+          } catch(_eIC){ intervalCal = null; intervalCalSrc = null; }
+
+          function applyIntervalCalToMu(mu, elapsedMin){
+            try {
+              var x = toNum(mu);
+              if(x === null) return { mu_cal: null, delta_add: null };
+              if(!intervalCal) return { mu_cal: x, delta_add: 0 };
+
+              var delta = 0;
+              try {
+                var g = intervalCal.global || null;
+                var dg = g ? toNum(g.delta_add) : null;
+                if(dg !== null && isFinite(dg)) delta += dg;
+              } catch(_eG){ /* noop */ }
+
+              // Apply elapsed bucket adjustment when available.
+              var e = toNum(elapsedMin);
+              var bucketMin = null;
+              try { bucketMin = toNum(intervalCal.fit && intervalCal.fit.bucket_min); } catch(_eBM){ bucketMin = null; }
+              if(bucketMin === null || !isFinite(bucketMin) || bucketMin <= 0) bucketMin = 2;
+              if(e !== null && isFinite(e) && e >= 0){
+                var eb = Math.floor(e / bucketMin) * bucketMin;
+                // Buckets are stored as integer minutes in the artifact.
+                var ebKey = String(Math.round(eb));
+                var bm = intervalCal.__bucketMap || null;
+                var rec = (bm && bm[ebKey]) ? bm[ebKey] : null;
+                if(!rec && Array.isArray(intervalCal.elapsed_buckets)){
+                  // Fallback: linear scan (tiny array).
+                  intervalCal.elapsed_buckets.forEach(function(r){
+                    if(rec) return;
+                    var k = toNum(r && r.elapsed_bucket_min);
+                    if(k !== null && String(Math.round(k)) === ebKey) rec = r;
+                  });
+                }
+                if(rec){
+                  var db = toNum(rec.delta_add);
+                  if(db !== null && isFinite(db)) delta += db;
+                }
+              }
+
+              return { mu_cal: x + delta, delta_add: delta };
+            } catch(_e){
+              return { mu_cal: toNum(mu), delta_add: null };
+            }
+          }
+
+          function getIntervalCalSigma(elapsedMin){
+            try {
+              if(!intervalCal) return { sigma_base: null, sigma_mult: null, sigma_cal: null };
+
+              var base = null;
+              try {
+                var g = intervalCal.global || null;
+                var sg = g ? toNum(g.sigma) : null;
+                if(sg !== null && isFinite(sg) && sg > 0.01) base = sg;
+              } catch(_eG){ /* noop */ }
+              if(base === null) return { sigma_base: null, sigma_mult: null, sigma_cal: null };
+
+              var mult = 1;
+              var e = toNum(elapsedMin);
+              var bucketMin = null;
+              try { bucketMin = toNum(intervalCal.fit && intervalCal.fit.bucket_min); } catch(_eBM){ bucketMin = null; }
+              if(bucketMin === null || !isFinite(bucketMin) || bucketMin <= 0) bucketMin = 2;
+              if(e !== null && isFinite(e) && e >= 0){
+                var eb = Math.floor(e / bucketMin) * bucketMin;
+                var ebKey = String(Math.round(eb));
+                var bm = intervalCal.__bucketMap || null;
+                var rec = (bm && bm[ebKey]) ? bm[ebKey] : null;
+                if(!rec && Array.isArray(intervalCal.elapsed_buckets)){
+                  intervalCal.elapsed_buckets.forEach(function(r){
+                    if(rec) return;
+                    var k = toNum(r && r.elapsed_bucket_min);
+                    if(k !== null && String(Math.round(k)) === ebKey) rec = r;
+                  });
+                }
+                if(rec){
+                  var sm = toNum(rec.sigma_mult);
+                  if(sm !== null && isFinite(sm) && sm > 0.01) mult = sm;
+                }
+              }
+              var sig = base * mult;
+              if(!isFinite(sig) || sig <= 0.01) sig = null;
+              return { sigma_base: base, sigma_mult: mult, sigma_cal: sig };
+            } catch(_e){
+              return { sigma_base: null, sigma_mult: null, sigma_cal: null };
+            }
+          }
+
           function marketBlendWeight(elapsedMin, horizonMin, opts){
             // Blend model projection toward the live market line as the game progresses.
             // Goal: reduce overconfidence early and follow market more late.
@@ -2604,7 +2702,31 @@
           } catch(_eMB){ mbMaxW = null; mbStart = null; }
 
           var blendW = (line !== null && projFinal !== null) ? marketBlendWeight(elapsed, horizon, {maxW: mbMaxW, start: mbStart}) : 0;
-          var projBlend = (line !== null && projFinal !== null) ? ((1 - blendW) * projFinal + blendW * line) : projFinal;
+          var projBlendUncal = (line !== null && projFinal !== null) ? ((1 - blendW) * projFinal + blendW * line) : projFinal;
+          var projBlend = projBlendUncal;
+          var intervalCalDeltaAdd = null;
+          var intervalCalSigmaBase = null;
+          var intervalCalSigmaMult = null;
+          var intervalCalSigma = null;
+          try {
+            // Apply calibration only for full-game horizon (interval backtest calibration is fit on full_game snapshots).
+            var isFullGame = (lens === 'full_game') && (horizon !== null) && (horizon >= 39);
+            if(isFullGame){
+              var sp = getIntervalCalSigma(elapsed);
+              if(sp && sp.sigma_cal !== null && isFinite(sp.sigma_cal)){
+                intervalCalSigma = sp.sigma_cal;
+                intervalCalSigmaBase = (sp.sigma_base !== undefined) ? sp.sigma_base : null;
+                intervalCalSigmaMult = (sp.sigma_mult !== undefined) ? sp.sigma_mult : null;
+              }
+            }
+            if(isFullGame && projBlendUncal !== null){
+              var ap = applyIntervalCalToMu(projBlendUncal, elapsed);
+              if(ap && ap.mu_cal !== null && isFinite(ap.mu_cal)){
+                projBlend = ap.mu_cal;
+                intervalCalDeltaAdd = (ap.delta_add !== undefined) ? ap.delta_add : null;
+              }
+            }
+          } catch(_eApply){ /* noop */ }
 
           // Log projection snapshots (rate-limited via per-minute buckets).
           try {
@@ -2619,6 +2741,11 @@
               live_line: line,
               proj_final: projFinal,
               proj_blend: projBlend,
+              proj_blend_uncal: projBlendUncal,
+              interval_cal_source: intervalCalSrc,
+              interval_cal_delta_add: intervalCalDeltaAdd,
+              interval_cal_sigma: intervalCalSigma,
+              interval_cal_sigma_mult: intervalCalSigmaMult,
               blend_w: blendW,
               sim_exp_total: exp,
               sim_final: simFinal,
@@ -2691,6 +2818,20 @@
             var edge = projBlend - line;
             var side = (edge > 0.01) ? 'Over' : (edge < -0.01 ? 'Under' : 'No edge');
             var edgeAbs = Math.abs(edge);
+
+            // Calibrated sigma (full-game only). Used to normalize strength and compute probabilities.
+            var sigmaUse = null;
+            var sigmaRef = null;
+            try {
+              if(intervalCalSigma !== null && isFinite(intervalCalSigma) && intervalCalSigma > 0.01) sigmaUse = intervalCalSigma;
+              if(intervalCalSigmaBase !== null && isFinite(intervalCalSigmaBase) && intervalCalSigmaBase > 0.01) sigmaRef = intervalCalSigmaBase;
+              if(sigmaRef === null) sigmaRef = 28; // reasonable fallback scale for totals
+            } catch(_eSig){ sigmaUse = null; sigmaRef = 28; }
+
+            var pOver = null;
+            try {
+              if(sigmaUse !== null) pOver = normCdf(edge / sigmaUse);
+            } catch(_ePO){ pOver = null; }
 
             // Build a human-readable driver summary (explanation only).
             var driverParts = [];
@@ -2835,7 +2976,74 @@
               adj += wPbp * (paceAdj + effAdj);
             }
 
-            var strength = edgeAbs + adj;
+            // Sigma-normalize the edge (primarily via elapsed-bucket sigma_mult).
+            // Keeps the historical point-scale thresholds but de-emphasizes noisy early-game edges.
+            var edgeAbsScaled = edgeAbs;
+            try {
+              if(sigmaUse !== null && sigmaRef !== null && isFinite(sigmaUse) && isFinite(sigmaRef) && sigmaUse > 0.01 && sigmaRef > 0.01){
+                edgeAbsScaled = edgeAbs * (sigmaRef / sigmaUse);
+              }
+            } catch(_eSc){ edgeAbsScaled = edgeAbs; }
+
+            var strength = edgeAbsScaled + adj;
+
+            // Best-effort market prices (if present) -> market probability.
+            var totSidePrice = null;
+            var modelProb = null;
+            var marketProb = null;
+            var edgeProb = null;
+            var probGateOk = true;
+            try {
+              if(side === 'Over' || side === 'Under'){
+                if(pOver !== null && isFinite(pOver)){
+                  modelProb = (side === 'Over') ? pOver : (1 - pOver);
+                }
+
+                var oPx = null;
+                var uPx = null;
+                try {
+                  if(card0){
+                    if(lens === '1h'){
+                      oPx = toNum(card0.getAttribute('data-live-total-over-price-1h'));
+                      uPx = toNum(card0.getAttribute('data-live-total-under-price-1h'));
+                    } else if(lens === '2h'){
+                      oPx = toNum(card0.getAttribute('data-live-total-over-price-2h'));
+                      uPx = toNum(card0.getAttribute('data-live-total-under-price-2h'));
+                    } else {
+                      oPx = toNum(card0.getAttribute('data-live-total-over-price'));
+                      uPx = toNum(card0.getAttribute('data-live-total-under-price'));
+                    }
+                  }
+                } catch(_eTPx){ oPx = null; uPx = null; }
+
+                totSidePrice = (side === 'Over') ? oPx : uPx;
+
+                function americanImplied2(odds){
+                  var o = toNum(odds);
+                  if(o === null || !isFinite(o) || o === 0) return null;
+                  if(o > 0) return 100 / (o + 100);
+                  return (-o) / ((-o) + 100);
+                }
+                function devig2b(pA, pB){
+                  if(pA === null || pB === null) return {a:null, b:null};
+                  var s = pA + pB;
+                  if(!isFinite(s) || s <= 0) return {a:null, b:null};
+                  return {a:(pA/s), b:(pB/s)};
+                }
+
+                var pMktO = americanImplied2(oPx);
+                var pMktU = americanImplied2(uPx);
+                var dvT = devig2b(pMktO, pMktU);
+                if(dvT.a !== null) pMktO = dvT.a;
+                if(dvT.b !== null) pMktU = dvT.b;
+
+                marketProb = (side === 'Over') ? pMktO : pMktU;
+                if(modelProb !== null && marketProb !== null) edgeProb = modelProb - marketProb;
+
+                // If we have a price and it looks -EV vs the market, suppress bet/watch.
+                if(edgeProb !== null && isFinite(edgeProb) && edgeProb < 0) probGateOk = false;
+              }
+            } catch(_eProb){ /* noop */ }
 
             // Track whether a retune penalty was applied (explanation only).
             var latePenApplied = false;
@@ -2903,12 +3111,12 @@
                 }
               }
             } catch(eEarly){ /* ignore */ }
-            isStrong = (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thr);
+            isStrong = (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thr) && probGateOk;
 
             // WATCH threshold for line-based signals: slightly lower than BET.
             var thrWatch = thr - ((horizon <= 20.5) ? 1 : 2);
             thrWatch = Math.max((horizon <= 20.5) ? 3 : 4, thrWatch);
-            isWatchLine = (!isStrong) && (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thrWatch);
+            isWatchLine = (!isStrong) && (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thrWatch) && probGateOk;
             var edgeTxt = (edge > 0 ? '+' : '') + String(round0(edge));
             if(side === 'Over') lean = (isStrong ? 'BET ' : 'Watch ') + 'Over (pace ' + edgeTxt + ')';
             else if(side === 'Under') lean = (isStrong ? 'BET ' : 'Watch ') + 'Under (pace ' + edgeTxt + ')';
@@ -2950,10 +3158,17 @@
                 remaining: remaining,
                 total_points: act,
                 live_line: line,
+                price: totSidePrice,
+                model_prob: modelProb,
+                market_prob: marketProb,
+                edge_prob: edgeProb,
                 edge: edge,
                 strength: strength,
                 thr: thr,
                 thr_watch: thrWatch,
+                sigma: sigmaUse,
+                interval_cal_source: intervalCalSrc,
+                interval_cal_sigma_mult: intervalCalSigmaMult,
                 home_score: liveHome,
                 away_score: liveAway,
                 margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
@@ -3484,6 +3699,36 @@
             })
             .catch(function(){ /* ignore */ });
         } catch(eFetch){ /* ignore */ }
+
+        // Best-effort load of interval calibration artifact; re-run updates when loaded.
+        try {
+          fetch('/api/live_interval_calibration?ttl=300')
+            .then(function(r){ return r.json(); })
+            .then(function(j){
+              if(j && j.status === 'ok'){
+                try {
+                  // Pre-build a small lookup map: elapsed_bucket_min -> record.
+                  var bm = {};
+                  try {
+                    var xs = Array.isArray(j.elapsed_buckets) ? j.elapsed_buckets : [];
+                    xs.forEach(function(r){
+                      var k = toNum(r && r.elapsed_bucket_min);
+                      if(k !== null && isFinite(k)) bm[String(Math.round(k))] = r;
+                    });
+                  } catch(_eBM2){ bm = {}; }
+                  j.__bucketMap = bm;
+                } catch(_eMap){ /* noop */ }
+
+                try { window.__ncaabLiveIntervalCalibration = j; } catch(eSet2) { /* noop */ }
+                try {
+                  document.querySelectorAll('.live-lens-wrap').forEach(function(w){
+                    try { if(w && typeof w.__liveLensUpdate === 'function') w.__liveLensUpdate(); } catch(eRU2) { /* noop */ }
+                  });
+                } catch(eAll2) { /* noop */ }
+              }
+            })
+            .catch(function(){ /* ignore */ });
+        } catch(eFetch2){ /* ignore */ }
       });
     })();
   </script>
