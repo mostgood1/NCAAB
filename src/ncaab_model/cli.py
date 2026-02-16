@@ -52,6 +52,7 @@ from .live_lens_accuracy import (
     LiveLensProjectionAccuracyConfig,
     compute_live_lens_accuracy,
     compute_live_lens_accuracy_retuned,
+    compute_live_lens_total_side_accuracy,
     compute_live_lens_projection_accuracy,
     write_live_lens_accuracy,
     write_live_lens_projection_accuracy,
@@ -12022,6 +12023,39 @@ def compute_live_lens_accuracy_cmd(
 
     if out_csv is None:
         out_csv = Path("outputs") / f"live_lens_accuracy_{cfg.date}.csv"
+
+    wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
+    print(wrote)
+
+
+@app.command(name="compute-live-lens-side-accuracy")
+def compute_live_lens_side_accuracy_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD (default: yesterday local)."),
+    out_json: Path = typer.Option(None, help="Output JSON path (default: outputs/live_lens_side_accuracy_<date>.json)."),
+    out_csv: Path = typer.Option(None, help="Optional per-signal settled rows CSV output."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    full_game_only: bool = typer.Option(False, help="Only evaluate full-game lens (default false)."),
+):
+    """Compute Live Lens totals OVER/UNDER accuracy by signal-side (collapsing line changes).
+
+    If the same bet signal persists while the live total moves (e.g. O62.5, O63.5, O64.5),
+    this collapses it to one row per (game, lens, side) using the earliest BET timestamp.
+
+    Requires:
+      - outputs/live_lens_signals_<date>.jsonl (written by the web UI)
+      - outputs/daily_results/results_<date>.csv (written by finalize-day)
+    """
+
+    if not date:
+        date = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+
+    cfg = LiveLensAccuracyConfig(date=str(date), assume_price=float(price), full_game_only=bool(full_game_only))
+    payload = compute_live_lens_total_side_accuracy(cfg)
+
+    if out_json is None:
+        out_json = Path("outputs") / f"live_lens_side_accuracy_{cfg.date}.json"
+    if out_csv is None:
+        out_csv = Path("outputs") / f"live_lens_side_accuracy_{cfg.date}.csv"
 
     wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
     print(wrote)

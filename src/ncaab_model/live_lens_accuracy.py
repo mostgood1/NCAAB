@@ -775,6 +775,309 @@ def compute_live_lens_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str, Any]:
     }
 
 
+def compute_live_lens_total_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str, Any]:
+    """Compute totals O/U accuracy per signal-side, collapsing line changes.
+
+    The UI logs a row whenever the live line changes; for analysis, we want to
+    treat repeated rows as the same bet idea (OVER vs UNDER) for a given lens.
+
+    Output rows are deduped to one row per (game_id, lens, side), selecting the
+    earliest timestamped BET signal.
+    """
+
+    date = _safe_date(cfg.date)
+    out_root = Path(cfg.out_dir) if cfg.out_dir is not None else _root_outputs()
+
+    sig_p = signals_path(date, out_dir=out_root)
+    res_p = results_path(date, out_dir=out_root, daily_results_dir=cfg.daily_results_dir)
+
+    signals = _read_jsonl(sig_p)
+    if not signals:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"No signals found at {sig_p}",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+        }
+
+    sig_df = pd.DataFrame(signals)
+    if sig_df.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"No signals rows parsed from {sig_p}",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+        }
+
+    # Normalize ids
+    if "game_id" not in sig_df.columns and "event_id" in sig_df.columns:
+        sig_df["game_id"] = sig_df["event_id"]
+    if "game_id" not in sig_df.columns:
+        return {
+            "status": "empty",
+            "date": date,
+            "message": "Signals missing game_id/event_id; cannot evaluate",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "signals_cols": list(sig_df.columns),
+            "n_signals_raw": int(len(sig_df)),
+        }
+    sig_df["game_id"] = sig_df["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+
+    # Totals-only
+    if "kind" in sig_df.columns:
+        sig_df["kind"] = sig_df["kind"].astype(str).str.strip().str.lower()
+        sig_df = sig_df[sig_df["kind"].eq("total")].copy()
+    else:
+        sig_df["kind"] = "total"
+
+    # BET-only
+    if "is_bet" in sig_df.columns:
+        sig_df["is_bet"] = sig_df["is_bet"].astype(bool)
+    else:
+        sig_df["is_bet"] = True
+    sig_df = sig_df[sig_df["is_bet"].astype(bool)].copy()
+
+    # Side + line
+    if "side" not in sig_df.columns:
+        return {
+            "status": "empty",
+            "date": date,
+            "message": "Signals missing side (over/under); cannot settle",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals_raw": int(len(sig_df)),
+            "signals_cols": list(sig_df.columns),
+        }
+    sig_df["side"] = sig_df["side"].astype(str).str.strip().str.lower()
+    sig_df = sig_df[sig_df["side"].isin(["over", "under"])].copy()
+
+    if "live_line" in sig_df.columns:
+        sig_df["live_line"] = pd.to_numeric(sig_df["live_line"], errors="coerce")
+    else:
+        sig_df["live_line"] = math.nan
+    sig_df = sig_df[sig_df["live_line"].notna()].copy()
+
+    # Lens normalization: {fg, 1h, 2h}
+    if "lens" in sig_df.columns:
+        lens0 = sig_df["lens"].astype(str).str.strip().str.lower()
+    else:
+        lens0 = pd.Series([""] * len(sig_df))
+
+    lens_norm = lens0
+    lens_norm = lens_norm.replace({
+        "full_game": "fg",
+        "full": "fg",
+        "game": "fg",
+        "fg": "fg",
+        "1h": "1h",
+        "2h": "2h",
+        "first_half": "1h",
+        "second_half": "2h",
+    })
+    lens_norm = lens_norm.where(lens_norm.isin(["fg", "1h", "2h"]), other="")
+
+    # If lens is missing, fall back to horizon heuristic.
+    if lens_norm.eq("").any() and "horizon" in sig_df.columns:
+        hz = pd.to_numeric(sig_df.get("horizon"), errors="coerce")
+        lens_norm = lens_norm.where(~lens_norm.eq(""), other=hz.apply(lambda v: "fg" if pd.notna(v) and float(v) >= 39 else ""))
+
+    sig_df["lens"] = lens_norm
+    sig_df = sig_df[sig_df["lens"].isin(["fg", "1h", "2h"])].copy()
+
+    # Full-game-only option suppresses 1H/2H.
+    if cfg.full_game_only:
+        sig_df = sig_df[sig_df["lens"].eq("fg")].copy()
+
+    if sig_df.empty:
+        return {
+            "status": "empty",
+            "date": date,
+            "message": "No totals BET signals with lens+line to evaluate",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals_raw": int(len(pd.DataFrame(signals))),
+        }
+
+    # Deduplicate repeated line-change logs: keep earliest per (game_id, lens, side).
+    if "ts" in sig_df.columns:
+        sig_df["ts"] = sig_df["ts"].astype(str)
+        ts_parsed = pd.to_datetime(sig_df["ts"], errors="coerce", utc=True)
+    else:
+        ts_parsed = pd.Series([pd.NaT] * len(sig_df))
+        sig_df["ts"] = None
+
+    sig_df["_ts_parsed"] = ts_parsed
+    sig_df["_row"] = range(len(sig_df))
+    sig_df = sig_df.sort_values(by=["_ts_parsed", "_row"], ascending=[True, True])
+    sig_df = sig_df.groupby(["game_id", "lens", "side"], as_index=False).first()
+    sig_df = sig_df.drop(columns=[c for c in ["_ts_parsed", "_row"] if c in sig_df.columns])
+
+    # Load results
+    if not res_p.exists():
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"Missing results file at {res_p}",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals": int(len(sig_df)),
+        }
+
+    res_df = pd.read_csv(res_p)
+    if res_df.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": f"Empty results file at {res_p}",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals": int(len(sig_df)),
+        }
+
+    gid_col = _pick_col(res_df, ["game_id", "event_id", "id", "gid"])
+    if not gid_col:
+        return {
+            "status": "error",
+            "date": date,
+            "message": "Results file missing game_id/event_id column",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "results_cols": list(res_df.columns),
+        }
+
+    res_df["game_id"] = res_df[gid_col].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+    res_df = _filter_results_to_finals(res_df)
+    if res_df.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": "Results file has no final/completed games to settle against",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals": int(len(sig_df)),
+        }
+
+    res_df["final_total"] = _final_total_from_results(res_df)
+    if "actual_total_1h" in res_df.columns:
+        res_df["total_1h"] = pd.to_numeric(res_df["actual_total_1h"], errors="coerce")
+    else:
+        res_df["total_1h"] = math.nan
+    if "actual_total_2h" in res_df.columns:
+        res_df["total_2h"] = pd.to_numeric(res_df["actual_total_2h"], errors="coerce")
+    else:
+        res_df["total_2h"] = math.nan
+
+    merged = sig_df.merge(res_df[["game_id", "final_total", "total_1h", "total_2h"]], on="game_id", how="left")
+
+    # Pick target total based on lens
+    target = pd.Series([math.nan] * len(merged))
+    try:
+        target = target.where(~merged["lens"].eq("fg"), other=pd.to_numeric(merged["final_total"], errors="coerce"))
+        target = target.where(~merged["lens"].eq("1h"), other=pd.to_numeric(merged["total_1h"], errors="coerce"))
+        target = target.where(~merged["lens"].eq("2h"), other=pd.to_numeric(merged["total_2h"], errors="coerce"))
+    except Exception:
+        pass
+    merged["target_total"] = pd.to_numeric(target, errors="coerce")
+
+    y = pd.to_numeric(merged["target_total"], errors="coerce")
+    line = pd.to_numeric(merged["live_line"], errors="coerce")
+
+    def _settle(side: str, yv: float, lv: float) -> float | None:
+        if not (isinstance(yv, (int, float)) and isinstance(lv, (int, float))):
+            return None
+        if not (math.isfinite(float(yv)) and math.isfinite(float(lv))):
+            return None
+        if float(yv) == float(lv):
+            return 0.5
+        if side == "over":
+            return 1.0 if float(yv) > float(lv) else 0.0
+        return 1.0 if float(yv) < float(lv) else 0.0
+
+    merged["result"] = [
+        _settle(str(s), float(yv) if pd.notna(yv) else float("nan"), float(lv) if pd.notna(lv) else float("nan"))
+        for s, yv, lv in zip(merged["side"], y, line)
+    ]
+
+    settled = merged[merged["result"].notna()].copy()
+    if settled.empty:
+        return {
+            "status": "missing",
+            "date": date,
+            "message": "No settled signals (missing totals for game_id join)",
+            "signals_path": str(sig_p),
+            "results_path": str(res_p),
+            "n_signals": int(len(merged)),
+            "n_results": int(len(res_df)),
+        }
+
+    # Profit per 1u risk at -110 by default
+    price = float(cfg.assume_price)
+    win_profit = 100.0 / abs(price) if price < 0 else (price / 100.0)
+
+    def _profit(res: float) -> float:
+        if res == 1.0:
+            return float(win_profit)
+        if res == 0.0:
+            return -1.0
+        return 0.0
+
+    settled["profit_units"] = settled["result"].map(_profit)
+
+    wins = int((settled["result"] == 1.0).sum())
+    losses = int((settled["result"] == 0.0).sum())
+    pushes = int((settled["result"] == 0.5).sum())
+    denom = wins + losses
+    win_rate = (wins / denom) if denom > 0 else None
+    roi = float(settled["profit_units"].sum() / max(1, len(settled)))
+
+    by_lens_side: list[dict[str, Any]] = []
+    for (lens_k, side_k), g in settled.groupby(["lens", "side"]):
+        w = int((g["result"] == 1.0).sum())
+        l = int((g["result"] == 0.0).sum())
+        p = int((g["result"] == 0.5).sum())
+        d2 = w + l
+        by_lens_side.append(
+            {
+                "lens": str(lens_k),
+                "side": str(side_k),
+                "n": int(len(g)),
+                "wins": w,
+                "losses": l,
+                "pushes": p,
+                "win_rate": (w / d2) if d2 > 0 else None,
+                "roi_units_per_bet": float(g["profit_units"].sum() / max(1, len(g))),
+            }
+        )
+    by_lens_side.sort(key=lambda x: (x["lens"], x["side"]))
+
+    summary: dict[str, Any] = {
+        "status": "ok",
+        "policy": "signal_side",
+        "date": date,
+        "signals_path": str(sig_p),
+        "results_path": str(res_p),
+        "assume_price": price,
+        "dedupe": "first_bet_per_game_lens_side",
+        "n_signals_raw": int(len(pd.DataFrame(signals))),
+        "n_signals_used": int(len(sig_df)),
+        "n_settled": int(len(settled)),
+        "wins": wins,
+        "losses": losses,
+        "pushes": pushes,
+        "win_rate": win_rate,
+        "roi_units_per_bet": roi,
+        "by_lens_side": by_lens_side,
+    }
+
+    return {
+        "summary": summary,
+        "rows": settled,
+    }
+
+
 def write_live_lens_accuracy(out_json: Path, payload: dict[str, Any], out_csv: Path | None = None) -> dict[str, Any]:
     out_json.parent.mkdir(parents=True, exist_ok=True)
 
@@ -791,6 +1094,8 @@ def write_live_lens_accuracy(out_json: Path, payload: dict[str, Any], out_csv: P
                     "ts",
                     "date",
                     "game_id",
+                    "lens",
+                    "kind",
                     "horizon",
                     "elapsed",
                     "remaining",
@@ -798,6 +1103,7 @@ def write_live_lens_accuracy(out_json: Path, payload: dict[str, Any], out_csv: P
                     "live_line",
                     "side",
                     "final_total",
+                    "target_total",
                     "result",
                     "profit_units",
                     "tuning_source",
