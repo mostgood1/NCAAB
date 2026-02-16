@@ -23482,11 +23482,32 @@ def api_live_lens_signal():
     if not game_id:
         return jsonify({"status": "error", "message": "Missing game_id"}), 400
 
+    def _norm_lens(v: Any) -> str | None:
+        try:
+            s = str(v or "").strip().lower()
+        except Exception:
+            return None
+        if not s or s in {"none", "null", "nan"}:
+            return None
+        m = {
+            "full_game": "fg",
+            "full": "fg",
+            "game": "fg",
+            "fg": "fg",
+            "1h": "1h",
+            "first_half": "1h",
+            "2h": "2h",
+            "second_half": "2h",
+        }
+        s2 = m.get(s, s)
+        return s2 if s2 in {"fg", "1h", "2h"} else None
+
     # Keep the record compact + stable.
     keep: dict[str, Any] = {
         "ts": str(payload.get("ts") or dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")),
         "date": date_s,
         "game_id": game_id,
+        "lens": _norm_lens(payload.get("lens")),
         "kind": payload.get("kind"),
         "horizon": payload.get("horizon"),
         "elapsed": payload.get("elapsed"),
@@ -23521,6 +23542,7 @@ def api_live_lens_signal():
                 {
                     "date": keep.get("date"),
                     "game_id": keep.get("game_id"),
+                    "lens": keep.get("lens"),
                     "kind": keep.get("kind"),
                     "horizon": keep.get("horizon"),
                     "side": keep.get("side"),

@@ -882,7 +882,30 @@ def compute_live_lens_total_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[s
     # If lens is missing, fall back to horizon heuristic.
     if lens_norm.eq("").any() and "horizon" in sig_df.columns:
         hz = pd.to_numeric(sig_df.get("horizon"), errors="coerce")
-        lens_norm = lens_norm.where(~lens_norm.eq(""), other=hz.apply(lambda v: "fg" if pd.notna(v) and float(v) >= 39 else ""))
+        per = pd.to_numeric(sig_df.get("period"), errors="coerce") if "period" in sig_df.columns else pd.Series([math.nan] * len(sig_df))
+
+        def _infer(h: float | None, p: float | None) -> str:
+            try:
+                if h is not None and pd.notna(h) and float(h) >= 39:
+                    return "fg"
+            except Exception:
+                pass
+            try:
+                if h is not None and pd.notna(h) and float(h) <= 21:
+                    # Distinguish 1H vs 2H using period when available.
+                    if p is not None and pd.notna(p) and int(float(p)) >= 2:
+                        return "2h"
+                    if p is not None and pd.notna(p) and int(float(p)) == 1:
+                        return "1h"
+            except Exception:
+                pass
+            return ""
+
+        inferred = [
+            _infer((float(h) if pd.notna(h) else None), (float(p) if pd.notna(p) else None))
+            for h, p in zip(hz.tolist(), per.tolist())
+        ]
+        lens_norm = lens_norm.where(~lens_norm.eq(""), other=pd.Series(inferred))
 
     sig_df["lens"] = lens_norm
     sig_df = sig_df[sig_df["lens"].isin(["fg", "1h", "2h"])].copy()

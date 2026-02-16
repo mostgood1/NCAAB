@@ -2191,8 +2191,10 @@
 
           // Basic validation by kind.
           if(kind === 'total'){
-            if(line === null || line === undefined) return;
             if(sig.side !== 'over' && sig.side !== 'under') return;
+            // Allow logging WATCH/CANDIDATE totals even if a live line is missing
+            // (coverage diagnostics). For BET totals, we require a line.
+            if((!!sig.is_bet) && (line === null || line === undefined)) return;
           } else if(kind === 'ml'){
             if(sig.side !== 'home' && sig.side !== 'away') return;
             if(price === null) return;
