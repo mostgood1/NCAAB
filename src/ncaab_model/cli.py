@@ -393,6 +393,13 @@ def backtest_sim_engine(
     rho: float = typer.Option(0.25, help="Total/margin correlation used by non-event fallback pieces"),
     recompute: bool = typer.Option(False, help="Recompute sim_quantiles_<date>.csv even if it already exists"),
     out_prefix: str = typer.Option("sim_engine", help="Outputs/backtests/<prefix>_<start>_<end>.*"),
+    sim_quantiles_prefix: str = typer.Option(
+        "sim_quantiles_",
+        help=(
+            "Prefix for outputs/<prefix><date>.csv quantiles files (default sim_quantiles_). "
+            "Use this for controlled A/B runs without overwriting sim_quantiles_<date>.csv."
+        ),
+    ),
 ):
     """Backtest the simulation engine against reality (results_*.csv).
 
@@ -414,11 +421,204 @@ def backtest_sim_engine(
             rho=float(rho),
             recompute=bool(recompute),
             out_prefix=out_prefix,
+            sim_quantiles_prefix=sim_quantiles_prefix,
         )
         res = run_sim_backtest(cfg)
         print(res)
     except Exception as e:
         print(f"[red]backtest-sim-engine failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="ab-sim-quantiles")
+def ab_sim_quantiles(
+    start: str = typer.Option(None, help="Start date YYYY-MM-DD (inclusive). Defaults to earliest available results_*.csv"),
+    end: str = typer.Option(None, help="End date YYYY-MM-DD (inclusive). Defaults to latest available results_*.csv"),
+    recent: int = typer.Option(None, help="If set, backtest only the most recent N result-dates"),
+    engine: str = typer.Option("events", help="Simulation engine: events|normal|auto"),
+    samples: int = typer.Option(5000, help="Monte Carlo samples per game"),
+    rho: float = typer.Option(0.25, help="Total/margin correlation used by non-event fallback pieces"),
+    recompute: bool = typer.Option(False, help="Recompute each mode's sim_<date>.csv even if it already exists"),
+    seed: int = typer.Option(1337, help="Deterministic simulator seed (sets NCAAB_SIM_SEED)"),
+    out_prefix: str = typer.Option("ab_simq", help="Outputs/backtests/<prefix>_<mode>_<start>_<end>.*"),
+    sim_quantiles_prefix_base: str = typer.Option(
+        "ab_simq_",
+        help=(
+            "Prefix base for outputs/<prefix><date>.csv quantiles files. The command will write three variants: "
+            "<base>native_, <base>mu_sigma_, <base>explicit_."
+        ),
+    ),
+):
+    """Run a controlled A/B/C comparison for the sim engine.
+
+    Modes:
+      - native: targeting off
+      - mu_sigma: targeting on; targets derived from (mu, sigma)
+      - explicit: targeting on; targets require explicit q-columns (no fallback)
+
+    Produces standard backtest artifacts per mode and a combined delta report JSON.
+    """
+    import contextlib
+    import os
+    from pathlib import Path
+
+    try:
+        from src.simulation.sim_backtest import SimBacktestConfig, run_sim_backtest
+
+        def _env_patch(pairs: dict[str, str | None]):
+            old: dict[str, str | None] = {}
+            for k, v in pairs.items():
+                old[k] = os.environ.get(k)
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = str(v)
+
+            @contextlib.contextmanager
+            def _ctx():
+                try:
+                    yield
+                finally:
+                    for k, v in old.items():
+                        if v is None:
+                            os.environ.pop(k, None)
+                        else:
+                            os.environ[k] = v
+
+            return _ctx()
+
+        def _read_summary(p: str) -> dict:
+            return json.loads(Path(p).read_text(encoding="utf-8"))
+
+        def _get(d: dict, *path, default=None):
+            cur = d
+            for k in path:
+                if not isinstance(cur, dict) or k not in cur:
+                    return default
+                cur = cur[k]
+            return cur
+
+        def _mode_run(mode: str, *, target_on: bool, source: str | None) -> tuple[dict, dict]:
+            env = {
+                "NCAAB_SIM_SEED": str(int(seed)),
+                "NCAAB_SIM_TARGET_QUANTILES": "1" if target_on else "0",
+                "NCAAB_SIM_TARGET_QUANTILES_SOURCE": source,
+            }
+            # If targeting is off, also clear the source to avoid accidental leakage.
+            if not target_on:
+                env["NCAAB_SIM_TARGET_QUANTILES_SOURCE"] = None
+            with _env_patch(env):
+                cfg = SimBacktestConfig(
+                    out_dir=settings.outputs_dir,
+                    start=start,
+                    end=end,
+                    recent=recent,
+                    engine=engine,
+                    samples=int(samples),
+                    rho=float(rho),
+                    recompute=bool(recompute),
+                    out_prefix=f"{out_prefix}_{mode}",
+                    sim_quantiles_prefix=f"{sim_quantiles_prefix_base}{mode}_",
+                )
+                res = run_sim_backtest(cfg)
+            summary_path = _get(res, "wrote", "summary")
+            if not summary_path:
+                return res, {}
+            return res, _read_summary(summary_path)
+
+        runs: dict[str, dict] = {}
+        wrote: dict[str, dict] = {}
+
+        for mode, target_on, source in [
+            ("native", False, None),
+            ("mu_sigma", True, "mu_sigma"),
+            ("explicit", True, "explicit"),
+        ]:
+            res, summ = _mode_run(mode, target_on=target_on, source=source)
+            wrote[mode] = res.get("wrote", {}) if isinstance(res, dict) else {}
+            runs[mode] = summ
+
+        # Build delta report for key metrics
+        base = runs.get("native", {})
+
+        def _delta(mode: str) -> dict:
+            s = runs.get(mode, {})
+            if not base or not s:
+                return {}
+            out: dict[str, object] = {}
+
+            def _sub(a: object, b: object) -> float | None:
+                try:
+                    if a is None or b is None:
+                        return None
+                    af = float(a)
+                    bf = float(b)
+                    if not (np.isfinite(af) and np.isfinite(bf)):
+                        return None
+                    return float(af - bf)
+                except Exception:
+                    return None
+
+            for key in ["totals", "margins", "totals_1h", "margins_1h"]:
+                out[key] = {
+                    "mae": _sub(_get(s, key, "mae"), _get(base, key, "mae")),
+                    "rmse": _sub(_get(s, key, "rmse"), _get(base, key, "rmse")),
+                    "bias": _sub(_get(s, key, "bias"), _get(base, key, "bias")),
+                }
+
+            for key in ["crps_total", "crps_margin", "crps_total_1h", "crps_margin_1h"]:
+                out[key] = {
+                    "crps": _sub(_get(s, key, "crps"), _get(base, key, "crps")),
+                }
+
+            for key in ["pinball_total", "pinball_margin", "pinball_total_1h", "pinball_margin_1h"]:
+                out[key] = {
+                    "q10": _sub(_get(s, key, "q10"), _get(base, key, "q10")),
+                    "q50": _sub(_get(s, key, "q50"), _get(base, key, "q50")),
+                    "q90": _sub(_get(s, key, "q90"), _get(base, key, "q90")),
+                }
+
+            # Targeting applied rates (if present)
+            for key in ["total", "margin", "total_1h", "margin_1h"]:
+                if _get(base, "targeting", key) is None and _get(s, "targeting", key) is None:
+                    continue
+                out.setdefault("targeting", {})[key] = {
+                    "count": _get(s, "targeting", key, "count"),
+                    "rate": _get(s, "targeting", key, "rate"),
+                }
+
+            return out
+
+        report = {
+            "range": _get(base, "range"),
+            "engine": engine,
+            "samples": int(samples),
+            "rho": float(rho),
+            "seed": int(seed),
+            "wrote": wrote,
+            "summaries": {
+                "native": base,
+                "mu_sigma": runs.get("mu_sigma", {}),
+                "explicit": runs.get("explicit", {}),
+            },
+            "deltas_vs_native": {
+                "mu_sigma": _delta("mu_sigma"),
+                "explicit": _delta("explicit"),
+            },
+        }
+
+        # Write combined report
+        bt_dir = Path(settings.outputs_dir) / "backtests"
+        bt_dir.mkdir(parents=True, exist_ok=True)
+        rng = report.get("range") or {}
+        start_out = rng.get("start") or (start or "")
+        end_out = rng.get("end") or (end or "")
+        out_json = bt_dir / f"{out_prefix}_ab_{start_out}_{end_out}.json"
+        out_json.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+        print({"wrote": str(out_json), "modes": list(wrote.keys())})
+
+    except Exception as e:
+        print(f"[red]ab-sim-quantiles failed:[/red] {e}")
         raise typer.Exit(code=1)
 
 

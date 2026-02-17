@@ -173,6 +173,193 @@ def _safe_float(v: object) -> Optional[float]:
         return None
 
 
+def _resolve_quantile_triplet(row: pd.Series, q10_col: str, q50_col: str, q90_col: str) -> Optional[tuple[float, float, float]]:
+    try:
+        q10 = _safe_float(row.get(q10_col))
+        q50 = _safe_float(row.get(q50_col))
+        q90 = _safe_float(row.get(q90_col))
+        if q10 is None or q50 is None or q90 is None:
+            return None
+        if not (np.isfinite(q10) and np.isfinite(q50) and np.isfinite(q90)):
+            return None
+        a, b, c = float(q10), float(q50), float(q90)
+        # Enforce monotonicity (some model outputs can slightly cross).
+        if a > b or b > c:
+            vals = sorted([a, b, c])
+            a, b, c = float(vals[0]), float(vals[1]), float(vals[2])
+        return float(a), float(b), float(c)
+    except Exception:
+        return None
+
+
+def _target_quantiles_source() -> str:
+    """Where to source target q10/q50/q90 from.
+
+    Values:
+      - auto (default): prefer explicit q-columns, else fallback to mu+sigma.
+      - explicit: only use explicit q-columns; never fallback.
+      - mu_sigma: ignore explicit q-columns; derive from mu+sigma.
+    """
+    try:
+        s = str(os.environ.get("NCAAB_SIM_TARGET_QUANTILES_SOURCE") or "auto").strip().lower()
+        if s in {"explicit", "mu_sigma", "auto"}:
+            return s
+        if s in {"musigma", "mu+sigma", "mu-sigma", "mu_sigma_only", "sigma"}:
+            return "mu_sigma"
+        if s in {"explicit_only", "qcols"}:
+            return "explicit"
+        return "auto"
+    except Exception:
+        return "auto"
+
+
+_Z_10_90 = 1.2815515655446004
+
+
+def _quantiles_from_mu_sigma(mu: Optional[float], sigma: Optional[float]) -> Optional[tuple[float, float, float]]:
+    try:
+        if mu is None or sigma is None:
+            return None
+        mu_f = float(mu)
+        sig_f = float(sigma)
+        if not (np.isfinite(mu_f) and np.isfinite(sig_f)):
+            return None
+        if sig_f <= 1e-9:
+            return None
+        q50 = mu_f
+        q10 = mu_f - _Z_10_90 * sig_f
+        q90 = mu_f + _Z_10_90 * sig_f
+        return float(q10), float(q50), float(q90)
+    except Exception:
+        return None
+
+
+def _resolve_target_total_quantiles(row: pd.Series) -> Optional[tuple[float, float, float]]:
+    src = _target_quantiles_source()
+    if src != "mu_sigma":
+        trip = _resolve_quantile_triplet(row, "pred_total_q10", "pred_total_q50", "pred_total_q90")
+        if trip is not None:
+            return trip
+        trip = _resolve_quantile_triplet(row, "pred_total_p10", "pred_total_p50", "pred_total_p90")
+        if trip is not None:
+            return trip
+        if src == "explicit":
+            return None
+
+    # Fallback: derive q10/q50/q90 from (mu, sigma) assuming normal.
+    mu = None
+    for c in (
+        "pred_total_q50",
+        "pred_total",
+        "pred_total_blend",
+        "pred_total_calibrated",
+        "model_total",
+    ):
+        mu = _safe_float(row.get(c))
+        if mu is not None and np.isfinite(mu):
+            break
+    sigma = None
+    for c in (
+        "pred_total_sigma",
+        "sigma_total",
+        "total_sigma",
+    ):
+        sigma = _safe_float(row.get(c))
+        if sigma is not None and np.isfinite(sigma) and sigma > 0:
+            break
+    trip = _quantiles_from_mu_sigma(mu, sigma)
+    if trip is not None:
+        return trip
+    return None
+
+
+def _resolve_target_margin_quantiles(row: pd.Series) -> Optional[tuple[float, float, float]]:
+    src = _target_quantiles_source()
+    if src != "mu_sigma":
+        trip = _resolve_quantile_triplet(row, "pred_margin_q10", "pred_margin_q50", "pred_margin_q90")
+        if trip is not None:
+            return trip
+        trip = _resolve_quantile_triplet(row, "pred_margin_p10", "pred_margin_p50", "pred_margin_p90")
+        if trip is not None:
+            return trip
+        if src == "explicit":
+            return None
+
+    # Fallback: derive q10/q50/q90 from (mu, sigma) assuming normal.
+    mu = None
+    for c in (
+        "pred_margin_q50",
+        "pred_margin",
+        "pred_margin_blend",
+        "pred_margin_calibrated",
+        "model_margin",
+    ):
+        mu = _safe_float(row.get(c))
+        if mu is not None and np.isfinite(mu):
+            break
+    sigma = None
+    for c in (
+        "pred_margin_sigma",
+        "sigma_margin",
+        "margin_sigma",
+    ):
+        sigma = _safe_float(row.get(c))
+        if sigma is not None and np.isfinite(sigma) and sigma > 0:
+            break
+    trip = _quantiles_from_mu_sigma(mu, sigma)
+    if trip is not None:
+        return trip
+    return None
+
+
+def _should_apply_target_quantiles() -> bool:
+    try:
+        return _safe_bool(os.environ.get("NCAAB_SIM_TARGET_QUANTILES"))
+    except Exception:
+        return False
+
+
+def _apply_target_quantiles_piecewise(
+    samples_arr: np.ndarray,
+    target: tuple[float, float, float],
+) -> tuple[np.ndarray, dict]:
+    """Asymmetric scaling around median so q10/q50/q90 match target."""
+    x = np.asarray(samples_arr, dtype=float)
+    meta: dict = {"applied": False}
+    if x.size == 0:
+        return x, meta
+    try:
+        q10_b, q50_b, q90_b = np.quantile(x, [0.10, 0.50, 0.90]).tolist()
+        q10_t, q50_t, q90_t = (float(target[0]), float(target[1]), float(target[2]))
+
+        denom_l = float(q50_b - q10_b)
+        denom_r = float(q90_b - q50_b)
+        num_l = float(q50_t - q10_t)
+        num_r = float(q90_t - q50_t)
+
+        w_l = float(num_l / denom_l) if abs(denom_l) > 1e-6 else 1.0
+        w_r = float(num_r / denom_r) if abs(denom_r) > 1e-6 else 1.0
+        w_l = float(np.clip(w_l, 0.1, 10.0))
+        w_r = float(np.clip(w_r, 0.1, 10.0))
+
+        dx = x - float(q50_b)
+        adj = float(q50_t) + np.where(dx <= 0.0, dx * w_l, dx * w_r)
+        meta = {
+            "applied": True,
+            "base_q10": float(q10_b),
+            "base_q50": float(q50_b),
+            "base_q90": float(q90_b),
+            "target_q10": float(q10_t),
+            "target_q50": float(q50_t),
+            "target_q90": float(q90_t),
+            "scale_left": float(w_l),
+            "scale_right": float(w_r),
+        }
+        return np.asarray(adj, dtype=float), meta
+    except Exception:
+        return x, meta
+
+
 def _clip01(x: float) -> float:
     return float(np.clip(float(x), 0.0, 1.0))
 
@@ -2587,6 +2774,32 @@ def simulate_game_row(
                 away_1h = np.clip(away_1h.astype(float) + float(d_away), 0.0, away_pts.astype(float))
         except Exception:
             pass
+
+        # Optional: reshape full-game total/margin distributions to match model quantiles.
+        tgt_total_meta = {"applied": False}
+        tgt_margin_meta = {"applied": False}
+        if _should_apply_target_quantiles():
+            tgt_total = _resolve_target_total_quantiles(row)
+            tgt_margin = _resolve_target_margin_quantiles(row)
+            totals_base = home_pts + away_pts
+            margins_base = home_pts - away_pts
+            if tgt_total is not None:
+                totals_adj, tgt_total_meta = _apply_target_quantiles_piecewise(totals_base, tgt_total)
+            else:
+                totals_adj = totals_base
+            if tgt_margin is not None:
+                margins_adj, tgt_margin_meta = _apply_target_quantiles_piecewise(margins_base, tgt_margin)
+            else:
+                margins_adj = margins_base
+
+            if bool(tgt_total_meta.get("applied")) or bool(tgt_margin_meta.get("applied")):
+                home_pts = np.clip(0.5 * (totals_adj + margins_adj), 0.0, None)
+                away_pts = np.clip(0.5 * (totals_adj - margins_adj), 0.0, None)
+                try:
+                    home_1h = np.minimum(home_1h.astype(float), home_pts.astype(float))
+                    away_1h = np.minimum(away_1h.astype(float), away_pts.astype(float))
+                except Exception:
+                    pass
         totals = home_pts + away_pts
         margins = home_pts - away_pts
         totals_1h = home_1h + away_1h
@@ -2811,6 +3024,22 @@ def simulate_game_row(
             "rho_used": None,
             "sigma_total": sigma_total_s,
             "sigma_margin": sigma_margin_s,
+            "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
+            "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
+            "target_quantiles_total": {
+                "scale_left": tgt_total_meta.get("scale_left"),
+                "scale_right": tgt_total_meta.get("scale_right"),
+                "target_q10": tgt_total_meta.get("target_q10"),
+                "target_q50": tgt_total_meta.get("target_q50"),
+                "target_q90": tgt_total_meta.get("target_q90"),
+            } if bool(tgt_total_meta.get("applied")) else None,
+            "target_quantiles_margin": {
+                "scale_left": tgt_margin_meta.get("scale_left"),
+                "scale_right": tgt_margin_meta.get("scale_right"),
+                "target_q10": tgt_margin_meta.get("target_q10"),
+                "target_q50": tgt_margin_meta.get("target_q50"),
+                "target_q90": tgt_margin_meta.get("target_q90"),
+            } if bool(tgt_margin_meta.get("applied")) else None,
             "mu_home": float(np.mean(home_pts)),
             "mu_away": float(np.mean(away_pts)),
             "ppp_home_mu": float(np.mean(home_pts)) / float(max(poss_mu_used, 1e-6)),
@@ -3015,6 +3244,30 @@ def simulate_game_row(
         totals = totals_1h + totals_2h
         margins = margins_1h + margins_2h
 
+        tgt_total_meta = {"applied": False}
+        tgt_margin_meta = {"applied": False}
+        if _should_apply_target_quantiles():
+            tgt_total = _resolve_target_total_quantiles(row)
+            tgt_margin = _resolve_target_margin_quantiles(row)
+            if tgt_total is not None:
+                totals, tgt_total_meta = _apply_target_quantiles_piecewise(totals, tgt_total)
+            if tgt_margin is not None:
+                margins, tgt_margin_meta = _apply_target_quantiles_piecewise(margins, tgt_margin)
+            if bool(tgt_total_meta.get("applied")) or bool(tgt_margin_meta.get("applied")):
+                home_pts = np.clip(0.5 * (totals + margins), 0.0, None)
+                away_pts = np.clip(0.5 * (totals - margins), 0.0, None)
+                try:
+                    home_1h = np.minimum(home_1h.astype(float), home_pts.astype(float))
+                    away_1h = np.minimum(away_1h.astype(float), away_pts.astype(float))
+                except Exception:
+                    pass
+                totals_1h = home_1h + away_1h
+                margins_1h = home_1h - away_1h
+                home_2h = np.clip(home_pts - home_1h, 0.0, None)
+                away_2h = np.clip(away_pts - away_1h, 0.0, None)
+                totals_2h = home_2h + away_2h
+                margins_2h = home_2h - away_2h
+
         q10_t = float(np.quantile(totals, 0.10))
         q50_t = float(np.quantile(totals, 0.50))
         q90_t = float(np.quantile(totals, 0.90))
@@ -3140,6 +3393,8 @@ def simulate_game_row(
             "rho_used": None,
             "sigma_total": float(sigma_total),
             "sigma_margin": float(sigma_margin) if sigma_margin is not None else None,
+            "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
+            "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
             "mu_home": float(np.mean(home_pts)),
             "mu_away": float(np.mean(away_pts)),
             "ppp_home_mu": float(meta_1h.get("ppp_home_mu", 0.0) + meta_2h.get("ppp_home_mu", 0.0)) / 2.0,
@@ -3254,6 +3509,19 @@ def simulate_game_row(
     away_pts = np.clip(samples_arr[:, 1], 0.0, None)
     totals = home_pts + away_pts
     margins = home_pts - away_pts
+
+    tgt_total_meta = {"applied": False}
+    tgt_margin_meta = {"applied": False}
+    if _should_apply_target_quantiles():
+        tgt_total = _resolve_target_total_quantiles(row)
+        tgt_margin = _resolve_target_margin_quantiles(row)
+        if tgt_total is not None:
+            totals, tgt_total_meta = _apply_target_quantiles_piecewise(totals, tgt_total)
+        if tgt_margin is not None:
+            margins, tgt_margin_meta = _apply_target_quantiles_piecewise(margins, tgt_margin)
+        if bool(tgt_total_meta.get("applied")) or bool(tgt_margin_meta.get("applied")):
+            home_pts = np.clip(0.5 * (totals + margins), 0.0, None)
+            away_pts = np.clip(0.5 * (totals - margins), 0.0, None)
 
     q10_t = float(np.quantile(totals, 0.10))
     q50_t = float(np.quantile(totals, 0.50))
@@ -3410,6 +3678,8 @@ def simulate_game_row(
         "rho_used": rho_used,
         "sigma_total": float(sigma_total),
         "sigma_margin": float(sigma_margin) if sigma_margin is not None else None,
+        "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
+        "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
         "mu_home": float(mu_home),
         "mu_away": float(mu_away),
         "mu_total": float(np.mean(totals)),
@@ -3579,6 +3849,43 @@ def run_simulations_for_date(out_dir: Path, date: str,
     # Normalize id dtype for stable merges/output
     if "game_id" in preds.columns:
         preds["game_id"] = preds["game_id"].map(_to_game_id_str)
+
+    # If quantile targeting is enabled, attach q10/q50/q90 and sigma columns when available.
+    # The primary per-date predictions file often omits these, while the unified-enriched
+    # artifact can contain them.
+    try:
+        if _should_apply_target_quantiles() and enr_path.exists():
+            want_cols = [
+                "pred_total_q10",
+                "pred_total_q50",
+                "pred_total_q90",
+                "pred_margin_q10",
+                "pred_margin_q50",
+                "pred_margin_q90",
+                "pred_total_sigma",
+                "pred_margin_sigma",
+            ]
+            missing = [c for c in want_cols if c not in preds.columns]
+            if missing:
+                enr = pd.read_csv(enr_path)
+                if "date" in enr.columns:
+                    enr = enr[enr["date"].astype(str) == str(date)]
+                if "game_id" in enr.columns:
+                    enr["game_id"] = enr["game_id"].map(_to_game_id_str)
+
+                join_keys: list[str] = []
+                if "game_id" in preds.columns and "game_id" in enr.columns:
+                    join_keys = ["game_id"]
+                elif {"home_team", "away_team"}.issubset(preds.columns) and {"home_team", "away_team"}.issubset(enr.columns):
+                    join_keys = ["home_team", "away_team"]
+
+                if join_keys:
+                    take = [*join_keys, *[c for c in missing if c in enr.columns]]
+                    if len(take) > len(join_keys):
+                        enr_small = enr[take].drop_duplicates(subset=join_keys)
+                        preds = preds.merge(enr_small, on=join_keys, how="left")
+    except Exception:
+        pass
 
     # Enrich with per-team features when available (drives feature-based/event sims)
     tf_path = out_dir / "team_features.csv"
