@@ -1,36 +1,6 @@
 game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
-2e82bb0d301b75eb04a70a92d860effa,BetOnline.ag,2026-02-16 15:42:13.900375+00:00,-125.0,105.0,-1.5,135.5,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,LowVig.ag,2026-02-16 15:42:13.900375+00:00,-125.0,105.0,-1.5,135.5,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,DraftKings,2026-02-16 15:42:13.900375+00:00,-125.0,105.0,-1.5,135.5,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,Fanatics,2026-02-16 15:42:13.900375+00:00,-130.0,110.0,-2.0,136.0,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,FanDuel,2026-02-16 15:42:13.900375+00:00,-140.0,116.0,-1.5,134.5,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,BetRivers,2026-02-16 15:42:13.900375+00:00,-137.0,112.0,-2.5,134.5,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,BetMGM,2026-02-16 15:42:13.900375+00:00,-125.0,105.0,-1.5,135.5,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,Bovada,2026-02-16 15:42:13.900375+00:00,-130.0,110.0,-2.0,136.0,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-2e82bb0d301b75eb04a70a92d860effa,Caesars,2026-02-16 15:42:13.900375+00:00,-125.0,105.0,-1.5,135.5,2026-02-16 19:00:00+00:00,East Texas A&M Lions,SE Louisiana Lions
-46d24584bce06f4b29c43fac7f2ab306,BetOnline.ag,2026-02-16 15:42:13.900375+00:00,,,-4.5,142.0,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,LowVig.ag,2026-02-16 15:42:13.900375+00:00,,,-4.5,142.0,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,DraftKings,2026-02-16 15:42:13.900375+00:00,-245.0,200.0,-4.5,142.5,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,Fanatics,2026-02-16 15:42:13.900375+00:00,-240.0,190.0,-5.0,142.0,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,FanDuel,2026-02-16 15:42:13.900375+00:00,-255.0,205.0,-5.5,142.5,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,BetMGM,2026-02-16 15:42:13.900375+00:00,-250.0,200.0,-4.5,142.5,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,BetRivers,2026-02-16 15:42:13.900375+00:00,-275.0,205.0,-5.5,141.5,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,Bovada,2026-02-16 15:42:13.900375+00:00,-240.0,200.0,-5.5,142.0,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-46d24584bce06f4b29c43fac7f2ab306,Caesars,2026-02-16 15:42:13.900375+00:00,-250.0,205.0,-5.0,142.0,2026-02-16 21:30:00+00:00,South Carolina St Bulldogs,Coppin St Eagles
-83113e53720d200845c59b7cc0426f29,BetOnline.ag,2026-02-16 15:42:13.900375+00:00,-255.0,211.0,-5.5,136.0,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,LowVig.ag,2026-02-16 15:42:13.900375+00:00,-255.0,211.0,-5.5,136.0,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,DraftKings,2026-02-16 15:42:13.900375+00:00,-265.0,215.0,-5.5,135.5,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,BetUS,2026-02-16 15:42:13.900375+00:00,-265.0,223.0,-5.5,136.0,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,BetRivers,2026-02-16 15:42:13.900375+00:00,-250.0,200.0,-5.5,135.5,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,Caesars,2026-02-16 15:42:13.900375+00:00,-260.0,210.0,-5.5,136.0,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,FanDuel,2026-02-16 15:42:13.900375+00:00,-295.0,235.0,-5.5,135.5,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,BetMGM,2026-02-16 15:42:13.900375+00:00,-250.0,200.0,-5.5,136.5,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-83113e53720d200845c59b7cc0426f29,Bovada,2026-02-16 15:42:13.900375+00:00,-260.0,215.0,-6.0,136.0,2026-02-16 22:00:00+00:00,Old Dominion Monarchs,Louisiana Ragin' Cajuns
-f2f8b20a3f953efae02c3257e3256d40,BetOnline.ag,2026-02-16 15:42:13.900375+00:00,,,3.0,144.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
-f2f8b20a3f953efae02c3257e3256d40,LowVig.ag,2026-02-16 15:42:13.900375+00:00,,,3.0,144.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
-f2f8b20a3f953efae02c3257e3256d40,Fanatics,2026-02-16 15:42:13.900375+00:00,120.0,-145.0,2.5,143.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
-f2f8b20a3f953efae02c3257e3256d40,FanDuel,2026-02-16 15:42:13.900375+00:00,126.0,-152.0,2.5,143.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
-f2f8b20a3f953efae02c3257e3256d40,BetRivers,2026-02-16 15:42:13.900375+00:00,120.0,-152.0,2.5,143.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
-f2f8b20a3f953efae02c3257e3256d40,BetMGM,2026-02-16 15:42:13.900375+00:00,125.0,-150.0,2.5,144.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
-f2f8b20a3f953efae02c3257e3256d40,Bovada,2026-02-16 15:42:13.900375+00:00,120.0,-140.0,2.5,144.0,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
-f2f8b20a3f953efae02c3257e3256d40,Caesars,2026-02-16 15:42:13.900375+00:00,130.0,-155.0,3.0,143.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
+f2f8b20a3f953efae02c3257e3256d40,Fanatics,2026-02-17 00:33:04.504344+00:00,,,-16.5,143.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
+f2f8b20a3f953efae02c3257e3256d40,FanDuel,2026-02-17 00:33:04.504344+00:00,,,-16.5,145.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
+f2f8b20a3f953efae02c3257e3256d40,BetRivers,2026-02-17 00:33:04.504344+00:00,,,-17.5,146.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
+f2f8b20a3f953efae02c3257e3256d40,BetMGM,2026-02-17 00:33:04.504344+00:00,-10000.0,3300.0,-16.5,145.5,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders
+f2f8b20a3f953efae02c3257e3256d40,Caesars,2026-02-17 00:33:04.504344+00:00,,,-16.5,,2026-02-16 23:00:00+00:00,Boston Univ. Terriers,Colgate Raiders

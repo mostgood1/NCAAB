@@ -3476,6 +3476,7 @@ def fetch_games(
     end: str | None = typer.Option(None, help="End date YYYY-MM-DD; defaults to Apr 15 following season"),
     provider: str = typer.Option("espn", help="Data provider: 'espn' (default) or 'ncaa'"),
     use_cache: bool = True,
+    cache_only: bool = typer.Option(False, help="If true, never hit network; only use existing data/cache/* files"),
     out: Path = typer.Option(settings.outputs_dir / "games.parquet", help="Output Parquet file"),
 ):
     """Fetch real NCAA D1 scoreboard data by date range and write to Parquet."""
@@ -3491,7 +3492,7 @@ def fetch_games(
     rows = []
     total = 0
     iterator = iter_games_espn if provider.lower() == "espn" else iter_games_ncaa
-    for res in iterator(start_date, end_date, use_cache=use_cache):
+    for res in iterator(start_date, end_date, use_cache=use_cache, cache_only=cache_only):
         g = res.games
         total += len(g)
         for game in g:
@@ -4680,6 +4681,7 @@ def fetch_boxscores(
     games_path: Path = typer.Argument(..., help="Games CSV/Parquet produced by fetch-games (must be ESPN source for event IDs)"),
     out: Path = typer.Option(settings.outputs_dir / "boxscores.csv", help="Output CSV with possessions and four factors"),
     use_cache: bool = True,
+    cache_only: bool = typer.Option(False, help="If true, never hit network; only parse existing data/cache/espn_summary/*.json"),
 ):
     """Fetch ESPN box score summaries for games and compute possessions and four factors.
 
@@ -4699,7 +4701,7 @@ def fetch_boxscores(
         raise typer.Exit(code=1)
 
     rows = []
-    for r in iter_boxscores(games["game_id"].astype(str).tolist(), use_cache=use_cache):
+    for r in iter_boxscores(games["game_id"].astype(str).tolist(), use_cache=use_cache, cache_only=cache_only):
         if r is None:
             continue
         rows.append(r.model_dump())
@@ -4721,6 +4723,7 @@ def backfill_games(
         help="Provider to ingest into games_all/SQLite: espn|ncaa|both|fused (fused prefers ESPN when possible)",
     ),
     use_cache: bool = typer.Option(True, help="Use cached scoreboards when available"),
+    cache_only: bool = typer.Option(False, help="If true, never hit network; only use existing data/cache/* files"),
     sleep_seconds: float = typer.Option(0.0, help="Sleep between per-day fetches (rate-limit friendly)"),
     max_days: int = typer.Option(0, help="If >0, limit to this many days (debug/smoke)"),
     append_all: bool = typer.Option(True, help="Append to outputs/games_all.csv (deduping by game_id)"),
@@ -4786,10 +4789,10 @@ def backfill_games(
             break
 
         if prov in {"espn", "both", "fused"}:
-            for res in iter_games_espn(cur, cur, use_cache=use_cache):
+            for res in iter_games_espn(cur, cur, use_cache=use_cache, cache_only=cache_only):
                 _add_games(res.games, "espn")
         if prov in {"ncaa", "both", "fused"}:
-            for res in iter_games_ncaa(cur, cur, use_cache=use_cache):
+            for res in iter_games_ncaa(cur, cur, use_cache=use_cache, cache_only=cache_only):
                 _add_games(res.games, "ncaa")
 
         n_days += 1
@@ -4890,6 +4893,7 @@ def backfill_boxscores(
     games_csv: Path | None = typer.Option(None, help="Optional games CSV to source event IDs (if omitted, uses SQLite games table)"),
     out: Path = typer.Option(settings.outputs_dir / "boxscores.csv", help="Output CSV (merged, de-duped by game_id)"),
     use_cache: bool = typer.Option(True, help="Use cached ESPN summaries when available"),
+    cache_only: bool = typer.Option(False, help="If true, never hit network; only parse existing data/cache/espn_summary/*.json"),
     sleep_seconds: float = typer.Option(0.15, help="Sleep between ESPN requests (helps avoid rate limits)") ,
     max_games: int = typer.Option(0, help="If >0, limit to this many games (debug/smoke)"),
     completed_only: bool = typer.Option(True, help="If true, only request boxscores for games with non-null final scores when available"),
@@ -5030,7 +5034,7 @@ def backfill_boxscores(
 
     rows: list[dict[str, Any]] = []
     fetched = 0
-    for r in iter_boxscores(game_ids, use_cache=use_cache):
+    for r in iter_boxscores(game_ids, use_cache=use_cache, cache_only=cache_only):
         if r is None:
             if sleep_seconds and float(sleep_seconds) > 0:
                 time.sleep(float(sleep_seconds))
@@ -10359,6 +10363,7 @@ def fetch_games_fused(
     start: str | None = typer.Option(None, help="Start date YYYY-MM-DD; defaults to Nov 1 of season"),
     end: str | None = typer.Option(None, help="End date YYYY-MM-DD; defaults to Apr 15 following season"),
     use_cache: bool = True,
+    cache_only: bool = typer.Option(False, help="If true, never hit network; only use existing data/cache/* files"),
     adjacent: bool = typer.Option(False, help="Extend range by ±1 day to capture cross-midnight slates"),
     out: Path = typer.Option(settings.outputs_dir / "games_fused.parquet", help="Output fused games file (CSV if .csv suffix)"),
 ):
@@ -10385,118 +10390,406 @@ def fetch_games_fused(
 
     espn_rows: list[dict] = []
     ncaa_rows: list[dict] = []
-    for res in iter_games_espn(fetch_start, fetch_end, use_cache=use_cache):
+    for res in iter_games_espn(fetch_start, fetch_end, use_cache=use_cache, cache_only=cache_only):
         for g in res.games:
             d = g.model_dump()
             d["source"] = "espn"
             espn_rows.append(d)
-    for res in iter_games_ncaa(fetch_start, fetch_end, use_cache=use_cache):
+    for res in iter_games_ncaa(fetch_start, fetch_end, use_cache=use_cache, cache_only=cache_only):
         for g in res.games:
             d = g.model_dump()
             d["source"] = "ncaa"
             ncaa_rows.append(d)
 
-    if not espn_rows and not ncaa_rows:
-        print("[yellow]No games found from either provider in range.[/yellow]")
-        return
+    # Fuse + dedupe
+    df_espn = pd.DataFrame(espn_rows)
+    df_ncaa = pd.DataFrame(ncaa_rows)
+    combined = pd.concat([df_espn, df_ncaa], ignore_index=True) if (not df_espn.empty or not df_ncaa.empty) else pd.DataFrame()
+    if combined.empty:
+        print("[yellow]No games returned for the requested range.[/yellow]")
+        raise typer.Exit(code=0)
 
-    def _prep(df: pd.DataFrame) -> pd.DataFrame:
-        if df.empty:
-            return df
-        # Normalize key on date + normalized team names
-        if "date" in df.columns:
-            try:
-                df["_date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-            except Exception:
-                df["_date"] = df["date"].astype(str)
-        else:
-            df["_date"] = ""
-        for col in ["home_team", "away_team"]:
-            if col in df.columns:
-                df[col] = df[col].astype(str)
-        df["_home_key"] = df.get("home_team", pd.Series(dtype=str)).astype(str).map(lambda x: _norm(x))
-        df["_away_key"] = df.get("away_team", pd.Series(dtype=str)).astype(str).map(lambda x: _norm(x))
-        df["_fuse_key"] = df["_date"] + "|" + df["_home_key"] + "|" + df["_away_key"]
-        # Quality metric: start_time presence + number of non-null score fields
-        score_cols = [c for c in ["home_score","away_score","home_score_1h","away_score_1h","home_score_2h","away_score_2h"] if c in df.columns]
-        df["_score_nonnull"] = df[score_cols].notna().sum(axis=1) if score_cols else 0
-        df["_has_start"] = df.get("start_time").notna() if "start_time" in df.columns else False
-        df["_quality"] = df["_has_start"].astype(int) * 10 + df["_score_nonnull"].astype(int)
-        return df
-
-    espn_df = _prep(pd.DataFrame(espn_rows))
-    ncaa_df = _prep(pd.DataFrame(ncaa_rows))
-    combined = pd.concat([espn_df, ncaa_df], ignore_index=True)
-
-    # Deduplicate by fuse key preferring highest quality
-    if "_fuse_key" in combined.columns:
-        combined = combined.sort_values(["_fuse_key","_quality"], ascending=[True, False])
-        combined = combined.drop_duplicates(subset=["_fuse_key"], keep="first")
-
-    # Filter back to original requested range (exclude adjacent padding) based on date
+    # Normalize key and quality heuristic
     try:
-        combined["date"] = pd.to_datetime(combined["date"], errors="coerce")
-        mask = (combined["date"].dt.date >= start_date) & (combined["date"].dt.date <= end_date)
-        combined = combined[mask].copy()
-        # Return date column to string
-        combined["date"] = combined["date"].dt.strftime("%Y-%m-%d")
+        work = combined.copy()
+        work["_date"] = pd.to_datetime(work.get("date"), errors="coerce").dt.strftime("%Y-%m-%d")
+        work["_home"] = work.get("home_team", "").astype(str).map(normalize_name)
+        work["_away"] = work.get("away_team", "").astype(str).map(normalize_name)
+        work["_key"] = work["_date"].astype(str) + "|" + work["_home"].astype(str) + "|" + work["_away"].astype(str)
+
+        score_cols = [
+            c
+            for c in ["home_score", "away_score", "home_score_1h", "away_score_1h", "home_score_2h", "away_score_2h"]
+            if c in work.columns
+        ]
+        work["_score_nonnull"] = work[score_cols].notna().sum(axis=1) if score_cols else 0
+        work["_has_start"] = work.get("start_time").notna() if "start_time" in work.columns else False
+        work["_is_espn"] = (work.get("source", "").astype(str).str.lower() == "espn").astype(int)
+        work["_quality"] = work["_is_espn"] * 100 + work["_has_start"].astype(int) * 10 + work["_score_nonnull"].astype(int)
+
+        # Coverage stats before dedupe
+        key_sources = work.groupby("_key")["source"].agg(lambda s: "|".join(sorted(set(str(x).lower() for x in s.tolist() if str(x)))))
+        n_keys = int(key_sources.shape[0])
+        n_both = int((key_sources == "espn|ncaa").sum())
+        n_espn_only = int((key_sources == "espn").sum())
+        n_ncaa_only = int((key_sources == "ncaa").sum())
+        print({"keys": n_keys, "both": n_both, "espn_only": n_espn_only, "ncaa_only": n_ncaa_only})
+
+        # Dedupe
+        work = work.sort_values(["_key", "_quality"], ascending=[True, False])
+        fused = work.drop_duplicates(subset=["_key"], keep="first")
+        fused = fused.drop(columns=[c for c in fused.columns if c.startswith("_")], errors="ignore")
+    except Exception:
+        fused = combined.drop_duplicates(subset=["game_id"], keep="first") if "game_id" in combined.columns else combined
+
+    # Warn on suspiciously-low days (simple heuristic)
+    try:
+        if "date" in fused.columns:
+            day_counts = (
+                pd.to_datetime(fused["date"], errors="coerce")
+                .dt.strftime("%Y-%m-%d")
+                .value_counts(dropna=True)
+            )
+            low_days = [d for d, n in day_counts.items() if int(n) < 15]
+            if low_days:
+                print(f"[yellow]Days with <15 fused games (sample up to 10):[/yellow] {low_days[:10]}")
     except Exception:
         pass
 
-    # Coverage stats
-    espn_keys = set(espn_df["_fuse_key"].tolist()) if not espn_df.empty else set()
-    ncaa_keys = set(ncaa_df["_fuse_key"].tolist()) if not ncaa_df.empty else set()
-    fused_keys = set(combined["_fuse_key"].tolist()) if not combined.empty else set()
-    both = espn_keys & ncaa_keys
-    espn_only = espn_keys - ncaa_keys
-    ncaa_only = ncaa_keys - espn_keys
-    stats = {
-        "espn_rows": len(espn_df),
-        "ncaa_rows": len(ncaa_df),
-        "espn_unique": len(espn_keys),
-        "ncaa_unique": len(ncaa_keys),
-        "fused": len(fused_keys),
-        "both_overlap": len(both),
-        "espn_only": len(espn_only),
-        "ncaa_only": len(ncaa_only),
-    }
-    print(stats)
-    # Persist per-day counts & anomalies for later UI / monitoring if within <= 2 year span
-    try:
-        counts_csv = settings.outputs_dir / "schedule_day_counts.csv"
-        per_day_df = per_day.reset_index().rename(columns={"index":"date"}) if isinstance(per_day, pd.Series) else pd.DataFrame()
-        if not per_day_df.empty:
-            per_day_df.to_csv(counts_csv, index=False)
-    except Exception:
-        pass
-
-    # Per-day simple anomaly warning (mid-season expectation heuristic)
-    try:
-        per_day = combined.groupby("date").size().rename("n_games")
-        warnings = []
-        for date_str, n_games in per_day.items():
-            try:
-                d = dt.date.fromisoformat(date_str)
-                if d.month in {11,12,1,2,3} and n_games < 15:  # crude heuristic
-                    warnings.append(f"{date_str}: only {n_games} games")
-            except Exception:
-                continue
-        if warnings:
-            print("[yellow]Low coverage warnings:[/yellow]", warnings)
-    except Exception:
-        pass
-
+    # Write output
     out.parent.mkdir(parents=True, exist_ok=True)
-    if out.suffix.lower() == ".csv":
-        combined.to_csv(out, index=False)
+    if out.suffix.lower() == ".parquet":
+        fused.to_parquet(out, index=False)
+    else:
+        fused.to_csv(out, index=False)
+    print(f"[green]Wrote[/green] {out} with {len(fused)} games")
+
+
+@app.command(name="audit-local-data")
+def audit_local_data(
+    games_path: Path = typer.Argument(..., help="Games CSV/Parquet to audit for cached coverage"),
+    out_json: Path = typer.Option(settings.outputs_dir / "local_data_coverage.json", help="Summary JSON output"),
+    out_missing_csv: Path = typer.Option(settings.outputs_dir / "local_data_missing.csv", help="Missing-cache rows CSV"),
+):
+    """Audit whether required cached artifacts exist to compute features locally.
+
+    Checks (best-effort):
+      - ESPN scoreboard cache per date: data/cache/espn/YYYY-MM-DD.json
+      - NCAA scoreboard cache per date: data/cache/scoreboard/YYYY-MM-DD.json
+      - ESPN summary/boxscore cache per game_id: data/cache/espn_summary/<id>.json
+      - ESPN PBP cache per game_id: data/cache/espn_pbp/<id>.json
+
+    This is intentionally local-only: it does not fetch missing data.
+    """
+    from .data.cache import cache_path
+
+    # Load CSV/Parquet flexibly
+    if games_path.suffix.lower() == ".csv":
+        games = pd.read_csv(games_path)
     else:
         try:
-            combined.to_parquet(out, index=False)
-        except Exception as e:
-            csv_alt = out.with_suffix(".csv")
-            combined.to_csv(csv_alt, index=False)
-            print(f"[yellow]Parquet write failed ({e}); wrote CSV to[/yellow] {csv_alt}")
-    print(f"[green]Wrote fused games to[/green] {out} ({len(combined)} rows)")
+            games = pd.read_parquet(games_path)
+        except Exception:
+            games = pd.read_csv(games_path.with_suffix(".csv"))
+
+    if games.empty or "game_id" not in games.columns:
+        print("[red]games file missing game_id or is empty[/red]")
+        raise typer.Exit(code=1)
+
+    # Normalize ids and dates
+    gids = games["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+    dates = None
+    if "date" in games.columns:
+        try:
+            dates = pd.to_datetime(games["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        except Exception:
+            dates = games["date"].astype(str).str.slice(0, 10)
+
+    missing_rows: list[dict[str, Any]] = []
+    n = int(len(gids))
+    n_sum = 0
+    n_pbp = 0
+    for i, gid in enumerate(gids.tolist()):
+        has_sum = cache_path("espn_summary", f"{gid}.json").exists()
+        has_pbp = cache_path("espn_pbp", f"{gid}.json").exists()
+        n_sum += int(has_sum)
+        n_pbp += int(has_pbp)
+        if not (has_sum and has_pbp):
+            d = None
+            if dates is not None:
+                try:
+                    d = str(dates.iloc[i])
+                except Exception:
+                    d = None
+            missing_rows.append(
+                {
+                    "game_id": gid,
+                    "date": d,
+                    "missing_summary": int(not has_sum),
+                    "missing_pbp": int(not has_pbp),
+                }
+            )
+
+    # Per-date scoreboard cache coverage
+    unique_dates: list[str] = []
+    if dates is not None:
+        try:
+            unique_dates = sorted({str(x) for x in dates.dropna().astype(str).tolist() if len(str(x)) >= 10})
+        except Exception:
+            unique_dates = []
+    n_dates = len(unique_dates)
+    n_espn_day = 0
+    n_ncaa_day = 0
+    missing_dates: list[dict[str, Any]] = []
+    for d in unique_dates:
+        d0 = str(d)[:10]
+        has_espn = cache_path("espn", f"{d0}.json").exists()
+        has_ncaa = cache_path("scoreboard", f"{d0}.json").exists()
+        n_espn_day += int(has_espn)
+        n_ncaa_day += int(has_ncaa)
+        if not (has_espn and has_ncaa):
+            missing_dates.append(
+                {
+                    "date": d0,
+                    "missing_espn_scoreboard": int(not has_espn),
+                    "missing_ncaa_scoreboard": int(not has_ncaa),
+                }
+            )
+
+    summary = {
+        "games": {"n": n, "summary_cache": n_sum, "pbp_cache": n_pbp, "complete_both": n - len(missing_rows)},
+        "dates": {"n": n_dates, "espn_scoreboard_cache": n_espn_day, "ncaa_scoreboard_cache": n_ncaa_day},
+        "missing": {"games": len(missing_rows), "dates": len(missing_dates)},
+    }
+
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    print(f"[green]Wrote coverage summary to[/green] {out_json}")
+
+    out_missing_csv.parent.mkdir(parents=True, exist_ok=True)
+    miss_df = pd.DataFrame(missing_rows)
+    if not miss_df.empty:
+        miss_df.to_csv(out_missing_csv, index=False)
+        print(f"[yellow]Wrote missing-game cache rows to[/yellow] {out_missing_csv} ({len(miss_df)} rows)")
+    else:
+        # still write an empty file for scripting stability
+        pd.DataFrame(columns=["game_id", "date", "missing_summary", "missing_pbp"]).to_csv(out_missing_csv, index=False)
+        print(f"[green]All games have summary+pbp cache; wrote empty CSV to[/green] {out_missing_csv}")
+
+    if missing_dates:
+        # Log a small sample so it's visible in CI/automation logs
+        print("[yellow]Missing scoreboard cache for some dates (sample up to 10):[/yellow]")
+        for r in missing_dates[:10]:
+            print("  ", r)
+
+
+@app.command(name="prime-cache")
+def prime_cache_cmd(
+    start: str = typer.Option(..., help="Start date YYYY-MM-DD"),
+    end: str = typer.Option(..., help="End date YYYY-MM-DD"),
+    provider: str = typer.Option(
+        "fused",
+        help="Which scoreboard(s) to prime: espn|ncaa|both|fused (fused primes both and builds a combined games list)",
+    ),
+    use_cache: bool = typer.Option(True, help="Use existing cache first (still fetches missing days/games)."),
+    force_days: bool = typer.Option(False, help="If true, re-fetch day scoreboards even if cached (overwrites cache)."),
+    force_summaries: bool = typer.Option(False, help="If true, re-fetch ESPN summary caches even if cached."),
+    force_pbp: bool = typer.Option(False, help="If true, re-fetch ESPN PBP caches even if cached."),
+    fetch_summaries: bool = typer.Option(True, help="Prime ESPN summary caches (data/cache/espn_summary)."),
+    fetch_pbp: bool = typer.Option(True, help="Prime ESPN PBP caches (data/cache/espn_pbp)."),
+    sleep_seconds: float = typer.Option(0.15, help="Sleep between per-day / per-game requests (rate-limit friendly)."),
+    max_days: int = typer.Option(0, help="If >0, cap number of days (debug)."),
+    max_games: int = typer.Option(0, help="If >0, cap number of games for summary/pbp priming (debug)."),
+    out_games_csv: Path = typer.Option(settings.outputs_dir / "games_prime_cache.csv", help="Write the primed games list to CSV for later offline steps."),
+):
+    """Prime local caches so downstream feature computation can be fully local/offline.
+
+    This command is for the one-time (or occasional) online pass to obtain missing games.
+    After it runs, you can use:
+      - fetch-games / backfill-games with --cache-only
+      - fetch-boxscores / backfill-boxscores with --cache-only
+      - build-features with those artifacts
+    """
+
+    from .data.cache import cache_path
+
+    try:
+        d0 = dt.date.fromisoformat(str(start))
+        d1 = dt.date.fromisoformat(str(end))
+    except Exception:
+        print(f"[red]Invalid start/end:[/red] start={start} end={end}")
+        raise typer.Exit(code=2)
+    if d1 < d0:
+        print(f"[red]end precedes start:[/red] {end} < {start}")
+        raise typer.Exit(code=2)
+
+    prov = str(provider or "").strip().lower()
+    if prov not in {"espn", "ncaa", "both", "fused"}:
+        raise typer.BadParameter("provider must be one of: espn|ncaa|both|fused")
+
+    # 1) Prime per-day scoreboards (fills data/cache/espn and/or data/cache/scoreboard).
+    cur = d0
+    one = dt.timedelta(days=1)
+    day_n = 0
+    espn_rows: list[dict[str, Any]] = []
+    ncaa_rows: list[dict[str, Any]] = []
+
+    while cur <= d1:
+        if max_days and int(max_days) > 0 and day_n >= int(max_days):
+            break
+
+        if prov in {"espn", "both", "fused"}:
+            # If forcing days, remove cached file before iterating.
+            if force_days:
+                try:
+                    p = cache_path("espn", f"{cur.isoformat()}.json")
+                    if p.exists():
+                        p.unlink()
+                except Exception:
+                    pass
+            for res in iter_games_espn(cur, cur, use_cache=use_cache, cache_only=False):
+                for g in res.games:
+                    d = g.model_dump()
+                    d["source"] = "espn"
+                    espn_rows.append(d)
+
+        if prov in {"ncaa", "both", "fused"}:
+            if force_days:
+                try:
+                    p = cache_path("scoreboard", f"{cur.isoformat()}.json")
+                    if p.exists():
+                        p.unlink()
+                except Exception:
+                    pass
+            for res in iter_games_ncaa(cur, cur, use_cache=use_cache, cache_only=False):
+                for g in res.games:
+                    d = g.model_dump()
+                    d["source"] = "ncaa"
+                    ncaa_rows.append(d)
+
+        day_n += 1
+        if sleep_seconds and float(sleep_seconds) > 0:
+            time.sleep(float(sleep_seconds))
+        cur += one
+
+    combined = pd.concat([pd.DataFrame(espn_rows), pd.DataFrame(ncaa_rows)], ignore_index=True) if (espn_rows or ncaa_rows) else pd.DataFrame()
+    if combined.empty:
+        print("[yellow]No games returned while priming day scoreboards.[/yellow]")
+        raise typer.Exit(code=0)
+
+    # For fused mode, dedupe by (date|home|away) key with a small quality heuristic.
+    if prov == "fused":
+        try:
+            from .data.merge_odds import normalize_name as _norm
+
+            work = combined.copy()
+            work["_date"] = pd.to_datetime(work.get("date"), errors="coerce").dt.strftime("%Y-%m-%d")
+            work["_home"] = work.get("home_team", "").astype(str).map(_norm)
+            work["_away"] = work.get("away_team", "").astype(str).map(_norm)
+            work["_key"] = work["_date"].astype(str) + "|" + work["_home"].astype(str) + "|" + work["_away"].astype(str)
+            score_cols = [c for c in ["home_score", "away_score", "home_score_1h", "away_score_1h", "home_score_2h", "away_score_2h"] if c in work.columns]
+            work["_score_nonnull"] = work[score_cols].notna().sum(axis=1) if score_cols else 0
+            work["_has_start"] = work.get("start_time").notna() if "start_time" in work.columns else False
+            work["_is_espn"] = (work.get("source", "").astype(str).str.lower() == "espn").astype(int)
+            work["_quality"] = work["_is_espn"] * 100 + work["_has_start"].astype(int) * 10 + work["_score_nonnull"].astype(int)
+            work = work.sort_values(["_key", "_quality"], ascending=[True, False])
+            work = work.drop_duplicates(subset=["_key"], keep="first")
+            combined = work.drop(columns=[c for c in work.columns if c.startswith("_")], errors="ignore")
+        except Exception:
+            pass
+
+    # Normalize ids and dates
+    if "game_id" in combined.columns:
+        combined["game_id"] = combined["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+    if "date" in combined.columns:
+        try:
+            combined["date"] = pd.to_datetime(combined["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        except Exception:
+            combined["date"] = combined["date"].astype(str).str.slice(0, 10)
+
+    out_games_csv.parent.mkdir(parents=True, exist_ok=True)
+    combined.to_csv(out_games_csv, index=False)
+    print(f"[green]Wrote primed games list to[/green] {out_games_csv} ({len(combined)} rows)")
+
+    # 2) Prime per-game ESPN summary + PBP caches for ESPN IDs (needed for boxscores/four-factors + live PBP).
+    if not (fetch_summaries or fetch_pbp):
+        return
+
+    try:
+        from .data.adapters.espn_boxscore import fetch_boxscore
+    except Exception:
+        fetch_boxscore = None
+
+    try:
+        from .data.adapters.espn_playbyplay import fetch_playbyplay
+    except Exception:
+        fetch_playbyplay = None
+
+    # Choose ESPN ids: either explicit ESPN rows or (fallback) numeric-looking game_ids.
+    espn_ids: list[str] = []
+    if "source" in combined.columns:
+        try:
+            espn_ids = combined[combined["source"].astype(str).str.lower() == "espn"]["game_id"].astype(str).tolist()
+        except Exception:
+            espn_ids = []
+    if not espn_ids:
+        espn_ids = combined.get("game_id", pd.Series(dtype=str)).astype(str).tolist()
+
+    # Dedupe while preserving order
+    seen: set[str] = set()
+    espn_ids2: list[str] = []
+    for gid in espn_ids:
+        g = str(gid).strip()
+        if not g or g in seen:
+            continue
+        seen.add(g)
+        espn_ids2.append(g)
+    espn_ids = espn_ids2
+
+    if max_games and int(max_games) > 0:
+        espn_ids = espn_ids[: int(max_games)]
+
+    summary_fetched = 0
+    pbp_fetched = 0
+    for i, gid in enumerate(espn_ids, start=1):
+        # Summary
+        if fetch_summaries and fetch_boxscore is not None:
+            sum_path = cache_path("espn_summary", f"{gid}.json")
+            if force_summaries:
+                try:
+                    if sum_path.exists():
+                        sum_path.unlink()
+                except Exception:
+                    pass
+            if force_summaries or (not sum_path.exists()):
+                try:
+                    _ = fetch_boxscore(str(gid), use_cache=use_cache, cache_only=False)
+                    summary_fetched += 1
+                except Exception:
+                    pass
+
+        # PBP
+        if fetch_pbp and fetch_playbyplay is not None:
+            pbp_path = cache_path("espn_pbp", f"{gid}.json")
+            if force_pbp:
+                try:
+                    if pbp_path.exists():
+                        pbp_path.unlink()
+                except Exception:
+                    pass
+            if force_pbp or (not pbp_path.exists()):
+                try:
+                    _ = fetch_playbyplay(str(gid), use_cache=use_cache)
+                    pbp_fetched += 1
+                except Exception:
+                    pass
+
+        if sleep_seconds and float(sleep_seconds) > 0:
+            time.sleep(float(sleep_seconds))
+        if i % 100 == 0:
+            print({"progress": f"{i}/{len(espn_ids)}", "summary_fetched": summary_fetched, "pbp_fetched": pbp_fetched})
+
+    print({"status": "ok", "days_scanned": int(day_n), "games_rows": int(len(combined)), "summary_fetched": int(summary_fetched), "pbp_fetched": int(pbp_fetched), "out_games_csv": str(out_games_csv)})
 
 
 @app.command(name="verify-seg-team-models")

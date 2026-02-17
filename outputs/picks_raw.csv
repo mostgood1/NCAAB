@@ -1,49 +1,30 @@
 game_id,date,home_team,away_team,market,period,bet,line,price,edge,pred_margin,pred_total,rec_type,rec_code
-odds:401804923,2026-02-12,Jacksonville St Gamecocks,UTEP Miners,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401807733,2026-02-12,Queens University Royals,Austin Peay Governors,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401807736,2026-02-12,Stetson Hatters,Jacksonville Dolphins,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401807737,2026-02-12,Florida Gulf Coast Eagles,North Florida Ospreys,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401807738,2026-02-12,North Alabama Lions,West Georgia Wolves,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808227,2026-02-12,Ole Miss Rebels,Alabama Crimson Tide,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808230,2026-02-12,Georgia Bulldogs,Florida Gators,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401809363,2026-02-12,East Tennessee St Buccaneers,Chattanooga Mocs,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401809364,2026-02-12,Mercer Bears,Furman Paladins,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401809365,2026-02-12,Samford Bulldogs,Wofford Terriers,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401809366,2026-02-12,UNC Greensboro Spartans,VMI Keydets,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401814559,2026-02-12,Ball State Cardinals,Buffalo Bulls,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401814560,2026-02-12,Kent State Golden Flashes,Eastern Michigan Eagles,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401814561,2026-02-12,Western Michigan Broncos,Toledo Rockets,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401820204,2026-02-12,Lafayette Leopards,Loyola (MD) Greyhounds,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401820733,2026-02-12,Clemson Tigers,Virginia Tech Hokies,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401820738,2026-02-12,Syracuse Orange,California Golden Bears,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401828221,2026-02-12,East Carolina Pirates,UTSA Roadrunners,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401828677,2026-02-12,Lehigh Mountain Hawks,American Eagles,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401807735,2026-02-12,Central Arkansas Bears,Bellarmine Knights,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808663,2026-02-12,Old Dominion Monarchs,Marshall Thundering Herd,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401822940,2026-02-12,Butler Bulldogs,UConn Huskies,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401822941,2026-02-12,Seton Hall Pirates,Providence Friars,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401828223,2026-02-12,Wichita St Shockers,South Florida Bulls,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401828224,2026-02-12,Tulane Green Wave,Temple Owls,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401807734,2026-02-12,Lipscomb Bisons,Eastern Kentucky Colonels,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808662,2026-02-12,Georgia Southern Eagles,Appalachian St Mountaineers,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808664,2026-02-12,Arkansas St Red Wolves,UL Monroe Warhawks,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808665,2026-02-12,Texas State Bobcats,Troy Trojans,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401814558,2026-02-12,Northern Illinois Huskies,Bowling Green Falcons,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401818416,2026-02-12,South Dakota Coyotes,North Dakota Fighting Hawks,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401827678,2026-02-12,Texas Tech Red Raiders,Colorado Buffaloes,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401828220,2026-02-12,Tulsa Golden Hurricane,UAB Blazers,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401828222,2026-02-12,Rice Owls,Florida Atlantic Owls,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401825509,2026-02-12,Northwestern Wildcats,Michigan Wolverines,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401804924,2026-02-12,New Mexico St Aggies,Liberty Flames,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808228,2026-02-12,Texas A&M Aggies,Missouri Tigers,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401808232,2026-02-12,Mississippi St Bulldogs,Tennessee Volunteers,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401820732,2026-02-12,Boston College Eagles,Stanford Cardinal,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401820735,2026-02-12,Georgia Tech Yellow Jackets,Wake Forest Demon Deacons,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401822939,2026-02-12,DePaul Blue Demons,Creighton Bluejays,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401827677,2026-02-12,Kansas St Wildcats,Cincinnati Bearcats,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401829242,2026-02-12,San Diego Toreros,Portland Pilots,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401823801,2026-02-12,Grand Canyon Antelopes,New Mexico Lobos,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401829239,2026-02-12,Pacific Tigers,Loyola Marymount Lions,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401829241,2026-02-12,Saint Mary's Gaels,Pepperdine Waves,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401829243,2026-02-12,Santa Clara Broncos,Seattle Redhawks,spreads,full_game,home,0.0,,,,,Spread,ATS
-odds:401825511,2026-02-12,Washington Huskies,Penn State Nittany Lions,spreads,full_game,home,0.0,,,,,Spread,ATS
+401808639,2026-02-16,Marshall Thundering Herd,South Alabama Jaguars,spreads,full_game,home,-4.0,,,4.22826034626835,,Spread,ATS
+401808640,2026-02-16,Old Dominion Monarchs,Louisiana Ragin' Cajuns,spreads,full_game,home,-3.5,,,3.42707059902128,,Spread,ATS
+401808719,2026-02-16,East Texas A&M Lions,SE Louisiana Lions,spreads,full_game,home,-4.5,,,4.642415792480216,,Spread,ATS
+401808885,2026-02-16,Northwestern State Demons,McNeese Cowboys,spreads,full_game,home,-3.5,,,3.5191200161125784,,Spread,ATS
+401808914,2026-02-16,Incarnate Word Cardinals,New Orleans Privateers,spreads,full_game,home,-5.0,,,5.188784984828674,,Spread,ATS
+401808930,2026-02-16,Houston Christian Huskies,Nicholls Colonels,spreads,full_game,home,-5.0,,,5.064897092853244,,Spread,ATS
+401808973,2026-02-16,Texas A&M-Corpus Christi Islanders,Stephen F. Austin Lumberjacks,spreads,full_game,home,-3.0,,,2.849645927615092,,Spread,ATS
+401808983,2026-02-16,UT Rio Grande Valley Vaqueros,Lamar Cardinals,spreads,full_game,home,-3.0,,,2.83910436703536,,Spread,ATS
+401812070,2026-02-16,Stony Brook Seawolves,Drexel Dragons,spreads,full_game,home,-3.0,,,2.9562188478535614,,Spread,ATS
+401820747,2026-02-16,Duke Blue Devils,Syracuse Orange,spreads,full_game,home,-6.0,,,5.757745386113827,,Spread,ATS
+401820819,2026-02-16,Iowa State Cyclones,Houston Cougars,spreads,full_game,home,-3.0,,,2.86730514844632,,Spread,ATS
+401822776,2026-02-16,South Carolina State Bulldogs,Coppin State Eagles,spreads,full_game,home,-2.0,,,1.9407650585174112,,Spread,ATS
+401823053,2026-02-16,Maryland Eastern Shore Hawks,Norfolk State Spartans,spreads,full_game,home,-5.0,,,4.903283839781803,,Spread,ATS
+401824374,2026-02-16,Boston University Terriers,Colgate Raiders,spreads,full_game,home,-4.5,,,4.553866430720365,,Spread,ATS
+401827033,2026-02-16,Texas Southern Tigers,Southern Jaguars,spreads,full_game,home,-3.5,,,3.508530036760499,,Spread,ATS
+401827077,2026-02-16,Prairie View A&M Panthers,Grambling Tigers,spreads,full_game,home,-2.5,,,2.735451567075919,,Spread,ATS
+401827123,2026-02-16,Jackson State Tigers,Bethune-Cookman Wildcats,spreads,full_game,home,-3.0,,,2.9704658294627486,,Spread,ATS
+401827147,2026-02-16,Alabama A&M Bulldogs,Arkansas-Pine Bluff Golden Lions,spreads,full_game,home,-4.5,,,4.600147862079849,,Spread,ATS
+401827167,2026-02-16,Alabama State Hornets,Mississippi Valley State Delta Devils,spreads,full_game,home,-5.5,,,5.351730627279583,,Spread,ATS
+401828694,2026-02-16,North Carolina Central Eagles,Morgan State Bears,spreads,full_game,home,-2.5,,,2.717931897675532,,Spread,ATS
+401829690,2026-02-16,Alcorn State Braves,Florida A&M Rattlers,spreads,full_game,home,-4.0,,,4.127758278856201,,Spread,ATS
+401830242,2026-02-16,Delaware State Hornets,Howard Bison,spreads,full_game,home,-4.5,,,4.494782105481444,,Spread,ATS
+401858742,2026-02-16,Tarleton State Texans,Abilene Christian Wildcats,spreads,full_game,home,-2.5,,,2.259312616951358,,Spread,ATS
+401859836,2026-02-16,Long Island University Sharks,Wagner Seahawks,spreads,full_game,home,-5.0,,,4.948181078482172,,Spread,ATS
+401808719,2026-02-16,East Texas A&M Lions,SE Louisiana Lions,totals,full_game,over,,,,,,Total,OU
+401808640,2026-02-16,Old Dominion Monarchs,Louisiana Ragin' Cajuns,totals,full_game,over,,,,,,Total,OU
+401824374,2026-02-16,Boston University Terriers,Colgate Raiders,totals,full_game,under,,,,,,Total,OU
+401820747,2026-02-16,Duke Blue Devils,Syracuse Orange,totals,full_game,over,,,,,,Total,OU
+401859836,2026-02-16,Long Island University Sharks,Wagner Seahawks,totals,full_game,under,,,,,,Total,OU

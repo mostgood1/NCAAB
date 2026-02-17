@@ -85,7 +85,12 @@ param(
   [double]$LiveLensOverTuningAssumePrice = -110.0,
   [switch]$ApplyLiveLensOverTuning,
   [int]$LiveLensOverTuningMinBucketN = 10,
-  [int]$LiveLensOverTuningMinOverallN = 25
+  [int]$LiveLensOverTuningMinOverallN = 25,
+
+  # Offline-first cache maintenance (keeps local caches warm for feature computation)
+  [switch]$SkipOfflineCacheMaintenance,
+  [int]$OfflineScoreboardPrimeLookbackDays = 60,
+  [int]$OfflineGameCachePrimeLookbackDays = 2
 )
 
 $ErrorActionPreference = 'Stop'
@@ -177,6 +182,9 @@ try {
   $prevDate = $todayDate.AddDays(-1).ToString('yyyy-MM-dd')
   $todayIso = $todayDate.ToString('yyyy-MM-dd')
 
+  # NCAAB season spans calendar years; use season start year for providers that key on season.
+  $seasonStartYear = if ($todayDate.Month -lt 7) { $todayDate.Year - 1 } else { $todayDate.Year }
+
   # Normalize Render base URL (used for upload/health checks). Allow override via -RenderBaseUrl or env.
   $script:RenderBaseUrlEff = $RenderBaseUrl
   if (-not $script:RenderBaseUrlEff -or $script:RenderBaseUrlEff.Trim() -eq '') {
@@ -258,11 +266,49 @@ try {
     Write-Warning "schedule_refresh preflight failed: $($_)"
   }
 
+  # 0.cache) Offline cache maintenance: prime recent day scoreboards + prime recent ESPN per-game caches,
+  # then rebuild a cache-only fused games list and audit missing artifacts.
+  Write-Section "0.cache) Offline cache maintenance (prime + audit)"
+  try {
+    if ($SkipOfflineCacheMaintenance.IsPresent) {
+      Write-Host "[offline-cache] Skipped via -SkipOfflineCacheMaintenance" -ForegroundColor DarkGray
+    } else {
+      $seasonStartIso = (Get-Date -Year $seasonStartYear -Month 11 -Day 1 -Format 'yyyy-MM-dd')
+
+      # Prime recent day scoreboards (both ESPN + NCAA), but only for a rolling window to limit 404 noise.
+      $scoreLb = [Math]::Max(1, [int]$OfflineScoreboardPrimeLookbackDays)
+      $scoreStartDt = $todayDate.AddDays(-1 * $scoreLb)
+      $seasonStartDt = [DateTime]::ParseExact($seasonStartIso, 'yyyy-MM-dd', $null)
+      if ($scoreStartDt -lt $seasonStartDt) { $scoreStartDt = $seasonStartDt }
+      $scoreStartIso = $scoreStartDt.ToString('yyyy-MM-dd')
+      $useCacheFlag = @()
+      if ($NoCache.IsPresent) { $useCacheFlag += '--no-use-cache' } else { $useCacheFlag += '--use-cache' }
+      $tmpPrimeDaysCsv = Join-Path $OutDir ("_tmp_prime_days_" + $todayIso + ".csv")
+      & $VenvPython -m ncaab_model.cli prime-cache --start $scoreStartIso --end $todayIso --provider both @useCacheFlag --no-fetch-summaries --no-fetch-pbp --sleep-seconds 0.05 --out-games-csv $tmpPrimeDaysCsv
+
+      # Prime per-game ESPN summary + PBP caches for very recent games (yesterday + today by default).
+      $gameLb = [Math]::Max(1, [int]$OfflineGameCachePrimeLookbackDays)
+      $gameStartIso = $todayDate.AddDays(-1 * $gameLb).ToString('yyyy-MM-dd')
+      if ([DateTime]::ParseExact($gameStartIso, 'yyyy-MM-dd', $null) -lt $seasonStartDt) { $gameStartIso = $seasonStartIso }
+      $tmpPrimeGamesCsv = Join-Path $OutDir ("_tmp_prime_gamecache_" + $todayIso + ".csv")
+      & $VenvPython -m ncaab_model.cli prime-cache --start $gameStartIso --end $todayIso --provider espn @useCacheFlag --fetch-summaries --fetch-pbp --sleep-seconds 0.05 --out-games-csv $tmpPrimeGamesCsv
+
+      # Rebuild fused games list from caches only (for offline feature computation + diagnostics).
+      $fusedOut = Join-Path $OutDir ("games_fused_cacheonly_" + $seasonStartIso + "_" + $todayIso + ".csv")
+      & $VenvPython -m ncaab_model.cli fetch-games-fused --season $seasonStartYear --start $seasonStartIso --end $todayIso --cache-only --out $fusedOut
+
+      # Audit which artifacts are still missing locally (ESPN summaries/PBP + day scoreboards).
+      & $VenvPython -m ncaab_model.cli audit-local-data $fusedOut --out-json (Join-Path $OutDir 'local_data_coverage.json') --out-missing-csv (Join-Path $OutDir 'local_data_missing.csv')
+    }
+  } catch {
+    Write-Warning "offline cache maintenance failed: $($_)"
+  }
+
   # 0.pre) Fetch today's slate immediately and normalize display times (Central)
   Write-Section "0.pre) Fetch today's slate + normalize display times"
   try {
     $gamesTodayPath = Join-Path $OutDir ("games_" + $todayIso + ".csv")
-    & $VenvPython -m ncaab_model.cli fetch-games --season $todayDate.Year --start $todayIso --end $todayIso --provider $Provider --out $gamesTodayPath
+    & $VenvPython -m ncaab_model.cli fetch-games --season $seasonStartYear --start $todayIso --end $todayIso --provider $Provider --out $gamesTodayPath
     $tmpNorm = Join-Path $OutDir "_tmp_norm_games.py"
     $normCode = @"
 import pandas as pd
@@ -328,7 +374,7 @@ print({'path': str(games_path), 'rows': len(df2)})
   Write-Section "1) Fetch previous day's games ($prevDate)"
   $noCacheFlag = @()
   if ($NoCache.IsPresent) { $noCacheFlag += '--no-use-cache' }
-  & $VenvPython -m ncaab_model.cli fetch-games --season $todayDate.Year --start $prevDate --end $prevDate --provider $Provider @noCacheFlag --out (Join-Path $OutDir 'games_prev.csv')
+  & $VenvPython -m ncaab_model.cli fetch-games --season $seasonStartYear --start $prevDate --end $prevDate --provider $Provider @noCacheFlag --out (Join-Path $OutDir 'games_prev.csv')
 
   Write-Section "2) Fetch odds snapshots for $prevDate and build last/closing lines"
   & $VenvPython -m ncaab_model.cli fetch-odds-history --start $prevDate --end $prevDate --region $Region --markets "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2" --out-dir (Join-Path $OutDir 'odds_history') --mode current
@@ -1356,6 +1402,12 @@ sys.exit(1 if nan_count>0 else 0)
   } else {
     Write-Host "Using NCAAB_SIM_SEED=$($env:NCAAB_SIM_SEED)" -ForegroundColor DarkGray
   }
+  if (-not $env:NCAAB_SIM_BLEND_EVENT_PACE -or $env:NCAAB_SIM_BLEND_EVENT_PACE.Trim() -eq '') {
+    $env:NCAAB_SIM_BLEND_EVENT_PACE = '1'
+    Write-Host "NCAAB_SIM_BLEND_EVENT_PACE not set; defaulting to $($env:NCAAB_SIM_BLEND_EVENT_PACE)" -ForegroundColor DarkGray
+  } else {
+    Write-Host "Using NCAAB_SIM_BLEND_EVENT_PACE=$($env:NCAAB_SIM_BLEND_EVENT_PACE)" -ForegroundColor DarkGray
+  }
   Write-Section '6a.post.d.s) Monte Carlo simulations + blend'
   # Default sim means to the model/blend columns (auto). This keeps sim margins aligned
   # with our betting-intent predictions and avoids unrealistically "too many ties" when
@@ -2190,6 +2242,9 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
               if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') {
                 $env:NCAAB_SIM_SEED = $todayIso.Replace('-','')
               }
+              if (-not $env:NCAAB_SIM_BLEND_EVENT_PACE -or $env:NCAAB_SIM_BLEND_EVENT_PACE.Trim() -eq '') {
+                $env:NCAAB_SIM_BLEND_EVENT_PACE = '1'
+              }
               if (-not $env:NCAAB_SIM_MEAN_SOURCE -or $env:NCAAB_SIM_MEAN_SOURCE.Trim() -eq '') {
                 $env:NCAAB_SIM_MEAN_SOURCE = 'auto'
               }
@@ -2384,6 +2439,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
                 Write-Host ("[Sim] Local sim artifacts missing/incomplete; regenerating for {0}" -f $todayIso) -ForegroundColor DarkCyan
                 try {
                   if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') { $env:NCAAB_SIM_SEED = $todayIso.Replace('-','') }
+                  if (-not $env:NCAAB_SIM_BLEND_EVENT_PACE -or $env:NCAAB_SIM_BLEND_EVENT_PACE.Trim() -eq '') { $env:NCAAB_SIM_BLEND_EVENT_PACE = '1' }
                   if (-not $env:NCAAB_SIM_MEAN_SOURCE -or $env:NCAAB_SIM_MEAN_SOURCE.Trim() -eq '') {
                     $env:NCAAB_SIM_MEAN_SOURCE = 'auto'
                   }

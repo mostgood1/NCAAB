@@ -70,7 +70,12 @@ def _resolve_half_frac(row: pd.Series) -> float:
             vf = float(v)
             if 0 < vf < 1:
                 return float(np.clip(vf, 0.35, 0.65))
-    except Exception:
+    except Exception as e:
+        try:
+            if _safe_bool(os.environ.get("NCAAB_SIM_DUMP_EVENT_FEATURES")):
+                print(f"event_feature_merge_error: {type(e).__name__}: {e}")
+        except Exception:
+            pass
         pass
 
     # Projection-based ratio (most stable when available)
@@ -193,6 +198,21 @@ def _derive_event_rates(row: pd.Series, side: str) -> tuple[float, float, float]
             three_rate = float(lr_3p)
     except Exception:
         pass
+
+    # Prefer direct learned FT-trip probability when present (derived from rolling FTR).
+    try:
+        lr_ft_trip = _safe_float(row.get(f"{side}_team_event_ft_trip_rate"))
+        if lr_ft_trip is not None:
+            ft_trip = float(lr_ft_trip)
+            # Bounds consistent with downstream clamps
+            ft_trip = float(np.clip(ft_trip, 0.06, 0.18))
+            return (
+                float(np.clip(to_rate, 0.11, 0.25)),
+                float(np.clip(ft_trip, 0.06, 0.18)),
+                float(np.clip(three_rate, 0.25, 0.50)),
+            )
+    except Exception:
+        pass
     try:
         lr_fta = _safe_float(row.get(f"{side}_team_event_fta_rate"))
         if lr_fta is not None and lr_fta > 0:
@@ -231,12 +251,21 @@ def _calibrate_shooting_to_ppp(
     to_rate: float,
     ft_trip: float,
     three_rate: float,
+    ft_pct_prior: Optional[float] = None,
+    p2_prior: Optional[float] = None,
+    p3_prior: Optional[float] = None,
 ) -> tuple[float, float, float]:
     """Choose (ft_pct, p2, p3) so the implied expected PPP is close to ppp_target."""
     ppp_t = float(np.clip(float(ppp_target), 0.75, 1.35))
-    ft_pct = float(np.clip(BASE_FT_PCT + (ppp_t - 1.0) * 0.06, 0.62, 0.82))
-    p2 = float(BASE_2P_PCT)
-    p3 = float(BASE_3P_PCT)
+
+    # Start from priors when available (boxscore-derived rolling rates), else baselines.
+    ft_base = float(np.clip(BASE_FT_PCT + (ppp_t - 1.0) * 0.06, 0.62, 0.82))
+    p2_base = float(BASE_2P_PCT)
+    p3_base = float(BASE_3P_PCT)
+
+    ft_pct = ft_base if ft_pct_prior is None else float(np.clip(float(ft_pct_prior), 0.55, 0.90))
+    p2 = p2_base if p2_prior is None else float(np.clip(float(p2_prior), 0.30, 0.80))
+    p3 = p3_base if p3_prior is None else float(np.clip(float(p3_prior), 0.20, 0.60))
 
     # Expected points per possession under the simple event model.
     # Events are conditioned on not being a turnover.
@@ -257,6 +286,56 @@ def _calibrate_shooting_to_ppp(
     p3 = float(np.clip(p3 * k, 0.25, 0.52))
     ft_pct = float(np.clip(ft_pct * (0.5 + 0.5 * k), 0.60, 0.86))
     return ft_pct, p2, p3
+
+
+def _derive_shooting_priors(row: pd.Series, side: str) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    """Return (ft_pct, p2_pct, p3_pct) rolling priors when available."""
+    try:
+        if _safe_bool(os.environ.get("NCAAB_SIM_DISABLE_SHOOTING_PRIORS")):
+            return None, None, None
+    except Exception:
+        pass
+    try:
+        ft = _safe_float(row.get(f"{side}_team_event_ft_pct"))
+    except Exception:
+        ft = None
+    try:
+        p2 = _safe_float(row.get(f"{side}_team_event_2p_pct"))
+    except Exception:
+        p2 = None
+    try:
+        p3 = _safe_float(row.get(f"{side}_team_event_3p_pct"))
+    except Exception:
+        p3 = None
+
+    # Shrink toward baselines when sample size is small.
+    g = _safe_float(row.get(f"{side}_team_event_games"))
+    if g is None:
+        return ft, p2, p3
+    try:
+        w = float(np.clip(float(g) / 15.0, 0.0, 1.0))
+    except Exception:
+        w = 0.0
+    if w <= 0:
+        return None, None, None
+
+    def _blend(prior: Optional[float], base: float, lo: float, hi: float) -> Optional[float]:
+        if prior is None:
+            return None
+        try:
+            pv = float(np.clip(float(prior), lo, hi))
+            return float((1.0 - w) * base + w * pv)
+        except Exception:
+            return None
+
+    ft_b = float(np.clip(BASE_FT_PCT, 0.60, 0.86))
+    p2_b = float(np.clip(BASE_2P_PCT, 0.35, 0.72))
+    p3_b = float(np.clip(BASE_3P_PCT, 0.25, 0.52))
+    return (
+        _blend(ft, ft_b, 0.55, 0.90),
+        _blend(p2, p2_b, 0.30, 0.80),
+        _blend(p3, p3_b, 0.20, 0.60),
+    )
 
 
 def _simulate_team_points(
@@ -329,8 +408,10 @@ def _simulate_events_samples(
 
     to_h, ft_h, three_h = _derive_event_rates(row, "home")
     to_a, ft_a, three_a = _derive_event_rates(row, "away")
-    ft_pct_h, p2_h, p3_h = _calibrate_shooting_to_ppp(ppp_home, to_h, ft_h, three_h)
-    ft_pct_a, p2_a, p3_a = _calibrate_shooting_to_ppp(ppp_away, to_a, ft_a, three_a)
+    ft_pr_h, p2_pr_h, p3_pr_h = _derive_shooting_priors(row, "home")
+    ft_pr_a, p2_pr_a, p3_pr_a = _derive_shooting_priors(row, "away")
+    ft_pct_h, p2_h, p3_h = _calibrate_shooting_to_ppp(ppp_home, to_h, ft_h, three_h, ft_pr_h, p2_pr_h, p3_pr_h)
+    ft_pct_a, p2_a, p3_a = _calibrate_shooting_to_ppp(ppp_away, to_a, ft_a, three_a, ft_pr_a, p2_pr_a, p3_pr_a)
 
     home = np.zeros(int(samples), dtype=float)
     away = np.zeros(int(samples), dtype=float)
@@ -528,9 +609,6 @@ def _segment_quantiles_from_events_timeline(
     """
 
     # Endpoints in minutes (regulation)
-    end_mins = [int(x) for x in end_mins if x is not None]
-    end_mins = [x for x in end_mins if 0 < int(x) <= 40]
-    end_mins = sorted(set(end_mins))
     if not end_mins:
         end_mins = [5, 10, 15, 20, 25, 30, 35, 40]
     n1 = sum(1 for m in end_mins if int(m) <= 20)
@@ -1588,8 +1666,9 @@ def _resolve_mean_total_margin_1h(row: pd.Series) -> Tuple[Optional[float], Opti
     return total, margin
 
 
-def _resolve_pace_mu(row: pd.Series) -> Optional[float]:
-    # Prefer explicit pace estimate, then tempo ratings.
+def _resolve_pace_mu_components(row: pd.Series) -> dict:
+    # Return a small trace dict so we can debug which pace signal "won".
+    game_est_mu: Optional[float] = None
     for col in [
         "pace_game_est",
         "possessions_game_est",
@@ -1598,17 +1677,19 @@ def _resolve_pace_mu(row: pd.Series) -> Optional[float]:
             try:
                 v = float(row[col])
                 if v > 0:
-                    return v
+                    game_est_mu = float(v)
+                    break
             except Exception:
                 continue
 
+    tempo_mu: Optional[float] = None
     ht = row.get("home_tempo_rating")
     at = row.get("away_tempo_rating")
     if pd.notna(ht) and pd.notna(at):
         try:
             v = (float(ht) + float(at)) / 2.0
             if v > 0:
-                return v
+                tempo_mu = float(v)
         except Exception:
             pass
     # Some feature files also include a sum
@@ -1617,10 +1698,89 @@ def _resolve_pace_mu(row: pd.Series) -> Optional[float]:
         try:
             v = float(ts) / 2.0
             if v > 0:
-                return v
+                tempo_mu = float(v)
         except Exception:
             pass
-    return None
+
+    # Boxscore-derived rolling pace when available.
+    event_mu: Optional[float] = None
+    try:
+        hp = row.get("home_team_event_pace")
+        ap = row.get("away_team_event_pace")
+        hpv = float(hp) if pd.notna(hp) else None
+        apv = float(ap) if pd.notna(ap) else None
+        if hpv is not None and hpv > 0 and apv is not None and apv > 0:
+            event_mu = float((hpv + apv) / 2.0)
+        elif hpv is not None and hpv > 0:
+            event_mu = float(hpv)
+        elif apv is not None and apv > 0:
+            event_mu = float(apv)
+    except Exception:
+        pass
+
+    # Optional blend between baseline pace (prefer explicit estimate, else tempo) and recent realized pace.
+    try:
+        if event_mu is not None and _safe_bool(os.environ.get("NCAAB_SIM_BLEND_EVENT_PACE")):
+            baseline_mu = game_est_mu if game_est_mu is not None else tempo_mu
+            if baseline_mu is not None:
+                hg = row.get("home_team_event_games")
+                ag = row.get("away_team_event_games")
+                try:
+                    n = (
+                        float(min(float(hg), float(ag)))
+                        if (pd.notna(hg) and pd.notna(ag))
+                        else float(hg)
+                        if pd.notna(hg)
+                        else float(ag)
+                        if pd.notna(ag)
+                        else 0.0
+                    )
+                except Exception:
+                    n = 0.0
+                k = float(os.environ.get("NCAAB_SIM_EVENT_PACE_BLEND_K", "10"))
+                max_w = float(os.environ.get("NCAAB_SIM_EVENT_PACE_BLEND_MAX_W", "0.15"))
+                w = (n / (n + k)) if (n > 0 and k > 0) else 0.0
+                w = float(np.clip(w, 0.0, max_w))
+                mu = float((1.0 - w) * float(baseline_mu) + w * float(event_mu))
+                src = "blend(game_est,event)" if game_est_mu is not None else "blend(tempo,event)"
+                return {
+                    "pace_mu": mu,
+                    "pace_mu_source": src,
+                    "pace_mu_game_est": game_est_mu,
+                    "pace_mu_tempo": tempo_mu,
+                    "pace_mu_event": event_mu,
+                    "pace_mu_blend_w": w,
+                    "pace_mu_blend_n": n,
+                }
+    except Exception:
+        pass
+
+    if game_est_mu is not None:
+        mu = float(game_est_mu)
+        src = "game_est"
+    elif tempo_mu is not None:
+        mu = float(tempo_mu)
+        src = "tempo"
+    elif event_mu is not None:
+        mu = float(event_mu)
+        src = "event"
+    else:
+        mu = None
+        src = "none"
+
+    return {
+        "pace_mu": mu,
+        "pace_mu_source": src,
+        "pace_mu_game_est": game_est_mu,
+        "pace_mu_tempo": tempo_mu,
+        "pace_mu_event": event_mu,
+        "pace_mu_blend_w": None,
+        "pace_mu_blend_n": None,
+    }
+
+
+def _resolve_pace_mu(row: pd.Series) -> Optional[float]:
+    return _resolve_pace_mu_components(row).get("pace_mu")
 
 
 def _resolve_pace_sigma(row: pd.Series, default_sigma: float) -> float:
@@ -1635,6 +1795,20 @@ def _resolve_pace_sigma(row: pd.Series, default_sigma: float) -> float:
                     return float(v)
             except Exception:
                 continue
+    # Fall back to rolling pace sigma derived from historical boxscores.
+    try:
+        hs = row.get("home_team_event_pace_sigma")
+        a_s = row.get("away_team_event_pace_sigma")
+        hsv = float(hs) if pd.notna(hs) else None
+        asv = float(a_s) if pd.notna(a_s) else None
+        if hsv is not None and asv is not None and hsv >= 0 and asv >= 0:
+            return float((hsv + asv) / 2.0)
+        if hsv is not None and hsv >= 0:
+            return float(hsv)
+        if asv is not None and asv >= 0:
+            return float(asv)
+    except Exception:
+        pass
     return float(default_sigma)
 
 
@@ -3501,8 +3675,15 @@ def run_simulations_for_date(out_dir: Path, date: str,
                 bs["date"] = pd.to_datetime(bs["date"], errors="coerce")
             aug = augment_boxscores(bs)
             if not aug.empty and "date" in aug.columns:
-                aug["date"] = pd.to_datetime(aug["date"], errors="coerce")
-                cutoff = pd.to_datetime(date, errors="coerce")
+                # Normalize to tz-naive UTC for stable comparisons.
+                try:
+                    aug["date"] = pd.to_datetime(aug["date"], errors="coerce", utc=True).dt.tz_convert(None)
+                except Exception:
+                    aug["date"] = pd.to_datetime(aug["date"], errors="coerce")
+                try:
+                    cutoff = pd.to_datetime(date, errors="coerce", utc=True).tz_convert(None)
+                except Exception:
+                    cutoff = pd.to_datetime(date, errors="coerce")
                 if pd.notna(cutoff):
                     # IMPORTANT: avoid same-day leakage. When simulating date D,
                     # only use boxscores strictly before D.
@@ -3515,12 +3696,22 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     "to_rate": f"{side}_to_rate",
                     "3p_rate": f"{side}_3p_rate",
                     "fta_rate": f"{side}_fta_rate",
+                    "ft_pct": f"{side}_ft_pct",
+                    "2p_pct": f"{side}_2p_pct",
+                    "3p_pct": f"{side}_3p_pct",
+                    "ftr": f"{side}_ftr",
                 }
                 base_cols = ["date", "home_team", "away_team"]
                 use = [c for c in base_cols if c in aug.columns]
                 for k in cols.values():
                     if k in aug.columns:
                         use.append(k)
+                # Ensure unique column selection (pandas with duplicate column names
+                # can return a DataFrame for sub[col], breaking downstream .map).
+                try:
+                    use = list(dict.fromkeys(use))
+                except Exception:
+                    pass
                 sub = aug[use].copy() if use else pd.DataFrame()
                 if sub.empty or cols["team"] not in sub.columns:
                     return pd.DataFrame()
@@ -3532,6 +3723,10 @@ def run_simulations_for_date(out_dir: Path, date: str,
                         "to_rate": pd.to_numeric(sub.get(cols["to_rate"]), errors="coerce"),
                         "three_rate": pd.to_numeric(sub.get(cols["3p_rate"]), errors="coerce"),
                         "fta_rate": pd.to_numeric(sub.get(cols["fta_rate"]), errors="coerce"),
+                        "ft_pct": pd.to_numeric(sub.get(cols["ft_pct"]), errors="coerce"),
+                        "two_pct": pd.to_numeric(sub.get(cols["2p_pct"]), errors="coerce"),
+                        "three_pct": pd.to_numeric(sub.get(cols["3p_pct"]), errors="coerce"),
+                        "ftr": pd.to_numeric(sub.get(cols["ftr"]), errors="coerce"),
                     }
                 )
                 return out.dropna(subset=["team"]).copy()
@@ -3541,12 +3736,28 @@ def run_simulations_for_date(out_dir: Path, date: str,
                 long = long.sort_values(["team", "date"])
                 def _tail_mean(g: pd.DataFrame) -> pd.Series:
                     gg = g.tail(lookback_games)
+                    # Derive FT trip probability from Four Factors FTR (FTA/FGA) when available:
+                    # ft_trip = ftr / (2 + ftr)
+                    ftr = float(pd.to_numeric(gg.get("ftr"), errors="coerce").dropna().mean()) if "ftr" in gg.columns else np.nan
+                    ft_trip = (ftr / (2.0 + ftr)) if (np.isfinite(ftr) and ftr > 0) else np.nan
+
+                    pace_vals = pd.to_numeric(gg.get("pace"), errors="coerce").dropna() if "pace" in gg.columns else pd.Series([], dtype=float)
+                    pace_mu = float(pace_vals.mean()) if len(pace_vals) else np.nan
+                    pace_sigma = float(pace_vals.std(ddof=0)) if len(pace_vals) >= 2 else np.nan
+                    if np.isfinite(pace_sigma):
+                        pace_sigma = float(np.clip(pace_sigma, 0.25, 10.0))
                     return pd.Series(
                         {
-                            "event_pace": float(pd.to_numeric(gg["pace"], errors="coerce").dropna().mean()) if "pace" in gg.columns else np.nan,
+                            "event_pace": float(pace_mu) if np.isfinite(pace_mu) else np.nan,
+                            "event_pace_sigma": float(pace_sigma) if np.isfinite(pace_sigma) else np.nan,
                             "event_to_rate": float(pd.to_numeric(gg["to_rate"], errors="coerce").dropna().mean()) if "to_rate" in gg.columns else np.nan,
                             "event_3p_rate": float(pd.to_numeric(gg["three_rate"], errors="coerce").dropna().mean()) if "three_rate" in gg.columns else np.nan,
                             "event_fta_rate": float(pd.to_numeric(gg["fta_rate"], errors="coerce").dropna().mean()) if "fta_rate" in gg.columns else np.nan,
+                            "event_ft_pct": float(pd.to_numeric(gg["ft_pct"], errors="coerce").dropna().mean()) if "ft_pct" in gg.columns else np.nan,
+                            "event_2p_pct": float(pd.to_numeric(gg["two_pct"], errors="coerce").dropna().mean()) if "two_pct" in gg.columns else np.nan,
+                            "event_3p_pct": float(pd.to_numeric(gg["three_pct"], errors="coerce").dropna().mean()) if "three_pct" in gg.columns else np.nan,
+                            "event_ftr": float(ftr) if np.isfinite(ftr) else np.nan,
+                            "event_ft_trip": float(np.clip(ft_trip, 0.06, 0.18)) if np.isfinite(ft_trip) else np.nan,
                             "event_games": int(len(gg)),
                         }
                     )
@@ -3559,9 +3770,15 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     columns={
                         "team": "_home_norm",
                         "event_pace": "home_team_event_pace",
+                        "event_pace_sigma": "home_team_event_pace_sigma",
                         "event_to_rate": "home_team_event_to_rate",
                         "event_3p_rate": "home_team_event_3p_rate",
                         "event_fta_rate": "home_team_event_fta_rate",
+                        "event_ft_pct": "home_team_event_ft_pct",
+                        "event_2p_pct": "home_team_event_2p_pct",
+                        "event_3p_pct": "home_team_event_3p_pct",
+                        "event_ftr": "home_team_event_ftr",
+                        "event_ft_trip": "home_team_event_ft_trip_rate",
                         "event_games": "home_team_event_games",
                     }
                 )
@@ -3569,14 +3786,54 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     columns={
                         "team": "_away_norm",
                         "event_pace": "away_team_event_pace",
+                        "event_pace_sigma": "away_team_event_pace_sigma",
                         "event_to_rate": "away_team_event_to_rate",
                         "event_3p_rate": "away_team_event_3p_rate",
                         "event_fta_rate": "away_team_event_fta_rate",
+                        "event_ft_pct": "away_team_event_ft_pct",
+                        "event_2p_pct": "away_team_event_2p_pct",
+                        "event_3p_pct": "away_team_event_3p_pct",
+                        "event_ftr": "away_team_event_ftr",
+                        "event_ft_trip": "away_team_event_ft_trip_rate",
                         "event_games": "away_team_event_games",
                     }
                 )
                 preds = preds.merge(h, on="_home_norm", how="left")
                 preds = preds.merge(a, on="_away_norm", how="left")
+
+                try:
+                    if _safe_bool(os.environ.get("NCAAB_SIM_DUMP_EVENT_FEATURES")):
+                        dump_cols = [
+                            "date",
+                            "game_id",
+                            "home_team",
+                            "away_team",
+                            "home_team_event_pace",
+                            "away_team_event_pace",
+                            "home_team_event_pace_sigma",
+                            "away_team_event_pace_sigma",
+                            "home_team_event_games",
+                            "away_team_event_games",
+                            "home_team_event_to_rate",
+                            "away_team_event_to_rate",
+                            "home_team_event_3p_rate",
+                            "away_team_event_3p_rate",
+                            "home_team_event_ft_trip_rate",
+                            "away_team_event_ft_trip_rate",
+                            "home_team_event_2p_pct",
+                            "away_team_event_2p_pct",
+                            "home_team_event_3p_pct",
+                            "away_team_event_3p_pct",
+                            "home_team_event_ft_pct",
+                            "away_team_event_ft_pct",
+                            "home_team_event_ftr",
+                            "away_team_event_ftr",
+                        ]
+                        dump_cols = [c for c in dump_cols if c in preds.columns]
+                        dump_path = out_dir / f"_tmp_sim_event_features_{date}.csv"
+                        preds[dump_cols].to_csv(dump_path, index=False)
+                except Exception:
+                    pass
     except Exception:
         pass
 
@@ -3818,6 +4075,47 @@ def run_simulations_for_date(out_dir: Path, date: str,
         use_pace = bool(
             any(c in preds.columns for c in ["pace_game_est", "possessions_game_est", "home_tempo_rating", "away_tempo_rating", "tempo_rating_sum"])
         )
+
+    # Optional debug dump of pace inputs and the resolved pace source.
+    try:
+        if _safe_bool(os.environ.get("NCAAB_SIM_DUMP_EVENT_FEATURES")):
+            pace_trace = []
+            for _, r in preds.iterrows():
+                try:
+                    pace_trace.append(_resolve_pace_mu_components(r))
+                except Exception:
+                    pace_trace.append({})
+            trace_df = pd.concat([preds.reset_index(drop=True), pd.DataFrame(pace_trace)], axis=1)
+            dump_cols = [
+                "date",
+                "game_id",
+                "home_team",
+                "away_team",
+                "pace_game_est",
+                "possessions_game_est",
+                "home_tempo_rating",
+                "away_tempo_rating",
+                "tempo_rating_sum",
+                "home_team_event_pace",
+                "away_team_event_pace",
+                "home_team_event_pace_sigma",
+                "away_team_event_pace_sigma",
+                "home_team_event_games",
+                "away_team_event_games",
+                "pace_mu_game_est",
+                "pace_mu_tempo",
+                "pace_mu_event",
+                "pace_mu_blend_n",
+                "pace_mu_blend_w",
+                "pace_mu",
+                "pace_mu_source",
+            ]
+            dump_cols = [c for c in dump_cols if c in trace_df.columns]
+            blend_tag = "blend_on" if _safe_bool(os.environ.get("NCAAB_SIM_BLEND_EVENT_PACE")) else "blend_off"
+            dump_path = out_dir / f"_tmp_sim_pace_trace_{date}_{blend_tag}.csv"
+            trace_df[dump_cols].to_csv(dump_path, index=False)
+    except Exception:
+        pass
 
     if injuries_path is None:
         injuries_path = Path("data") / "injuries_overrides.csv"
