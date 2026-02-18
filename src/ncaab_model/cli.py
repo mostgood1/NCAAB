@@ -448,6 +448,21 @@ def ab_sim_quantiles(
             "<base>native_, <base>mu_sigma_, <base>explicit_."
         ),
     ),
+    ensure_model_totals: bool = typer.Option(
+        False,
+        help=(
+            "If enabled, attempts to ensure model totals quantiles (pred_total_q10/q50/q90) are present in "
+            "predictions_unified_enriched_<date>.csv for the evaluated range by running src.score_totals and "
+            "src.integrate_model_totals per date when possible."
+        ),
+    ),
+    model_totals_model: Path = typer.Option(
+        settings.outputs_dir / "models" / "totals_v1.joblib",
+        help=(
+            "Model path passed to src.score_totals when --ensure-model-totals is enabled. "
+            "Defaults to outputs/models/totals_v1.joblib."
+        ),
+    ),
 ):
     """Run a controlled A/B/C comparison for the sim engine.
 
@@ -464,6 +479,36 @@ def ab_sim_quantiles(
 
     try:
         from src.simulation.sim_backtest import SimBacktestConfig, run_sim_backtest
+
+        # Optional: prepare explicit model totals quantiles for the date range.
+        if ensure_model_totals:
+            try:
+                from src.simulation.sim_backtest import _resolve_dates_from_results as _resolve_dates
+
+                dates = _resolve_dates(Path(settings.outputs_dir), start, end, recent)
+                if dates:
+                    from src.score_totals import score_date
+                    from src.integrate_model_totals import integrate
+
+                    score_ok = 0
+                    integrate_ok = 0
+                    for d in dates:
+                        try:
+                            score_date(d, Path(model_totals_model))
+                            score_ok += 1
+                        except Exception:
+                            pass
+                        try:
+                            integrate(d)
+                            integrate_ok += 1
+                        except Exception:
+                            pass
+
+                    print(
+                        f"[ab-sim-quantiles] ensure_model_totals: dates={len(dates)} score_ok={score_ok} integrate_ok={integrate_ok} model={model_totals_model}"
+                    )
+            except Exception:
+                pass
 
         def _env_patch(pairs: dict[str, str | None]):
             old: dict[str, str | None] = {}
@@ -595,6 +640,12 @@ def ab_sim_quantiles(
             "samples": int(samples),
             "rho": float(rho),
             "seed": int(seed),
+            "sim_env": {
+                "NCAAB_SIM_TARGET_QUANTILES_ALPHA": os.environ.get("NCAAB_SIM_TARGET_QUANTILES_ALPHA"),
+                "NCAAB_SIM_TARGET_QUANTILES_TOTAL": os.environ.get("NCAAB_SIM_TARGET_QUANTILES_TOTAL"),
+                "NCAAB_SIM_TARGET_QUANTILES_MARGIN": os.environ.get("NCAAB_SIM_TARGET_QUANTILES_MARGIN"),
+                "NCAAB_SIM_TARGET_QUANTILES_SOURCE": os.environ.get("NCAAB_SIM_TARGET_QUANTILES_SOURCE"),
+            },
             "wrote": wrote,
             "summaries": {
                 "native": base,

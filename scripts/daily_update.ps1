@@ -991,6 +991,49 @@ print({'path': str(games_path), 'rows': len(df2)})
         '--cap-abs-delta', '25.0',
         '--cap-abs-delta-1h', '15.0'
       )
+
+      # Winner/margin calibration uplift: allow scaling margin mean + spread-binned adjustments.
+      # Opt-in via env vars while we validate ATS impact in sim backtests.
+      $fitMarginScale = $false
+      if ($env:SIM_CALIB_FIT_MARGIN_SCALE) {
+        try { $fitMarginScale = ([int]$env:SIM_CALIB_FIT_MARGIN_SCALE -ne 0) } catch {}
+      }
+      $writeSpreadBins = $false
+      if ($env:SIM_CALIB_WRITE_SPREAD_BINS) {
+        try { $writeSpreadBins = ([int]$env:SIM_CALIB_WRITE_SPREAD_BINS -ne 0) } catch {}
+      }
+
+      $minGamesBin = $null
+      if ($writeSpreadBins) {
+        # Default tuned via sim backtests: enables more bins (incl. positive spreads)
+        # and improved full-game ATS on eval windows.
+        $minGamesBin = '30'
+        if ($env:SIM_CALIB_MIN_GAMES_BIN) {
+          try {
+            $mg = [int]$env:SIM_CALIB_MIN_GAMES_BIN
+            if ($mg -gt 0) { $minGamesBin = "$mg" }
+          } catch {}
+        }
+      }
+
+      $spreadBinsObjective = $null
+      if ($env:SIM_CALIB_SPREAD_BINS_OBJECTIVE) {
+        try { $spreadBinsObjective = ("$($env:SIM_CALIB_SPREAD_BINS_OBJECTIVE)".Trim().ToLower()) } catch {}
+        if (@('resid','ats') -notcontains $spreadBinsObjective) { $spreadBinsObjective = $null }
+      }
+
+      if ($fitMarginScale) {
+        $fitArgs += @('--fit-margin-scale', '--cap-margin-scale', '2.0')
+      }
+      if ($writeSpreadBins) {
+        $fitArgs += '--write-spread-bins'
+        if ($spreadBinsObjective) {
+          $fitArgs += @('--spread-bins-objective', $spreadBinsObjective)
+        }
+        if ($minGamesBin) {
+          $fitArgs += @('--min-games-bin', $minGamesBin)
+        }
+      }
       if ($SimCalibrationFit1HOnly.IsPresent) {
         $fitArgs += '--fit-1h-only'
         Write-Host '[sim-cal] 1H-only mode enabled (preserving full-game keys)' -ForegroundColor DarkGray
@@ -1374,6 +1417,84 @@ sys.exit(1 if nan_count>0 else 0)
       & $VenvPython scripts/remove_unposted_no_market.py $todayIso $OutDir
     } catch { Write-Warning "safeguard removal failed: $($_)" }
 
+    # Model-based totals quantiles (q10/q50/q90) -> merge into unified_enriched
+    # This is the preferred source for sim quantile targeting vs sigma-derived normal fallback.
+    Write-Section '6a.post.ii.q) Score totals quantiles + integrate'
+    try {
+      $TotalsQuantileModel = $env:NCAAB_TOTALS_QUANTILE_MODEL
+
+      # If user provided a model path but it doesn't exist, warn and fall back.
+      if ($TotalsQuantileModel -and $TotalsQuantileModel.Trim() -ne '') {
+        if (-not (Test-Path $TotalsQuantileModel)) {
+          Write-Warning "NCAAB_TOTALS_QUANTILE_MODEL path not found: $TotalsQuantileModel (falling back to defaults)"
+          $TotalsQuantileModel = $null
+        }
+      }
+
+      # Default to roll-feature totals quantile model when available.
+      if (-not $TotalsQuantileModel -or $TotalsQuantileModel.Trim() -eq '') {
+        $rollModelPath = Join-Path $OutDir 'models\totals_roll_v1.joblib'
+        if (Test-Path $rollModelPath) {
+          $TotalsQuantileModel = $rollModelPath
+          $env:NCAAB_TOTALS_QUANTILE_MODEL = $TotalsQuantileModel
+          Write-Host "NCAAB_TOTALS_QUANTILE_MODEL not set; defaulting to $TotalsQuantileModel" -ForegroundColor DarkGray
+        }
+      }
+
+      if ($TotalsQuantileModel -and $TotalsQuantileModel.Trim() -ne '') {
+        Write-Host "[totals-quantiles] Using model: $TotalsQuantileModel" -ForegroundColor DarkGray
+        & $VenvPython -m src.score_totals --date $todayIso --model $TotalsQuantileModel
+      } else {
+        & $VenvPython -m src.score_totals --date $todayIso
+      }
+    } catch { Write-Warning "src.score_totals failed: $($_)" }
+    try {
+      & $VenvPython -m src.integrate_model_totals --date $todayIso
+    } catch { Write-Warning "src.integrate_model_totals failed: $($_)" }
+
+    # Model-based margin quantiles (q10/q50/q90) -> merge into unified_enriched
+    # Enables sim quantile targeting for margins when explicit coverage is high.
+    Write-Section '6a.post.ii.r) Score margins quantiles + integrate'
+    $didIntegrateMarginsQuantiles = $false
+    try {
+      $MarginsQuantileModel = $env:NCAAB_MARGINS_QUANTILE_MODEL
+
+      # If user provided a model path but it doesn't exist, warn and fall back.
+      if ($MarginsQuantileModel -and $MarginsQuantileModel.Trim() -ne '') {
+        if (-not (Test-Path $MarginsQuantileModel)) {
+          Write-Warning "NCAAB_MARGINS_QUANTILE_MODEL path not found: $MarginsQuantileModel (falling back to defaults)"
+          $MarginsQuantileModel = $null
+        }
+      }
+
+      # Default to roll-feature margins quantile model when available.
+      if (-not $MarginsQuantileModel -or $MarginsQuantileModel.Trim() -eq '') {
+        $rollModelPath = Join-Path $OutDir 'models\margins_roll_v1.joblib'
+        if (Test-Path $rollModelPath) {
+          $MarginsQuantileModel = $rollModelPath
+          $env:NCAAB_MARGINS_QUANTILE_MODEL = $MarginsQuantileModel
+          Write-Host "NCAAB_MARGINS_QUANTILE_MODEL not set; defaulting to $MarginsQuantileModel" -ForegroundColor DarkGray
+        }
+      }
+
+      if ($MarginsQuantileModel -and $MarginsQuantileModel.Trim() -ne '') {
+        Write-Host "[margins-quantiles] Using model: $MarginsQuantileModel" -ForegroundColor DarkGray
+        & $VenvPython -m src.score_margins --date $todayIso --model $MarginsQuantileModel
+        & $VenvPython -m src.integrate_model_margins --date $todayIso
+        try {
+          $margOut = Join-Path $OutDir ("predictions_model_margins_" + $todayIso + ".csv")
+          if (Test-Path -LiteralPath $margOut) {
+            $probe = Import-Csv -LiteralPath $margOut -ErrorAction Stop | Select-Object -First 1
+            if ($probe -and ($probe.PSObject.Properties.Name -contains 'pred_margin_q10') -and ($probe.PSObject.Properties.Name -contains 'pred_margin_q50') -and ($probe.PSObject.Properties.Name -contains 'pred_margin_q90')) {
+              $didIntegrateMarginsQuantiles = $true
+            }
+          }
+        } catch {}
+      } else {
+        Write-Host "[margins-quantiles] No margin quantile model found; skipping." -ForegroundColor DarkGray
+      }
+    } catch { Write-Warning "margin quantile scoring/integration failed: $($_)" }
+
   # Enrich meta probabilities in-place using aligned features; guard against model/schema gaps
   Write-Section '6a.post.b) Enrich meta probabilities (aligned)'
   try {
@@ -1407,6 +1528,43 @@ sys.exit(1 if nan_count>0 else 0)
     Write-Host "NCAAB_SIM_BLEND_EVENT_PACE not set; defaulting to $($env:NCAAB_SIM_BLEND_EVENT_PACE)" -ForegroundColor DarkGray
   } else {
     Write-Host "Using NCAAB_SIM_BLEND_EVENT_PACE=$($env:NCAAB_SIM_BLEND_EVENT_PACE)" -ForegroundColor DarkGray
+  }
+
+  # If quantile targeting is enabled, default the knobs to the sim-backtest winner
+  # (totals-only + partial strength) unless explicitly overridden in the shell.
+  $tq = $env:NCAAB_SIM_TARGET_QUANTILES
+  $tqOn = $false
+  if ($tq -and $tq.Trim() -ne '' -and $tq.Trim() -ne '0') {
+    $tql = $tq.Trim().ToLower()
+    if ($tql -ne 'false' -and $tql -ne 'off' -and $tql -ne 'no') {
+      $tqOn = $true
+    }
+  }
+  if ($tqOn) {
+    if (-not $env:NCAAB_SIM_TARGET_QUANTILES_SOURCE -or $env:NCAAB_SIM_TARGET_QUANTILES_SOURCE.Trim() -eq '') {
+      $env:NCAAB_SIM_TARGET_QUANTILES_SOURCE = 'auto'
+      Write-Host "NCAAB_SIM_TARGET_QUANTILES_SOURCE not set; defaulting to $($env:NCAAB_SIM_TARGET_QUANTILES_SOURCE)" -ForegroundColor DarkGray
+    } else {
+      Write-Host "Using NCAAB_SIM_TARGET_QUANTILES_SOURCE=$($env:NCAAB_SIM_TARGET_QUANTILES_SOURCE)" -ForegroundColor DarkGray
+    }
+    if (-not $env:NCAAB_SIM_TARGET_QUANTILES_TOTAL -or $env:NCAAB_SIM_TARGET_QUANTILES_TOTAL.Trim() -eq '') {
+      $env:NCAAB_SIM_TARGET_QUANTILES_TOTAL = '1'
+      Write-Host "NCAAB_SIM_TARGET_QUANTILES_TOTAL not set; defaulting to $($env:NCAAB_SIM_TARGET_QUANTILES_TOTAL)" -ForegroundColor DarkGray
+    } else {
+      Write-Host "Using NCAAB_SIM_TARGET_QUANTILES_TOTAL=$($env:NCAAB_SIM_TARGET_QUANTILES_TOTAL)" -ForegroundColor DarkGray
+    }
+    if (-not $env:NCAAB_SIM_TARGET_QUANTILES_MARGIN -or $env:NCAAB_SIM_TARGET_QUANTILES_MARGIN.Trim() -eq '') {
+      $env:NCAAB_SIM_TARGET_QUANTILES_MARGIN = (if ($didIntegrateMarginsQuantiles) { '1' } else { '0' })
+      Write-Host "NCAAB_SIM_TARGET_QUANTILES_MARGIN not set; defaulting to $($env:NCAAB_SIM_TARGET_QUANTILES_MARGIN)" -ForegroundColor DarkGray
+    } else {
+      Write-Host "Using NCAAB_SIM_TARGET_QUANTILES_MARGIN=$($env:NCAAB_SIM_TARGET_QUANTILES_MARGIN)" -ForegroundColor DarkGray
+    }
+    if (-not $env:NCAAB_SIM_TARGET_QUANTILES_ALPHA -or $env:NCAAB_SIM_TARGET_QUANTILES_ALPHA.Trim() -eq '') {
+      $env:NCAAB_SIM_TARGET_QUANTILES_ALPHA = '0.25'
+      Write-Host "NCAAB_SIM_TARGET_QUANTILES_ALPHA not set; defaulting to $($env:NCAAB_SIM_TARGET_QUANTILES_ALPHA)" -ForegroundColor DarkGray
+    } else {
+      Write-Host "Using NCAAB_SIM_TARGET_QUANTILES_ALPHA=$($env:NCAAB_SIM_TARGET_QUANTILES_ALPHA)" -ForegroundColor DarkGray
+    }
   }
   Write-Section '6a.post.d.s) Monte Carlo simulations + blend'
   # Default sim means to the model/blend columns (auto). This keeps sim margins aligned

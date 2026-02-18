@@ -319,6 +319,40 @@ def _should_apply_target_quantiles() -> bool:
         return False
 
 
+def _should_apply_target_quantiles_total() -> bool:
+    """Whether to apply quantile targeting to totals.
+
+    Defaults to True when NCAAB_SIM_TARGET_QUANTILES is enabled.
+    Override with NCAAB_SIM_TARGET_QUANTILES_TOTAL={0,1}.
+    """
+    if not _should_apply_target_quantiles():
+        return False
+    try:
+        raw = os.environ.get("NCAAB_SIM_TARGET_QUANTILES_TOTAL")
+        if raw is None or str(raw).strip() == "":
+            return True
+        return _safe_bool(raw)
+    except Exception:
+        return True
+
+
+def _should_apply_target_quantiles_margin() -> bool:
+    """Whether to apply quantile targeting to margins.
+
+    Defaults to True when NCAAB_SIM_TARGET_QUANTILES is enabled.
+    Override with NCAAB_SIM_TARGET_QUANTILES_MARGIN={0,1}.
+    """
+    if not _should_apply_target_quantiles():
+        return False
+    try:
+        raw = os.environ.get("NCAAB_SIM_TARGET_QUANTILES_MARGIN")
+        if raw is None or str(raw).strip() == "":
+            return True
+        return _safe_bool(raw)
+    except Exception:
+        return True
+
+
 def _apply_target_quantiles_piecewise(
     samples_arr: np.ndarray,
     target: tuple[float, float, float],
@@ -329,6 +363,16 @@ def _apply_target_quantiles_piecewise(
     if x.size == 0:
         return x, meta
     try:
+        try:
+            alpha_raw = os.environ.get("NCAAB_SIM_TARGET_QUANTILES_ALPHA")
+            alpha = float(alpha_raw) if alpha_raw is not None and str(alpha_raw).strip() != "" else 1.0
+            alpha = float(np.clip(alpha, 0.0, 1.0))
+        except Exception:
+            alpha = 1.0
+
+        if alpha <= 1e-9:
+            return x, meta
+
         q10_b, q50_b, q90_b = np.quantile(x, [0.10, 0.50, 0.90]).tolist()
         q10_t, q50_t, q90_t = (float(target[0]), float(target[1]), float(target[2]))
 
@@ -342,10 +386,16 @@ def _apply_target_quantiles_piecewise(
         w_l = float(np.clip(w_l, 0.1, 10.0))
         w_r = float(np.clip(w_r, 0.1, 10.0))
 
+        # Strength control: interpolate scaling toward identity.
+        # alpha=1 => full targeting; alpha=0 => no change.
+        w_l = float(1.0 + alpha * (w_l - 1.0))
+        w_r = float(1.0 + alpha * (w_r - 1.0))
+
         dx = x - float(q50_b)
         adj = float(q50_t) + np.where(dx <= 0.0, dx * w_l, dx * w_r)
         meta = {
             "applied": True,
+            "alpha": float(alpha),
             "base_q10": float(q10_b),
             "base_q50": float(q50_b),
             "base_q90": float(q90_b),
@@ -358,6 +408,87 @@ def _apply_target_quantiles_piecewise(
         return np.asarray(adj, dtype=float), meta
     except Exception:
         return x, meta
+
+
+def _should_apply_joint_margin_from_total() -> bool:
+    """Whether to apply a joint coupling where margin dispersion is nudged based on total dispersion.
+
+    Motivation: when totals targeting widens/narrows the totals distribution (pace/variance effects),
+    margin dispersion often should move modestly in the same direction.
+
+    This is intentionally optional and off by default.
+    """
+    try:
+        return _safe_bool(os.environ.get("NCAAB_SIM_JOINT_MARGIN_FROM_TOTAL"))
+    except Exception:
+        return False
+
+
+def _joint_margin_from_total_gamma() -> float:
+    try:
+        raw = os.environ.get("NCAAB_SIM_JOINT_MARGIN_FROM_TOTAL_GAMMA")
+        if raw is None or str(raw).strip() == "":
+            return 0.35
+        g = float(raw)
+        if not np.isfinite(g):
+            return 0.35
+        return float(np.clip(g, 0.0, 1.5))
+    except Exception:
+        return 0.35
+
+
+def _apply_joint_margin_from_total(
+    *,
+    totals_tgt_meta: dict,
+    margins_tgt_meta: dict,
+    margins_adj: np.ndarray,
+) -> tuple[np.ndarray, dict]:
+    """Apply a small additional scaling to margins_adj based on totals targeting scales.
+
+    Keeps the median anchored at the margin target q50, but allows the spread to widen/narrow
+    in proportion to how much totals were widened/narrowed.
+    """
+    meta = {"applied": False}
+    try:
+        if not _should_apply_joint_margin_from_total():
+            return margins_adj, meta
+        if not bool(totals_tgt_meta.get("applied")):
+            return margins_adj, meta
+        if not bool(margins_tgt_meta.get("applied")):
+            return margins_adj, meta
+
+        sl = totals_tgt_meta.get("scale_left")
+        sr = totals_tgt_meta.get("scale_right")
+        if sl is None or sr is None:
+            return margins_adj, meta
+        sl = float(sl)
+        sr = float(sr)
+        if not (np.isfinite(sl) and np.isfinite(sr)):
+            return margins_adj, meta
+
+        # Total scale is defined around its median; use avg magnitude as a coarse proxy.
+        scale_total = float(np.clip(0.5 * (sl + sr), 0.7, 1.4))
+        gamma = float(_joint_margin_from_total_gamma())
+        factor = float(np.clip(scale_total ** gamma, 0.85, 1.20))
+
+        q50m = margins_tgt_meta.get("target_q50")
+        if q50m is None:
+            return margins_adj, meta
+        q50m = float(q50m)
+        if not np.isfinite(q50m):
+            return margins_adj, meta
+
+        m = np.asarray(margins_adj, dtype=float)
+        out = q50m + (m - q50m) * factor
+        meta = {
+            "applied": True,
+            "gamma": float(gamma),
+            "scale_total_avg": float(scale_total),
+            "factor": float(factor),
+        }
+        return np.asarray(out, dtype=float), meta
+    except Exception:
+        return margins_adj, meta
 
 
 def _clip01(x: float) -> float:
@@ -2108,6 +2239,8 @@ def _apply_sim_calibration(
     if not calibration:
         return total_mean, margin_mean, sigma_total, sigma_margin, {}
 
+    raw_margin_mean = float(margin_mean)
+
     # Optional: bucketed calibration by market total.
     # Format:
     #   {
@@ -2173,10 +2306,135 @@ def _apply_sim_calibration(
         bin_delta_total_add = bin_sigma_total_mult_mult = None
         bin_delta_total = bin_delta_margin = bin_sigma_total_mult = bin_sigma_margin_mult = None
 
+    # Optional: bucketed calibration by abs(predicted margin).
+    # Format:
+    #   {
+    #     "margin_abs_bins": [
+    #       {"min": 0, "max": 4, "delta_margin_add": ..., "sigma_margin_mult_mult": ..., "margin_scale_mult": ...},
+    #       ...
+    #     ]
+    #   }
+    margin_bin_applied: dict = {}
+    bin_delta_margin_add = None
+    bin_sigma_margin_mult_mult = None
+    bin_margin_scale_mult = None
+    try:
+        bins_m = calibration.get("margin_abs_bins")
+    except Exception:
+        bins_m = None
+    if isinstance(bins_m, list) and bins_m:
+        try:
+            x = float(abs(raw_margin_mean))
+        except Exception:
+            x = None
+        if x is not None and np.isfinite(x):
+            chosen = None
+            for b in bins_m:
+                if not isinstance(b, dict):
+                    continue
+                bmin = b.get("min", None)
+                bmax = b.get("max", None)
+                try:
+                    lo = float(bmin) if bmin is not None else -np.inf
+                    hi = float(bmax) if bmax is not None else np.inf
+                except Exception:
+                    continue
+                if x >= lo and x < hi:
+                    chosen = b
+                    break
+            if isinstance(chosen, dict):
+                margin_bin_applied = {
+                    "margin_abs_bin_min": chosen.get("min"),
+                    "margin_abs_bin_max": chosen.get("max"),
+                }
+                bin_delta_margin_add = chosen.get("delta_margin_add", None)
+                bin_sigma_margin_mult_mult = chosen.get("sigma_margin_mult_mult", None)
+                bin_margin_scale_mult = chosen.get("margin_scale_mult", None)
+
+    # Optional: bucketed calibration by signed spread_home or abs(spread_home).
+    spread_bin_applied: dict = {}
+    spread_delta_margin_add = None
+    spread_sigma_margin_mult_mult = None
+    spread_margin_scale_mult = None
+
+    try:
+        sp = calibration.get("_spread_home")
+    except Exception:
+        sp = None
+
+    # Prefer signed bins when available (captures favorite vs underdog asymmetry).
+    try:
+        bins_signed = calibration.get("spread_bins")
+    except Exception:
+        bins_signed = None
+    if spread_delta_margin_add is None and isinstance(bins_signed, list) and bins_signed and sp is not None:
+        try:
+            x = float(sp)
+        except Exception:
+            x = None
+        if x is not None and np.isfinite(x):
+            chosen = None
+            for b in bins_signed:
+                if not isinstance(b, dict):
+                    continue
+                bmin = b.get("min", None)
+                bmax = b.get("max", None)
+                try:
+                    lo = float(bmin) if bmin is not None else -np.inf
+                    hi = float(bmax) if bmax is not None else np.inf
+                except Exception:
+                    continue
+                if x >= lo and x < hi:
+                    chosen = b
+                    break
+            if isinstance(chosen, dict):
+                spread_bin_applied = {
+                    "spread_bin_min": chosen.get("min"),
+                    "spread_bin_max": chosen.get("max"),
+                }
+                spread_delta_margin_add = chosen.get("delta_margin_add", None)
+                spread_sigma_margin_mult_mult = chosen.get("sigma_margin_mult_mult", None)
+                spread_margin_scale_mult = chosen.get("margin_scale_mult", None)
+
+    # Fall back to abs-spread bins.
+    try:
+        bins_abs = calibration.get("spread_abs_bins")
+    except Exception:
+        bins_abs = None
+    if spread_delta_margin_add is None and isinstance(bins_abs, list) and bins_abs and sp is not None:
+        try:
+            x = float(abs(float(sp)))
+        except Exception:
+            x = None
+        if x is not None and np.isfinite(x):
+            chosen = None
+            for b in bins_abs:
+                if not isinstance(b, dict):
+                    continue
+                bmin = b.get("min", None)
+                bmax = b.get("max", None)
+                try:
+                    lo = float(bmin) if bmin is not None else -np.inf
+                    hi = float(bmax) if bmax is not None else np.inf
+                except Exception:
+                    continue
+                if x >= lo and x < hi:
+                    chosen = b
+                    break
+            if isinstance(chosen, dict):
+                spread_bin_applied = {
+                    "spread_abs_bin_min": chosen.get("min"),
+                    "spread_abs_bin_max": chosen.get("max"),
+                }
+                spread_delta_margin_add = chosen.get("delta_margin_add", None)
+                spread_sigma_margin_mult_mult = chosen.get("sigma_margin_mult_mult", None)
+                spread_margin_scale_mult = chosen.get("margin_scale_mult", None)
+
     delta_total = float(calibration.get("delta_total", 0.0) or 0.0)
     delta_margin = float(calibration.get("delta_margin", 0.0) or 0.0)
     sigma_total_mult = float(calibration.get("sigma_total_mult", 1.0) or 1.0)
     sigma_margin_mult = float(calibration.get("sigma_margin_mult", 1.0) or 1.0)
+    margin_scale = float(calibration.get("margin_scale", 1.0) or 1.0)
 
     # Apply bin adjustments / overrides if provided.
     try:
@@ -2209,19 +2467,70 @@ def _apply_sim_calibration(
     except Exception:
         sigma_margin_mult = 1.0
 
+    try:
+        margin_scale = float(np.clip(float(margin_scale), 0.25, 4.0))
+    except Exception:
+        margin_scale = 1.0
+
     total_mean2 = float(total_mean) + delta_total
-    margin_mean2 = float(margin_mean) + delta_margin
+    margin_mean2 = (float(margin_mean) * float(margin_scale)) + delta_margin
     sigma_total2 = float(max(1e-6, float(sigma_total) * sigma_total_mult))
     sigma_margin2 = float(max(1e-6, float(sigma_margin) * sigma_margin_mult)) if sigma_margin is not None else None
+
+    # Apply abs-margin bin adjustments on top of global parameters.
+    try:
+        if bin_margin_scale_mult is not None:
+            msm = float(bin_margin_scale_mult)
+            if np.isfinite(msm) and msm > 0:
+                msm = float(np.clip(msm, 0.75, 1.35))
+                # Scale around the global intercept so delta stays interpretable.
+                margin_mean2 = (margin_mean2 - float(delta_margin)) * msm + float(delta_margin)
+                margin_scale = float(margin_scale) * float(msm)
+        if bin_delta_margin_add is not None:
+            margin_mean2 = float(margin_mean2) + float(bin_delta_margin_add)
+            delta_margin = float(delta_margin) + float(bin_delta_margin_add)
+        if bin_sigma_margin_mult_mult is not None and sigma_margin2 is not None:
+            smm = float(bin_sigma_margin_mult_mult)
+            if np.isfinite(smm) and smm > 0:
+                smm = float(np.clip(smm, 0.5, 2.0))
+                sigma_margin2 = float(max(1e-6, float(sigma_margin2) * smm))
+                sigma_margin_mult = float(sigma_margin_mult) * float(smm)
+    except Exception:
+        pass
+
+    # Apply abs-spread bin adjustments on top.
+    try:
+        if spread_margin_scale_mult is not None:
+            msm = float(spread_margin_scale_mult)
+            if np.isfinite(msm) and msm > 0:
+                msm = float(np.clip(msm, 0.75, 1.35))
+                margin_mean2 = (margin_mean2 - float(delta_margin)) * msm + float(delta_margin)
+                margin_scale = float(margin_scale) * float(msm)
+        if spread_delta_margin_add is not None:
+            margin_mean2 = float(margin_mean2) + float(spread_delta_margin_add)
+            delta_margin = float(delta_margin) + float(spread_delta_margin_add)
+        if spread_sigma_margin_mult_mult is not None and sigma_margin2 is not None:
+            smm = float(spread_sigma_margin_mult_mult)
+            if np.isfinite(smm) and smm > 0:
+                smm = float(np.clip(smm, 0.5, 2.0))
+                sigma_margin2 = float(max(1e-6, float(sigma_margin2) * smm))
+                sigma_margin_mult = float(sigma_margin_mult) * float(smm)
+    except Exception:
+        pass
 
     meta = {
         "delta_total": delta_total,
         "delta_margin": delta_margin,
         "sigma_total_mult": sigma_total_mult,
         "sigma_margin_mult": sigma_margin_mult,
+        "margin_scale": margin_scale,
     }
     if bin_applied:
         meta.update(bin_applied)
+    if margin_bin_applied:
+        meta.update(margin_bin_applied)
+    if spread_bin_applied:
+        meta.update(spread_bin_applied)
     return total_mean2, margin_mean2, sigma_total2, sigma_margin2, meta
 
 
@@ -2337,6 +2646,21 @@ def _resolve_spread_home_1h(row: pd.Series) -> Optional[float]:
         "spread_home_1h",
         "closing_spread_home_1h",
         "home_spread_1h",
+    ]:
+        if scol in row and pd.notna(row[scol]):
+            try:
+                return float(row[scol])
+            except Exception:
+                continue
+    return None
+
+
+def _resolve_spread_home(row: pd.Series) -> Optional[float]:
+    for scol in [
+        "spread_home",
+        "closing_spread_home",
+        "home_spread",
+        "closing_spread",
     ]:
         if scol in row and pd.notna(row[scol]):
             try:
@@ -2570,9 +2894,13 @@ def simulate_game_row(
         try:
             if isinstance(sim_calibration, dict):
                 mt_for_bin = _resolve_market_total(row)
-                if mt_for_bin is not None and np.isfinite(float(mt_for_bin)):
+                sp_for_bin = _resolve_spread_home(row)
+                if (mt_for_bin is not None and np.isfinite(float(mt_for_bin))) or (sp_for_bin is not None and np.isfinite(float(sp_for_bin))):
                     sim_calibration_ctx = dict(sim_calibration)
-                    sim_calibration_ctx["_market_total"] = float(mt_for_bin)
+                    if mt_for_bin is not None and np.isfinite(float(mt_for_bin)):
+                        sim_calibration_ctx["_market_total"] = float(mt_for_bin)
+                    if sp_for_bin is not None and np.isfinite(float(sp_for_bin)):
+                        sim_calibration_ctx["_spread_home"] = float(sp_for_bin)
         except Exception:
             sim_calibration_ctx = sim_calibration
         total_mean, margin_mean, sigma_total, sigma_margin, calib_applied = _apply_sim_calibration(
@@ -2778,9 +3106,12 @@ def simulate_game_row(
         # Optional: reshape full-game total/margin distributions to match model quantiles.
         tgt_total_meta = {"applied": False}
         tgt_margin_meta = {"applied": False}
-        if _should_apply_target_quantiles():
-            tgt_total = _resolve_target_total_quantiles(row)
-            tgt_margin = _resolve_target_margin_quantiles(row)
+        joint_tm_meta = {"applied": False}
+        apply_tot = _should_apply_target_quantiles_total()
+        apply_mar = _should_apply_target_quantiles_margin()
+        if apply_tot or apply_mar:
+            tgt_total = _resolve_target_total_quantiles(row) if apply_tot else None
+            tgt_margin = _resolve_target_margin_quantiles(row) if apply_mar else None
             totals_base = home_pts + away_pts
             margins_base = home_pts - away_pts
             if tgt_total is not None:
@@ -2791,6 +3122,14 @@ def simulate_game_row(
                 margins_adj, tgt_margin_meta = _apply_target_quantiles_piecewise(margins_base, tgt_margin)
             else:
                 margins_adj = margins_base
+
+            # Optional joint coupling: nudge margin dispersion based on totals dispersion adjustment.
+            if bool(tgt_total_meta.get("applied")) and bool(tgt_margin_meta.get("applied")):
+                margins_adj, joint_tm_meta = _apply_joint_margin_from_total(
+                    totals_tgt_meta=tgt_total_meta,
+                    margins_tgt_meta=tgt_margin_meta,
+                    margins_adj=margins_adj,
+                )
 
             if bool(tgt_total_meta.get("applied")) or bool(tgt_margin_meta.get("applied")):
                 home_pts = np.clip(0.5 * (totals_adj + margins_adj), 0.0, None)
@@ -3026,6 +3365,8 @@ def simulate_game_row(
             "sigma_margin": sigma_margin_s,
             "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
             "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
+            "joint_total_margin_applied": bool(joint_tm_meta.get("applied")),
+            "joint_total_margin": joint_tm_meta if bool(joint_tm_meta.get("applied")) else None,
             "target_quantiles_total": {
                 "scale_left": tgt_total_meta.get("scale_left"),
                 "scale_right": tgt_total_meta.get("scale_right"),
@@ -3246,13 +3587,24 @@ def simulate_game_row(
 
         tgt_total_meta = {"applied": False}
         tgt_margin_meta = {"applied": False}
-        if _should_apply_target_quantiles():
-            tgt_total = _resolve_target_total_quantiles(row)
-            tgt_margin = _resolve_target_margin_quantiles(row)
+        joint_tm_meta = {"applied": False}
+        apply_tot = _should_apply_target_quantiles_total()
+        apply_mar = _should_apply_target_quantiles_margin()
+        if apply_tot or apply_mar:
+            tgt_total = _resolve_target_total_quantiles(row) if apply_tot else None
+            tgt_margin = _resolve_target_margin_quantiles(row) if apply_mar else None
             if tgt_total is not None:
                 totals, tgt_total_meta = _apply_target_quantiles_piecewise(totals, tgt_total)
             if tgt_margin is not None:
                 margins, tgt_margin_meta = _apply_target_quantiles_piecewise(margins, tgt_margin)
+
+            # Optional joint coupling: nudge margin dispersion based on totals dispersion adjustment.
+            if bool(tgt_total_meta.get("applied")) and bool(tgt_margin_meta.get("applied")):
+                margins, joint_tm_meta = _apply_joint_margin_from_total(
+                    totals_tgt_meta=tgt_total_meta,
+                    margins_tgt_meta=tgt_margin_meta,
+                    margins_adj=margins,
+                )
             if bool(tgt_total_meta.get("applied")) or bool(tgt_margin_meta.get("applied")):
                 home_pts = np.clip(0.5 * (totals + margins), 0.0, None)
                 away_pts = np.clip(0.5 * (totals - margins), 0.0, None)
@@ -3395,6 +3747,8 @@ def simulate_game_row(
             "sigma_margin": float(sigma_margin) if sigma_margin is not None else None,
             "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
             "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
+            "joint_total_margin_applied": bool(joint_tm_meta.get("applied")),
+            "joint_total_margin": joint_tm_meta if bool(joint_tm_meta.get("applied")) else None,
             "mu_home": float(np.mean(home_pts)),
             "mu_away": float(np.mean(away_pts)),
             "ppp_home_mu": float(meta_1h.get("ppp_home_mu", 0.0) + meta_2h.get("ppp_home_mu", 0.0)) / 2.0,
@@ -3512,9 +3866,11 @@ def simulate_game_row(
 
     tgt_total_meta = {"applied": False}
     tgt_margin_meta = {"applied": False}
-    if _should_apply_target_quantiles():
-        tgt_total = _resolve_target_total_quantiles(row)
-        tgt_margin = _resolve_target_margin_quantiles(row)
+    apply_tot = _should_apply_target_quantiles_total()
+    apply_mar = _should_apply_target_quantiles_margin()
+    if apply_tot or apply_mar:
+        tgt_total = _resolve_target_total_quantiles(row) if apply_tot else None
+        tgt_margin = _resolve_target_margin_quantiles(row) if apply_mar else None
         if tgt_total is not None:
             totals, tgt_total_meta = _apply_target_quantiles_piecewise(totals, tgt_total)
         if tgt_margin is not None:
@@ -5021,6 +5377,28 @@ def run_simulations_for_date(out_dir: Path, date: str,
             "mean_source": str(mean_source),
             "allow_market_guardrails": bool(allow_market_guardrails),
         }
+
+        # Snapshot quantile-targeting configuration (applied at the per-game level).
+        try:
+            import os
+
+            alpha = 1.0
+            try:
+                raw = (os.environ.get("NCAAB_SIM_TARGET_QUANTILES_ALPHA") or "").strip()
+                if raw != "":
+                    alpha = float(raw)
+            except Exception:
+                alpha = 1.0
+
+            meta["target_quantiles"] = {
+                "enabled": bool(_should_apply_target_quantiles()),
+                "source": str(_target_quantiles_source()),
+                "apply_total": bool(_should_apply_target_quantiles_total()),
+                "apply_margin": bool(_should_apply_target_quantiles_margin()),
+                "alpha": float(alpha),
+            }
+        except Exception:
+            pass
 
         # Diagnostics: how often we had spread vs expected-margin proxy available.
         try:

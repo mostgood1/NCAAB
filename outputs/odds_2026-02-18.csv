@@ -1,0 +1,53 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+f410243c7a824572b0fcf886ad3bbac2,FanDuel,2026-02-18 14:42:54.588997+00:00,-110.0,-110.0,-1.5,139.5,2026-02-18 23:00:00+00:00,Holy Cross Crusaders,Lafayette Leopards
+f410243c7a824572b0fcf886ad3bbac2,BetRivers,2026-02-18 14:42:54.588997+00:00,-121.0,-106.0,-0.5,139.5,2026-02-18 23:00:00+00:00,Holy Cross Crusaders,Lafayette Leopards
+f410243c7a824572b0fcf886ad3bbac2,BetOnline.ag,2026-02-18 14:42:54.588997+00:00,,,-1.0,139.0,2026-02-18 23:00:00+00:00,Holy Cross Crusaders,Lafayette Leopards
+f410243c7a824572b0fcf886ad3bbac2,LowVig.ag,2026-02-18 14:42:54.588997+00:00,,,-1.0,139.0,2026-02-18 23:00:00+00:00,Holy Cross Crusaders,Lafayette Leopards
+f410243c7a824572b0fcf886ad3bbac2,DraftKings,2026-02-18 14:42:54.588997+00:00,-112.0,-108.0,-1.5,139.5,2026-02-18 23:00:00+00:00,Holy Cross Crusaders,Lafayette Leopards
+f410243c7a824572b0fcf886ad3bbac2,BetMGM,2026-02-18 14:42:54.588997+00:00,-110.0,-110.0,-1.5,138.5,2026-02-18 23:00:00+00:00,Holy Cross Crusaders,Lafayette Leopards
+f410243c7a824572b0fcf886ad3bbac2,Bovada,2026-02-18 14:42:54.588997+00:00,,,1.0,139.5,2026-02-18 23:00:00+00:00,Holy Cross Crusaders,Lafayette Leopards
+2a83074109598535d73f91c6857df8ca,BetOnline.ag,2026-02-18 14:42:54.588997+00:00,-1200.0,754.0,-13.5,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,LowVig.ag,2026-02-18 14:42:54.588997+00:00,-1200.0,754.0,-13.5,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,FanDuel,2026-02-18 14:42:54.588997+00:00,-1600.0,860.0,-14.5,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,BetRivers,2026-02-18 14:42:54.588997+00:00,-1430.0,750.0,-14.5,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,DraftKings,2026-02-18 14:42:54.588997+00:00,-1350.0,800.0,-13.5,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,Bovada,2026-02-18 14:42:54.588997+00:00,-1500.0,775.0,-14.0,155.0,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,BetUS,2026-02-18 14:42:54.588997+00:00,-1200.0,750.0,-14.0,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,Caesars,2026-02-18 14:42:54.588997+00:00,-1400.0,800.0,-13.5,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+2a83074109598535d73f91c6857df8ca,BetMGM,2026-02-18 14:42:54.588997+00:00,-1200.0,725.0,-13.5,154.5,2026-02-18 23:00:00+00:00,Wofford Terriers,VMI Keydets
+bb37ce13d0a8bae0e489d0421685f562,FanDuel,2026-02-18 14:42:54.588997+00:00,-220.0,180.0,-4.5,148.5,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,LowVig.ag,2026-02-18 14:42:54.588997+00:00,-200.0,174.0,-4.5,149.0,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,BetOnline.ag,2026-02-18 14:42:54.588997+00:00,-200.0,174.0,-4.5,149.0,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,DraftKings,2026-02-18 14:42:54.588997+00:00,,,-4.5,149.5,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,BetRivers,2026-02-18 14:42:54.588997+00:00,-210.0,165.0,-4.5,148.5,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,Bovada,2026-02-18 14:42:54.588997+00:00,-195.0,165.0,-4.5,149.0,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,BetUS,2026-02-18 14:42:54.588997+00:00,-200.0,170.0,-4.5,149.0,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,Caesars,2026-02-18 14:42:54.588997+00:00,-205.0,170.0,-4.5,149.0,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+bb37ce13d0a8bae0e489d0421685f562,BetMGM,2026-02-18 14:42:54.588997+00:00,-210.0,170.0,-4.5,148.5,2026-02-18 23:00:37+00:00,Penn State Nittany Lions,Rutgers Scarlet Knights
+a0cded5dfea68d6677f6cd4e2f093954,BetOnline.ag,2026-02-18 14:42:54.588997+00:00,-600.0,446.0,-10.5,157.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,LowVig.ag,2026-02-18 14:42:54.588997+00:00,-600.0,446.0,-10.5,157.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,FanDuel,2026-02-18 14:42:54.588997+00:00,-690.0,480.0,-10.5,156.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,DraftKings,2026-02-18 14:42:54.588997+00:00,-625.0,455.0,-10.5,157.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,BetRivers,2026-02-18 14:42:54.588997+00:00,-590.0,400.0,-10.5,156.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,Bovada,2026-02-18 14:42:54.588997+00:00,-675.0,460.0,-10.5,157.0,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,BetUS,2026-02-18 14:42:54.588997+00:00,-600.0,450.0,-10.5,157.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,Caesars,2026-02-18 14:42:54.588997+00:00,-600.0,430.0,-10.5,157.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+a0cded5dfea68d6677f6cd4e2f093954,BetMGM,2026-02-18 14:42:54.588997+00:00,-600.0,425.0,-10.5,157.5,2026-02-18 23:30:00+00:00,Youngstown St Penguins,Cleveland St Vikings
+ad2efca37ac0255b25fa4fa9341fca69,BetOnline.ag,2026-02-18 14:42:54.588997+00:00,-120.0,100.0,-1.0,141.0,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,LowVig.ag,2026-02-18 14:42:54.588997+00:00,-120.0,100.0,-1.0,141.0,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,FanDuel,2026-02-18 14:42:54.588997+00:00,-120.0,100.0,-1.5,141.5,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,DraftKings,2026-02-18 14:42:54.588997+00:00,-115.0,-105.0,-1.5,140.5,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,BetRivers,2026-02-18 14:42:54.588997+00:00,-114.0,-109.0,-0.5,140.5,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,Bovada,2026-02-18 14:42:54.588997+00:00,-115.0,-105.0,-1.0,141.0,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,BetUS,2026-02-18 14:42:54.588997+00:00,,,-1.0,141.0,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,Caesars,2026-02-18 14:42:54.588997+00:00,,,-1.0,140.5,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+ad2efca37ac0255b25fa4fa9341fca69,BetMGM,2026-02-18 14:42:54.588997+00:00,-118.0,-102.0,,140.5,2026-02-18 23:30:00+00:00,Furman Paladins,East Tennessee St Buccaneers
+4a180d59bb203fe3f1772b3861e10eb4,FanDuel,2026-02-18 14:42:54.588997+00:00,-275.0,220.0,-5.5,145.5,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,LowVig.ag,2026-02-18 14:42:54.588997+00:00,-250.0,207.0,-6.0,146.0,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,BetOnline.ag,2026-02-18 14:42:54.588997+00:00,-250.0,207.0,-6.0,146.0,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,DraftKings,2026-02-18 14:42:54.588997+00:00,-250.0,205.0,-5.5,145.5,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,BetRivers,2026-02-18 14:42:54.588997+00:00,-265.0,205.0,-5.5,145.5,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,Bovada,2026-02-18 14:42:54.588997+00:00,-250.0,210.0,-6.0,146.0,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,BetUS,2026-02-18 14:42:54.588997+00:00,-250.0,210.0,-6.0,146.0,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,Caesars,2026-02-18 14:42:54.588997+00:00,-260.0,210.0,-6.0,145.5,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
+4a180d59bb203fe3f1772b3861e10eb4,BetMGM,2026-02-18 14:42:54.588997+00:00,-250.0,200.0,-6.5,145.5,2026-02-18 23:30:44+00:00,Georgetown Hoyas,Butler Bulldogs
