@@ -34,7 +34,125 @@ DEFAULT_PACE_SIGMA = 3.5
 PACE_MIN = 55.0
 PACE_MAX = 85.0
 
+# Overtime modeling (college: 5-min periods). Enable to project finals incl. OT.
+OT_LEN_MIN_DEFAULT = 5.0
+OT_MAX_PERIODS_DEFAULT = 4
+
 HALF_FRAC_DEFAULT = 0.5
+
+
+def _sim_ot_enabled() -> bool:
+    """Whether to simulate overtime when regulation ends tied.
+
+    Default is enabled (sportsbook totals/spreads typically include OT).
+    """
+    try:
+        raw = os.environ.get("NCAAB_SIM_ENABLE_OT")
+        if raw is None or str(raw).strip() == "":
+            return True
+        return _safe_bool(raw)
+    except Exception:
+        return True
+
+
+def _sim_ot_len_min() -> float:
+    try:
+        raw = os.environ.get("NCAAB_SIM_OT_LEN_MIN")
+        if raw is None or str(raw).strip() == "":
+            return float(OT_LEN_MIN_DEFAULT)
+        v = float(raw)
+        if not np.isfinite(v):
+            return float(OT_LEN_MIN_DEFAULT)
+        return float(np.clip(v, 2.0, 10.0))
+    except Exception:
+        return float(OT_LEN_MIN_DEFAULT)
+
+
+def _sim_ot_max_periods() -> int:
+    try:
+        raw = os.environ.get("NCAAB_SIM_OT_MAX_PERIODS")
+        if raw is None or str(raw).strip() == "":
+            return int(OT_MAX_PERIODS_DEFAULT)
+        v = int(float(raw))
+        return int(np.clip(v, 0, 12))
+    except Exception:
+        return int(OT_MAX_PERIODS_DEFAULT)
+
+
+def _safe_int(v: object) -> Optional[int]:
+    try:
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return None
+        if isinstance(v, (int, np.integer)):
+            return int(v)
+        s = str(v).strip()
+        if not s:
+            return None
+        return int(float(s))
+    except Exception:
+        return None
+
+
+def _extract_live_state(row: pd.Series) -> Optional[dict]:
+    """Extract live state if present on the row.
+
+    Expected columns (any subset):
+      - remaining_reg_seconds (preferred) or remaining_seconds
+      - period (1,2 for regulation)
+      - home_score, away_score (or score_home/score_away)
+      - total_points (optional)
+
+    Returns None when the row does not look live/in-game.
+    """
+    rem = _safe_float(row.get("remaining_reg_seconds"))
+    if rem is None:
+        rem = _safe_float(row.get("remaining_seconds"))
+    if rem is None or not np.isfinite(float(rem)):
+        return None
+    rem = float(np.clip(float(rem), 0.0, 2400.0))
+
+    per = _safe_int(row.get("period"))
+    if per is None:
+        # Infer from remaining regulation seconds.
+        per = 1 if rem > 1200.0 else 2
+
+    hs = _safe_int(row.get("home_score"))
+    if hs is None:
+        hs = _safe_int(row.get("score_home"))
+    as_ = _safe_int(row.get("away_score"))
+    if as_ is None:
+        as_ = _safe_int(row.get("score_away"))
+
+    tp = _safe_int(row.get("total_points"))
+    if tp is None and hs is not None and as_ is not None:
+        tp = int(hs + as_)
+
+    # Consider it live if we have a clock within regulation and at least total points.
+    if tp is None:
+        return None
+
+    elapsed_reg_s = float(2400.0 - rem)
+    elapsed_min = float(np.clip(elapsed_reg_s / 60.0, 0.0, 40.0))
+    remaining_min = float(np.clip(rem / 60.0, 0.0, 40.0))
+
+    if int(per) == 1:
+        rem_half_s = float(np.clip(rem - 1200.0, 0.0, 1200.0))
+        elapsed_half_s = float(1200.0 - rem_half_s)
+    else:
+        rem_half_s = float(np.clip(rem, 0.0, 1200.0))
+        elapsed_half_s = float(1200.0 - rem_half_s)
+
+    return {
+        "period": int(per),
+        "remaining_reg_seconds": float(rem),
+        "elapsed_min": float(elapsed_min),
+        "remaining_min": float(remaining_min),
+        "elapsed_half_seconds": float(elapsed_half_s),
+        "remaining_half_seconds": float(rem_half_s),
+        "home_score": int(hs) if hs is not None else None,
+        "away_score": int(as_) if as_ is not None else None,
+        "total_points": int(tp) if tp is not None else None,
+    }
 
 
 def _hash_prob_vec_short(v: object) -> Optional[str]:
@@ -596,31 +714,21 @@ def _derive_event_rates(row: pd.Series, side: str) -> tuple[float, float, float]
     # Prefer learned rates from boxscore-derived rolling features when present.
     # These are merged in `run_simulations_for_date` as:
     #   <side>_team_event_to_rate, <side>_team_event_3p_rate, <side>_team_event_fta_rate
+    lr_to = None
     try:
         lr_to = _safe_float(row.get(f"{side}_team_event_to_rate"))
-        if lr_to is not None:
-            to_rate = float(lr_to)
     except Exception:
         pass
+    lr_3p = None
     try:
         lr_3p = _safe_float(row.get(f"{side}_team_event_3p_rate"))
-        if lr_3p is not None:
-            three_rate = float(lr_3p)
     except Exception:
         pass
 
     # Prefer direct learned FT-trip probability when present (derived from rolling FTR).
+    lr_ft_trip = None
     try:
         lr_ft_trip = _safe_float(row.get(f"{side}_team_event_ft_trip_rate"))
-        if lr_ft_trip is not None:
-            ft_trip = float(lr_ft_trip)
-            # Bounds consistent with downstream clamps
-            ft_trip = float(np.clip(ft_trip, 0.06, 0.18))
-            return (
-                float(np.clip(to_rate, 0.11, 0.25)),
-                float(np.clip(ft_trip, 0.06, 0.18)),
-                float(np.clip(three_rate, 0.25, 0.50)),
-            )
     except Exception:
         pass
     try:
@@ -629,7 +737,7 @@ def _derive_event_rates(row: pd.Series, side: str) -> tuple[float, float, float]
             # Approx trips/poss ≈ (FTA/2)/poss = 0.5*fta_rate; convert to conditional rate.
             trips_per_poss = 0.5 * float(lr_fta)
             denom = max(1e-6, 1.0 - float(to_rate))
-            ft_trip = float(trips_per_poss / denom)
+            lr_ft_trip = float(trips_per_poss / denom)
     except Exception:
         pass
 
@@ -649,11 +757,365 @@ def _derive_event_rates(row: pd.Series, side: str) -> tuple[float, float, float]
         elif rest <= 1:
             to_rate += 0.005
 
+    # Hierarchical shrinkage: blend learned rates with the baseline when sample size is small.
+    # (This prevents early-season rolling features from dominating.)
+    try:
+        g = _safe_float(row.get(f"{side}_team_event_games"))
+        w = float(np.clip((float(g) / 15.0) if g is not None else 0.0, 0.0, 1.0))
+    except Exception:
+        w = 0.0
+
+    def _blend_rate(lr: Optional[float], base: float) -> float:
+        if lr is None or not np.isfinite(float(lr)):
+            return float(base)
+        try:
+            return float((1.0 - w) * float(base) + w * float(lr))
+        except Exception:
+            return float(base)
+
+    if w > 0.0:
+        to_rate = _blend_rate(lr_to, float(to_rate))
+        three_rate = _blend_rate(lr_3p, float(three_rate))
+        ft_trip = _blend_rate(lr_ft_trip, float(ft_trip))
+    else:
+        if lr_to is not None:
+            to_rate = float(lr_to)
+        if lr_3p is not None:
+            three_rate = float(lr_3p)
+        if lr_ft_trip is not None:
+            ft_trip = float(lr_ft_trip)
+
     # Keep within sensible bounds
     to_rate = float(np.clip(to_rate, 0.11, 0.25))
     ft_trip = float(np.clip(ft_trip, 0.06, 0.18))
     three_rate = float(np.clip(three_rate, 0.25, 0.50))
     return to_rate, ft_trip, three_rate
+
+
+def _simulate_ot_additions_for_ties(
+    home_reg: np.ndarray,
+    away_reg: np.ndarray,
+    pace_mu: float,
+    pace_sigma: float,
+    home_params: tuple[float, float, float, float, float, float],
+    away_params: tuple[float, float, float, float, float, float],
+    rng: np.random.Generator,
+) -> dict:
+    """Simulate OT points for samples that end regulation tied.
+
+    Returns dict with home_add/away_add (float arrays) and ot_periods (int).
+    """
+    n = int(len(home_reg))
+    out_h = np.zeros(n, dtype=float)
+    out_a = np.zeros(n, dtype=float)
+    ot_periods = np.zeros(n, dtype=int)
+    max_p = int(_sim_ot_max_periods())
+    if max_p <= 0:
+        return {"home_add": out_h, "away_add": out_a, "ot_periods": ot_periods}
+
+    # Expected per-team OT possessions: pace * (OT_minutes / 40).
+    ot_len_min = float(_sim_ot_len_min())
+    frac = float(np.clip(ot_len_min / 40.0, 0.02, 0.30))
+    poss_mu_ot = float(np.clip(float(pace_mu) * frac, 3.0, 25.0))
+    poss_sig_ot = float(max(0.35, float(pace_sigma) * float(np.sqrt(frac))))
+
+    to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h = home_params
+    to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a = away_params
+
+    # Tie if margin is essentially zero after rounding.
+    tie = np.abs(np.asarray(home_reg, dtype=float) - np.asarray(away_reg, dtype=float)) < 0.5
+    idx = np.where(tie)[0]
+    for i in idx.tolist():
+        h_add = 0
+        a_add = 0
+        h = int(np.rint(float(home_reg[i])))
+        a = int(np.rint(float(away_reg[i])))
+        for _ in range(max_p):
+            poss = int(np.rint(float(rng.normal(loc=poss_mu_ot, scale=poss_sig_ot))))
+            poss = int(np.clip(poss, 3, 25))
+            ph, _ = _simulate_team_points(poss, to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h, rng)
+            pa, _ = _simulate_team_points(poss, to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a, rng)
+            h += int(ph)
+            a += int(pa)
+            h_add += int(ph)
+            a_add += int(pa)
+            ot_periods[i] += 1
+            if h != a:
+                break
+        if h == a:
+            # Extremely rare: still tied after max OT. Break tie minimally.
+            if bool(rng.random() < 0.5):
+                h_add += 1
+            else:
+                a_add += 1
+        out_h[i] = float(h_add)
+        out_a[i] = float(a_add)
+
+    return {"home_add": out_h, "away_add": out_a, "ot_periods": ot_periods}
+
+
+def _simulate_events_live_final_samples(
+    row: pd.Series,
+    samples: int,
+    pace_mu: float,
+    pace_sigma: float,
+    half_frac: float,
+    mu_home: float,
+    mu_away: float,
+    rng: np.random.Generator,
+) -> Optional[dict]:
+    """Stateful (time + possessions) simulation from the current live state to final."""
+    live = _extract_live_state(row)
+    if not live:
+        return None
+
+    # Require team score split for margin/ATS; otherwise we can still do totals.
+    hs = live.get("home_score")
+    as_ = live.get("away_score")
+    if hs is None or as_ is None:
+        return None
+
+    period = int(live.get("period") or 0)
+    if period not in (1, 2):
+        # OT already started or invalid; leave to non-live paths for now.
+        return None
+
+    elapsed_min = float(live.get("elapsed_min") or 0.0)
+
+    # Optional: use pbp-estimated possessions to condition pace and PPP.
+    pace_mu_eff = float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))
+    pace_sigma_eff = float(max(0.25, float(pace_sigma)))
+    pbp_poss_used = False
+    try:
+        pbp_poss = _safe_float(row.get("pbp_poss_est"))
+        if pbp_poss is not None and pbp_poss > 0 and elapsed_min > 0.25:
+            poss_per_min_comb = float(pbp_poss) / float(elapsed_min)
+            pace_obs_team = float(np.clip(0.5 * poss_per_min_comb * 40.0, PACE_MIN, PACE_MAX))
+            w = float(np.clip(elapsed_min / 40.0, 0.0, 1.0))
+            w = float(np.clip(0.55 * w, 0.0, 0.55))
+            pace_mu_eff = float((1.0 - w) * float(pace_mu_eff) + w * float(pace_obs_team))
+            pace_sigma_eff = float(max(0.25, float(pace_sigma_eff) * float(1.0 - 0.35 * w)))
+            pbp_poss_used = True
+    except Exception:
+        pass
+
+    poss_mu = float(np.clip(float(pace_mu_eff), PACE_MIN, PACE_MAX))
+    poss_sigma = float(max(0.25, float(pace_sigma_eff)))
+
+    poss_game = rng.normal(loc=poss_mu, scale=poss_sigma, size=int(samples))
+    poss_game = np.clip(np.round(poss_game), PACE_MIN, PACE_MAX).astype(int)
+    poss_1h = rng.binomial(poss_game, float(np.clip(half_frac, 0.35, 0.65)))
+    poss_2h = poss_game - poss_1h
+
+    # Baseline PPP derived from pregame mean targets.
+    ppp_home = float(np.clip(float(mu_home) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35))
+    ppp_away = float(np.clip(float(mu_away) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35))
+
+    # Optional PPP conditioning using pbp possessions.
+    try:
+        pbp_poss = _safe_float(row.get("pbp_poss_est"))
+        tp = live.get("total_points")
+        if pbp_poss is not None and pbp_poss > 1 and tp is not None:
+            ppp_obs_team = float(np.clip(2.0 * float(tp) / float(pbp_poss), 0.60, 1.60))
+            ppp_base_team = float(np.clip((float(mu_home) + float(mu_away)) / max(1.0, float(pace_mu)), 0.75, 1.35))
+            ratio = float(np.clip(ppp_obs_team / max(1e-6, ppp_base_team), 0.85, 1.20))
+            w = float(np.clip(elapsed_min / 40.0, 0.0, 1.0))
+            w = float(np.clip(0.45 * w, 0.0, 0.45))
+            adj = float(ratio ** w)
+            ppp_home = float(np.clip(ppp_home * adj, 0.75, 1.35))
+            ppp_away = float(np.clip(ppp_away * adj, 0.75, 1.35))
+    except Exception:
+        pass
+
+    # Fallback: when pbp possessions are unavailable, lightly condition BOTH pace and PPP
+    # on observed scoring rate vs elapsed time. This helps the live sim converge earlier
+    # (reduces anchoring to pregame mean), while keeping the adjustment bounded.
+    if not bool(pbp_poss_used):
+        try:
+            enable_time_adj = os.environ.get("NCAAB_LIVE_TIME_RATE_ADJUST")
+            if enable_time_adj is None or str(enable_time_adj).strip() == "":
+                enable_time_adj_bool = True
+            else:
+                enable_time_adj_bool = _safe_bool(enable_time_adj)
+        except Exception:
+            enable_time_adj_bool = True
+
+        if bool(enable_time_adj_bool) and elapsed_min > 0.75:
+            try:
+                tp = live.get("total_points")
+                if tp is not None:
+                    mu_total = float(mu_home) + float(mu_away)
+                    elapsed_frac = float(np.clip(float(elapsed_min) / 40.0, 0.0, 1.0))
+                    exp_pts = float(mu_total) * float(elapsed_frac)
+                    if exp_pts > 1.0:
+                        # Observed vs expected points rate so far.
+                        rr_min = float(np.clip(_safe_float(os.getenv("NCAAB_LIVE_TIME_RATE_RATIO_MIN")) or 0.88, 0.50, 1.00))
+                        rr_max = float(np.clip(_safe_float(os.getenv("NCAAB_LIVE_TIME_RATE_RATIO_MAX")) or 1.35, 1.00, 2.00))
+                        rate_ratio = float(np.clip(float(tp) / float(exp_pts), rr_min, rr_max))
+
+                        # Smoothly increase influence with elapsed time.
+                        # tau is a prior strength in fraction-of-game (~8 minutes by default).
+                        tau = float(np.clip(_safe_float(os.getenv("NCAAB_LIVE_TIME_RATE_TAU")) or 0.35, 0.05, 1.00))
+                        w_max = float(np.clip(_safe_float(os.getenv("NCAAB_LIVE_TIME_RATE_W_MAX")) or 0.85, 0.00, 1.00))
+                        w = float(elapsed_frac / max(1e-6, (elapsed_frac + tau)))
+                        w = float(np.clip(w, 0.0, w_max))
+                        scale = float(rate_ratio ** w)
+                        # Split the adjustment across pace and PPP (product governs scoring rate).
+                        s = float(np.sqrt(scale))
+                        pace_mu_eff = float(np.clip(float(pace_mu_eff) * s, PACE_MIN, PACE_MAX))
+                        ppp_home = float(np.clip(float(ppp_home) * s, 0.75, 1.35))
+                        ppp_away = float(np.clip(float(ppp_away) * s, 0.75, 1.35))
+            except Exception:
+                pass
+
+    to_h, ft_h, three_h = _derive_event_rates(row, "home")
+    to_a, ft_a, three_a = _derive_event_rates(row, "away")
+    ft_pr_h, p2_pr_h, p3_pr_h = _derive_shooting_priors(row, "home")
+    ft_pr_a, p2_pr_a, p3_pr_a = _derive_shooting_priors(row, "away")
+    ft_pct_h, p2_h, p3_h = _calibrate_shooting_to_ppp(ppp_home, to_h, ft_h, three_h, ft_pr_h, p2_pr_h, p3_pr_h)
+    ft_pct_a, p2_a, p3_a = _calibrate_shooting_to_ppp(ppp_away, to_a, ft_a, three_a, ft_pr_a, p2_pr_a, p3_pr_a)
+
+    # Late-game heuristic parameters (same as segment timeline)
+    late_foul_time_s = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_TIME_SEC")) or 120.0, 30.0, 240.0))
+    close_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_CLOSE_DT_MULT")) or 0.88, 0.60, 1.10))
+    trail_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_DT_MULT")) or 0.80, 0.50, 1.10))
+    lead_dt_mult = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_DT_MULT")) or 0.65, 0.50, 1.10))
+    trail_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_TRAIL_3PA_DELTA")) or 0.06, 0.00, 0.20))
+    lead_ft_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_FT_DELTA")) or 0.10, 0.00, 0.30))
+    lead_to_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_TO_DELTA")) or -0.02, -0.10, 0.10))
+    lead_three_delta = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_LEAD_3PA_DELTA")) or -0.05, -0.20, 0.20))
+
+    margin_thresh = int(_safe_float(os.getenv("NCAAB_LATE_MARGIN_THRESH")) or 3)
+    close_margin = int(_safe_float(os.getenv("NCAAB_LATE_CLOSE_MARGIN")) or 2)
+    late_foul_max_abs_margin = int(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_MAX_ABS_MARGIN")) or 10, 2, 40))
+    late_foul_max_abs_margin_early = int(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_MAX_ABS_MARGIN_EARLY")) or 6, 1, late_foul_max_abs_margin))
+    late_foul_ramp_end_s = float(np.clip(_safe_float(os.getenv("NCAAB_LATE_FOUL_RAMP_END_SEC")) or 60.0, 5.0, late_foul_time_s))
+
+    shape = 2.0
+
+    home_final = np.zeros(int(samples), dtype=float)
+    away_final = np.zeros(int(samples), dtype=float)
+
+    for i in range(int(samples)):
+        h = int(hs)
+        a = int(as_)
+
+        # 1H remainder (if in 1H)
+        if period == 1:
+            p1 = int(max(0, int(poss_1h[i])))
+            npos_1h = int(max(1, 2 * p1))
+            mean_s_1h = 1200.0 / float(max(1, npos_1h))
+            scale_1h = float(max(1.0, mean_s_1h / shape))
+            t = float(live.get("elapsed_half_seconds") or 0.0)
+            home_ball = bool(rng.random() < 0.5)
+            while t < 1200.0:
+                dt = float(rng.gamma(shape, scale_1h))
+                dt = float(np.clip(dt, 4.0, 40.0))
+                t += dt
+                if t > 1200.0:
+                    break
+                if home_ball:
+                    h += _simulate_single_possession_points(to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h, rng)
+                else:
+                    a += _simulate_single_possession_points(to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a, rng)
+                home_ball = not home_ball
+
+        # 2H remainder (if in 2H, start from live clock; else full 2H)
+        p2 = int(max(0, int(poss_2h[i])))
+        npos_2h = int(max(1, 2 * p2))
+        mean_s_2h = 1200.0 / float(max(1, npos_2h))
+        scale_2h = float(max(1.0, mean_s_2h / shape))
+        t = float(live.get("elapsed_half_seconds") or 0.0) if period == 2 else 0.0
+        home_ball = bool(rng.random() < 0.5)
+
+        while t < 1200.0:
+            time_remaining = 1200.0 - t
+            margin = h - a
+
+            adj_home = (to_h, ft_h, three_h)
+            adj_away = (to_a, ft_a, three_a)
+            dt_mult = 1.0
+
+            if time_remaining <= late_foul_time_s:
+                if late_foul_time_s > late_foul_ramp_end_s:
+                    ramp = float((late_foul_time_s - time_remaining) / (late_foul_time_s - late_foul_ramp_end_s))
+                else:
+                    ramp = 1.0
+                ramp = float(np.clip(ramp, 0.0, 1.0))
+                eff_max_margin = int(round(late_foul_max_abs_margin_early + ramp * (late_foul_max_abs_margin - late_foul_max_abs_margin_early)))
+                if abs(margin) <= eff_max_margin:
+                    if abs(margin) <= close_margin:
+                        dt_mult = close_dt_mult
+
+                    if home_ball:
+                        if margin <= -margin_thresh:
+                            adj_home = (to_h, ft_h, min(0.48, three_h + trail_three_delta))
+                            dt_mult = min(dt_mult, trail_dt_mult)
+                        elif margin >= margin_thresh:
+                            adj_home = (
+                                float(np.clip(to_h + lead_to_delta, 0.11, 0.25)),
+                                float(np.clip(ft_h + lead_ft_delta, 0.06, 0.18)),
+                                float(np.clip(three_h + lead_three_delta, 0.25, 0.50)),
+                            )
+                            dt_mult = min(dt_mult, lead_dt_mult)
+                    else:
+                        if margin >= margin_thresh:
+                            adj_away = (to_a, ft_a, min(0.48, three_a + trail_three_delta))
+                            dt_mult = min(dt_mult, trail_dt_mult)
+                        elif margin <= -margin_thresh:
+                            adj_away = (
+                                float(np.clip(to_a + lead_to_delta, 0.11, 0.25)),
+                                float(np.clip(ft_a + lead_ft_delta, 0.06, 0.18)),
+                                float(np.clip(three_a + lead_three_delta, 0.25, 0.50)),
+                            )
+                            dt_mult = min(dt_mult, lead_dt_mult)
+
+            dt = float(rng.gamma(shape, scale_2h))
+            dt = float(np.clip(dt * dt_mult, 4.0, 40.0))
+            t += dt
+            if t > 1200.0:
+                break
+
+            if home_ball:
+                th, fh, trh = adj_home
+                h += _simulate_single_possession_points(th, fh, trh, ft_pct_h, p2_h, p3_h, rng)
+            else:
+                ta, fa, tra = adj_away
+                a += _simulate_single_possession_points(ta, fa, tra, ft_pct_a, p2_a, p3_a, rng)
+            home_ball = not home_ball
+
+        home_final[i] = float(h)
+        away_final[i] = float(a)
+
+    # OT (only if tied at end of regulation)
+    ot_meta = {"ot_prob": 0.0, "ot_mean_periods": 0.0}
+    if _sim_ot_enabled():
+        ot = _simulate_ot_additions_for_ties(
+            home_reg=home_final,
+            away_reg=away_final,
+            pace_mu=float(pace_mu_eff),
+            pace_sigma=float(pace_sigma_eff),
+            home_params=(to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h),
+            away_params=(to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a),
+            rng=rng,
+        )
+        home_final = home_final + np.asarray(ot.get("home_add"), dtype=float)
+        away_final = away_final + np.asarray(ot.get("away_add"), dtype=float)
+        try:
+            per = np.asarray(ot.get("ot_periods"), dtype=int)
+            ot_meta = {
+                "ot_prob": float(np.mean(per > 0)),
+                "ot_mean_periods": float(np.mean(per)),
+            }
+        except Exception:
+            ot_meta = {"ot_prob": 0.0, "ot_mean_periods": 0.0}
+
+    return {
+        "home_final": np.asarray(home_final, dtype=float),
+        "away_final": np.asarray(away_final, dtype=float),
+        "live": dict(live),
+        "ot": ot_meta,
+    }
 
 
 def _calibrate_shooting_to_ppp(
@@ -3195,6 +3657,18 @@ def simulate_game_row(
         home_1h = ev["home_1h"]
         away_1h = ev["away_1h"]
 
+        # Event parameters (used for OT and live remainder simulation).
+        to_h, ft_h, three_h = _derive_event_rates(row, "home")
+        to_a, ft_a, three_a = _derive_event_rates(row, "away")
+        ft_pr_h, p2_pr_h, p3_pr_h = _derive_shooting_priors(row, "home")
+        ft_pr_a, p2_pr_a, p3_pr_a = _derive_shooting_priors(row, "away")
+        ppp_home = float(np.clip(float(mu_home) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35))
+        ppp_away = float(np.clip(float(mu_away) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35))
+        ft_pct_h, p2_h, p3_h = _calibrate_shooting_to_ppp(ppp_home, to_h, ft_h, three_h, ft_pr_h, p2_pr_h, p3_pr_h)
+        ft_pct_a, p2_a, p3_a = _calibrate_shooting_to_ppp(ppp_away, to_a, ft_a, three_a, ft_pr_a, p2_pr_a, p3_pr_a)
+        home_params = (to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h)
+        away_params = (to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a)
+
         # Apply 1H calibration to the event-sim by reallocating points between halves.
         # This preserves full-game totals while shifting 1H (and 2H as the residual).
         # Note: values can become non-integer; that's fine for probabilistic outputs.
@@ -3278,6 +3752,47 @@ def simulate_game_row(
         except Exception:
             pass
 
+        # Preserve regulation distributions for segments, then add OT for final outcomes.
+        totals_reg = totals
+        margins_reg = margins
+        home_reg = home_pts
+        away_reg = away_pts
+
+        ot_enabled = bool(_sim_ot_enabled())
+        ot_info = {"enabled": ot_enabled, "ot_prob": 0.0, "ot_mean_periods": 0.0, "ot_samples": 0}
+        if ot_enabled:
+            ot = _simulate_ot_additions_for_ties(
+                home_reg=np.asarray(home_reg, dtype=float),
+                away_reg=np.asarray(away_reg, dtype=float),
+                pace_mu=float(pace_mu),
+                pace_sigma=float(pace_sigma) if pace_sigma is not None else DEFAULT_PACE_SIGMA,
+                home_params=home_params,
+                away_params=away_params,
+                rng=rng,
+            )
+            home_pts = np.asarray(home_reg, dtype=float) + np.asarray(ot.get("home_add"), dtype=float)
+            away_pts = np.asarray(away_reg, dtype=float) + np.asarray(ot.get("away_add"), dtype=float)
+            totals = home_pts + away_pts
+            margins = home_pts - away_pts
+            try:
+                per = np.asarray(ot.get("ot_periods"), dtype=int)
+                ot_info = {
+                    "enabled": ot_enabled,
+                    "ot_prob": float(np.mean(per > 0)),
+                    "ot_mean_periods": float(np.mean(per)),
+                    "ot_samples": int(np.sum(per > 0)),
+                    "ot_max_periods": int(_sim_ot_max_periods()),
+                    "ot_len_min": float(_sim_ot_len_min()),
+                }
+            except Exception:
+                pass
+        else:
+            # Final == regulation.
+            home_pts = home_reg
+            away_pts = away_reg
+            totals = totals_reg
+            margins = margins_reg
+
         q10_t = float(np.quantile(totals, 0.10))
         q50_t = float(np.quantile(totals, 0.50))
         q90_t = float(np.quantile(totals, 0.90))
@@ -3292,7 +3807,7 @@ def simulate_game_row(
         q50_m1 = float(np.quantile(margins_1h, 0.50))
         q90_m1 = float(np.quantile(margins_1h, 0.90))
 
-        # Derive 2H as residual
+        # Derive 2H as residual (includes OT when enabled)
         totals_2h = totals - totals_1h
         margins_2h = margins - margins_1h
         q10_t2 = float(np.quantile(totals_2h, 0.10))
@@ -3407,21 +3922,6 @@ def simulate_game_row(
             pass
 
         if use_time_aware_segments:
-            # Recompute event params here to avoid threading through ev payload.
-            to_h, ft_h, three_h = _derive_event_rates(row, "home")
-            to_a, ft_a, three_a = _derive_event_rates(row, "away")
-            ft_pct_h, p2_h, p3_h = _calibrate_shooting_to_ppp(
-                float(np.clip(float(mu_home) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35)),
-                to_h,
-                ft_h,
-                three_h,
-            )
-            ft_pct_a, p2_a, p3_a = _calibrate_shooting_to_ppp(
-                float(np.clip(float(mu_away) / max(1.0, float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))), 0.75, 1.35)),
-                to_a,
-                ft_a,
-                three_a,
-            )
             try:
                 grid_min = _segments_grid_min_from_env()
             except Exception:
@@ -3430,8 +3930,8 @@ def simulate_game_row(
             segment_rows = seg_fn(
                 poss_1h=ev.get("home_poss_1h") if ev.get("home_poss_1h") is not None else np.zeros(int(samples), dtype=int),
                 poss_2h=(ev.get("home_poss") - ev.get("home_poss_1h")) if (ev.get("home_poss") is not None and ev.get("home_poss_1h") is not None) else np.zeros(int(samples), dtype=int),
-                home_params=(to_h, ft_h, three_h, ft_pct_h, p2_h, p3_h),
-                away_params=(to_a, ft_a, three_a, ft_pct_a, p2_a, p3_a),
+                home_params=home_params,
+                away_params=away_params,
                 rng=rng,
                 enable_late_foul=True,
             )
@@ -3441,8 +3941,9 @@ def simulate_game_row(
             except Exception:
                 grid_min_pts = 5
             segment_rows = _segment_grid_quantiles_from_points(
-                home_pts=home_pts,
-                away_pts=away_pts,
+                # Segments represent regulation endpoints; do not allocate OT points into regulation.
+                home_pts=home_reg,
+                away_pts=away_reg,
                 home_1h=home_1h,
                 away_1h=away_1h,
                 grid_min=int(grid_min_pts),
@@ -3477,10 +3978,46 @@ def simulate_game_row(
             )
 
         poss_mu_used = float(np.clip(float(pace_mu), PACE_MIN, PACE_MAX))
+
+        # Optional: stateful live remainder simulation when live clock/scores are present.
+        live_sim = _simulate_events_live_final_samples(
+            row=row,
+            samples=int(samples),
+            pace_mu=float(pace_mu),
+            pace_sigma=float(pace_sigma) if pace_sigma is not None else DEFAULT_PACE_SIGMA,
+            half_frac=float(half_frac),
+            mu_home=float(mu_home),
+            mu_away=float(mu_away),
+            rng=rng,
+        )
+        if live_sim is not None:
+            h_live = np.asarray(live_sim.get("home_final"), dtype=float)
+            a_live = np.asarray(live_sim.get("away_final"), dtype=float)
+            t_live = h_live + a_live
+            m_live = h_live - a_live
+            live_q10_t = float(np.quantile(t_live, 0.10))
+            live_q50_t = float(np.quantile(t_live, 0.50))
+            live_q90_t = float(np.quantile(t_live, 0.90))
+            live_q10_m = float(np.quantile(m_live, 0.10))
+            live_q50_m = float(np.quantile(m_live, 0.50))
+            live_q90_m = float(np.quantile(m_live, 0.90))
+            live_meta = live_sim.get("live") or {}
+            live_total_now = _safe_float(live_meta.get("total_points"))
+            live_mu_total_final = float(np.mean(t_live))
+            live_mu_margin_final = float(np.mean(m_live))
+            live_mu_total_rem = (live_mu_total_final - float(live_total_now)) if live_total_now is not None else None
+        else:
+            live_q10_t = live_q50_t = live_q90_t = None
+            live_q10_m = live_q50_m = live_q90_m = None
+            live_meta = None
+            live_mu_total_final = None
+            live_mu_margin_final = None
+            live_mu_total_rem = None
         return {
             "sim_ok": True,
             "sim_method": "events",
             "sim_engine": "events",
+            "ot": ot_info,
             "segments_grid_min": int(segments_grid_min_used) if segments_grid_min_used is not None else None,
             "segments_mode": "time_aware" if bool(use_time_aware_segments) else "points_alloc",
             "abs_margin_proxy": float(abs_margin_proxy_value) if abs_margin_proxy_value is not None and np.isfinite(float(abs_margin_proxy_value)) else None,
@@ -3528,6 +4065,8 @@ def simulate_game_row(
             "cov_residual": None,
             "mu_total": float(np.mean(totals)),
             "mu_margin": float(np.mean(margins)),
+            "mu_total_reg": float(np.mean(totals_reg)),
+            "mu_margin_reg": float(np.mean(margins_reg)),
             "q10_total": q10_t,
             "q50_total": q50_t,
             "q90_total": q90_t,
@@ -3582,6 +4121,17 @@ def simulate_game_row(
             "calib_sigma_total_1h_mult": float(calib_sigma_total_1h_mult_applied),
             "calib_sigma_margin_1h_mult": float(calib_sigma_margin_1h_mult_applied),
             "_segments_rows": segment_rows,
+            "live_sim_ok": True if live_sim is not None else False,
+            "live_state": live_meta,
+            "live_mu_total": live_mu_total_final,
+            "live_mu_margin": live_mu_margin_final,
+            "live_mu_total_remaining": live_mu_total_rem,
+            "live_q10_total": live_q10_t,
+            "live_q50_total": live_q50_t,
+            "live_q90_total": live_q90_t,
+            "live_q10_margin": live_q10_m,
+            "live_q50_margin": live_q50_m,
+            "live_q90_margin": live_q90_m,
             **{f"event_{k}": v for k, v in (ev.get("agg") or {}).items()},
         }
 

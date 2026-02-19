@@ -204,6 +204,30 @@ try {
     Write-Warning "market dispersion env defaulting failed (continuing): $($_)"
   }
 
+  # Default live time-rate fallback conditioning knobs (only when enabled).
+  # Enable by setting NCAAB_LIVE_TIME_RATE_ADJUST=1. This affects live remainder conditioning
+  # only when pbp possession estimates are unavailable (improves early-game totals bias).
+  try {
+    $tr = $env:NCAAB_LIVE_TIME_RATE_ADJUST
+    $trOn = $false
+    if ($tr -and $tr.Trim() -ne '' -and $tr.Trim() -ne '0') {
+      $trl = $tr.Trim().ToLower()
+      if ($trl -ne 'false' -and $trl -ne 'off' -and $trl -ne 'no') {
+        $trOn = $true
+      }
+    }
+    if ($trOn) {
+      if (-not $env:NCAAB_LIVE_TIME_RATE_RATIO_MIN -or $env:NCAAB_LIVE_TIME_RATE_RATIO_MIN.Trim() -eq '') { $env:NCAAB_LIVE_TIME_RATE_RATIO_MIN = '0.88' }
+      if (-not $env:NCAAB_LIVE_TIME_RATE_RATIO_MAX -or $env:NCAAB_LIVE_TIME_RATE_RATIO_MAX.Trim() -eq '') { $env:NCAAB_LIVE_TIME_RATE_RATIO_MAX = '1.35' }
+      if (-not $env:NCAAB_LIVE_TIME_RATE_TAU -or $env:NCAAB_LIVE_TIME_RATE_TAU.Trim() -eq '') { $env:NCAAB_LIVE_TIME_RATE_TAU = '0.35' }
+      if (-not $env:NCAAB_LIVE_TIME_RATE_W_MAX -or $env:NCAAB_LIVE_TIME_RATE_W_MAX.Trim() -eq '') { $env:NCAAB_LIVE_TIME_RATE_W_MAX = '0.85' }
+
+      Write-Host "[time-rate] enabled ratio_min=$($env:NCAAB_LIVE_TIME_RATE_RATIO_MIN) ratio_max=$($env:NCAAB_LIVE_TIME_RATE_RATIO_MAX) tau=$($env:NCAAB_LIVE_TIME_RATE_TAU) w_max=$($env:NCAAB_LIVE_TIME_RATE_W_MAX)" -ForegroundColor DarkGray
+    }
+  } catch {
+    Write-Warning "time-rate env defaulting failed (continuing): $($_)"
+  }
+
   # Compute dates
   $todayDate = [DateTime]::ParseExact($Today, 'yyyy-MM-dd', $null)
   $prevDate = $todayDate.AddDays(-1).ToString('yyyy-MM-dd')

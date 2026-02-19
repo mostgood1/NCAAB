@@ -175,6 +175,19 @@ python -m ncaab_model.cli ort-info
 ```
 
 Or run the verification helper:
+
+## Live Simulation Conditioning (time-rate fallback)
+
+When play-by-play estimated possessions (`pbp_poss_est`) are unavailable, the live simulator can optionally condition pace + PPP on observed scoring rate vs elapsed time. This is controlled by:
+
+- `NCAAB_LIVE_TIME_RATE_ADJUST` — enable/disable the time-rate fallback (default: enabled)
+- `NCAAB_LIVE_TIME_RATE_TAU` — prior strength in fraction-of-game (default: `0.35`)
+- `NCAAB_LIVE_TIME_RATE_RATIO_MIN` — lower bound for observed/expected points-rate ratio (default: `0.88`)
+- `NCAAB_LIVE_TIME_RATE_RATIO_MAX` — upper bound for observed/expected points-rate ratio (default: `1.35`)
+- `NCAAB_LIVE_TIME_RATE_W_MAX` — max weight of this adjustment (default: `0.85`)
+
+These are intentionally bounded so live projections converge faster early without overreacting to noisy scoring.
+
 ## Calibrated-Only Prediction Enforcement & Diagnostics
 
 The display layer now enforces calibrated predictions as the sole top-preference basis:
