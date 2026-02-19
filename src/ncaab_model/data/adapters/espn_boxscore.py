@@ -144,7 +144,7 @@ def _compute_shooting_metrics(team_stats: dict) -> dict:
     }
 
 
-def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRow]:
+def fetch_boxscore(event_id: str, use_cache: bool = True, cache_only: bool = False) -> Optional[BoxScoreRow]:
     cache_file = cache_path("espn_summary", f"{event_id}.json")
     data = None
     data_from_cache = False
@@ -154,6 +154,24 @@ def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRo
             data_from_cache = data is not None
         except Exception:
             data = None
+
+    if cache_only:
+        # Offline/local-only mode: never hit the network.
+        # If cache is missing or incomplete, return None so callers can skip.
+        if not data_from_cache or not isinstance(data, dict):
+            return None
+        try:
+            comp0_status = ((data.get("header") or {}).get("competitions") or [{}])[0]
+            st = (comp0_status.get("status") or {}).get("type") or {}
+            # If game not completed, skip.
+            if st.get("completed") is False:
+                return None
+            # If boxscore teams are missing, skip.
+            comps = (data.get("boxscore") or {}).get("teams") or []
+            if len(comps) < 2:
+                return None
+        except Exception:
+            return None
 
     # If we loaded a cached response that was captured pregame/in-progress (or is malformed),
     # refresh from network so completed games can be backfilled later.
@@ -371,6 +389,10 @@ def fetch_boxscore(event_id: str, use_cache: bool = True) -> Optional[BoxScoreRo
     )
 
 
-def iter_boxscores(event_ids: Iterable[str], use_cache: bool = True) -> Iterable[BoxScoreRow | None]:
+def iter_boxscores(
+    event_ids: Iterable[str],
+    use_cache: bool = True,
+    cache_only: bool = False,
+) -> Iterable[BoxScoreRow | None]:
     for eid in event_ids:
-        yield fetch_boxscore(str(eid), use_cache=use_cache)
+        yield fetch_boxscore(str(eid), use_cache=use_cache, cache_only=cache_only)

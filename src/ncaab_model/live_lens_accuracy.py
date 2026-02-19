@@ -56,6 +56,11 @@ class LiveLensAccuracyRetunedConfig:
     early_over_remaining_min: float = 20.0
     early_over_period_max: float = 1.0
 
+    # Optional learned penalties based on driver flags/tags.
+    # When present, each tag's positive value is subtracted from strength.
+    apply_driver_tag_penalties: bool = True
+    driver_tag_strength_penalties: dict[str, float] | None = None
+
 
 def _root_outputs() -> Path:
     return Path(os.getcwd()) / "outputs"
@@ -375,6 +380,57 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
             except Exception:
                 pass
 
+    # Optional: learned driver-flag penalties.
+    if cfg.apply_driver_tag_penalties:
+        pen_map = cfg.driver_tag_strength_penalties or {}
+
+        def _parse_tags(v: Any) -> list[str]:
+            if v is None:
+                return []
+            if isinstance(v, list):
+                out: list[str] = []
+                for x in v:
+                    if x is None:
+                        continue
+                    s = str(x).strip()
+                    if s:
+                        out.append(s)
+                return out
+            # Sometimes serialized as JSON string.
+            try:
+                s0 = str(v).strip()
+                if not s0:
+                    return []
+                if s0.startswith("[") and s0.endswith("]"):
+                    j = json.loads(s0)
+                    if isinstance(j, list):
+                        return [str(x).strip() for x in j if x is not None and str(x).strip()]
+            except Exception:
+                pass
+            # Fallback: comma/pipe separated.
+            try:
+                s1 = str(v)
+                parts = [p.strip() for p in s1.replace("|", ",").split(",")]
+                return [p for p in parts if p]
+            except Exception:
+                return []
+
+        if pen_map and ("driver_tags" in sig_df.columns):
+            try:
+                tag_pen = sig_df["driver_tags"].apply(
+                    lambda vv: float(
+                        sum(
+                            float(pen_map.get(str(t).strip(), 0.0) or 0.0)
+                            for t in _parse_tags(vv)
+                            if float(pen_map.get(str(t).strip(), 0.0) or 0.0) > 0
+                        )
+                    )
+                )
+                sig_df["cf_tag_penalty"] = tag_pen
+                cf_strength = cf_strength - pd.to_numeric(tag_pen, errors="coerce").fillna(0.0)
+            except Exception:
+                pass
+
     cf_is_bet: list[bool] = []
     cf_is_watch: list[bool] = []
     for h0, e0, s0 in zip(hz2, el2, cf_strength):
@@ -550,6 +606,7 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
             "early_over_remaining_min": float(cfg.early_over_remaining_min),
             "early_over_period_max": float(cfg.early_over_period_max),
         },
+        "driver_tag_penalties": (cfg.driver_tag_strength_penalties or {}) if cfg.apply_driver_tag_penalties else {},
     }
 
     return {

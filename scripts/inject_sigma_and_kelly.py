@@ -87,9 +87,22 @@ def inject(outputs_dir: str, date_str: str):
     rmse_total, rmse_margin = load_variance_fallback(outputs_dir, date_str)
 
     # Ensure columns exist
-    for col in ["pred_total_sigma", "pred_margin_sigma", "kelly_fraction_total_adj"]:
+    for col in [
+        "pred_total_sigma",
+        "pred_margin_sigma",
+        "kelly_fraction_total_adj",
+        # Explicit per-game quantiles (used by sim targeting + eval scripts)
+        "pred_total_q10",
+        "pred_total_q50",
+        "pred_total_q90",
+        "pred_margin_q10",
+        "pred_margin_q50",
+        "pred_margin_q90",
+    ]:
         if col not in df.columns:
             df[col] = pd.NA
+
+    Z_10_90 = 1.2815515655446004
 
     key = "game_id" if "game_id" in df.columns else None
     for i, r in df.iterrows():
@@ -117,6 +130,27 @@ def inject(outputs_dir: str, date_str: str):
             cap = confidence_cap_from_sigma(sig_total, baseline=float(kelly_total))
             df.at[i, "kelly_fraction_total_adj"] = min(float(kelly_total), cap)
 
+        # Derive normal-approx quantiles from mu + sigma if explicit quantiles absent.
+        try:
+            mu_t = r.get("pred_total")
+            mu_m = r.get("pred_margin")
+            if pd.notna(mu_t) and pd.notna(sig_total):
+                mu_t = float(mu_t)
+                st = float(sig_total)
+                if st > 0 and (pd.isna(r.get("pred_total_q50")) or pd.isna(r.get("pred_total_q10")) or pd.isna(r.get("pred_total_q90"))):
+                    df.at[i, "pred_total_q50"] = mu_t
+                    df.at[i, "pred_total_q10"] = mu_t - Z_10_90 * st
+                    df.at[i, "pred_total_q90"] = mu_t + Z_10_90 * st
+            if pd.notna(mu_m) and pd.notna(sig_margin):
+                mu_m = float(mu_m)
+                sm = float(sig_margin)
+                if sm > 0 and (pd.isna(r.get("pred_margin_q50")) or pd.isna(r.get("pred_margin_q10")) or pd.isna(r.get("pred_margin_q90"))):
+                    df.at[i, "pred_margin_q50"] = mu_m
+                    df.at[i, "pred_margin_q10"] = mu_m - Z_10_90 * sm
+                    df.at[i, "pred_margin_q90"] = mu_m + Z_10_90 * sm
+        except Exception:
+            pass
+
     outp = path  # in place
     df.to_csv(outp, index=False)
     summary = {
@@ -124,6 +158,8 @@ def inject(outputs_dir: str, date_str: str):
         "rows": int(df.shape[0]),
         "filled_pred_total_sigma": int(df["pred_total_sigma"].notna().sum()),
         "filled_pred_margin_sigma": int(df["pred_margin_sigma"].notna().sum()),
+        "filled_pred_total_q50": int(df["pred_total_q50"].notna().sum()) if "pred_total_q50" in df.columns else 0,
+        "filled_pred_margin_q50": int(df["pred_margin_q50"].notna().sum()) if "pred_margin_q50" in df.columns else 0,
         "filled_kelly_fraction_total_adj": int(df["kelly_fraction_total_adj"].notna().sum()),
         "interval_used": len(interval),
         "rmse_fallback_total": rmse_total,

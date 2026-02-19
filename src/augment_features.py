@@ -64,24 +64,95 @@ def _compute_team_features(row: pd.Series, side: str) -> Dict[str, float]:
     if poss_col in row.index or to_rate_col in row.index or orb_rate_col in row.index:
         poss = float(row.get(poss_col) or 0.0)
         to_rate = float(row.get(to_rate_col) or np.nan)
+
+        # Prefer already-computed percentage/rate columns when present in boxscores outputs.
+        # outputs/boxscores.csv commonly contains *_2pt_pct, *_3pt_pct, *_3pt_rate, *_ftr, *_efg.
+        def _get_num(col: str) -> float:
+            try:
+                v = row.get(col)
+                if v is None or (isinstance(v, float) and np.isnan(v)):
+                    return float(np.nan)
+                return float(v)
+            except Exception:
+                return float(np.nan)
+
+        p2_pct_pre = _get_num(f"{side}_2pt_pct")
+        p3_pct_pre = _get_num(f"{side}_3pt_pct")
+        three_rate_pre = _get_num(f"{side}_3pt_rate")
+        efg_pre = _get_num(f"{side}_efg")
+        ftr_pre = _get_num(f"{side}_ftr")
+
+        # Optional shot components when present
+        fga_col = _find_col(row.to_frame().T, f"{side}", STAT_SUFFIXES["fga"])
+        fgm_col = _find_col(row.to_frame().T, f"{side}", STAT_SUFFIXES["fgm"])
+        tpa_col = _find_col(row.to_frame().T, f"{side}", STAT_SUFFIXES["tpa"])
+        tpm_col = _find_col(row.to_frame().T, f"{side}", STAT_SUFFIXES["tpm"])
+        ftm_col = _find_col(row.to_frame().T, f"{side}", STAT_SUFFIXES["ftm"])
         # If a compatible FTA column exists, derive a per-possession FTA rate.
         fta_col = _find_col(row.to_frame().T, f"{side}", STAT_SUFFIXES["fta"])
         try:
             fta = float(row.get(fta_col, np.nan)) if fta_col else np.nan
         except Exception:
             fta = np.nan
+        try:
+            ftm = float(row.get(ftm_col, np.nan)) if ftm_col else np.nan
+        except Exception:
+            ftm = np.nan
+        try:
+            fga = float(row.get(fga_col, np.nan)) if fga_col else np.nan
+        except Exception:
+            fga = np.nan
+        try:
+            fgm = float(row.get(fgm_col, np.nan)) if fgm_col else np.nan
+        except Exception:
+            fgm = np.nan
+        try:
+            tpa = float(row.get(tpa_col, np.nan)) if tpa_col else np.nan
+        except Exception:
+            tpa = np.nan
+        try:
+            tpm = float(row.get(tpm_col, np.nan)) if tpm_col else np.nan
+        except Exception:
+            tpm = np.nan
+
         fta_rate = (fta / poss) if (poss and poss > 0 and not np.isnan(fta)) else np.nan
         # Approximate team DRB% as 1 - opponent ORB%
         opp_orb_rate = float(row.get(f"{opp}_orb_rate") or np.nan)
         drb_rate = (1.0 - opp_orb_rate) if not np.isnan(opp_orb_rate) else np.nan
+
+        ft_pct = (ftm / fta) if (fta and fta > 0 and not np.isnan(ftm)) else np.nan
+        three_pct = (tpm / tpa) if (tpa and tpa > 0 and not np.isnan(tpm)) else np.nan
+        two_att = (fga - tpa) if (not np.isnan(fga) and not np.isnan(tpa)) else np.nan
+        two_made = (fgm - tpm) if (not np.isnan(fgm) and not np.isnan(tpm)) else np.nan
+        two_pct = (two_made / two_att) if (two_att and two_att > 0 and not np.isnan(two_made)) else np.nan
+        three_rate = (tpa / fga) if (fga and fga > 0 and not np.isnan(tpa)) else np.nan
+        two_rate = (two_att / fga) if (fga and fga > 0 and not np.isnan(two_att)) else np.nan
+
+        # If raw counts aren't present, fall back to precomputed values.
+        if np.isnan(three_rate) and not np.isnan(three_rate_pre):
+            three_rate = float(three_rate_pre)
+        if np.isnan(two_pct) and not np.isnan(p2_pct_pre):
+            two_pct = float(p2_pct_pre)
+        if np.isnan(three_pct) and not np.isnan(p3_pct_pre):
+            three_pct = float(p3_pct_pre)
+        efg = ((fgm + 0.5 * tpm) / fga) if (fga and fga > 0 and not np.isnan(fgm) and not np.isnan(tpm)) else np.nan
+        if np.isnan(efg) and not np.isnan(efg_pre):
+            efg = float(efg_pre)
+
         return {
             f'{side}_poss': poss,
             f'{side}_pace': poss,
             f'{side}_ts': np.nan,  # not derivable without FGA/FTA
-            f'{side}_3p_rate': np.nan,
+            f'{side}_3p_rate': three_rate,
+            f'{side}_2p_rate': two_rate,
             f'{side}_to_rate': to_rate,
             f'{side}_fta_rate': fta_rate,
             f'{side}_drb_rate': drb_rate,
+            f'{side}_ft_pct': ft_pct,
+            f'{side}_2p_pct': two_pct,
+            f'{side}_3p_pct': three_pct,
+            f'{side}_efg': efg,
+            f'{side}_ftr': ftr_pre,
         }
     def gv(prefix: str, key: str) -> float:
         col = _find_col(row.to_frame().T, f"{prefix}", STAT_SUFFIXES[key])
@@ -93,6 +164,7 @@ def _compute_team_features(row: pd.Series, side: str) -> Dict[str, float]:
     tov = gv(side, 'to')
     pts = gv(side, 'pts')
     opp_fga = gv(opp, 'fga'); opp_orb = gv(opp, 'orb'); opp_to = gv(opp, 'to'); opp_fta = gv(opp, 'fta')
+    opp_drb = gv(opp, 'drb')
     # Possessions (estimate) via Hollinger formula
     team_poss = fga + 0.475 * fta - orb + tov
     opp_poss = opp_fga + 0.475 * opp_fta - opp_orb + opp_to
@@ -102,17 +174,31 @@ def _compute_team_features(row: pd.Series, side: str) -> Dict[str, float]:
     ts_denom = 2.0 * (fga + 0.475 * fta)
     ts = (pts / ts_denom) if ts_denom > 0 else np.nan
     three_rate = (tpa / fga) if fga > 0 else np.nan
+    two_att = (fga - tpa) if fga > 0 else np.nan
+    two_made = (fgm - tpm) if fgm > 0 else np.nan
+    two_rate = (two_att / fga) if (fga > 0 and not np.isnan(two_att)) else np.nan
     to_rate = (tov / poss) if poss > 0 else np.nan
     fta_rate = (fta / poss) if poss > 0 else np.nan
     drb_rate = drb / (drb + opp_orb) if (drb + opp_orb) > 0 else np.nan
+    orb_rate = orb / (orb + opp_drb) if (orb + opp_drb) > 0 else np.nan
+    ft_pct = (ftm / fta) if fta > 0 else np.nan
+    three_pct = (tpm / tpa) if tpa > 0 else np.nan
+    two_pct = (two_made / two_att) if (two_att and two_att > 0) else np.nan
+    efg = ((fgm + 0.5 * tpm) / fga) if fga > 0 else np.nan
     return {
         f'{side}_poss': poss,
         f'{side}_pace': poss,  # pace proxy (per-game possessions)
         f'{side}_ts': ts,
         f'{side}_3p_rate': three_rate,
+        f'{side}_2p_rate': two_rate,
         f'{side}_to_rate': to_rate,
         f'{side}_fta_rate': fta_rate,
         f'{side}_drb_rate': drb_rate,
+        f'{side}_orb_rate': orb_rate,
+        f'{side}_ft_pct': ft_pct,
+        f'{side}_2p_pct': two_pct,
+        f'{side}_3p_pct': three_pct,
+        f'{side}_efg': efg,
     }
 
 
@@ -177,10 +263,10 @@ def augment_boxscores(boxscores: pd.DataFrame) -> pd.DataFrame:
     # Skip rolling aggregates to keep alignment simple when dates are missing
     # Keep a compact set
     keep = [GAME_ID, DATE_KEY, 'home_team','away_team',
-            'home_pace','home_ts','home_3p_rate','home_to_rate','home_drb_rate',
-            'home_fta_rate',
-            'away_pace','away_ts','away_3p_rate','away_to_rate','away_drb_rate',
-            'away_fta_rate',
+            'home_pace','home_ts','home_3p_rate','home_2p_rate','home_to_rate','home_drb_rate','home_orb_rate','home_ftr',
+            'home_fta_rate','home_ft_pct','home_2p_pct','home_3p_pct','home_efg',
+            'away_pace','away_ts','away_3p_rate','away_2p_rate','away_to_rate','away_drb_rate','away_orb_rate','away_ftr',
+            'away_fta_rate','away_ft_pct','away_2p_pct','away_3p_pct','away_efg',
             'home_days_since','home_b2b','away_days_since','away_b2b',
             'tz_offset_hours','home_adv']
     for k in list(keep):

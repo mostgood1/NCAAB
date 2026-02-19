@@ -177,10 +177,45 @@ try {
   }
   Write-Host "[late-shape] NCAAB_LATE_ALLOC_SHAPE=$($env:NCAAB_LATE_ALLOC_SHAPE) CLOSE_MAX=$($env:NCAAB_LATE_ALLOC_CLOSE_MAX) BLOWOUT_MIN=$($env:NCAAB_LATE_ALLOC_BLOWOUT_MIN) CLOSE_MULT=$($env:NCAAB_LATE_ALLOC_LAST_MULT_CLOSE) BLOWOUT_MULT=$($env:NCAAB_LATE_ALLOC_LAST_MULT_BLOWOUT)" -ForegroundColor DarkGray
 
+  # Default market-dispersion sigma scaling knobs when dispersion is enabled.
+  # This is intentionally opt-in via NCAAB_SIM_MARKET_DISPERSION_SIGMA.
+  try {
+    $md = $env:NCAAB_SIM_MARKET_DISPERSION_SIGMA
+    $mdOn = $false
+    if ($md -and $md.Trim() -ne '' -and $md.Trim() -ne '0') {
+      $mdl = $md.Trim().ToLower()
+      if ($mdl -ne 'false' -and $mdl -ne 'off' -and $mdl -ne 'no') {
+        $mdOn = $true
+      }
+    }
+    if ($mdOn) {
+      if (-not $env:NCAAB_SIM_MARKET_DISPERSION_EXP -or $env:NCAAB_SIM_MARKET_DISPERSION_EXP.Trim() -eq '') { $env:NCAAB_SIM_MARKET_DISPERSION_EXP = '1.0' }
+      if (-not $env:NCAAB_SIM_MARKET_DISPERSION_MIN_MULT -or $env:NCAAB_SIM_MARKET_DISPERSION_MIN_MULT.Trim() -eq '') { $env:NCAAB_SIM_MARKET_DISPERSION_MIN_MULT = '1.0' }
+      if (-not $env:NCAAB_SIM_MARKET_DISPERSION_MAX_MULT -or $env:NCAAB_SIM_MARKET_DISPERSION_MAX_MULT.Trim() -eq '') { $env:NCAAB_SIM_MARKET_DISPERSION_MAX_MULT = '1.2' }
+
+      # Safe defaults: totals-only, and do not scale 1H distributions.
+      if (-not $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL -or $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL.Trim() -eq '') { $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL = '1' }
+      if (-not $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN -or $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN.Trim() -eq '') { $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN = '0' }
+      if (-not $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_1H -or $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_1H.Trim() -eq '') { $env:NCAAB_SIM_MARKET_DISPERSION_APPLY_1H = '0' }
+
+      Write-Host "[market-dispersion] enabled exp=$($env:NCAAB_SIM_MARKET_DISPERSION_EXP) min=$($env:NCAAB_SIM_MARKET_DISPERSION_MIN_MULT) max=$($env:NCAAB_SIM_MARKET_DISPERSION_MAX_MULT) apply_total=$($env:NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL) apply_margin=$($env:NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN) apply_1h=$($env:NCAAB_SIM_MARKET_DISPERSION_APPLY_1H)" -ForegroundColor DarkGray
+    }
+  } catch {
+    Write-Warning "market dispersion env defaulting failed (continuing): $($_)"
+  }
+
   # Compute dates
   $todayDate = [DateTime]::ParseExact($Today, 'yyyy-MM-dd', $null)
   $prevDate = $todayDate.AddDays(-1).ToString('yyyy-MM-dd')
   $todayIso = $todayDate.ToString('yyyy-MM-dd')
+
+  # Bookmaker keys to request from TheOddsAPI. Default to a sharp-ish US trio.
+  # Override via env var if needed (comma-separated keys).
+  $script:TheOddsBookmakers = if ($env:NCAAB_THEODDS_BOOKMAKERS -and $env:NCAAB_THEODDS_BOOKMAKERS.Trim() -ne '') {
+    $env:NCAAB_THEODDS_BOOKMAKERS.Trim()
+  } else {
+    'draftkings,fanduel,betmgm'
+  }
 
   # NCAAB season spans calendar years; use season start year for providers that key on season.
   $seasonStartYear = if ($todayDate.Month -lt 7) { $todayDate.Year - 1 } else { $todayDate.Year }
@@ -377,7 +412,7 @@ print({'path': str(games_path), 'rows': len(df2)})
   & $VenvPython -m ncaab_model.cli fetch-games --season $seasonStartYear --start $prevDate --end $prevDate --provider $Provider @noCacheFlag --out (Join-Path $OutDir 'games_prev.csv')
 
   Write-Section "2) Fetch odds snapshots for $prevDate and build last/closing lines"
-  & $VenvPython -m ncaab_model.cli fetch-odds-history --start $prevDate --end $prevDate --region $Region --markets "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2" --out-dir (Join-Path $OutDir 'odds_history') --mode current
+  & $VenvPython -m ncaab_model.cli fetch-odds-history --start $prevDate --end $prevDate --region $Region --bookmakers $script:TheOddsBookmakers --markets "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2" --out-dir (Join-Path $OutDir 'odds_history') --mode current
   & $VenvPython -m ncaab_model.cli make-closing-lines --in-dir (Join-Path $OutDir 'odds_history') --out (Join-Path $OutDir 'closing_lines.csv')
   & $VenvPython -m ncaab_model.cli join-closing (Join-Path $OutDir 'games_prev.csv') (Join-Path $OutDir 'closing_lines.csv') --out (Join-Path $OutDir 'games_with_closing_prev.csv')
   # Also refresh master merged closing across all days using games_all.csv to avoid losing previous-day lines
@@ -387,6 +422,10 @@ print({'path': str(games_path), 'rows': len(df2)})
   & $VenvPython -m ncaab_model.cli join-last-odds (Join-Path $OutDir 'games_prev.csv') (Join-Path $OutDir 'last_odds.csv') --out (Join-Path $OutDir 'games_with_last_prev.csv')
   # Also refresh master merged last across all days using games_all.csv so prior-day odds persist
   & $VenvPython -m ncaab_model.cli join-last-odds (Join-Path $OutDir 'games_all.csv') (Join-Path $OutDir 'last_odds.csv') --out (Join-Path $OutDir 'games_with_last.csv')
+
+  # Build robust consensus + dispersion from strict last pre-tip odds (DK/FD/MGM by default)
+  & $VenvPython -m ncaab_model.cli make-market-consensus --in-path (Join-Path $OutDir 'games_with_last_prev.csv') --out (Join-Path $OutDir 'market_consensus_prev.csv') --min-books 2 --period full_game
+  & $VenvPython -m ncaab_model.cli make-market-consensus --in-path (Join-Path $OutDir 'games_with_last.csv') --out (Join-Path $OutDir 'market_consensus.csv') --min-books 2 --period full_game
 
   Write-Section "3) Build daily results (reconcile vs finals) for $prevDate"
   $predsAll = Join-Path $OutDir 'predictions_all.csv'
@@ -468,6 +507,7 @@ print({'path': str(games_path), 'rows': len(df2)})
 
       # Ensure outputs/live_lens_signals_<date>.jsonl is local so accuracy + tuning can be computed locally.
       $signalsLocal = Join-Path $OutDir ("live_lens_signals_" + $prevDate + ".jsonl")
+      $projectionsLocal = Join-Path $OutDir ("live_lens_projections_" + $prevDate + ".jsonl")
       if (-not (Test-HasBytes $signalsLocal)) {
         try {
           function Invoke-DownloadSignals {
@@ -509,7 +549,55 @@ print({'path': str(games_path), 'rows': len(df2)})
         }
       }
 
+      # Best-effort: download projections so we can compute projection accuracy.
+      if (-not (Test-HasBytes $projectionsLocal)) {
+        try {
+          function Invoke-DownloadProjections {
+            param(
+              [string]$BaseUrl,
+              [string]$Date,
+              [string]$OutFile
+            )
+            $b = ("" + $BaseUrl).Trim()
+            if ([string]::IsNullOrWhiteSpace($b)) { return $false }
+            $b = $b.TrimEnd('/')
+            $url = "$b/api/download_live_lens_projections?date=$Date"
+            Write-Host "[live_lens] Attempting projections download: $url" -ForegroundColor DarkGray
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
+              return (Test-HasBytes $OutFile)
+            } catch {
+              $resp = $_.Exception.Response
+              if ($resp) {
+                Write-Warning ("[live_lens] Projections download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
+              } else {
+                Write-Warning "[live_lens] Projections download failed: $($_.Exception.Message)"
+              }
+              if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+              return $false
+            }
+          }
+
+          $primary = $script:RenderBaseUrlEff
+          $okp = Invoke-DownloadProjections -BaseUrl $primary -Date $prevDate -OutFile $projectionsLocal
+          if (-not $okp) {
+            $fallback = 'https://ncaab.onrender.com'
+            if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
+              $okp = Invoke-DownloadProjections -BaseUrl $fallback -Date $prevDate -OutFile $projectionsLocal
+            }
+          }
+        } catch {
+          Write-Warning "[live_lens] Projections download wrapper failed: $($_)"
+        }
+      }
+
       & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy --date $prevDate
+
+      # Counterfactual: re-score signals under current tuning retune penalties.
+      & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy-retuned --date $prevDate
+
+      # Projection accuracy (MAE/RMSE) from logged snapshots.
+      & $VenvPython -m ncaab_model.cli compute-live-lens-projection-accuracy --date $prevDate --full-game-only
 
       if ($RunLiveLensOverTuning.IsPresent) {
         Write-Section "3b.i.a) Live Lens OVER tuning sweep (lookback=$LiveLensOverTuningLookbackDays; apply=$($ApplyLiveLensOverTuning.IsPresent))"
@@ -556,6 +644,15 @@ print({'path': str(games_path), 'rows': len(df2)})
           if ($ApplyLiveLensOverTuning.IsPresent) { $tuneArgs += '--apply' }
           $tuneOut = (& $VenvPython @tuneArgs) | Out-String
           if ($tuneOut) { Write-Host ($tuneOut.Trim()) }
+
+          # If we applied new tuning, re-score yesterday counterfactually with the updated tuning JSON.
+          if ($ApplyLiveLensOverTuning.IsPresent) {
+            try {
+              & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy-retuned --date $prevDate
+            } catch {
+              Write-Warning "compute-live-lens-accuracy-retuned failed (post-apply) for ${prevDate}: $($_)"
+            }
+          }
         } catch {
           Write-Warning "Live Lens OVER tuning sweep failed: $($_)"
         }

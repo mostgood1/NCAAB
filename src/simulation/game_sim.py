@@ -159,6 +159,98 @@ def _safe_bool(v: object) -> bool:
         return False
 
 
+def _market_dispersion_sigma_enabled() -> bool:
+    """Enable per-game sigma scaling from market dispersion.
+
+    Controlled via env var NCAAB_SIM_MARKET_DISPERSION_SIGMA.
+    """
+    try:
+        return _safe_bool(os.environ.get("NCAAB_SIM_MARKET_DISPERSION_SIGMA"))
+    except Exception:
+        return False
+
+
+def _market_dispersion_apply_total() -> bool:
+    """Apply dispersion scaling to total sigma.
+
+    Controlled via env var NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL (default true).
+    """
+    try:
+        v = os.environ.get("NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL")
+        if v is None:
+            return True
+        return _safe_bool(v)
+    except Exception:
+        return True
+
+
+def _market_dispersion_apply_margin() -> bool:
+    """Apply dispersion scaling to margin/spread sigma.
+
+    Controlled via env var NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN (default false).
+    """
+    try:
+        v = os.environ.get("NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN")
+        if v is None:
+            return False
+        return _safe_bool(v)
+    except Exception:
+        return False
+
+
+def _market_dispersion_apply_1h() -> bool:
+    """Apply dispersion scaling to 1H distributions (events engine).
+
+    Controlled via env var NCAAB_SIM_MARKET_DISPERSION_APPLY_1H (default false).
+    """
+    try:
+        v = os.environ.get("NCAAB_SIM_MARKET_DISPERSION_APPLY_1H")
+        if v is None:
+            return False
+        return _safe_bool(v)
+    except Exception:
+        return False
+
+
+def _market_dispersion_sigma_params() -> dict[str, float]:
+    """Parameters for dispersion->sigma scaling.
+
+    Env vars (all optional):
+      - NCAAB_SIM_MARKET_DISPERSION_EXP (default 1.0)
+      - NCAAB_SIM_MARKET_DISPERSION_MIN_MULT (default 1.0)
+      - NCAAB_SIM_MARKET_DISPERSION_MAX_MULT (default 1.2)
+    """
+    exp = 1.0
+    min_mult = 1.0
+    max_mult = 1.2
+
+    try:
+        if os.environ.get("NCAAB_SIM_MARKET_DISPERSION_EXP") is not None:
+            exp = float(os.environ.get("NCAAB_SIM_MARKET_DISPERSION_EXP") or 1.0)
+    except Exception:
+        exp = 1.0
+
+    try:
+        if os.environ.get("NCAAB_SIM_MARKET_DISPERSION_MIN_MULT") is not None:
+            min_mult = float(os.environ.get("NCAAB_SIM_MARKET_DISPERSION_MIN_MULT") or 1.0)
+    except Exception:
+        min_mult = 1.0
+
+    try:
+        if os.environ.get("NCAAB_SIM_MARKET_DISPERSION_MAX_MULT") is not None:
+            max_mult = float(os.environ.get("NCAAB_SIM_MARKET_DISPERSION_MAX_MULT") or 1.2)
+    except Exception:
+        max_mult = 1.2
+
+    try:
+        min_mult = float(min(min_mult, max_mult))
+        max_mult = float(max(min_mult, max_mult))
+    except Exception:
+        min_mult, max_mult = 1.0, 1.2
+
+    return {"exp": float(exp), "min_mult": float(min_mult), "max_mult": float(max_mult)}
+
+
 def _safe_float(v: object) -> Optional[float]:
     try:
         if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -2911,6 +3003,20 @@ def simulate_game_row(
             sim_calibration_ctx,
         )
 
+    # Optional: scale per-game uncertainty using cross-book dispersion.
+    # This is intended to be driven by market consensus artifacts that add
+    # (market_total_std, spread_home_std) and precomputed multipliers.
+    try:
+        if _market_dispersion_sigma_enabled():
+            mt_mult = _safe_float(row.get("sigma_total_market_mult"))
+            if mt_mult is not None and np.isfinite(float(mt_mult)) and float(mt_mult) > 0:
+                sigma_total = float(max(1e-6, float(sigma_total) * float(mt_mult)))
+            sm_mult = _safe_float(row.get("sigma_margin_market_mult"))
+            if sigma_margin is not None and sm_mult is not None and np.isfinite(float(sm_mult)) and float(sm_mult) > 0:
+                sigma_margin = float(max(1e-6, float(sigma_margin) * float(sm_mult)))
+    except Exception:
+        pass
+
     # Preserve trace of what ultimately became the targets.
     try:
         mean_trace["mean_total_after_overrides_calib"] = float(total_mean)
@@ -3144,6 +3250,34 @@ def simulate_game_row(
         totals_1h = home_1h + away_1h
         margins_1h = home_1h - away_1h
 
+        # Optional: widen/narrow the empirical simulation distribution using market dispersion.
+        # Works even when quantile targeting is disabled.
+        try:
+            if _market_dispersion_sigma_enabled():
+                apply_1h = _market_dispersion_apply_1h()
+                mt_mult = _safe_float(row.get("sigma_total_market_mult"))
+                sm_mult = _safe_float(row.get("sigma_margin_market_mult"))
+                mt_mult = float(mt_mult) if mt_mult is not None and np.isfinite(float(mt_mult)) and float(mt_mult) > 0 else 1.0
+                sm_mult = float(sm_mult) if sm_mult is not None and np.isfinite(float(sm_mult)) and float(sm_mult) > 0 else 1.0
+
+                t_mu = float(np.mean(totals))
+                m_mu = float(np.mean(margins))
+                t1_mu = float(np.mean(totals_1h))
+                m1_mu = float(np.mean(margins_1h))
+
+                totals = t_mu + (totals - t_mu) * mt_mult
+                margins = m_mu + (margins - m_mu) * sm_mult
+                if apply_1h:
+                    totals_1h = t1_mu + (totals_1h - t1_mu) * mt_mult
+                    margins_1h = m1_mu + (margins_1h - m1_mu) * sm_mult
+
+                home_pts = np.clip(0.5 * (totals + margins), 0.0, None)
+                away_pts = np.clip(0.5 * (totals - margins), 0.0, None)
+                home_1h = np.clip(0.5 * (totals_1h + margins_1h), 0.0, home_pts.astype(float))
+                away_1h = np.clip(0.5 * (totals_1h - margins_1h), 0.0, away_pts.astype(float))
+        except Exception:
+            pass
+
         q10_t = float(np.quantile(totals, 0.10))
         q50_t = float(np.quantile(totals, 0.50))
         q90_t = float(np.quantile(totals, 0.90))
@@ -3363,6 +3497,10 @@ def simulate_game_row(
             "rho_used": None,
             "sigma_total": sigma_total_s,
             "sigma_margin": sigma_margin_s,
+            "market_total_std": _safe_float(row.get("market_total_std")),
+            "spread_home_std": _safe_float(row.get("spread_home_std")),
+            "sigma_total_market_mult": _safe_float(row.get("sigma_total_market_mult")),
+            "sigma_margin_market_mult": _safe_float(row.get("sigma_margin_market_mult")),
             "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
             "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
             "joint_total_margin_applied": bool(joint_tm_meta.get("applied")),
@@ -3745,6 +3883,10 @@ def simulate_game_row(
             "rho_used": None,
             "sigma_total": float(sigma_total),
             "sigma_margin": float(sigma_margin) if sigma_margin is not None else None,
+            "market_total_std": _safe_float(row.get("market_total_std")),
+            "spread_home_std": _safe_float(row.get("spread_home_std")),
+            "sigma_total_market_mult": _safe_float(row.get("sigma_total_market_mult")),
+            "sigma_margin_market_mult": _safe_float(row.get("sigma_margin_market_mult")),
             "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
             "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
             "joint_total_margin_applied": bool(joint_tm_meta.get("applied")),
@@ -4034,6 +4176,10 @@ def simulate_game_row(
         "rho_used": rho_used,
         "sigma_total": float(sigma_total),
         "sigma_margin": float(sigma_margin) if sigma_margin is not None else None,
+        "market_total_std": _safe_float(row.get("market_total_std")),
+        "spread_home_std": _safe_float(row.get("spread_home_std")),
+        "sigma_total_market_mult": _safe_float(row.get("sigma_total_market_mult")),
+        "sigma_margin_market_mult": _safe_float(row.get("sigma_margin_market_mult")),
         "target_quantiles_total_applied": bool(tgt_total_meta.get("applied")),
         "target_quantiles_margin_applied": bool(tgt_margin_meta.get("applied")),
         "mu_home": float(mu_home),
@@ -4084,21 +4230,26 @@ def simulate_game_row(
     }
 
 
-def run_simulations_for_date(out_dir: Path, date: str,
-                             preds_path: Optional[Path] = None,
-                             lines_path: Optional[Path] = None,
-                             samples: int = DEFAULT_SAMPLES,
-                             rho: float = DEFAULT_RHO,
-                             use_pace: Optional[bool] = None,
-                             pace_sigma: float = DEFAULT_PACE_SIGMA,
-                             injuries_path: Optional[Path] = None,
-                             seed: Optional[int] = None,
-                             mean_source: str = "auto",
-                             allow_market_guardrails: bool = True,
-                             engine: str = "auto",
-                             quantiles_out_prefix: str = "sim_quantiles_",
-                             segments_out_prefix: str = "sim_segments_",
-                             meta_out_prefix: str = "sim_meta_") -> Path:
+def run_simulations_for_date(
+    out_dir: Path,
+    date: str,
+    preds_path: Optional[Path] = None,
+    lines_path: Optional[Path] = None,
+    samples: int = DEFAULT_SAMPLES,
+    rho: float = DEFAULT_RHO,
+    use_pace: Optional[bool] = None,
+    pace_sigma: float = DEFAULT_PACE_SIGMA,
+    injuries_path: Optional[Path] = None,
+    seed: Optional[int] = None,
+    mean_source: str = "auto",
+    allow_market_guardrails: bool = True,
+    engine: str = "auto",
+    quantiles_out_prefix: str = "sim_quantiles_",
+    segments_out_prefix: str = "sim_segments_",
+    meta_out_prefix: str = "sim_meta_",
+    calibration_json: Optional[Path] = None,
+    strip_spread_bins: bool = False,
+) -> Path:
     out_dir = Path(out_dir)
     # Simulation inputs default to the unified enriched rows for a given date.
     # Those rows carry the market-derived mean total + spread-derived margin plus
@@ -4125,6 +4276,11 @@ def run_simulations_for_date(out_dir: Path, date: str,
         lines_path = out_dir / "games_with_last.csv"
 
     calib_path = out_dir / "sim_calibration.json"
+    if calibration_json is not None:
+        try:
+            calib_path = Path(calibration_json)
+        except Exception:
+            calib_path = out_dir / "sim_calibration.json"
     sim_calibration, sim_calibration_load_error = _load_sim_calibration(calib_path)
     # If the file exists but couldn't be read/parsed (e.g., transient write), retry once.
     if (not sim_calibration) and sim_calibration_load_error and calib_path.exists():
@@ -4138,6 +4294,13 @@ def run_simulations_for_date(out_dir: Path, date: str,
         if sim_calibration2:
             sim_calibration = sim_calibration2
             sim_calibration_load_error = sim_calibration_load_error2
+
+    if strip_spread_bins and isinstance(sim_calibration, dict) and "spread_bins" in sim_calibration:
+        try:
+            sim_calibration = dict(sim_calibration)
+            sim_calibration.pop("spread_bins", None)
+        except Exception:
+            pass
 
     # Effective rho can be overridden via sim_calibration.json (used for fallback
     # covariance construction when sigma_margin is missing).
@@ -4676,6 +4839,120 @@ def run_simulations_for_date(out_dir: Path, date: str,
                     )
         except Exception:
             pass
+
+    # Attach market consensus/dispersion when available.
+    # This is a one-row-per-game artifact produced by `make-market-consensus`.
+    try:
+        cons_path = out_dir / "market_consensus.csv"
+        if cons_path.exists() and "game_id" in preds.columns:
+            cons = pd.read_csv(cons_path, low_memory=False)
+            if "game_id" in cons.columns:
+                cons["game_id"] = cons["game_id"].map(_to_game_id_str)
+            # Only keep known columns to prevent accidental bloat.
+            want = [
+                "game_id",
+                "market_total",
+                "spread_home",
+                "market_total_std",
+                "market_total_iqr",
+                "market_total_range",
+                "market_total_books",
+                "spread_home_std",
+                "spread_home_iqr",
+                "spread_home_range",
+                "spread_home_books",
+            ]
+            want = [c for c in want if c in cons.columns]
+            if len(want) > 1:
+                cons_small = cons[want].dropna(subset=["game_id"]).drop_duplicates(subset=["game_id"])
+                preds = preds.merge(cons_small, on="game_id", how="left", suffixes=("", "__cons"))
+                # Fill market_total/spread_home from consensus if missing.
+                for base in ["market_total", "spread_home"]:
+                    c2 = f"{base}__cons"
+                    if base in preds.columns and c2 in preds.columns:
+                        b = pd.to_numeric(preds[base], errors="coerce")
+                        a = pd.to_numeric(preds[c2], errors="coerce")
+                        preds[base] = b.where(b.notna(), a)
+                # Bring dispersion columns in without suffix collisions.
+                for base in [
+                    "market_total_std",
+                    "market_total_iqr",
+                    "market_total_range",
+                    "market_total_books",
+                    "spread_home_std",
+                    "spread_home_iqr",
+                    "spread_home_range",
+                    "spread_home_books",
+                ]:
+                    c2 = f"{base}__cons"
+                    if base in preds.columns and c2 in preds.columns:
+                        b = pd.to_numeric(preds[base], errors="coerce")
+                        a = pd.to_numeric(preds[c2], errors="coerce")
+                        preds[base] = b.where(b.notna(), a)
+                # Drop helper columns
+                drop_cols = [c for c in preds.columns if c.endswith("__cons")]
+                if drop_cols:
+                    preds = preds.drop(columns=drop_cols)
+    except Exception:
+        pass
+
+    # Optional: compute per-game sigma multipliers from market dispersion.
+    try:
+        if _market_dispersion_sigma_enabled():
+            params = _market_dispersion_sigma_params()
+            exp = float(params.get("exp", 1.0))
+            min_mult = float(params.get("min_mult", 1.0))
+            max_mult = float(params.get("max_mult", 1.35))
+
+            # Widen-only by default: treat dispersion as an uncertainty signal.
+            # Games with low dispersion should generally revert to baseline (mult≈1),
+            # not become artificially overconfident (mult<1).
+            min_mult = float(max(1.0, min_mult))
+
+            mt_std = pd.to_numeric(preds.get("market_total_std"), errors="coerce") if "market_total_std" in preds.columns else None
+            sp_std = pd.to_numeric(preds.get("spread_home_std"), errors="coerce") if "spread_home_std" in preds.columns else None
+
+            def _ref_med(x: Optional[pd.Series]) -> float:
+                try:
+                    if x is None:
+                        return float("nan")
+                    xx = pd.to_numeric(x, errors="coerce")
+                    xx = xx[np.isfinite(xx) & (xx > 0)]
+                    if len(xx) == 0:
+                        return float("nan")
+                    return float(np.nanmedian(xx.to_numpy()))
+                except Exception:
+                    return float("nan")
+
+            ref_mt = _ref_med(mt_std)
+            ref_sp = _ref_med(sp_std)
+            if not (np.isfinite(ref_mt) and ref_mt > 0):
+                ref_mt = 1.0
+            if not (np.isfinite(ref_sp) and ref_sp > 0):
+                ref_sp = 1.0
+
+            apply_total = _market_dispersion_apply_total()
+            apply_margin = _market_dispersion_apply_margin()
+
+            if mt_std is not None and apply_total:
+                mt_mult = (mt_std / float(ref_mt)) ** float(exp)
+                mt_mult = mt_mult.where(np.isfinite(mt_mult), 1.0).fillna(1.0)
+                mt_mult = mt_mult.clip(lower=1.0)
+                mt_mult = mt_mult.clip(lower=float(min_mult), upper=float(max_mult))
+                preds["sigma_total_market_mult"] = mt_mult.astype(float)
+            elif mt_std is not None and not apply_total:
+                preds["sigma_total_market_mult"] = 1.0
+
+            if sp_std is not None and apply_margin:
+                sp_mult = (sp_std / float(ref_sp)) ** float(exp)
+                sp_mult = sp_mult.where(np.isfinite(sp_mult), 1.0).fillna(1.0)
+                sp_mult = sp_mult.clip(lower=1.0)
+                sp_mult = sp_mult.clip(lower=float(min_mult), upper=float(max_mult))
+                preds["sigma_margin_market_mult"] = sp_mult.astype(float)
+            elif sp_std is not None and not apply_margin:
+                preds["sigma_margin_market_mult"] = 1.0
+    except Exception:
+        pass
 
     # Merge tempo/off/def features if present (enables pace simulation)
     try:

@@ -45,6 +45,8 @@ class SimAccuracyBacktestConfig:
     # and OT diagnostics, without changing the existing final-score-based metrics.
     interval_actuals_prefix: str = "interval_actuals_5min_"
     include_ot_diagnostics: bool = False
+    calibration_json: Optional[Path] = None
+    strip_spread_bins: bool = False
 
 
 def _load_interval_actuals_5min(out_dir: Path, date_iso: str, prefix: str) -> pd.DataFrame:
@@ -168,6 +170,8 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 engine=str(cfg.engine),
                 quantiles_out_prefix=str(cfg.sim_quantiles_prefix),
                 meta_out_prefix=str(cfg.sim_meta_prefix),
+                calibration_json=cfg.calibration_json,
+                strip_spread_bins=bool(cfg.strip_spread_bins),
             )
 
         sim = _load_sim_for_date(cfg.out_dir, d, sim_quantiles_prefix=str(cfg.sim_quantiles_prefix))

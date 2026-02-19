@@ -105,9 +105,19 @@ def build_team_history_features(outputs_dir: str | Path) -> pd.DataFrame:
     # Build per-game rows
     hist_feat = hist[["game_id","date","home_team","away_team"]].copy() if "game_id" in hist.columns else hist[["date","home_team","away_team"]].copy()
     # Merge home features
-    hist_feat = hist_feat.merge(tgi_feat.rename(columns={c: f"home_{c}" for c in feat_cols, "team":"home_team"}), on=["home_team","date"], how="left")
+    home_rename = {**{c: f"home_{c}" for c in feat_cols}, "team": "home_team"}
+    hist_feat = hist_feat.merge(
+        tgi_feat.rename(columns=home_rename),
+        on=["home_team", "date"],
+        how="left",
+    )
     # Merge away features
-    hist_feat = hist_feat.merge(tgi_feat.rename(columns={c: f"away_{c}" for c in feat_cols, "team":"away_team"}), on=["away_team","date"], how="left")
+    away_rename = {**{c: f"away_{c}" for c in feat_cols}, "team": "away_team"}
+    hist_feat = hist_feat.merge(
+        tgi_feat.rename(columns=away_rename),
+        on=["away_team", "date"],
+        how="left",
+    )
 
     return hist_feat
 

@@ -5,6 +5,7 @@ when generating `outputs/sim_quantiles_<date>.csv`.
 
 Calibration parameters:
   - delta_total, delta_margin: additive mean shifts
+    - margin_scale: multiplicative scaling of the predicted margin mean
   - sigma_total_mult, sigma_margin_mult: multiplicative uncertainty inflation
     - rho: correlation between home and away scores (used when sigma_margin is missing)
 
@@ -33,6 +34,78 @@ import sys
 
 import numpy as np
 import pandas as pd
+
+
+def _norm_cdf(x: np.ndarray) -> np.ndarray:
+    """Standard normal CDF for numpy arrays without SciPy."""
+    try:
+        erf = getattr(np, "erf", None)
+        if erf is not None:
+            return 0.5 * (1.0 + erf(x / np.sqrt(2.0)))
+    except Exception:
+        pass
+    # Fallback: vectorize math.erf
+    import math
+
+    v_erf = np.vectorize(math.erf)
+    return 0.5 * (1.0 + v_erf(x / np.sqrt(2.0)))
+
+
+def _brier(p: np.ndarray, y: np.ndarray) -> float | None:
+    try:
+        p = np.asarray(p, dtype=float)
+        y = np.asarray(y, dtype=float)
+        m = np.isfinite(p) & np.isfinite(y)
+        if int(m.sum()) < 25:
+            return None
+        p = np.clip(p[m], 0.0, 1.0)
+        y = y[m]
+        return float(np.mean((p - y) ** 2))
+    except Exception:
+        return None
+
+
+def _fit_sigma_mult_for_ats_brier(
+    mean_score: pd.Series,
+    sigma: pd.Series,
+    actual_cover: pd.Series,
+    *,
+    grid_lo: float = 0.70,
+    grid_hi: float = 1.50,
+    grid_step: float = 0.02,
+) -> float | None:
+    """Fit a multiplicative sigma factor to minimize Brier on ATS cover probability.
+
+    Uses a normal approximation: P(cover) = Phi(mean_score / (sigma * s)).
+    """
+    try:
+        mu = pd.to_numeric(mean_score, errors="coerce").astype(float)
+        sg = pd.to_numeric(sigma, errors="coerce").astype(float)
+        y = actual_cover.astype(bool)
+        df = pd.DataFrame({"mu": mu, "sg": sg, "y": y}).replace([np.inf, -np.inf], np.nan).dropna()
+        df = df[df["sg"] > 0]
+        if len(df) < 50:
+            return None
+
+        mu_v = df["mu"].to_numpy(dtype=float)
+        sg_v = df["sg"].to_numpy(dtype=float)
+        y_v = df["y"].to_numpy(dtype=bool).astype(float)
+
+        best_s = None
+        best_loss = None
+        grid = np.arange(float(grid_lo), float(grid_hi) + 1e-9, float(grid_step), dtype=float)
+        for s in grid:
+            z = mu_v / (sg_v * float(s))
+            p = _norm_cdf(z)
+            loss = _brier(p, y_v)
+            if loss is None:
+                continue
+            if best_loss is None or loss < best_loss:
+                best_loss = float(loss)
+                best_s = float(s)
+        return best_s
+    except Exception:
+        return None
 
 
 DATE_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})$")
@@ -86,6 +159,84 @@ def _safe_corr(a: pd.Series, b: pd.Series) -> float | None:
         return None
 
 
+def _clamp(v: float, lo: float, hi: float) -> float:
+    try:
+        return float(np.clip(float(v), float(lo), float(hi)))
+    except Exception:
+        return float(max(lo, min(hi, v)))
+
+
+def _fit_slope(x: pd.Series, y: pd.Series) -> float | None:
+    """Return slope b for y ~ b*x (no intercept), or None if unstable."""
+    try:
+        x = pd.to_numeric(x, errors="coerce").astype(float)
+        y = pd.to_numeric(y, errors="coerce").astype(float)
+        df = pd.DataFrame({"x": x, "y": y}).replace([np.inf, -np.inf], np.nan).dropna()
+        if len(df) < 25:
+            return None
+        vx = float(np.var(df["x"], ddof=0))
+        if not np.isfinite(vx) or vx <= 1e-9:
+            return None
+        cov = float(np.mean((df["x"] - float(df["x"].mean())) * (df["y"] - float(df["y"].mean()))))
+        b = float(cov / vx)
+        if not np.isfinite(b):
+            return None
+        return b
+    except Exception:
+        return None
+
+
+def _best_delta_for_ats(score: pd.Series, actual_cover: pd.Series) -> float | None:
+    """Find delta to add to score such that sign(score+delta) best matches actual_cover.
+
+    score: predicted (margin + spread) BEFORE delta
+    actual_cover: boolean, True if actual (margin + spread) > 0
+    """
+    try:
+        s = pd.to_numeric(score, errors="coerce").astype(float)
+        y = actual_cover.astype(bool)
+        df = pd.DataFrame({"s": s, "y": y}).replace([np.inf, -np.inf], np.nan).dropna()
+        if len(df) < 25:
+            return None
+
+        df = df.sort_values("s", kind="mergesort")
+        svals = df["s"].to_numpy(dtype=float)
+        yvals = df["y"].to_numpy(dtype=bool)
+
+        # Threshold t = -delta; predict True if s > t.
+        # Start with t < min(s): all predicted True.
+        correct = int(yvals.sum())
+        best_correct = correct
+        # choose t very small initially
+        best_t = float(svals[0]) - 1.0
+
+        # As t crosses each s_i, that item flips from True to False.
+        for i in range(len(svals)):
+            if yvals[i]:
+                correct -= 1
+            else:
+                correct += 1
+            # candidate threshold just above this value
+            t = float(svals[i]) + 1e-9
+            if correct > best_correct:
+                best_correct = correct
+                best_t = t
+            elif correct == best_correct:
+                # tie-break: prefer delta closer to 0
+                if abs(-t) < abs(-best_t):
+                    best_t = t
+
+        # Also consider t >= max(s): all predicted False.
+        correct_all_false = int((~yvals).sum())
+        t = float(svals[-1]) + 1.0
+        if correct_all_false > best_correct or (correct_all_false == best_correct and abs(-t) < abs(-best_t)):
+            best_t = t
+
+        return float(-best_t)
+    except Exception:
+        return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--outputs", default="outputs", help="Outputs directory")
@@ -130,6 +281,53 @@ def main() -> int:
         default=60,
         help="Minimum games required per market_total bin to write that bin's calibration.",
     )
+    ap.add_argument(
+        "--fit-margin-scale",
+        action="store_true",
+        help="Fit and write 'margin_scale' (slope) so that scaled predicted margins better match actual margins.",
+    )
+    ap.add_argument(
+        "--cap-margin-scale",
+        type=float,
+        default=2.0,
+        help="Clamp margin_scale to [1/cap, cap] to avoid extreme slopes.",
+    )
+    ap.add_argument(
+        "--write-margin-abs-bins",
+        action="store_true",
+        help="Also fit and write abs(predicted margin) bucket calibration under 'margin_abs_bins'.",
+    )
+    ap.add_argument(
+        "--margin-abs-bins",
+        default="0,2,4,6,8,10,12,16,24,999",
+        help="Comma-separated bin edges for abs(predicted margin) bucket calibration (e.g. '0,2,4,6,8,12,999').",
+    )
+    ap.add_argument(
+        "--write-spread-abs-bins",
+        action="store_true",
+        help="Also fit and write abs(market spread_home) bucket calibration under 'spread_abs_bins'.",
+    )
+    ap.add_argument(
+        "--spread-abs-bins",
+        default="0,2,4,6,8,10,12,16,24,999",
+        help="Comma-separated bin edges for abs(spread_home) bucket calibration (e.g. '0,2,4,6,8,12,999').",
+    )
+    ap.add_argument(
+        "--write-spread-bins",
+        action="store_true",
+        help="Also fit and write signed spread_home bucket calibration under 'spread_bins'.",
+    )
+    ap.add_argument(
+        "--spread-bins",
+        default="-40,-12,-8,-6,-4,-2,0,2,4,6,8,12,40",
+        help="Comma-separated bin edges for signed spread_home bucket calibration.",
+    )
+    ap.add_argument(
+        "--spread-bins-objective",
+        default="resid",
+        choices=["resid", "ats"],
+        help="Objective for spread_bins: 'resid' fits margin residuals; 'ats' chooses delta_margin_add to maximize ATS correctness in-bin.",
+    )
     ap.add_argument("--cap-abs-delta", type=float, default=25.0, help="Clamp |delta_total| and |delta_margin| to this value")
     ap.add_argument("--cap-abs-delta-1h", type=float, default=15.0, help="Clamp |delta_total_1h| and |delta_margin_1h| to this value")
     ap.add_argument("--cap-sigma-mult", type=float, default=3.0, help="Clamp sigma_total_mult and sigma_margin_mult to [0.5, cap]")
@@ -159,6 +357,7 @@ def main() -> int:
         prior_delta_margin = 0.0
         prior_sigma_total_mult = 1.0
         prior_sigma_margin_mult = 1.0
+        prior_margin_scale = 1.0
         prior_delta_total_1h = 0.0
         prior_delta_margin_1h = 0.0
     else:
@@ -166,6 +365,7 @@ def main() -> int:
         prior_delta_margin = float(prior.get("delta_margin", 0.0) or 0.0) if prior else 0.0
         prior_sigma_total_mult = float(prior.get("sigma_total_mult", 1.0) or 1.0) if prior else 1.0
         prior_sigma_margin_mult = float(prior.get("sigma_margin_mult", 1.0) or 1.0) if prior else 1.0
+        prior_margin_scale = float(prior.get("margin_scale", 1.0) or 1.0) if prior else 1.0
         prior_delta_total_1h = float(prior.get("delta_total_1h", 0.0) or 0.0) if prior else 0.0
         prior_delta_margin_1h = float(prior.get("delta_margin_1h", 0.0) or 0.0) if prior else 0.0
 
@@ -241,6 +441,7 @@ def main() -> int:
             "sigma_total",
             "sigma_margin",
             "market_total",
+            "spread_home",
             "q50_total",
             "q50_margin",
             "mu_total_1h",
@@ -345,6 +546,17 @@ def main() -> int:
         "end": dates[-1],
     }
 
+    # Preserve existing spread_bins unless we're explicitly re-fitting them.
+    # This avoids accidentally dropping spread-bin ATS corrections when running
+    # a global calibration fit (common in daily automation).
+    if (not bool(args.write_spread_bins)) and isinstance(prior_for_preserve, dict):
+        try:
+            prior_bins = prior_for_preserve.get("spread_bins")
+            if isinstance(prior_bins, list) and len(prior_bins) > 0:
+                calib["spread_bins"] = prior_bins
+        except Exception:
+            pass
+
     if args.fit_1h_only:
         # Preserve full-game params (and rho) from prior calibration.
         calib.update({
@@ -362,9 +574,18 @@ def main() -> int:
             except Exception:
                 pass
     else:
+        # Fit margin mean scaling (slope) first, then compute residual deltas.
+        margin_scale = float(prior_margin_scale)
+        if bool(args.fit_margin_scale):
+            b = _fit_slope(df[center_margin_col], df["actual_margin"])
+            if b is not None:
+                cap = float(args.cap_margin_scale)
+                cap = float(max(1.01, cap))
+                margin_scale = _clamp(float(b), 1.0 / cap, cap)
+
         # Mean shifts (residual-on-current outputs); optionally accumulate on top of any prior calibration.
         delta_total_resid = float(np.mean((df["actual_total"] - df[center_total_col]).astype(float)))
-        delta_margin_resid = float(np.mean((df["actual_margin"] - df[center_margin_col]).astype(float)))
+        delta_margin_resid = float(np.mean((df["actual_margin"] - (margin_scale * df[center_margin_col])).astype(float)))
         delta_total = float(prior_delta_total + delta_total_resid)
         delta_margin = float(prior_delta_margin + delta_margin_resid)
         delta_total = _clamp_abs(delta_total, float(args.cap_abs_delta))
@@ -390,7 +611,7 @@ def main() -> int:
             dm = df.dropna(subset=["sigma_margin"]).copy()
             dm = dm[dm["sigma_margin"] > 0]
             if len(dm) > 0:
-                z_margin = ((dm["actual_margin"] - (dm["mu_margin"] + delta_margin_resid)) / dm["sigma_margin"]).astype(float)
+                z_margin = ((dm["actual_margin"] - (margin_scale * dm[center_margin_col] + delta_margin_resid)) / dm["sigma_margin"]).astype(float)
                 z_margin = z_margin.replace([np.inf, -np.inf], np.nan).dropna()
                 if len(z_margin) > 0:
                     q = float(np.quantile(np.abs(z_margin), 0.80))
@@ -405,6 +626,7 @@ def main() -> int:
             "delta_margin": delta_margin,
             "sigma_total_mult": sigma_total_mult,
             "sigma_margin_mult": sigma_margin_mult,
+            "margin_scale": float(margin_scale),
         })
 
         # Optional: market_total bucket calibration (totals only)
@@ -463,13 +685,268 @@ def main() -> int:
                 if bins_out:
                     calib["market_total_bins"] = bins_out
 
+        # Optional: abs(predicted margin) bucket calibration (winner/margin)
+        if args.write_margin_abs_bins:
+            try:
+                edges = [float(x.strip()) for x in str(args.margin_abs_bins).split(",") if str(x).strip()]
+                edges = sorted(set(edges))
+            except Exception:
+                edges = []
+            if len(edges) >= 2:
+                bins_out: list[dict] = []
+                abs_center = pd.to_numeric(df[center_margin_col], errors="coerce").abs()
+                for lo, hi in zip(edges[:-1], edges[1:]):
+                    try:
+                        m = (abs_center.notna()) & (abs_center >= float(lo)) & (abs_center < float(hi))
+                        dfi = df[m].copy()
+                    except Exception:
+                        continue
+                    if len(dfi) < int(args.min_games_bin):
+                        continue
+
+                    # Bin residuals vs same center+scale used for global.
+                    dm_resid = float(np.mean((dfi["actual_margin"] - (margin_scale * dfi[center_margin_col])).astype(float)))
+                    shrink = float(len(dfi) / (len(dfi) + 200.0))
+                    shrink = float(np.clip(shrink, 0.0, 1.0))
+                    delta_add = float(shrink * (dm_resid - delta_margin_resid))
+                    delta_add = _clamp_abs(delta_add, 12.0)
+
+                    # Sigma adjustment ratio relative to global update.
+                    sigma_mult_mult = 1.0
+                    if "sigma_margin" in dfi.columns:
+                        dm2 = dfi.dropna(subset=["sigma_margin"]).copy()
+                        dm2 = dm2[dm2["sigma_margin"] > 0]
+                        if len(dm2) > 0:
+                            z = ((dm2["actual_margin"] - (margin_scale * dm2[center_margin_col] + dm_resid)) / dm2["sigma_margin"]).astype(float)
+                            z = z.replace([np.inf, -np.inf], np.nan).dropna()
+                            if len(z) > 0:
+                                q = float(np.quantile(np.abs(z), 0.80))
+                                mult_upd = float(max(0.5, min(5.0, q / Z_80)))
+                            else:
+                                mult_upd = 1.0
+                            try:
+                                ratio = float(mult_upd) / float(sigma_margin_mult_upd if sigma_margin_mult_upd else 1.0)
+                            except Exception:
+                                ratio = 1.0
+                            if not np.isfinite(ratio) or ratio <= 0:
+                                ratio = 1.0
+                            sigma_mult_mult = float(ratio ** shrink)
+                            sigma_mult_mult = float(np.clip(sigma_mult_mult, 0.75, 1.35))
+
+                    # Optional: bin-specific slope ratio (kept conservative).
+                    margin_scale_mult = 1.0
+                    b_bin = _fit_slope(dfi[center_margin_col], dfi["actual_margin"])
+                    if b_bin is not None and float(margin_scale) != 0:
+                        r = float(b_bin) / float(margin_scale)
+                        if np.isfinite(r) and r > 0:
+                            margin_scale_mult = float((r ** shrink))
+                            margin_scale_mult = float(np.clip(margin_scale_mult, 0.85, 1.15))
+
+                    bins_out.append(
+                        {
+                            "min": float(lo),
+                            "max": float(hi),
+                            "n_games": int(len(dfi)),
+                            "delta_margin_add": float(delta_add),
+                            "sigma_margin_mult_mult": float(sigma_mult_mult),
+                            "margin_scale_mult": float(margin_scale_mult),
+                        }
+                    )
+
+                if bins_out:
+                    calib["margin_abs_bins"] = bins_out
+
+        # Optional: abs(spread_home) bucket calibration (ATS-aligned)
+        if args.write_spread_abs_bins and "spread_home" in df.columns:
+            try:
+                edges = [float(x.strip()) for x in str(args.spread_abs_bins).split(",") if str(x).strip()]
+                edges = sorted(set(edges))
+            except Exception:
+                edges = []
+            if len(edges) >= 2:
+                bins_out: list[dict] = []
+                abs_sp = pd.to_numeric(df["spread_home"], errors="coerce").abs()
+                for lo, hi in zip(edges[:-1], edges[1:]):
+                    try:
+                        m = (abs_sp.notna()) & (abs_sp >= float(lo)) & (abs_sp < float(hi))
+                        dfi = df[m].copy()
+                    except Exception:
+                        continue
+                    if len(dfi) < int(args.min_games_bin):
+                        continue
+
+                    dm_resid = float(np.mean((dfi["actual_margin"] - (margin_scale * dfi[center_margin_col])).astype(float)))
+                    shrink = float(len(dfi) / (len(dfi) + 200.0))
+                    shrink = float(np.clip(shrink, 0.0, 1.0))
+                    delta_add = float(shrink * (dm_resid - delta_margin_resid))
+                    delta_add = _clamp_abs(delta_add, 12.0)
+
+                    sigma_mult_mult = 1.0
+                    if "sigma_margin" in dfi.columns:
+                        dm2 = dfi.dropna(subset=["sigma_margin"]).copy()
+                        dm2 = dm2[dm2["sigma_margin"] > 0]
+                        if len(dm2) > 0:
+                            z = ((dm2["actual_margin"] - (margin_scale * dm2[center_margin_col] + dm_resid)) / dm2["sigma_margin"]).astype(float)
+                            z = z.replace([np.inf, -np.inf], np.nan).dropna()
+                            if len(z) > 0:
+                                q = float(np.quantile(np.abs(z), 0.80))
+                                mult_upd = float(max(0.5, min(5.0, q / Z_80)))
+                            else:
+                                mult_upd = 1.0
+                            try:
+                                ratio = float(mult_upd) / float(sigma_margin_mult_upd if sigma_margin_mult_upd else 1.0)
+                            except Exception:
+                                ratio = 1.0
+                            if not np.isfinite(ratio) or ratio <= 0:
+                                ratio = 1.0
+                            sigma_mult_mult = float(ratio ** shrink)
+                            sigma_mult_mult = float(np.clip(sigma_mult_mult, 0.75, 1.35))
+
+                    margin_scale_mult = 1.0
+                    b_bin = _fit_slope(dfi[center_margin_col], dfi["actual_margin"])
+                    if b_bin is not None and float(margin_scale) != 0:
+                        r = float(b_bin) / float(margin_scale)
+                        if np.isfinite(r) and r > 0:
+                            margin_scale_mult = float((r ** shrink))
+                            margin_scale_mult = float(np.clip(margin_scale_mult, 0.85, 1.15))
+
+                    bins_out.append(
+                        {
+                            "min": float(lo),
+                            "max": float(hi),
+                            "n_games": int(len(dfi)),
+                            "delta_margin_add": float(delta_add),
+                            "sigma_margin_mult_mult": float(sigma_mult_mult),
+                            "margin_scale_mult": float(margin_scale_mult),
+                        }
+                    )
+
+                if bins_out:
+                    calib["spread_abs_bins"] = bins_out
+
+        # Optional: signed spread_home bucket calibration (ATS-aligned)
+        if args.write_spread_bins and "spread_home" in df.columns:
+            try:
+                edges = [float(x.strip()) for x in str(args.spread_bins).split(",") if str(x).strip()]
+                edges = sorted(set(edges))
+            except Exception:
+                edges = []
+            if len(edges) >= 2:
+                bins_out: list[dict] = []
+                sp = pd.to_numeric(df["spread_home"], errors="coerce")
+                for lo, hi in zip(edges[:-1], edges[1:]):
+                    try:
+                        m = (sp.notna()) & (sp >= float(lo)) & (sp < float(hi))
+                        dfi = df[m].copy()
+                    except Exception:
+                        continue
+                    if len(dfi) < int(args.min_games_bin):
+                        continue
+
+                    shrink = float(len(dfi) / (len(dfi) + 200.0))
+                    shrink = float(np.clip(shrink, 0.0, 1.0))
+
+                    objective = str(getattr(args, "spread_bins_objective", "resid") or "resid").strip().lower()
+                    if objective == "ats":
+                        sh = pd.to_numeric(dfi["spread_home"], errors="coerce")
+                        actual_score = pd.to_numeric(dfi["actual_margin"], errors="coerce") + sh
+                        # Match backtest behavior: exclude pushes (actual_margin + spread == 0)
+                        non_push = actual_score.abs() >= 1e-9
+
+                        base_col = "mu_margin" if "mu_margin" in dfi.columns else center_margin_col
+                        score0 = (margin_scale * pd.to_numeric(dfi[base_col], errors="coerce")) + float(delta_margin) + sh
+                        score0 = score0.where(non_push)
+                        actual_cover = (actual_score.where(non_push)) > 0
+                        delta_best = _best_delta_for_ats(score0, actual_cover)
+                        if delta_best is None:
+                            continue
+                        delta_add = float(shrink * float(delta_best))
+                        delta_add = _clamp_abs(delta_add, 12.0)
+                        # For sigma estimation, center on the unshrunken best delta.
+                        mu_bin = (margin_scale * pd.to_numeric(dfi[base_col], errors="coerce")) + float(delta_margin) + float(delta_best)
+                    else:
+                        dm_resid = float(np.mean((dfi["actual_margin"] - (margin_scale * dfi[center_margin_col])).astype(float)))
+                        delta_add = float(shrink * (dm_resid - delta_margin_resid))
+                        delta_add = _clamp_abs(delta_add, 12.0)
+                        mu_bin = (margin_scale * pd.to_numeric(dfi[center_margin_col], errors="coerce")) + float(dm_resid)
+
+                    sigma_mult_mult = 1.0
+                    if "sigma_margin" in dfi.columns:
+                        # Prefer ATS-aligned dispersion fit when objective=ats.
+                        if objective == "ats":
+                            try:
+                                sh = pd.to_numeric(dfi["spread_home"], errors="coerce")
+                                actual_score = pd.to_numeric(dfi["actual_margin"], errors="coerce") + sh
+                                non_push = actual_score.abs() >= 1e-9
+                                base_col2 = "mu_margin" if "mu_margin" in dfi.columns else center_margin_col
+                                # Use the SHRUNKEN delta that will actually be applied.
+                                mean_score = (margin_scale * pd.to_numeric(dfi[base_col2], errors="coerce")) + float(delta_margin) + float(delta_add) + sh
+                                actual_cover = (actual_score.where(non_push)) > 0
+                                # sigma already has the global sigma_margin_mult baked in downstream; we fit a relative multiplier.
+                                sigma_series = pd.to_numeric(dfi["sigma_margin"], errors="coerce") * float(sigma_margin_mult)
+                                s_best = _fit_sigma_mult_for_ats_brier(mean_score.where(non_push), sigma_series.where(non_push), actual_cover)
+                                if s_best is not None and np.isfinite(float(s_best)) and float(s_best) > 0:
+                                    # Shrink toward 1.0 for stability.
+                                    sigma_mult_mult = float(1.0 + shrink * (float(s_best) - 1.0))
+                                    sigma_mult_mult = float(np.clip(sigma_mult_mult, 0.75, 1.35))
+                            except Exception:
+                                sigma_mult_mult = 1.0
+
+                        # Fallback: central-coverage-based relative sigma fit.
+                        if float(sigma_mult_mult) == 1.0:
+                            dm2 = dfi.dropna(subset=["sigma_margin"]).copy()
+                            dm2 = dm2[dm2["sigma_margin"] > 0]
+                            if len(dm2) > 0:
+                                mu_for_sigma = mu_bin.loc[dm2.index] if hasattr(mu_bin, "loc") else mu_bin
+                                z = ((pd.to_numeric(dm2["actual_margin"], errors="coerce") - pd.to_numeric(mu_for_sigma, errors="coerce")) / pd.to_numeric(dm2["sigma_margin"], errors="coerce")).astype(float)
+                                z = z.replace([np.inf, -np.inf], np.nan).dropna()
+                                if len(z) > 0:
+                                    q = float(np.quantile(np.abs(z), 0.80))
+                                    mult_upd = float(max(0.5, min(5.0, q / Z_80)))
+                                else:
+                                    mult_upd = 1.0
+                                try:
+                                    ratio = float(mult_upd) / float(sigma_margin_mult_upd if sigma_margin_mult_upd else 1.0)
+                                except Exception:
+                                    ratio = 1.0
+                                if not np.isfinite(ratio) or ratio <= 0:
+                                    ratio = 1.0
+                                sigma_mult_mult = float(ratio ** shrink)
+                                sigma_mult_mult = float(np.clip(sigma_mult_mult, 0.75, 1.35))
+
+                    margin_scale_mult = 1.0
+                    b_bin = _fit_slope(dfi[center_margin_col], dfi["actual_margin"])
+                    if b_bin is not None and float(margin_scale) != 0:
+                        r = float(b_bin) / float(margin_scale)
+                        if np.isfinite(r) and r > 0:
+                            margin_scale_mult = float((r ** shrink))
+                            margin_scale_mult = float(np.clip(margin_scale_mult, 0.85, 1.15))
+
+                    bins_out.append(
+                        {
+                            "min": float(lo),
+                            "max": float(hi),
+                            "n_games": int(len(dfi)),
+                            "delta_margin_add": float(delta_add),
+                            "sigma_margin_mult_mult": float(sigma_mult_mult),
+                            "margin_scale_mult": float(margin_scale_mult),
+                        }
+                    )
+
+                if bins_out:
+                    calib["spread_bins"] = bins_out
+
     # Estimate global rho from historical games by correlating centered per-team residuals.
     # Use the calibrated mean shifts so we don't bake in simple bias.
     if (not args.fit_1h_only) and "home_score" in df.columns and "away_score" in df.columns:
         hs = pd.to_numeric(df["home_score"], errors="coerce")
         aw = pd.to_numeric(df["away_score"], errors="coerce")
         mu_total_cal = pd.to_numeric(df["mu_total"], errors="coerce") + float(delta_total)
-        mu_margin_cal = pd.to_numeric(df["mu_margin"], errors="coerce") + float(delta_margin)
+        try:
+            ms = float(calib.get("margin_scale", 1.0) or 1.0)
+        except Exception:
+            ms = 1.0
+        mu_margin_cal = (pd.to_numeric(df["mu_margin"], errors="coerce") * float(ms)) + float(delta_margin)
         mu_home_cal = (mu_total_cal + mu_margin_cal) / 2.0
         mu_away_cal = (mu_total_cal - mu_margin_cal) / 2.0
         res_home = hs - mu_home_cal

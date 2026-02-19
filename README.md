@@ -668,7 +668,75 @@ Run it after activating your venv:
 . .\scripts\daily_update.ps1 -NoCache
 ```
 
+### Simulation quantile targeting (sim-rooted)
+
+The simulator can optionally reshape its per-game total/margin distributions to match target quantiles ($q_{10}/q_{50}/q_{90}$). This is evaluated and tuned via the `ab-sim-quantiles` harness, and should be enabled/disabled strictly based on sim backtest metrics.
+
+Key environment variables:
+
+- `NCAAB_TOTALS_QUANTILE_MODEL` — model path used by `src.score_totals` when the daily pipeline generates totals quantiles (defaults to `outputs/models/totals_v1.joblib`)
+- `NCAAB_MARGINS_QUANTILE_MODEL` — model path used by `src.score_margins` when the daily pipeline generates margin quantiles (defaults to `outputs/models/margins_roll_v1.joblib`)
+- `NCAAB_SIM_TARGET_QUANTILES=1` — enable quantile targeting during simulation
+- `NCAAB_SIM_TARGET_QUANTILES_SOURCE=explicit` — use explicit per-game target quantiles when present (preferred when coverage is high)
+- `NCAAB_SIM_TARGET_QUANTILES_ALPHA=1.0` — (optional) targeting strength in $[0,1]$; 0 disables reshaping, 1 is full strength
+- `NCAAB_SIM_TARGET_QUANTILES_TOTAL=1` — (optional) apply targeting to totals only
+- `NCAAB_SIM_TARGET_QUANTILES_MARGIN=0` — (optional) disable margin targeting (useful while margin explicit coverage is low)
+
+Daily pipeline defaults (when `NCAAB_SIM_TARGET_QUANTILES=1` and the knob env vars are unset):
+
+- `NCAAB_SIM_TARGET_QUANTILES_SOURCE=auto`
+- `NCAAB_SIM_TARGET_QUANTILES_TOTAL=1`
+- `NCAAB_SIM_TARGET_QUANTILES_MARGIN=0`
+- `NCAAB_SIM_TARGET_QUANTILES_ALPHA=0.25`
+- If `outputs/models/totals_roll_v1.joblib` exists and `NCAAB_TOTALS_QUANTILE_MODEL` is unset, it will default to that model.
+
+Example (PowerShell):
+
+```powershell
+$env:NCAAB_TOTALS_QUANTILE_MODEL = "outputs/models/totals_roll_v1.joblib"
+$env:NCAAB_SIM_TARGET_QUANTILES = "1"
+$env:NCAAB_SIM_TARGET_QUANTILES_SOURCE = "explicit"
+$env:NCAAB_SIM_TARGET_QUANTILES_ALPHA = "1.0"
+$env:NCAAB_SIM_TARGET_QUANTILES_TOTAL = "1"
+$env:NCAAB_SIM_TARGET_QUANTILES_MARGIN = "0"
+```
+
 Logs stored under `outputs\logs\` with timestamped transcript.
+
+### Simulation market-dispersion sigma scaling
+
+The simulator can optionally scale per-game uncertainty based on cross-book market dispersion (e.g., DK/FD/MGM disagreement). This is gated behind an explicit enable flag and is intended to *widen* uncertainty as dispersion increases.
+
+Key environment variables:
+
+- `NCAAB_SIM_MARKET_DISPERSION_SIGMA=1` — enable dispersion-based scaling
+- `NCAAB_SIM_MARKET_DISPERSION_EXP` — exponent applied to $(\text{std}/\text{median\_std})^{exp}$ (default `1.0`)
+- `NCAAB_SIM_MARKET_DISPERSION_MIN_MULT` — minimum multiplier (default `1.0`, widen-only)
+- `NCAAB_SIM_MARKET_DISPERSION_MAX_MULT` — maximum multiplier (default `1.2`)
+
+Application toggles (used when dispersion is enabled):
+
+- `NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL` — apply scaling to full-game totals (default `1`)
+- `NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN` — apply scaling to full-game spreads/margins (default `0`)
+- `NCAAB_SIM_MARKET_DISPERSION_APPLY_1H` — apply scaling to 1H distributions in the events engine (default `0`)
+
+Example “safe” config (totals-only, no 1H scaling, capped):
+
+```powershell
+$env:NCAAB_SIM_MARKET_DISPERSION_SIGMA = "1"
+$env:NCAAB_SIM_MARKET_DISPERSION_EXP = "1.0"
+$env:NCAAB_SIM_MARKET_DISPERSION_MIN_MULT = "1.0"
+$env:NCAAB_SIM_MARKET_DISPERSION_MAX_MULT = "1.2"
+$env:NCAAB_SIM_MARKET_DISPERSION_APPLY_TOTAL = "1"
+$env:NCAAB_SIM_MARKET_DISPERSION_APPLY_MARGIN = "0"
+$env:NCAAB_SIM_MARKET_DISPERSION_APPLY_1H = "0"
+```
+
+Summarize multiple `ab-sim-quantiles` outputs (e.g., alpha sweeps):
+
+```powershell
+python scripts/summarize_ab_sim_quantiles.py outputs/backtests/_ab_simq10_roll_a*_ab_*.json
+```
 
 ## Next steps
 

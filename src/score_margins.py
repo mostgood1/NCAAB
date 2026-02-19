@@ -1,16 +1,15 @@
 from __future__ import annotations
+
 import argparse
 import json
 import os
 from pathlib import Path
 from typing import Optional
 
-import datetime as dt
-
 import numpy as np
 import pandas as pd
 
-from .model_totals import TotalsModel, _safe_read_csv, _select_features, OUT
+from .model_totals import TotalsModel, _safe_read_csv, OUT
 
 
 def _parse_date_safe(s: object) -> Optional[pd.Timestamp]:
@@ -28,8 +27,8 @@ def _parse_date_safe(s: object) -> Optional[pd.Timestamp]:
 def _augment_with_rolling_score_features(df: pd.DataFrame, date_str: str) -> pd.DataFrame:
     """Best-effort add rolling PF/PA/TOT means for home/away teams.
 
-    This is a lightweight way to give totals quantile models non-trivial signal
-    even when `features_<date>.csv` is only a placeholder.
+    Produces the same feature names as `train_margins_roll.py` so scoring and
+    training stay aligned even if per-date `features_<date>.csv` is sparse.
     """
     if df is None or df.empty:
         return df
@@ -47,7 +46,6 @@ def _augment_with_rolling_score_features(df: pd.DataFrame, date_str: str) -> pd.
     team_rows: list[dict] = []
     for p in sorted(daily_dir.glob("results_*.csv")):
         try:
-            # Filename token is our canonical date key.
             token = p.stem.replace("results_", "")
             d = _parse_date_safe(token)
             if d is None or d >= target_date:
@@ -58,7 +56,6 @@ def _augment_with_rolling_score_features(df: pd.DataFrame, date_str: str) -> pd.
         if res is None or res.empty:
             continue
 
-        # Prefer finalized rows if a completed flag exists.
         try:
             if "completed" in res.columns:
                 res = res[pd.to_numeric(res["completed"], errors="coerce").fillna(0).astype(int) == 1]
@@ -92,7 +89,6 @@ def _augment_with_rolling_score_features(df: pd.DataFrame, date_str: str) -> pd.
     td["date"] = pd.to_datetime(td["date"], errors="coerce")
     td = td.dropna(subset=["date"]).sort_values(["team", "date"], kind="mergesort")
 
-    # Games played count (inclusive) for the prior game as-of the target date.
     try:
         td["gp"] = td.groupby("team").cumcount() + 1
     except Exception:
@@ -102,14 +98,10 @@ def _augment_with_rolling_score_features(df: pd.DataFrame, date_str: str) -> pd.
         for col in ("pf", "pa", "tot"):
             out_col = f"{col}{w}"
             try:
-                td[out_col] = (
-                    td.groupby("team")[col]
-                    .transform(lambda s: s.rolling(w, min_periods=1).mean().shift(1))
-                )
+                td[out_col] = td.groupby("team")[col].transform(lambda s: s.rolling(w, min_periods=1).mean().shift(1))
             except Exception:
                 td[out_col] = np.nan
 
-    # Latest available row per team prior to target_date
     try:
         asof = td[td["date"] < target_date].groupby("team", as_index=False).tail(1)
     except Exception:
@@ -129,114 +121,96 @@ def _augment_with_rolling_score_features(df: pd.DataFrame, date_str: str) -> pd.
         except Exception:
             return pd.Series([pd.NA] * len(team_series))
 
-    # Names expected by TotalsModel feature_cols
-    out["home_pf5"] = _map(out["home_team"], "pf5")
-    out["home_pa5"] = _map(out["home_team"], "pa5")
-    out["home_tot5"] = _map(out["home_team"], "tot5")
-    out["away_pf5"] = _map(out["away_team"], "pf5")
-    out["away_pa5"] = _map(out["away_team"], "pa5")
-    out["away_tot5"] = _map(out["away_team"], "tot5")
-
     out["home_gp"] = _map(out["home_team"], "gp")
     out["away_gp"] = _map(out["away_team"], "gp")
 
-    out["home_pf15"] = _map(out["home_team"], "pf15")
-    out["home_pa15"] = _map(out["home_team"], "pa15")
-    out["home_tot15"] = _map(out["home_team"], "tot15")
-    out["away_pf15"] = _map(out["away_team"], "pf15")
-    out["away_pa15"] = _map(out["away_team"], "pa15")
-    out["away_tot15"] = _map(out["away_team"], "tot15")
+    for w in (5, 15):
+        out[f"home_pf{w}"] = _map(out["home_team"], f"pf{w}")
+        out[f"home_pa{w}"] = _map(out["home_team"], f"pa{w}")
+        out[f"home_tot{w}"] = _map(out["home_team"], f"tot{w}")
+        out[f"away_pf{w}"] = _map(out["away_team"], f"pf{w}")
+        out[f"away_pa{w}"] = _map(out["away_team"], f"pa{w}")
+        out[f"away_tot{w}"] = _map(out["away_team"], f"tot{w}")
+
+    # Derived features matching training
+    out["home_net5"] = pd.to_numeric(out["home_pf5"], errors="coerce") - pd.to_numeric(out["home_pa5"], errors="coerce")
+    out["away_net5"] = pd.to_numeric(out["away_pf5"], errors="coerce") - pd.to_numeric(out["away_pa5"], errors="coerce")
+    out["diff_net5"] = out["home_net5"] - out["away_net5"]
+
+    out["home_net15"] = pd.to_numeric(out["home_pf15"], errors="coerce") - pd.to_numeric(out["home_pa15"], errors="coerce")
+    out["away_net15"] = pd.to_numeric(out["away_pf15"], errors="coerce") - pd.to_numeric(out["away_pa15"], errors="coerce")
+    out["diff_net15"] = out["home_net15"] - out["away_net15"]
 
     return out
 
 
 def score_date(date_str: str, model_path: Path) -> dict:
     model = TotalsModel.load(model_path)
-    # Load features for date
+
     candidates = [
-        OUT / f"features_{date_str}_augmented.csv",
+        OUT / f"predictions_unified_enriched_{date_str}.csv",
+        OUT / f"predictions_unified_{date_str}.csv",
+        OUT / f"predictions_display_{date_str}.csv",
         OUT / f"features_{date_str}.csv",
-        OUT / "features_curr_augmented.csv",
+        OUT / f"features_{date_str}_augmented.csv",
         OUT / "features_curr.csv",
+        OUT / "features_curr_augmented.csv",
     ]
     src = None
     df = pd.DataFrame()
     for p in candidates:
         if p.exists():
-            src = p
             df = _safe_read_csv(p)
-            break
-    # If date-specific features lack augmented columns, try merging current augmented snapshot
-    try:
-        aug_p = OUT / "features_curr_augmented.csv"
-        aug = _safe_read_csv(aug_p)
-        if src is not None and df is not None and not df.empty and not aug.empty:
-            # normalize keys
-            if "game_id" in df.columns:
-                df["game_id"] = df["game_id"].astype(str)
-            if "game_id" in aug.columns:
-                aug["game_id"] = aug["game_id"].astype(str)
-            join_keys = [k for k in ("game_id", "date") if k in df.columns and k in aug.columns]
-            if not join_keys:
-                join_keys = ["game_id"]
-            merged = df.merge(aug, on=join_keys, how="left", suffixes=("", "_aug"))
-            # Promote augmented columns to base names when base is missing
-            df = merged.copy()
-            for c in model.feature_cols:
-                aug_c = f"{c}_aug"
-                if c not in df.columns and aug_c in df.columns:
-                    df[c] = df[aug_c]
-    except Exception:
-        pass
+            if not df.empty:
+                src = str(p)
+                break
     if df.empty:
         return {"error": "No features found for date", "date": date_str}
 
-    # If per-date features are sparse, enrich with rolling score stats so the
-    # totals quantile model has real signal (and different models can diverge).
+    if "game_id" not in df.columns:
+        return {"error": "Missing game_id in source frame", "date": date_str, "source": src}
+
     try:
         df = _augment_with_rolling_score_features(df, date_str)
     except Exception:
         pass
-    # Normalize keys
+
     if "game_id" in df.columns:
         df["game_id"] = df["game_id"].astype(str)
-    if "date" in df.columns:
-        df["date"] = df["date"].astype(str)
-    X = _select_features(df)
-    preds = model.predict(X)
-    mean = preds.get("mean")
-    q10 = preds.get("q0.1")
-    q50 = preds.get("q0.5")
-    q90 = preds.get("q0.9")
+
+    # Predict (numeric feature frame only; model aligns/handles missing values)
+    preds = model.predict(df.select_dtypes(include=[np.number]))
     out_df = pd.DataFrame({
-        "game_id": df.get("game_id"),
-        "date": df.get("date", pd.Series([date_str] * len(df))),
-        "pred_total_model": mean,
-        "pred_total_q10": q10,
-        "pred_total_q50": q50,
-        "pred_total_q90": q90,
-        "pred_total_basis": pd.Series(["model_raw"] * len(df)),
+        "date": date_str,
+        "game_id": df["game_id"].astype(str) if "game_id" in df.columns else pd.Series([""] * len(df)),
+        "pred_margin_model": preds.get("mean"),
+        "pred_margin_q10": preds.get("q0.1"),
+        "pred_margin_q50": preds.get("q0.5"),
+        "pred_margin_q90": preds.get("q0.9"),
     })
-    out_path = OUT / f"predictions_model_totals_{date_str}.csv"
+
+    out_path = OUT / f"predictions_model_margins_{date_str}.csv"
     out_df.to_csv(out_path, index=False)
 
-    # Persist the enriched feature view for debugging/reuse.
-    try:
-        aug_path = OUT / f"features_{date_str}_augmented.csv"
-        df.to_csv(aug_path, index=False)
-    except Exception:
-        pass
-    payload = {"date": date_str, "rows": int(len(out_df)), "source_features": str(src), "predictions_path": str(out_path)}
-    (OUT / f"score_totals_{date_str}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    payload = {
+        "date": date_str,
+        "rows": int(len(out_df)),
+        "source_features": src,
+        "predictions_path": str(out_path),
+        "model": str(model_path),
+    }
+    (OUT / f"score_margins_{date_str}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Score totals for a date using trained model")
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Score margins for a date using trained quantile model")
     ap.add_argument("--date", type=str, required=True, help="Target date YYYY-MM-DD")
-    default_model = os.getenv("NCAAB_TOTALS_QUANTILE_MODEL")
+
+    default_model = os.getenv("NCAAB_MARGINS_QUANTILE_MODEL")
     if not default_model or default_model.strip() == "":
-        default_model = str(OUT / "models" / "totals_v1.joblib")
+        default_model = str(OUT / "models" / "margins_roll_v1.joblib")
+
     ap.add_argument("--model", type=str, default=default_model, help="Model path")
     args = ap.parse_args()
     payload = score_date(args.date, Path(args.model))

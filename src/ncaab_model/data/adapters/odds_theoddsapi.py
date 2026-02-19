@@ -476,7 +476,12 @@ class TheOddsAPIAdapter:
                     for row in self._normalize_market_rows(event, book, market, now):
                         yield row
 
-    def iter_odds_history_for_events(self, event_ids: list[str], markets: str = "h2h,spreads,totals") -> Iterable[OddsHistoryRow]:
+    def iter_odds_history_for_events(
+        self,
+        event_ids: list[str],
+        markets: str = "h2h,spreads,totals",
+        bookmakers: str | None = None,
+    ) -> Iterable[OddsHistoryRow]:
         """Fetch odds-history for one or more events (per-event calls as per v4 docs).
 
         Correct endpoint shape: /v4/sports/{sport_key}/events/{event_id}/odds-history
@@ -497,6 +502,8 @@ class TheOddsAPIAdapter:
                 "oddsFormat": "american",
                 "dateFormat": "iso",
             }
+            if bookmakers:
+                params["bookmakers"] = bookmakers
             try:
                 r = requests.get(url, params=params, timeout=45)
                 r.raise_for_status()

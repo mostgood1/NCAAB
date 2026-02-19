@@ -70,6 +70,22 @@ def integrate(date_str: str) -> dict:
     mod = _safe_read_csv(mpath)
     if mod.empty:
         return {"error": "No model totals predictions found", "date": date_str}
+
+    # If this file has been integrated before, it may already contain merge-suffix
+    # columns (e.g. pred_total_model_x/pred_total_model_y). Drop them so pandas
+    # doesn't error on a subsequent merge.
+    for base_col in (
+        "pred_total_model",
+        "pred_total_q10",
+        "pred_total_q50",
+        "pred_total_q90",
+        "pred_total_basis",
+        "pred_total_model_basis",
+    ):
+        for suf in ("_x", "_y"):
+            c = f"{base_col}{suf}"
+            if c in base.columns:
+                base.drop(columns=[c], inplace=True)
     # Normalize keys
     for d in (base, mod):
         if "game_id" in d.columns:
@@ -78,13 +94,27 @@ def integrate(date_str: str) -> dict:
     join_keys = [k for k in ("game_id", "date") if k in base.columns and k in mod.columns]
     if not join_keys:
         join_keys = ["game_id"]
-    merged = base.merge(mod[[*join_keys, "pred_total_model", "pred_total_q10", "pred_total_q50", "pred_total_q90"]], on=join_keys, how="left")
+    merged = base.merge(
+        mod[[*join_keys, "pred_total_model", "pred_total_q10", "pred_total_q50", "pred_total_q90"]],
+        on=join_keys,
+        how="left",
+    )
     # Resolve duplicate suffixes: prefer model's quantiles where both exist
     for col in ("pred_total_q10", "pred_total_q50", "pred_total_q90"):
         cx, cy = f"{col}_x", f"{col}_y"
         if cx in merged.columns and cy in merged.columns:
             merged[col] = merged[cy]
             merged.drop(columns=[cx, cy], inplace=True)
+
+    # Resolve duplicate suffixes for the model mean column too (keeps integration idempotent).
+    col = "pred_total_model"
+    cx, cy = f"{col}_x", f"{col}_y"
+    if cx in merged.columns and cy in merged.columns:
+        try:
+            merged[col] = merged[cy].where(pd.notna(merged[cy]), merged[cx])
+        except Exception:
+            merged[col] = merged[cy]
+        merged.drop(columns=[cx, cy], inplace=True)
     # Basis hint column and normalization: mark rows using model totals
     if "pred_total_model" in merged.columns:
         merged["pred_total_model_basis"] = merged["pred_total_model"].apply(lambda x: "model_raw" if pd.notna(x) else None)

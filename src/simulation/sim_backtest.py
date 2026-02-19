@@ -47,6 +47,64 @@ def _pinball(y: np.ndarray, qhat: np.ndarray, q: float) -> float:
     return float(np.mean(np.maximum(q * e, (q - 1.0) * e)))
 
 
+def _crps_from_q10_q50_q90(y: np.ndarray, q10: np.ndarray, q50: np.ndarray, q90: np.ndarray, grid_n: int = 101) -> dict[str, Any]:
+    """Approximate CRPS via the quantile representation using a piecewise-linear quantile function.
+
+    Uses identity: CRPS(F, y) = 2 * \int_0^1 rho_tau(y - Q(tau)) dtau.
+    We approximate Q(tau) with two linear segments meeting at q50 and integrate numerically.
+    """
+    y = np.asarray(y, dtype=float)
+    q10 = np.asarray(q10, dtype=float)
+    q50 = np.asarray(q50, dtype=float)
+    q90 = np.asarray(q90, dtype=float)
+
+    mask = np.isfinite(y) & np.isfinite(q10) & np.isfinite(q50) & np.isfinite(q90)
+    if not mask.any():
+        return {"count": 0, "crps": None, "grid_n": int(grid_n)}
+
+    yy = y[mask]
+    a = q10[mask]
+    b = q50[mask]
+    c = q90[mask]
+
+    # Enforce monotonicity defensively.
+    lo = np.minimum(a, np.minimum(b, c))
+    hi = np.maximum(a, np.maximum(b, c))
+    mid = np.clip(b, lo, hi)
+    a = np.minimum(lo, mid)
+    c = np.maximum(hi, mid)
+    b = mid
+
+    tau = np.linspace(0.0, 1.0, int(max(11, grid_n)), dtype=float)
+    tau = np.clip(tau, 0.0, 1.0)
+    tau2 = tau[None, :]
+
+    # Slopes for left/right segments (0.1->0.5 and 0.5->0.9). Extrapolate linearly outside.
+    sL = (b - a) / 0.4
+    sR = (c - b) / 0.4
+
+    # Build Q(tau) with continuity at q50.
+    # For tau <= 0.5 use left segment anchored at (0.5, q50).
+    # For tau > 0.5 use right segment anchored at (0.5, q50).
+    Q = np.where(
+        tau2 <= 0.5,
+        b[:, None] + (tau2 - 0.5) * sL[:, None],
+        b[:, None] + (tau2 - 0.5) * sR[:, None],
+    )
+
+    e = yy[:, None] - Q
+    pin = np.maximum(tau2 * e, (tau2 - 1.0) * e)
+    # Trapezoidal integration over tau for each row, then average.
+    try:
+        trapz = getattr(np, "trapezoid", None) or getattr(np, "trapz")
+        crps_per = 2.0 * trapz(pin, tau, axis=1)
+    except Exception:
+        # Extremely defensive fallback: simple average spacing.
+        dt = float(1.0 / float(max(tau.size - 1, 1)))
+        crps_per = 2.0 * dt * np.sum(pin, axis=1)
+    return {"count": int(mask.sum()), "crps": float(np.mean(crps_per)), "grid_n": int(tau.size)}
+
+
 def _mae_rmse(y: np.ndarray, yhat: np.ndarray) -> dict[str, Any]:
     y = np.asarray(y, dtype=float)
     yhat = np.asarray(yhat, dtype=float)
@@ -259,6 +317,7 @@ class SimBacktestConfig:
     rho: float = 0.25
     recompute: bool = False
     out_prefix: str = "sim_engine"
+    sim_quantiles_prefix: str = "sim_quantiles_"
 
 
 def run_sim_backtest(cfg: SimBacktestConfig) -> dict[str, Any]:
@@ -278,7 +337,7 @@ def run_sim_backtest(cfg: SimBacktestConfig) -> dict[str, Any]:
     skipped: list[dict[str, Any]] = []
 
     for d in dates:
-        sim_path = cfg.out_dir / f"sim_quantiles_{d}.csv"
+        sim_path = cfg.out_dir / f"{cfg.sim_quantiles_prefix}{d}.csv"
         if cfg.recompute or (not sim_path.exists()):
             try:
                 run_simulations_for_date(
@@ -287,12 +346,13 @@ def run_sim_backtest(cfg: SimBacktestConfig) -> dict[str, Any]:
                     samples=int(cfg.samples),
                     rho=float(cfg.rho),
                     engine=str(cfg.engine),
+                    quantiles_out_prefix=str(cfg.sim_quantiles_prefix),
                 )
             except Exception as e:
                 skipped.append({"date": d, "stage": "recompute", "error": str(e)})
 
         try:
-            sim = _load_sim_for_date(cfg.out_dir, d)
+            sim = _load_sim_for_date(cfg.out_dir, d, sim_quantiles_prefix=str(cfg.sim_quantiles_prefix))
             res = _load_results_for_date(cfg.out_dir, d)
             merged = _join_sim_results(sim, res)
         except Exception as e:
@@ -355,6 +415,25 @@ def run_sim_backtest(cfg: SimBacktestConfig) -> dict[str, Any]:
     metrics["totals_1h"] = _mae_rmse(df["actual_total_1h"].to_numpy(), pd.to_numeric(df.get("mu_total_1h"), errors="coerce").to_numpy())
     metrics["margins_1h"] = _mae_rmse(df["actual_margin_1h"].to_numpy(), pd.to_numeric(df.get("mu_margin_1h"), errors="coerce").to_numpy())
 
+    # Target-quantile diagnostics (only if simulator emitted these flags)
+    try:
+        for col, key in [
+            ("target_quantiles_total_applied", "total"),
+            ("target_quantiles_margin_applied", "margin"),
+            ("target_quantiles_total_1h_applied", "total_1h"),
+            ("target_quantiles_margin_1h_applied", "margin_1h"),
+        ]:
+            if col not in df.columns:
+                continue
+            applied = df[col].astype(str).str.lower().isin({"true", "1", "yes", "y", "t"})
+            applied_finals = applied & finals_mask
+            metrics.setdefault("targeting", {})[key] = {
+                "count": int(applied_finals.sum()) if hasattr(applied_finals, "sum") else None,
+                "rate": float(applied_finals.mean()) if len(df.loc[finals_mask]) else None,
+            }
+    except Exception:
+        pass
+
     # Pinball losses (quantiles)
     for target, actual_col, q_cols in [
         ("total", "actual_total", ["q10_total", "q50_total", "q90_total"]),
@@ -371,6 +450,9 @@ def run_sim_backtest(cfg: SimBacktestConfig) -> dict[str, Any]:
             "q50": _pinball(actual, q50, 0.50),
             "q90": _pinball(actual, q90, 0.90),
         }
+
+        # CRPS (quantile-function approximation from q10/q50/q90)
+        metrics[f"crps_{target}"] = _crps_from_q10_q50_q90(actual, q10, q50, q90)
 
     # Probability scoring
     metrics["probs"] = {

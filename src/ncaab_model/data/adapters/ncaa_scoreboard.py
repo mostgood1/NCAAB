@@ -16,6 +16,18 @@ SCOREBOARD_URL = (
 )
 
 
+def _season_start_year_for_date(date: dt.date) -> int:
+        """Return NCAA season start year folder for a given game date.
+
+        Empirically, NCAA stores Jan–Jun games for the 20XX-20YY season under the
+        previous calendar year folder (season start year). Example:
+            2026-01-05 lives under .../2025/01/05/scoreboard.json
+        """
+
+        # NCAAB season runs roughly Nov–Apr; treat Jan–Jun as belonging to prior year.
+        return date.year if date.month >= 7 else (date.year - 1)
+
+
 @dataclass
 class FetchResult:
     date: dt.date
@@ -23,14 +35,17 @@ class FetchResult:
     source: str  # "cache" or "network"
 
 
-def _fetch_scoreboard(date: dt.date, use_cache: bool = True) -> dict | None:
+def _fetch_scoreboard(date: dt.date, use_cache: bool = True, cache_only: bool = False) -> dict | None:
     cache_file = cache_path("scoreboard", f"{date.isoformat()}.json")
     if use_cache and cache_file.exists():
         try:
             return read_json(cache_file)
         except Exception:
             pass
-    url = SCOREBOARD_URL.format(Y=date.year, M=str(date.month).zfill(2), D=str(date.day).zfill(2))
+    if cache_only:
+        return None
+    season_year = _season_start_year_for_date(date)
+    url = SCOREBOARD_URL.format(Y=season_year, M=str(date.month).zfill(2), D=str(date.day).zfill(2))
     try:
         r = requests.get(url, timeout=20)
         if r.status_code == 404:
@@ -45,6 +60,7 @@ def _fetch_scoreboard(date: dt.date, use_cache: bool = True) -> dict | None:
 
 def _parse_games(date: dt.date, payload: dict) -> List[Game]:
     games: List[Game] = []
+    season_start_year = _season_start_year_for_date(date)
     # The schema may vary; attempt to parse conservatively.
     # Common schema: payload['games'] is list of {'game': {...}} objects.
     items = payload.get("games") or payload.get("scoreboard") or payload.get("events") or []
@@ -139,7 +155,7 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
             games.append(
                 Game(
                     game_id=game_id,
-                    season=date.year,
+                    season=season_start_year,
                     date=dt.datetime.combine(date, dt.time(0, 0)),
                     start_time=start_time,
                     start_time_local=start_time_local,
@@ -161,11 +177,11 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
     return games
 
 
-def iter_games_by_date(start: dt.date, end: dt.date, use_cache: bool = True) -> Iterable[FetchResult]:
+def iter_games_by_date(start: dt.date, end: dt.date, use_cache: bool = True, cache_only: bool = False) -> Iterable[FetchResult]:
     cur = start
     one = dt.timedelta(days=1)
     while cur <= end:
-        payload = _fetch_scoreboard(cur, use_cache=use_cache)
+        payload = _fetch_scoreboard(cur, use_cache=use_cache, cache_only=cache_only)
         if payload is None:
             yield FetchResult(cur, [], source="none")
         else:

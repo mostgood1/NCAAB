@@ -294,13 +294,35 @@ def write_live_lens_tuning(out_path: Path, tuning: LiveLensTuning, meta: dict[st
 
     # Preserve any existing extra tuning keys (e.g., manual retune knobs)
     # so daily recompute doesn't wipe them.
+    #
+    # Note: `tuning.to_dict()` includes manual knobs with default values (0.0).
+    # A naive merge would overwrite prior manual edits back to defaults.
+    manual_keys = {
+        "late_over_strength_penalty",
+        "late_over_remaining_lo",
+        "late_over_remaining_hi",
+        "late_over_margin_abs_min",
+        "late_over_period_min",
+        "early_over_strength_penalty",
+        "early_over_remaining_min",
+        "early_over_period_max",
+    }
+
     try:
         if out_path.exists():
             raw = out_path.read_text(encoding="utf-8", errors="ignore")
             prev = json.loads(raw)
-            if isinstance(prev, dict) and isinstance(prev.get("tuning"), dict):
-                merged = dict(prev["tuning"])
-                merged.update(tuning_dict)
+            prev_tuning = prev.get("tuning") if isinstance(prev, dict) else None
+            if isinstance(prev_tuning, dict):
+                merged = dict(tuning_dict)
+                # Preserve any unknown keys from previous tuning.
+                for k, v in prev_tuning.items():
+                    if k not in merged:
+                        merged[k] = v
+                # Preserve manual knobs from previous tuning.
+                for k in manual_keys:
+                    if k in prev_tuning:
+                        merged[k] = prev_tuning[k]
                 tuning_dict = merged
     except Exception:
         pass

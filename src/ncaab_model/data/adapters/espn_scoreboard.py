@@ -27,13 +27,15 @@ class FetchResult:
     source: str  # "cache" or "network" or "none"
 
 
-def _fetch_day(date: dt.date, use_cache: bool = True) -> dict | None:
+def _fetch_day(date: dt.date, use_cache: bool = True, cache_only: bool = False) -> dict | None:
     cache_file = cache_path("espn", f"{date.isoformat()}.json")
     if use_cache and cache_file.exists():
         try:
             return read_json(cache_file)
         except Exception:
             pass
+    if cache_only:
+        return None
     url = ESPN_URL.format(YYYYMMDD=date.strftime("%Y%m%d"))
     try:
         r = requests.get(url, timeout=20)
@@ -194,11 +196,11 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
     return games
 
 
-def iter_games_by_date(start: dt.date, end: dt.date, use_cache: bool = True) -> Iterable[FetchResult]:
+def iter_games_by_date(start: dt.date, end: dt.date, use_cache: bool = True, cache_only: bool = False) -> Iterable[FetchResult]:
     cur = start
     one = dt.timedelta(days=1)
     while cur <= end:
-        payload = _fetch_day(cur, use_cache=use_cache)
+        payload = _fetch_day(cur, use_cache=use_cache, cache_only=cache_only)
         if payload is None:
             yield FetchResult(cur, [], source="none")
         else:

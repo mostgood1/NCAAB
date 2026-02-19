@@ -41,6 +41,7 @@ from .eval.backtest import backtest_totals, backtest_totals_with_closing
 from .data.odds_closing import make_closing_lines, make_last_odds
 from .data.odds_closing import compute_closing_lines, compute_last_odds, compute_edges
 from .data.odds_closing import read_directory_for_dates, load_snapshots
+from .data.market_consensus import MarketConsensusConfig, make_market_consensus
 from .data.branding import fetch_espn_branding, write_branding_csv
 from .eval.accuracy import compute_accuracy, compare_vs_closing
 from .train.calibration import build_z_recenter_artifact, save_artifact, load_artifact
@@ -60,6 +61,7 @@ from .live_lens_accuracy import (
 from .live_lens_buckets import LiveLensBucketReportConfig, compute_live_lens_bucket_report, iter_date_range
 from .live_lens_retune_search import LateOverSearchConfig, search_late_over_retune
 from .live_lens_early_retune_search import EarlyOverSearchConfig, search_early_over_retune
+from .live_lens_flag_learning import FlagLearningConfig, apply_penalties_to_tuning_json, learn_driver_tag_strength_penalties
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -741,6 +743,20 @@ def backtest_sim_accuracy(
             "Used only when --include-ot-diagnostics is enabled."
         ),
     ),
+    calibration_json: Path = typer.Option(
+        None,
+        help=(
+            "Optional sim calibration JSON to use when recomputing sims (defaults to outputs/sim_calibration.json). "
+            "Useful for controlled A/B runs."
+        ),
+    ),
+    strip_spread_bins: bool = typer.Option(
+        False,
+        help=(
+            "If true, ignore any spread_bins present in the sim calibration (keeps other calibration fields). "
+            "Useful for a clean no-bins baseline without editing outputs/sim_calibration.json."
+        ),
+    ),
 ):
     """Backtest sim-driven hit rates (winners/totals/ATS) across historical finalized days.
 
@@ -764,6 +780,8 @@ def backtest_sim_accuracy(
             sim_meta_prefix=str(sim_meta_prefix),
             include_ot_diagnostics=bool(include_ot_diagnostics),
             interval_actuals_prefix=str(interval_actuals_prefix),
+            calibration_json=Path(calibration_json) if calibration_json is not None else None,
+            strip_spread_bins=bool(strip_spread_bins),
         )
         res = run_sim_accuracy_backtest(cfg)
         print(res)
@@ -1440,6 +1458,78 @@ def eval_sim_sigma_crps(
         print({"evaluated": res, "wrote": str(out)})
     except Exception as e:
         print(f"[red]eval-sim-sigma-crps failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="fit-sim-spread-bins-ats")
+def fit_sim_spread_bins_ats(
+    backtest_csv: Path = typer.Option(..., help="Path to sim-accuracy backtest CSV (e.g., outputs/backtests/sim_accuracy_*.csv)"),
+    out: Path = typer.Option(settings.outputs_dir / "sim_calibration_spread_bins_ats.json", help="Output JSON path (fit report + bins)."),
+    apply: bool = typer.Option(
+        False,
+        help=(
+            "If set, merge the fitted bins into outputs/sim_calibration.json (creates a timestamped backup first)."
+        ),
+    ),
+    start: str = typer.Option(None, help="Optional start date YYYY-MM-DD to filter training rows"),
+    end: str = typer.Option(None, help="Optional end date YYYY-MM-DD to filter training rows"),
+    spread_bins: str = typer.Option(
+        "-40,-25,-15,-10,-7,-5,-3,-1,1,3,5,7,10,15,25,40",
+        help="Comma-separated signed spread_home bin edges.",
+    ),
+    pred_margin_col: str = typer.Option(
+        None,
+        help="Optional prediction margin column to use; defaults to q50_margin then mu_margin then pred_margin if present.",
+    ),
+    min_games_bin: int = typer.Option(30, help="Minimum games required to fit a bin."),
+    shrink_k: float = typer.Option(200.0, help="Shrink strength k for delta shrinkage: n/(n+k)."),
+    max_abs_delta: float = typer.Option(12.0, help="Max absolute delta_margin_add applied per bin."),
+):
+    """Fit ATS-optimized additive margin deltas by signed spread_home bins.
+
+    Writes a report JSON containing a `spread_bins` list compatible with the simulator.
+    If --apply is set, also updates outputs/sim_calibration.json so the sim engine
+    applies `delta_margin_add` per spread bin at runtime.
+    """
+    try:
+        from src.backtests.sim_spread_bins_ats_fit import (
+            FitSimSpreadBinsATSConfig,
+            apply_spread_bins_to_default_sim_calibration,
+            fit_sim_spread_bins_ats as _fit,
+        )
+
+        try:
+            edges = [float(x.strip()) for x in str(spread_bins).split(",") if str(x).strip()]
+        except Exception:
+            edges = []
+        edges = sorted(set(edges))
+        if len(edges) < 2:
+            raise ValueError("Need at least 2 spread bin edges")
+
+        cfg = FitSimSpreadBinsATSConfig(
+            backtest_csv=Path(backtest_csv),
+            out_path=Path(out),
+            start=str(start) if start else None,
+            end=str(end) if end else None,
+            spread_edges=edges,
+            pred_margin_col=str(pred_margin_col) if pred_margin_col else None,
+            min_games_bin=int(min_games_bin),
+            shrink_k=float(shrink_k),
+            max_abs_delta=float(max_abs_delta),
+        )
+        res = _fit(cfg)
+
+        applied = None
+        if apply:
+            applied = apply_spread_bins_to_default_sim_calibration(
+                out_dir=settings.outputs_dir,
+                spread_bins=list(res.get("spread_bins") or []),
+                generated_at=str(res.get("generated_at") or ""),
+                source=str(res.get("source") or "fit-sim-spread-bins-ats"),
+            )
+        print({"fit": res, "apply": applied})
+    except Exception as e:
+        print(f"[red]fit-sim-spread-bins-ats failed:[/red] {e}")
         raise typer.Exit(code=1)
 
 
@@ -4153,6 +4243,10 @@ def fetch_odds_history(
     start: str = typer.Option(..., help="Start date YYYY-MM-DD (inclusive)"),
     end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
     region: str = typer.Option("us", help="Odds region for TheOddsAPI (e.g., us, uk, eu, au)"),
+    bookmakers: str | None = typer.Option(
+        None,
+        help="Optional comma-separated bookmaker keys to request from TheOddsAPI (e.g. draftkings,fanduel,betmgm).",
+    ),
     markets: str = typer.Option(
         "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2",
         help="Comma-separated markets to request; include half markets if your plan supports them.",
@@ -4180,7 +4274,7 @@ def fetch_odds_history(
         rows = []
         try:
             if mode == "current":
-                for row in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_iso):
+                for row in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_iso, bookmakers=bookmakers):
                     rows.append(row.model_dump())
             else:
                 # history mode: list events for the date, then pull odds-history
@@ -4190,7 +4284,7 @@ def fetch_odds_history(
                 if not event_ids:
                     try:
                         discovered = []
-                        for r in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_iso):
+                        for r in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_iso, bookmakers=bookmakers):
                             # Each row normalizes from an event; extract id from hidden event context via quotes not available here
                             # Instead, do a light second call to events-no-date and filter by commence_time
                             discovered.append(r)
@@ -4201,7 +4295,7 @@ def fetch_odds_history(
                     except Exception:
                         pass
                 if event_ids:
-                    for row in adapter.iter_odds_history_for_events(event_ids, markets=markets):
+                    for row in adapter.iter_odds_history_for_events(event_ids, markets=markets, bookmakers=bookmakers):
                         rows.append(row.model_dump())
         except Exception as e:
             # Improve guidance for common auth errors
@@ -4724,6 +4818,10 @@ def backfill_odds_history(
     end: str = typer.Option(..., help="End date YYYY-MM-DD (inclusive)"),
     games_path: Path = typer.Option(settings.outputs_dir / "games_all.csv", help="Existing games_all.csv with game_id/date/home_team/away_team"),
     region: str = typer.Option("us", help="Odds region for TheOddsAPI"),
+    bookmakers: str | None = typer.Option(
+        None,
+        help="Optional comma-separated bookmaker keys to request from TheOddsAPI (e.g. draftkings,fanduel,betmgm).",
+    ),
     markets: str = typer.Option(
         "h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half",
         help="Comma-separated markets (include half variants if plan supports)."
@@ -4784,7 +4882,7 @@ def backfill_odds_history(
             events = adapter.list_events_by_date(date_iso)
             event_ids = [str(e.get("id")) for e in events if e.get("id")]
             if event_ids:
-                for r in adapter.iter_odds_history_for_events(event_ids, markets=markets):
+                for r in adapter.iter_odds_history_for_events(event_ids, markets=markets, bookmakers=bookmakers):
                     rows.append(r.model_dump())
         except Exception as e:
             print(f"[yellow]Failed odds-history for {date_iso}:[/yellow] {e}")
@@ -4925,6 +5023,27 @@ def make_last_odds_cmd(
         print(f"[green]Wrote last odds to[/green] {path}")
     except Exception as e:
         print(f"[red]Failed to build last odds:[/red] {e}")
+
+
+@app.command(name="make-market-consensus")
+def make_market_consensus_cmd(
+    in_path: Path = typer.Option(settings.outputs_dir / "games_with_last.csv", help="Joined games+last odds CSV (multi-row per game across books)"),
+    out: Path = typer.Option(settings.outputs_dir / "market_consensus.csv", help="Output CSV of one-row-per-game consensus + dispersion"),
+    min_books: int = typer.Option(2, help="Minimum distinct books required to emit consensus (else NaN)"),
+    period: str = typer.Option("full_game", help="Period to compute consensus for (e.g. full_game, 1h, 2h)"),
+    book_title_filter: str | None = typer.Option(None, help="Optional comma-separated substring(s) to keep (e.g. DraftKings,FanDuel,BetMGM)"),
+):
+    """Compute robust market consensus + dispersion (std/iqr/range) per game.
+
+    Intended input is `outputs/games_with_last.csv` which typically contains one row per
+    (game_id, book, market, period). Consensus is a median across books.
+    """
+    try:
+        cfg = MarketConsensusConfig(min_books=min_books, period=period, book_title_filter=book_title_filter)
+        path = make_market_consensus(in_path, out, cfg=cfg)
+        print(f"[green]Wrote market consensus to[/green] {path}")
+    except Exception as e:
+        print(f"[red]Failed to build market consensus:[/red] {e}")
 
 
 @app.command(name="fetch-boxscores")
@@ -12814,6 +12933,7 @@ def compute_live_lens_accuracy_retuned_cmd(
     out_json: Path = typer.Option(None, help="Output JSON path (default: outputs/live_lens_accuracy_retuned_<date>.json)."),
     out_csv: Path = typer.Option(None, help="Optional per-signal settled rows CSV output."),
     price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    apply_flag_penalties: bool = typer.Option(True, "--apply-flag-penalties/--no-apply-flag-penalties", help="Apply tuning.driver_tag_strength_penalties (default true)."),
 ):
     """Compute counterfactual Live Lens ROI / win-rate under the current tuning.
 
@@ -12835,6 +12955,22 @@ def compute_live_lens_accuracy_retuned_cmd(
     if not isinstance(t, dict):
         t = {}
 
+    # Optional learned tag penalties, stored inside the tuning JSON.
+    tag_pens: dict[str, float] = {}
+    try:
+        raw = t.get("driver_tag_strength_penalties")
+        if isinstance(raw, dict):
+            for k, v in raw.items():
+                try:
+                    kk = str(k).strip()
+                    if not kk:
+                        continue
+                    tag_pens[kk] = float(v)
+                except Exception:
+                    continue
+    except Exception:
+        tag_pens = {}
+
     def _get_float(key: str, default: float) -> float:
         v = t.get(key, default)
         try:
@@ -12854,6 +12990,9 @@ def compute_live_lens_accuracy_retuned_cmd(
         early_over_strength_penalty=_get_float("early_over_strength_penalty", 0.0),
         early_over_remaining_min=_get_float("early_over_remaining_min", 20.0),
         early_over_period_max=_get_float("early_over_period_max", 1.0),
+
+        apply_driver_tag_penalties=bool(apply_flag_penalties),
+        driver_tag_strength_penalties=(tag_pens if tag_pens else None),
     )
 
     payload = compute_live_lens_accuracy_retuned(cfg)
@@ -12865,6 +13004,116 @@ def compute_live_lens_accuracy_retuned_cmd(
 
     wrote = write_live_lens_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
     print(wrote)
+
+
+@app.command(name="learn-live-lens-flag-penalties")
+def learn_live_lens_flag_penalties_cmd(
+    start_date: str | None = typer.Option(None, help="Start date YYYY-MM-DD (inclusive). Defaults to end_date - days + 1."),
+    end_date: str | None = typer.Option(None, help="End date YYYY-MM-DD (inclusive). Defaults to yesterday local."),
+    days: int = typer.Option(14, help="Number of days to include when start_date not provided (default 14)."),
+    tuning_json: Path = typer.Option(Path("outputs/live_lens_tuning.json"), help="Tuning JSON used by the web UI (source of early/late OVER penalties, and target for learned penalties)."),
+    out_json: Path = typer.Option(None, help="Output JSON path (default: outputs/live_lens_flag_penalties_<start>_<end>.json)."),
+    apply: bool = typer.Option(True, "--apply/--no-apply", help="Write learned penalties into tuning_json under tuning.driver_tag_strength_penalties (default true)."),
+    min_tag_n: int = typer.Option(25, help="Minimum baseline BET count for a tag to be considered."),
+    min_overall_n: int = typer.Option(50, help="Minimum baseline BET count required to learn anything."),
+    max_penalty: float = typer.Option(2.0, help="Maximum per-tag penalty applied to strength (default 2.0)."),
+    step: float = typer.Option(0.25, help="Grid step for per-tag penalty search (default 0.25)."),
+    min_improve_roi: float = typer.Option(0.002, help="Minimum ROI improvement (units/bet) required to accept a tag penalty (default 0.002)."),
+    max_tags: int = typer.Option(12, help="Max number of tags to consider (worst-first) (default 12)."),
+    include_watch: bool = typer.Option(True, "--include-watch/--bet-only", help="Learn from BET+WATCH pool (default include WATCH)."),
+    full_game_only: bool = typer.Option(True, "--full-game-only/--all-lenses", help="Restrict to horizon>=39 (default true)."),
+    price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+):
+    """Learn per-flag (driver tag) strength penalties from historical Live Lens outcomes.
+
+    This is a safe first step toward “learning from flags”: we only learn *penalties*
+    (subtract from strength) that suppress historically-bad regimes, keeping the
+    direction (Over/Under) logic unchanged.
+
+    Requires, per date:
+      - outputs/live_lens_signals_<date>.jsonl (with driver_tags)
+      - outputs/daily_results/results_<date>.csv
+    """
+
+    def _yesterday_local() -> dt.date:
+        try:
+            return _today_local() - dt.timedelta(days=1)
+        except Exception:
+            return dt.date.today() - dt.timedelta(days=1)
+
+    end_d = dt.date.fromisoformat(str(end_date).strip()) if end_date else _yesterday_local()
+    if start_date:
+        start_d = dt.date.fromisoformat(str(start_date).strip())
+    else:
+        dd = int(days) if int(days) > 0 else 1
+        start_d = end_d - dt.timedelta(days=dd - 1)
+    if start_d > end_d:
+        print("[red]start_date must be <= end_date[/red]")
+        raise typer.Exit(code=2)
+
+    start_s = start_d.isoformat()
+    end_s = end_d.isoformat()
+
+    if out_json is None:
+        out_json = Path("outputs") / f"live_lens_flag_penalties_{start_s}_{end_s}.json"
+
+    tuning: dict[str, Any] = {}
+    try:
+        if tuning_json and Path(tuning_json).exists():
+            tuning = json.loads(Path(tuning_json).read_text(encoding="utf-8"))
+    except Exception:
+        tuning = {}
+    t = tuning.get("tuning") if isinstance(tuning.get("tuning"), dict) else tuning
+    if not isinstance(t, dict):
+        t = {}
+
+    def _get_float(key: str, default: float) -> float:
+        v = t.get(key, default)
+        try:
+            return float(v)
+        except Exception:
+            return float(default)
+
+    late_over = {
+        "strength_penalty": _get_float("late_over_strength_penalty", 0.0),
+        "remaining_lo": _get_float("late_over_remaining_lo", 5.0),
+        "remaining_hi": _get_float("late_over_remaining_hi", 10.0),
+        "margin_abs_min": _get_float("late_over_margin_abs_min", 0.0),
+        "period_min": _get_float("late_over_period_min", 2.0),
+    }
+    early_over = {
+        "strength_penalty": _get_float("early_over_strength_penalty", 0.0),
+        "remaining_min": _get_float("early_over_remaining_min", 20.0),
+        "period_max": _get_float("early_over_period_max", 1.0),
+    }
+
+    cfg = FlagLearningConfig(
+        start_date=start_s,
+        end_date=end_s,
+        out_dir=settings.outputs_dir,
+        daily_results_dir=settings.outputs_dir / "daily_results",
+        assume_price=float(price),
+        full_game_only=bool(full_game_only),
+        include_watch=bool(include_watch),
+        min_tag_n=int(min_tag_n),
+        min_overall_n=int(min_overall_n),
+        max_penalty=float(max_penalty),
+        step=float(step),
+        min_improve_roi=float(min_improve_roi),
+        max_tags=int(max_tags),
+    )
+
+    payload = learn_driver_tag_strength_penalties(cfg, late_over=late_over, early_over=early_over)
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print({"status": payload.get("status"), "out_json": str(out_json), "start": start_s, "end": end_s})
+
+    if bool(apply) and payload.get("status") == "ok":
+        pens = payload.get("driver_tag_strength_penalties")
+        if isinstance(pens, dict):
+            apply_penalties_to_tuning_json(Path(tuning_json), pens)
+            print({"applied": True, "tuning_json": str(tuning_json), "n_tags": len(pens)})
+
 
 
 @app.command(name="report-live-lens-buckets")

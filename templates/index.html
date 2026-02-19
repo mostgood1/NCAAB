@@ -2225,6 +2225,105 @@
           try { lensKind = wrap ? String(wrap.getAttribute('data-lens-kind') || '').trim() : null; } catch(_eLK){ lensKind = null; }
           if(!lensKind) lensKind = null;
 
+          // Persist driver explanation + distilled tag list so we can analyze
+          // which flags correlate with outcomes (and whether tuning should change).
+          function driverTagsFromRaw(raw){
+            try {
+              var s = String(raw || '').trim();
+              if(!s) return [];
+              var toks = s.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+              var tags = [];
+              function addTag(t){
+                if(!t) return;
+                if(tags.indexOf(t) >= 0) return;
+                tags.push(t);
+              }
+              toks.forEach(function(t){
+                var tl = String(t || '').toLowerCase();
+                if(tl.indexOf('edge ') === 0) addTag('EDGE');
+                else if(tl.indexOf('d ') === 0) addTag('SIM-GAP');
+                else if(tl.indexOf('pace ') === 0) addTag('PACE');
+                else if(tl.indexOf('ppp ') === 0) addTag('PPP');
+                else if(tl.indexOf('shooting ') === 0) addTag('SHOOTING');
+                else if(tl.indexOf('ft rate ') === 0) addTag('FT');
+                else if(tl.indexOf('pbp+') === 0) addTag('PBP');
+                else if(tl.indexOf('late-over') >= 0) addTag('LATE-OVER');
+                else if(tl.indexOf('early-over') >= 0) addTag('EARLY-OVER');
+              });
+              return tags;
+            } catch(_eDT){
+              return [];
+            }
+          }
+
+          var driverRaw = null;
+          // Prefer the driver passed on the signal (if the caller provided it).
+          try {
+            if(sig && sig.driver !== undefined && sig.driver !== null){
+              driverRaw = safeStr(sig.driver);
+            }
+          } catch(_eDR0){ driverRaw = null; }
+
+          try {
+            var lk0 = null;
+            if(lensKind === '1h') lk0 = '1h';
+            else if(lensKind === '2h') lk0 = '2h';
+            else if(lensKind === 'full_game' || lensKind === 'fg') lk0 = 'fg';
+            if(!driverRaw && lk0) driverRaw = safeStr(card.getAttribute('data-live-driver-' + lk0));
+          } catch(_eDR){ driverRaw = null; }
+
+          // Last resort: read the already-rendered driver line from the widget.
+          // This avoids missing driver/tags when the card attribute isn't populated yet.
+          if(!driverRaw){
+            try {
+              var dEl = wrap ? wrap.querySelector('[data-out="driver"]') : null;
+              var dtxt = dEl ? safeStr(dEl.textContent) : null;
+              if(dtxt){
+                dtxt = String(dtxt).trim();
+                if(dtxt.toLowerCase().indexOf('driver:') === 0) dtxt = dtxt.slice(7).trim();
+                if(dtxt && dtxt !== '–') driverRaw = dtxt;
+              }
+            } catch(_eDR2){ /* ignore */ }
+          }
+
+          if(driverRaw && driverRaw.length > 400) driverRaw = driverRaw.slice(0, 400);
+          var driverTags = [];
+          try {
+            if(sig && sig.driver_tags && Array.isArray(sig.driver_tags) && sig.driver_tags.length){
+              driverTags = sig.driver_tags.map(function(x){ return safeStr(x); }).filter(Boolean);
+            }
+          } catch(_eDT0){ driverTags = []; }
+          if(!driverTags || !driverTags.length) driverTags = (driverRaw ? driverTagsFromRaw(driverRaw) : []);
+
+          // Also snapshot the tuning values in effect (small subset).
+          var tuningSnap = null;
+          var tuningGen = null;
+          try {
+            if(window.__ncaabLiveLensTuning){
+              tuningGen = (window.__ncaabLiveLensTuning.generated_at || null);
+              var tt = window.__ncaabLiveLensTuning.tuning || null;
+              if(tt){
+                function pickNum(k){ var v = toNum(tt[k]); return (v !== null && isFinite(v)) ? v : null; }
+                tuningSnap = {
+                  pace_hi: pickNum('pace_hi'),
+                  pace_lo: pickNum('pace_lo'),
+                  pps_hi: pickNum('pps_hi'),
+                  pps_lo: pickNum('pps_lo'),
+                  pbp_n_scale: pickNum('pbp_n_scale'),
+                  shot_proxy_ft_weight: pickNum('shot_proxy_ft_weight'),
+                  late_over_strength_penalty: pickNum('late_over_strength_penalty'),
+                  late_over_remaining_lo: pickNum('late_over_remaining_lo'),
+                  late_over_remaining_hi: pickNum('late_over_remaining_hi'),
+                  late_over_margin_abs_min: pickNum('late_over_margin_abs_min'),
+                  late_over_period_min: pickNum('late_over_period_min'),
+                  early_over_strength_penalty: pickNum('early_over_strength_penalty'),
+                  early_over_remaining_min: pickNum('early_over_remaining_min'),
+                  early_over_period_max: pickNum('early_over_period_max')
+                };
+              }
+            }
+          } catch(_eTS3){ tuningSnap = null; tuningGen = null; }
+
           var payload = {
             schema_version: 2,
             logic_version: 'live_lens_v2',
@@ -2245,6 +2344,10 @@
             model_prob: (sig.model_prob !== undefined ? sig.model_prob : null),
             market_prob: (sig.market_prob !== undefined ? sig.market_prob : null),
             edge_prob: (sig.edge_prob !== undefined ? sig.edge_prob : null),
+            driver: (driverRaw ? driverRaw : null),
+            driver_tags: (driverTags && driverTags.length ? driverTags : null),
+            tuning_generated_at: (tuningGen ? tuningGen : null),
+            tuning: (tuningSnap ? tuningSnap : null),
             is_bet: !!sig.is_bet,
             is_watch: !!sig.is_watch,
             is_candidate: !!sig.is_candidate,
@@ -3111,6 +3214,60 @@
                 }
               }
             } catch(eEarly){ /* ignore */ }
+
+            // Learned driver-flag penalties (optional): subtract per-tag penalties from strength.
+            // These are learned offline and injected into outputs/live_lens_tuning.json under
+            // tuning.driver_tag_strength_penalties.
+            var tagPenaltyApplied = false;
+            var tagPenaltySum = 0;
+            try {
+              function tagsFromDriverParts(parts){
+                try {
+                  var xs = Array.isArray(parts) ? parts : [];
+                  var tags = [];
+                  function addTag(t){ if(t && tags.indexOf(t) < 0) tags.push(t); }
+                  xs.forEach(function(p){
+                    var tl = String(p || '').trim().toLowerCase();
+                    if(!tl) return;
+                    if(tl.indexOf('edge ') === 0) addTag('EDGE');
+                    else if(tl.indexOf('d ') === 0) addTag('SIM-GAP');
+                    else if(tl.indexOf('pace ') === 0) addTag('PACE');
+                    else if(tl.indexOf('ppp ') === 0) addTag('PPP');
+                    else if(tl.indexOf('shooting ') === 0) addTag('SHOOTING');
+                    else if(tl.indexOf('ft rate ') === 0) addTag('FT');
+                    else if(tl.indexOf('pbp+') === 0) addTag('PBP');
+                    else if(tl.indexOf('late-over') >= 0) addTag('LATE-OVER');
+                    else if(tl.indexOf('early-over') >= 0) addTag('EARLY-OVER');
+                  });
+                  return tags;
+                } catch(_eT){
+                  return [];
+                }
+              }
+
+              var tagPenMap = null;
+              try {
+                if(tune && tune.driver_tag_strength_penalties && typeof tune.driver_tag_strength_penalties === 'object'){
+                  tagPenMap = tune.driver_tag_strength_penalties;
+                }
+              } catch(_eTP){ tagPenMap = null; }
+
+              if(tagPenMap){
+                var dTags = tagsFromDriverParts(driverParts);
+                var sum = 0;
+                dTags.forEach(function(tg){
+                  try {
+                    var v = toNum(tagPenMap[tg]);
+                    if(v !== null && isFinite(v) && v > 0) sum += v;
+                  } catch(_eV){ /* noop */ }
+                });
+                if(sum > 0){
+                  strength = strength - sum;
+                  tagPenaltyApplied = true;
+                  tagPenaltySum = sum;
+                }
+              }
+            } catch(_eTagPen){ /* noop */ }
             isStrong = (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thr) && probGateOk;
 
             // WATCH threshold for line-based signals: slightly lower than BET.
@@ -3181,6 +3338,7 @@
             try {
               if(latePenApplied) driverParts.push('late-OVER dampener');
               if(earlyPenApplied) driverParts.push('early-OVER dampener');
+              if(tagPenaltyApplied) driverParts.push('flags -' + String(round1(tagPenaltySum)));
             } catch(_eDPt){ /* noop */ }
             try {
               if(driverParts && driverParts.length){
@@ -4720,11 +4878,14 @@
                   else if(tl.indexOf('ft rate ') === 0) addTag('FT');
                   else if(tl.indexOf('edge ') === 0) addTag('EDGE');
                   else if(tl.indexOf('d ') === 0) addTag('SIM-GAP');
+                  else if(tl.indexOf('pbp+') === 0) addTag('PBP');
                   else if(tl.indexOf('late-over') >= 0) addTag('LATE-OVER');
                   else if(tl.indexOf('early-over') >= 0) addTag('EARLY-OVER');
                 });
                 if(!tags.length) return '';
-                return tags.slice(0, 3).join('+');
+                // Show distinct tags (not a single lumped string).
+                // Keep it short to avoid overflow in the compact strip.
+                return tags.slice(0, 4).join(' · ');
               } catch(_eDrv){
                 return '';
               }
