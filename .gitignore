@@ -25,3 +25,6 @@ onnxruntime/
 
 # Local utilities (not tracked)
 scripts/build_backtest_joined.py
+
+# Scratch / temp scripts
+scripts/_tmp_*.py
