@@ -1,0 +1,49 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+8cefa8db10463310c69addb02955c116,BetOnline.ag,2026-02-19 15:56:20.949627+00:00,,,-6.5,136.0,2026-02-19 23:00:00+00:00,Bryant Bulldogs,Binghamton Bearcats
+8cefa8db10463310c69addb02955c116,LowVig.ag,2026-02-19 15:56:20.949627+00:00,,,-6.5,136.0,2026-02-19 23:00:00+00:00,Bryant Bulldogs,Binghamton Bearcats
+8cefa8db10463310c69addb02955c116,Caesars,2026-02-19 15:56:20.949627+00:00,-285.0,228.0,-6.5,136.5,2026-02-19 23:00:00+00:00,Bryant Bulldogs,Binghamton Bearcats
+8cefa8db10463310c69addb02955c116,BetRivers,2026-02-19 15:56:20.949627+00:00,-335.0,245.0,-6.5,136.5,2026-02-19 23:00:00+00:00,Bryant Bulldogs,Binghamton Bearcats
+8cefa8db10463310c69addb02955c116,BetMGM,2026-02-19 15:56:20.949627+00:00,-295.0,230.0,-6.5,136.5,2026-02-19 23:00:00+00:00,Bryant Bulldogs,Binghamton Bearcats
+8cefa8db10463310c69addb02955c116,Fanatics,2026-02-19 15:56:20.949627+00:00,-260.0,210.0,-6.0,136.5,2026-02-19 23:00:00+00:00,Bryant Bulldogs,Binghamton Bearcats
+8cefa8db10463310c69addb02955c116,FanDuel,2026-02-19 15:56:20.949627+00:00,-280.0,220.0,-6.5,136.5,2026-02-19 23:00:00+00:00,Bryant Bulldogs,Binghamton Bearcats
+6d80b17ab30bf90edd4f992586f0fc38,BetOnline.ag,2026-02-19 15:56:20.949627+00:00,-700.0,505.0,-11.0,152.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,LowVig.ag,2026-02-19 15:56:20.949627+00:00,-700.0,505.0,-11.0,152.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,FanDuel,2026-02-19 15:56:20.949627+00:00,-880.0,580.0,-11.5,151.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,DraftKings,2026-02-19 15:56:20.949627+00:00,-700.0,500.0,-11.5,151.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,Caesars,2026-02-19 15:56:20.949627+00:00,-700.0,500.0,-11.0,151.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,BetRivers,2026-02-19 15:56:20.949627+00:00,-835.0,460.0,-11.5,151.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,BetMGM,2026-02-19 15:56:20.949627+00:00,-700.0,500.0,-11.5,151.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,BetUS,2026-02-19 15:56:20.949627+00:00,-700.0,500.0,-11.0,152.5,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+6d80b17ab30bf90edd4f992586f0fc38,Fanatics,2026-02-19 15:56:20.949627+00:00,-700.0,475.0,-11.0,152.0,2026-02-19 23:00:00+00:00,Liberty Flames,Florida Int'l Golden Panthers
+f5e9f9c254b4f2740e99df0fcc6f4505,FanDuel,2026-02-19 15:56:20.949627+00:00,-230.0,188.0,-4.5,149.5,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+f5e9f9c254b4f2740e99df0fcc6f4505,LowVig.ag,2026-02-19 15:56:20.949627+00:00,,,-5.0,150.0,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+f5e9f9c254b4f2740e99df0fcc6f4505,BetOnline.ag,2026-02-19 15:56:20.949627+00:00,,,-5.0,150.0,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+f5e9f9c254b4f2740e99df0fcc6f4505,DraftKings,2026-02-19 15:56:20.949627+00:00,-205.0,170.0,-4.5,150.5,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+f5e9f9c254b4f2740e99df0fcc6f4505,Caesars,2026-02-19 15:56:20.949627+00:00,-205.0,170.0,-4.5,150.0,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+f5e9f9c254b4f2740e99df0fcc6f4505,BetRivers,2026-02-19 15:56:20.949627+00:00,-230.0,180.0,-4.5,148.5,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+f5e9f9c254b4f2740e99df0fcc6f4505,BetMGM,2026-02-19 15:56:20.949627+00:00,-210.0,170.0,-4.5,150.5,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+f5e9f9c254b4f2740e99df0fcc6f4505,Fanatics,2026-02-19 15:56:20.949627+00:00,-210.0,175.0,-4.5,149.0,2026-02-19 23:00:00+00:00,UMass Lowell River Hawks,New Hampshire Wildcats
+c89aea9b0a6d2896ecc79682e26cba7d,FanDuel,2026-02-19 15:56:20.949627+00:00,106.0,-128.0,1.5,140.5,2026-02-19 23:00:00+00:00,UMBC Retrievers,Vermont Catamounts
+c89aea9b0a6d2896ecc79682e26cba7d,BetOnline.ag,2026-02-19 15:56:20.949627+00:00,,,1.5,141.5,2026-02-19 23:00:00+00:00,UMBC Retrievers,Vermont Catamounts
+c89aea9b0a6d2896ecc79682e26cba7d,LowVig.ag,2026-02-19 15:56:20.949627+00:00,,,1.5,141.5,2026-02-19 23:00:00+00:00,UMBC Retrievers,Vermont Catamounts
+c89aea9b0a6d2896ecc79682e26cba7d,DraftKings,2026-02-19 15:56:20.949627+00:00,105.0,-125.0,1.5,141.5,2026-02-19 23:00:00+00:00,UMBC Retrievers,Vermont Catamounts
+c89aea9b0a6d2896ecc79682e26cba7d,Caesars,2026-02-19 15:56:20.949627+00:00,,,1.5,141.5,2026-02-19 23:00:00+00:00,UMBC Retrievers,Vermont Catamounts
+c89aea9b0a6d2896ecc79682e26cba7d,BetRivers,2026-02-19 15:56:20.949627+00:00,100.0,-122.0,1.5,140.5,2026-02-19 23:00:00+00:00,UMBC Retrievers,Vermont Catamounts
+c89aea9b0a6d2896ecc79682e26cba7d,Fanatics,2026-02-19 15:56:20.949627+00:00,105.0,-125.0,1.5,141.0,2026-02-19 23:00:00+00:00,UMBC Retrievers,Vermont Catamounts
+c46107e783bde770eaadd2dedb13510c,BetOnline.ag,2026-02-19 15:56:20.949627+00:00,-170.0,149.0,-3.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,LowVig.ag,2026-02-19 15:56:20.949627+00:00,-170.0,149.0,-3.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,FanDuel,2026-02-19 15:56:20.949627+00:00,-172.0,142.0,-2.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,DraftKings,2026-02-19 15:56:20.949627+00:00,-162.0,136.0,-3.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,Caesars,2026-02-19 15:56:20.949627+00:00,-165.0,140.0,-3.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,BetRivers,2026-02-19 15:56:20.949627+00:00,-159.0,125.0,-2.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,BetMGM,2026-02-19 15:56:20.949627+00:00,-170.0,140.0,-3.5,144.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,BetUS,2026-02-19 15:56:20.949627+00:00,-170.0,146.0,-3.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+c46107e783bde770eaadd2dedb13510c,Fanatics,2026-02-19 15:56:20.949627+00:00,-170.0,140.0,-3.5,143.5,2026-02-19 23:30:00+00:00,Appalachian St Mountaineers,Marshall Thundering Herd
+71fe6fb1cdc61eae114e012b6fac84ce,FanDuel,2026-02-19 15:56:20.949627+00:00,-1250.0,740.0,-13.5,155.5,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
+71fe6fb1cdc61eae114e012b6fac84ce,BetOnline.ag,2026-02-19 15:56:20.949627+00:00,,,-14.0,155.0,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
+71fe6fb1cdc61eae114e012b6fac84ce,LowVig.ag,2026-02-19 15:56:20.949627+00:00,,,-14.0,155.0,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
+71fe6fb1cdc61eae114e012b6fac84ce,DraftKings,2026-02-19 15:56:20.949627+00:00,-1350.0,800.0,-13.5,155.5,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
+71fe6fb1cdc61eae114e012b6fac84ce,Caesars,2026-02-19 15:56:20.949627+00:00,-1400.0,800.0,-13.5,155.5,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
+71fe6fb1cdc61eae114e012b6fac84ce,BetMGM,2026-02-19 15:56:20.949627+00:00,-1200.0,725.0,-13.5,155.5,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
+71fe6fb1cdc61eae114e012b6fac84ce,BetRivers,2026-02-19 15:56:20.949627+00:00,-1115.0,650.0,-13.5,155.5,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
+71fe6fb1cdc61eae114e012b6fac84ce,Fanatics,2026-02-19 15:56:20.949627+00:00,-1100.0,700.0,-13.5,157.0,2026-02-19 23:30:00+00:00,Winthrop Eagles,South Carolina Upstate Spartans
