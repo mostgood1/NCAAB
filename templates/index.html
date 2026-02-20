@@ -25,7 +25,7 @@
     .pill{color:#fff !important;}
 
     /* Live Lens "Track bet" button: keep it pill-like and unobtrusive */
-    button.pill{appearance:none;-webkit-appearance:none;}
+    button.pill{-webkit-appearance:none;appearance:none;}
     button.pill.live-lens-track{cursor:pointer;}
     button.pill.live-lens-track:disabled{cursor:not-allowed;opacity:0.55;}
     /* Compact card mode: reduces spacing, font sizes, and enables grid layout */
@@ -930,10 +930,8 @@
                   <div class="pill strong">Total: {{ rec_ou }}</div>
                 </div>
 
-                {# Best bet selection by Kelly fraction across OU / ATS / ML. #}
+                {# Best bet selection by Kelly fraction across Total / ATS (ML intentionally excluded). #}
                 {% set k_ou = (r.kelly_fraction_total if (r.kelly_fraction_total is defined and r.kelly_fraction_total is not none and r.kelly_fraction_total == r.kelly_fraction_total) else none) %}
-                {% set k_ml_h = (r.kelly_fraction_ml_home if (r.kelly_fraction_ml_home is defined and r.kelly_fraction_ml_home is not none and r.kelly_fraction_ml_home == r.kelly_fraction_ml_home) else none) %}
-                {% set k_ml_a = (r.kelly_fraction_ml_away if (r.kelly_fraction_ml_away is defined and r.kelly_fraction_ml_away is not none and r.kelly_fraction_ml_away == r.kelly_fraction_ml_away) else none) %}
 
                 {# ATS Kelly computed from p_cover_home + spread prices. #}
                 {% set p_cov_h = (r.p_cover_home if (r.p_cover_home is defined and r.p_cover_home is not none and r.p_cover_home == r.p_cover_home) else none) %}
@@ -955,20 +953,16 @@
                   {% endif %}
 
                 {% set ok_ou = (k_ou is not none and mt is not none and rec_t is not none) %}
-                {% set ok_ml_h = (k_ml_h is not none and mlh is not none) %}
-                {% set ok_ml_a = (k_ml_a is not none and mla is not none) %}
 
                   {% set best_kind = none %}
                   {% set best_k = 0.0 %}
                   {% if ok_ou and k_ou > best_k %}{% set best_k = k_ou %}{% set best_kind = 'ou' %}{% endif %}
                   {% if k_ats_h is not none and k_ats_h > best_k %}{% set best_k = k_ats_h %}{% set best_kind = 'ats_h' %}{% endif %}
                   {% if k_ats_a is not none and k_ats_a > best_k %}{% set best_k = k_ats_a %}{% set best_kind = 'ats_a' %}{% endif %}
-                  {% if ok_ml_h and k_ml_h > best_k %}{% set best_k = k_ml_h %}{% set best_kind = 'ml_h' %}{% endif %}
-                  {% if ok_ml_a and k_ml_a > best_k %}{% set best_k = k_ml_a %}{% set best_kind = 'ml_a' %}{% endif %}
 
                   {# Avoid spam: only show when Kelly is at least 1% of bankroll. #}
                   {% if best_kind and best_k >= 0.01 %}
-                    <div class="bet-callout edge" title="Best bet by Kelly fraction across OU/ATS/ML">
+                    <div class="bet-callout edge" title="Best bet by Kelly fraction across Total/ATS">
                       <span class="bet-label">KELLY</span>
                       {% if best_kind == 'ou' and (mt is not none) %}
                         {% set ou_price = (r.over_price if (r.over_price is defined and r.over_price is not none and r.over_price==r.over_price) else none) if (rec_t is not none and rec_t > mt) else (r.under_price if (r.under_price is defined and r.under_price is not none and r.under_price==r.under_price) else none) %}
@@ -980,12 +974,6 @@
                       {% elif best_kind == 'ats_a' and (spr is not none) %}
                         {% set asp = (-spr) %}
                         <span class="bet-item">ATS: {{ away_disp }} {% if asp > 0 %}+{% endif %}{{ '%.1f' % asp }}{% if sp_price_a is not none %} @{{ '%.0f' % sp_price_a }}{% endif %}</span>
-                        <span class="bet-item">Kelly {{ '%.1f' % (best_k*100) }}%</span>
-                      {% elif best_kind == 'ml_h' and mlh is not none %}
-                        <span class="bet-item">ML: {{ home_disp }} @{{ '%.0f' % mlh }}</span>
-                        <span class="bet-item">Kelly {{ '%.1f' % (best_k*100) }}%</span>
-                      {% elif best_kind == 'ml_a' and mla is not none %}
-                        <span class="bet-item">ML: {{ away_disp }} @{{ '%.0f' % mla }}</span>
                         <span class="bet-item">Kelly {{ '%.1f' % (best_k*100) }}%</span>
                       {% endif %}
                       {% if _conf is not none %}<span class="bet-item">Conf {{ '%.0f' % _conf }}%</span>{% endif %}
@@ -3092,6 +3080,11 @@
           var isStrongNoLine = false;
           var logSigs = [];
           var logSig = null;
+
+          // Guardrails for odds availability.
+          // - Many books stop offering FG in the final minutes (<4m): suppress outright.
+          // - 1H late-game markets (<5m) are often unavailable, but not always.
+          //   We only suppress late-1H bets if we don't have a price for the selection.
           if(line !== null && projBlend !== null){
             var edge = projBlend - line;
             var side = (edge > 0.01) ? 'Over' : (edge < -0.01 ? 'Under' : 'No edge');
@@ -3144,6 +3137,13 @@
             // Basic strength threshold based on horizon; avoid early-noise signals.
             var minElapsed = (horizon <= 20.5) ? 4 : 6;
             var thr = (horizon <= 20.5) ? 5 : 7;
+
+            // Empirical guardrail: 1H/FG "first" signals have underperformed; 2H has been strongest.
+            // Be more selective early so the first actionable BET per game is less likely to be a low-quality early edge.
+            try {
+              if(lens === '1h') { thr += 2; minElapsed += 2; }
+              else if(lens === 'full_game') { thr += 2; minElapsed += 2; }
+            } catch(_eEarlyGate){ /* noop */ }
 
             // PBP context: adjust confidence if scoring looks "hot" or "cold".
             var card = getCardForWrap(wrap);
@@ -3443,12 +3443,20 @@
                 }
               }
             } catch(_eTagPen){ /* noop */ }
-            isStrong = (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thr) && probGateOk;
+            var oddsWindowOk = true;
+            try {
+              if(remaining !== null && isFinite(remaining)){
+                if(lens === 'full_game') oddsWindowOk = (remaining >= 4);
+                else if(lens === '1h' && remaining < 5) oddsWindowOk = (totSidePrice !== null && totSidePrice !== undefined);
+              }
+            } catch(_eOdds){ oddsWindowOk = true; }
+
+            isStrong = oddsWindowOk && (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thr) && probGateOk;
 
             // WATCH threshold for line-based signals: slightly lower than BET.
             var thrWatch = thr - ((horizon <= 20.5) ? 1 : 2);
             thrWatch = Math.max((horizon <= 20.5) ? 3 : 4, thrWatch);
-            isWatchLine = (!isStrong) && (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thrWatch) && probGateOk;
+            isWatchLine = oddsWindowOk && (!isStrong) && (side === 'Over' || side === 'Under') && (elapsed !== null && elapsed >= minElapsed) && (strength >= thrWatch) && probGateOk;
             var edgeTxt = (edge > 0 ? '+' : '') + String(round0(edge));
             if(side === 'Over') lean = (isStrong ? 'BET ' : 'Watch ') + 'Over (pace ' + edgeTxt + ')';
             else if(side === 'Under') lean = (isStrong ? 'BET ' : 'Watch ') + 'Under (pace ' + edgeTxt + ')';
@@ -3459,7 +3467,7 @@
             // whether UNDER opportunities are being filtered out.
             var isUnderCandidate = false;
             try {
-              if(!isStrong && !isWatchLine && side === 'Under' && elapsed !== null && elapsed >= minElapsed && thrWatch !== null){
+              if(oddsWindowOk && !isStrong && !isWatchLine && side === 'Under' && elapsed !== null && elapsed >= minElapsed && thrWatch !== null){
                 var candMin = Math.max(0, thrWatch - 1);
                 if(strength >= candMin && strength < thrWatch) isUnderCandidate = true;
               }
@@ -3607,13 +3615,22 @@
             setText(wrap, 'score', 'Score: –');
           }
 
-          // ML / ATS recommendations.
+          // ATS recommendations (card-level only; totals remain primary).
           var doMarketSignals = (lens === 'full_game' || lens === '1h' || lens === '2h');
           if(!doMarketSignals){
             setText(wrap, 'ml', 'ML: –');
             setText(wrap, 'ats', 'ATS: –');
             setText(wrap, 'market_meta', 'Live conf: –');
           } else {
+            // Hide ML/ATS outputs inside the Live Lens widget; we only "light up"
+            // market signals on the game cards.
+            try {
+              var mlEl = wrap ? wrap.querySelector('[data-out="ml"]') : null;
+              if(mlEl) mlEl.style.display = 'none';
+              var atsEl = wrap ? wrap.querySelector('[data-out="ats"]') : null;
+              if(atsEl) atsEl.style.display = 'none';
+            } catch(_eHide){ /* noop */ }
+
             // Spread lines from the card; prefer live/full spread.
             var spreadHome = null;
             try {
@@ -3677,31 +3694,32 @@
 
             // Tighten probability-edge thresholds when live sample is small.
             // (confW ~ 0.35 early -> stricter; confW -> 1 later -> baseline thresholds)
-            var mlBetThr = 0.05;
-            var mlWatchThr = 0.03;
             var atsBetThr = 0.05;
             var atsWatchThr = 0.03;
+
+            // Additional early-game conservatism: require a bit more edge outside 2H.
+            try {
+              if(lens !== '2h') {
+                atsBetThr += 0.01;
+                atsWatchThr += 0.01;
+              }
+            } catch(_eLensThr){ /* noop */ }
             try {
               var bumpBet = (1 - confW) * 0.03;
               var bumpWatch = (1 - confW) * 0.02;
-              mlBetThr += bumpBet;
-              mlWatchThr += bumpWatch;
               atsBetThr += bumpBet;
               atsWatchThr += bumpWatch;
               // Safety: enforce ordering.
-              if(mlWatchThr > mlBetThr) mlWatchThr = mlBetThr;
               if(atsWatchThr > atsBetThr) atsWatchThr = atsBetThr;
             } catch(_eThr){ /* noop */ }
 
-            // Surface live context so it is obvious why ML/ATS is conservative early.
+            // Surface live context so it is obvious why ATS is conservative early.
             try {
               var possTxt = (possLive !== null && isFinite(possLive)) ? String(Math.round(possLive)) : '–';
               var wTxt = (confW !== null && isFinite(confW)) ? confW.toFixed(2) : '–';
-              var mlB = (mlBetThr !== null && isFinite(mlBetThr)) ? (mlBetThr*100).toFixed(1) : '–';
-              var mlW = (mlWatchThr !== null && isFinite(mlWatchThr)) ? (mlWatchThr*100).toFixed(1) : '–';
               var atsB = (atsBetThr !== null && isFinite(atsBetThr)) ? (atsBetThr*100).toFixed(1) : '–';
               var atsW = (atsWatchThr !== null && isFinite(atsWatchThr)) ? (atsWatchThr*100).toFixed(1) : '–';
-              setText(wrap, 'market_meta', 'Live conf: poss ' + possTxt + ' · w ' + wTxt + ' · ML thr ' + mlB + '/' + mlW + '% · ATS thr ' + atsB + '/' + atsW + '%');
+              setText(wrap, 'market_meta', 'Live conf: poss ' + possTxt + ' · w ' + wTxt + ' · ATS thr ' + atsB + '/' + atsW + '%');
             } catch(_eMeta){ /* noop */ }
 
             // Live-adjusted margin projection using sim remainder.
@@ -3718,116 +3736,30 @@
             var simRemAdj = (simRemMargin !== null && isFinite(simRemMargin)) ? (simRemMargin * remW) : null;
             var projMargin = (actMargin !== null && simRemAdj !== null) ? (actMargin + simRemAdj) : simFinalMargin;
 
-            // ML/ATS action flags (used to drive compact Bet/Watch state).
-            var mlIsBet = false;
-            var mlIsWatch = false;
+            // ATS action flags (used to drive compact Bet/Watch state).
             var atsIsBet = false;
             var atsIsWatch = false;
 
-            if(projMargin !== null){
-              var pickML = (projMargin > 0.01) ? 'Home' : (projMargin < -0.01 ? 'Away' : 'Pick');
-              var pHome = (sigmaProb !== null) ? normCdf(projMargin / sigmaProb) : null;
-
-              // Market ML (live) when available.
-              var mlHomePx = null;
-              var mlAwayPx = null;
-              try {
-                if(card0){
-                  if(lens === '1h'){
-                    mlHomePx = toNum(card0.getAttribute('data-live-ml-home-1h'));
-                    mlAwayPx = toNum(card0.getAttribute('data-live-ml-away-1h'));
-                  } else if(lens === '2h'){
-                    mlHomePx = toNum(card0.getAttribute('data-live-ml-home-2h'));
-                    mlAwayPx = toNum(card0.getAttribute('data-live-ml-away-2h'));
-                  } else {
-                    mlHomePx = toNum(card0.getAttribute('data-live-ml-home'));
-                    mlAwayPx = toNum(card0.getAttribute('data-live-ml-away'));
-                  }
-                }
-              } catch(_eMLPx){ mlHomePx = null; mlAwayPx = null; }
-
-              var pMktH = americanImplied(mlHomePx);
-              var pMktA = americanImplied(mlAwayPx);
-              var dv = devig2(pMktH, pMktA);
-              if(dv.a !== null) pMktH = dv.a;
-              if(dv.b !== null) pMktA = dv.b;
-
-              var edgeH = (pHome !== null && pMktH !== null) ? (pHome - pMktH) : null;
-              var edgeA = (pHome !== null && pMktA !== null) ? ((1 - pHome) - pMktA) : null;
-
-              var bestSide = pickML;
-              var bestEdge = null;
-              if(edgeH !== null || edgeA !== null){
-                if(edgeH !== null && (bestEdge === null || edgeH > bestEdge)) { bestEdge = edgeH; bestSide = 'Home'; }
-                if(edgeA !== null && (bestEdge === null || edgeA > bestEdge)) { bestEdge = edgeA; bestSide = 'Away'; }
+            // Odds availability: apply guardrails for ML/ATS.
+            // - FG: suppress outright when <4m remain.
+            // - 1H: when <5m remain, only allow if the relevant side price is present.
+            // (We do not suppress 2H here by default.)
+            var fgOddsOk = true;
+            try {
+              if(remaining !== null && isFinite(remaining)){
+                if(lens === 'full_game') fgOddsOk = (remaining >= 4);
               }
+            } catch(_eOdds2){ fgOddsOk = true; }
 
-              var mlAction = '';
-              if(bestEdge !== null){
-                if(bestEdge >= mlBetThr) { mlAction = 'BET '; mlIsBet = true; }
-                else if(bestEdge >= mlWatchThr) { mlAction = 'WATCH '; mlIsWatch = true; }
+            // ML is intentionally disabled/removed from signals.
+            try {
+              var cardM2 = card0 || getCardForWrap(wrap);
+              if(cardM2){
+                if(lens === 'full_game') cardM2.removeAttribute('data-live-ml-fg');
+                if(lens === '1h') cardM2.removeAttribute('data-live-ml-1h');
+                if(lens === '2h') cardM2.removeAttribute('data-live-ml-2h');
               }
-
-              var pTxt = (pHome !== null) ? (' (H ' + String(pct(pHome)) + '%)') : '';
-              var eTxt = (bestEdge !== null) ? (' ' + (bestEdge >= 0 ? '+' : '') + String((bestEdge*100).toFixed(1)) + '% vs mkt') : '';
-              var mlTxt = 'ML: ' + mlAction + bestSide + pTxt + eTxt;
-              setText(wrap, 'ml', mlTxt);
-
-              // Persist for compact strip (1H + FG).
-              try {
-                var cardM = card0 || getCardForWrap(wrap);
-                if(cardM){
-                  if(lens === 'full_game') cardM.setAttribute('data-live-ml-fg', String(mlTxt).replace(/^ML:\s*/i,'').trim());
-                  if(lens === '1h') cardM.setAttribute('data-live-ml-1h', String(mlTxt).replace(/^ML:\s*/i,'').trim());
-                  if(lens === '2h') cardM.setAttribute('data-live-ml-2h', String(mlTxt).replace(/^ML:\s*/i,'').trim());
-                }
-              } catch(_eML){ /* noop */ }
-
-              // Log ML signal when actionable.
-              try {
-                if((mlIsBet || mlIsWatch) && bestEdge !== null){
-                  var sideKey = (bestSide === 'Home') ? 'home' : ((bestSide === 'Away') ? 'away' : null);
-                  var px = (sideKey === 'home') ? mlHomePx : (sideKey === 'away' ? mlAwayPx : null);
-                  var mp = (sideKey === 'home') ? pMktH : (sideKey === 'away' ? pMktA : null);
-                  var modp = (sideKey === 'home') ? pHome : (sideKey === 'away' ? (pHome !== null ? (1-pHome) : null) : null);
-                  if(sideKey && px !== null){
-                    logSigs.push({
-                      kind: 'ml',
-                      is_bet: !!mlIsBet,
-                      is_watch: !!mlIsWatch,
-                      side: sideKey,
-                      horizon: horizon,
-                      elapsed: elapsed,
-                      remaining: remaining,
-                      total_points: act,
-                      live_line: null,
-                      price: px,
-                      model_prob: modp,
-                      market_prob: mp,
-                      edge_prob: bestEdge,
-                      edge: bestEdge,
-                      strength: bestEdge,
-                      thr: mlBetThr,
-                      thr_watch: mlWatchThr,
-                      home_score: liveHome,
-                      away_score: liveAway,
-                      margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
-                      period: per0
-                    });
-                  }
-                }
-              } catch(_eMLLog){ /* noop */ }
-            } else {
-              setText(wrap, 'ml', 'ML: –');
-              try {
-                var cardM2 = card0 || getCardForWrap(wrap);
-                if(cardM2){
-                  if(lens === 'full_game') cardM2.removeAttribute('data-live-ml-fg');
-                  if(lens === '1h') cardM2.removeAttribute('data-live-ml-1h');
-                  if(lens === '2h') cardM2.removeAttribute('data-live-ml-2h');
-                }
-              } catch(_eML2){ /* noop */ }
-            }
+            } catch(_eML2){ /* noop */ }
 
             if(spreadHome !== null && projMargin !== null){
               var coverEdge = projMargin + spreadHome; // home covers if > 0
@@ -3868,7 +3800,15 @@
               }
 
               var atsAction = '';
-              if(bestAEdge !== null){
+              var atsOddsOk = fgOddsOk;
+              try {
+                if(atsOddsOk && remaining !== null && isFinite(remaining) && lens === '1h' && remaining < 5){
+                  var pxUse2 = (bestATS === 'Home') ? spHomePx : (bestATS === 'Away' ? spAwayPx : null);
+                  atsOddsOk = (pxUse2 !== null && pxUse2 !== undefined);
+                }
+              } catch(_eAtsOk){ atsOddsOk = fgOddsOk; }
+
+              if(bestAEdge !== null && atsOddsOk){
                 if(bestAEdge >= atsBetThr) { atsAction = 'BET '; atsIsBet = true; }
                 else if(bestAEdge >= atsWatchThr) { atsAction = 'WATCH '; atsIsWatch = true; }
               }
@@ -3877,7 +3817,6 @@
               var edgeTxt2 = (coverEdge > 0 ? '+' : '') + String(round1(coverEdge));
               var eTxt2 = (bestAEdge !== null) ? (' ' + (bestAEdge >= 0 ? '+' : '') + String((bestAEdge*100).toFixed(1)) + '% vs mkt') : '';
               var atsTxt = 'ATS: ' + atsAction + bestATS + ' (' + edgeTxt2 + ')' + pCovTxt + eTxt2;
-              setText(wrap, 'ats', atsTxt);
 
               // Persist for compact strip (1H + FG).
               try {
@@ -3949,15 +3888,15 @@
           } catch(e) { /* noop */ }
           try {
             var suppress2 = (is2H0 && lens === '1h');
-            var okNow = (!suppress2 && (!!isStrong || !!mlIsBet || !!atsIsBet));
-            var warnNow = (!suppress2 && !okNow && (!!isWatchLine || !!isStrongNoLine || !!mlIsWatch || !!atsIsWatch));
+            var okNow = (!suppress2 && (!!isStrong || !!atsIsBet));
+            var warnNow = (!suppress2 && !okNow && (!!isWatchLine || !!isStrongNoLine || !!atsIsWatch));
 
             // Totals-only flags (for compact strip + totals-only status cues).
             var totalOkNow = (!suppress2 && !!isStrong);
             var totalWarnNow = (!suppress2 && !totalOkNow && (!!isWatchLine || !!isStrongNoLine));
-            var marketOkNow = (!suppress2 && (!!mlIsBet || !!atsIsBet));
-            var marketWarnNow = (!suppress2 && !marketOkNow && (!!mlIsWatch || !!atsIsWatch));
-            var marketOppNow = (!suppress2 && (!!mlIsBet || !!mlIsWatch || !!atsIsBet || !!atsIsWatch));
+            var marketOkNow = (!suppress2 && (!!atsIsBet));
+            var marketWarnNow = (!suppress2 && !marketOkNow && (!!atsIsWatch));
+            var marketOppNow = (!suppress2 && (!!atsIsBet || !!atsIsWatch));
             wrap.setAttribute('data-live-edge-ok', okNow ? '1' : '0');
             wrap.setAttribute('data-live-edge-warn', warnNow ? '1' : '0');
             var card2 = card0 || getCardForWrap(wrap);
@@ -3998,7 +3937,6 @@
             var bestBet = null;
             if(logSigs && logSigs.length){
               logSigs.forEach(function(s){ if(!bestBet && s && s.is_bet && s.kind === 'total') bestBet = s; });
-              logSigs.forEach(function(s){ if(!bestBet && s && s.is_bet && s.kind === 'ml') bestBet = s; });
               logSigs.forEach(function(s){ if(!bestBet && s && s.is_bet && s.kind === 'ats') bestBet = s; });
             }
             try { wrap.__trackedBetSig = bestBet; } catch(_eBS){ /* noop */ }

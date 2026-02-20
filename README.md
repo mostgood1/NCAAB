@@ -382,6 +382,39 @@ Auth (optional): set `NCAAB_INGEST_TOKEN` and send header `X-Ingest-Token: <toke
 
 Response JSON includes `md5` hash for parity verification.
 
+### Tracked Bets (placed-bet ledger)
+
+The app can record bets you actually placed (stake/price/market) and later mark them as win/loss/push/void. This is intended to track daily profitability attributable to Live Lens decisions.
+
+Persistence: append-only JSONL files in `outputs/`:
+
+- `outputs/tracked_bets_<date>.jsonl`
+
+Endpoints:
+
+- `POST /api/tracked_bets/place`
+- `POST /api/tracked_bets/settle`
+- `GET /api/tracked_bets?date=YYYY-MM-DD`
+- `GET /api/tracked_bets/summary?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`
+
+Auth: write endpoints reuse `NCAAB_INGEST_TOKEN` + `X-Ingest-Token` (same behavior as `/api/ingest/*`).
+
+UI note: the Live Lens page includes a small "Track bet" button. If `NCAAB_INGEST_TOKEN` is set on the server, the browser must provide the token via `localStorage.ncaabIngestToken` (the app does not and should not embed server secrets into HTML/JS).
+
+Example (place then settle):
+
+```powershell
+$base = "https://your-render-app.onrender.com"
+
+Invoke-RestMethod -Uri "$base/api/tracked_bets/place" -Method Post -ContentType "application/json" -Headers @{ 'X-Ingest-Token' = $Env:NCAAB_INGEST_TOKEN } -Body (
+  @{ date = "2026-02-19"; bet_id = "mybet-001"; game_id = "401"; market = "total"; selection = "over"; line = 150.5; price_american = -110; stake = 110; book = "DK"; source = "live_lens" } | ConvertTo-Json
+)
+
+Invoke-RestMethod -Uri "$base/api/tracked_bets/settle" -Method Post -ContentType "application/json" -Headers @{ 'X-Ingest-Token' = $Env:NCAAB_INGEST_TOKEN } -Body (
+  @{ date = "2026-02-19"; bet_id = "mybet-001"; result = "win" } | ConvertTo-Json
+)
+```
+
 ### Slim Push Script
 
 `scripts/push_slim_predictions.py` picks the best local source (calibrated → raw → existing promoted) and uploads only:

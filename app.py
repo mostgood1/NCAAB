@@ -23659,6 +23659,13 @@ def api_live_lens_signal():
         "period": payload.get("period"),
     }
 
+    # ML is intentionally disabled; ignore any ML signal records from older clients.
+    try:
+        if str(keep.get("kind") or "").strip().lower() == "ml":
+            return jsonify({"status": "ok", "skipped": True, "reason": "ml_disabled"}), 200
+    except Exception:
+        pass
+
     # Compute signal_id for de-dupe.
     signal_id = str(payload.get("signal_id") or "").strip()
     if not signal_id:
