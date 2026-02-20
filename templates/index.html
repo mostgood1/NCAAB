@@ -23,6 +23,11 @@
     .pill.time-local.rollover::after{content:' • rollover';font-size:10px;margin-left:4px;opacity:0.85;}
     /* Ensure pill text is white for readability */
     .pill{color:#fff !important;}
+
+    /* Live Lens "Track bet" button: keep it pill-like and unobtrusive */
+    button.pill{appearance:none;-webkit-appearance:none;}
+    button.pill.live-lens-track{cursor:pointer;}
+    button.pill.live-lens-track:disabled{cursor:not-allowed;opacity:0.55;}
     /* Compact card mode: reduces spacing, font sizes, and enables grid layout */
     .compact-card .card { padding: 8px; margin: 8px 0; }
     .compact-card .card h3, .compact-card .card h4 { margin: 4px 0; font-size: 0.95rem; }
@@ -489,6 +494,7 @@
                         <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
                         <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                        <button class="pill small live-lens-track" data-action="track_bet" type="button" disabled title="Track the current BET signal">Track bet</button>
                         <span class="pill small live-lens-out" data-out="ml">ML: –</span>
                         <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
                         <span class="pill small live-lens-out" data-out="market_meta">Live conf: –</span>
@@ -606,6 +612,7 @@
                         <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
                         <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                        <button class="pill small live-lens-track" data-action="track_bet" type="button" disabled title="Track the current BET signal">Track bet</button>
                         <span class="pill small live-lens-out" data-out="ml">ML: –</span>
                         <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
                         <span class="pill small live-lens-out" data-out="market_meta">Live conf: –</span>
@@ -786,6 +793,7 @@
                         <span class="pill small live-lens-out" data-out="simfinal">Sim q50 final: –</span>
                         <span class="pill small live-lens-out" data-out="driver">Driver: –</span>
                         <span class="pill small live-lens-out" data-out="lean">Lean: –</span>
+                        <button class="pill small live-lens-track" data-action="track_bet" type="button" disabled title="Track the current BET signal">Track bet</button>
                         <span class="pill small live-lens-out" data-out="ml">ML: –</span>
                         <span class="pill small live-lens-out" data-out="ats">ATS: –</span>
                         <span class="pill small live-lens-out" data-out="market_meta">Live conf: –</span>
@@ -2168,6 +2176,92 @@
         }
       }
 
+      function getBrowserIngestToken(){
+        try {
+          return String(localStorage.getItem('ncaabIngestToken') || '').trim();
+        } catch(_e){
+          return '';
+        }
+      }
+
+      function trackedBetsPlace(payload, token){
+        var headers = { 'Content-Type': 'application/json' };
+        if(token) headers['X-Ingest-Token'] = token;
+        return fetch('/api/tracked_bets/place', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload)
+        }).then(function(r){
+          return r.json().catch(function(){ return {}; }).then(function(j){
+            return { status: r.status, json: j };
+          });
+        });
+      }
+
+      function liveLensTrackedKey(wrap, card, sig){
+        try {
+          if(!sig) return null;
+          var gid = '';
+          try { gid = card ? String(card.getAttribute('data-game-id') || '').trim() : ''; } catch(_eG){ gid = ''; }
+          if(!gid) return null;
+
+          var lensKind = '';
+          try { lensKind = wrap ? String(wrap.getAttribute('data-lens-kind') || '').trim() : ''; } catch(_eLK){ lensKind = ''; }
+
+          var kind = '';
+          try { kind = sig.kind ? String(sig.kind).trim().toLowerCase() : ''; } catch(_eK){ kind = ''; }
+          var side = '';
+          try { side = sig.side ? String(sig.side).trim().toLowerCase() : ''; } catch(_eS){ side = ''; }
+
+          var line = (sig.live_line !== undefined && sig.live_line !== null) ? toNum(sig.live_line) : null;
+          var lineQ = (line !== null && isFinite(line)) ? (Math.round(line * 2) / 2) : '';
+          var px = (sig.price !== undefined && sig.price !== null) ? toNum(sig.price) : null;
+          var pxQ = (px !== null && isFinite(px)) ? Math.round(px) : '';
+          var horizon = (sig.horizon !== undefined && sig.horizon !== null) ? String(sig.horizon) : '';
+
+          return gid + '|' + String(lensKind || '') + '|' + String(kind || '') + '|' + String(side || '') + '|' + String(horizon || '') + '|' + String(lineQ) + '|' + String(pxQ);
+        } catch(_e){
+          return null;
+        }
+      }
+
+      function trackedBetPayloadFromSig(wrap, card, sig, stake, book){
+        var gid = String(card.getAttribute('data-game-id') || '').trim();
+        var kind = sig && sig.kind ? String(sig.kind).trim().toLowerCase() : 'total';
+        var side = sig && sig.side ? String(sig.side).trim().toLowerCase() : '';
+        var line = (sig && sig.live_line !== undefined && sig.live_line !== null) ? toNum(sig.live_line) : null;
+        var px = (sig && sig.price !== undefined && sig.price !== null) ? toNum(sig.price) : null;
+        var pxQ = (px !== null && isFinite(px)) ? Math.round(px) : null;
+
+        var market = kind;
+        var selection = side;
+        if(kind === 'total'){
+          market = 'total';
+          selection = (side === 'over' || side === 'under') ? side : selection;
+        } else if(kind === 'ml'){
+          market = 'ml';
+          selection = (side === 'home' || side === 'away') ? side : selection;
+          line = null;
+        } else if(kind === 'ats'){
+          market = 'ats';
+          selection = (side === 'home' || side === 'away') ? side : selection;
+        }
+
+        var llKey = liveLensTrackedKey(wrap, card, sig);
+        return {
+          date: getSlateDate() || null,
+          game_id: gid,
+          market: market,
+          selection: selection,
+          line: (line !== null && isFinite(line) ? line : null),
+          price_american: (pxQ !== null ? pxQ : null),
+          stake: stake,
+          book: (book ? String(book).trim() : null),
+          source: 'live_lens',
+          live_lens_signal_id: llKey
+        };
+      }
+
       function maybeLogLiveLensSignal(wrap, card, sig){
         try {
           if(!sig || !card) return;
@@ -2561,8 +2655,89 @@
         var selMin = wrap.querySelector('.live-lens-min');
         var inpTot = wrap.querySelector('.live-lens-total');
         var inpLine = wrap.querySelector('.live-lens-line');
+        var btnTrack = wrap.querySelector('[data-action="track_bet"]');
 
         if(!selMin || !inpTot) return;
+
+        // One-click tracked-bet recording (stake prompt only).
+        try {
+          if(btnTrack && !btnTrack.__trackedBetsWired){
+            btnTrack.__trackedBetsWired = true;
+            btnTrack.addEventListener('click', function(ev){
+              try {
+                ev.preventDefault();
+              } catch(_eP){ /* noop */ }
+
+              var card = getCardForWrap(wrap);
+              var sig = wrap ? wrap.__trackedBetSig : null;
+              if(!card || !sig || !sig.is_bet){
+                try { alert('No current BET signal to track.'); } catch(_eA){ /* noop */ }
+                return;
+              }
+
+              var defStake = '110';
+              try {
+                var s0 = String(localStorage.getItem('ncaabTrackedStakeDefault') || '').trim();
+                if(s0) defStake = s0;
+              } catch(_eS){ /* noop */ }
+              var stakeStr = null;
+              try { stakeStr = prompt('Stake (risk) amount (e.g., 110):', defStake); } catch(_ePr){ stakeStr = null; }
+              if(stakeStr === null) return;
+              var stake = toNum(stakeStr);
+              if(stake === null || !isFinite(stake) || stake <= 0){
+                try { alert('Invalid stake.'); } catch(_eA2){ /* noop */ }
+                return;
+              }
+              try { localStorage.setItem('ncaabTrackedStakeDefault', String(stake)); } catch(_eSS){ /* noop */ }
+
+              var book = '';
+              try {
+                var b0 = prompt('Book (optional):', '');
+                if(b0 === null) b0 = '';
+                book = String(b0 || '').trim();
+              } catch(_eB){ book = ''; }
+
+              var payload = trackedBetPayloadFromSig(wrap, card, sig, stake, book);
+              var tok = getBrowserIngestToken();
+
+              try {
+                btnTrack.disabled = true;
+                btnTrack.textContent = 'Tracking…';
+              } catch(_eBtn){ /* noop */ }
+
+              trackedBetsPlace(payload, tok).then(function(resp){
+                var ok = (resp && resp.status === 200 && resp.json && resp.json.ok);
+                if(ok){
+                  try { wrap.__trackedLastPlacedKey = payload.live_lens_signal_id || null; } catch(_eK){ /* noop */ }
+                  try {
+                    btnTrack.disabled = true;
+                    btnTrack.textContent = 'Tracked';
+                    btnTrack.title = 'Tracked bet recorded';
+                  } catch(_eBtn2){ /* noop */ }
+                  return;
+                }
+
+                // Restore button state (update() will re-evaluate availability).
+                try {
+                  btnTrack.disabled = false;
+                  btnTrack.textContent = 'Track bet';
+                } catch(_eBtn3){ /* noop */ }
+
+                if(resp && resp.status === 401){
+                  try { alert('Unauthorized. If NCAAB_INGEST_TOKEN is set on the server, set localStorage.ncaabIngestToken in your browser and retry.'); } catch(_eA3){ /* noop */ }
+                } else {
+                  try { alert('Failed to track bet: ' + safeStr((resp && resp.json && (resp.json.error || resp.json.status)) || 'error')); } catch(_eA4){ /* noop */ }
+                }
+              }).catch(function(){
+                try {
+                  btnTrack.disabled = false;
+                  btnTrack.textContent = 'Track bet';
+                } catch(_eBtn4){ /* noop */ }
+                try { alert('Failed to track bet (network error).'); } catch(_eA5){ /* noop */ }
+              });
+            });
+          }
+        } catch(_eWireTB){ /* noop */ }
 
         // Populate remaining-time options: remaining = horizon - elapsed
         while(selMin.options.length > 1) selMin.remove(1);
@@ -3818,6 +3993,38 @@
 
           // Best-effort bet logging for ROI backtests.
           try {
+            // Select the best current BET signal for the UI "Track bet" button.
+            // Prefer totals BET over ML/ATS, since totals is the primary Live Lens output.
+            var bestBet = null;
+            if(logSigs && logSigs.length){
+              logSigs.forEach(function(s){ if(!bestBet && s && s.is_bet && s.kind === 'total') bestBet = s; });
+              logSigs.forEach(function(s){ if(!bestBet && s && s.is_bet && s.kind === 'ml') bestBet = s; });
+              logSigs.forEach(function(s){ if(!bestBet && s && s.is_bet && s.kind === 'ats') bestBet = s; });
+            }
+            try { wrap.__trackedBetSig = bestBet; } catch(_eBS){ /* noop */ }
+
+            var cardTB = card0 || getCardForWrap(wrap);
+            var bestKey = (bestBet && cardTB) ? liveLensTrackedKey(wrap, cardTB, bestBet) : null;
+            try { wrap.__trackedBetKey = bestKey; } catch(_eBK){ /* noop */ }
+            try {
+              if(btnTrack){
+                var already = (bestKey && wrap.__trackedLastPlacedKey && String(wrap.__trackedLastPlacedKey) === String(bestKey));
+                if(already){
+                  btnTrack.disabled = true;
+                  btnTrack.textContent = 'Tracked';
+                  btnTrack.title = 'Tracked bet recorded';
+                } else if(bestBet){
+                  btnTrack.disabled = false;
+                  btnTrack.textContent = 'Track bet';
+                  btnTrack.title = 'Track the current BET signal';
+                } else {
+                  btnTrack.disabled = true;
+                  btnTrack.textContent = 'Track bet';
+                  btnTrack.title = 'No BET signal right now';
+                }
+              }
+            } catch(_eBtnSt){ /* noop */ }
+
             if(logSigs && logSigs.length){
               var cardL = card0 || getCardForWrap(wrap);
               logSigs.forEach(function(s){ maybeLogLiveLensSignal(wrap, cardL, s); });

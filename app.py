@@ -22326,6 +22326,9 @@ _LIVE_LINES_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
 _LIVE_LENS_SIGNAL_SEEN: dict[str, float] = {}
 _LIVE_LENS_PROJECTION_SEEN: dict[str, float] = {}
 
+# Tracked bets (placed bets ledger) – append-only event log.
+_TRACKED_BETS_EVENT_SEEN: dict[str, float] = {}
+
 # Provider name aliases (provider_aliases.csv), cached for live lines matching.
 _PROVIDER_TEAM_ALIAS_MAP: dict[str, str] | None = None
 
@@ -23847,6 +23850,511 @@ def api_live_lens_projection():
         return jsonify({"status": "error", "message": f"Failed to write projection: {e}"}), 500
 
     return jsonify({"status": "ok", "projection_id": projection_id}), 200
+
+
+# -----------------------------------------------------------------------------
+# Tracked bets: record placed bets (stake/price/market) + settlement for ROI.
+#
+# Persistence model: append-only JSONL event log at outputs/tracked_bets_<date>.jsonl
+# This mirrors the Live Lens signal logging approach (atomic append via os.O_APPEND).
+# -----------------------------------------------------------------------------
+
+def _tracked_bets_path(date_s: str) -> Path:
+    return OUT / f"tracked_bets_{date_s}.jsonl"
+
+
+def _parse_iso_date_or_today(date_s: str | None) -> str:
+    s = str(date_s or "").strip()
+    if not s:
+        try:
+            return _today_local().isoformat()
+        except Exception:
+            return dt.date.today().isoformat()
+    # Validate
+    dt.date.fromisoformat(s)
+    return s
+
+
+def _append_jsonl_atomic(path: Path, record: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    import os
+
+    line = json.dumps(_sanitize_json_obj_strict(record), ensure_ascii=False) + "\n"
+    data = line.encode("utf-8", errors="replace")
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_APPEND)
+    try:
+        view = memoryview(data)
+        while view:
+            n = os.write(fd, view)
+            view = view[n:]
+    finally:
+        os.close(fd)
+
+
+def _coerce_float(v: Any) -> float | None:
+    try:
+        if v is None:
+            return None
+        if isinstance(v, (int, float)):
+            out = float(v)
+            return out if math.isfinite(out) else None
+        s = str(v).strip()
+        if not s:
+            return None
+        out = float(s)
+        return out if math.isfinite(out) else None
+    except Exception:
+        return None
+
+
+def _coerce_int(v: Any) -> int | None:
+    try:
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            return int(v)
+        if isinstance(v, int):
+            return v
+        if isinstance(v, float):
+            if not math.isfinite(v):
+                return None
+            return int(v)
+        s = str(v).strip()
+        if not s:
+            return None
+        return int(float(s))
+    except Exception:
+        return None
+
+
+def _profit_from_price(
+    stake: float,
+    *,
+    price_american: int | None,
+    price_decimal: float | None,
+    result: str,
+) -> float | None:
+    try:
+        if stake is None or not math.isfinite(float(stake)):
+            return None
+        stake_f = float(stake)
+        if stake_f < 0:
+            return None
+        r = str(result or "").strip().lower()
+        if r in {"push", "void", "cancel", "canceled", "cancelled"}:
+            return 0.0
+        if r in {"loss", "lose", "lost"}:
+            return -stake_f
+        if r not in {"win", "won"}:
+            return None
+        if price_decimal is not None:
+            dec = float(price_decimal)
+            if not math.isfinite(dec) or dec <= 1.0:
+                return None
+            return stake_f * (dec - 1.0)
+        if price_american is None:
+            return None
+        odds = int(price_american)
+        if odds == 0:
+            return None
+        if odds > 0:
+            return stake_f * (odds / 100.0)
+        return stake_f * (100.0 / abs(odds))
+    except Exception:
+        return None
+
+
+def _load_tracked_bets_state(date_s: str) -> dict[str, dict[str, Any]]:
+    """Fold event log into a bet_id -> state mapping for a given date."""
+    path = _tracked_bets_path(date_s)
+    if not path.exists():
+        return {}
+    bets: dict[str, dict[str, Any]] = {}
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for ln in f:
+                ln = (ln or "").strip()
+                if not ln:
+                    continue
+                try:
+                    ev = json.loads(ln)
+                except Exception:
+                    continue
+                if not isinstance(ev, dict):
+                    continue
+                bet_id = str(ev.get("bet_id") or "").strip()
+                if not bet_id:
+                    continue
+                state = bets.get(bet_id) or {"bet_id": bet_id, "date": date_s}
+                ev_type = str(ev.get("type") or "").strip().lower()
+                if ev_type in {"place", "placed"}:
+                    # Keep first placed_at if present; allow later place events to fill missing fields.
+                    for k in [
+                        "placed_at_utc",
+                        "game_id",
+                        "market",
+                        "selection",
+                        "line",
+                        "stake",
+                        "book",
+                        "source",
+                        "notes",
+                        "signal_id",
+                        "live_lens_signal_id",
+                        "price_american",
+                        "price_decimal",
+                    ]:
+                        if state.get(k) is None and ev.get(k) is not None:
+                            state[k] = ev.get(k)
+                    # Allow place to overwrite these linkage keys if explicitly provided
+                    if ev.get("signal_id") is not None:
+                        state["signal_id"] = ev.get("signal_id")
+                    if ev.get("live_lens_signal_id") is not None:
+                        state["live_lens_signal_id"] = ev.get("live_lens_signal_id")
+                    state["status"] = "pending"
+                elif ev_type in {"settle", "settled"}:
+                    state["settled_at_utc"] = ev.get("settled_at_utc") or state.get("settled_at_utc")
+                    res = str(ev.get("result") or "").strip().lower()
+                    state["result"] = res or state.get("result")
+                    # Allow settlement to provide stake/price overrides
+                    if ev.get("stake") is not None:
+                        state["stake"] = ev.get("stake")
+                    if ev.get("price_american") is not None:
+                        state["price_american"] = ev.get("price_american")
+                    if ev.get("price_decimal") is not None:
+                        state["price_decimal"] = ev.get("price_decimal")
+                    if ev.get("profit") is not None:
+                        state["profit"] = ev.get("profit")
+                    # Compute profit if possible and missing
+                    if state.get("profit") is None and state.get("result"):
+                        stake_f = _coerce_float(state.get("stake"))
+                        pa = _coerce_int(state.get("price_american"))
+                        pd0 = _coerce_float(state.get("price_decimal"))
+                        if stake_f is not None:
+                            p = _profit_from_price(
+                                stake_f,
+                                price_american=pa,
+                                price_decimal=pd0,
+                                result=str(state.get("result") or ""),
+                            )
+                            if p is not None:
+                                state["profit"] = p
+                    state["status"] = "settled" if state.get("result") else state.get("status")
+                else:
+                    # Unknown event type; ignore.
+                    pass
+
+                bets[bet_id] = state
+    except Exception:
+        return bets
+
+    # Final normalization
+    for _, st in list(bets.items()):
+        try:
+            st["stake"] = _coerce_float(st.get("stake"))
+        except Exception:
+            pass
+        try:
+            st["line"] = _coerce_float(st.get("line"))
+        except Exception:
+            pass
+        try:
+            st["price_decimal"] = _coerce_float(st.get("price_decimal"))
+        except Exception:
+            pass
+        try:
+            st["price_american"] = _coerce_int(st.get("price_american"))
+        except Exception:
+            pass
+        try:
+            st["profit"] = _coerce_float(st.get("profit"))
+        except Exception:
+            pass
+        if st.get("result") and st.get("profit") is not None and st.get("status") != "settled":
+            st["status"] = "settled"
+        if not st.get("status"):
+            st["status"] = "pending"
+
+    return bets
+
+
+def _tracked_bets_rollup(bets: list[dict[str, Any]]) -> dict[str, Any]:
+    stake_sum = 0.0
+    profit_sum = 0.0
+    counts: dict[str, int] = {"pending": 0, "win": 0, "loss": 0, "push": 0, "void": 0, "other": 0}
+    for b in bets:
+        st = _coerce_float(b.get("stake")) or 0.0
+        stake_sum += st
+        res = str(b.get("result") or "").strip().lower()
+        if not res:
+            counts["pending"] += 1
+        elif res in {"win", "won"}:
+            counts["win"] += 1
+        elif res in {"loss", "lose", "lost"}:
+            counts["loss"] += 1
+        elif res == "push":
+            counts["push"] += 1
+        elif res in {"void", "cancel", "canceled", "cancelled"}:
+            counts["void"] += 1
+        else:
+            counts["other"] += 1
+        p = _coerce_float(b.get("profit"))
+        if p is not None:
+            profit_sum += p
+    roi = (profit_sum / stake_sum) if stake_sum > 0 else None
+    return {
+        "stake": stake_sum,
+        "profit": profit_sum,
+        "roi": roi,
+        "counts": counts,
+    }
+
+
+@app.post("/api/tracked_bets/place")
+def api_tracked_bets_place():
+    """Record a placed bet (append-only) for profitability tracking."""
+
+    # Auth: reuse existing ingestion token convention.
+    try:
+        if _INGEST_TOKEN:
+            tok = request.headers.get("X-Ingest-Token", "").strip()
+            if tok != _INGEST_TOKEN:
+                return jsonify({"error": "unauthorized"}), 401
+    except Exception:
+        return jsonify({"error": "auth_check_failed"}), 500
+
+    try:
+        payload = request.get_json(silent=True) or {}
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "invalid_json"}), 400
+
+    try:
+        date_s = _parse_iso_date_or_today(payload.get("date"))
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid_date"}), 400
+
+    stake = _coerce_float(payload.get("stake"))
+    if stake is None or stake <= 0:
+        return jsonify({"ok": False, "error": "invalid_stake"}), 400
+
+    price_american = _coerce_int(payload.get("price_american") if payload.get("price_american") is not None else payload.get("price"))
+    price_decimal = _coerce_float(payload.get("price_decimal"))
+    if price_american is None and price_decimal is None:
+        return jsonify({"ok": False, "error": "missing_price"}), 400
+
+    bet_id = str(payload.get("bet_id") or payload.get("idempotency_key") or "").strip()
+    if not bet_id:
+        try:
+            import uuid
+
+            bet_id = uuid.uuid4().hex
+        except Exception:
+            bet_id = ""
+    if not bet_id:
+        return jsonify({"ok": False, "error": "bet_id_generation_failed"}), 500
+
+    # In-memory de-dupe for a few hours.
+    try:
+        import time
+
+        now_ts = float(time.time())
+        if len(_TRACKED_BETS_EVENT_SEEN) > 12_000:
+            cutoff = now_ts - 6 * 3600
+            for k, ts0 in list(_TRACKED_BETS_EVENT_SEEN.items())[:4000]:
+                if float(ts0) < cutoff:
+                    _TRACKED_BETS_EVENT_SEEN.pop(k, None)
+        if bet_id in _TRACKED_BETS_EVENT_SEEN and (now_ts - float(_TRACKED_BETS_EVENT_SEEN.get(bet_id) or 0.0)) < 6 * 3600:
+            return jsonify({"ok": True, "duplicate": True, "bet_id": bet_id, "date": date_s}), 200
+        _TRACKED_BETS_EVENT_SEEN[bet_id] = now_ts
+    except Exception:
+        pass
+
+    event = {
+        "type": "place",
+        "placed_at_utc": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "date": date_s,
+        "bet_id": bet_id,
+        "game_id": (str(payload.get("game_id") or payload.get("event_id") or "").strip() or None),
+        "market": (str(payload.get("market") or "").strip() or None),
+        "selection": (str(payload.get("selection") or payload.get("side") or "").strip() or None),
+        "line": _coerce_float(payload.get("line")),
+        "stake": stake,
+        "price_american": price_american,
+        "price_decimal": price_decimal,
+        "book": (str(payload.get("book") or "").strip() or None),
+        "source": (str(payload.get("source") or "manual").strip() or "manual"),
+        "notes": (str(payload.get("notes") or "").strip() or None),
+        "live_lens_signal_id": (str(payload.get("live_lens_signal_id") or payload.get("signal_id") or "").strip() or None),
+    }
+
+    try:
+        _append_jsonl_atomic(_tracked_bets_path(date_s), event)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"write_failed: {e}"}), 500
+
+    return jsonify({"ok": True, "bet_id": bet_id, "date": date_s}), 200
+
+
+@app.post("/api/tracked_bets/settle")
+def api_tracked_bets_settle():
+    """Record settlement (win/loss/push/void) for a previously placed bet."""
+
+    try:
+        if _INGEST_TOKEN:
+            tok = request.headers.get("X-Ingest-Token", "").strip()
+            if tok != _INGEST_TOKEN:
+                return jsonify({"error": "unauthorized"}), 401
+    except Exception:
+        return jsonify({"error": "auth_check_failed"}), 500
+
+    try:
+        payload = request.get_json(silent=True) or {}
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "invalid_json"}), 400
+
+    try:
+        date_s = _parse_iso_date_or_today(payload.get("date"))
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid_date"}), 400
+
+    bet_id = str(payload.get("bet_id") or "").strip()
+    if not bet_id:
+        return jsonify({"ok": False, "error": "missing_bet_id"}), 400
+
+    result = str(payload.get("result") or "").strip().lower()
+    if result not in {"win", "won", "loss", "lose", "lost", "push", "void", "cancel", "canceled", "cancelled"}:
+        return jsonify({"ok": False, "error": "invalid_result"}), 400
+    # Normalize
+    if result in {"won"}:
+        result = "win"
+    if result in {"lose", "lost"}:
+        result = "loss"
+    if result in {"cancel", "canceled", "cancelled"}:
+        result = "void"
+
+    profit = _coerce_float(payload.get("profit"))
+    stake = _coerce_float(payload.get("stake"))
+    price_american = _coerce_int(payload.get("price_american") if payload.get("price_american") is not None else payload.get("price"))
+    price_decimal = _coerce_float(payload.get("price_decimal"))
+
+    # If profit not provided, try computing from (stake, price). If stake/price not provided,
+    # try reading the placed record for this date.
+    if profit is None:
+        if stake is None:
+            try:
+                st_map = _load_tracked_bets_state(date_s)
+                prior = st_map.get(bet_id) or {}
+                stake = _coerce_float(prior.get("stake"))
+                if price_american is None:
+                    price_american = _coerce_int(prior.get("price_american"))
+                if price_decimal is None:
+                    price_decimal = _coerce_float(prior.get("price_decimal"))
+            except Exception:
+                pass
+        if stake is not None:
+            p = _profit_from_price(stake, price_american=price_american, price_decimal=price_decimal, result=result)
+            if p is not None:
+                profit = p
+
+    event = {
+        "type": "settle",
+        "settled_at_utc": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+        "date": date_s,
+        "bet_id": bet_id,
+        "result": result,
+        "profit": profit,
+        "stake": stake,
+        "price_american": price_american,
+        "price_decimal": price_decimal,
+    }
+
+    try:
+        _append_jsonl_atomic(_tracked_bets_path(date_s), event)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"write_failed: {e}"}), 500
+
+    return jsonify({"ok": True, "bet_id": bet_id, "date": date_s, "profit": profit, "result": result}), 200
+
+
+@app.get("/api/tracked_bets")
+def api_tracked_bets_list():
+    """List tracked bets for a date and include aggregate profitability."""
+    date_q = (request.args.get("date") or "").strip()
+    try:
+        date_s = _parse_iso_date_or_today(date_q)
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid_date"}), 400
+
+    st_map = _load_tracked_bets_state(date_s)
+    bets = list(st_map.values())
+    try:
+        bets.sort(key=lambda x: str(x.get("placed_at_utc") or ""))
+    except Exception:
+        pass
+    rollup = _tracked_bets_rollup(bets)
+    return jsonify({"ok": True, "date": date_s, "bets": bets, "rollup": rollup}), 200
+
+
+@app.get("/api/tracked_bets/summary")
+def api_tracked_bets_summary():
+    """Summarize tracked bets over a date or date range."""
+    date_q = (request.args.get("date") or "").strip()
+    start_q = (request.args.get("start_date") or request.args.get("start") or "").strip()
+    end_q = (request.args.get("end_date") or request.args.get("end") or "").strip()
+
+    if date_q and not (start_q or end_q):
+        start_q = date_q
+        end_q = date_q
+    if not start_q and not end_q:
+        try:
+            start_q = _today_local().isoformat()
+            end_q = start_q
+        except Exception:
+            start_q = dt.date.today().isoformat()
+            end_q = start_q
+    if start_q and not end_q:
+        end_q = start_q
+    if end_q and not start_q:
+        start_q = end_q
+
+    try:
+        start_d = dt.date.fromisoformat(start_q)
+        end_d = dt.date.fromisoformat(end_q)
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid_date_range"}), 400
+    if end_d < start_d:
+        return jsonify({"ok": False, "error": "invalid_date_range"}), 400
+
+    max_days = 62
+    if (end_d - start_d).days > max_days:
+        return jsonify({"ok": False, "error": "range_too_large", "max_days": max_days}), 400
+
+    day = start_d
+    daily: list[dict[str, Any]] = []
+    all_bets: list[dict[str, Any]] = []
+    while day <= end_d:
+        ds = day.isoformat()
+        st_map = _load_tracked_bets_state(ds)
+        bets = list(st_map.values())
+        roll = _tracked_bets_rollup(bets)
+        daily.append({"date": ds, "rollup": roll, "count": len(bets)})
+        all_bets.extend(bets)
+        day = day + dt.timedelta(days=1)
+
+    total = _tracked_bets_rollup(all_bets)
+    return jsonify(
+        {
+            "ok": True,
+            "start_date": start_d.isoformat(),
+            "end_date": end_d.isoformat(),
+            "daily": daily,
+            "total": total,
+        }
+    ), 200
 
 
 # ---------------------------------
