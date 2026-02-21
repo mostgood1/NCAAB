@@ -84,19 +84,28 @@
           <tbody>
             {% for r in rows %}
               <tr>
-                <td>{{ r.date or '' }}</td>
-                <td>{{ r.home_team or '' }}</td>
-                <td>{{ r.away_team or '' }}</td>
+                {% set _date = r.get('date') %}
+                {% set _home_team = r.get('home_team') %}
+                {% set _away_team = r.get('away_team') %}
+                {% set _home_score = r.get('home_score') %}
+                {% set _away_score = r.get('away_score') %}
+                {% set _actual_total = r.get('actual_total') %}
+                {% set _pred_total = r.get('pred_total') %}
+                {% set _closing_total = r.get('closing_total') %}
+
+                <td>{{ _date or '' }}</td>
+                <td>{{ _home_team or '' }}</td>
+                <td>{{ _away_team or '' }}</td>
                 <td>
-                  {% if r.home_score is not none and r.away_score is not none %}
-                    {{ r.home_score }} - {{ r.away_score }}
+                  {% if _home_score is not none and _away_score is not none %}
+                    {{ _home_score }} - {{ _away_score }}
                   {% else %}
                     –
                   {% endif %}
                 </td>
-                <td>{{ '%.0f' % r.actual_total if r.actual_total is not none else '–' }}</td>
-                <td>{{ '%.1f' % r.pred_total if r.pred_total is not none else '–' }}</td>
-                <td>{{ '%.1f' % r.closing_total if r.closing_total is not none else '–' }}</td>
+                <td>{{ '%.0f' % _actual_total if _actual_total is not none else '–' }}</td>
+                <td>{{ '%.1f' % _pred_total if _pred_total is not none else '–' }}</td>
+                <td>{{ '%.1f' % _closing_total if _closing_total is not none else '–' }}</td>
               </tr>
             {% endfor %}
           </tbody>
