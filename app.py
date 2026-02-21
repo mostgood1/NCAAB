@@ -21127,6 +21127,10 @@ def api_status():
         basis_share_margin_cal = None
         drift_total_delta_vs_median = None
         drift_margin_delta_vs_median = None
+        ece_total_roll7 = None
+        ece_margin_roll7 = None
+        sharpness_total_roll7 = None
+        sharpness_margin_roll7 = None
         try:
             if isinstance(_LAST_PIPELINE_STATS, dict) and _LAST_PIPELINE_STATS:
                 basis_share_total_cal = _LAST_PIPELINE_STATS.get('basis_share_total_cal')
@@ -21146,10 +21150,6 @@ def api_status():
                         basis_share_total_cal = float((dpf['pred_total_basis'].astype(str)=='cal').mean())
                     if 'pred_margin_basis' in dpf.columns:
                         basis_share_margin_cal = float((dpf['pred_margin_basis'].astype(str)=='cal').mean())
-                ece_total_roll7 = None
-                ece_margin_roll7 = None
-                sharpness_total_roll7 = None
-                sharpness_margin_roll7 = None
         except Exception:
             pass
         # Display hash
@@ -37185,6 +37185,23 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
             norm = apply_pred_total_view(norm)
     except Exception:
         pass
+
+    # Ensure we never write a zero-column CSV.
+    # Pandas will emit a 0-byte file in that case, which then breaks readers/tests.
+    try:
+        if not isinstance(norm, pd.DataFrame):
+            norm = pd.DataFrame()
+        if isinstance(norm, pd.DataFrame) and norm.shape[1] == 0:
+            norm = pd.DataFrame(columns=[
+                'game_id',
+                'pred_total',
+                'pred_margin',
+                'pred_total_basis',
+                'pred_margin_basis',
+            ])
+    except Exception:
+        pass
+
     path = OUT / f'predictions_display_{date_str}.csv'
     try:
         norm.to_csv(path, index=False)

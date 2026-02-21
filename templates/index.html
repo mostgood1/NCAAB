@@ -3138,11 +3138,10 @@
             var minElapsed = (horizon <= 20.5) ? 4 : 6;
             var thr = (horizon <= 20.5) ? 5 : 7;
 
-            // Empirical guardrail: 1H/FG "first" signals have underperformed; 2H has been strongest.
-            // Be more selective early so the first actionable BET per game is less likely to be a low-quality early edge.
+            // Empirical guardrail (disabled): keep totals thresholds driven by horizon only.
+            // (1H/2H/FG lens should not apply an extra blanket bump.)
             try {
-              if(lens === '1h') { thr += 2; minElapsed += 2; }
-              else if(lens === 'full_game') { thr += 2; minElapsed += 2; }
+              // no-op
             } catch(_eEarlyGate){ /* noop */ }
 
             // PBP context: adjust confidence if scoring looks "hot" or "cold".
@@ -3622,13 +3621,11 @@
             setText(wrap, 'ats', 'ATS: –');
             setText(wrap, 'market_meta', 'Live conf: –');
           } else {
-            // Hide ML/ATS outputs inside the Live Lens widget; we only "light up"
-            // market signals on the game cards.
+            // Hide ML output (disabled). Keep ATS visible on the card so we can
+            // see line + driver + action state (BET/WATCH).
             try {
               var mlEl = wrap ? wrap.querySelector('[data-out="ml"]') : null;
               if(mlEl) mlEl.style.display = 'none';
-              var atsEl = wrap ? wrap.querySelector('[data-out="ats"]') : null;
-              if(atsEl) atsEl.style.display = 'none';
             } catch(_eHide){ /* noop */ }
 
             // Spread lines from the card; prefer live/full spread.
@@ -3816,7 +3813,71 @@
               var pCovTxt = (pCov !== null) ? (' p' + String(pct(pCov)) + '%') : '';
               var edgeTxt2 = (coverEdge > 0 ? '+' : '') + String(round1(coverEdge));
               var eTxt2 = (bestAEdge !== null) ? (' ' + (bestAEdge >= 0 ? '+' : '') + String((bestAEdge*100).toFixed(1)) + '% vs mkt') : '';
-              var atsTxt = 'ATS: ' + atsAction + bestATS + ' (' + edgeTxt2 + ')' + pCovTxt + eTxt2;
+              var lineTxt2 = '';
+              try {
+                if(bestATS === 'Home' && spreadHome !== null && isFinite(spreadHome)) lineTxt2 = (spreadHome > 0 ? '+' : '') + String(round1(spreadHome));
+                else if(bestATS === 'Away' && spreadHome !== null && isFinite(spreadHome)) {
+                  var aLine = -spreadHome;
+                  lineTxt2 = (aLine > 0 ? '+' : '') + String(round1(aLine));
+                }
+              } catch(_eLineTxt){ lineTxt2 = ''; }
+              // ATS-specific driver (do not reuse totals driver): points edge, prob edge vs market, and live confidence.
+              var atsDriver = null;
+              var atsDriverTags = [];
+              try {
+                function addATSTag(t){
+                  try {
+                    var tx = String(t || '').trim();
+                    if(tx && atsDriverTags.indexOf(tx) < 0) atsDriverTags.push(tx);
+                  } catch(_eT){ /* noop */ }
+                }
+
+                var selProb = (bestATS === 'Home') ? pCov : (bestATS === 'Away' ? (pCov !== null ? (1 - pCov) : null) : null);
+                var selMktProb = (bestATS === 'Home') ? pMktCovH : (bestATS === 'Away' ? pMktCovA : null);
+                var selProbEdge = (selProb !== null && selMktProb !== null) ? (selProb - selMktProb) : null;
+                var selPtsEdge = (bestATS === 'Home') ? coverEdge : (bestATS === 'Away' ? (-coverEdge) : null);
+
+                var parts = [];
+                if(selProbEdge !== null && isFinite(selProbEdge)){
+                  parts.push('Δp ' + (selProbEdge >= 0 ? '+' : '') + String((selProbEdge * 100).toFixed(1)) + '%');
+                  addATSTag('PROB-EDGE');
+                }
+                if(selPtsEdge !== null && isFinite(selPtsEdge)){
+                  parts.push('pts ' + (selPtsEdge >= 0 ? '+' : '') + String(round1(selPtsEdge)));
+                  addATSTag('PTS-EDGE');
+                }
+                if(confW !== null && isFinite(confW)){
+                  parts.push('w ' + confW.toFixed(2));
+                  if(confW < 0.70) addATSTag('CONF-LOW');
+                }
+                if(possLive !== null && isFinite(possLive) && possLive > 0){
+                  if(possLive < ((lens === '1h' || lens === '2h') ? 30 : 55)) addATSTag('POSS-LOW');
+                }
+                if(!atsOddsOk) {
+                  parts.push('odds gate');
+                  addATSTag('ODDS-GATE');
+                }
+                if(!fgOddsOk) {
+                  addATSTag('LATE-FG');
+                }
+                if(parts.length) atsDriver = parts.join(' | ');
+              } catch(_eATSD){ atsDriver = null; atsDriverTags = []; }
+
+              var drvTxt2 = '';
+              try {
+                var d2 = safeStr(atsDriver);
+                if(d2 && d2 !== '–') drvTxt2 = ' · driver ' + d2;
+              } catch(_eDrvTxt){ drvTxt2 = ''; }
+
+              var atsTxt = 'ATS: ' + atsAction + bestATS + (lineTxt2 ? (' ' + lineTxt2) : '') + ' (' + edgeTxt2 + ')' + pCovTxt + eTxt2 + drvTxt2;
+              setText(wrap, 'ats', atsTxt);
+              try {
+                var atsEl2 = wrap ? wrap.querySelector('[data-out="ats"]') : null;
+                if(atsEl2){
+                  atsEl2.classList.toggle('ok', !!atsIsBet);
+                  atsEl2.classList.toggle('warn', (!atsIsBet && !!atsIsWatch));
+                }
+              } catch(_eAtsCls){ /* noop */ }
 
               // Persist for compact strip (1H + FG).
               try {
@@ -3853,6 +3914,8 @@
                       edge_prob: bestAEdge,
                       edge: bestAEdge,
                       strength: bestAEdge,
+                      driver: (atsDriver ? atsDriver : null),
+                      driver_tags: (atsDriverTags && atsDriverTags.length ? atsDriverTags : null),
                       thr: atsBetThr,
                       thr_watch: atsWatchThr,
                       home_score: liveHome,
@@ -3865,6 +3928,13 @@
               } catch(_eATSLog){ /* noop */ }
             } else {
               setText(wrap, 'ats', 'ATS: –');
+              try {
+                var atsEl3 = wrap ? wrap.querySelector('[data-out="ats"]') : null;
+                if(atsEl3){
+                  atsEl3.classList.remove('ok');
+                  atsEl3.classList.remove('warn');
+                }
+              } catch(_eAtsClr){ /* noop */ }
               try {
                 var cardA2 = card0 || getCardForWrap(wrap);
                 if(cardA2){
