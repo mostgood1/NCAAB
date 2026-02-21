@@ -3796,6 +3796,22 @@
                 if(edgeCovA !== null && (bestAEdge === null || edgeCovA > bestAEdge)) { bestAEdge = edgeCovA; bestATS = 'Away'; }
               }
 
+              // Policy tweak (data-driven): away ATS in 1H/2H has been a consistent leak.
+              // Apply a stricter probability-edge floor for those cases.
+              var atsBetThrEff = atsBetThr;
+              var atsWatchThrEff = atsWatchThr;
+              var atsStrictAwayHalf = false;
+              try {
+                if(bestATS === 'Away' && (lens === '1h' || lens === '2h')){
+                  atsStrictAwayHalf = true;
+                  var floorBet2 = 0.22;
+                  var floorWatch2 = 0.18;
+                  if(atsBetThrEff !== null && isFinite(atsBetThrEff) && atsBetThrEff < floorBet2) atsBetThrEff = floorBet2;
+                  if(atsWatchThrEff !== null && isFinite(atsWatchThrEff) && atsWatchThrEff < floorWatch2) atsWatchThrEff = floorWatch2;
+                  if(atsWatchThrEff > atsBetThrEff) atsWatchThrEff = atsBetThrEff;
+                }
+              } catch(_eATSThrPol){ atsBetThrEff = atsBetThr; atsWatchThrEff = atsWatchThr; atsStrictAwayHalf = false; }
+
               var atsAction = '';
               var atsOddsOk = fgOddsOk;
               try {
@@ -3806,8 +3822,8 @@
               } catch(_eAtsOk){ atsOddsOk = fgOddsOk; }
 
               if(bestAEdge !== null && atsOddsOk){
-                if(bestAEdge >= atsBetThr) { atsAction = 'BET '; atsIsBet = true; }
-                else if(bestAEdge >= atsWatchThr) { atsAction = 'WATCH '; atsIsWatch = true; }
+                if(bestAEdge >= atsBetThrEff) { atsAction = 'BET '; atsIsBet = true; }
+                else if(bestAEdge >= atsWatchThrEff) { atsAction = 'WATCH '; atsIsWatch = true; }
               }
 
               var pCovTxt = (pCov !== null) ? (' p' + String(pct(pCov)) + '%') : '';
@@ -3849,6 +3865,10 @@
                 if(confW !== null && isFinite(confW)){
                   parts.push('w ' + confW.toFixed(2));
                   if(confW < 0.70) addATSTag('CONF-LOW');
+                }
+                if(atsStrictAwayHalf){
+                  parts.push('away half strict');
+                  addATSTag('AWAY-HALF-STRICT');
                 }
                 if(possLive !== null && isFinite(possLive) && possLive > 0){
                   if(possLive < ((lens === '1h' || lens === '2h') ? 30 : 55)) addATSTag('POSS-LOW');
@@ -3916,8 +3936,8 @@
                       strength: bestAEdge,
                       driver: (atsDriver ? atsDriver : null),
                       driver_tags: (atsDriverTags && atsDriverTags.length ? atsDriverTags : null),
-                      thr: atsBetThr,
-                      thr_watch: atsWatchThr,
+                      thr: atsBetThrEff,
+                      thr_watch: atsWatchThrEff,
                       home_score: liveHome,
                       away_score: liveAway,
                       margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
