@@ -1,0 +1,18 @@
+{
+  "date": "2026-02-22",
+  "ece_threshold": 0.035,
+  "min_days": 3,
+  "reason": [],
+  "saved_calibrators_after": [],
+  "saved_calibrators_before": [
+    "p_home_cover_dist_iso.joblib",
+    "p_home_cover_ensemble_iso.joblib",
+    "p_home_cover_final_iso.joblib",
+    "p_home_cover_iso.joblib",
+    "p_over_dist_iso.joblib",
+    "p_over_ensemble_iso.joblib",
+    "p_over_final_iso.joblib",
+    "p_over_iso.joblib"
+  ],
+  "triggered": false
+}
