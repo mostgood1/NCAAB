@@ -1250,15 +1250,23 @@ def compute_live_lens_ats_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str
         sig_df["kind"] = sig_df["kind"].astype(str).str.strip().str.lower()
         sig_df = sig_df[sig_df["kind"].eq("ats")].copy()
     else:
-        return {
-            "status": "empty",
-            "date": date,
-            "message": "Signals missing kind; cannot isolate ATS",
-            "signals_path": str(sig_p),
-            "results_path": str(res_p),
-            "signals_cols": list(sig_df.columns),
-            "n_signals_raw": int(len(pd.DataFrame(signals))),
-        }
+        # Backward-compat: older logs may not include `kind`. Infer ATS rows by side.
+        # Totals use side=over/under; ATS uses side=home/away.
+        if "side" in sig_df.columns:
+            side_norm = sig_df["side"].astype(str).str.strip().str.lower()
+            sig_df = sig_df[side_norm.isin(["home", "away"])].copy()
+            if not sig_df.empty:
+                sig_df["kind"] = "ats"
+        if sig_df.empty:
+            return {
+                "status": "empty",
+                "date": date,
+                "message": "Signals missing kind; cannot isolate ATS (no home/away rows to infer)",
+                "signals_path": str(sig_p),
+                "results_path": str(res_p),
+                "signals_cols": list(sig_df.columns),
+                "n_signals_raw": int(len(pd.DataFrame(signals))),
+            }
 
     # BET-only
     if "is_bet" in sig_df.columns:
@@ -1724,15 +1732,22 @@ def compute_live_lens_ats_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str, Any
         sig_df["kind"] = sig_df["kind"].astype(str).str.strip().str.lower()
         sig_df = sig_df[sig_df["kind"].eq("ats")].copy()
     else:
-        return {
-            "status": "empty",
-            "date": date,
-            "message": "Signals missing kind; cannot isolate ATS",
-            "signals_path": str(sig_p),
-            "results_path": str(res_p),
-            "signals_cols": list(sig_df.columns),
-            "n_signals_raw": int(len(pd.DataFrame(signals))),
-        }
+        # Backward-compat: older logs may not include `kind`. Infer ATS rows by side.
+        if "side" in sig_df.columns:
+            side_norm = sig_df["side"].astype(str).str.strip().str.lower()
+            sig_df = sig_df[side_norm.isin(["home", "away"])].copy()
+            if not sig_df.empty:
+                sig_df["kind"] = "ats"
+        if sig_df.empty:
+            return {
+                "status": "empty",
+                "date": date,
+                "message": "Signals missing kind; cannot isolate ATS (no home/away rows to infer)",
+                "signals_path": str(sig_p),
+                "results_path": str(res_p),
+                "signals_cols": list(sig_df.columns),
+                "n_signals_raw": int(len(pd.DataFrame(signals))),
+            }
 
     # BET-only
     if "is_bet" in sig_df.columns:

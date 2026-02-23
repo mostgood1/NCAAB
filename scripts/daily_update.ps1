@@ -87,6 +87,10 @@ param(
   [int]$LiveLensOverTuningMinBucketN = 10,
   [int]$LiveLensOverTuningMinOverallN = 25,
 
+  # Live Lens driver-tag penalty learning (optional; requires driver/driver_tags in signals)
+  [switch]$RunLiveLensFlagPenalties,
+  [int]$LiveLensFlagPenaltiesLookbackDays = 21,
+
   # Offline-first cache maintenance (keeps local caches warm for feature computation)
   [switch]$SkipOfflineCacheMaintenance,
   [int]$OfflineScoreboardPrimeLookbackDays = 60,
@@ -682,6 +686,24 @@ print({'path': str(games_path), 'rows': len(df2)})
         }
       } else {
         Write-Host '[skip] Live Lens OVER tuning sweep' -ForegroundColor Yellow
+      }
+
+      if ($RunLiveLensFlagPenalties.IsPresent) {
+        Write-Section "3b.i.b) Live Lens flag penalties (lookback=$LiveLensFlagPenaltiesLookbackDays; apply=true)"
+        try {
+          # Learn a small set of strength penalties for historically-bad driver tags and
+          # write them into outputs/live_lens_tuning.json under tuning.driver_tag_strength_penalties.
+          # This is a safe filter: it only suppresses bad regimes; it does not flip sides.
+          & $VenvPython -m ncaab_model.cli learn-live-lens-flag-penalties `
+            --end-date $prevDate `
+            --days $LiveLensFlagPenaltiesLookbackDays `
+            --all-lenses `
+            --tuning-json (Join-Path $OutDir 'live_lens_tuning.json')
+        } catch {
+          Write-Warning "Live Lens flag penalties learning failed: $($_)"
+        }
+      } else {
+        Write-Host '[skip] Live Lens flag penalties learning' -ForegroundColor Yellow
       }
     } catch {
       Write-Warning "compute-live-lens-accuracy failed for ${prevDate}: $($_)"

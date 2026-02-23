@@ -3586,6 +3586,14 @@
             driver = (delta > 0 ? 'Below sim (so far)' : (delta < 0 ? 'Above sim (so far)' : 'On sim'));
           }
 
+          // Attach driver context to the logged signal so offline analysis/learning
+          // can segment hits vs misses by regime/flags.
+          try {
+            if(logSig && typeof logSig === 'object'){
+              logSig.driver = String(driver || '').trim() || null;
+            }
+          } catch(_eLogDrv){ /* noop */ }
+
           setText(wrap, 'driver', 'Driver: ' + driver);
           setText(wrap, 'lean', 'Lean: ' + lean);
 
@@ -3801,16 +3809,29 @@
               var atsBetThrEff = atsBetThr;
               var atsWatchThrEff = atsWatchThr;
               var atsStrictAwayHalf = false;
+              var atsStrictAwayHalfMid = false;
               try {
                 if(bestATS === 'Away' && (lens === '1h' || lens === '2h')){
                   atsStrictAwayHalf = true;
+                  // Baseline stricter floors for away halves.
                   var floorBet2 = 0.22;
                   var floorWatch2 = 0.18;
+
+                  // Additional tightening: away halves are especially bad in the mid-window
+                  // (roughly 10–20 minutes remaining).
+                  try {
+                    if(remaining !== null && isFinite(remaining) && remaining >= 10 && remaining < 20){
+                      atsStrictAwayHalfMid = true;
+                      floorBet2 = Math.max(floorBet2, 0.26);
+                      floorWatch2 = Math.max(floorWatch2, 0.22);
+                    }
+                  } catch(_eATSMid){ /* noop */ }
+
                   if(atsBetThrEff !== null && isFinite(atsBetThrEff) && atsBetThrEff < floorBet2) atsBetThrEff = floorBet2;
                   if(atsWatchThrEff !== null && isFinite(atsWatchThrEff) && atsWatchThrEff < floorWatch2) atsWatchThrEff = floorWatch2;
                   if(atsWatchThrEff > atsBetThrEff) atsWatchThrEff = atsBetThrEff;
                 }
-              } catch(_eATSThrPol){ atsBetThrEff = atsBetThr; atsWatchThrEff = atsWatchThr; atsStrictAwayHalf = false; }
+              } catch(_eATSThrPol){ atsBetThrEff = atsBetThr; atsWatchThrEff = atsWatchThr; atsStrictAwayHalf = false; atsStrictAwayHalfMid = false; }
 
               var atsAction = '';
               var atsOddsOk = fgOddsOk;
@@ -3869,6 +3890,10 @@
                 if(atsStrictAwayHalf){
                   parts.push('away half strict');
                   addATSTag('AWAY-HALF-STRICT');
+                }
+                if(atsStrictAwayHalfMid){
+                  parts.push('mid remain');
+                  addATSTag('REMAIN-10-20');
                 }
                 if(possLive !== null && isFinite(possLive) && possLive > 0){
                   if(possLive < ((lens === '1h' || lens === '2h') ? 30 : 55)) addATSTag('POSS-LOW');
