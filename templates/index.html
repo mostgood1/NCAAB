@@ -3931,6 +3931,23 @@
                   if(lens === 'full_game') cardA.setAttribute('data-live-ats-fg', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
                   if(lens === '1h') cardA.setAttribute('data-live-ats-1h', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
                   if(lens === '2h') cardA.setAttribute('data-live-ats-2h', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
+
+                  // Persist ATS metadata for compact WATCH/BET notifier.
+                  // (Use "market" prefix since ML/ATS can share this channel in the future.)
+                  var lensKeyA = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+                  if(lensKeyA){
+                    var sideKeyA = (bestATS === 'Home') ? 'home' : ((bestATS === 'Away') ? 'away' : '');
+                    if(sideKeyA) cardA.setAttribute('data-live-market-side-' + lensKeyA, sideKeyA);
+                    else { try { cardA.removeAttribute('data-live-market-side-' + lensKeyA); } catch(_eMSide) { /* noop */ } }
+                    if(lineTxt2) cardA.setAttribute('data-live-market-line-' + lensKeyA, String(lineTxt2));
+                    else { try { cardA.removeAttribute('data-live-market-line-' + lensKeyA); } catch(_eMLn) { /* noop */ } }
+
+                    try {
+                      var dAT = String(atsDriver || '').trim();
+                      if(dAT && dAT !== '–') cardA.setAttribute('data-live-market-driver-' + lensKeyA, dAT);
+                      else { try { cardA.removeAttribute('data-live-market-driver-' + lensKeyA); } catch(_eMDrv) { /* noop */ } }
+                    } catch(_eMDrv2) { /* noop */ }
+                  }
                 }
               } catch(_eATS){ /* noop */ }
 
@@ -3986,6 +4003,13 @@
                   if(lens === 'full_game') cardA2.removeAttribute('data-live-ats-fg');
                   if(lens === '1h') cardA2.removeAttribute('data-live-ats-1h');
                   if(lens === '2h') cardA2.removeAttribute('data-live-ats-2h');
+
+                  var lensKeyA2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+                  if(lensKeyA2){
+                    try { cardA2.removeAttribute('data-live-market-side-' + lensKeyA2); } catch(_eMS) { /* noop */ }
+                    try { cardA2.removeAttribute('data-live-market-line-' + lensKeyA2); } catch(_eML) { /* noop */ }
+                    try { cardA2.removeAttribute('data-live-market-driver-' + lensKeyA2); } catch(_eMD) { /* noop */ }
+                  }
                 }
               } catch(_eATS2){ /* noop */ }
             }
@@ -5041,16 +5065,27 @@
             var okFg = (safeStr(card.getAttribute('data-live-total-ok-fg')) === '1');
             var warnFg = (safeStr(card.getAttribute('data-live-total-warn-fg')) === '1');
 
+            var mkOk1h = (safeStr(card.getAttribute('data-live-market-ok-1h')) === '1');
+            var mkWarn1h = (safeStr(card.getAttribute('data-live-market-warn-1h')) === '1');
+            var mkOk2h = (safeStr(card.getAttribute('data-live-market-ok-2h')) === '1');
+            var mkWarn2h = (safeStr(card.getAttribute('data-live-market-warn-2h')) === '1');
+            var mkOkFg = (safeStr(card.getAttribute('data-live-market-ok-fg')) === '1');
+            var mkWarnFg = (safeStr(card.getAttribute('data-live-market-warn-fg')) === '1');
+
             // In 2H+ we don't want 1H callouts (1H is over).
             var use1h = (perCompact === null || perCompact < 2);
             var use2h = (perCompact !== null && perCompact >= 2);
 
-            // Primary compact pill state: TOTALS only.
+            // Primary compact pill state: totals + ATS market signals.
             var totBet = (okFg || (use1h && ok1h) || (use2h && ok2h));
             var totWatch = (warnFg || (use1h && warn1h) || (use2h && warn2h));
 
-            isBet = isLive && totBet;
-            isWatch = isLive && (!isBet) && totWatch;
+            // Market (ATS) compact pill state: treat as actionable like totals.
+            var mkBet = (mkOkFg || (use1h && mkOk1h) || (use2h && mkOk2h));
+            var mkWatch = (mkWarnFg || (use1h && mkWarn1h) || (use2h && mkWarn2h));
+
+            isBet = isLive && (totBet || mkBet);
+            isWatch = isLive && (!isBet) && (totWatch || mkWatch);
 
           } catch(eS) { /* noop */ }
 
@@ -5151,6 +5186,19 @@
               }
             }
 
+            function shortMarketDriver(lensKey){
+              try {
+                var raw = safeStr(card.getAttribute('data-live-market-driver-' + lensKey));
+                if(!raw) return '';
+                // Keep short: use first couple driver fragments.
+                var toks = raw.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+                if(!toks.length) return '';
+                return toks.slice(0, 2).join(' · ');
+              } catch(_eDrv){
+                return '';
+              }
+            }
+
             function lensPiece(label, lensKey, ok, warn){
               if(!ok && !warn) return '';
               var action = ok ? 'BET' : 'WATCH';
@@ -5175,6 +5223,29 @@
               return (label + ' ' + action + ' NO LINE' + (drv ? ' - ' + drv : '')).toUpperCase();
             }
 
+            function lensPieceMarket(label, lensKey, ok, warn){
+              if(!ok && !warn) return '';
+              var action = ok ? 'BET' : 'WATCH';
+              var side = safeStr(card.getAttribute('data-live-market-side-' + lensKey)).toLowerCase();
+              var lineTxt = safeStr(card.getAttribute('data-live-market-line-' + lensKey));
+              var sideTxt = '';
+              if(side === 'home') sideTxt = 'HOME';
+              else if(side === 'away') sideTxt = 'AWAY';
+
+              var drv = shortMarketDriver(lensKey);
+              if(sideTxt){
+                var s0 = label + ' ATS ' + action + ' ' + sideTxt + (lineTxt ? (' ' + lineTxt) : '');
+                return (s0 + (drv ? ' - ' + drv : '')).toUpperCase();
+              }
+              // Fallback: use the pre-rendered ATS text if side/line not available.
+              var raw = safeStr(card.getAttribute('data-live-ats-' + lensKey));
+              if(raw){
+                var s1 = label + ' ATS ' + raw;
+                return (s1 + (drv ? ' - ' + drv : '')).toUpperCase();
+              }
+              return (label + ' ATS ' + action + (drv ? ' - ' + drv : '')).toUpperCase();
+            }
+
             var ok1h2 = (safeStr(card.getAttribute('data-live-total-ok-1h')) === '1');
             var warn1h2 = (safeStr(card.getAttribute('data-live-total-warn-1h')) === '1');
             var ok2h2 = (safeStr(card.getAttribute('data-live-total-ok-2h')) === '1');
@@ -5195,13 +5266,22 @@
             if(use1h2){
               var p1 = lensPiece('1H', '1h', ok1h2, warn1h2);
               if(p1) parts.push(p1);
+
+              var p1m = lensPieceMarket('1H', '1h', mkOk1h2, mkWarn1h2);
+              if(p1m) parts.push(p1m);
             }
             if(use2h2){
               var p2 = lensPiece('2H', '2h', ok2h2, warn2h2);
               if(p2) parts.push(p2);
+
+              var p2m = lensPieceMarket('2H', '2h', mkOk2h2, mkWarn2h2);
+              if(p2m) parts.push(p2m);
             }
             var pF = lensPiece('FG', 'fg', okFg2, warnFg2);
             if(pF) parts.push(pF);
+
+            var pFm = lensPieceMarket('FG', 'fg', mkOkFg2, mkWarnFg2);
+            if(pFm) parts.push(pFm);
 
             if(parts.length) return parts.join(' | ');
 
