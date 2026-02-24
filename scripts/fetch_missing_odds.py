@@ -6,6 +6,11 @@ import pandas as pd
 import requests
 
 try:
+    from ncaab_model.config import settings
+except Exception:
+    settings = None
+
+try:
     from rapidfuzz import fuzz  # type: ignore
     HAVE_FUZZ = True
 except Exception:
@@ -122,9 +127,18 @@ def main():
         if col not in miss_df.columns:
             print('Missing column:', col)
             return
-    api_key = os.getenv('THEODDSAPI_KEY') or os.getenv('ODDS_API_KEY')
+    api_key = None
+    if settings is not None:
+        api_key = getattr(settings, 'theodds_api_key', None)
     if not api_key:
-        print('No API key (THEODDSAPI_KEY) provided.')
+        api_key = (
+            os.getenv('NCAAB_THEODDS_API_KEY')
+            or os.getenv('THEODDS_API_KEY')
+            or os.getenv('THEODDSAPI_KEY')
+            or os.getenv('ODDS_API_KEY')
+        )
+    if not api_key:
+        print('No API key provided. Set NCAAB_THEODDS_API_KEY (preferred) or THEODDS_API_KEY.')
         return
     events = fetch_events(api_key)
     if not events:

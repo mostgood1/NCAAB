@@ -2,6 +2,12 @@ name: Daily Update
 
 on:
   workflow_dispatch:
+  # GitHub Actions cron runs in UTC. To approximate 07:00 America/Chicago year-round,
+  # schedule both 12:00 and 13:00 UTC and gate execution based on Central Time
+  # (DST-aware on the Windows runner).
+  schedule:
+    - cron: "0 12 * * *"
+    - cron: "0 13 * * *"
 
 concurrency:
   group: daily-update
@@ -15,29 +21,53 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
+      - name: Time gate (07:00 Central only)
+        id: timegate
+        shell: pwsh
+        run: |
+          $shouldRun = $true
+          if ($env:GITHUB_EVENT_NAME -eq 'schedule') {
+            $utcNow = [DateTime]::UtcNow
+            $tz = [System.TimeZoneInfo]::FindSystemTimeZoneById('Central Standard Time')
+            $ctNow = [System.TimeZoneInfo]::ConvertTimeFromUtc($utcNow, $tz)
+            Write-Host "UTC now: $utcNow"
+            Write-Host "Central now: $ctNow"
+            $shouldRun = ($ctNow.Hour -eq 7)
+          }
+          $shouldRunStr = if ($shouldRun) { 'true' } else { 'false' }
+          "should_run=$shouldRunStr" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          if (-not $shouldRun) {
+            Write-Host 'Outside 07:00 Central window; skipping scheduled run.'
+          }
+
       - name: Pre-flight info
+        if: ${{ github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true' }}
         shell: pwsh
         run: |
           Write-Host "UTC now: $(Get-Date -Format 'u')"
           Write-Host "Repository: $env:GITHUB_REPOSITORY Commit: $env:GITHUB_SHA Ref: $env:GITHUB_REF"
           Write-Host "Runner OS: $env:RUNNER_OS Architecture: $env:PROCESSOR_ARCHITECTURE"
       - name: Checkout
+        if: ${{ github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # ensure full history so commits/pushes succeed reliably
 
       - name: Set up Python
+        if: ${{ github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Create virtual environment
+        if: ${{ github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true' }}
         run: |
           python -m venv .venv
           .venv\Scripts\python.exe -m pip install --upgrade pip
 
       - name: Install dependencies
+        if: ${{ github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true' }}
         run: |
           .venv\Scripts\python.exe -m pip install -r requirements.txt || echo 'Primary requirements install failed, trying onnxruntime/requirements.txt'
           if (Test-Path 'onnxruntime/requirements.txt') { .venv\Scripts\python.exe -m pip install -r onnxruntime/requirements.txt } else { echo 'No secondary requirements file present.' }
@@ -45,24 +75,29 @@ jobs:
           if (Test-Path 'pyproject.toml') { .venv\Scripts\python.exe -m pip install -e . } else { echo 'pyproject.toml not found; skipping editable install.' }
 
       - name: Daily update pipeline
+        if: ${{ github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true' }}
         shell: pwsh
         # actionlint: disable=expr
         env:
+          # Preferred name used by the app/config; keep legacy THEODDS_API_KEY for compatibility.
+          NCAAB_THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
           THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
         # actionlint: enable=expr
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:THEODDS_API_KEY)) {
-            Write-Warning 'THEODDS_API_KEY is not set; odds-dependent steps will be skipped if applicable.'
+          if ([string]::IsNullOrWhiteSpace($env:NCAAB_THEODDS_API_KEY) -and [string]::IsNullOrWhiteSpace($env:THEODDS_API_KEY)) {
+            Write-Warning 'NCAAB_THEODDS_API_KEY/THEODDS_API_KEY is not set; odds-dependent steps will be skipped if applicable.'
           }
           Write-Host 'Running daily_update.ps1'
           Write-Host "Script start timestamp: $(Get-Date -Format 'u')"
           .\scripts\daily_update.ps1 -SkipVarianceDiag -SkipModelTests -GitCommitMessage "chore(ci): daily update $(Get-Date -Format 'yyyy-MM-dd')"
           if ($LASTEXITCODE -ne 0) { Write-Error "daily_update.ps1 failed with exit code $LASTEXITCODE"; exit $LASTEXITCODE }
           # Best-effort cleanup of environment variable from process env
+          Remove-Item Env:NCAAB_THEODDS_API_KEY -ErrorAction SilentlyContinue
           Remove-Item Env:THEODDS_API_KEY -ErrorAction SilentlyContinue
           Write-Host "Script completed timestamp: $(Get-Date -Format 'u')"
 
       - name: Coverage check (ESPN vs frontend)
+        if: ${{ github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true' }}
         shell: pwsh
         run: |
           $dateStr = (Get-Date).ToString('yyyy-MM-dd')
@@ -72,7 +107,7 @@ jobs:
         continue-on-error: false
 
       - name: Post-run git push (safety)
-        if: success()
+        if: ${{ success() && (github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true') }}
         shell: pwsh
         run: |
           git config user.name 'github-actions'
@@ -80,7 +115,7 @@ jobs:
           git push || echo 'Nothing new to push'
 
       - name: Upload logs artifact
-        if: always()
+        if: ${{ always() && (github.event_name != 'schedule' || steps.timegate.outputs.should_run == 'true') }}
         uses: actions/upload-artifact@v4
         with:
           name: daily-update-logs

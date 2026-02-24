@@ -108,11 +108,12 @@ def explain(model_path: Path, prefix: str):
                     ordered = [c for c in fnames if c in ENRICHED.columns]
     except Exception:
         pass
-    X = ENRICHED[ordered].astype(float)
+    X = ENRICHED[ordered].apply(pd.to_numeric, errors='coerce')
     for c in ordered:
         col = X[c]
         if col.isna().any():
-            X[c] = col.fillna(col.mean())
+            m = col.mean()
+            X[c] = col.fillna(0.0 if (m != m) else m)
     # Logistic contributions: w_i * x_i; probability via sigmoid(intercept + sum)
     if portable is not None:
         coef = np.asarray(portable.get('coef', [[0]]), dtype=float)[0]
@@ -123,11 +124,12 @@ def explain(model_path: Path, prefix: str):
             aligned = [c for c in fn if c in X.columns]
             if aligned:
                 ordered = aligned
-                X = ENRICHED[ordered].astype(float)
+                X = ENRICHED[ordered].apply(pd.to_numeric, errors='coerce')
                 for c in ordered:
                     col = X[c]
                     if col.isna().any():
-                        X[c] = col.fillna(col.mean())
+                        m = col.mean()
+                        X[c] = col.fillna(0.0 if (m != m) else m)
     else:
         coef = getattr(clf, 'coef_', None)
         if coef is None:
@@ -182,7 +184,7 @@ def explain(model_path: Path, prefix: str):
             # Trim to match coef length if possible
             if candidates and len(candidates) >= target_k:
                 ordered = candidates[:target_k]
-                X = ENRICHED[ordered].astype(float)
+                X = ENRICHED[ordered].apply(pd.to_numeric, errors='coerce')
     except Exception:
         pass
     xv = np.nan_to_num(X.values, nan=float(np.nanmean(X.values)))

@@ -27,10 +27,12 @@ jobs:
       - name: Ingest odds & predictions
         shell: bash
         env:
+          # Preferred name used by the app/config; keep legacy THEODDS_API_KEY for compatibility.
+          NCAAB_THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
           THEODDS_API_KEY: ${{ secrets.THEODDS_API_KEY }}
         run: |
-          if [ -z "${THEODDS_API_KEY}" ]; then
-            echo 'THEODDS_API_KEY not configured; skipping fetch-odds and daily-run'
+          if [ -z "${NCAAB_THEODDS_API_KEY}" ] && [ -z "${THEODDS_API_KEY}" ]; then
+            echo 'NCAAB_THEODDS_API_KEY/THEODDS_API_KEY not configured; skipping fetch-odds and daily-run'
           else
             # Replace these CLI calls with actual project commands
             python -m src.cli fetch-odds --date today || true

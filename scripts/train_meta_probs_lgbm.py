@@ -56,24 +56,40 @@ def _find_recent_enriched(limit_days: int) -> list[str]:
 
 
 def _derive_targets(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    def _txt(v) -> str:
+        if v is None:
+            return ''
+        if isinstance(v, str):
+            return v.lower()
+        # pandas may feed floats/NaNs through map depending on dtype
+        try:
+            if isinstance(v, float) and (math.isnan(v) or np.isnan(v)):
+                return ''
+        except Exception:
+            pass
+        try:
+            return str(v).lower()
+        except Exception:
+            return ''
+
     # Cover target: 1 if home covers ATS, else 0
     y_cover = pd.Series(np.nan, index=df.index)
     for c in TARGET_COLS['cover']:
         if c in df.columns:
-            s = df[c].astype(str).str.lower()
+            s = df[c]
             if c == 'ats_result':
                 # expected values like 'home_cover','away_cover','push'
-                y_cover = s.map(lambda v: 1 if 'home' in v and 'cover' in v else (0 if 'away' in v and 'cover' in v else np.nan)).fillna(y_cover)
+                y_cover = s.map(lambda v: 1 if ('home' in _txt(v) and 'cover' in _txt(v)) else (0 if ('away' in _txt(v) and 'cover' in _txt(v)) else np.nan)).fillna(y_cover)
             elif c in ('ats_home_win', 'cover_home'):
                 y_cover = pd.to_numeric(df[c], errors='coerce').fillna(y_cover)
     # Over target: 1 if total went over, else 0
     y_over = pd.Series(np.nan, index=df.index)
     for c in TARGET_COLS['over']:
         if c in df.columns:
-            s = df[c].astype(str).str.lower()
+            s = df[c]
             if c == 'ou_result':
                 # expected values like 'over','under','push'
-                y_over = s.map(lambda v: 1 if 'over' in v else (0 if 'under' in v else np.nan)).fillna(y_over)
+                y_over = s.map(lambda v: 1 if 'over' in _txt(v) else (0 if 'under' in _txt(v) else np.nan)).fillna(y_over)
             elif c in ('ou_over_win', 'went_over'):
                 y_over = pd.to_numeric(df[c], errors='coerce').fillna(y_over)
     # If actual_total and market_total exist, infer over via comparison

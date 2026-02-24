@@ -27,17 +27,32 @@ class TheOddsAPIAdapter:
         if not self.api_key:
             raise ValueError("TheOddsAPI key not set. Provide NCAAB_THEODDS_API_KEY or pass api_key.")
 
+    @staticmethod
+    def _raise_for_status_no_leak(resp: requests.Response, context: str) -> None:
+        """Raise a simple error without embedding request URLs/params.
+
+        This avoids leaking apiKey in rich tracebacks that print locals/URLs.
+        """
+        if getattr(resp, "status_code", 0) and int(resp.status_code) >= 400:
+            reason = getattr(resp, "reason", "")
+            code = int(resp.status_code)
+            raise RuntimeError(f"TheOddsAPI {context} failed (HTTP {code}{(' ' + str(reason)) if reason else ''})")
+
     def iter_odds(self, season: int) -> Iterable[Odds]:
         # Endpoint for NCAA Basketball odds (sport key may change; verify docs)
         url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/odds"
-        params = {
-            "apiKey": self.api_key,
-            "regions": self.region,
-            "markets": "h2h,spreads,totals",
-            "oddsFormat": "american",
-        }
-        r = requests.get(url, params=params, timeout=15)
-        r.raise_for_status()
+        # Do not store apiKey in a local params dict (rich tracebacks can print locals).
+        r = requests.get(
+            url,
+            params={
+                "apiKey": self.api_key,
+                "regions": self.region,
+                "markets": "h2h,spreads,totals",
+                "oddsFormat": "american",
+            },
+            timeout=15,
+        )
+        self._raise_for_status_no_leak(r, "odds")
         now = datetime.now(timezone.utc)
         for event in r.json():
             game_id = str(event.get("id"))
@@ -118,14 +133,17 @@ class TheOddsAPIAdapter:
         # and filtering locally.
         commence_from = f"{date_iso}T00:00:00Z"
         commence_to = f"{date_iso}T23:59:59Z"
-        params = {
-            "apiKey": self.api_key,
-            "dateFormat": "iso",
-            "commenceTimeFrom": commence_from,
-            "commenceTimeTo": commence_to,
-        }
-        r = requests.get(url, params=params, timeout=20)
-        r.raise_for_status()
+        r = requests.get(
+            url,
+            params={
+                "apiKey": self.api_key,
+                "dateFormat": "iso",
+                "commenceTimeFrom": commence_from,
+                "commenceTimeTo": commence_to,
+            },
+            timeout=20,
+        )
+        self._raise_for_status_no_leak(r, "events")
         return r.json()
 
     def list_events_no_date(self) -> list[dict]:
@@ -135,12 +153,8 @@ class TheOddsAPIAdapter:
         commence_time.
         """
         url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/events"
-        params = {
-            "apiKey": self.api_key,
-            "dateFormat": "iso",
-        }
-        r = requests.get(url, params=params, timeout=20)
-        r.raise_for_status()
+        r = requests.get(url, params={"apiKey": self.api_key, "dateFormat": "iso"}, timeout=20)
+        self._raise_for_status_no_leak(r, "events")
         return r.json()
 
     def get_event_odds(
@@ -162,33 +176,29 @@ class TheOddsAPIAdapter:
         if not eid:
             return {}
         url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/events/{eid}/odds"
-        params: dict[str, object] = {
-            "apiKey": self.api_key,
+        params_no_key: dict[str, object] = {
             "regions": self.region,
             "markets": markets,
             "oddsFormat": odds_format,
             "dateFormat": date_format,
         }
         if bookmakers:
-            params["bookmakers"] = bookmakers
+            params_no_key["bookmakers"] = bookmakers
 
         # Be resilient to plans/market coverage: some combinations return 422.
-        try:
-            r = requests.get(url, params=params, timeout=30)
-            r.raise_for_status()
-            data = r.json() or {}
+        r = requests.get(url, params={**params_no_key, "apiKey": self.api_key}, timeout=30)
+        if r.status_code in (400, 422):
+            r2 = requests.get(
+                url,
+                params={**{**params_no_key, "markets": "h2h,spreads,totals"}, "apiKey": self.api_key},
+                timeout=30,
+            )
+            self._raise_for_status_no_leak(r2, "event_odds")
+            data = r2.json() or {}
             return data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else {})
-        except requests.HTTPError as e:
-            status = getattr(e.response, "status_code", None) if hasattr(e, "response") else None
-            if status in (400, 422):
-                # Retry with featured markets only.
-                params2 = dict(params)
-                params2["markets"] = "h2h,spreads,totals"
-                r2 = requests.get(url, params=params2, timeout=30)
-                r2.raise_for_status()
-                data = r2.json() or {}
-                return data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else {})
-            raise
+        self._raise_for_status_no_leak(r, "event_odds")
+        data = r.json() or {}
+        return data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else {})
 
     def get_event_odds_with_diag(
         self,
@@ -220,15 +230,14 @@ class TheOddsAPIAdapter:
             return {}, diag
 
         url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/events/{eid}/odds"
-        params: dict[str, object] = {
-            "apiKey": self.api_key,
+        params_no_key: dict[str, object] = {
             "regions": self.region,
             "markets": markets,
             "oddsFormat": odds_format,
             "dateFormat": date_format,
         }
         if bookmakers:
-            params["bookmakers"] = bookmakers
+            params_no_key["bookmakers"] = bookmakers
 
         def _coerce_event(data: object) -> dict:
             if isinstance(data, dict):
@@ -238,20 +247,20 @@ class TheOddsAPIAdapter:
             return {}
 
         try:
-            r = requests.get(url, params=params, timeout=30)
+            r = requests.get(url, params={**params_no_key, "apiKey": self.api_key}, timeout=30)
             diag["http_status"] = getattr(r, "status_code", None)
             if r.status_code in (400, 422):
                 # Retry with featured markets only.
                 diag["fallback_used"] = True
-                params2 = dict(params)
+                params2 = dict(params_no_key)
                 params2["markets"] = "h2h,spreads,totals"
                 diag["used_markets"] = params2["markets"]
-                r2 = requests.get(url, params=params2, timeout=30)
+                r2 = requests.get(url, params={**params2, "apiKey": self.api_key}, timeout=30)
                 diag["http_status"] = getattr(r2, "status_code", None)
-                r2.raise_for_status()
+                self._raise_for_status_no_leak(r2, "event_odds")
                 event = _coerce_event(r2.json() or {})
             else:
-                r.raise_for_status()
+                self._raise_for_status_no_leak(r, "event_odds")
                 event = _coerce_event(r.json() or {})
 
             try:
@@ -430,8 +439,7 @@ class TheOddsAPIAdapter:
         markets can include variants like spreads_1st_half, totals_1st_half, spreads_2nd_half, totals_2nd_half.
         """
         url = f"https://api.the-odds-api.com/v4/sports/{self.sport_key}/odds"
-        params = {
-            "apiKey": self.api_key,
+        params_no_key: dict[str, object] = {
             "regions": self.region,
             "markets": markets,
             "oddsFormat": "american",
@@ -439,35 +447,32 @@ class TheOddsAPIAdapter:
         }
         if bookmakers:
             # Optional bookmaker filter. Expects comma-separated bookmaker keys (e.g. draftkings,fanduel,betmgm).
-            params["bookmakers"] = bookmakers
+            params_no_key["bookmakers"] = bookmakers
         if date_iso:
-            params["date"] = date_iso
+            params_no_key["date"] = date_iso
 
-        def do_request(p):
-            resp = requests.get(url, params=p, timeout=30)
-            try:
-                resp.raise_for_status()
+        def do_request(p0: dict[str, object]) -> requests.Response:
+            resp = requests.get(url, params={**p0, "apiKey": self.api_key}, timeout=30)
+            if resp.status_code < 400:
                 return resp
-            except requests.HTTPError:
-                status = getattr(resp, "status_code", None)
+            status = int(resp.status_code)
+            if status in (400, 422):
                 # Some plans reject the `date` parameter. Retry without `date` but keep requested markets.
-                if status in (400, 422):
-                    p2 = dict(p)
-                    p2.pop("date", None)
-                    try:
-                        resp2 = requests.get(url, params=p2, timeout=30)
-                        resp2.raise_for_status()
-                        return resp2
-                    except requests.HTTPError:
-                        # As a last resort, fall back to core markets only.
-                        p3 = dict(p2)
-                        p3["markets"] = "h2h,spreads,totals"
-                        resp3 = requests.get(url, params=p3, timeout=30)
-                        resp3.raise_for_status()
-                        return resp3
-                raise
+                p2 = dict(p0)
+                p2.pop("date", None)
+                resp2 = requests.get(url, params={**p2, "apiKey": self.api_key}, timeout=30)
+                if resp2.status_code < 400:
+                    return resp2
+                # As a last resort, fall back to core markets only.
+                p3 = dict(p2)
+                p3["markets"] = "h2h,spreads,totals"
+                resp3 = requests.get(url, params={**p3, "apiKey": self.api_key}, timeout=30)
+                self._raise_for_status_no_leak(resp3, "odds")
+                return resp3
+            self._raise_for_status_no_leak(resp, "odds")
+            return resp
 
-        r = do_request(params)
+        r = do_request(params_no_key)
         now = datetime.now(timezone.utc)
         data = r.json() or []
         for event in data:
@@ -495,29 +500,26 @@ class TheOddsAPIAdapter:
             if not eid:
                 continue
             url = f"{base}/{eid}/odds-history"
-            params = {
-                "apiKey": self.api_key,
+            params_no_key: dict[str, object] = {
                 "regions": self.region,
                 "markets": markets,
                 "oddsFormat": "american",
                 "dateFormat": "iso",
             }
             if bookmakers:
-                params["bookmakers"] = bookmakers
+                params_no_key["bookmakers"] = bookmakers
             try:
-                r = requests.get(url, params=params, timeout=45)
-                r.raise_for_status()
+                r = requests.get(url, params={**params_no_key, "apiKey": self.api_key}, timeout=45)
                 event = r.json() or {}
                 # Some responses wrap in a list; normalize to dict
                 if isinstance(event, list):
                     # pick first item if list provided
                     event = event[0] if event else {}
-            except requests.HTTPError as e:
-                # Gracefully skip events not available for history on this plan/date
-                status = getattr(e.response, "status_code", None) if hasattr(e, "response") else None
-                if status in (401, 403, 404, 422):
-                    continue
-                raise
+                if r.status_code >= 400:
+                    # Gracefully skip events not available for history on this plan/date
+                    if int(r.status_code) in (401, 403, 404, 422):
+                        continue
+                    self._raise_for_status_no_leak(r, "odds_history")
             except Exception:
                 continue
             if not isinstance(event, dict) or not event:
@@ -536,12 +538,11 @@ class TheOddsAPIAdapter:
         for sk in keys:
             try:
                 url = f"https://api.the-odds-api.com/v4/sports/{sk}/events"
-                params = {"apiKey": self.api_key, "dateFormat": "iso"}
-                r = requests.get(url, params=params, timeout=15)
+                r = requests.get(url, params={"apiKey": self.api_key, "dateFormat": "iso"}, timeout=15)
                 if r.status_code == 404:
                     out[sk] = -1
                     continue
-                r.raise_for_status()
+                self._raise_for_status_no_leak(r, "events")
                 events = r.json() or []
                 out[sk] = len(events)
             except Exception:

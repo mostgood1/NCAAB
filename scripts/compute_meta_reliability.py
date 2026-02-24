@@ -42,6 +42,21 @@ def _detect_prob_col(df: pd.DataFrame, patterns: list[str]) -> str | None:
 
 
 def _derive_targets(df: pd.DataFrame) -> tuple[pd.Series | None, pd.Series | None]:
+    def _txt(v) -> str:
+        if v is None:
+            return ''
+        if isinstance(v, str):
+            return v.lower()
+        try:
+            if isinstance(v, float) and (np.isnan(v) or v != v):
+                return ''
+        except Exception:
+            pass
+        try:
+            return str(v).lower()
+        except Exception:
+            return ''
+
     # Cover target
     y_cover = None
     for c in ['ats_home_win','cover_home']:
@@ -49,8 +64,8 @@ def _derive_targets(df: pd.DataFrame) -> tuple[pd.Series | None, pd.Series | Non
             y = pd.to_numeric(df[c], errors='coerce')
             y_cover = y if y_cover is None else y_cover.fillna(y)
     if 'ats_result' in df.columns:
-        s = df['ats_result'].astype(str).str.lower()
-        y = s.map(lambda v: 1.0 if ('home' in v and 'cover' in v) else (0.0 if ('away' in v and 'cover' in v) else np.nan))
+        s = df['ats_result']
+        y = s.map(lambda v: 1.0 if ('home' in _txt(v) and 'cover' in _txt(v)) else (0.0 if ('away' in _txt(v) and 'cover' in _txt(v)) else np.nan))
         y_cover = y if y_cover is None else y_cover.fillna(y)
 
     # Over target
@@ -60,8 +75,8 @@ def _derive_targets(df: pd.DataFrame) -> tuple[pd.Series | None, pd.Series | Non
             y = pd.to_numeric(df[c], errors='coerce')
             y_over = y if y_over is None else y_over.fillna(y)
     if 'ou_result' in df.columns:
-        s = df['ou_result'].astype(str).str.lower()
-        y = s.map(lambda v: 1.0 if 'over' in v else (0.0 if 'under' in v else np.nan))
+        s = df['ou_result']
+        y = s.map(lambda v: 1.0 if 'over' in _txt(v) else (0.0 if 'under' in _txt(v) else np.nan))
         y_over = y if y_over is None else y_over.fillna(y)
 
     # Fallback for over: actual vs market
