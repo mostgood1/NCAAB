@@ -3793,6 +3793,55 @@ def simulate_game_row(
             totals = totals_reg
             margins = margins_reg
 
+        # Optional post-hoc distribution reshape for totals (and derived home/away).
+        # This is intentionally applied late so it works even when quantile targeting
+        # is enabled (targeting can otherwise override sigma-based calibration).
+        try:
+            if sim_calibration:
+                post_total_shift = float(sim_calibration.get("post_total_shift", 0.0) or 0.0)
+                post_total_scale = float(sim_calibration.get("post_total_scale", 1.0) or 1.0)
+                post_total_1h_shift = float(sim_calibration.get("post_total_1h_shift", 0.0) or 0.0)
+                post_total_1h_scale = float(sim_calibration.get("post_total_1h_scale", 1.0) or 1.0)
+
+                changed = False
+                if np.isfinite(post_total_shift) and abs(post_total_shift) > 1e-9:
+                    totals = np.asarray(totals, dtype=float) + float(post_total_shift)
+                    changed = True
+                if (
+                    np.isfinite(post_total_scale)
+                    and float(post_total_scale) > 0
+                    and abs(float(post_total_scale) - 1.0) > 1e-9
+                ):
+                    t_mu = float(np.mean(totals))
+                    totals = t_mu + (np.asarray(totals, dtype=float) - t_mu) * float(post_total_scale)
+                    changed = True
+
+                if np.isfinite(post_total_1h_shift) and abs(post_total_1h_shift) > 1e-9:
+                    totals_1h = np.asarray(totals_1h, dtype=float) + float(post_total_1h_shift)
+                    changed = True
+                if (
+                    np.isfinite(post_total_1h_scale)
+                    and float(post_total_1h_scale) > 0
+                    and abs(float(post_total_1h_scale) - 1.0) > 1e-9
+                ):
+                    t1_mu = float(np.mean(totals_1h))
+                    totals_1h = t1_mu + (np.asarray(totals_1h, dtype=float) - t1_mu) * float(post_total_1h_scale)
+                    changed = True
+
+                if changed:
+                    # Keep home/away non-negative and 1H coherent with full game.
+                    home_pts = np.clip(0.5 * (np.asarray(totals, dtype=float) + np.asarray(margins, dtype=float)), 0.0, None)
+                    away_pts = np.clip(0.5 * (np.asarray(totals, dtype=float) - np.asarray(margins, dtype=float)), 0.0, None)
+                    totals = home_pts + away_pts
+                    margins = home_pts - away_pts
+
+                    home_1h = np.clip(0.5 * (np.asarray(totals_1h, dtype=float) + np.asarray(margins_1h, dtype=float)), 0.0, home_pts.astype(float))
+                    away_1h = np.clip(0.5 * (np.asarray(totals_1h, dtype=float) - np.asarray(margins_1h, dtype=float)), 0.0, away_pts.astype(float))
+                    totals_1h = home_1h + away_1h
+                    margins_1h = home_1h - away_1h
+        except Exception:
+            pass
+
         q10_t = float(np.quantile(totals, 0.10))
         q50_t = float(np.quantile(totals, 0.50))
         q90_t = float(np.quantile(totals, 0.90))

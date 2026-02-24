@@ -129,6 +129,55 @@ def _nll_normal(mu: pd.Series, sigma: pd.Series, y: pd.Series) -> pd.Series:
     return out
 
 
+def _quantile_coverage(y: pd.Series, qhat: pd.Series) -> dict[str, Any]:
+    y2 = pd.to_numeric(y, errors="coerce")
+    q2 = pd.to_numeric(qhat, errors="coerce")
+    m = y2.notna() & q2.notna()
+    n = int(m.sum())
+    if n <= 0:
+        return {"n": 0, "obs": None}
+    return {"n": n, "obs": float((y2[m] <= q2[m]).mean())}
+
+
+def _pinball_loss(y: pd.Series, qhat: pd.Series, q: float) -> dict[str, Any]:
+    y2 = pd.to_numeric(y, errors="coerce")
+    q2 = pd.to_numeric(qhat, errors="coerce")
+    m = y2.notna() & q2.notna()
+    n = int(m.sum())
+    if n <= 0:
+        return {"n": 0, "mean": None}
+    e = (y2[m].astype(float) - q2[m].astype(float)).to_numpy(dtype=float)
+    qq = float(q)
+    loss = np.maximum(qq * e, (qq - 1.0) * e)
+    return {"n": n, "mean": float(np.mean(loss))}
+
+
+def _mean_width(lo: pd.Series, hi: pd.Series) -> dict[str, Any]:
+    lo2 = pd.to_numeric(lo, errors="coerce")
+    hi2 = pd.to_numeric(hi, errors="coerce")
+    m = lo2.notna() & hi2.notna()
+    n = int(m.sum())
+    if n <= 0:
+        return {"n": 0, "mean": None}
+    return {"n": n, "mean": float((hi2[m].astype(float) - lo2[m].astype(float)).mean())}
+
+
+def _mae_rmse_bias(y: pd.Series, yhat: pd.Series) -> dict[str, Any]:
+    y2 = pd.to_numeric(y, errors="coerce")
+    yh2 = pd.to_numeric(yhat, errors="coerce")
+    m = y2.notna() & yh2.notna()
+    n = int(m.sum())
+    if n <= 0:
+        return {"n": 0, "mae": None, "rmse": None, "bias": None}
+    err = (yh2[m].astype(float) - y2[m].astype(float)).to_numpy(dtype=float)
+    return {
+        "n": n,
+        "mae": float(np.mean(np.abs(err))),
+        "rmse": float(np.sqrt(np.mean(err * err))),
+        "bias": float(np.mean(err)),
+    }
+
+
 def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
     cfg.out_dir = Path(cfg.out_dir)
     start = _parse_date(cfg.start)
@@ -518,6 +567,18 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
                 "pred_margin": pred_margin,
                 "pred_total_1h": pred_total_1h,
                 "pred_margin_1h": pred_margin_1h,
+                "q10_total": merged.get("q10_total") if "q10_total" in merged.columns else np.nan,
+                "q50_total": merged.get("q50_total") if "q50_total" in merged.columns else np.nan,
+                "q90_total": merged.get("q90_total") if "q90_total" in merged.columns else np.nan,
+                "q10_margin": merged.get("q10_margin") if "q10_margin" in merged.columns else np.nan,
+                "q50_margin": merged.get("q50_margin") if "q50_margin" in merged.columns else np.nan,
+                "q90_margin": merged.get("q90_margin") if "q90_margin" in merged.columns else np.nan,
+                "q10_total_1h": merged.get("q10_total_1h") if "q10_total_1h" in merged.columns else np.nan,
+                "q50_total_1h": merged.get("q50_total_1h") if "q50_total_1h" in merged.columns else np.nan,
+                "q90_total_1h": merged.get("q90_total_1h") if "q90_total_1h" in merged.columns else np.nan,
+                "q10_margin_1h": merged.get("q10_margin_1h") if "q10_margin_1h" in merged.columns else np.nan,
+                "q50_margin_1h": merged.get("q50_margin_1h") if "q50_margin_1h" in merged.columns else np.nan,
+                "q90_margin_1h": merged.get("q90_margin_1h") if "q90_margin_1h" in merged.columns else np.nan,
                 "actual_total": actual_total,
                 "actual_total_reg40": actual_total_reg40 if bool(cfg.include_ot_diagnostics) else np.nan,
                 "actual_total_final_from_intervals": actual_total_final_from_intervals if bool(cfg.include_ot_diagnostics) else np.nan,
@@ -600,6 +661,50 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
         except Exception:
             return {"n": 0, "mean": None}
 
+    def _quantile_summary(
+        y_col: str,
+        q10_col: str,
+        q50_col: str,
+        q90_col: str,
+    ) -> Optional[dict[str, Any]]:
+        if per_game.empty:
+            return None
+        if y_col not in per_game.columns:
+            return None
+        if q10_col not in per_game.columns or q50_col not in per_game.columns or q90_col not in per_game.columns:
+            return None
+
+        y = per_game[y_col]
+        q10 = per_game[q10_col]
+        q50 = per_game[q50_col]
+        q90 = per_game[q90_col]
+
+        cov10 = _quantile_coverage(y, q10)
+        cov50 = _quantile_coverage(y, q50)
+        cov90 = _quantile_coverage(y, q90)
+
+        pb10 = _pinball_loss(y, q10, 0.10)
+        pb50 = _pinball_loss(y, q50, 0.50)
+        pb90 = _pinball_loss(y, q90, 0.90)
+
+        widths = _mean_width(q10, q90)
+        median_err = _mae_rmse_bias(y, q50)
+
+        return {
+            "coverage": {
+                "q10": {"nominal": 0.10, **cov10},
+                "q50": {"nominal": 0.50, **cov50},
+                "q90": {"nominal": 0.90, **cov90},
+            },
+            "pinball": {
+                "q10": {"q": 0.10, **pb10},
+                "q50": {"q": 0.50, **pb50},
+                "q90": {"q": 0.90, **pb90},
+            },
+            "sharpness": {"p80_width_q10_q90": widths},
+            "median_error": median_err,
+        }
+
     summary = {
         "range": {"start": dates[0], "end": dates[-1], "n_dates": int(len(dates))},
         "engine": str(cfg.engine),
@@ -627,6 +732,20 @@ def run_sim_accuracy_backtest(cfg: SimAccuracyBacktestConfig) -> dict[str, Any]:
             "crps_margin_1h": _agg_mean("crps_margin_1h"),
         },
     }
+
+    # Quantile calibration (when q10/q50/q90 columns exist)
+    q_total_final = _quantile_summary("actual_total", "q10_total", "q50_total", "q90_total")
+    q_margin_final = _quantile_summary("actual_margin", "q10_margin", "q50_margin", "q90_margin")
+    q_total_1h = _quantile_summary("actual_total_1h", "q10_total_1h", "q50_total_1h", "q90_total_1h")
+    q_margin_1h = _quantile_summary("actual_margin_1h", "q10_margin_1h", "q50_margin_1h", "q90_margin_1h")
+
+    if any(v is not None for v in [q_total_final, q_margin_final, q_total_1h, q_margin_1h]):
+        summary["quantiles"] = {
+            "total_final": q_total_final,
+            "margin_final": q_margin_final,
+            "total_1h": q_total_1h,
+            "margin_1h": q_margin_1h,
+        }
 
     if bool(cfg.include_ot_diagnostics) and (not per_date.empty):
         try:

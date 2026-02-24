@@ -106,7 +106,8 @@ preload_meta_models_and_sidecars()
 # Load .env for configurable thresholds/settings if available
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    _dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+    load_dotenv(dotenv_path=_dotenv_path, override=True)
 except Exception:
     pass
 from pathlib import Path
@@ -22840,7 +22841,20 @@ def api_live_lines():
             # TheOddsAPI to reject the entire markets list, forcing our adapter to fall
             # back to full-game markets and effectively breaking 1H/2H totals.
             h2h_key = "h2h_h1" if period == "1h" else "h2h_h2"
-            market_key = f"{totals_key},{spreads_key},{h2h_key}"
+            # TheOddsAPI sometimes uses alternate key spellings for period markets.
+            # Try canonical keys first, then fall back to variants (separate requests
+            # so an unsupported key doesn't poison the entire markets list).
+            market_keys_to_try: list[str] = [f"{totals_key},{spreads_key},{h2h_key}"]
+            if period == "1h":
+                market_keys_to_try.extend([
+                    "totals_1st_half,spreads_1st_half,h2h_1st_half",
+                    "totals_first_half,spreads_first_half,h2h_first_half",
+                ])
+            elif period == "2h":
+                market_keys_to_try.extend([
+                    "totals_2nd_half,spreads_2nd_half,h2h_2nd_half",
+                    "totals_second_half,spreads_second_half,h2h_second_half",
+                ])
 
             # Build mapping pair_key -> provider event id once per request.
             # Note: TheOddsAPI commenceTimeFrom/To bounds are interpreted as UTC, which can
@@ -23076,75 +23090,100 @@ def api_live_lines():
                         except Exception:
                             pass
                     continue
-                saw_any = False
-                for row in adapter.iter_event_odds(provider_event_id, markets=market_key, bookmakers=bookmakers, diag=diag_slot):
+                def _event_has_any_total() -> bool:
                     try:
-                        saw_any = True
-                        odds_diag["rows_seen"] += 1
-                        # Ensure we only keep the desired period.
-                        if period == "1h" and (row.period or "") != "1h":
-                            continue
-                        if period == "2h" and (row.period or "") != "2h":
-                            continue
+                        bm = (by_event_book or {}).get(eid_s) or {}
+                        for obj in bm.values():
+                            try:
+                                if (obj or {}).get("total") is not None:
+                                    return True
+                            except Exception:
+                                continue
+                    except Exception:
+                        return False
+                    return False
 
-                        mkt = (row.market or "").strip().lower()
-                        if mkt not in ("totals", "spreads", "h2h"):
-                            continue
-
-                        book = str(row.book or "").strip()
-                        book_key = "".join(ch for ch in book.lower() if ch.isalnum())
-                        last_update = getattr(row, "last_update", None)
-
-                        slot = by_event_book.setdefault(eid_s, {}).setdefault(
-                            book_key,
-                            {
-                                "book": book,
-                                "book_key": book_key,
-                                "event_id_provider": str(row.event_id or ""),
-                                "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
-                                "total": None,
-                                "spread_home": None,
-                                "spread_away": None,
-                                "spread_home_price": None,
-                                "spread_away_price": None,
-                                "moneyline_home": None,
-                                "moneyline_away": None,
-                            },
-                        )
-
-                        # Keep the most recent last_update if we see multiple markets.
+                saw_any = False
+                for mk in (market_keys_to_try or []):
+                    diag_tmp = {} if (debug and isinstance(diag_slot, dict)) else None
+                    for row in adapter.iter_event_odds(provider_event_id, markets=mk, bookmakers=bookmakers, diag=diag_tmp):
                         try:
-                            lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
-                            if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
-                                slot["last_update"] = lu_new
+                            saw_any = True
+                            odds_diag["rows_seen"] += 1
+                            # Ensure we only keep the desired period.
+                            if period == "1h" and (row.period or "") != "1h":
+                                continue
+                            if period == "2h" and (row.period or "") != "2h":
+                                continue
+
+                            mkt = (row.market or "").strip().lower()
+                            if mkt not in ("totals", "spreads", "h2h"):
+                                continue
+
+                            book = str(row.book or "").strip()
+                            book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                            last_update = getattr(row, "last_update", None)
+
+                            slot = by_event_book.setdefault(eid_s, {}).setdefault(
+                                book_key,
+                                {
+                                    "book": book,
+                                    "book_key": book_key,
+                                    "event_id_provider": str(row.event_id or ""),
+                                    "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                                    "total": None,
+                                    "spread_home": None,
+                                    "spread_away": None,
+                                    "spread_home_price": None,
+                                    "spread_away_price": None,
+                                    "moneyline_home": None,
+                                    "moneyline_away": None,
+                                },
+                            )
+
+                            # Keep the most recent last_update if we see multiple markets.
+                            try:
+                                lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+                                if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
+                                    slot["last_update"] = lu_new
+                            except Exception:
+                                pass
+
+                            if mkt == "totals":
+                                if row.total is not None:
+                                    slot["total"] = float(row.total)
+                            elif mkt == "spreads":
+                                try:
+                                    if getattr(row, "home_spread", None) is not None:
+                                        slot["spread_home"] = float(row.home_spread)
+                                    if getattr(row, "away_spread", None) is not None:
+                                        slot["spread_away"] = float(row.away_spread)
+                                    if getattr(row, "home_spread_price", None) is not None:
+                                        slot["spread_home_price"] = float(row.home_spread_price)
+                                    if getattr(row, "away_spread_price", None) is not None:
+                                        slot["spread_away_price"] = float(row.away_spread_price)
+                                except Exception:
+                                    pass
+                            elif mkt == "h2h":
+                                try:
+                                    if getattr(row, "moneyline_home", None) is not None:
+                                        slot["moneyline_home"] = float(row.moneyline_home)
+                                    if getattr(row, "moneyline_away", None) is not None:
+                                        slot["moneyline_away"] = float(row.moneyline_away)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            continue
+
+                    if debug and isinstance(diag_slot, dict) and isinstance(diag_tmp, dict):
+                        try:
+                            diag_slot.setdefault("market_attempts", []).append(diag_tmp)
                         except Exception:
                             pass
 
-                        if mkt == "totals":
-                            if row.total is not None:
-                                slot["total"] = float(row.total)
-                        elif mkt == "spreads":
-                            try:
-                                if getattr(row, "home_spread", None) is not None:
-                                    slot["spread_home"] = float(row.home_spread)
-                                if getattr(row, "away_spread", None) is not None:
-                                    slot["spread_away"] = float(row.away_spread)
-                                if getattr(row, "home_spread_price", None) is not None:
-                                    slot["spread_home_price"] = float(row.home_spread_price)
-                                if getattr(row, "away_spread_price", None) is not None:
-                                    slot["spread_away_price"] = float(row.away_spread_price)
-                            except Exception:
-                                pass
-                        elif mkt == "h2h":
-                            try:
-                                if getattr(row, "moneyline_home", None) is not None:
-                                    slot["moneyline_home"] = float(row.moneyline_home)
-                                if getattr(row, "moneyline_away", None) is not None:
-                                    slot["moneyline_away"] = float(row.moneyline_away)
-                            except Exception:
-                                pass
-                    except Exception:
-                        continue
+                    # Stop early once we have a usable period total for this event.
+                    if _event_has_any_total():
+                        break
 
                 # Debug-only probe: if no rows at all were returned, retry without a bookmakers filter.
                 # This helps diagnose whether period markets exist but are only offered by other books.
@@ -23152,66 +23191,75 @@ def api_live_lines():
                     try:
                         if isinstance(diag_slot, dict):
                             diag_slot["fallback_bookmakers_all_attempted"] = True
-                        for row in adapter.iter_event_odds(provider_event_id, markets=market_key, bookmakers=None, diag=diag_slot):
-                            try:
-                                odds_diag["rows_seen"] += 1
-                                if period == "1h" and (row.period or "") != "1h":
-                                    continue
-                                if period == "2h" and (row.period or "") != "2h":
-                                    continue
-                                mkt = (row.market or "").strip().lower()
-                                if mkt not in ("totals", "spreads", "h2h"):
-                                    continue
-                                book = str(row.book or "").strip()
-                                book_key = "".join(ch for ch in book.lower() if ch.isalnum())
-                                last_update = getattr(row, "last_update", None)
-                                slot = by_event_book.setdefault(eid_s, {}).setdefault(
-                                    book_key,
-                                    {
-                                        "book": book,
-                                        "book_key": book_key,
-                                        "event_id_provider": str(row.event_id or ""),
-                                        "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
-                                        "total": None,
-                                        "spread_home": None,
-                                        "spread_away": None,
-                                        "spread_home_price": None,
-                                        "spread_away_price": None,
-                                        "moneyline_home": None,
-                                        "moneyline_away": None,
-                                    },
-                                )
+                        for mk in (market_keys_to_try or []):
+                            diag_tmp2 = {} if (debug and isinstance(diag_slot, dict)) else None
+                            for row in adapter.iter_event_odds(provider_event_id, markets=mk, bookmakers=None, diag=diag_tmp2):
                                 try:
-                                    lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
-                                    if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
-                                        slot["last_update"] = lu_new
+                                    odds_diag["rows_seen"] += 1
+                                    if period == "1h" and (row.period or "") != "1h":
+                                        continue
+                                    if period == "2h" and (row.period or "") != "2h":
+                                        continue
+                                    mkt = (row.market or "").strip().lower()
+                                    if mkt not in ("totals", "spreads", "h2h"):
+                                        continue
+                                    book = str(row.book or "").strip()
+                                    book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                                    last_update = getattr(row, "last_update", None)
+                                    slot = by_event_book.setdefault(eid_s, {}).setdefault(
+                                        book_key,
+                                        {
+                                            "book": book,
+                                            "book_key": book_key,
+                                            "event_id_provider": str(row.event_id or ""),
+                                            "last_update": (last_update.isoformat().replace("+00:00", "Z") if last_update else None),
+                                            "total": None,
+                                            "spread_home": None,
+                                            "spread_away": None,
+                                            "spread_home_price": None,
+                                            "spread_away_price": None,
+                                            "moneyline_home": None,
+                                            "moneyline_away": None,
+                                        },
+                                    )
+                                    try:
+                                        lu_new = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+                                        if lu_new and (not slot.get("last_update") or str(lu_new) > str(slot.get("last_update"))):
+                                            slot["last_update"] = lu_new
+                                    except Exception:
+                                        pass
+                                    if mkt == "totals":
+                                        if row.total is not None:
+                                            slot["total"] = float(row.total)
+                                    elif mkt == "spreads":
+                                        try:
+                                            if getattr(row, "home_spread", None) is not None:
+                                                slot["spread_home"] = float(row.home_spread)
+                                            if getattr(row, "away_spread", None) is not None:
+                                                slot["spread_away"] = float(row.away_spread)
+                                            if getattr(row, "home_spread_price", None) is not None:
+                                                slot["spread_home_price"] = float(row.home_spread_price)
+                                            if getattr(row, "away_spread_price", None) is not None:
+                                                slot["spread_away_price"] = float(row.away_spread_price)
+                                        except Exception:
+                                            pass
+                                    elif mkt == "h2h":
+                                        try:
+                                            if getattr(row, "moneyline_home", None) is not None:
+                                                slot["moneyline_home"] = float(row.moneyline_home)
+                                            if getattr(row, "moneyline_away", None) is not None:
+                                                slot["moneyline_away"] = float(row.moneyline_away)
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    continue
+                            if debug and isinstance(diag_slot, dict) and isinstance(diag_tmp2, dict):
+                                try:
+                                    diag_slot.setdefault("market_attempts_all_books", []).append(diag_tmp2)
                                 except Exception:
                                     pass
-                                if mkt == "totals":
-                                    if row.total is not None:
-                                        slot["total"] = float(row.total)
-                                elif mkt == "spreads":
-                                    try:
-                                        if getattr(row, "home_spread", None) is not None:
-                                            slot["spread_home"] = float(row.home_spread)
-                                        if getattr(row, "away_spread", None) is not None:
-                                            slot["spread_away"] = float(row.away_spread)
-                                        if getattr(row, "home_spread_price", None) is not None:
-                                            slot["spread_home_price"] = float(row.home_spread_price)
-                                        if getattr(row, "away_spread_price", None) is not None:
-                                            slot["spread_away_price"] = float(row.away_spread_price)
-                                    except Exception:
-                                        pass
-                                elif mkt == "h2h":
-                                    try:
-                                        if getattr(row, "moneyline_home", None) is not None:
-                                            slot["moneyline_home"] = float(row.moneyline_home)
-                                        if getattr(row, "moneyline_away", None) is not None:
-                                            slot["moneyline_away"] = float(row.moneyline_away)
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                continue
+                            if _event_has_any_total():
+                                break
                     except Exception:
                         pass
 
@@ -36272,6 +36320,480 @@ def api_live_lens_side_accuracy():
         })
     except Exception as e:
         return jsonify({"ok": False, "date": date_q, "error": str(e)}), 500
+
+
+@app.route("/api/live_lens_analytics")
+def api_live_lens_analytics():
+    """Aggregate Live Lens settled BET performance across a date range.
+
+    Query params:
+      - start=YYYY-MM-DD (optional)
+      - end=YYYY-MM-DD (optional)
+      - days=N (optional; used when start/end omitted; default 14)
+      - full_game_only=1/0 (optional; default 0)
+      - assume_price=-110 (optional)
+      - include_rows=1/0 (optional; default 0)
+      - max_rows=5000 (optional; applies when include_rows=1)
+
+    Data sources:
+      - outputs/live_lens_signals_<date>.jsonl
+      - outputs/daily_results/results_<date>.csv
+    """
+
+    def _truthy(s: str | None) -> bool:
+        return str(s or "").strip().lower() in ("1", "true", "yes", "on")
+
+    def _parse_date(s: str) -> dt.date:
+        return dt.date.fromisoformat(str(s or "").strip())
+
+    def _json_safe(x: Any):
+        try:
+            import numpy as _np
+        except Exception:
+            _np = None  # type: ignore
+
+        if x is None:
+            return None
+        if isinstance(x, (int, float, str, bool)):
+            return x
+        if _np is not None and isinstance(x, _np.generic):
+            try:
+                return x.item()
+            except Exception:
+                return str(x)
+        if isinstance(x, dict):
+            return {str(k): _json_safe(v) for k, v in x.items()}
+        if isinstance(x, (list, tuple, set)):
+            return [_json_safe(v) for v in list(x)]
+        # pandas Timestamp / datetime
+        try:
+            if hasattr(x, "isoformat"):
+                return x.isoformat()  # type: ignore
+        except Exception:
+            pass
+        return str(x)
+
+    def _summarize_settled(settled: pd.DataFrame, market: str) -> dict[str, Any]:
+        if settled is None or settled.empty:
+            return {
+                "status": "empty",
+                "market": market,
+                "n_settled": 0,
+                "wins": 0,
+                "losses": 0,
+                "pushes": 0,
+                "win_rate": None,
+                "roi_units_per_bet": None,
+                "by_lens_side": [],
+                "by_side": [],
+                "by_elapsed_bucket": [],
+                "by_edge_bucket": [],
+                "by_driver_tag": [],
+            }
+
+        df = settled.copy()
+        if "result" not in df.columns:
+            return {"status": "error", "market": market, "message": "missing result column"}
+        if "profit_units" not in df.columns:
+            return {"status": "error", "market": market, "message": "missing profit_units column"}
+
+        res = pd.to_numeric(df["result"], errors="coerce")
+        wins = int((res == 1.0).sum())
+        losses = int((res == 0.0).sum())
+        pushes = int((res == 0.5).sum())
+        decisions = wins + losses
+        win_rate = (wins / decisions) if decisions > 0 else None
+
+        prof = pd.to_numeric(df["profit_units"], errors="coerce").fillna(0.0)
+        roi = float(prof.sum() / max(1, len(df)))
+
+        by_lens_side: list[dict[str, Any]] = []
+        if "lens" in df.columns and "side" in df.columns:
+            try:
+                for (lens_k, side_k), g in df.groupby(["lens", "side"]):
+                    r0 = pd.to_numeric(g["result"], errors="coerce")
+                    w = int((r0 == 1.0).sum())
+                    l = int((r0 == 0.0).sum())
+                    p = int((r0 == 0.5).sum())
+                    d2 = w + l
+                    pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, len(g)))
+                    by_lens_side.append(
+                        {
+                            "lens": str(lens_k),
+                            "side": str(side_k),
+                            "n": int(len(g)),
+                            "wins": w,
+                            "losses": l,
+                            "pushes": p,
+                            "win_rate": (w / d2) if d2 > 0 else None,
+                            "roi_units_per_bet": pr,
+                        }
+                    )
+                by_lens_side.sort(key=lambda x: (x.get("lens", ""), x.get("side", "")))
+            except Exception:
+                by_lens_side = []
+
+        by_side: list[dict[str, Any]] = []
+        if "side" in df.columns:
+            try:
+                for side_k, g in df.groupby("side"):
+                    r0 = pd.to_numeric(g["result"], errors="coerce")
+                    w = int((r0 == 1.0).sum())
+                    l = int((r0 == 0.0).sum())
+                    p = int((r0 == 0.5).sum())
+                    d2 = w + l
+                    pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, len(g)))
+                    by_side.append(
+                        {
+                            "side": str(side_k),
+                            "n": int(len(g)),
+                            "wins": w,
+                            "losses": l,
+                            "pushes": p,
+                            "win_rate": (w / d2) if d2 > 0 else None,
+                            "roi_units_per_bet": pr,
+                        }
+                    )
+                by_side.sort(key=lambda x: x.get("side", ""))
+            except Exception:
+                by_side = []
+
+        by_elapsed_bucket: list[dict[str, Any]] = []
+        if "elapsed" in df.columns:
+            try:
+                el = pd.to_numeric(df["elapsed"], errors="coerce")
+                buckets = (el // 5 * 5).astype("Int64")
+                tmp = df.copy()
+                tmp["elapsed_bucket"] = buckets
+                for b, g in tmp.dropna(subset=["elapsed_bucket"]).groupby("elapsed_bucket"):
+                    r0 = pd.to_numeric(g["result"], errors="coerce")
+                    w = int((r0 == 1.0).sum())
+                    l = int((r0 == 0.0).sum())
+                    p = int((r0 == 0.5).sum())
+                    d2 = w + l
+                    pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, len(g)))
+                    by_elapsed_bucket.append(
+                        {
+                            "elapsed_bucket": int(b),
+                            "n": int(len(g)),
+                            "wins": w,
+                            "losses": l,
+                            "pushes": p,
+                            "win_rate": (w / d2) if d2 > 0 else None,
+                            "roi_units_per_bet": pr,
+                        }
+                    )
+                by_elapsed_bucket.sort(key=lambda x: x.get("elapsed_bucket", 0))
+            except Exception:
+                by_elapsed_bucket = []
+
+        by_edge_bucket: list[dict[str, Any]] = []
+        if "edge" in df.columns:
+            try:
+                e = pd.to_numeric(df["edge"], errors="coerce")
+                bins = [-1e9, -0.05, -0.02, 0.0, 0.02, 0.05, 1e9]
+                labels = ["<-0.05", "-0.05..-0.02", "-0.02..0", "0..0.02", "0.02..0.05", ">=0.05"]
+                tmp = df.copy()
+                tmp["edge_bucket"] = pd.cut(e, bins=bins, labels=labels, right=False)
+                for b, g in tmp.dropna(subset=["edge_bucket"]).groupby("edge_bucket"):
+                    r0 = pd.to_numeric(g["result"], errors="coerce")
+                    w = int((r0 == 1.0).sum())
+                    l = int((r0 == 0.0).sum())
+                    p = int((r0 == 0.5).sum())
+                    d2 = w + l
+                    pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, len(g)))
+                    by_edge_bucket.append(
+                        {
+                            "edge_bucket": str(b),
+                            "n": int(len(g)),
+                            "wins": w,
+                            "losses": l,
+                            "pushes": p,
+                            "win_rate": (w / d2) if d2 > 0 else None,
+                            "roi_units_per_bet": pr,
+                        }
+                    )
+                by_edge_bucket.sort(key=lambda x: labels.index(x["edge_bucket"]) if x.get("edge_bucket") in labels else 999)
+            except Exception:
+                by_edge_bucket = []
+
+        by_driver_tag: list[dict[str, Any]] = []
+        if "driver_tags" in df.columns or "driver" in df.columns:
+            try:
+                import json as _json
+
+                def _parse_tags(v: Any) -> list[str]:
+                    if v is None:
+                        return []
+                    if isinstance(v, list):
+                        return [str(x).strip() for x in v if x is not None and str(x).strip()]
+                    try:
+                        s0 = str(v).strip()
+                        if s0.startswith("[") and s0.endswith("]"):
+                            j = _json.loads(s0)
+                            if isinstance(j, list):
+                                return [str(x).strip() for x in j if x is not None and str(x).strip()]
+                    except Exception:
+                        pass
+                    try:
+                        parts = [p.strip() for p in str(v).replace("|", ",").split(",")]
+                        return [p for p in parts if p]
+                    except Exception:
+                        return []
+
+                if "driver_tags" in df.columns:
+                    tags = [_parse_tags(v) for v in df["driver_tags"].tolist()]
+                else:
+                    tags = [[str(v).strip()] if v is not None and str(v).strip() else [] for v in df.get("driver", pd.Series([], dtype=object)).tolist()]
+
+                flat_rows: list[dict[str, Any]] = []
+                for tg_list, res0, prof0 in zip(tags, res.tolist(), prof.tolist()):
+                    for tg in tg_list:
+                        if not tg:
+                            continue
+                        flat_rows.append({"tag": str(tg), "result": float(res0) if pd.notna(res0) else None, "profit_units": float(prof0)})
+
+                if flat_rows:
+                    tdf = pd.DataFrame(flat_rows)
+                    min_n = 3
+                    stats: list[dict[str, Any]] = []
+                    for tg, g in tdf.groupby("tag"):
+                        n = int(len(g))
+                        if n < min_n:
+                            continue
+                        r0 = pd.to_numeric(g["result"], errors="coerce")
+                        w = int((r0 == 1.0).sum())
+                        l = int((r0 == 0.0).sum())
+                        p = int((r0 == 0.5).sum())
+                        d2 = w + l
+                        pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, n))
+                        stats.append(
+                            {
+                                "tag": str(tg),
+                                "n": n,
+                                "wins": w,
+                                "losses": l,
+                                "pushes": p,
+                                "win_rate": (w / d2) if d2 > 0 else None,
+                                "roi_units_per_bet": pr,
+                            }
+                        )
+                    stats.sort(key=lambda r: (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf")))
+                    worst = stats[:25]
+                    best = list(reversed(stats[-10:])) if len(stats) > 25 else []
+                    by_driver_tag = worst + best
+            except Exception:
+                by_driver_tag = []
+
+        return {
+            "status": "ok",
+            "market": market,
+            "n_settled": int(len(df)),
+            "wins": wins,
+            "losses": losses,
+            "pushes": pushes,
+            "win_rate": win_rate,
+            "roi_units_per_bet": roi,
+            "by_lens_side": by_lens_side,
+            "by_side": by_side,
+            "by_elapsed_bucket": by_elapsed_bucket,
+            "by_edge_bucket": by_edge_bucket,
+            "by_driver_tag": by_driver_tag,
+        }
+
+    start_q = (request.args.get("start") or "").strip()
+    end_q = (request.args.get("end") or "").strip()
+    days_q = (request.args.get("days") or "").strip()
+    full_game_only = _truthy(request.args.get("full_game_only"))
+    include_rows = _truthy(request.args.get("include_rows"))
+    max_rows_q = (request.args.get("max_rows") or "").strip()
+    assume_price_q = (request.args.get("assume_price") or "").strip()
+
+    try:
+        assume_price = float(assume_price_q) if assume_price_q else -110.0
+    except Exception:
+        assume_price = -110.0
+
+    try:
+        max_rows = int(max_rows_q) if max_rows_q else 5000
+        max_rows = max(0, min(max_rows, 50_000))
+    except Exception:
+        max_rows = 5000
+
+    # Find dates where both signals + results exist.
+    try:
+        sig_re = re.compile(r"^live_lens_signals_(\d{4}-\d{2}-\d{2})\.jsonl$")
+        res_re = re.compile(r"^results_(\d{4}-\d{2}-\d{2})\.csv$")
+        sig_dates: set[str] = set()
+        for p in OUT.glob("live_lens_signals_*.jsonl"):
+            m = sig_re.match(p.name)
+            if m:
+                sig_dates.add(m.group(1))
+        dr_dir = OUT / "daily_results"
+        res_dates: set[str] = set()
+        if dr_dir.exists():
+            for p in dr_dir.glob("results_*.csv"):
+                m = res_re.match(p.name)
+                if m:
+                    res_dates.add(m.group(1))
+        avail = sorted(list(sig_dates.intersection(res_dates)))
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"scan_failed: {e}"}), 500
+
+    if not avail:
+        return jsonify({
+            "ok": True,
+            "status": "empty",
+            "message": "No dates found with both live_lens_signals_*.jsonl and daily_results/results_*.csv",
+            "available": {"signals": int(len(sig_dates)) if 'sig_dates' in locals() else None, "results": int(len(res_dates)) if 'res_dates' in locals() else None},
+            "dates": [],
+        })
+
+    # Resolve date selection.
+    dates: list[str] = []
+    try:
+        if start_q and end_q:
+            start_d = _parse_date(start_q)
+            end_d = _parse_date(end_q)
+            if start_d > end_d:
+                start_d, end_d = end_d, start_d
+            for d in avail:
+                dd = _parse_date(d)
+                if start_d <= dd <= end_d:
+                    dates.append(d)
+        else:
+            try:
+                n = int(days_q) if days_q else 14
+            except Exception:
+                n = 14
+            n = max(1, min(n, 365))
+            dates = avail[-n:]
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"bad_date_range: {e}", "start": start_q, "end": end_q, "days": days_q}), 400
+
+    if not dates:
+        return jsonify({
+            "ok": True,
+            "status": "empty",
+            "message": "No matching dates in requested window",
+            "dates": [],
+            "available_dates": avail[-30:],
+        })
+
+    try:
+        from ncaab_model.live_lens_accuracy import (
+            LiveLensAccuracyConfig,
+            compute_live_lens_total_side_accuracy,
+            compute_live_lens_ats_side_accuracy,
+        )
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"import_failed: {e}"}), 500
+
+    per_day: list[dict[str, Any]] = []
+    totals_frames: list[pd.DataFrame] = []
+    ats_frames: list[pd.DataFrame] = []
+
+    for d in dates:
+        day_out: dict[str, Any] = {"date": d}
+        try:
+            cfg = LiveLensAccuracyConfig(
+                date=str(d),
+                out_dir=OUT,
+                daily_results_dir=(OUT / "daily_results"),
+                assume_price=float(assume_price),
+                full_game_only=bool(full_game_only),
+            )
+
+            tot_payload = compute_live_lens_total_side_accuracy(cfg)
+            tot_summary = tot_payload.get("summary") if isinstance(tot_payload, dict) else None
+            day_out["totals"] = tot_summary
+            try:
+                tot_rows = tot_payload.get("rows") if isinstance(tot_payload, dict) else None
+                if isinstance(tot_rows, pd.DataFrame) and not tot_rows.empty:
+                    df0 = tot_rows.copy()
+                    df0["date"] = d
+                    df0["market"] = "total"
+                    totals_frames.append(df0)
+            except Exception:
+                pass
+
+            ats_payload = compute_live_lens_ats_side_accuracy(cfg)
+            ats_summary = ats_payload.get("summary") if isinstance(ats_payload, dict) else None
+            day_out["ats"] = ats_summary
+            try:
+                ats_rows = ats_payload.get("rows") if isinstance(ats_payload, dict) else None
+                if isinstance(ats_rows, pd.DataFrame) and not ats_rows.empty:
+                    df0 = ats_rows.copy()
+                    df0["date"] = d
+                    df0["market"] = "ats"
+                    ats_frames.append(df0)
+            except Exception:
+                pass
+        except Exception as e:
+            day_out["error"] = str(e)
+        per_day.append(day_out)
+
+    totals_all = pd.concat(totals_frames, ignore_index=True) if totals_frames else pd.DataFrame()
+    ats_all = pd.concat(ats_frames, ignore_index=True) if ats_frames else pd.DataFrame()
+
+    overall = {
+        "totals": _summarize_settled(totals_all, market="total"),
+        "ats": _summarize_settled(ats_all, market="ats"),
+    }
+
+    rows_out: dict[str, Any] | None = None
+    if include_rows:
+        try:
+            combined = pd.concat([totals_all, ats_all], ignore_index=True) if (not totals_all.empty or not ats_all.empty) else pd.DataFrame()
+            if not combined.empty:
+                # Prefer most recent first.
+                try:
+                    combined = combined.sort_values(by=["date"], ascending=[False])
+                except Exception:
+                    pass
+                if max_rows and len(combined) > max_rows:
+                    combined = combined.head(max_rows)
+                cols_prefer = [
+                    "date","market","game_id","lens","side","live_line","edge","elapsed","remaining",
+                    "result","profit_units","driver","driver_tags","ts"
+                ]
+                keep = [c for c in cols_prefer if c in combined.columns]
+                if keep:
+                    combined = combined[keep]
+                rows_out = {
+                    "count": int(len(combined)),
+                    "max_rows": int(max_rows),
+                    "rows": [_json_safe(r) for r in combined.to_dict(orient="records")],
+                }
+            else:
+                rows_out = {"count": 0, "rows": []}
+        except Exception as e:
+            rows_out = {"count": 0, "rows": [], "error": str(e)}
+
+    payload = {
+        "ok": True,
+        "status": "ok",
+        "meta": {
+            "start": dates[0],
+            "end": dates[-1],
+            "days": int(len(dates)),
+            "full_game_only": bool(full_game_only),
+            "assume_price": float(assume_price),
+        },
+        "dates": dates,
+        "overall": _json_safe(overall),
+        "per_day": _json_safe(per_day),
+    }
+    if rows_out is not None:
+        payload["history"] = _json_safe(rows_out)
+
+    return jsonify(payload)
+
+
+@app.route("/live_lens_analytics")
+def live_lens_analytics_page():
+    """Simple Live Lens analytics page (consumes /api/live_lens_analytics)."""
+    return render_template("live_lens_analytics.html")
 
 
 @app.route("/api/refresh-odds")

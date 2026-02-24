@@ -1016,6 +1016,14 @@ def main() -> int:
                 "n_games_1h": int(len(df1)),
             })
 
+    # Preserve posthoc adjustment knobs (e.g., totals shift/scale) from any prior
+    # calibration file. These are often set via A/B testing and should not be
+    # clobbered by routine calibration fits.
+    if isinstance(prior_for_preserve, dict):
+        for k, v in prior_for_preserve.items():
+            if isinstance(k, str) and k.startswith("post_") and k not in calib:
+                calib[k] = v
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(calib, indent=2, sort_keys=True), encoding="utf-8")
 

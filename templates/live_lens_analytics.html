@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live Lens Analytics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <style>
+    .lla-wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .lla-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+    .lla-card { background: var(--card-bg, #111); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px; }
+    .lla-card h2 { margin: 0 0 10px 0; font-size: 16px; }
+    .lla-muted { opacity: 0.8; }
+    .lla-input { display: flex; flex-direction: column; gap: 4px; min-width: 170px; }
+    .lla-input label { font-size: 12px; opacity: 0.85; }
+    .lla-input input { padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.2); color: inherit; }
+    .lla-input input[type="checkbox"] { width: 16px; height: 16px; padding: 0; }
+    .lla-btn {
+      padding: 9px 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06); color: inherit; cursor: pointer;
+    }
+    .lla-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .lla-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
+    @media (min-width: 980px) { .lla-grid { grid-template-columns: 1fr 1fr; } }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; font-size: 13px; }
+    th { font-size: 12px; opacity: 0.85; }
+    .lla-kpi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .lla-kpi .k { padding: 10px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(255,255,255,0.03); }
+    .lla-kpi .k .t { font-size: 12px; opacity: 0.8; }
+    .lla-kpi .k .v { font-size: 18px; margin-top: 2px; }
+    .lla-scroll { overflow: auto; max-height: 520px; }
+    .lla-small { font-size: 12px; }
+    .lla-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15); font-size: 12px; opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="lla-wrap">
+    <div class="lla-card">
+      <div style="display:flex; gap:12px; align-items:baseline; justify-content:space-between; flex-wrap:wrap;">
+        <div>
+          <h1 style="margin:0; font-size: 20px;">Live Lens Analytics</h1>
+          <div class="lla-muted lla-small">Aggregated settled BET performance from signal logs + daily results.</div>
+        </div>
+        <div class="lla-small lla-muted">API: <span class="lla-pill">/api/live_lens_analytics</span></div>
+      </div>
+
+      <div class="lla-row" style="margin-top: 12px;">
+        <div class="lla-input">
+          <label for="start">Start (YYYY-MM-DD)</label>
+          <input id="start" type="text" placeholder="2026-02-01" />
+        </div>
+        <div class="lla-input">
+          <label for="end">End (YYYY-MM-DD)</label>
+          <input id="end" type="text" placeholder="2026-02-23" />
+        </div>
+        <div class="lla-input">
+          <label for="days">Days (lookback)</label>
+          <input id="days" type="text" value="14" />
+        </div>
+        <div class="lla-input">
+          <label for="assume_price">Assume price</label>
+          <input id="assume_price" type="text" value="-110" />
+        </div>
+        <div class="lla-input">
+          <label for="full_game_only">Full game only</label>
+          <div style="display:flex; gap:8px; align-items:center; height: 34px;">
+            <input id="full_game_only" type="checkbox" />
+            <span class="lla-small lla-muted">exclude 1H/2H</span>
+          </div>
+        </div>
+        <div class="lla-input">
+          <label for="include_rows">Include history rows</label>
+          <div style="display:flex; gap:8px; align-items:center; height: 34px;">
+            <input id="include_rows" type="checkbox" />
+            <span class="lla-small lla-muted">(slower)</span>
+          </div>
+        </div>
+        <div class="lla-input">
+          <label for="max_rows">Max rows</label>
+          <input id="max_rows" type="text" value="2000" />
+        </div>
+        <button id="refresh" class="lla-btn">Refresh</button>
+      </div>
+
+      <div id="status" class="lla-muted" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="lla-grid">
+      <div class="lla-card">
+        <h2>Overall — Totals</h2>
+        <div id="overall_totals" class="lla-kpi"></div>
+        <div style="margin-top:10px;" class="lla-scroll">
+          <div class="lla-muted lla-small" style="margin-bottom: 6px;">By lens + side</div>
+          <table>
+            <thead>
+              <tr><th>Lens</th><th>Side</th><th>N</th><th>W</th><th>L</th><th>P</th><th>Win%</th><th>ROI/u</th></tr>
+            </thead>
+            <tbody id="tbl_totals_by_lens_side"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="lla-card">
+        <h2>Overall — ATS</h2>
+        <div id="overall_ats" class="lla-kpi"></div>
+        <div style="margin-top:10px;" class="lla-scroll">
+          <div class="lla-muted lla-small" style="margin-bottom: 6px;">By lens + side</div>
+          <table>
+            <thead>
+              <tr><th>Lens</th><th>Side</th><th>N</th><th>W</th><th>L</th><th>P</th><th>Win%</th><th>ROI/u</th></tr>
+            </thead>
+            <tbody id="tbl_ats_by_lens_side"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="lla-card" style="grid-column: 1 / -1;">
+        <h2>Per Day</h2>
+        <div class="lla-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Totals N</th><th>Totals Win%</th><th>Totals ROI/u</th>
+                <th>ATS N</th><th>ATS Win%</th><th>ATS ROI/u</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tbl_per_day"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="lla-card">
+        <h2>Driver Tags — Totals</h2>
+        <div class="lla-scroll">
+          <table>
+            <thead><tr><th>Tag</th><th>N</th><th>Win%</th><th>ROI/u</th></tr></thead>
+            <tbody id="tbl_totals_driver"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="lla-card">
+        <h2>Driver Tags — ATS</h2>
+        <div class="lla-scroll">
+          <table>
+            <thead><tr><th>Tag</th><th>N</th><th>Win%</th><th>ROI/u</th></tr></thead>
+            <tbody id="tbl_ats_driver"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="lla-card" style="grid-column: 1 / -1;">
+        <h2>History (Settled Signals)</h2>
+        <div class="lla-muted lla-small" style="margin-bottom: 8px;">Only included when “Include history rows” is checked.</div>
+        <div class="lla-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>Mkt</th><th>Game</th><th>Lens</th><th>Side</th><th>Line</th>
+                <th>Edge</th><th>Elap</th><th>Rem</th>
+                <th>Res</th><th>ROI/u</th><th>Driver</th><th>Tags</th>
+              </tr>
+            </thead>
+            <tbody id="tbl_history"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function fmtPct(x) {
+      if (x === null || x === undefined || Number.isNaN(x)) return "–";
+      return (100 * Number(x)).toFixed(1) + "%";
+    }
+    function fmtNum(x, d=2) {
+      if (x === null || x === undefined || Number.isNaN(x)) return "–";
+      return Number(x).toFixed(d);
+    }
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    function renderKpi(containerId, summary) {
+      const el = document.getElementById(containerId);
+      const s = summary || {};
+      const status = s.status || "";
+      const items = [
+        { t: "Status", v: status || "–" },
+        { t: "N", v: (s.n_settled ?? "–") },
+        { t: "Win%", v: fmtPct(s.win_rate) },
+        { t: "ROI/u", v: fmtNum(s.roi_units_per_bet, 3) },
+      ];
+      el.innerHTML = items.map(it => `<div class="k"><div class="t">${it.t}</div><div class="v">${it.v}</div></div>`).join('');
+    }
+
+    function renderLensSide(tbodyId, rows) {
+      const tb = document.getElementById(tbodyId);
+      tb.innerHTML = '';
+      (rows || []).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.lens ?? ''}</td><td>${r.side ?? ''}</td><td>${r.n ?? ''}</td>`
+          + `<td>${r.wins ?? ''}</td><td>${r.losses ?? ''}</td><td>${r.pushes ?? ''}</td>`
+          + `<td>${fmtPct(r.win_rate)}</td><td>${fmtNum(r.roi_units_per_bet, 3)}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    function renderDriverTags(tbodyId, rows) {
+      const tb = document.getElementById(tbodyId);
+      tb.innerHTML = '';
+      (rows || []).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.tag ?? ''}</td><td>${r.n ?? ''}</td><td>${fmtPct(r.win_rate)}</td><td>${fmtNum(r.roi_units_per_bet, 3)}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    function renderPerDay(tbodyId, perDay) {
+      const tb = document.getElementById(tbodyId);
+      tb.innerHTML = '';
+      (perDay || []).forEach(d => {
+        const tot = d.totals || {};
+        const ats = d.ats || {};
+        const status = d.error ? `error: ${d.error}` : 'ok';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${d.date ?? ''}</td>`
+          + `<td>${tot.n_settled ?? ''}</td><td>${fmtPct(tot.win_rate)}</td><td>${fmtNum(tot.roi_units_per_bet, 3)}</td>`
+          + `<td>${ats.n_settled ?? ''}</td><td>${fmtPct(ats.win_rate)}</td><td>${fmtNum(ats.roi_units_per_bet, 3)}</td>`
+          + `<td class="lla-small">${status}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    function renderHistory(tbodyId, history) {
+      const tb = document.getElementById(tbodyId);
+      tb.innerHTML = '';
+      const rows = (history && history.rows) ? history.rows : [];
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.date ?? ''}</td><td>${r.market ?? ''}</td><td>${r.game_id ?? ''}</td>`
+          + `<td>${r.lens ?? ''}</td><td>${r.side ?? ''}</td><td>${r.live_line ?? ''}</td>`
+          + `<td>${fmtNum(r.edge, 3)}</td><td>${r.elapsed ?? ''}</td><td>${r.remaining ?? ''}</td>`
+          + `<td>${r.result ?? ''}</td><td>${fmtNum(r.profit_units, 3)}</td>`
+          + `<td>${r.driver ?? ''}</td><td>${Array.isArray(r.driver_tags) ? r.driver_tags.join(',') : (r.driver_tags ?? '')}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    async function refresh() {
+      const btn = document.getElementById('refresh');
+      btn.disabled = true;
+      try {
+        const start = document.getElementById('start').value.trim();
+        const end = document.getElementById('end').value.trim();
+        const days = document.getElementById('days').value.trim();
+        const assume_price = document.getElementById('assume_price').value.trim();
+        const full_game_only = document.getElementById('full_game_only').checked;
+        const include_rows = document.getElementById('include_rows').checked;
+        const max_rows = document.getElementById('max_rows').value.trim();
+
+        const qs = new URLSearchParams();
+        if (start && end) { qs.set('start', start); qs.set('end', end); }
+        else { qs.set('days', days || '14'); }
+        if (assume_price) qs.set('assume_price', assume_price);
+        if (full_game_only) qs.set('full_game_only', '1');
+        if (include_rows) { qs.set('include_rows', '1'); if (max_rows) qs.set('max_rows', max_rows); }
+
+        const url = `/api/live_lens_analytics?${qs.toString()}`;
+        setStatus(`Loading: ${url}`);
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (!resp.ok || !data.ok) {
+          setStatus(`Error: ${data.error || resp.status}`);
+          return;
+        }
+
+        if (data.status === 'empty') {
+          setStatus(data.message || 'Empty');
+          renderKpi('overall_totals', {status: 'empty', n_settled: 0, win_rate: null, roi_units_per_bet: null});
+          renderKpi('overall_ats', {status: 'empty', n_settled: 0, win_rate: null, roi_units_per_bet: null});
+          renderLensSide('tbl_totals_by_lens_side', []);
+          renderLensSide('tbl_ats_by_lens_side', []);
+          renderPerDay('tbl_per_day', []);
+          renderDriverTags('tbl_totals_driver', []);
+          renderDriverTags('tbl_ats_driver', []);
+          renderHistory('tbl_history', null);
+          return;
+        }
+
+        const meta = data.meta || {};
+        setStatus(`Loaded ${meta.days} day(s): ${meta.start} → ${meta.end} | full_game_only=${meta.full_game_only ? '1' : '0'} | price=${meta.assume_price}`);
+
+        const overall = data.overall || {};
+        renderKpi('overall_totals', overall.totals);
+        renderKpi('overall_ats', overall.ats);
+        renderLensSide('tbl_totals_by_lens_side', (overall.totals && overall.totals.by_lens_side) ? overall.totals.by_lens_side : []);
+        renderLensSide('tbl_ats_by_lens_side', (overall.ats && overall.ats.by_lens_side) ? overall.ats.by_lens_side : []);
+        renderDriverTags('tbl_totals_driver', (overall.totals && overall.totals.by_driver_tag) ? overall.totals.by_driver_tag : []);
+        renderDriverTags('tbl_ats_driver', (overall.ats && overall.ats.by_driver_tag) ? overall.ats.by_driver_tag : []);
+        renderPerDay('tbl_per_day', data.per_day || []);
+        renderHistory('tbl_history', data.history || null);
+      } catch (e) {
+        setStatus(`Error: ${e}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('refresh').addEventListener('click', refresh);
+    refresh();
+  </script>
+</body>
+</html>
