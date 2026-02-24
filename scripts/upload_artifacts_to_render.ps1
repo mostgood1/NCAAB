@@ -4,6 +4,7 @@ param(
     [string]$OutputsDir = "$PSScriptRoot/../outputs",
     [switch]$TriggerRedeploy,
     [switch]$SlimSimOnly,
+    [switch]$UploadLiveLensLogs,
     [string]$DeployHookUrl = $env:RENDER_DEPLOY_HOOK_URL,
     [string]$CodeDeployHookUrl = $env:RENDER_CODE_DEPLOY_HOOK_URL,
     [int]$VersionPollSeconds = 240,
@@ -778,20 +779,27 @@ if (Test-Path -LiteralPath $liveFeaturesPath) {
     Write-Host "[Skip] live_features missing for $Date" -ForegroundColor Yellow
 }
 
-# Upload Live Lens artifacts if present
-if (Test-Path -LiteralPath $liveLensSignalsPath) {
-    $uLls = Upload-File -Uri "$BaseUrl/api/upload_live_lens_signals" -FilePath $liveLensSignalsPath -Query @{ date = $Date }
-    if ($uLls -and ($uLls.status -eq 'skipped')) { Write-Host "[Skip] upload_live_lens_signals endpoint unavailable" -ForegroundColor Yellow }
-    elseif ($uLls) { Write-Host "[OK] live_lens_signals uploaded" -ForegroundColor Green }
+# Upload Live Lens artifacts if explicitly requested.
+# These JSONL logs are normally generated on the server via /api/live_lens_signal and
+# /api/live_lens_projection. Uploading from a local machine can accidentally overwrite
+# a richer server log with a truncated/stale local copy.
+if ($UploadLiveLensLogs.IsPresent) {
+    if (Test-Path -LiteralPath $liveLensSignalsPath) {
+        $uLls = Upload-File -Uri "$BaseUrl/api/upload_live_lens_signals" -FilePath $liveLensSignalsPath -Query @{ date = $Date }
+        if ($uLls -and ($uLls.status -eq 'skipped')) { Write-Host "[Skip] upload_live_lens_signals endpoint unavailable" -ForegroundColor Yellow }
+        elseif ($uLls) { Write-Host "[OK] live_lens_signals uploaded" -ForegroundColor Green }
+    } else {
+        Write-Host "[Skip] live_lens_signals missing for $Date" -ForegroundColor Yellow
+    }
+    if (Test-Path -LiteralPath $liveLensProjectionsPath) {
+        $uLlp = Upload-File -Uri "$BaseUrl/api/upload_live_lens_projections" -FilePath $liveLensProjectionsPath -Query @{ date = $Date }
+        if ($uLlp -and ($uLlp.status -eq 'skipped')) { Write-Host "[Skip] upload_live_lens_projections endpoint unavailable" -ForegroundColor Yellow }
+        elseif ($uLlp) { Write-Host "[OK] live_lens_projections uploaded" -ForegroundColor Green }
+    } else {
+        Write-Host "[Skip] live_lens_projections missing for $Date" -ForegroundColor Yellow
+    }
 } else {
-    Write-Host "[Skip] live_lens_signals missing for $Date" -ForegroundColor Yellow
-}
-if (Test-Path -LiteralPath $liveLensProjectionsPath) {
-    $uLlp = Upload-File -Uri "$BaseUrl/api/upload_live_lens_projections" -FilePath $liveLensProjectionsPath -Query @{ date = $Date }
-    if ($uLlp -and ($uLlp.status -eq 'skipped')) { Write-Host "[Skip] upload_live_lens_projections endpoint unavailable" -ForegroundColor Yellow }
-    elseif ($uLlp) { Write-Host "[OK] live_lens_projections uploaded" -ForegroundColor Green }
-} else {
-    Write-Host "[Skip] live_lens_projections missing for $Date" -ForegroundColor Yellow
+    Write-Host "[Skip] live_lens_signals/projections upload disabled (server-generated). Pass -UploadLiveLensLogs to opt in." -ForegroundColor DarkGray
 }
 if (Test-Path -LiteralPath $liveLensTuningPath) {
     $uLlt = Upload-File -Uri "$BaseUrl/api/upload_live_lens_tuning" -FilePath $liveLensTuningPath

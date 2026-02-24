@@ -533,90 +533,99 @@ print({'path': str(games_path), 'rows': len(df2)})
         try { return ((Get-Item -LiteralPath $Path).Length -gt 0) } catch { return $false }
       }
 
-      # Ensure outputs/live_lens_signals_<date>.jsonl is local so accuracy + tuning can be computed locally.
-      $signalsLocal = Join-Path $OutDir ("live_lens_signals_" + $prevDate + ".jsonl")
-      $projectionsLocal = Join-Path $OutDir ("live_lens_projections_" + $prevDate + ".jsonl")
-      if (-not (Test-HasBytes $signalsLocal)) {
+      function Invoke-DownloadSignals {
+        param(
+          [string]$BaseUrl,
+          [string]$Date,
+          [string]$OutFile
+        )
+        $b = ("" + $BaseUrl).Trim()
+        if ([string]::IsNullOrWhiteSpace($b)) { return $false }
+        $b = $b.TrimEnd('/')
+        $url = "$b/api/download_live_lens_signals?date=$Date"
+        Write-Host "[live_lens] Attempting signals download: $url" -ForegroundColor DarkGray
         try {
-          function Invoke-DownloadSignals {
-            param(
-              [string]$BaseUrl,
-              [string]$Date,
-              [string]$OutFile
-            )
-            $b = ("" + $BaseUrl).Trim()
-            if ([string]::IsNullOrWhiteSpace($b)) { return $false }
-            $b = $b.TrimEnd('/')
-            $url = "$b/api/download_live_lens_signals?date=$Date"
-            Write-Host "[live_lens] Attempting signals download: $url" -ForegroundColor DarkGray
-            try {
-              Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
-              return (Test-HasBytes $OutFile)
-            } catch {
-              $resp = $_.Exception.Response
-              if ($resp) {
-                Write-Warning ("[live_lens] Signals download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
-              } else {
-                Write-Warning "[live_lens] Signals download failed: $($_.Exception.Message)"
-              }
-              if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
-              return $false
-            }
-          }
-
-          $primary = $script:RenderBaseUrlEff
-          $ok = Invoke-DownloadSignals -BaseUrl $primary -Date $prevDate -OutFile $signalsLocal
-          if (-not $ok) {
-            $fallback = 'https://ncaab.onrender.com'
-            if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
-              $ok = Invoke-DownloadSignals -BaseUrl $fallback -Date $prevDate -OutFile $signalsLocal
-            }
-          }
+          Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
+          return (Test-HasBytes $OutFile)
         } catch {
-          Write-Warning "[live_lens] Signals download wrapper failed: $($_)"
+          $resp = $_.Exception.Response
+          if ($resp) {
+            Write-Warning ("[live_lens] Signals download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
+          } else {
+            Write-Warning "[live_lens] Signals download failed: $($_.Exception.Message)"
+          }
+          if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+          return $false
         }
       }
 
-      # Best-effort: download projections so we can compute projection accuracy.
-      if (-not (Test-HasBytes $projectionsLocal)) {
+      function Invoke-DownloadProjections {
+        param(
+          [string]$BaseUrl,
+          [string]$Date,
+          [string]$OutFile
+        )
+        $b = ("" + $BaseUrl).Trim()
+        if ([string]::IsNullOrWhiteSpace($b)) { return $false }
+        $b = $b.TrimEnd('/')
+        $url = "$b/api/download_live_lens_projections?date=$Date"
+        Write-Host "[live_lens] Attempting projections download: $url" -ForegroundColor DarkGray
         try {
-          function Invoke-DownloadProjections {
-            param(
-              [string]$BaseUrl,
-              [string]$Date,
-              [string]$OutFile
-            )
-            $b = ("" + $BaseUrl).Trim()
-            if ([string]::IsNullOrWhiteSpace($b)) { return $false }
-            $b = $b.TrimEnd('/')
-            $url = "$b/api/download_live_lens_projections?date=$Date"
-            Write-Host "[live_lens] Attempting projections download: $url" -ForegroundColor DarkGray
-            try {
-              Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
-              return (Test-HasBytes $OutFile)
-            } catch {
-              $resp = $_.Exception.Response
-              if ($resp) {
-                Write-Warning ("[live_lens] Projections download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
-              } else {
-                Write-Warning "[live_lens] Projections download failed: $($_.Exception.Message)"
-              }
-              if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
-              return $false
-            }
-          }
-
-          $primary = $script:RenderBaseUrlEff
-          $okp = Invoke-DownloadProjections -BaseUrl $primary -Date $prevDate -OutFile $projectionsLocal
-          if (-not $okp) {
-            $fallback = 'https://ncaab.onrender.com'
-            if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
-              $okp = Invoke-DownloadProjections -BaseUrl $fallback -Date $prevDate -OutFile $projectionsLocal
-            }
-          }
+          Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
+          return (Test-HasBytes $OutFile)
         } catch {
-          Write-Warning "[live_lens] Projections download wrapper failed: $($_)"
+          $resp = $_.Exception.Response
+          if ($resp) {
+            Write-Warning ("[live_lens] Projections download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
+          } else {
+            Write-Warning "[live_lens] Projections download failed: $($_.Exception.Message)"
+          }
+          if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+          return $false
         }
+      }
+
+      # Ensure outputs/live_lens_signals_<date>.jsonl is local so accuracy + tuning can be computed locally.
+      # Always try a fresh download first so we don't accidentally use a stale/truncated local file.
+      $signalsLocal = Join-Path $OutDir ("live_lens_signals_" + $prevDate + ".jsonl")
+      $projectionsLocal = Join-Path $OutDir ("live_lens_projections_" + $prevDate + ".jsonl")
+      try {
+        $primary = $script:RenderBaseUrlEff
+        $signalsTmp = Join-Path $OutDir ("_tmp_live_lens_signals_" + $prevDate + ".jsonl")
+        $ok = Invoke-DownloadSignals -BaseUrl $primary -Date $prevDate -OutFile $signalsTmp
+        if (-not $ok) {
+          $fallback = 'https://ncaab.onrender.com'
+          if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
+            $ok = Invoke-DownloadSignals -BaseUrl $fallback -Date $prevDate -OutFile $signalsTmp
+          }
+        }
+        if ($ok -and (Test-HasBytes $signalsTmp)) {
+          Move-Item -LiteralPath $signalsTmp -Destination $signalsLocal -Force
+        } elseif (Test-Path -LiteralPath $signalsTmp) {
+          Remove-Item -LiteralPath $signalsTmp -Force -ErrorAction SilentlyContinue
+        }
+      } catch {
+        Write-Warning "[live_lens] Signals download wrapper failed: $($_)"
+      }
+
+      # Best-effort: download projections so we can compute projection accuracy.
+      try {
+        $primary = $script:RenderBaseUrlEff
+        $projTmp = Join-Path $OutDir ("_tmp_live_lens_projections_" + $prevDate + ".jsonl")
+        $okp = Invoke-DownloadProjections -BaseUrl $primary -Date $prevDate -OutFile $projTmp
+        if (-not $okp) {
+          $fallback = 'https://ncaab.onrender.com'
+          if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
+            $okp = Invoke-DownloadProjections -BaseUrl $fallback -Date $prevDate -OutFile $projTmp
+          }
+        }
+        if ($okp -and (Test-HasBytes $projTmp)) {
+          Move-Item -LiteralPath $projTmp -Destination $projectionsLocal -Force
+        } elseif (Test-Path -LiteralPath $projTmp) {
+          Remove-Item -LiteralPath $projTmp -Force -ErrorAction SilentlyContinue
+        }
+      } catch {
+        Write-Warning "[live_lens] Projections download wrapper failed: $($_)"
       }
 
       & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy --date $prevDate

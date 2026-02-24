@@ -407,6 +407,11 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
         def _parse_tags(v: Any) -> list[str]:
             if v is None:
                 return []
+            try:
+                if pd.isna(v):
+                    return []
+            except Exception:
+                pass
             if isinstance(v, list):
                 out: list[str] = []
                 for x in v:
@@ -420,6 +425,8 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
             try:
                 s0 = str(v).strip()
                 if not s0:
+                    return []
+                if s0.lower() in {"nan", "none", "null"}:
                     return []
                 if s0.startswith("[") and s0.endswith("]"):
                     j = json.loads(s0)
@@ -1560,11 +1567,18 @@ def compute_live_lens_ats_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str
             def _parse_tags(v: Any) -> list[str]:
                 if v is None:
                     return []
+                try:
+                    if pd.isna(v):
+                        return []
+                except Exception:
+                    pass
                 if isinstance(v, list):
                     return [str(x).strip() for x in v if x is not None and str(x).strip()]
                 # Sometimes serialized as JSON string.
                 try:
                     s0 = str(v).strip()
+                    if not s0 or s0.lower() in {"nan", "none", "null"}:
+                        return []
                     if s0.startswith("[") and s0.endswith("]"):
                         j = json.loads(s0)
                         if isinstance(j, list):

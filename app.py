@@ -36352,6 +36352,20 @@ def api_live_lens_analytics():
         except Exception:
             _np = None  # type: ignore
 
+        # Normalize NaN/NA to null so the UI doesn't render "nan".
+        try:
+            if x is not None and pd.isna(x):
+                return None
+        except Exception:
+            pass
+        try:
+            import math as _math
+
+            if isinstance(x, float) and _math.isnan(x):
+                return None
+        except Exception:
+            pass
+
         if x is None:
             return None
         if isinstance(x, (int, float, str, bool)):
@@ -36525,10 +36539,17 @@ def api_live_lens_analytics():
                 def _parse_tags(v: Any) -> list[str]:
                     if v is None:
                         return []
+                    try:
+                        if pd.isna(v):
+                            return []
+                    except Exception:
+                        pass
                     if isinstance(v, list):
                         return [str(x).strip() for x in v if x is not None and str(x).strip()]
                     try:
                         s0 = str(v).strip()
+                        if not s0 or s0.lower() in {"nan", "none", "null"}:
+                            return []
                         if s0.startswith("[") and s0.endswith("]"):
                             j = _json.loads(s0)
                             if isinstance(j, list):
