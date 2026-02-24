@@ -35268,7 +35268,8 @@ def api_upload_live_lens_signals():
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             # Guardrail: avoid clobbering a richer server log with a truncated upload.
-            # Allow explicit override via ?force=1.
+            # NOTE: This endpoint is dangerous because it overwrites server-generated logs.
+            # Require explicit override via ?force=1 for ANY overwrite.
             try:
                 force = str(request.args.get("force") or "").strip().lower() in ("1", "true", "yes", "y")
             except Exception:
@@ -35277,20 +35278,19 @@ def api_upload_live_lens_signals():
                 if out_path.exists() and not force:
                     existing_bytes = int(out_path.stat().st_size)
                     incoming_bytes = int(len(body_bytes))
-                    if existing_bytes > 0 and incoming_bytes > 0 and incoming_bytes < existing_bytes:
-                        return (
-                            jsonify(
-                                {
-                                    "status": "conflict",
-                                    "message": "refusing to overwrite with smaller payload; pass force=1 to override",
-                                    "date": date_q,
-                                    "path": str(out_path),
-                                    "existing_bytes": existing_bytes,
-                                    "incoming_bytes": incoming_bytes,
-                                }
-                            ),
-                            409,
-                        )
+                    return (
+                        jsonify(
+                            {
+                                "status": "conflict",
+                                "message": "refusing to overwrite existing server log; pass force=1 to override",
+                                "date": date_q,
+                                "path": str(out_path),
+                                "existing_bytes": existing_bytes,
+                                "incoming_bytes": incoming_bytes,
+                            }
+                        ),
+                        409,
+                    )
             except Exception:
                 pass
 
@@ -35369,7 +35369,8 @@ def api_upload_live_lens_projections():
             out_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Guardrail: avoid clobbering a richer server log with a truncated upload.
-            # Allow explicit override via ?force=1.
+            # NOTE: This endpoint is dangerous because it overwrites server-generated logs.
+            # Require explicit override via ?force=1 for ANY overwrite.
             try:
                 force = str(request.args.get("force") or "").strip().lower() in ("1", "true", "yes", "y")
             except Exception:
@@ -35378,20 +35379,19 @@ def api_upload_live_lens_projections():
                 if out_path.exists() and not force:
                     existing_bytes = int(out_path.stat().st_size)
                     incoming_bytes = int(len(body_bytes))
-                    if existing_bytes > 0 and incoming_bytes > 0 and incoming_bytes < existing_bytes:
-                        return (
-                            jsonify(
-                                {
-                                    "status": "conflict",
-                                    "message": "refusing to overwrite with smaller payload; pass force=1 to override",
-                                    "date": date_q,
-                                    "path": str(out_path),
-                                    "existing_bytes": existing_bytes,
-                                    "incoming_bytes": incoming_bytes,
-                                }
-                            ),
-                            409,
-                        )
+                    return (
+                        jsonify(
+                            {
+                                "status": "conflict",
+                                "message": "refusing to overwrite existing server log; pass force=1 to override",
+                                "date": date_q,
+                                "path": str(out_path),
+                                "existing_bytes": existing_bytes,
+                                "incoming_bytes": incoming_bytes,
+                            }
+                        ),
+                        409,
+                    )
             except Exception:
                 pass
 
