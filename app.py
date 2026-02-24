@@ -35267,7 +35267,36 @@ def api_upload_live_lens_signals():
         out_path = OUT / f"live_lens_signals_{date_q}.jsonl"
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(body_bytes)
+            # Guardrail: avoid clobbering a richer server log with a truncated upload.
+            # Allow explicit override via ?force=1.
+            try:
+                force = str(request.args.get("force") or "").strip().lower() in ("1", "true", "yes", "y")
+            except Exception:
+                force = False
+            try:
+                if out_path.exists() and not force:
+                    existing_bytes = int(out_path.stat().st_size)
+                    incoming_bytes = int(len(body_bytes))
+                    if existing_bytes > 0 and incoming_bytes > 0 and incoming_bytes < existing_bytes:
+                        return (
+                            jsonify(
+                                {
+                                    "status": "conflict",
+                                    "message": "refusing to overwrite with smaller payload; pass force=1 to override",
+                                    "date": date_q,
+                                    "path": str(out_path),
+                                    "existing_bytes": existing_bytes,
+                                    "incoming_bytes": incoming_bytes,
+                                }
+                            ),
+                            409,
+                        )
+            except Exception:
+                pass
+
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            tmp_path.write_bytes(body_bytes)
+            tmp_path.replace(out_path)
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
 
@@ -35338,7 +35367,37 @@ def api_upload_live_lens_projections():
         out_path = OUT / f"live_lens_projections_{date_q}.jsonl"
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(body_bytes)
+
+            # Guardrail: avoid clobbering a richer server log with a truncated upload.
+            # Allow explicit override via ?force=1.
+            try:
+                force = str(request.args.get("force") or "").strip().lower() in ("1", "true", "yes", "y")
+            except Exception:
+                force = False
+            try:
+                if out_path.exists() and not force:
+                    existing_bytes = int(out_path.stat().st_size)
+                    incoming_bytes = int(len(body_bytes))
+                    if existing_bytes > 0 and incoming_bytes > 0 and incoming_bytes < existing_bytes:
+                        return (
+                            jsonify(
+                                {
+                                    "status": "conflict",
+                                    "message": "refusing to overwrite with smaller payload; pass force=1 to override",
+                                    "date": date_q,
+                                    "path": str(out_path),
+                                    "existing_bytes": existing_bytes,
+                                    "incoming_bytes": incoming_bytes,
+                                }
+                            ),
+                            409,
+                        )
+            except Exception:
+                pass
+
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            tmp_path.write_bytes(body_bytes)
+            tmp_path.replace(out_path)
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
 
