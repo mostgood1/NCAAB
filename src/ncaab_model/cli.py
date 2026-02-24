@@ -64,6 +64,7 @@ from .live_lens_buckets import LiveLensBucketReportConfig, compute_live_lens_buc
 from .live_lens_retune_search import LateOverSearchConfig, search_late_over_retune
 from .live_lens_early_retune_search import EarlyOverSearchConfig, search_early_over_retune
 from .live_lens_flag_learning import FlagLearningConfig, apply_penalties_to_tuning_json, learn_driver_tag_strength_penalties
+from .live_lens_recover import LiveLensSignalsReconstructConfig, reconstruct_signals_from_projections
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
@@ -4229,8 +4230,19 @@ def fetch_odds(
     """
     adapter = TheOddsAPIAdapter(region=region)
     rows = []
-    for o in adapter.iter_odds(season):
-        rows.append(o.model_dump())
+    try:
+        for o in adapter.iter_odds(season):
+            rows.append(o.model_dump())
+    except Exception as e:
+        msg = str(e)
+        if "401" in msg or "Unauthorized" in msg:
+            print(
+                "[red]TheOddsAPI returned Unauthorized (401).[/red] "
+                "Verify your NCAAB_THEODDS_API_KEY in .env (and that the key is active)."
+            )
+        else:
+            print(f"[red]Failed fetching odds from TheOddsAPI:[/red] {e}")
+        raise typer.Exit(code=1)
     if not rows:
         print("[yellow]No odds returned by TheOddsAPI. Check key/plan/region.[/yellow]")
         raise typer.Exit(code=1)
@@ -13131,6 +13143,41 @@ def compute_live_lens_projection_accuracy_cmd(
 
     wrote = write_live_lens_projection_accuracy(out_json=Path(out_json), payload=payload, out_csv=Path(out_csv))
     print(wrote)
+
+
+@app.command(name="reconstruct-live-lens-signals")
+def reconstruct_live_lens_signals_cmd(
+    date: str = typer.Option(None, help="Slate date YYYY-MM-DD."),
+    out_jsonl: Path = typer.Option(None, help="Output JSONL (default: outputs/live_lens_signals_reconstructed_<date>.jsonl)."),
+    full_game_only: bool = typer.Option(False, help="Only reconstruct lens=full_game (default false)."),
+    base_url: str = typer.Option(None, help="If set, downloads projections via /api/download_live_lens_projections."),
+    download: bool = typer.Option(True, "--download/--no-download", help="Download projections when base-url is set (default true)."),
+    overwrite_projections: bool = typer.Option(False, "--overwrite-projections", help="Overwrite local projections file if it exists."),
+):
+    """Reconstruct an approximate Live Lens signals stream from logged projections.
+
+    This is intended for best-effort recovery when a day's signals JSONL is missing/truncated.
+    It writes a separate file (does not overwrite live_lens_signals_<date>.jsonl).
+
+    If projections lack a market line (no live_line), reconstruction is blocked; when --base-url
+    is provided this command will attempt to download the original signals JSONL as a fallback.
+    """
+
+    if not date:
+        raise typer.BadParameter("--date is required")
+
+    cfg = LiveLensSignalsReconstructConfig(
+        date=str(date),
+        out_dir=settings.outputs_dir,
+        out_path=(Path(out_jsonl) if out_jsonl is not None else None),
+        full_game_only=bool(full_game_only),
+        base_url=(str(base_url).strip() if base_url else None),
+        download_projections=bool(download),
+        overwrite_projections=bool(overwrite_projections),
+    )
+
+    payload = reconstruct_signals_from_projections(cfg)
+    print(payload)
 
 
 @app.command(name="compute-live-lens-accuracy-retuned")

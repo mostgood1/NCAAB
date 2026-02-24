@@ -126,6 +126,20 @@ SNAPSHOT_ONLY = (
     or os.getenv('RENDER_MODE', 'false').lower() == 'true'
     or os.getenv('SNAPSHOT_ONLY', 'false').lower() in ('1','true','yes')
 )
+try:
+    _fs_sig = (os.getenv("LIVE_LENS_FSYNC_SIGNALS") or "").strip().lower()
+    _fs_proj = (os.getenv("LIVE_LENS_FSYNC_PROJECTIONS") or "").strip().lower()
+    # Default: signals fsync ON in Render mode; projections fsync OFF (higher volume).
+    LIVE_LENS_FSYNC_SIGNALS = (_fs_sig in ("1", "true", "yes", "y")) if _fs_sig else bool(os.getenv("RENDER_MODE", "").strip())
+    LIVE_LENS_FSYNC_PROJECTIONS = (_fs_proj in ("1", "true", "yes", "y")) if _fs_proj else False
+except Exception:
+    LIVE_LENS_FSYNC_SIGNALS = False
+    LIVE_LENS_FSYNC_PROJECTIONS = False
+try:
+    _dual = (os.getenv("LIVE_LENS_DUAL_WRITE") or "").strip().lower()
+    LIVE_LENS_DUAL_WRITE = (_dual in ("1", "true", "yes", "y")) if _dual else True
+except Exception:
+    LIVE_LENS_DUAL_WRITE = True
 DISABLE_DIAGNOSTICS = os.getenv('DISABLE_DIAGNOSTICS', 'false').lower() == 'true'
 BUILD_TIME_UTC = dt.datetime.utcnow().isoformat() + 'Z'
 # Bump-only app revision to trigger deployment image rebuilds when needed
@@ -23732,6 +23746,8 @@ def api_live_lens_signal():
                     "horizon": keep.get("horizon"),
                     "side": keep.get("side"),
                     "elapsed": keep.get("elapsed"),
+                    "remaining": keep.get("remaining"),
+                    "total_points": keep.get("total_points"),
                     "live_line": keep.get("live_line"),
                     "price": keep.get("price"),
                     "is_bet": keep.get("is_bet"),
@@ -23763,22 +23779,13 @@ def api_live_lens_signal():
         pass
 
     try:
-        out_path = OUT / f"live_lens_signals_{date_s}.jsonl"
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        import os
+        keep["server_received_at"] = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
 
-        line = json.dumps(_sanitize_json_obj_strict(keep), ensure_ascii=False) + "\n"
-        data = line.encode("utf-8", errors="replace")
-        fd = os.open(str(out_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND)
-        try:
-            # os.write() can legally perform partial writes; loop to ensure the
-            # full JSONL record lands on disk to avoid corrupted lines.
-            view = memoryview(data)
-            while view:
-                n = os.write(fd, view)
-                view = view[n:]
-        finally:
-            os.close(fd)
+        out_path = OUT / f"live_lens_signals_{date_s}.jsonl"
+        _append_jsonl_atomic(out_path, keep, fsync=bool(LIVE_LENS_FSYNC_SIGNALS))
+        if LIVE_LENS_DUAL_WRITE:
+            all_path = OUT / "live_lens_signals_all.jsonl"
+            _append_jsonl_atomic(all_path, keep, fsync=bool(LIVE_LENS_FSYNC_SIGNALS))
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to write signal: {e}"}), 500
 
@@ -23887,20 +23894,13 @@ def api_live_lens_projection():
         pass
 
     try:
-        out_path = OUT / f"live_lens_projections_{date_s}.jsonl"
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        import os
+        keep["server_received_at"] = dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
 
-        line = json.dumps(_sanitize_json_obj_strict(keep), ensure_ascii=False) + "\n"
-        data = line.encode("utf-8", errors="replace")
-        fd = os.open(str(out_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND)
-        try:
-            view = memoryview(data)
-            while view:
-                n = os.write(fd, view)
-                view = view[n:]
-        finally:
-            os.close(fd)
+        out_path = OUT / f"live_lens_projections_{date_s}.jsonl"
+        _append_jsonl_atomic(out_path, keep, fsync=bool(LIVE_LENS_FSYNC_PROJECTIONS))
+        if LIVE_LENS_DUAL_WRITE:
+            all_path = OUT / "live_lens_projections_all.jsonl"
+            _append_jsonl_atomic(all_path, keep, fsync=bool(LIVE_LENS_FSYNC_PROJECTIONS))
     except Exception as e:
         return jsonify({"status": "error", "message": f"Failed to write projection: {e}"}), 500
 
@@ -23930,7 +23930,7 @@ def _parse_iso_date_or_today(date_s: str | None) -> str:
     return s
 
 
-def _append_jsonl_atomic(path: Path, record: dict[str, Any]) -> None:
+def _append_jsonl_atomic(path: Path, record: dict[str, Any], *, fsync: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     import os
 
@@ -23938,11 +23938,34 @@ def _append_jsonl_atomic(path: Path, record: dict[str, Any]) -> None:
     data = line.encode("utf-8", errors="replace")
     fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_APPEND)
     try:
-        view = memoryview(data)
-        while view:
-            n = os.write(fd, view)
-            view = view[n:]
+        # Prevent interleaving across concurrent requests.
+        try:
+            import fcntl  # type: ignore
+
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except Exception:
+            pass
+
+        # Write in a single call when possible (reduces risk of interleaving).
+        n0 = os.write(fd, data)
+        if n0 != len(data):
+            view = memoryview(data)[n0:]
+            while view:
+                n = os.write(fd, view)
+                view = view[n:]
+
+        if fsync:
+            try:
+                os.fsync(fd)
+            except Exception:
+                pass
     finally:
+        try:
+            import fcntl  # type: ignore
+
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
         os.close(fd)
 
 
@@ -35325,6 +35348,23 @@ def api_download_live_lens_signals():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/download_live_lens_signals_all")
+def api_download_live_lens_signals_all():
+    """Download append-only Live Lens signals JSONL backup (if present)."""
+    try:
+        path = OUT / "live_lens_signals_all.jsonl"
+        if not path.exists():
+            return jsonify({"status": "missing", "path": str(path)}), 404
+        return send_file(
+            str(path),
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/x-ndjson",
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/upload_live_lens_projections", methods=["POST"])
 def api_upload_live_lens_projections():
     """Upload per-date Live Lens projections JSONL.
@@ -35416,6 +35456,23 @@ def api_download_live_lens_projections():
         path = OUT / f"live_lens_projections_{date_q}.jsonl"
         if not path.exists():
             return jsonify({"status": "missing", "path": str(path), "date": date_q}), 404
+        return send_file(
+            str(path),
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/x-ndjson",
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/download_live_lens_projections_all")
+def api_download_live_lens_projections_all():
+    """Download append-only Live Lens projections JSONL backup (if present)."""
+    try:
+        path = OUT / "live_lens_projections_all.jsonl"
+        if not path.exists():
+            return jsonify({"status": "missing", "path": str(path)}), 404
         return send_file(
             str(path),
             as_attachment=True,

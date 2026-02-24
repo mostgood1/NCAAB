@@ -3574,6 +3574,51 @@
               lean = 'On track';
             }
 
+            // If we have a strong no-line candidate, log it so tuning doesn't lose the day
+            // when live market totals are unavailable.
+            try {
+              if(isStrongNoLine && (side2 === 'Over' || side2 === 'Under')){
+                var perLog2 = null;
+                try {
+                  var cardP2 = card0 || getCardForWrap(wrap);
+                  if(cardP2 && typeof cardP2.__livePeriod === 'number' && isFinite(cardP2.__livePeriod)) perLog2 = cardP2.__livePeriod;
+                  else if(cardP2){
+                    var pAttr2 = cardP2.getAttribute('data-live-period');
+                    var pn2 = pAttr2 !== null ? parseInt(String(pAttr2), 10) : NaN;
+                    if(isFinite(pn2)) perLog2 = pn2;
+                  }
+                } catch(_ePL2){ perLog2 = null; }
+
+                logSigs.push({
+                  kind: 'total',
+                  is_bet: false,
+                  is_watch: true,
+                  is_candidate: true,
+                  candidate_kind: 'no_line',
+                  side: (side2 === 'Over' ? 'over' : 'under'),
+                  horizon: horizon,
+                  elapsed: elapsed,
+                  remaining: remaining,
+                  total_points: act,
+                  live_line: null,
+                  price: null,
+                  model_prob: null,
+                  market_prob: null,
+                  edge_prob: null,
+                  edge: delta,
+                  strength: (dabs + pbpAdj2),
+                  thr: null,
+                  thr_watch: thrDelta,
+                  driver: null,
+                  driver_tags: null,
+                  home_score: liveHome,
+                  away_score: liveAway,
+                  margin_home: (liveHome !== null && liveAway !== null) ? (liveHome - liveAway) : null,
+                  period: perLog2
+                });
+              }
+            } catch(_eNoLineLog){ /* noop */ }
+
             // Explanation for no-line case: delta + small PBP confirmation.
             try {
               var dTag = 'd ' + (delta > 0 ? '+' : '') + String(round1(delta));

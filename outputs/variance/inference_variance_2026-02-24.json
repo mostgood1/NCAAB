@@ -1,15 +1,15 @@
 {
   "date": "2026-02-24",
-  "margin_max": 8.111463388892272,
-  "margin_mean": 5.6,
-  "margin_min": 2.2192298897698355,
-  "margin_std": 1.4654,
-  "margin_var": 2.1473,
+  "margin_max": 8.606100845621278,
+  "margin_mean": 6.17,
+  "margin_min": 2.603941752388878,
+  "margin_std": 1.1817,
+  "margin_var": 1.3963,
   "rows": 36,
-  "timestamp_utc": "2026-02-24T16:02:11.5878701Z",
-  "total_max": 68.53257997481296,
-  "total_mean": 61.7,
-  "total_min": 52.22156981630917,
-  "total_std": 3.6045,
-  "total_var": 12.9924
+  "timestamp_utc": "2026-02-24T19:45:26.7924906Z",
+  "total_max": 41.40348842606186,
+  "total_mean": 36.34,
+  "total_min": 33.98980827221224,
+  "total_std": 1.8484,
+  "total_var": 3.4164
 }
