@@ -193,6 +193,7 @@ try:
                 '/api/picks_raw',
                 '/api/debug_artifacts',
                 '/api/live_lens_tuning',
+                '/api/live_lens_analytics',
                 '/api/live_interval_calibration',
                 '/api/upload_picks_raw',
                 '/api/upload_predictions_display',
@@ -207,6 +208,7 @@ try:
             allowed.add('/api/stake_sheet_dates')
             allowed.add('/api/stake_sheets')
             allowed.add('/stake-archive')
+            allowed.add('/live_lens_analytics')
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
                 return None
@@ -23721,6 +23723,81 @@ def api_live_lens_signal():
         "period": payload.get("period"),
     }
 
+    # Backfill driver/driver_tags if the client doesn't provide them.
+    # This enables accurate attribution in /api/live_lens_analytics (pace/efficiency, etc.).
+    try:
+        def _norm_tags(v: Any) -> list[str] | None:
+            if v is None:
+                return None
+            if isinstance(v, str):
+                s = v.strip()
+                if not s or s.lower() in {"none", "null", "nan"}:
+                    return None
+                parts = [p.strip() for p in s.split(",") if p.strip()] if "," in s else [s]
+                return parts or None
+            if isinstance(v, (list, tuple, set)):
+                out: list[str] = []
+                for x in v:
+                    sx = str(x or "").strip()
+                    if sx and sx.lower() not in {"none", "null", "nan"} and sx not in out:
+                        out.append(sx)
+                return out or None
+            return None
+
+        driver_s = str(keep.get("driver") or "").strip() or None
+        tags0 = _norm_tags(keep.get("driver_tags"))
+
+        if tags0 is None or not tags0:
+            tuning = keep.get("tuning") if isinstance(keep.get("tuning"), dict) else {}
+            pbp = keep.get("pbp") if isinstance(keep.get("pbp"), dict) else {}
+
+            elapsed = _coerce_float(keep.get("elapsed"))
+            total_points = _coerce_float(keep.get("total_points"))
+            poss = _coerce_float(pbp.get("poss")) if isinstance(pbp, dict) else None
+
+            # Default thresholds mirror the reconstruction defaults.
+            pace_hi = _coerce_float(tuning.get("pace_hi")) if isinstance(tuning, dict) else None
+            pace_lo = _coerce_float(tuning.get("pace_lo")) if isinstance(tuning, dict) else None
+            pps_hi = _coerce_float(tuning.get("pps_hi")) if isinstance(tuning, dict) else None
+            pps_lo = _coerce_float(tuning.get("pps_lo")) if isinstance(tuning, dict) else None
+            if pace_hi is None:
+                pace_hi = 3.25
+            if pace_lo is None:
+                pace_lo = 2.75
+            if pps_hi is None:
+                pps_hi = 1.18
+            if pps_lo is None:
+                pps_lo = 0.95
+
+            derived: list[str] = []
+
+            # Pace = possessions per minute.
+            if poss is not None and elapsed is not None and elapsed > 0:
+                poss_rate = poss / elapsed
+                if pace_hi is not None and poss_rate >= pace_hi:
+                    derived.append("pace_hi")
+                elif pace_lo is not None and poss_rate <= pace_lo:
+                    derived.append("pace_lo")
+
+            # Efficiency = points per possession.
+            if total_points is not None and poss is not None and poss > 0:
+                pps = total_points / poss
+                if pps_hi is not None and pps >= pps_hi:
+                    derived.append("eff_hi")
+                elif pps_lo is not None and pps <= pps_lo:
+                    derived.append("eff_lo")
+
+            if derived:
+                tags0 = derived
+
+        if (driver_s is None or not driver_s) and tags0:
+            driver_s = tags0[0]
+
+        keep["driver"] = driver_s
+        keep["driver_tags"] = tags0
+    except Exception:
+        pass
+
     # ML is intentionally disabled; ignore any ML signal records from older clients.
     try:
         if str(keep.get("kind") or "").strip().lower() == "ml":
@@ -36401,6 +36478,155 @@ def api_live_lens_side_accuracy():
     except Exception as e:
         return jsonify({"ok": False, "date": date_q, "error": f"import_failed: {e}"}), 500
 
+    def _live_lens_parse_tags(v: Any) -> list[str]:
+        if v is None:
+            return []
+        try:
+            if pd.isna(v):
+                return []
+        except Exception:
+            pass
+        if isinstance(v, list):
+            out: list[str] = []
+            for x in v:
+                if x is None:
+                    continue
+                try:
+                    if pd.isna(x):
+                        continue
+                except Exception:
+                    pass
+                s = str(x).strip()
+                if not s or s.lower() in {"nan", "none", "null"}:
+                    continue
+                out.append(s)
+            return out
+        try:
+            s0 = str(v).strip()
+            if not s0 or s0.lower() in {"nan", "none", "null"}:
+                return []
+            if s0.startswith("[") and s0.endswith("]"):
+                j = json.loads(s0)
+                if isinstance(j, list):
+                    return [
+                        str(x).strip()
+                        for x in j
+                        if x is not None and str(x).strip() and str(x).strip().lower() not in {"nan", "none", "null"}
+                    ]
+        except Exception:
+            pass
+        try:
+            parts = [p.strip() for p in str(v).replace("|", ",").split(",")]
+            return [p for p in parts if p and p.lower() not in {"nan", "none", "null"}]
+        except Exception:
+            return []
+
+    def _live_lens_driver_tag_breakdown(df: pd.DataFrame) -> dict[str, Any]:
+        if df is None or df.empty:
+            return {
+                "by_driver_tag": [],
+                "by_driver_tag_full": [],
+                "by_driver_tag_canonical": [],
+                "by_driver_tag_type": [],
+            }
+
+        if "result" not in df.columns or "profit_units" not in df.columns:
+            return {
+                "by_driver_tag": [],
+                "by_driver_tag_full": [],
+                "by_driver_tag_canonical": [],
+                "by_driver_tag_type": [],
+            }
+
+        res = pd.to_numeric(df["result"], errors="coerce")
+        prof = pd.to_numeric(df["profit_units"], errors="coerce").fillna(0.0)
+
+        if "driver_tags" in df.columns:
+            tags_list = [_live_lens_parse_tags(v) for v in df["driver_tags"].tolist()]
+        else:
+            tags_list = [[str(v).strip()] if v is not None and str(v).strip() else [] for v in df.get("driver", pd.Series([], dtype=object)).tolist()]
+
+        # Per-tag stats (tag-level attribution; may double-count rows with multiple tags).
+        flat_rows: list[dict[str, Any]] = []
+        for tg_list, res0, prof0 in zip(tags_list, res.tolist(), prof.tolist()):
+            for tg in tg_list:
+                if not tg:
+                    continue
+                flat_rows.append({"tag": str(tg), "result": float(res0) if pd.notna(res0) else None, "profit_units": float(prof0)})
+
+        stats: list[dict[str, Any]] = []
+        if flat_rows:
+            tdf = pd.DataFrame(flat_rows)
+            for tg, g in tdf.groupby("tag"):
+                n = int(len(g))
+                r0 = pd.to_numeric(g["result"], errors="coerce")
+                w = int((r0 == 1.0).sum())
+                l = int((r0 == 0.0).sum())
+                p = int((r0 == 0.5).sum())
+                d2 = w + l
+                pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, n))
+                stats.append({
+                    "tag": str(tg),
+                    "n": n,
+                    "wins": w,
+                    "losses": l,
+                    "pushes": p,
+                    "win_rate": (w / d2) if d2 > 0 else None,
+                    "roi_units_per_bet": pr,
+                })
+
+        # Full list (single-day recap; keep min_n=1 so the endpoint always reports).
+        min_n = 1
+        stats_f = [r for r in stats if int(r.get("n") or 0) >= min_n]
+        stats_f.sort(key=lambda r: (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf"), -(r.get("n") or 0), r.get("tag", "")))
+
+        # Curated list: worst 25 + best 10 (preserve existing UI behavior).
+        by_driver_tag = stats_f
+        if len(stats_f) > 25:
+            worst = stats_f[:25]
+            best = list(reversed(stats_f[-10:]))
+            by_driver_tag = worst + best
+
+        # Canonical tags (include even if n < min_n so the recap always shows these if present).
+        canonical_order = ["pace_lo", "pace_hi", "eff_lo", "eff_hi"]
+        stat_by_tag = {str(r.get("tag")): r for r in stats}
+        by_driver_tag_canonical = [stat_by_tag[t] for t in canonical_order if t in stat_by_tag]
+
+        # Tag-type recap at the signal level (no double counting).
+        has_pace = [any(str(t).startswith("pace") for t in tags) for tags in tags_list]
+        has_eff = [any(str(t).startswith("eff") for t in tags) for tags in tags_list]
+        type_rows: list[dict[str, Any]] = []
+        for name, mask in [("pace", has_pace), ("eff", has_eff)]:
+            try:
+                m = pd.Series(mask, index=df.index).astype(bool)
+                g = df[m].copy()
+                if g.empty:
+                    continue
+                r0 = pd.to_numeric(g["result"], errors="coerce")
+                w = int((r0 == 1.0).sum())
+                l = int((r0 == 0.0).sum())
+                p = int((r0 == 0.5).sum())
+                d2 = w + l
+                pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, len(g)))
+                type_rows.append({
+                    "type": name,
+                    "n": int(len(g)),
+                    "wins": w,
+                    "losses": l,
+                    "pushes": p,
+                    "win_rate": (w / d2) if d2 > 0 else None,
+                    "roi_units_per_bet": pr,
+                })
+            except Exception:
+                continue
+
+        return {
+            "by_driver_tag": by_driver_tag,
+            "by_driver_tag_full": stats_f,
+            "by_driver_tag_canonical": by_driver_tag_canonical,
+            "by_driver_tag_type": type_rows,
+        }
+
     try:
         full_game_only = full_game_only_q in ("1", "true", "yes", "on")
         assume_price = float(assume_price_q) if assume_price_q else -110.0
@@ -36413,6 +36639,16 @@ def api_live_lens_side_accuracy():
             full_game_only=bool(full_game_only),
         )
         payload = compute_live_lens_total_side_accuracy(cfg)
+
+        # Enrich summary with driver tag breakdown for recap consumption.
+        try:
+            rows_df = payload.get("rows") if isinstance(payload, dict) else None
+            if isinstance(rows_df, pd.DataFrame) and not rows_df.empty:
+                br = _live_lens_driver_tag_breakdown(rows_df)
+                if isinstance(payload.get("summary"), dict):
+                    payload["summary"].update(br)
+        except Exception:
+            pass
 
         out_json = OUT / f"live_lens_side_accuracy_{date_q}.json"
         out_csv = OUT / f"live_lens_side_accuracy_{date_q}.csv"
@@ -36518,7 +36754,12 @@ def api_live_lens_analytics():
                 "by_side": [],
                 "by_elapsed_bucket": [],
                 "by_edge_bucket": [],
+                "by_driver": [],
+                "by_driver_full": [],
                 "by_driver_tag": [],
+                "by_driver_tag_full": [],
+                "by_driver_tag_canonical": [],
+                "by_driver_tag_type": [],
             }
 
         df = settled.copy()
@@ -36648,6 +36889,79 @@ def api_live_lens_analytics():
                 by_edge_bucket = []
 
         by_driver_tag: list[dict[str, Any]] = []
+        by_driver_tag_full: list[dict[str, Any]] = []
+        by_driver_tag_canonical: list[dict[str, Any]] = []
+        by_driver_tag_type: list[dict[str, Any]] = []
+
+        # Driver recap: group by the single `driver` string (no multi-tag expansion).
+        by_driver: list[dict[str, Any]] = []
+        by_driver_full: list[dict[str, Any]] = []
+        if "driver" in df.columns:
+            try:
+                drv_raw = df["driver"].tolist()
+                drv_clean: list[str | None] = []
+                for v in drv_raw:
+                    if v is None:
+                        drv_clean.append(None)
+                        continue
+                    try:
+                        if pd.isna(v):
+                            drv_clean.append(None)
+                            continue
+                    except Exception:
+                        pass
+                    s = str(v).strip()
+                    if not s or s.lower() in {"nan", "none", "null"}:
+                        drv_clean.append(None)
+                        continue
+                    drv_clean.append(s)
+
+                ddf = pd.DataFrame({"driver": drv_clean, "result": res, "profit_units": prof})
+                ddf = ddf.dropna(subset=["driver"]).copy()
+                if not ddf.empty:
+                    stats_d: list[dict[str, Any]] = []
+                    for drv, g in ddf.groupby("driver"):
+                        n = int(len(g))
+                        r0 = pd.to_numeric(g["result"], errors="coerce")
+                        w = int((r0 == 1.0).sum())
+                        l = int((r0 == 0.0).sum())
+                        p = int((r0 == 0.5).sum())
+                        d2 = w + l
+                        pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, n))
+                        stats_d.append(
+                            {
+                                "driver": str(drv),
+                                "n": n,
+                                "wins": w,
+                                "losses": l,
+                                "pushes": p,
+                                "win_rate": (w / d2) if d2 > 0 else None,
+                                "roi_units_per_bet": pr,
+                            }
+                        )
+
+                    # Full list (min_n=3), same policy as driver tags.
+                    min_n_drv = 3
+                    stats_df = [r for r in stats_d if int(r.get("n") or 0) >= min_n_drv]
+                    stats_df.sort(
+                        key=lambda r: (
+                            (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf")),
+                            -(r.get("n") or 0),
+                            r.get("driver", ""),
+                        )
+                    )
+                    by_driver_full = stats_df
+
+                    # Curated: worst 25 + best 10.
+                    if len(stats_df) > 25:
+                        worst = stats_df[:25]
+                        best = list(reversed(stats_df[-10:]))
+                        by_driver = worst + best
+                    else:
+                        by_driver = stats_df
+            except Exception:
+                by_driver = []
+                by_driver_full = []
         if "driver_tags" in df.columns or "driver" in df.columns:
             try:
                 import json as _json
@@ -36661,7 +36975,20 @@ def api_live_lens_analytics():
                     except Exception:
                         pass
                     if isinstance(v, list):
-                        return [str(x).strip() for x in v if x is not None and str(x).strip()]
+                        out: list[str] = []
+                        for x in v:
+                            if x is None:
+                                continue
+                            try:
+                                if pd.isna(x):
+                                    continue
+                            except Exception:
+                                pass
+                            s = str(x).strip()
+                            if not s or s.lower() in {"nan", "none", "null"}:
+                                continue
+                            out.append(s)
+                        return out
                     try:
                         s0 = str(v).strip()
                         if not s0 or s0.lower() in {"nan", "none", "null"}:
@@ -36669,12 +36996,16 @@ def api_live_lens_analytics():
                         if s0.startswith("[") and s0.endswith("]"):
                             j = _json.loads(s0)
                             if isinstance(j, list):
-                                return [str(x).strip() for x in j if x is not None and str(x).strip()]
+                                return [
+                                    str(x).strip()
+                                    for x in j
+                                    if x is not None and str(x).strip() and str(x).strip().lower() not in {"nan", "none", "null"}
+                                ]
                     except Exception:
                         pass
                     try:
                         parts = [p.strip() for p in str(v).replace("|", ",").split(",")]
-                        return [p for p in parts if p]
+                        return [p for p in parts if p and p.lower() not in {"nan", "none", "null"}]
                     except Exception:
                         return []
 
@@ -36692,12 +37023,9 @@ def api_live_lens_analytics():
 
                 if flat_rows:
                     tdf = pd.DataFrame(flat_rows)
-                    min_n = 3
                     stats: list[dict[str, Any]] = []
                     for tg, g in tdf.groupby("tag"):
                         n = int(len(g))
-                        if n < min_n:
-                            continue
                         r0 = pd.to_numeric(g["result"], errors="coerce")
                         w = int((r0 == 1.0).sum())
                         l = int((r0 == 0.0).sum())
@@ -36715,12 +37043,65 @@ def api_live_lens_analytics():
                                 "roi_units_per_bet": pr,
                             }
                         )
-                    stats.sort(key=lambda r: (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf")))
-                    worst = stats[:25]
-                    best = list(reversed(stats[-10:])) if len(stats) > 25 else []
-                    by_driver_tag = worst + best
+
+                    # Full list (min_n=3).
+                    min_n = 3
+                    stats_f = [r for r in stats if int(r.get("n") or 0) >= min_n]
+                    stats_f.sort(
+                        key=lambda r: (
+                            (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf")),
+                            -(r.get("n") or 0),
+                            r.get("tag", ""),
+                        )
+                    )
+                    by_driver_tag_full = stats_f
+
+                    # Curated: worst 25 + best 10 (what the UI currently displays).
+                    if len(stats_f) > 25:
+                        worst = stats_f[:25]
+                        best = list(reversed(stats_f[-10:]))
+                        by_driver_tag = worst + best
+                    else:
+                        by_driver_tag = stats_f
+
+                    # Canonical tags for Live Lens pace/eff attribution.
+                    canonical_order = ["pace_lo", "pace_hi", "eff_lo", "eff_hi"]
+                    stat_by_tag = {str(r.get("tag")): r for r in stats}
+                    by_driver_tag_canonical = [stat_by_tag[t] for t in canonical_order if t in stat_by_tag]
+
+                    # Tag-type recap at the signal level (no double counting).
+                    has_pace = [any(str(t).startswith("pace") for t in tl) for tl in tags]
+                    has_eff = [any(str(t).startswith("eff") for t in tl) for tl in tags]
+                    for name, mask in [("pace", has_pace), ("eff", has_eff)]:
+                        try:
+                            m = pd.Series(mask, index=df.index).astype(bool)
+                            g2 = df[m].copy()
+                            if g2.empty:
+                                continue
+                            r2 = pd.to_numeric(g2["result"], errors="coerce")
+                            w2 = int((r2 == 1.0).sum())
+                            l2 = int((r2 == 0.0).sum())
+                            p2 = int((r2 == 0.5).sum())
+                            d3 = w2 + l2
+                            pr2 = float(pd.to_numeric(g2["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, len(g2)))
+                            by_driver_tag_type.append(
+                                {
+                                    "type": name,
+                                    "n": int(len(g2)),
+                                    "wins": w2,
+                                    "losses": l2,
+                                    "pushes": p2,
+                                    "win_rate": (w2 / d3) if d3 > 0 else None,
+                                    "roi_units_per_bet": pr2,
+                                }
+                            )
+                        except Exception:
+                            continue
             except Exception:
                 by_driver_tag = []
+                by_driver_tag_full = []
+                by_driver_tag_canonical = []
+                by_driver_tag_type = []
 
         return {
             "status": "ok",
@@ -36735,7 +37116,12 @@ def api_live_lens_analytics():
             "by_side": by_side,
             "by_elapsed_bucket": by_elapsed_bucket,
             "by_edge_bucket": by_edge_bucket,
+            "by_driver": by_driver,
+            "by_driver_full": by_driver_full,
             "by_driver_tag": by_driver_tag,
+            "by_driver_tag_full": by_driver_tag_full,
+            "by_driver_tag_canonical": by_driver_tag_canonical,
+            "by_driver_tag_type": by_driver_tag_type,
         }
 
     start_q = (request.args.get("start") or "").strip()

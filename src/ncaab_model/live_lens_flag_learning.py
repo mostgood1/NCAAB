@@ -60,12 +60,24 @@ def _iter_date_range(start_date: str, end_date: str) -> list[str]:
 def _parse_tags(v: Any) -> list[str]:
     if v is None:
         return []
+    try:
+        if isinstance(v, float) and (math.isnan(v) or (not math.isfinite(v))):
+            return []
+    except Exception:
+        pass
     if isinstance(v, list):
         out: list[str] = []
         for x in v:
             if x is None:
                 continue
+            try:
+                if isinstance(x, float) and (math.isnan(x) or (not math.isfinite(x))):
+                    continue
+            except Exception:
+                pass
             s = str(x).strip()
+            if s.lower() in {"nan", "none", "null"}:
+                continue
             if s:
                 out.append(s)
         return out
@@ -73,16 +85,22 @@ def _parse_tags(v: Any) -> list[str]:
         s0 = str(v).strip()
         if not s0:
             return []
+        if s0.lower() in {"nan", "none", "null"}:
+            return []
         if s0.startswith("[") and s0.endswith("]"):
             j = json.loads(s0)
             if isinstance(j, list):
-                return [str(x).strip() for x in j if x is not None and str(x).strip()]
+                return [
+                    str(x).strip()
+                    for x in j
+                    if x is not None and str(x).strip() and str(x).strip().lower() not in {"nan", "none", "null"}
+                ]
     except Exception:
         pass
     try:
         s1 = str(v)
         parts = [p.strip() for p in s1.replace("|", ",").split(",")]
-        return [p for p in parts if p]
+        return [p for p in parts if p and p.lower() not in {"nan", "none", "null"}]
     except Exception:
         return []
 
@@ -461,7 +479,14 @@ def learn_driver_tag_strength_penalties(
             tag_roi[tg] = roi_t
 
     # Sort by worst ROI first, but only tags with enough samples.
-    cand_tags = [t for t, n in tag_counts.items() if n >= int(cfg.min_tag_n)]
+    # Also restrict to tags that underperform the baseline ROI (penalties are meant
+    # to suppress bad regimes, not prune historically-good ones).
+    cand_tags = [
+        t
+        for t, n in tag_counts.items()
+        if n >= int(cfg.min_tag_n)
+        and (roi0 is None or not math.isfinite(float(roi0)) or (tag_roi.get(t) is not None and float(tag_roi[t]) < float(roi0)))
+    ]
     cand_tags.sort(key=lambda t: (tag_roi.get(t, float("inf")), -tag_counts.get(t, 0)))
     cand_tags = cand_tags[: max(0, int(cfg.max_tags))]
 

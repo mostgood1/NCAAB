@@ -119,10 +119,34 @@ def test_live_lens_analytics_range_aggregates_totals_and_ats(client):
         assert overall['totals']['wins'] == 2
         assert overall['totals']['losses'] == 0
 
+        # Tag recap fields (non-breaking additions)
+        assert 'by_driver_tag' in overall['totals']
+        assert 'by_driver_tag_full' in overall['totals']
+        assert 'by_driver_tag_canonical' in overall['totals']
+        assert 'by_driver_tag_type' in overall['totals']
+        assert isinstance(overall['totals']['by_driver_tag_type'], list)
+
+        # Driver recap fields (non-breaking additions)
+        assert 'by_driver' in overall['totals']
+        assert 'by_driver_full' in overall['totals']
+        assert isinstance(overall['totals']['by_driver'], list)
+        assert isinstance(overall['totals']['by_driver_full'], list)
+
         assert overall['ats']['status'] == 'ok'
         assert overall['ats']['n_settled'] == 2
         assert overall['ats']['wins'] == 2
         assert overall['ats']['losses'] == 0
+
+        assert 'by_driver_tag' in overall['ats']
+        assert 'by_driver_tag_full' in overall['ats']
+        assert 'by_driver_tag_canonical' in overall['ats']
+        assert 'by_driver_tag_type' in overall['ats']
+        assert isinstance(overall['ats']['by_driver_tag_type'], list)
+
+        assert 'by_driver' in overall['ats']
+        assert 'by_driver_full' in overall['ats']
+        assert isinstance(overall['ats']['by_driver'], list)
+        assert isinstance(overall['ats']['by_driver_full'], list)
 
         assert 'per_day' in data
         assert isinstance(data['per_day'], list)
