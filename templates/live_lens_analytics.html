@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Live Lens Analytics</title>
+  <title>Live Lens Accuracy</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   <style>
@@ -38,10 +38,12 @@
 </head>
 <body>
   <div class="lla-wrap">
+    {% include '_top_nav.html' %}
+
     <div class="lla-card">
       <div style="display:flex; gap:12px; align-items:baseline; justify-content:space-between; flex-wrap:wrap;">
         <div>
-          <h1 style="margin:0; font-size: 20px;">Live Lens Analytics</h1>
+          <h1 style="margin:0; font-size: 20px;">Live Lens Accuracy</h1>
           <div class="lla-muted lla-small">Aggregated settled BET performance from signal logs + daily results.</div>
         </div>
         <div class="lla-small lla-muted">API: <span class="lla-pill">/api/live_lens_analytics</span></div>

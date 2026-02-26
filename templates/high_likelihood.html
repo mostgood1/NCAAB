@@ -57,11 +57,11 @@
 </head>
 <body>
   <div class="container">
+    {% include '_top_nav.html' %}
+
     <div class="header">
       <h1>NCAAB – Recommendations (High Likelihood)</h1>
       <div class="spacer"></div>
-      <a href="/">Cards</a>
-      <a href="/results-archive" class="pill">Results Archive</a>
       <a href="/recommendations?group=1{% if request.args.get('date') %}&date={{ request.args.get('date') }}{% endif %}" class="pill" title="EV-style recommendations">Legacy Recs</a>
     </div>
 

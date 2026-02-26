@@ -27,12 +27,10 @@
 </head>
 <body>
   <div class="container">
+    {% include '_top_nav.html' %}
+
     <div class="row">
       <h1>NCAAB – Archive</h1>
-      <div>
-        <a class="pill" href="/">Cards</a>
-        <a class="pill" href="/finals">Finals</a>
-      </div>
     </div>
     {% set _display_dates = display_dates if display_dates is defined else (dates if dates is defined else []) %}
     {% set _latest_display = latest_display if latest_display is defined else (latest if latest is defined else None) %}

@@ -2,6 +2,13 @@
 .signals-row span{ color:#222; font-weight:600; }
 .cards-compact .signals-row{ gap:6px; }
 .signals-row span::after{ content:''; margin:0 2px; }
+
+/* Shared top navigation (pill style) */
+.top-nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.nav-pill{display:inline-block;background:var(--pill,#152042);border:1px solid var(--pill-br,#2a3a63);border-radius:999px;padding:4px 10px;font-size:12px;line-height:1.2;text-decoration:none;}
+.nav-pill,.nav-pill *{color:#fff !important;}
+.nav-pill:hover{filter:brightness(1.08);text-decoration:none;}
+.nav-pill.active{box-shadow:0 0 0 1px rgba(158,197,255,.35);}
 /* Extracted inline styles & utility classes */
 .flex-row-wrap { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .archive-stepper { margin:4px 0 8px 0; display:flex; gap:6px; }

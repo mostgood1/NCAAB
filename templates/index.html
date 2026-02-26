@@ -130,12 +130,12 @@
         </form>
 
         <nav class="nav-links">
-          <a href="/">Cards</a>
-          <a href="/high-likelihood{% if _nav_date %}?date={{ _nav_date }}{% endif %}" title="High-likelihood recommendations + recaps">Recommendations</a>
-          <a href="/interval-accuracy">Interval Accuracy</a>
-          <a href="/accuracy-market">Market Breakdown</a>
-          <a href="/live_lens_analytics" title="Aggregate Live Lens settled performance across dates">Live Lens Analytics</a>
-          <a href="/api/display_predictions?view=cards{% if _nav_date %}&date={{ _nav_date }}{% endif %}">JSON</a>
+          <a class="nav-pill" href="/">Cards</a>
+          <a class="nav-pill" href="/high-likelihood{% if _nav_date %}?date={{ _nav_date }}{% endif %}" title="High-likelihood recommendations + recaps">Recommendations</a>
+          <a class="nav-pill" href="/interval-accuracy">Interval</a>
+          <a class="nav-pill" href="/accuracy-market">Market Accuracy</a>
+          <a class="nav-pill" href="/live_lens_accuracy" title="Aggregate Live Lens settled performance across dates">Live Lens Accuracy</a>
+          <a class="nav-pill" href="/api/display_predictions?view=cards{% if _nav_date %}&date={{ _nav_date }}{% endif %}">JSON</a>
         </nav>
       </div>
     </div>

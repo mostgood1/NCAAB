@@ -209,6 +209,7 @@ try:
             allowed.add('/api/stake_sheets')
             allowed.add('/stake-archive')
             allowed.add('/live_lens_analytics')
+            allowed.add('/live_lens_accuracy')
             # Allow specific static assets and templates
             if path.startswith('/static/') or path.startswith('/templates/'):
                 return None
@@ -37314,8 +37315,9 @@ def api_live_lens_analytics():
 
 
 @app.route("/live_lens_analytics")
+@app.route("/live_lens_accuracy")
 def live_lens_analytics_page():
-    """Simple Live Lens analytics page (consumes /api/live_lens_analytics)."""
+    """Simple Live Lens accuracy page (consumes /api/live_lens_analytics)."""
     return render_template("live_lens_analytics.html")
 
 
@@ -42147,12 +42149,37 @@ def stake_archive():
         f'<li><a href="/api/stake_sheets?date={d}">{d}</a></li>' for d in dates
     ])
     html = f"""<!doctype html>
-<html><head><meta charset='utf-8'><title>Stake Archive</title></head>
+<html lang='en'><head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <title>Stake Archive</title>
+    <style>
+        :root{{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }}
+        body{{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg);color:var(--text)}}
+        .container{{max-width:980px;margin:24px auto;padding:0 16px}}
+        a{{color:var(--accent)}}
+        .nav{{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}}
+        .nav a{{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:999px;padding:4px 10px;font-size:12px;text-decoration:none;color:#fff}}
+        .card{{background:var(--card);border:1px solid var(--pill-br);border-radius:12px;padding:12px}}
+        code{{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:1px 6px;border-radius:6px;color:#fff}}
+    </style>
+</head>
 <body>
-  <h2>Stake Archive</h2>
-  <div>Latest: <code>{latest or ''}</code></div>
-  <ul>{items}</ul>
-  <div><a href="/home">Back</a></div>
+    <div class='container'>
+        <div class='nav' role='navigation' aria-label='Site navigation'>
+            <a href='/'>Cards</a>
+            <a href='/high-likelihood'>Recommendations</a>
+            <a href='/results-archive'>Results</a>
+            <a href='/accuracy'>Accuracy</a>
+            <a href='/accuracy-market'>Market Accuracy</a>
+            <a href='/live_lens_accuracy'>Live Lens Accuracy</a>
+        </div>
+        <div class='card'>
+            <h2 style='margin:0 0 8px 0;'>Stake Archive</h2>
+            <div style='color:var(--muted);font-size:12px;margin-bottom:10px;'>Latest: <code>{latest or ''}</code></div>
+            <ul style='margin:0;padding-left:18px'>{items}</ul>
+        </div>
+    </div>
 </body></html>"""
     return make_response(html, 200)
 

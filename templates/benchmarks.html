@@ -9,13 +9,12 @@
 </head>
 <body>
   <div class="container">
+    {% include '_top_nav.html' %}
+
     <div class="row header">
       <h1>Benchmarks</h1>
       <div class="spacer"></div>
-      <nav class="nav-links">
-        <a href="/">Cards</a>
-        <a href="/home">Dashboard</a>
-      </nav>
+      <a class="nav-pill" href="/home">Dashboard</a>
       <button id="toggleContrast" class="pill" title="Toggle high contrast">High Contrast</button>
     </div>
     {% if note %}<div class="card mb8"><div class="muted">{{ note }}</div></div>{% endif %}

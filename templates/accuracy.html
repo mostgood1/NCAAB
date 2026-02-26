@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Season Accuracy</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   <style>
     :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
@@ -20,11 +21,9 @@
 </head>
 <body>
   <div class="container">
-  <header style="display:flex; align-items:baseline; gap:12px;">
-    <h1>Season Accuracy</h1>
-    <a href="/">Home</a>
-    <a href="/recommendations?group=1{% if request.args.get('date') %}&date={{ request.args.get('date') }}{% endif %}">Recommendations</a>
-    <a href="/results-archive">Daily Recap</a>
+  {% include '_top_nav.html' %}
+  <header style="display:flex; align-items:baseline; gap:12px; margin-top: 12px;">
+    <h1 style="margin:0;">Season Accuracy</h1>
   </header>
   <p class="muted">Model-implied accuracy vs market for ATS and totals; includes daily breakdown and team/conference aggregates.</p>
 
@@ -44,10 +43,9 @@
 
     <div>
       <h2>Quick Links</h2>
-      <ul>
-        <li><a href="/api/accuracy" target="_blank">Accuracy JSON</a></li>
-        <li><a href="/">Home</a></li>
-      </ul>
+      <div class="top-nav">
+        <a class="nav-pill" href="/api/accuracy" target="_blank" rel="noopener">JSON</a>
+      </div>
     </div>
   </div>
 

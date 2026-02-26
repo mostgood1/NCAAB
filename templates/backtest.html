@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Backtest Summary</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
 </head>
 <body>
   <div class="container">
+    {% include '_top_nav.html' %}
     <h1>Backtest Summary</h1>
-    <p><a href="/">Home</a> · <a href="/coverage">Coverage</a></p>
+    <p><a class="nav-pill" href="/coverage">Coverage</a> <a class="nav-pill" href="/api/backtest-summary" target="_blank" rel="noopener">JSON</a></p>
     {% if summary %}
       <div class="cards">
         <div class="card">
@@ -44,7 +46,7 @@
         </div>
       </div>
       <p class="muted">Timestamp: {{ summary.timestamp if summary.timestamp else '—' }}</p>
-      <p><a href="/api/backtest-summary" target="_blank">View raw JSON</a></p>
+      <p><a class="nav-pill" href="/api/backtest-summary" target="_blank" rel="noopener">View raw JSON</a></p>
     {% else %}
       <div class="card">
         <p>No backtest summary found yet. Run the backtest to populate metrics.</p>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Coverage Diagnostics</title>
   <link rel="stylesheet" href="/static/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   <style>
     body { padding: 16px; }
     .counts { margin-bottom: 16px; }
@@ -15,6 +16,9 @@
   </style>
 </head>
 <body>
+  <div style="padding: 0 16px; margin-bottom: 12px;">
+    {% include '_top_nav.html' %}
+  </div>
   <h2>Coverage Diagnostics</h2>
   <form method="get" action="/coverage" class="counts">
     <div class="row g-2 align-items-center">
@@ -92,6 +96,6 @@
     <p>No missing teams for this date.</p>
   {% endif %}
 
-  <p class="mt-3"><a href="/">Back to index</a></p>
+  <p class="mt-3"><a class="nav-pill" href="/">Back to Cards</a></p>
 </body>
 </html>

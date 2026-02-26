@@ -1,0 +1,12 @@
+{# Shared top navigation pills #}
+{% set _nav_date = (request.args.get('date') or (date_val if date_val is defined else '') ) %}
+{% set _path = request.path or '' %}
+<div class="top-nav" role="navigation" aria-label="Site navigation">
+  <a class="nav-pill{% if _path == '/' %} active{% endif %}" href="/">Cards</a>
+  <a class="nav-pill{% if _path.startswith('/high-likelihood') or _path.startswith('/recommendations') %} active{% endif %}" href="/high-likelihood{% if _nav_date %}?date={{ _nav_date }}{% endif %}" title="High-likelihood recommendations + recaps">Recommendations</a>
+  <a class="nav-pill{% if _path.startswith('/results-archive') or _path.startswith('/finals') %} active{% endif %}" href="/results-archive">Results</a>
+  <a class="nav-pill{% if _path.startswith('/accuracy') and not _path.startswith('/accuracy-market') %} active{% endif %}" href="/accuracy">Accuracy</a>
+  <a class="nav-pill{% if _path.startswith('/interval-accuracy') %} active{% endif %}" href="/interval-accuracy">Interval</a>
+  <a class="nav-pill{% if _path.startswith('/accuracy-market') %} active{% endif %}" href="/accuracy-market">Market Accuracy</a>
+  <a class="nav-pill{% if _path.startswith('/live_lens_analytics') or _path.startswith('/live_lens_accuracy') %} active{% endif %}" href="/live_lens_accuracy" title="Aggregate Live Lens settled performance across dates">Live Lens Accuracy</a>
+</div>

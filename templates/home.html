@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NCAAB Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   <style>
     body { font-family: system-ui, sans-serif; margin: 24px; }
     header { display: flex; align-items: center; justify-content: space-between; }
@@ -21,15 +22,14 @@
     <h1>NCAAB Dashboard</h1>
     <div id="finalizeBadge" class="badge">Loading…</div>
   </header>
-  <nav>
-    <a href="/">Cards</a>
-    <a href="/stake-archive">Stake Archive</a>
-    <a href="/results-archive">Results Archive</a>
-    <a href="/display-archive">Display Archive</a>
-    <a href="/backtest">Backtest</a>
-    <a href="/coverage">Coverage</a>
-    <a href="/calibration">Calibration</a>
-  </nav>
+  {% include '_top_nav.html' %}
+  <div style="margin-top:10px;">
+    <a class="nav-pill" href="/stake-archive">Stake Archive</a>
+    <a class="nav-pill" href="/display-archive">Display Archive</a>
+    <a class="nav-pill" href="/backtest">Backtest</a>
+    <a class="nav-pill" href="/coverage">Coverage</a>
+    <a class="nav-pill" href="/calibration">Calibration</a>
+  </div>
 
   <div class="grid">
     <div class="card">

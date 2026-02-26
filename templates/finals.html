@@ -29,15 +29,10 @@
 </head>
 <body>
   <div class="container">
+    {% include '_top_nav.html' %}
+
     <div class="row header">
       <h1>NCAAB – Final Scores</h1>
-      <div>
-        <a href="/">Cards</a>
-        &nbsp;|&nbsp;
-        <a href="/recommendations{% if date_val %}?date={{ date_val }}{% endif %}">Recommendations</a>
-        &nbsp;|&nbsp;
-        <a href="/display-archive">Archive</a>
-      </div>
     </div>
     <div class="muted">{{ total_rows }} games{% if date_min and date_max %} ({{ date_min }} → {{ date_max }}){% endif %}</div>
     {% if dates %}
