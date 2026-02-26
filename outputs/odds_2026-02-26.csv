@@ -1,0 +1,45 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+1e9c7cda68cf051d594e5952ba77dd33,BetOnline.ag,2026-02-26 14:59:18.637030+00:00,211.0,-255.0,5.5,140.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,LowVig.ag,2026-02-26 14:59:18.637030+00:00,211.0,-255.0,5.5,140.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,FanDuel,2026-02-26 14:59:18.637030+00:00,205.0,-255.0,5.5,140.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,Fanatics,2026-02-26 14:59:18.637030+00:00,190.0,-240.0,6.0,141.0,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,DraftKings,2026-02-26 14:59:18.637030+00:00,195.0,-238.0,5.5,141.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,BetRivers,2026-02-26 14:59:18.637030+00:00,200.0,-250.0,5.5,140.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,Caesars,2026-02-26 14:59:18.637030+00:00,210.0,-260.0,5.5,140.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,BetUS,2026-02-26 14:59:18.637030+00:00,215.0,-255.0,5.5,140.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,BetMGM,2026-02-26 14:59:18.637030+00:00,200.0,-250.0,5.5,140.5,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+1e9c7cda68cf051d594e5952ba77dd33,Bovada,2026-02-26 14:59:18.637030+00:00,185.0,-225.0,5.5,141.0,2026-02-26 16:00:00+00:00,Hampton Pirates,Charleston Cougars
+206824ba294cdd1fdd50e81cbc4d035e,BetOnline.ag,2026-02-26 14:59:18.637030+00:00,-145.0,125.0,-2.5,144.5,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,Fanatics,2026-02-26 14:59:18.637030+00:00,-150.0,125.0,-2.5,145.0,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,LowVig.ag,2026-02-26 14:59:18.637030+00:00,-145.0,125.0,-2.5,144.5,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,FanDuel,2026-02-26 14:59:18.637030+00:00,-156.0,130.0,-2.5,144.5,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,BetRivers,2026-02-26 14:59:18.637030+00:00,-157.0,123.0,-2.5,144.5,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,Caesars,2026-02-26 14:59:18.637030+00:00,-145.0,122.0,-2.5,145.0,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,BetUS,2026-02-26 14:59:18.637030+00:00,-145.0,125.0,-2.5,144.5,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,BetMGM,2026-02-26 14:59:18.637030+00:00,-150.0,125.0,-2.5,144.5,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+206824ba294cdd1fdd50e81cbc4d035e,Bovada,2026-02-26 14:59:18.637030+00:00,-145.0,125.0,-3.0,145.0,2026-02-26 22:00:00+00:00,St. Bonaventure Bonnies,Rhode Island Rams
+51b0d9e1eabb6d019dd57c1f823473c0,BetOnline.ag,2026-02-26 14:59:18.637030+00:00,,,2.0,142.0,2026-02-26 23:00:00+00:00,Binghamton Bearcats,New Hampshire Wildcats
+51b0d9e1eabb6d019dd57c1f823473c0,LowVig.ag,2026-02-26 14:59:18.637030+00:00,,,2.0,142.0,2026-02-26 23:00:00+00:00,Binghamton Bearcats,New Hampshire Wildcats
+51b0d9e1eabb6d019dd57c1f823473c0,BetRivers,2026-02-26 14:59:18.637030+00:00,108.0,-139.0,1.5,141.5,2026-02-26 23:00:00+00:00,Binghamton Bearcats,New Hampshire Wildcats
+51b0d9e1eabb6d019dd57c1f823473c0,BetMGM,2026-02-26 14:59:18.637030+00:00,115.0,-140.0,1.5,142.5,2026-02-26 23:00:00+00:00,Binghamton Bearcats,New Hampshire Wildcats
+51b0d9e1eabb6d019dd57c1f823473c0,FanDuel,2026-02-26 14:59:18.637030+00:00,112.0,-134.0,1.5,141.5,2026-02-26 23:00:00+00:00,Binghamton Bearcats,New Hampshire Wildcats
+51b0d9e1eabb6d019dd57c1f823473c0,Fanatics,2026-02-26 14:59:18.637030+00:00,110.0,-130.0,2.0,142.5,2026-02-26 23:00:00+00:00,Binghamton Bearcats,New Hampshire Wildcats
+c52118afde0fec63bfd445a3d7dc82fe,BetOnline.ag,2026-02-26 14:59:18.637030+00:00,,,-10.0,138.0,2026-02-26 23:00:00+00:00,UMBC Retrievers,Bryant Bulldogs
+c52118afde0fec63bfd445a3d7dc82fe,LowVig.ag,2026-02-26 14:59:18.637030+00:00,,,-10.0,138.0,2026-02-26 23:00:00+00:00,UMBC Retrievers,Bryant Bulldogs
+c52118afde0fec63bfd445a3d7dc82fe,DraftKings,2026-02-26 14:59:18.637030+00:00,-575.0,425.0,-10.5,138.5,2026-02-26 23:00:00+00:00,UMBC Retrievers,Bryant Bulldogs
+c52118afde0fec63bfd445a3d7dc82fe,BetRivers,2026-02-26 14:59:18.637030+00:00,-670.0,450.0,-10.5,138.5,2026-02-26 23:00:00+00:00,UMBC Retrievers,Bryant Bulldogs
+c52118afde0fec63bfd445a3d7dc82fe,FanDuel,2026-02-26 14:59:18.637030+00:00,-690.0,480.0,-10.5,138.5,2026-02-26 23:00:00+00:00,UMBC Retrievers,Bryant Bulldogs
+c52118afde0fec63bfd445a3d7dc82fe,Fanatics,2026-02-26 14:59:18.637030+00:00,-550.0,400.0,-10.0,138.5,2026-02-26 23:00:00+00:00,UMBC Retrievers,Bryant Bulldogs
+6f2bfa4cb81c67b5463656f8b93c902a,BetOnline.ag,2026-02-26 14:59:18.637030+00:00,,,-6.5,134.0,2026-02-26 23:30:00+00:00,Albany Great Danes,Maine Black Bears
+6f2bfa4cb81c67b5463656f8b93c902a,LowVig.ag,2026-02-26 14:59:18.637030+00:00,,,-6.5,134.0,2026-02-26 23:30:00+00:00,Albany Great Danes,Maine Black Bears
+6f2bfa4cb81c67b5463656f8b93c902a,BetRivers,2026-02-26 14:59:18.637030+00:00,-315.0,235.0,-6.5,133.5,2026-02-26 23:30:00+00:00,Albany Great Danes,Maine Black Bears
+6f2bfa4cb81c67b5463656f8b93c902a,BetMGM,2026-02-26 14:59:18.637030+00:00,-295.0,230.0,-6.5,134.5,2026-02-26 23:30:00+00:00,Albany Great Danes,Maine Black Bears
+6f2bfa4cb81c67b5463656f8b93c902a,FanDuel,2026-02-26 14:59:18.637030+00:00,-315.0,250.0,-6.5,133.5,2026-02-26 23:30:00+00:00,Albany Great Danes,Maine Black Bears
+6f2bfa4cb81c67b5463656f8b93c902a,Fanatics,2026-02-26 14:59:18.637030+00:00,-300.0,240.0,-6.5,134.5,2026-02-26 23:30:00+00:00,Albany Great Danes,Maine Black Bears
+74aada8c55999add9fabf6687648c0cf,BetOnline.ag,2026-02-26 14:59:18.637030+00:00,,,1.0,143.5,2026-02-26 23:30:00+00:00,Grambling St Tigers,Bethune-Cookman Wildcats
+74aada8c55999add9fabf6687648c0cf,LowVig.ag,2026-02-26 14:59:18.637030+00:00,,,1.0,143.5,2026-02-26 23:30:00+00:00,Grambling St Tigers,Bethune-Cookman Wildcats
+74aada8c55999add9fabf6687648c0cf,DraftKings,2026-02-26 14:59:18.637030+00:00,-108.0,-112.0,1.5,142.5,2026-02-26 23:30:00+00:00,Grambling St Tigers,Bethune-Cookman Wildcats
+74aada8c55999add9fabf6687648c0cf,BetRivers,2026-02-26 14:59:18.637030+00:00,-110.0,-113.0,0.5,142.5,2026-02-26 23:30:00+00:00,Grambling St Tigers,Bethune-Cookman Wildcats
+74aada8c55999add9fabf6687648c0cf,BetMGM,2026-02-26 14:59:18.637030+00:00,-105.0,-115.0,1.5,142.5,2026-02-26 23:30:00+00:00,Grambling St Tigers,Bethune-Cookman Wildcats
+74aada8c55999add9fabf6687648c0cf,FanDuel,2026-02-26 14:59:18.637030+00:00,-108.0,-111.0,0.5,141.5,2026-02-26 23:30:00+00:00,Grambling St Tigers,Bethune-Cookman Wildcats
+74aada8c55999add9fabf6687648c0cf,Fanatics,2026-02-26 14:59:18.637030+00:00,-105.0,-115.0,1.0,142.5,2026-02-26 23:30:00+00:00,Grambling St Tigers,Bethune-Cookman Wildcats
