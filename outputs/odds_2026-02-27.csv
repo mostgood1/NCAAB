@@ -1,0 +1,29 @@
+game_id,book,fetched_at,moneyline_home,moneyline_away,spread,total,commence_time,home_team_name,away_team_name
+b30810522f2d3d88073f5aadd833d9ff,BetOnline.ag,2026-02-27 14:57:03.033034+00:00,165.0,-190.0,4.0,165.0,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,LowVig.ag,2026-02-27 14:57:03.033034+00:00,165.0,-190.0,4.0,165.0,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,FanDuel,2026-02-27 14:57:03.033034+00:00,168.0,-205.0,4.5,165.5,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,Fanatics,2026-02-27 14:57:03.033034+00:00,160.0,-190.0,4.5,166.0,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,BetMGM,2026-02-27 14:57:03.033034+00:00,154.0,-190.0,3.5,165.5,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,Bovada,2026-02-27 14:57:03.033034+00:00,165.0,-195.0,4.5,166.0,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,BetRivers,2026-02-27 14:57:03.033034+00:00,140.0,-175.0,3.5,165.5,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,BetUS,2026-02-27 14:57:03.033034+00:00,163.0,-190.0,4.0,165.5,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+b30810522f2d3d88073f5aadd833d9ff,Caesars,2026-02-27 14:57:03.033034+00:00,158.0,-190.0,4.0,165.0,2026-02-27 23:00:00+00:00,Cornell Big Red,Yale Bulldogs
+e3addfb23b48d473ac96346f0388ff86,DraftKings,2026-02-27 14:57:03.033034+00:00,550.0,-800.0,11.5,161.5,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,Fanatics,2026-02-27 14:57:03.033034+00:00,550.0,-800.0,12.0,162.0,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,BetRivers,2026-02-27 14:57:03.033034+00:00,440.0,-770.0,11.5,161.5,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,LowVig.ag,2026-02-27 14:57:03.033034+00:00,561.0,-800.0,11.5,162.0,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,BetOnline.ag,2026-02-27 14:57:03.033034+00:00,561.0,-800.0,11.5,162.0,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,FanDuel,2026-02-27 14:57:03.033034+00:00,580.0,-880.0,12.5,161.5,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,BetMGM,2026-02-27 14:57:03.033034+00:00,600.0,-900.0,,161.5,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,Bovada,2026-02-27 14:57:03.033034+00:00,525.0,-800.0,12.0,162.5,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,BetUS,2026-02-27 14:57:03.033034+00:00,550.0,-800.0,12.0,162.0,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+e3addfb23b48d473ac96346f0388ff86,Caesars,2026-02-27 14:57:03.033034+00:00,550.0,-800.0,12.0,162.0,2026-02-27 23:00:00+00:00,Western Michigan Broncos,Miami (OH) RedHawks
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,BetOnline.ag,2026-02-27 14:57:03.033034+00:00,296.0,-370.0,8.0,136.0,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,LowVig.ag,2026-02-27 14:57:03.033034+00:00,296.0,-370.0,8.0,136.0,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,FanDuel,2026-02-27 14:57:03.033034+00:00,330.0,-430.0,8.5,135.5,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,Fanatics,2026-02-27 14:57:03.033034+00:00,300.0,-375.0,8.0,136.0,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,BetMGM,2026-02-27 14:57:03.033034+00:00,290.0,-375.0,7.5,135.5,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,Bovada,2026-02-27 14:57:03.033034+00:00,295.0,-390.0,8.5,136.5,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,BetRivers,2026-02-27 14:57:03.033034+00:00,300.0,-420.0,8.5,136.5,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,BetUS,2026-02-27 14:57:03.033034+00:00,295.0,-370.0,8.0,136.0,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
+aa4b8cb76b6e2ebf9b51bb2ad5467cc2,Caesars,2026-02-27 14:57:03.033034+00:00,310.0,-400.0,8.0,136.0,2026-02-27 23:30:00+00:00,Niagara Purple Eagles,Quinnipiac Bobcats
