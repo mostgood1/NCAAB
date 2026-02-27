@@ -2352,13 +2352,24 @@
             }
           } catch(_eDR0){ driverRaw = null; }
 
+          // Lens-key for per-lens attributes.
+          var lk0 = null;
           try {
-            var lk0 = null;
             if(lensKind === '1h') lk0 = '1h';
             else if(lensKind === '2h') lk0 = '2h';
             else if(lensKind === 'full_game' || lensKind === 'fg') lk0 = 'fg';
-            if(!driverRaw && lk0) driverRaw = safeStr(card.getAttribute('data-live-driver-' + lk0));
-          } catch(_eDR){ driverRaw = null; }
+          } catch(_eLK0){ lk0 = null; }
+
+          // Prefer the richer per-lens driver attribute when present.
+          // (sig.driver is often a single-token legacy driver like pace_hi.)
+          try {
+            if(lk0){
+              var drvAttr = safeStr(card.getAttribute('data-live-driver-' + lk0));
+              var drvLow = driverRaw ? String(driverRaw).trim().toLowerCase() : '';
+              var isLegacy = (drvLow === 'pace_hi' || drvLow === 'pace_lo' || drvLow === 'eff_hi' || drvLow === 'eff_lo');
+              if((!driverRaw || isLegacy) && drvAttr) driverRaw = drvAttr;
+            }
+          } catch(_eDR){ /* ignore */ }
 
           // Last resort: read the already-rendered driver line from the widget.
           // This avoids missing driver/tags when the card attribute isn't populated yet.
@@ -2382,6 +2393,18 @@
             }
           } catch(_eDT0){ driverTags = []; }
           if(!driverTags || !driverTags.length) driverTags = (driverRaw ? driverTagsFromRaw(driverRaw) : []);
+
+          // For totals, prefer the expanded tag list computed during rendering and stored
+          // on the card (covers edge/sim_gap/pbp/flags/etc beyond canonical pace/eff).
+          try {
+            if(kind === 'total' && lk0){
+              var rawT = safeStr(card.getAttribute('data-live-total-tags-' + lk0));
+              if(rawT){
+                var xsT = rawT.split('|').map(function(x){ return safeStr(x); }).filter(Boolean);
+                if(xsT && xsT.length) driverTags = xsT;
+              }
+            }
+          } catch(_eTAttr){ /* ignore */ }
 
           // Also snapshot the tuning values in effect (small subset).
           var tuningSnap = null;
