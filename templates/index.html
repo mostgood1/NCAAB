@@ -96,13 +96,23 @@
       /* With non-sticky header, reduce scroll offset */
       .game-card{scroll-margin-top:12px;}
 
-      /* Keep compact strip short: single-row horizontal scroll */
-      .compact-game-strip{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;max-height:none;}
+      /* Mobile: 2-row horizontal scroll */
+      .compact-game-strip{
+        display:grid;
+        grid-auto-flow:column;
+        grid-template-rows:repeat(2, auto);
+        grid-auto-columns:minmax(140px, 170px);
+        gap:3px;
+        padding:2px 0;
+        overflow-x:auto;
+        overflow-y:hidden;
+        max-height:170px;
+        -webkit-overflow-scrolling:touch;
+      }
       .filters-bar-row{gap:6px;}
       .pill.small{font-size:11px;padding:2px 7px;}
 
-      .compact-game-strip{gap:3px;padding:2px 0;}
-      .compact-game-strip .compact-game-item{min-width:140px;max-width:170px;padding:4px 6px;line-height:1.04;}
+      .compact-game-strip .compact-game-item{min-width:0;max-width:none;width:100%;padding:4px 6px;line-height:1.04;}
       .compact-game-strip .compact-game-top{font-size:11px;}
       .compact-game-strip .compact-game-team{font-size:12px;}
       .compact-game-strip .compact-game-score{font-size:12px;}
