@@ -2323,6 +2323,11 @@
               }
               toks.forEach(function(t){
                 var tl = String(t || '').toLowerCase();
+                // Legacy single-token drivers (server backfill / early logging).
+                if(tl === 'pace_hi') addTag('PACE-HI');
+                else if(tl === 'pace_lo') addTag('PACE-LO');
+                else if(tl === 'eff_hi') addTag('EFF-HI');
+                else if(tl === 'eff_lo') addTag('EFF-LO');
                 if(tl.indexOf('edge ') === 0) addTag('EDGE');
                 else if(tl.indexOf('d ') === 0) addTag('SIM-GAP');
                 else if(tl.indexOf('pace ') === 0) addTag('PACE');
@@ -3649,6 +3654,70 @@
             var lensKeyD2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
             if(cardDrv && lensKeyD2){
               cardDrv.setAttribute('data-live-driver-' + lensKeyD2, String(driver || '').trim());
+
+              // Persist per-lens driver tags for compact WATCH/BET callouts.
+              // Keep as a stable, pipe-delimited list (server can parse too if needed).
+              try {
+                var tagsT = [];
+                function addTagT(t){
+                  t = String(t || '').trim();
+                  if(!t) return;
+                  if(tagsT.indexOf(t) >= 0) return;
+                  tagsT.push(t);
+                }
+
+                // Canonical pace/eff hi/lo when we have PBP-derived rates.
+                try {
+                  if(typeof possRate === 'number' && isFinite(possRate)){
+                    if(typeof paceHi === 'number' && isFinite(paceHi) && possRate >= paceHi){ addTagT('pace_hi'); addTagT('pace'); }
+                    else if(typeof paceLo === 'number' && isFinite(paceLo) && possRate <= paceLo){ addTagT('pace_lo'); addTagT('pace'); }
+                    else { addTagT('pace'); }
+                  }
+                } catch(_ePR){ /* noop */ }
+                try {
+                  if(typeof ppp === 'number' && isFinite(ppp)){
+                    if(typeof ppsHi === 'number' && isFinite(ppsHi) && ppp >= ppsHi){ addTagT('eff_hi'); addTagT('eff'); }
+                    else if(typeof ppsLo === 'number' && isFinite(ppsLo) && ppp <= ppsLo){ addTagT('eff_lo'); addTagT('eff'); }
+                    else { addTagT('eff'); }
+                  }
+                } catch(_ePPP){ /* noop */ }
+
+                // Explanatory flags used in the driver text.
+                try { if(latePenApplied) addTagT('late_over'); } catch(_eLate){ /* noop */ }
+                try { if(earlyPenApplied) addTagT('early_over'); } catch(_eEarly){ /* noop */ }
+                try { if(tagPenaltyApplied) addTagT('flags'); } catch(_eFlags){ /* noop */ }
+
+                // Generic components: edge + sim-gap + pbp.
+                try {
+                  if(typeof edge === 'number' && isFinite(edge)) addTagT('edge');
+                } catch(_eEdgeT){ /* noop */ }
+                try {
+                  if(delta !== null && delta !== undefined && isFinite(delta)) addTagT('sim_gap');
+                } catch(_eDeltaT){ /* noop */ }
+                try {
+                  if(pbp) addTagT('pbp');
+                } catch(_ePbpT){ /* noop */ }
+
+                // Parse driver text for additional categories (shooting/ft/ppp) when present.
+                try {
+                  var rawD = String(driver || '').trim();
+                  if(rawD){
+                    var toksD = rawD.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+                    toksD.forEach(function(t){
+                      var tl = String(t||'').toLowerCase();
+                      if(tl.indexOf('shooting ') === 0) addTagT('shooting');
+                      else if(tl.indexOf('ft rate ') === 0) addTagT('ft');
+                      else if(tl.indexOf('ppp ') === 0) addTagT('ppp');
+                    });
+                  }
+                } catch(_eParseD){ /* noop */ }
+
+                if(tagsT && tagsT.length){
+                  cardDrv.setAttribute('data-live-total-tags-' + lensKeyD2, tagsT.join('|'));
+                } else {
+                  try { cardDrv.removeAttribute('data-live-total-tags-' + lensKeyD2); } catch(_eRTT){ /* noop */ }
+                }
+              } catch(_eTags){ /* noop */ }
             }
           } catch(_eDrvAttr){ /* noop */ }
 
@@ -3993,6 +4062,15 @@
                       if(dAT && dAT !== '–') cardA.setAttribute('data-live-market-driver-' + lensKeyA, dAT);
                       else { try { cardA.removeAttribute('data-live-market-driver-' + lensKeyA); } catch(_eMDrv) { /* noop */ } }
                     } catch(_eMDrv2) { /* noop */ }
+
+                    // Persist ATS driver tags for compact WATCH/BET callouts.
+                    try {
+                      if(atsDriverTags && atsDriverTags.length){
+                        cardA.setAttribute('data-live-market-tags-' + lensKeyA, atsDriverTags.join('|'));
+                      } else {
+                        try { cardA.removeAttribute('data-live-market-tags-' + lensKeyA); } catch(_eMT) { /* noop */ }
+                      }
+                    } catch(_eMT2) { /* noop */ }
                   }
                 }
               } catch(_eATS){ /* noop */ }
@@ -4055,6 +4133,7 @@
                     try { cardA2.removeAttribute('data-live-market-side-' + lensKeyA2); } catch(_eMS) { /* noop */ }
                     try { cardA2.removeAttribute('data-live-market-line-' + lensKeyA2); } catch(_eML) { /* noop */ }
                     try { cardA2.removeAttribute('data-live-market-driver-' + lensKeyA2); } catch(_eMD) { /* noop */ }
+                    try { cardA2.removeAttribute('data-live-market-tags-' + lensKeyA2); } catch(_eMT3) { /* noop */ }
                   }
                 }
               } catch(_eATS2){ /* noop */ }
@@ -5200,33 +5279,64 @@
 
             function shortDriver(lensKey){
               try {
-                var raw = safeStr(card.getAttribute('data-live-driver-' + lensKey));
-                if(!raw) return '';
-                // Convert detailed driver tokens into a short, plain-English tag.
-                // Example output: "PACE" or "PACE+PPP".
-                var toks = raw.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+                // Prefer explicit per-lens tag list set on the card.
+                var rawTags = safeStr(card.getAttribute('data-live-total-tags-' + lensKey));
                 var tags = [];
-                function addTag(t){
-                  if(!t) return;
-                  if(tags.indexOf(t) >= 0) return;
-                  tags.push(t);
+                if(rawTags){
+                  tags = rawTags.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
                 }
-                toks.forEach(function(t){
-                  var tl = t.toLowerCase();
-                  if(tl.indexOf('pace ') === 0) addTag('PACE');
-                  else if(tl.indexOf('ppp ') === 0) addTag('PPP');
-                  else if(tl.indexOf('shooting ') === 0) addTag('SHOOTING');
-                  else if(tl.indexOf('ft rate ') === 0) addTag('FT');
-                  else if(tl.indexOf('edge ') === 0) addTag('EDGE');
-                  else if(tl.indexOf('d ') === 0) addTag('SIM-GAP');
-                  else if(tl.indexOf('pbp+') === 0) addTag('PBP');
-                  else if(tl.indexOf('late-over') >= 0) addTag('LATE-OVER');
-                  else if(tl.indexOf('early-over') >= 0) addTag('EARLY-OVER');
-                });
+
+                // Fallback: derive from driver text if tags weren't persisted.
+                if(!tags || !tags.length){
+                  var raw = safeStr(card.getAttribute('data-live-driver-' + lensKey));
+                  if(!raw) return '';
+                  var toks = raw.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+                  function addTag(t){
+                    if(!t) return;
+                    if(tags.indexOf(t) >= 0) return;
+                    tags.push(t);
+                  }
+                  toks.forEach(function(t){
+                    var tl = String(t || '').toLowerCase();
+                    if(tl === 'pace_hi') addTag('pace_hi');
+                    else if(tl === 'pace_lo') addTag('pace_lo');
+                    else if(tl === 'eff_hi') addTag('eff_hi');
+                    else if(tl === 'eff_lo') addTag('eff_lo');
+                    if(tl.indexOf('pace ') === 0) addTag('pace');
+                    else if(tl.indexOf('ppp ') === 0) addTag('ppp');
+                    else if(tl.indexOf('shooting ') === 0) addTag('shooting');
+                    else if(tl.indexOf('ft rate ') === 0) addTag('ft');
+                    else if(tl.indexOf('edge ') === 0) addTag('edge');
+                    else if(tl.indexOf('d ') === 0) addTag('sim_gap');
+                    else if(tl.indexOf('pbp+') === 0) addTag('pbp');
+                    else if(tl.indexOf('late-over') >= 0) addTag('late_over');
+                    else if(tl.indexOf('early-over') >= 0) addTag('early_over');
+                  });
+                }
+
                 if(!tags.length) return '';
-                // Show distinct tags (not a single lumped string).
-                // Keep it short to avoid overflow in the compact strip.
-                return tags.slice(0, 4).join(' · ');
+
+                function toDisp(t){
+                  var tl = String(t || '').toLowerCase();
+                  if(tl === 'pace_hi') return 'PACE-HI';
+                  if(tl === 'pace_lo') return 'PACE-LO';
+                  if(tl === 'eff_hi') return 'EFF-HI';
+                  if(tl === 'eff_lo') return 'EFF-LO';
+                  if(tl === 'sim_gap') return 'SIM-GAP';
+                  if(tl === 'late_over') return 'LATE-OVER';
+                  if(tl === 'early_over') return 'EARLY-OVER';
+                  if(tl === 'pbp') return 'PBP';
+                  if(tl === 'ppp') return 'PPP';
+                  if(tl === 'ft') return 'FT';
+                  if(tl === 'edge') return 'EDGE';
+                  if(tl === 'pace') return 'PACE';
+                  if(tl === 'eff') return 'EFF';
+                  if(tl === 'shooting') return 'SHOOTING';
+                  if(tl === 'flags') return 'FLAGS';
+                  return String(t || '').replace(/_/g,'-').toUpperCase();
+                }
+
+                return tags.slice(0, 4).map(toDisp).filter(Boolean).join(' · ');
               } catch(_eDrv){
                 return '';
               }
@@ -5234,9 +5344,16 @@
 
             function shortMarketDriver(lensKey){
               try {
+                // Prefer explicit per-lens ATS tag list.
+                var rawTags = safeStr(card.getAttribute('data-live-market-tags-' + lensKey));
+                if(rawTags){
+                  var tags = rawTags.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+                  if(tags && tags.length) return tags.slice(0, 4).join(' · ');
+                }
+
+                // Fallback: show first couple driver fragments.
                 var raw = safeStr(card.getAttribute('data-live-market-driver-' + lensKey));
                 if(!raw) return '';
-                // Keep short: use first couple driver fragments.
                 var toks = raw.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
                 if(!toks.length) return '';
                 return toks.slice(0, 2).join(' · ');

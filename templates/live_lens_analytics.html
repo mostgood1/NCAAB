@@ -157,6 +157,26 @@
       </div>
 
       <div class="lla-card">
+        <h2>Tagsets (Combos) — Totals</h2>
+        <div class="lla-scroll">
+          <table>
+            <thead><tr><th>Tagset</th><th>N</th><th>Win%</th><th>ROI/u</th></tr></thead>
+            <tbody id="tbl_totals_tagset"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="lla-card">
+        <h2>Tagsets (Combos) — ATS</h2>
+        <div class="lla-scroll">
+          <table>
+            <thead><tr><th>Tagset</th><th>N</th><th>Win%</th><th>ROI/u</th></tr></thead>
+            <tbody id="tbl_ats_tagset"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="lla-card">
         <h2>Canonical Tags — Totals</h2>
         <div class="lla-scroll">
           <table>
@@ -352,6 +372,8 @@
           renderPerDay('tbl_per_day', []);
           renderKeyedStats('tbl_totals_driver', [], 'tag');
           renderKeyedStats('tbl_ats_driver', [], 'tag');
+          renderKeyedStats('tbl_totals_tagset', [], 'tagset');
+          renderKeyedStats('tbl_ats_tagset', [], 'tagset');
           renderKeyedStats('tbl_totals_driver_canonical', [], 'tag');
           renderKeyedStats('tbl_ats_driver_canonical', [], 'tag');
           renderKeyedStats('tbl_totals_driver_type', [], 'type');
@@ -370,8 +392,10 @@
         renderKpi('overall_ats', overall.ats);
         renderLensSide('tbl_totals_by_lens_side', (overall.totals && overall.totals.by_lens_side) ? overall.totals.by_lens_side : []);
         renderLensSide('tbl_ats_by_lens_side', (overall.ats && overall.ats.by_lens_side) ? overall.ats.by_lens_side : []);
-        renderKeyedStats('tbl_totals_driver', (overall.totals && overall.totals.by_driver_tag) ? overall.totals.by_driver_tag : [], 'tag');
-        renderKeyedStats('tbl_ats_driver', (overall.ats && overall.ats.by_driver_tag) ? overall.ats.by_driver_tag : [], 'tag');
+        renderKeyedStats('tbl_totals_driver', (overall.totals && (overall.totals.by_driver_tag_full || overall.totals.by_driver_tag)) ? (overall.totals.by_driver_tag_full || overall.totals.by_driver_tag) : [], 'tag');
+        renderKeyedStats('tbl_ats_driver', (overall.ats && (overall.ats.by_driver_tag_full || overall.ats.by_driver_tag)) ? (overall.ats.by_driver_tag_full || overall.ats.by_driver_tag) : [], 'tag');
+        renderKeyedStats('tbl_totals_tagset', (overall.totals && (overall.totals.by_driver_tagset_full || overall.totals.by_driver_tagset)) ? (overall.totals.by_driver_tagset_full || overall.totals.by_driver_tagset) : [], 'tagset');
+        renderKeyedStats('tbl_ats_tagset', (overall.ats && (overall.ats.by_driver_tagset_full || overall.ats.by_driver_tagset)) ? (overall.ats.by_driver_tagset_full || overall.ats.by_driver_tagset) : [], 'tagset');
         renderKeyedStats('tbl_totals_driver_canonical', (overall.totals && overall.totals.by_driver_tag_canonical) ? overall.totals.by_driver_tag_canonical : [], 'tag');
         renderKeyedStats('tbl_ats_driver_canonical', (overall.ats && overall.ats.by_driver_tag_canonical) ? overall.ats.by_driver_tag_canonical : [], 'tag');
         renderKeyedStats('tbl_totals_driver_type', (overall.totals && overall.totals.by_driver_tag_type) ? overall.totals.by_driver_tag_type : [], 'type');

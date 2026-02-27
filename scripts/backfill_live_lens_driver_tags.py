@@ -170,6 +170,55 @@ def derive_driver_tags(row: dict[str, Any]) -> list[str]:
     Thresholds pulled from row['tuning'] when present, else safe defaults.
     """
 
+    def _tags_from_driver_text(driver_text: Any) -> list[str]:
+        try:
+            s = str(driver_text or "").strip()
+        except Exception:
+            return []
+        if not s or s.lower() in {"none", "null", "nan"}:
+            return []
+
+        legacy_map = {
+            "pace_hi": ["pace_hi", "pace"],
+            "pace_lo": ["pace_lo", "pace"],
+            "eff_hi": ["eff_hi", "eff"],
+            "eff_lo": ["eff_lo", "eff"],
+        }
+        sl = s.lower()
+        if sl in legacy_map:
+            return legacy_map[sl]
+
+        toks = [t.strip() for t in s.split("|") if str(t or "").strip()]
+        tags: list[str] = []
+
+        def add(t: str) -> None:
+            if t and t not in tags:
+                tags.append(t)
+
+        for t in toks:
+            tl = t.lower().strip()
+            if tl.startswith("edge "):
+                add("edge")
+            elif tl.startswith("d "):
+                add("sim_gap")
+            elif tl.startswith("pace "):
+                add("pace")
+            elif tl.startswith("ppp "):
+                add("ppp")
+            elif tl.startswith("shooting "):
+                add("shooting")
+            elif tl.startswith("ft rate "):
+                add("ft")
+            elif tl.startswith("pbp+"):
+                add("pbp")
+            elif "late-over" in tl:
+                add("late_over")
+            elif "early-over" in tl:
+                add("early_over")
+            elif tl.startswith("flags -"):
+                add("flags")
+        return tags
+
     pbp = row.get("pbp")
     if not isinstance(pbp, dict):
         pbp = _try_parse_json_obj(pbp)
@@ -219,7 +268,16 @@ def derive_driver_tags(row: dict[str, Any]) -> list[str]:
         elif pps_lo is not None and pps <= pps_lo:
             tags.append("eff_lo")
 
-    return tags
+    # Also incorporate explanatory tags derived from the driver text.
+    tags.extend(_tags_from_driver_text(row.get("driver")))
+
+    # De-duplicate while preserving order.
+    out: list[str] = []
+    for t in tags:
+        if t and t not in out:
+            out.append(t)
+
+    return out
 
 
 def backfill_rows(rows: Iterable[dict[str, Any]], *, overwrite: bool) -> tuple[list[dict[str, Any]], BackfillStats]:

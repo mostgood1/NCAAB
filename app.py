@@ -23745,15 +23745,77 @@ def api_live_lens_signal():
                 return out or None
             return None
 
-        driver_s = str(keep.get("driver") or "").strip() or None
-        tags0 = _norm_tags(keep.get("driver_tags"))
+        def _merge_tags(*parts: list[str] | None) -> list[str] | None:
+            out: list[str] = []
+            for p in parts:
+                if not p:
+                    continue
+                for x in p:
+                    sx = str(x or "").strip()
+                    if not sx or sx.lower() in {"none", "null", "nan"}:
+                        continue
+                    if sx in out:
+                        continue
+                    out.append(sx)
+            return out or None
 
-        if tags0 is None or not tags0:
-            tuning = keep.get("tuning") if isinstance(keep.get("tuning"), dict) else {}
-            pbp = keep.get("pbp") if isinstance(keep.get("pbp"), dict) else {}
+        def _tags_from_driver_text(driver_text: str | None) -> list[str]:
+            if not driver_text:
+                return []
+            s = str(driver_text).strip()
+            if not s or s.lower() in {"none", "null", "nan"}:
+                return []
 
-            elapsed = _coerce_float(keep.get("elapsed"))
-            total_points = _coerce_float(keep.get("total_points"))
+            # Map legacy single-token drivers to stable tags.
+            legacy_map = {
+                "pace_hi": ["pace_hi", "pace"],
+                "pace_lo": ["pace_lo", "pace"],
+                "eff_hi": ["eff_hi", "eff"],
+                "eff_lo": ["eff_lo", "eff"],
+            }
+            sl = s.lower()
+            if sl in legacy_map:
+                return legacy_map[sl]
+
+            # Parse detailed driver text like: "edge +3 | d +12 | pace 3.1 | ppp 1.05 | ..."
+            toks = [t.strip() for t in s.split("|") if str(t or "").strip()]
+            tags: list[str] = []
+
+            def _add(t: str) -> None:
+                if t and t not in tags:
+                    tags.append(t)
+
+            for t in toks:
+                tl = t.lower().strip()
+                if tl.startswith("edge "):
+                    _add("edge")
+                elif tl.startswith("d "):
+                    _add("sim_gap")
+                elif tl.startswith("pace "):
+                    _add("pace")
+                elif tl.startswith("ppp "):
+                    _add("ppp")
+                elif tl.startswith("shooting "):
+                    _add("shooting")
+                elif tl.startswith("ft rate "):
+                    _add("ft")
+                elif tl.startswith("pbp+"):
+                    _add("pbp")
+                elif "late-over" in tl:
+                    _add("late_over")
+                elif "early-over" in tl:
+                    _add("early_over")
+                elif tl.startswith("flags -"):
+                    _add("flags")
+
+            return tags
+
+        def _tags_from_numeric_fields(rec: dict[str, Any]) -> list[str]:
+            tuning = rec.get("tuning") if isinstance(rec.get("tuning"), dict) else {}
+            pbp = rec.get("pbp") if isinstance(rec.get("pbp"), dict) else {}
+
+            elapsed = _coerce_float(rec.get("elapsed"))
+            total_points = _coerce_float(rec.get("total_points"))
             poss = _coerce_float(pbp.get("poss")) if isinstance(pbp, dict) else None
 
             # Default thresholds mirror the reconstruction defaults.
@@ -23788,14 +23850,29 @@ def api_live_lens_signal():
                 elif pps_lo is not None and pps <= pps_lo:
                     derived.append("eff_lo")
 
-            if derived:
-                tags0 = derived
+            # Unique-preserve order.
+            out: list[str] = []
+            for t in derived:
+                if t not in out:
+                    out.append(t)
+            return out
 
-        if (driver_s is None or not driver_s) and tags0:
-            driver_s = tags0[0]
+        driver_s = str(keep.get("driver") or "").strip() or None
+        tags0 = _norm_tags(keep.get("driver_tags"))
+
+        # Respect client-provided tags as-is.
+        # Only derive tags when the client doesn't send driver_tags.
+        tags_merged = tags0
+        if tags0 is None or not tags0:
+            derived_num = _tags_from_numeric_fields(keep)
+            derived_txt = _tags_from_driver_text(driver_s)
+            tags_merged = _merge_tags(derived_txt, derived_num)
+
+        if (driver_s is None or not driver_s) and tags_merged:
+            driver_s = tags_merged[0]
 
         keep["driver"] = driver_s
-        keep["driver_tags"] = tags0
+        keep["driver_tags"] = tags_merged
     except Exception:
         pass
 
@@ -36529,6 +36606,8 @@ def api_live_lens_side_accuracy():
                 "by_driver_tag_full": [],
                 "by_driver_tag_canonical": [],
                 "by_driver_tag_type": [],
+                "by_driver_tagset": [],
+                "by_driver_tagset_full": [],
             }
 
         if "result" not in df.columns or "profit_units" not in df.columns:
@@ -36537,6 +36616,8 @@ def api_live_lens_side_accuracy():
                 "by_driver_tag_full": [],
                 "by_driver_tag_canonical": [],
                 "by_driver_tag_type": [],
+                "by_driver_tagset": [],
+                "by_driver_tagset_full": [],
             }
 
         res = pd.to_numeric(df["result"], errors="coerce")
@@ -36554,6 +36635,23 @@ def api_live_lens_side_accuracy():
                 if not tg:
                     continue
                 flat_rows.append({"tag": str(tg), "result": float(res0) if pd.notna(res0) else None, "profit_units": float(prof0)})
+
+        # Per-tagset stats (signal-level; no double counting).
+        tagset_rows: list[dict[str, Any]] = []
+        for tg_list, res0, prof0 in zip(tags_list, res.tolist(), prof.tolist()):
+            try:
+                uniq = [str(t).strip() for t in tg_list if str(t).strip()]
+            except Exception:
+                uniq = []
+            if not uniq:
+                continue
+            try:
+                key = "|".join(sorted(set(uniq)))
+            except Exception:
+                key = "|".join(uniq)
+            if not key:
+                continue
+            tagset_rows.append({"tagset": key, "result": float(res0) if pd.notna(res0) else None, "profit_units": float(prof0)})
 
         stats: list[dict[str, Any]] = []
         if flat_rows:
@@ -36621,11 +36719,51 @@ def api_live_lens_side_accuracy():
             except Exception:
                 continue
 
+        # Tagset breakdown (single-day recap; min_n=1).
+        by_driver_tagset: list[dict[str, Any]] = []
+        by_driver_tagset_full: list[dict[str, Any]] = []
+        try:
+            if tagset_rows:
+                sdf = pd.DataFrame(tagset_rows)
+                stats_s: list[dict[str, Any]] = []
+                for ts, g in sdf.groupby("tagset"):
+                    n = int(len(g))
+                    r0 = pd.to_numeric(g["result"], errors="coerce")
+                    w = int((r0 == 1.0).sum())
+                    l = int((r0 == 0.0).sum())
+                    p = int((r0 == 0.5).sum())
+                    d2 = w + l
+                    pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, n))
+                    stats_s.append({
+                        "tagset": str(ts),
+                        "n": n,
+                        "wins": w,
+                        "losses": l,
+                        "pushes": p,
+                        "win_rate": (w / d2) if d2 > 0 else None,
+                        "roi_units_per_bet": pr,
+                    })
+
+                stats_sf = [r for r in stats_s if int(r.get("n") or 0) >= 1]
+                stats_sf.sort(key=lambda r: (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf"), -(r.get("n") or 0), r.get("tagset", "")))
+                by_driver_tagset_full = stats_sf
+                if len(stats_sf) > 25:
+                    worst = stats_sf[:25]
+                    best = list(reversed(stats_sf[-10:]))
+                    by_driver_tagset = worst + best
+                else:
+                    by_driver_tagset = stats_sf
+        except Exception:
+            by_driver_tagset = []
+            by_driver_tagset_full = []
+
         return {
             "by_driver_tag": by_driver_tag,
             "by_driver_tag_full": stats_f,
             "by_driver_tag_canonical": by_driver_tag_canonical,
             "by_driver_tag_type": type_rows,
+            "by_driver_tagset": by_driver_tagset,
+            "by_driver_tagset_full": by_driver_tagset_full,
         }
 
     try:
@@ -36761,6 +36899,8 @@ def api_live_lens_analytics():
                 "by_driver_tag_full": [],
                 "by_driver_tag_canonical": [],
                 "by_driver_tag_type": [],
+                "by_driver_tagset": [],
+                "by_driver_tagset_full": [],
             }
 
         df = settled.copy()
@@ -36893,6 +37033,8 @@ def api_live_lens_analytics():
         by_driver_tag_full: list[dict[str, Any]] = []
         by_driver_tag_canonical: list[dict[str, Any]] = []
         by_driver_tag_type: list[dict[str, Any]] = []
+        by_driver_tagset: list[dict[str, Any]] = []
+        by_driver_tagset_full: list[dict[str, Any]] = []
 
         # Driver recap: group by the single `driver` string (no multi-tag expansion).
         by_driver: list[dict[str, Any]] = []
@@ -37015,6 +37157,69 @@ def api_live_lens_analytics():
                 else:
                     tags = [[str(v).strip()] if v is not None and str(v).strip() else [] for v in df.get("driver", pd.Series([], dtype=object)).tolist()]
 
+                # Tagset breakdown (sorted unique tags joined by '|'; no double counting).
+                try:
+                    tagset_rows: list[dict[str, Any]] = []
+                    for tg_list, res0, prof0 in zip(tags, res.tolist(), prof.tolist()):
+                        try:
+                            uniq = [str(t).strip() for t in tg_list if str(t).strip()]
+                        except Exception:
+                            uniq = []
+                        if not uniq:
+                            continue
+                        try:
+                            key = "|".join(sorted(set(uniq)))
+                        except Exception:
+                            key = "|".join(uniq)
+                        if not key:
+                            continue
+                        tagset_rows.append({"tagset": key, "result": float(res0) if pd.notna(res0) else None, "profit_units": float(prof0)})
+
+                    if tagset_rows:
+                        sdf = pd.DataFrame(tagset_rows)
+                        stats_s: list[dict[str, Any]] = []
+                        for ts, g in sdf.groupby("tagset"):
+                            n = int(len(g))
+                            r0 = pd.to_numeric(g["result"], errors="coerce")
+                            w = int((r0 == 1.0).sum())
+                            l = int((r0 == 0.0).sum())
+                            p = int((r0 == 0.5).sum())
+                            d2 = w + l
+                            pr = float(pd.to_numeric(g["profit_units"], errors="coerce").fillna(0.0).sum() / max(1, n))
+                            stats_s.append({
+                                "tagset": str(ts),
+                                "n": n,
+                                "wins": w,
+                                "losses": l,
+                                "pushes": p,
+                                "win_rate": (w / d2) if d2 > 0 else None,
+                                "roi_units_per_bet": pr,
+                            })
+
+                        # Full list: include all tagsets so accuracy reflects rare combos too.
+                        stats_all_s = [r for r in stats_s if int(r.get("n") or 0) >= 1]
+                        stats_all_s.sort(
+                            key=lambda r: (
+                                (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf")),
+                                -(r.get("n") or 0),
+                                r.get("tagset", ""),
+                            )
+                        )
+                        by_driver_tagset_full = stats_all_s
+
+                        # Curated view: filter out ultra-low-sample tagsets.
+                        min_n_ts = 3
+                        stats_sf = [r for r in stats_all_s if int(r.get("n") or 0) >= min_n_ts]
+                        if len(stats_sf) > 25:
+                            worst = stats_sf[:25]
+                            best = list(reversed(stats_sf[-10:]))
+                            by_driver_tagset = worst + best
+                        else:
+                            by_driver_tagset = stats_sf
+                except Exception:
+                    by_driver_tagset = []
+                    by_driver_tagset_full = []
+
                 flat_rows: list[dict[str, Any]] = []
                 for tg_list, res0, prof0 in zip(tags, res.tolist(), prof.tolist()):
                     for tg in tg_list:
@@ -37045,19 +37250,22 @@ def api_live_lens_analytics():
                             }
                         )
 
-                    # Full list (min_n=3).
-                    min_n = 3
-                    stats_f = [r for r in stats if int(r.get("n") or 0) >= min_n]
-                    stats_f.sort(
+                    # Full list: include all tags so accuracy reflects the whole tag universe.
+                    stats_all = [r for r in stats if int(r.get("n") or 0) >= 1]
+                    stats_all.sort(
                         key=lambda r: (
                             (r.get("roi_units_per_bet") if r.get("roi_units_per_bet") is not None else float("inf")),
                             -(r.get("n") or 0),
                             r.get("tag", ""),
                         )
                     )
-                    by_driver_tag_full = stats_f
+                    by_driver_tag_full = stats_all
 
-                    # Curated: worst 25 + best 10 (what the UI currently displays).
+                    # Curated view: filter out ultra-low-sample tags.
+                    min_n = 3
+                    stats_f = [r for r in stats_all if int(r.get("n") or 0) >= min_n]
+
+                    # Curated: worst 25 + best 10.
                     if len(stats_f) > 25:
                         worst = stats_f[:25]
                         best = list(reversed(stats_f[-10:]))
@@ -37123,6 +37331,8 @@ def api_live_lens_analytics():
             "by_driver_tag_full": by_driver_tag_full,
             "by_driver_tag_canonical": by_driver_tag_canonical,
             "by_driver_tag_type": by_driver_tag_type,
+            "by_driver_tagset": by_driver_tagset,
+            "by_driver_tagset_full": by_driver_tagset_full,
         }
 
     start_q = (request.args.get("start") or "").strip()
