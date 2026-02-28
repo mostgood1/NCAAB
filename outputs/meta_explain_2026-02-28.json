@@ -1,0 +1,154 @@
+{
+  "date": "2026-02-28",
+  "models": {
+    "cover": {
+      "features_used": [
+        "pred_margin",
+        "neutral_site",
+        "pred_margin_basis",
+        "pred_margin_sigma",
+        "pred_margin_q10",
+        "pred_margin_q50",
+        "pred_margin_q90"
+      ],
+      "intercept": 0.009027149974407081,
+      "mean_abs_contribution": {
+        "neutral_site": 0.0,
+        "pred_margin": 0.24709265293700686,
+        "pred_margin_basis": 0.0,
+        "pred_margin_q10": 1.5448848680716514,
+        "pred_margin_q50": 0.0,
+        "pred_margin_q90": 2.0144106314854615,
+        "pred_margin_sigma": 0.0
+      },
+      "mean_signed_contribution": {
+        "neutral_site": 0.0,
+        "pred_margin": -0.24709265293700686,
+        "pred_margin_basis": 0.0,
+        "pred_margin_q10": -1.5448848680716514,
+        "pred_margin_q50": 0.0,
+        "pred_margin_q90": 2.0144106314854615,
+        "pred_margin_sigma": 0.0
+      },
+      "n_rows": 143,
+      "top_abs_contributions": [
+        [
+          "pred_margin_q90",
+          2.0144106314854615
+        ],
+        [
+          "pred_margin_q10",
+          1.5448848680716514
+        ],
+        [
+          "pred_margin",
+          0.24709265293700686
+        ],
+        [
+          "neutral_site",
+          0.0
+        ],
+        [
+          "pred_margin_basis",
+          0.0
+        ],
+        [
+          "pred_margin_sigma",
+          0.0
+        ],
+        [
+          "pred_margin_q50",
+          0.0
+        ]
+      ]
+    },
+    "over": {
+      "features_used": [
+        "pred_total",
+        "market_total",
+        "pred_total_model",
+        "pred_total_calibrated",
+        "pred_total_model_basis",
+        "pred_total_basis",
+        "pred_total_sigma",
+        "kelly_fraction_total_adj",
+        "pred_total_market_blend",
+        "pred_total_q10",
+        "pred_total_q50",
+        "pred_total_q90"
+      ],
+      "intercept": 0.01422894280640687,
+      "mean_abs_contribution": {
+        "kelly_fraction_total_adj": 0.0,
+        "market_total": 0.0,
+        "pred_total": 2.9781436355602393,
+        "pred_total_basis": 0.0,
+        "pred_total_calibrated": 0.0,
+        "pred_total_market_blend": 0.0,
+        "pred_total_model": 0.0,
+        "pred_total_model_basis": 0.0,
+        "pred_total_q10": 6.629217497732814,
+        "pred_total_q50": 0.0,
+        "pred_total_q90": 7.540640401414034,
+        "pred_total_sigma": 0.0
+      },
+      "mean_signed_contribution": {
+        "kelly_fraction_total_adj": 0.0,
+        "market_total": 0.0,
+        "pred_total": 2.9781436355602393,
+        "pred_total_basis": 0.0,
+        "pred_total_calibrated": 0.0,
+        "pred_total_market_blend": 0.0,
+        "pred_total_model": 0.0,
+        "pred_total_model_basis": 0.0,
+        "pred_total_q10": 6.629217497732814,
+        "pred_total_q50": 0.0,
+        "pred_total_q90": 7.540640401414034,
+        "pred_total_sigma": 0.0
+      },
+      "n_rows": 143,
+      "top_abs_contributions": [
+        [
+          "pred_total_q90",
+          7.540640401414034
+        ],
+        [
+          "pred_total_q10",
+          6.629217497732814
+        ],
+        [
+          "pred_total",
+          2.9781436355602393
+        ],
+        [
+          "market_total",
+          0.0
+        ],
+        [
+          "pred_total_model",
+          0.0
+        ],
+        [
+          "pred_total_calibrated",
+          0.0
+        ],
+        [
+          "pred_total_model_basis",
+          0.0
+        ],
+        [
+          "pred_total_basis",
+          0.0
+        ],
+        [
+          "pred_total_sigma",
+          0.0
+        ],
+        [
+          "kelly_fraction_total_adj",
+          0.0
+        ]
+      ]
+    }
+  }
+}
