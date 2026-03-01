@@ -1,0 +1,24 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,completed,neutral_site,venue
+401828454,2026,2026-03-01,2026-03-01 17:00:00+00:00,2026-03-01 12:00,EST,Davidson Wildcats,La Salle Explorers,0,0,,,,,STATUS_SCHEDULED,False,False,John M. Belk Arena
+401828254,2026,2026-03-01,2026-03-01 17:00:00+00:00,2026-03-01 12:00,EST,South Florida Bulls,Tulane Green Wave,0,0,,,,,STATUS_SCHEDULED,False,False,Yuengling Center
+401828250,2026,2026-03-01,2026-03-01 17:00:00+00:00,2026-03-01 12:00,EST,UAB Blazers,North Texas Mean Green,0,0,,,,,STATUS_SCHEDULED,False,False,Bartow Arena
+401825551,2026,2026-03-01,2026-03-01 17:00:00+00:00,2026-03-01 12:00,EST,Maryland Terrapins,Rutgers Scarlet Knights,0,0,,,,,STATUS_SCHEDULED,False,False,XFINITY Center
+401830316,2026,2026-03-01,2026-03-01 18:00:00+00:00,2026-03-01 13:00,EST,Indiana State Sycamores,UIC Flames,0,0,,,,,STATUS_SCHEDULED,False,False,Hulman Center
+401813372,2026,2026-03-01,2026-03-01 18:00:00+00:00,2026-03-01 13:00,EST,Canisius Golden Griffins,Quinnipiac Bobcats,0,0,,,,,STATUS_SCHEDULED,False,False,Koessler Athletic Center
+401825552,2026,2026-03-01,2026-03-01 18:30:00+00:00,2026-03-01 13:30,EST,Ohio State Buckeyes,Purdue Boilermakers,0,0,,,,,STATUS_SCHEDULED,False,False,Value City Arena
+401830221,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Bradley Braves,Murray State Racers,0,0,,,,,STATUS_SCHEDULED,False,False,Carver Arena
+401828253,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Temple Owls,Rice Owls,0,0,,,,,STATUS_SCHEDULED,False,False,Liacouras Center
+401828252,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,East Carolina Pirates,Memphis Tigers,0,0,,,,,STATUS_SCHEDULED,False,False,Minges Coliseum
+401828251,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Florida Atlantic Owls,Charlotte 49ers,0,0,,,,,STATUS_SCHEDULED,False,False,Eleanor R. Baldwin Arena
+401813433,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Siena Saints,Rider Broncs,0,0,,,,,STATUS_SCHEDULED,False,False,MVP Arena
+401813419,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Fairfield Stags,Mount St. Mary's Mountaineers,0,0,,,,,STATUS_SCHEDULED,False,False,Leo D. Mahoney Arena
+401813396,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Niagara Purple Eagles,Merrimack Warriors,0,0,,,,,STATUS_SCHEDULED,False,False,Gallagher Center
+401813344,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Marist Red Foxes,Saint Peter's Peacocks,0,0,,,,,STATUS_SCHEDULED,False,False,McCann Arena
+401813308,2026,2026-03-01,2026-03-01 19:00:00+00:00,2026-03-01 14:00,EST,Manhattan Jaspers,Iona Gaels,0,0,,,,,STATUS_SCHEDULED,False,False,Draddy Gymnasium
+401830317,2026,2026-03-01,2026-03-01 20:00:00+00:00,2026-03-01 15:00,EST,Drake Bulldogs,Northern Iowa Panthers,0,0,,,,,STATUS_SCHEDULED,False,False,Knapp Center
+401825550,2026,2026-03-01,2026-03-01 20:45:00+00:00,2026-03-01 15:45,EST,Indiana Hoosiers,Michigan State Spartans,0,0,,,,,STATUS_SCHEDULED,False,False,Simon Skjodt Assembly Hall
+401858741,2026,2026-03-01,2026-03-01 21:00:00+00:00,2026-03-01 16:00,EST,Evansville Purple Aces,Southern Illinois Salukis,0,0,,,,,STATUS_SCHEDULED,False,False,Ford Center
+401822966,2026,2026-03-01,2026-03-01 21:00:00+00:00,2026-03-01 16:00,EST,Marquette Golden Eagles,DePaul Blue Demons,0,0,,,,,STATUS_SCHEDULED,False,False,Fiserv Forum
+401830217,2026,2026-03-01,2026-03-01 22:00:00+00:00,2026-03-01 17:00,EST,Illinois State Redbirds,Belmont Bruins,0,0,,,,,STATUS_SCHEDULED,False,False,CEFCU Arena
+401812088,2026,2026-03-01,2026-03-02 00:00:00+00:00,2026-03-01 19:00,EST,UNC Wilmington Seahawks,Charleston Cougars,0,0,,,,,STATUS_SCHEDULED,False,False,Trask Coliseum
+401828255,2026,2026-03-01,2026-03-02 01:00:00+00:00,2026-03-01 20:00,EST,UTSA Roadrunners,Wichita State Shockers,0,0,,,,,STATUS_SCHEDULED,False,False,UTSA Convocation Center
