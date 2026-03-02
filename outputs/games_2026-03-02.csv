@@ -1,0 +1,19 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,completed,neutral_site,venue
+401828717,2026,2026-03-02,2026-03-02 23:00:00+00:00,2026-03-02 18:00,EST,Morgan State Bears,Norfolk State Spartans,0,0,,,,,STATUS_SCHEDULED,False,False,Hill Field House
+401820778,2026,2026-03-02,2026-03-03 00:00:00+00:00,2026-03-02 19:00,EST,NC State Wolfpack,Duke Blue Devils,0,0,,,,,STATUS_SCHEDULED,False,False,Lenovo Center
+401851421,2026,2026-03-02,2026-03-03 00:00:00+00:00,2026-03-02 19:00,EST,Cleveland State Vikings,IU Indianapolis Jaguars,0,0,,,,,STATUS_SCHEDULED,False,False,Wolstein Center
+401829289,2026,2026-03-02,2026-03-03 00:00:00+00:00,2026-03-02 19:00,EST,Delaware State Hornets,South Carolina State Bulldogs,0,0,,,,,STATUS_SCHEDULED,False,False,Memorial Hall (DE)
+401823055,2026,2026-03-02,2026-03-03 00:00:00+00:00,2026-03-02 19:00,EST,Maryland Eastern Shore Hawks,North Carolina Central Eagles,0,0,,,,,STATUS_SCHEDULED,False,False,Hytche Center
+401822779,2026,2026-03-02,2026-03-03 00:00:00+00:00,2026-03-02 19:00,EST,Howard Bison,Coppin State Eagles,0,0,,,,,STATUS_SCHEDULED,False,False,Burr Gymnasium
+401808975,2026,2026-03-02,2026-03-03 00:30:00+00:00,2026-03-02 19:30,EST,Incarnate Word Cardinals,Stephen F. Austin Lumberjacks,0,0,,,,,STATUS_SCHEDULED,False,False,McDermott Center
+401808947,2026,2026-03-02,2026-03-03 00:30:00+00:00,2026-03-02 19:30,EST,UT Rio Grande Valley Vaqueros,Northwestern State Demons,0,0,,,,,STATUS_SCHEDULED,False,False,UTRGV Fieldhouse
+401808889,2026,2026-03-02,2026-03-03 00:30:00+00:00,2026-03-02 19:30,EST,Nicholls Colonels,McNeese Cowboys,0,0,,,,,STATUS_SCHEDULED,False,False,David R. Stopher Gymnasium
+401808917,2026,2026-03-02,2026-03-03 01:00:00+00:00,2026-03-02 20:00,EST,New Orleans Privateers,SE Louisiana Lions,0,0,,,,,STATUS_SCHEDULED,False,False,Lakefront Arena
+401808723,2026,2026-03-02,2026-03-03 01:00:00+00:00,2026-03-02 20:00,EST,Texas A&M-Corpus Christi Islanders,East Texas A&M Lions,0,0,,,,,STATUS_SCHEDULED,False,False,Hilliard Center
+401808522,2026,2026-03-02,2026-03-03 01:00:00+00:00,2026-03-02 20:00,EST,Northern Arizona Lumberjacks,Montana State Bobcats,0,0,,,,,STATUS_SCHEDULED,False,False,J. Lawrence Walkup Skydome
+401808512,2026,2026-03-02,2026-03-03 01:00:00+00:00,2026-03-02 20:00,EST,Northern Colorado Bears,Montana Grizzlies,0,0,,,,,STATUS_SCHEDULED,False,False,Bank of Colorado Arena
+401820481,2026,2026-03-02,2026-03-03 01:30:00+00:00,2026-03-02 20:30,EST,Houston Christian Huskies,Lamar Cardinals,0,0,,,,,STATUS_SCHEDULED,False,False,Sharp Gymnasium
+401820821,2026,2026-03-02,2026-03-03 02:00:00+00:00,2026-03-02 21:00,EST,Arizona Wildcats,Iowa State Cyclones,0,0,,,,,STATUS_SCHEDULED,False,False,McKale Center at ALKEME Arena
+401808470,2026,2026-03-02,2026-03-03 02:00:00+00:00,2026-03-02 21:00,EST,Eastern Washington Eagles,Idaho Vandals,0,0,,,,,STATUS_SCHEDULED,False,False,Reese Court
+401808540,2026,2026-03-02,2026-03-03 03:00:00+00:00,2026-03-02 22:00,EST,Portland State Vikings,Weber State Wildcats,0,0,,,,,STATUS_SCHEDULED,False,False,Viking Pavilion
+401808500,2026,2026-03-02,2026-03-03 03:00:00+00:00,2026-03-02 22:00,EST,Sacramento State Hornets,Idaho State Bengals,0,0,,,,,STATUS_SCHEDULED,False,False,Hornet Pavilion
