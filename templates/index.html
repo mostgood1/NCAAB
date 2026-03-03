@@ -257,6 +257,15 @@
                 <span class="pill time-local{% if is_rollover %} rollover{% endif %}" data-iso="{{ iso0 }}" data-slate="{{ disp_date }}" data-rollover="{{ '1' if is_rollover else '0' }}" title="Time shown in {{ tz or 'local' }}">{{ ampm }}</span>
                 <button type="button" class="pill small copy-time" title="Copy time details" aria-label="Copy time details">Copy</button>
               {% endif %}
+
+              {# Live OddsAPI material movement / steam indicators (from outputs/live_snapshots). #}
+              {% if r.line_move_badges is defined and r.line_move_badges %}
+                {% for b in r.line_move_badges %}
+                  {% if b is mapping and b.label is defined and b.label %}
+                    <span class="badge adj" title="{{ b.title if (b.title is defined and b.title) else 'Material line move' }}">{{ b.label }}</span>
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
               {% if venue %}<span class="pill venue">{{ venue }}{% if r.city and r.state %} – {{ r.city }}, {{ r.state }}{% elif r.city %} – {{ r.city }}{% endif %}</span>{% endif %}
               {% if r.neutral_site %}<span class="pill neutral">Neutral Site</span>{% endif %}

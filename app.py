@@ -18418,6 +18418,32 @@ def index():
     except Exception:
         pass
 
+    # Live line movement (steam) badges from append-only OddsAPI snapshots.
+    # This surfaces material intraday moves directly on the main game cards.
+    try:
+        if cards_view and rows and date_q:
+            from ncaab_model.live_snapshots import summarize_live_lines_moves  # type: ignore
+
+            mv = summarize_live_lines_moves(date_s=str(date_q))
+            if isinstance(mv, dict) and mv:
+                for r in rows:
+                    try:
+                        gid = str(r.get("game_id") or "").replace(".0", "").strip()
+                    except Exception:
+                        gid = ""
+                    if not gid:
+                        continue
+                    info = mv.get(gid)
+                    if not isinstance(info, dict) or not info.get("badges"):
+                        continue
+                    r["line_move_badges"] = info.get("badges")
+                    r["line_move_ts_last"] = info.get("ts_last")
+                    r["line_move_age_s"] = info.get("age_s")
+                    r["delta_total_live"] = info.get("delta_total")
+                    r["delta_spread_home_live"] = info.get("delta_spread_home")
+    except Exception:
+        pass
+
     # Display filter: keep only games with at least one Division I team unless override flag set (?all=1)
     # We apply after all enrichments so market lines/predictions remain intact; this is purely a view-level restriction.
     try:

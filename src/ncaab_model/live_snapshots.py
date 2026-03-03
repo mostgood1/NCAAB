@@ -9,6 +9,209 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Tuple
 
 
+def summarize_live_lines_moves(
+    *,
+    date_s: str,
+    min_total_pts: float = 1.5,
+    min_spread_pts: float = 2.0,
+    max_age_s: float = 12 * 3600,
+) -> Dict[str, Dict[str, Any]]:
+    """Summarize latest material line moves from the append-only live snapshots.
+
+    Returns a mapping keyed by ESPN event_id (as string) with fields:
+      - total_prev, total_last, delta_total
+      - spread_prev, spread_last, delta_spread_home
+      - ts_prev, ts_last, age_s
+      - badges: list[{label,title}]
+
+    Notes:
+    - Uses the last two *distinct* values per market (ignores repeats).
+    - Only returns entries where at least one market move is >= threshold.
+    """
+
+    date_s2 = str(date_s or "").strip()
+    if not date_s2:
+        return {}
+
+    p = _get_snapshot_dir() / f"live_{date_s2}.jsonl"
+    if not p.exists():
+        return {}
+
+    # Track last and previous distinct values per event.
+    state: Dict[str, Dict[str, Any]] = {}
+
+    def _coerce_num(v: Any) -> float | None:
+        try:
+            if v is None:
+                return None
+            if isinstance(v, (int, float)):
+                f = float(v)
+                return f if f == f else None
+            s = str(v).strip()
+            if not s or s.lower() in {"nan", "none", "null", "–", "-"}:
+                return None
+            f = float(s)
+            return f if f == f else None
+        except Exception:
+            return None
+
+    def _age_s(ts_iso: str | None) -> float | None:
+        if not ts_iso:
+            return None
+        try:
+            import datetime as _dt
+
+            s = str(ts_iso).strip()
+            if not s:
+                return None
+            d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=_dt.timezone.utc)
+            now = _dt.datetime.now(_dt.timezone.utc)
+            return float((now - d.astimezone(_dt.timezone.utc)).total_seconds())
+        except Exception:
+            return None
+
+    try:
+        with p.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if str(rec.get("endpoint") or "").strip() != "live_lines":
+                    continue
+                eid = str(rec.get("event_id") or "").strip()
+                if not eid:
+                    continue
+                ts = str(rec.get("ts") or "").strip() or None
+                data = rec.get("data") if isinstance(rec.get("data"), dict) else {}
+                if not isinstance(data, dict):
+                    data = {}
+
+                total = _coerce_num(data.get("total"))
+                spread_home = _coerce_num(data.get("spread_home"))
+
+                st = state.setdefault(
+                    eid,
+                    {
+                        "total_prev": None,
+                        "total_last": None,
+                        "spread_prev": None,
+                        "spread_last": None,
+                        "ts_prev": None,
+                        "ts_last": None,
+                    },
+                )
+
+                # Update totals when distinct.
+                if total is not None:
+                    last = st.get("total_last")
+                    if last is None:
+                        st["total_last"] = total
+                        st["ts_last"] = ts
+                    elif float(total) != float(last):
+                        st["total_prev"] = last
+                        st["total_last"] = total
+                        st["ts_prev"] = st.get("ts_last")
+                        st["ts_last"] = ts
+
+                # Update spreads when distinct.
+                if spread_home is not None:
+                    last = st.get("spread_last")
+                    if last is None:
+                        st["spread_last"] = spread_home
+                        st["ts_last"] = ts
+                    elif float(spread_home) != float(last):
+                        st["spread_prev"] = last
+                        st["spread_last"] = spread_home
+                        st["ts_prev"] = st.get("ts_last")
+                        st["ts_last"] = ts
+    except Exception:
+        return {}
+
+    out: Dict[str, Dict[str, Any]] = {}
+    for eid, st in state.items():
+        ts_last = st.get("ts_last")
+        age = _age_s(ts_last)
+        if age is not None and float(age) > float(max_age_s):
+            continue
+
+        total_prev = st.get("total_prev")
+        total_last = st.get("total_last")
+        spread_prev = st.get("spread_prev")
+        spread_last = st.get("spread_last")
+
+        d_total = None
+        if total_prev is not None and total_last is not None:
+            try:
+                d_total = float(total_last) - float(total_prev)
+            except Exception:
+                d_total = None
+        d_spread = None
+        if spread_prev is not None and spread_last is not None:
+            try:
+                d_spread = float(spread_last) - float(spread_prev)
+            except Exception:
+                d_spread = None
+
+        badges = []
+        if d_total is not None and abs(float(d_total)) >= float(min_total_pts):
+            badges.append(
+                {
+                    "label": f"T {float(d_total):+.1f}",
+                    "title": f"Total moved {float(total_prev):.1f}→{float(total_last):.1f} (Δ {float(d_total):+.1f})",
+                    "kind": "total",
+                }
+            )
+            badges.append(
+                {
+                    "label": "STEAM",
+                    "title": "Material total move (steam)",
+                    "kind": "steam_total",
+                }
+            )
+        if d_spread is not None and abs(float(d_spread)) >= float(min_spread_pts):
+            badges.append(
+                {
+                    "label": f"S {float(d_spread):+.1f}",
+                    "title": f"Home spread moved {float(spread_prev):+.1f}→{float(spread_last):+.1f} (Δ {float(d_spread):+.1f})",
+                    "kind": "spread",
+                }
+            )
+            badges.append(
+                {
+                    "label": "STEAM",
+                    "title": "Material spread move (steam)",
+                    "kind": "steam_spread",
+                }
+            )
+
+        if not badges:
+            continue
+
+        out[eid] = {
+            "event_id": eid,
+            "total_prev": total_prev,
+            "total_last": total_last,
+            "delta_total": d_total,
+            "spread_prev": spread_prev,
+            "spread_last": spread_last,
+            "delta_spread_home": d_spread,
+            "ts_prev": st.get("ts_prev"),
+            "ts_last": ts_last,
+            "age_s": age,
+            "badges": badges,
+        }
+
+    return out
+
+
 _LOCK = threading.Lock()
 _LAST_SEEN: Dict[str, Dict[str, Any]] = {}
 _WARNED: set[str] = set()

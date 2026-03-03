@@ -331,6 +331,123 @@ def _load_closing_movement(out_dir: Path, date: str) -> pd.DataFrame:
     return g
 
 
+def _load_live_snapshot_moves(out_dir: Path, date: str) -> dict[str, dict[str, Any]]:
+    """Load material intraday moves from outputs/live_snapshots/live_<date>.jsonl.
+
+    Returns mapping keyed by ESPN event_id (game_id).
+    """
+
+    p = out_dir / "live_snapshots" / f"live_{date}.jsonl"
+    if not p.exists():
+        return {}
+
+    def _to_num(v: Any) -> float | None:
+        try:
+            if v is None:
+                return None
+            if isinstance(v, (int, float)):
+                f = float(v)
+                return f if np.isfinite(f) else None
+            s = str(v).strip()
+            if not s or s.lower() in ("nan", "none", "null"):
+                return None
+            f = float(s)
+            return f if np.isfinite(f) else None
+        except Exception:
+            return None
+
+    state: dict[str, dict[str, Any]] = {}
+    try:
+        import json
+
+        with p.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if str(rec.get("endpoint") or "").strip() != "live_lines":
+                    continue
+                eid = _norm_gid(rec.get("event_id"))
+                if not eid:
+                    continue
+                data = rec.get("data") if isinstance(rec.get("data"), dict) else {}
+                if not isinstance(data, dict):
+                    data = {}
+                ts = str(rec.get("ts") or "").strip() or None
+
+                tot = _to_num(data.get("total"))
+                spr = _to_num(data.get("spread_home"))
+
+                st = state.setdefault(
+                    eid,
+                    {
+                        "total_prev": None,
+                        "total_last": None,
+                        "spread_prev": None,
+                        "spread_last": None,
+                        "ts_prev": None,
+                        "ts_last": None,
+                    },
+                )
+
+                if tot is not None:
+                    last = st.get("total_last")
+                    if last is None:
+                        st["total_last"] = tot
+                        st["ts_last"] = ts
+                    elif float(tot) != float(last):
+                        st["total_prev"] = last
+                        st["total_last"] = tot
+                        st["ts_prev"] = st.get("ts_last")
+                        st["ts_last"] = ts
+
+                if spr is not None:
+                    last = st.get("spread_last")
+                    if last is None:
+                        st["spread_last"] = spr
+                        st["ts_last"] = ts
+                    elif float(spr) != float(last):
+                        st["spread_prev"] = last
+                        st["spread_last"] = spr
+                        st["ts_prev"] = st.get("ts_last")
+                        st["ts_last"] = ts
+    except Exception:
+        return {}
+
+    out: dict[str, dict[str, Any]] = {}
+    for eid, st in state.items():
+        d_total = None
+        if st.get("total_prev") is not None and st.get("total_last") is not None:
+            try:
+                d_total = float(st["total_last"]) - float(st["total_prev"])
+            except Exception:
+                d_total = None
+        d_spread = None
+        if st.get("spread_prev") is not None and st.get("spread_last") is not None:
+            try:
+                d_spread = float(st["spread_last"]) - float(st["spread_prev"])
+            except Exception:
+                d_spread = None
+
+        out[eid] = {
+            "total_prev": st.get("total_prev"),
+            "total_last": st.get("total_last"),
+            "delta_total": d_total,
+            "spread_prev": st.get("spread_prev"),
+            "spread_last": st.get("spread_last"),
+            "delta_spread_home": d_spread,
+            "ts_last": st.get("ts_last"),
+        }
+
+    return out
+
+
 def _best_rows(df: pd.DataFrame, kind: str) -> pd.DataFrame:
     """Pick one row per game_id for a market kind (totals/spreads/ml)."""
     if df.empty or "game_id" not in df.columns:
@@ -468,6 +585,8 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             gid = _norm_gid(r.get("game_id"))
             if gid:
                 mv_by_gid[gid] = r
+
+    live_mv_by_gid = _load_live_snapshot_moves(out_dir, date)
 
     recs: list[dict[str, Any]] = []
 
@@ -967,6 +1086,53 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
         reasons.append("sent=align" if align else "sent=fade")
         reasons.append(f"sent_adj={float(adj):+.1f}")
         rec["reasons"] = reasons
+
+        # Optional intraday live snapshot movement (only totals/spreads available).
+        try:
+            lmv = live_mv_by_gid.get(gid) if isinstance(live_mv_by_gid, dict) else None
+        except Exception:
+            lmv = None
+        if isinstance(lmv, dict):
+            live_adj = 0.0
+            live_reasons: list[str] = []
+            if code == "OU":
+                dlt = _to_float(lmv.get("delta_total"))
+                if dlt is not None and abs(float(dlt)) >= 1.5:
+                    live_align = (float(dlt) > 0) if sel.lower().startswith("over") else ((float(dlt) < 0) if sel.lower().startswith("under") else None)
+                    if live_align is not None:
+                        live_adj = 2.0 if live_align else -2.0
+                        live_reasons.append(f"live_move_total={float(dlt):+.1f}")
+                        live_reasons.append("live_steam_total=1")
+                        live_reasons.append("live_sent=align" if live_align else "live_sent=fade")
+            elif code == "ATS":
+                dls = _to_float(lmv.get("delta_spread_home"))
+                if dls is not None and abs(float(dls)) >= 2.0:
+                    live_align = (float(dls) < 0) if sel.lower().startswith("home") else ((float(dls) > 0) if sel.lower().startswith("away") else None)
+                    if live_align is not None:
+                        live_adj = 2.0 if live_align else -2.0
+                        live_reasons.append(f"live_move_spread={float(dls):+.1f}")
+                        live_reasons.append("live_steam_spread=1")
+                        live_reasons.append("live_sent=align" if live_align else "live_sent=fade")
+
+            if live_reasons:
+                try:
+                    rec["score"] = float(max(0.0, min(100.0, float(rec.get("score") or 0.0) + float(live_adj))))
+                except Exception:
+                    pass
+                try:
+                    rec["sentiment_live_adj"] = float(live_adj)
+                    rec["sentiment_live_ts"] = lmv.get("ts_last")
+                except Exception:
+                    pass
+                try:
+                    rlist = rec.get("reasons")
+                    if not isinstance(rlist, list):
+                        rlist = []
+                    rlist.extend(live_reasons)
+                    rlist.append(f"live_adj={float(live_adj):+.1f}")
+                    rec["reasons"] = rlist
+                except Exception:
+                    pass
 
     # Label and filter
     for r in recs:
