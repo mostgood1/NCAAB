@@ -735,10 +735,53 @@ if ($resRows -gt 0) {
 
 # Upload live snapshot + eval artifacts if present
 if (Test-Path -LiteralPath $liveSnapshotsPath) {
-    $uLs = Upload-File -Uri "$BaseUrl/api/upload_live_snapshots" -FilePath $liveSnapshotsPath -Query @{ date = $Date }
-    if ($uLs -and ($uLs.status -eq 'skipped')) { Write-Host "[Skip] upload_live_snapshots endpoint unavailable" -ForegroundColor Yellow }
-    elseif ($uLs) { Write-Host "[OK] live_snapshots uploaded: bytes=$($uLs.bytes)" -ForegroundColor Green }
-    else { Write-Host "[Warn] live_snapshots upload failed" -ForegroundColor Yellow }
+    # IMPORTANT: Render appends live snapshots throughout the day from cron/UI.
+    # Do NOT overwrite an existing remote file, or we can lose movement history.
+    $remoteExists = $false
+    try {
+        $chk = "$BaseUrl/api/download_live_snapshots?date=$Date"
+        Write-Step "HEAD $chk"
+        $resp = Invoke-WebRequest -Uri $chk -Method Head -UseBasicParsing -TimeoutSec 20
+        if ($resp -and ($resp.StatusCode -ge 200) -and ($resp.StatusCode -lt 300)) { $remoteExists = $true }
+    } catch {
+        $r = $_.Exception.Response
+        if ($r -and ([int]$r.StatusCode -eq 404)) {
+            $remoteExists = $false
+        } elseif ($r -and (([int]$r.StatusCode -eq 405) -or ([int]$r.StatusCode -eq 501))) {
+            # Some servers don't support HEAD; fall back to a GET into a temp file.
+            $tmp = $null
+            try {
+                $tmp = [System.IO.Path]::GetTempFileName()
+                Write-Step "GET $chk (fallback; HEAD unsupported)"
+                Invoke-WebRequest -Uri $chk -Method Get -UseBasicParsing -TimeoutSec 25 -OutFile $tmp | Out-Null
+                $remoteExists = $true
+            } catch {
+                $r2 = $_.Exception.Response
+                if ($r2 -and ([int]$r2.StatusCode -eq 404)) {
+                    $remoteExists = $false
+                } else {
+                    Write-Warning "[Warn] live_snapshots remote existence GET check failed: $($_.Exception.Message)"
+                    # Conservative default: do not upload if we can't verify.
+                    $remoteExists = $true
+                }
+            } finally {
+                try { if ($tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue } } catch {}
+            }
+        } else {
+            Write-Warning "[Warn] live_snapshots remote existence check failed: $($_.Exception.Message)"
+            # Conservative default: do not upload if we can't verify.
+            $remoteExists = $true
+        }
+    }
+
+    if ($remoteExists) {
+        Write-Host "[Skip] live_snapshots upload skipped (remote already exists; preserving append history)" -ForegroundColor Yellow
+    } else {
+        $uLs = Upload-File -Uri "$BaseUrl/api/upload_live_snapshots" -FilePath $liveSnapshotsPath -Query @{ date = $Date }
+        if ($uLs -and ($uLs.status -eq 'skipped')) { Write-Host "[Skip] upload_live_snapshots endpoint unavailable" -ForegroundColor Yellow }
+        elseif ($uLs) { Write-Host "[OK] live_snapshots uploaded (remote was missing): bytes=$($uLs.bytes)" -ForegroundColor Green }
+        else { Write-Host "[Warn] live_snapshots upload failed" -ForegroundColor Yellow }
+    }
 } else {
     Write-Host "[Skip] live_snapshots missing for $Date" -ForegroundColor Yellow
 }

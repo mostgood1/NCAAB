@@ -718,8 +718,8 @@ print({'path': str(games_path), 'rows': len(df2)})
       Write-Warning "compute-live-lens-accuracy failed for ${prevDate}: $($_)"
     }
 
-    # Live snapshots: fetch from Render (if needed) + summarize + evaluate
-    Write-Section "3b.ii) Live snapshots summary + eval for $prevDate"
+    # Live snapshots: sync from Render (refresh local history) + summarize + evaluate
+    Write-Section "3b.ii) Live snapshots sync (Render->local) + summary + eval for $prevDate"
     try {
       $snapDir = Join-Path $OutDir 'live_snapshots'
       New-Item -ItemType Directory -Path $snapDir -Force | Out-Null
@@ -731,47 +731,74 @@ print({'path': str(games_path), 'rows': len(df2)})
         try { return ((Get-Item -LiteralPath $Path).Length -gt 0) } catch { return $false }
       }
 
-      if (-not (Test-HasBytes $snapLocal)) {
-        try {
-          function Invoke-DownloadSnapshot {
-            param(
-              [string]$BaseUrl,
-              [string]$Date,
-              [string]$OutFile
-            )
-            $b = ("" + $BaseUrl).Trim()
-            if ([string]::IsNullOrWhiteSpace($b)) { return $false }
-            $b = $b.TrimEnd('/')
-            $url = "$b/api/download_live_snapshots?date=$Date"
-            Write-Host "[snapshots] Attempting download: $url" -ForegroundColor DarkGray
-            try {
-              Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
-              return (Test-HasBytes $OutFile)
-            } catch {
-              $resp = $_.Exception.Response
-              if ($resp) {
-                Write-Warning ("[snapshots] Download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
-              } else {
-                Write-Warning "[snapshots] Download failed: $($_.Exception.Message)"
-              }
-              if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
-              return $false
+      try {
+        function Invoke-DownloadSnapshot {
+          param(
+            [string]$BaseUrl,
+            [string]$Date,
+            [string]$OutFile
+          )
+          $b = ("" + $BaseUrl).Trim()
+          if ([string]::IsNullOrWhiteSpace($b)) { return $false }
+          $b = $b.TrimEnd('/')
+          $url = "$b/api/download_live_snapshots?date=$Date"
+          Write-Host "[snapshots] Attempting download: $url" -ForegroundColor DarkGray
+          try {
+            Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
+            return (Test-HasBytes $OutFile)
+          } catch {
+            $resp = $_.Exception.Response
+            if ($resp) {
+              Write-Warning ("[snapshots] Download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
+            } else {
+              Write-Warning "[snapshots] Download failed: $($_.Exception.Message)"
             }
+            if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+            return $false
           }
+        }
+
+        function Sync-RemoteSnapshot {
+          param(
+            [string]$Date,
+            [string]$LocalPath
+          )
+          $tmp = Join-Path $snapDir ("_tmp_live_" + $Date + ".jsonl")
+          if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
 
           $primary = $script:RenderBaseUrlEff
-          $ok = Invoke-DownloadSnapshot -BaseUrl $primary -Date $prevDate -OutFile $snapLocal
-
-          # Common mismatch: some docs/workflows used ncaab-frontend.onrender.com, but the live service is reachable at ncaab.onrender.com.
+          $ok = Invoke-DownloadSnapshot -BaseUrl $primary -Date $Date -OutFile $tmp
           if (-not $ok) {
             $fallback = 'https://ncaab.onrender.com'
             if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
-              $ok = Invoke-DownloadSnapshot -BaseUrl $fallback -Date $prevDate -OutFile $snapLocal
+              $ok = Invoke-DownloadSnapshot -BaseUrl $fallback -Date $Date -OutFile $tmp
             }
           }
-        } catch {
-          Write-Warning "[snapshots] Download wrapper failed: $($_)"
+          if (-not ($ok -and (Test-HasBytes $tmp))) {
+            if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+            return $false
+          }
+
+          $tmpLen = 0
+          $locLen = 0
+          try { $tmpLen = (Get-Item -LiteralPath $tmp).Length } catch { $tmpLen = 0 }
+          try { if (Test-Path -LiteralPath $LocalPath) { $locLen = (Get-Item -LiteralPath $LocalPath).Length } } catch { $locLen = 0 }
+
+          if ((-not (Test-Path -LiteralPath $LocalPath)) -or ($tmpLen -gt $locLen)) {
+            Move-Item -LiteralPath $tmp -Destination $LocalPath -Force
+            Write-Host "[snapshots] Synced ${Date}: bytes=$tmpLen" -ForegroundColor Green
+            return $true
+          } else {
+            Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+            Write-Host "[snapshots] Up-to-date $Date (local bytes=$locLen, remote bytes=$tmpLen)" -ForegroundColor DarkGray
+            return $true
+          }
         }
+
+        # Always sync previous-day snapshot (refresh local history)
+        $null = Sync-RemoteSnapshot -Date $prevDate -LocalPath $snapLocal
+      } catch {
+        Write-Warning "[snapshots] Sync wrapper failed: $($_)"
       }
 
       if (Test-HasBytes $snapLocal) {
@@ -798,6 +825,75 @@ print({'path': str(games_path), 'rows': len(df2)})
     }
   } else {
     Write-Host "SkipFinalizePrev flag set; skipping finalize-day for $prevDate." -ForegroundColor Yellow
+  }
+
+  # Sync today's live snapshots from Render so we maintain a local archive of intraday polling.
+  Write-Section "3c) Live snapshots sync (Render->local) for $todayIso (archive intraday polling)"
+  try {
+    $snapDir = Join-Path $OutDir 'live_snapshots'
+    New-Item -ItemType Directory -Path $snapDir -Force | Out-Null
+    $snapTodayLocal = Join-Path $snapDir ("live_" + $todayIso + ".jsonl")
+
+    function Test-HasBytes {
+      param([string]$Path)
+      if (-not (Test-Path -LiteralPath $Path)) { return $false }
+      try { return ((Get-Item -LiteralPath $Path).Length -gt 0) } catch { return $false }
+    }
+
+    function Invoke-DownloadSnapshot {
+      param(
+        [string]$BaseUrl,
+        [string]$Date,
+        [string]$OutFile
+      )
+      $b = ("" + $BaseUrl).Trim()
+      if ([string]::IsNullOrWhiteSpace($b)) { return $false }
+      $b = $b.TrimEnd('/')
+      $url = "$b/api/download_live_snapshots?date=$Date"
+      Write-Host "[snapshots] Attempting download: $url" -ForegroundColor DarkGray
+      try {
+        Invoke-WebRequest -Uri $url -OutFile $OutFile -UseBasicParsing -TimeoutSec 30 | Out-Null
+        return (Test-HasBytes $OutFile)
+      } catch {
+        $resp = $_.Exception.Response
+        if ($resp) {
+          Write-Warning ("[snapshots] Download failed ({0}): {1}" -f ([int]$resp.StatusCode), $_.Exception.Message)
+        } else {
+          Write-Warning "[snapshots] Download failed: $($_.Exception.Message)"
+        }
+        if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+        return $false
+      }
+    }
+
+    $tmp = Join-Path $snapDir ("_tmp_live_" + $todayIso + ".jsonl")
+    if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+    $primary = $script:RenderBaseUrlEff
+    $ok = Invoke-DownloadSnapshot -BaseUrl $primary -Date $todayIso -OutFile $tmp
+    if (-not $ok) {
+      $fallback = 'https://ncaab.onrender.com'
+      if ($primary.TrimEnd('/').ToLowerInvariant() -ne $fallback.ToLowerInvariant()) {
+        $ok = Invoke-DownloadSnapshot -BaseUrl $fallback -Date $todayIso -OutFile $tmp
+      }
+    }
+    if ($ok -and (Test-HasBytes $tmp)) {
+      $tmpLen = 0
+      $locLen = 0
+      try { $tmpLen = (Get-Item -LiteralPath $tmp).Length } catch { $tmpLen = 0 }
+      try { if (Test-Path -LiteralPath $snapTodayLocal) { $locLen = (Get-Item -LiteralPath $snapTodayLocal).Length } } catch { $locLen = 0 }
+      if ((-not (Test-Path -LiteralPath $snapTodayLocal)) -or ($tmpLen -gt $locLen)) {
+        Move-Item -LiteralPath $tmp -Destination $snapTodayLocal -Force
+        Write-Host "[snapshots] Synced ${todayIso}: bytes=$tmpLen" -ForegroundColor Green
+      } else {
+        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+        Write-Host "[snapshots] Up-to-date $todayIso (local bytes=$locLen, remote bytes=$tmpLen)" -ForegroundColor DarkGray
+      }
+    } else {
+      if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+      Write-Host "[snapshots] No snapshots file for $todayIso on remote (yet)." -ForegroundColor DarkGray
+    }
+  } catch {
+    Write-Warning "Live snapshot sync failed for ${todayIso}: $($_)"
   }
 
   # 3d) Compute daily accuracy snapshot for previous day and persist JSON
