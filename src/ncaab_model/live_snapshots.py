@@ -300,7 +300,26 @@ def _unchanged_window_s() -> float:
 
 
 def enabled() -> bool:
-    return _env_truthy(os.environ.get("NCAAB_LIVE_SNAPSHOT_LOG"))
+    """Whether live snapshot logging is enabled.
+
+    Behavior:
+      - If NCAAB_LIVE_SNAPSHOT_LOG is explicitly set, honor it.
+      - If it is unset/blank and we're running on Render, default to enabled.
+
+    Rationale: Render env var sync can drift when services pre-exist; default-on
+    keeps cron polling useful while still allowing an explicit opt-out.
+    """
+
+    try:
+        raw = os.environ.get("NCAAB_LIVE_SNAPSHOT_LOG")
+    except Exception:
+        raw = None
+    if raw is None or not str(raw).strip():
+        try:
+            return bool(os.environ.get("RENDER_SERVICE_ID") or os.environ.get("RENDER_INSTANCE_ID") or os.environ.get("RENDER"))
+        except Exception:
+            return False
+    return _env_truthy(raw)
 
 
 def _stable_hash(data: Any) -> str:
@@ -444,11 +463,25 @@ def log_live_api_payload(
             return
 
         # Keep request args small and JSON-friendly.
+        # IMPORTANT: redact secrets (e.g., cron_key) since these snapshots can
+        # be downloaded for debugging.
         req_keep: Dict[str, Any] = {}
         try:
+            redact_keys = {
+                "cron_key",
+                "key",
+                "api_key",
+                "apikey",
+                "token",
+                "access_token",
+                "authorization",
+                "x-ingest-token",
+            }
             for k, v in (request_args or {}).items():
                 ks = str(k or "").strip()
                 if not ks:
+                    continue
+                if ks.lower() in redact_keys:
                     continue
                 # Guard against huge args.
                 vs = str(v) if v is not None else None

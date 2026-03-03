@@ -22439,6 +22439,27 @@ def api_odds_status():
         },
     }
 
+    # Snapshot logging status (for cron verification). Does not expose secrets.
+    try:
+        from ncaab_model import live_snapshots as _ls  # type: ignore
+
+        payload["live_snapshot"] = {
+            "enabled": bool(getattr(_ls, "enabled")()),
+            "env_present": {
+                "NCAAB_LIVE_SNAPSHOT_LOG": bool(os.getenv("NCAAB_LIVE_SNAPSHOT_LOG")),
+                "NCAAB_OUTPUTS_DIR": bool(os.getenv("NCAAB_OUTPUTS_DIR")),
+                "NCAAB_LIVE_SNAPSHOT_DIR": bool(os.getenv("NCAAB_LIVE_SNAPSHOT_DIR")),
+            },
+            "render_env_present": {
+                "RENDER_SERVICE_ID": bool(os.getenv("RENDER_SERVICE_ID")),
+                "RENDER_INSTANCE_ID": bool(os.getenv("RENDER_INSTANCE_ID")),
+            },
+            "outputs_dir": str(os.getenv("NCAAB_OUTPUTS_DIR") or ""),
+            "snapshot_dir": str(os.getenv("NCAAB_LIVE_SNAPSHOT_DIR") or ""),
+        }
+    except Exception as e:
+        payload["live_snapshot"] = {"error": str(e)}
+
     try:
         from ncaab_model.data.adapters.odds_theoddsapi import TheOddsAPIAdapter  # type: ignore
 
