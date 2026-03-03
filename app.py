@@ -22457,6 +22457,62 @@ def api_odds_status():
             "outputs_dir": str(os.getenv("NCAAB_OUTPUTS_DIR") or ""),
             "snapshot_dir": str(os.getenv("NCAAB_LIVE_SNAPSHOT_DIR") or ""),
         }
+
+        # Best-effort: report today's snapshot file status so we can confirm
+        # cron polling is actually writing snapshots.
+        try:
+            import time as _time
+
+            date_s = (request.args.get("date") or "").strip()
+            if not date_s:
+                try:
+                    date_s = _today_local().isoformat()
+                except Exception:
+                    date_s = dt.date.today().isoformat()
+
+            snap_dir = getattr(_ls, "_get_snapshot_dir")()  # type: ignore
+            snap_path = Path(snap_dir) / f"live_{date_s}.jsonl"
+            snap_exists = bool(snap_path.exists())
+            snap_bytes = int(snap_path.stat().st_size) if snap_exists else None
+            snap_mtime = float(snap_path.stat().st_mtime) if snap_exists else None
+            last_ts = None
+            last_age_s = None
+            if snap_exists and snap_bytes and snap_bytes > 0:
+                try:
+                    # Read tail-ish: grab last non-empty line.
+                    txt = snap_path.read_text(encoding="utf-8", errors="ignore")
+                    for line in reversed(txt.splitlines()):
+                        s = (line or "").strip()
+                        if not s:
+                            continue
+                        try:
+                            j = json.loads(s)
+                            if isinstance(j, dict):
+                                last_ts = j.get("ts")
+                        except Exception:
+                            pass
+                        break
+                except Exception:
+                    pass
+                try:
+                    if snap_mtime:
+                        last_age_s = float(_time.time() - float(snap_mtime))
+                except Exception:
+                    last_age_s = None
+            payload["live_snapshot"]["file"] = {
+                "date": date_s,
+                "path": str(snap_path),
+                "exists": snap_exists,
+                "bytes": snap_bytes,
+                "mtime_epoch": snap_mtime,
+                "last_ts": last_ts,
+                "age_s": last_age_s,
+            }
+        except Exception as _se:
+            try:
+                payload["live_snapshot"]["file_error"] = str(_se)
+            except Exception:
+                pass
     except Exception as e:
         payload["live_snapshot"] = {"error": str(e)}
 
