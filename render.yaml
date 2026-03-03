@@ -16,6 +16,9 @@ services:
       - key: NCAAB_THEODDS_API_KEY
         sync: false
         fromSecret: NCAAB_THEODDS_API_KEY
+      - key: NCAAB_LIVE_LINES_CRON_KEY
+        sync: false
+        fromSecret: NCAAB_LIVE_LINES_CRON_KEY
       - key: TZ
         value: UTC
       - key: NCAAB_LIGHT_MODE

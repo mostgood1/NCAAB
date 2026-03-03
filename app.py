@@ -22500,6 +22500,20 @@ def api_live_lines():
 
     use_all_from_snapshot = debug and (event_ids_raw.strip().lower() == "all")
 
+    # Optional guardrail: if configured, require a secret key for the expensive
+    # debug-driven `event_ids=all` mode so it can't be abused to burn odds credits.
+    # This is intended for Render cron-style polling.
+    if use_all_from_snapshot:
+        try:
+            import os
+
+            req_key = str(request.args.get("cron_key") or "").strip()
+            env_key = str(os.getenv("NCAAB_LIVE_LINES_CRON_KEY") or os.getenv("NCAAB_CRON_KEY") or "").strip()
+            if env_key and req_key != env_key:
+                return jsonify({"status": "error", "message": "unauthorized"}), 401
+        except Exception:
+            pass
+
     event_ids = [x.strip() for x in event_ids_raw.split(",") if x.strip() and x.strip().lower() != "all"]
     # Defensive cap to prevent giant query strings / heavy processing.
     if len(event_ids) > 60:
