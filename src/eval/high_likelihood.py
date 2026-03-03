@@ -234,6 +234,103 @@ def _load_sim_quantiles(out_dir: Path, date: str) -> pd.DataFrame:
     return df
 
 
+def _load_closing_movement(out_dir: Path, date: str) -> pd.DataFrame:
+    """Load per-game closing line movement (open->close deltas + steam flags).
+
+    Primary source is `games_with_closing_<date>.csv` (one row per book/market),
+    aggregated down to one row per `game_id`.
+    """
+
+    candidates = [
+        out_dir / f"games_with_closing_{date}.csv",
+        out_dir / "games_with_closing_today.csv",
+        out_dir / "games_with_closing_recent.csv",
+        out_dir / "games_with_closing_prev.csv",
+        out_dir / "games_with_closing.csv",
+    ]
+
+    p: Path | None = None
+    for cand in candidates:
+        if cand.exists():
+            p = cand
+            break
+
+    if p is None:
+        return pd.DataFrame()
+
+    try:
+        df = pd.read_csv(p, dtype={"game_id": str}, low_memory=False)
+    except Exception:
+        return pd.DataFrame()
+
+    if df.empty or "game_id" not in df.columns:
+        return pd.DataFrame()
+
+    df = df.copy()
+    df["game_id"] = df["game_id"].map(_norm_gid)
+
+    # If the file includes multiple dates (e.g., *_recent), filter to the target day.
+    try:
+        if "date_game" in df.columns:
+            df["date_game"] = df["date_game"].astype(str)
+            df = df[df["date_game"] == date].copy()
+    except Exception:
+        pass
+
+    if df.empty:
+        return pd.DataFrame()
+
+    def _med_num(s: pd.Series) -> float | None:
+        x = pd.to_numeric(s, errors="coerce")
+        x = x[np.isfinite(x.to_numpy())]
+        if x.empty:
+            return None
+        try:
+            return float(x.median())
+        except Exception:
+            return None
+
+    def _any_flag(s: pd.Series) -> bool:
+        try:
+            x = pd.to_numeric(s, errors="coerce").fillna(0)
+            return bool((x != 0).any())
+        except Exception:
+            return False
+
+    want = {
+        # Totals
+        "open_total": ("open_total", _med_num),
+        "close_total": ("close_total", _med_num),
+        "delta_total": ("delta_total", _med_num),
+        "steam_total_flag": ("steam_total_flag", _any_flag),
+        # Spreads (home spread)
+        "open_home_spread": ("open_home_spread", _med_num),
+        "close_home_spread": ("close_home_spread", _med_num),
+        "delta_home_spread": ("delta_home_spread", _med_num),
+        "steam_spread_flag": ("steam_spread_flag", _any_flag),
+        # Moneyline (home)
+        "open_moneyline_home": ("open_moneyline_home", _med_num),
+        "close_moneyline_home": ("close_moneyline_home", _med_num),
+        "delta_moneyline_home": ("delta_moneyline_home", _med_num),
+        "steam_ml_home_flag": ("steam_ml_home_flag", _any_flag),
+    }
+
+    agg_spec: dict[str, Any] = {}
+    for out_col, (in_col, fn) in want.items():
+        if in_col in df.columns:
+            agg_spec[out_col] = (in_col, fn)
+
+    if not agg_spec:
+        return pd.DataFrame()
+
+    try:
+        g = df.groupby("game_id", as_index=False).agg(**agg_spec)
+    except Exception:
+        return pd.DataFrame()
+
+    return g
+
+
 def _best_rows(df: pd.DataFrame, kind: str) -> pd.DataFrame:
     """Pick one row per game_id for a market kind (totals/spreads/ml)."""
     if df.empty or "game_id" not in df.columns:
@@ -362,6 +459,15 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
         d["away_spread_price"] = -110.0
         d["book"] = d.get("book") if "book" in d.columns else "display"
         spreads = d
+
+    # Optional sentiment / market movement context (open->close deltas + steam flags).
+    mv = _load_closing_movement(out_dir, date)
+    mv_by_gid: dict[str, dict[str, Any]] = {}
+    if not mv.empty and "game_id" in mv.columns:
+        for r in mv.to_dict(orient="records"):
+            gid = _norm_gid(r.get("game_id"))
+            if gid:
+                mv_by_gid[gid] = r
 
     recs: list[dict[str, Any]] = []
 
@@ -739,6 +845,128 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                 "ev": ev_units,
             }
         )
+
+    # Apply sentiment adjustments (small score nudges + reasons) when line movement is available.
+    # Conventions:
+    # - Totals: delta_total > 0 means market total moved UP.
+    # - Spreads: delta_home_spread < 0 means home spread moved MORE negative (market towards home).
+    # - ML: delta_moneyline_home < 0 means home ML became MORE expensive (market towards home).
+    for rec in recs:
+        gid = _norm_gid(rec.get("game_id"))
+        if not gid:
+            continue
+        mv_row = mv_by_gid.get(gid)
+        if not mv_row:
+            continue
+
+        code = str(rec.get("rec_code") or "").upper()
+        sel = str(rec.get("selection") or "")
+
+        move_market: str | None = None
+        move_open: float | None = None
+        move_close: float | None = None
+        move_delta: float | None = None
+        steam = False
+        align: bool | None = None
+        adj = 0.0
+
+        if code == "OU":
+            move_market = "total"
+            move_open = _to_float(mv_row.get("open_total"))
+            move_close = _to_float(mv_row.get("close_total"))
+            move_delta = _to_float(mv_row.get("delta_total"))
+            steam = bool(mv_row.get("steam_total_flag") or False)
+            if move_delta is not None:
+                if sel.lower().startswith("over"):
+                    align = float(move_delta) > 0
+                elif sel.lower().startswith("under"):
+                    align = float(move_delta) < 0
+
+                base = min(2.0, abs(float(move_delta)) * 0.75)
+                if align is True:
+                    adj += base
+                elif align is False:
+                    adj -= base
+                if steam and align is True:
+                    adj += 2.0
+                elif steam and align is False:
+                    adj -= 2.0
+
+        elif code == "ATS":
+            move_market = "spread_home"
+            move_open = _to_float(mv_row.get("open_home_spread"))
+            move_close = _to_float(mv_row.get("close_home_spread"))
+            move_delta = _to_float(mv_row.get("delta_home_spread"))
+            steam = bool(mv_row.get("steam_spread_flag") or False)
+            if move_delta is not None:
+                if sel.lower().startswith("home"):
+                    align = float(move_delta) < 0
+                elif sel.lower().startswith("away"):
+                    align = float(move_delta) > 0
+
+                base = min(2.0, abs(float(move_delta)) * 0.60)
+                if align is True:
+                    adj += base
+                elif align is False:
+                    adj -= base
+                if steam and align is True:
+                    adj += 2.0
+                elif steam and align is False:
+                    adj -= 2.0
+
+        elif code == "ML":
+            move_market = "ml_home"
+            move_open = _to_float(mv_row.get("open_moneyline_home"))
+            move_close = _to_float(mv_row.get("close_moneyline_home"))
+            move_delta = _to_float(mv_row.get("delta_moneyline_home"))
+            steam = bool(mv_row.get("steam_ml_home_flag") or False)
+
+            home_team = str(rec.get("home_team") or "")
+            picked_home = bool(home_team) and sel.strip().lower() == home_team.strip().lower()
+            if move_delta is not None:
+                if picked_home:
+                    align = float(move_delta) < 0
+                else:
+                    align = float(move_delta) > 0
+
+                base = min(2.0, abs(float(move_delta)) / 30.0)
+                if align is True:
+                    adj += base
+                elif align is False:
+                    adj -= base
+                if steam and align is True:
+                    adj += 2.0
+                elif steam and align is False:
+                    adj -= 2.0
+
+        if move_delta is None or move_market is None or align is None:
+            continue
+
+        rec["move_market"] = move_market
+        rec["move_open"] = move_open
+        rec["move_close"] = move_close
+        rec["move_delta"] = move_delta
+        rec["steam_flag"] = bool(steam)
+        rec["sentiment_align"] = bool(align)
+        rec["sentiment_adj"] = float(adj)
+
+        try:
+            rec["score"] = float(max(0.0, min(100.0, float(rec.get("score") or 0.0) + float(adj))))
+        except Exception:
+            pass
+
+        reasons = rec.get("reasons")
+        if not isinstance(reasons, list):
+            reasons = []
+        if move_open is not None and move_close is not None:
+            reasons.append(f"move_{move_market}={move_open:+.1f}->{move_close:+.1f}")
+        else:
+            reasons.append(f"move_{move_market}_delta={float(move_delta):+.2f}")
+        if steam:
+            reasons.append(f"steam_{move_market}=1")
+        reasons.append("sent=align" if align else "sent=fade")
+        reasons.append(f"sent_adj={float(adj):+.1f}")
+        rec["reasons"] = reasons
 
     # Label and filter
     for r in recs:
