@@ -160,12 +160,16 @@ class HighLikelihoodConfig:
     sigma_total: float = 12.0
     sigma_margin: float = 8.0
     max_juice_abs: float = 120.0
-    include_markets: tuple[str, ...] = ("ML",)
+    include_markets: tuple[str, ...] = ("ATS", "OU", "ML")
     max_picks_per_game: int = 1
-    market_preference: tuple[str, ...] = ("ML", "ATS", "OU")
+    # Preference order used when limiting per-game picks and breaking ties.
+    # Default: ATS/OU-first so the list isn't ML-dominated.
+    market_preference: tuple[str, ...] = ("ATS", "OU", "ML")
     # Optional per-day caps by market (helps preserve hit-rate when ATS/OU are noisy).
-    max_ats_picks: int = 2
-    max_ou_picks: int = 2
+    # Default: ATS/OU majority (ML is capped explicitly).
+    max_ats_picks: int = 6
+    max_ou_picks: int = 6
+    max_ml_picks: int = 4
     # Hit-rate oriented gates for ML.
     ml_favorites_only: bool = False
     # Keep the hit-rate gate primarily on model probability; implied prob is no longer
@@ -775,8 +779,7 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
         limited.extend(rows_sorted[:max_per_game])
 
     # Preserve global ranking after limiting, but bias selection toward preferred markets.
-    # This keeps the "high likelihood" list ML-heavy by default, and only pulls ATS/OU
-    # when there aren't enough ML candidates above the score threshold.
+    # Default preference is ATS/OU-first so the list isn't ML-dominated.
     def _global_key(x: dict[str, Any]):
         code = str(x.get("rec_code") or "").upper()
         return (pref_rank.get(code, 999), -float(x.get("score") or 0.0))
@@ -788,11 +791,14 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
     caps = {
         "ATS": int(cfg.max_ats_picks) if cfg.max_ats_picks is not None else 0,
         "OU": int(cfg.max_ou_picks) if cfg.max_ou_picks is not None else 0,
-        "ML": top_n,
+        "ML": int(cfg.max_ml_picks) if cfg.max_ml_picks is not None else top_n,
     }
     # Treat non-positive caps as "no picks" for that market.
-    for k in ("ATS", "OU"):
-        if caps[k] < 0:
+    for k in ("ATS", "OU", "ML"):
+        try:
+            if int(caps.get(k) or 0) <= 0:
+                caps[k] = 0
+        except Exception:
             caps[k] = 0
 
     counts = {"ML": 0, "ATS": 0, "OU": 0}
@@ -800,11 +806,14 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
     for r in filtered:
         if len(top) >= top_n:
             break
+
         code = str(r.get("rec_code") or "").upper()
         if code not in counts:
             code = "ML" if code == "H2H" else code
+
         if code in caps and counts.get(code, 0) >= caps[code]:
             continue
+
         top.append(r)
         if code in counts:
             counts[code] += 1
@@ -835,6 +844,7 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             "min_ou_ev_units": float(cfg.min_ou_ev_units),
             "max_ats_picks": int(cfg.max_ats_picks),
             "max_ou_picks": int(cfg.max_ou_picks),
+            "max_ml_picks": int(cfg.max_ml_picks),
         },
         "picks": top,
         "candidates": len(recs),

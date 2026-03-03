@@ -33240,8 +33240,9 @@ def api_high_likelihood():
       - top_n=N (default 12)
       - min_score=FLOAT (default 75)
             - markets=ML,ATS,OU (default ML,ATS,OU)
-            - max_ats_picks=N (default 2)
-            - max_ou_picks=N (default 2)
+            - max_ats_picks=N (default 6)
+            - max_ou_picks=N (default 6)
+            - max_ml_picks=N (default 4)
     """
     date_q = (request.args.get("date") or "").strip()
     try:
@@ -33266,16 +33267,22 @@ def api_high_likelihood():
         inc = ("ML", "ATS", "OU")
 
     try:
-        max_ats_picks = int(request.args.get("max_ats_picks") or 2)
+        max_ats_picks = int(request.args.get("max_ats_picks") or 6)
     except Exception:
-        max_ats_picks = 2
+        max_ats_picks = 6
     max_ats_picks = max(0, min(10, max_ats_picks))
 
     try:
-        max_ou_picks = int(request.args.get("max_ou_picks") or 2)
+        max_ou_picks = int(request.args.get("max_ou_picks") or 6)
     except Exception:
-        max_ou_picks = 2
+        max_ou_picks = 6
     max_ou_picks = max(0, min(10, max_ou_picks))
+
+    try:
+        max_ml_picks = int(request.args.get("max_ml_picks") or 4)
+    except Exception:
+        max_ml_picks = 4
+    max_ml_picks = max(0, min(50, max_ml_picks))
 
     # Resolve default date in the same spirit as /api/recommendations
     if not date_q:
@@ -33314,6 +33321,7 @@ def api_high_likelihood():
             include_markets=inc,
             max_ats_picks=max_ats_picks,
             max_ou_picks=max_ou_picks,
+            max_ml_picks=max_ml_picks,
         )
     )
     if not isinstance(base, dict) or base.get("status") != "ok":
@@ -33458,8 +33466,9 @@ def high_likelihood_page():
     if not inc:
         inc = ("ML", "ATS", "OU")
 
-    max_ats_picks = _safe_int(request.args.get("max_ats_picks"), 2, 0, 10)
-    max_ou_picks = _safe_int(request.args.get("max_ou_picks"), 2, 0, 10)
+    max_ats_picks = _safe_int(request.args.get("max_ats_picks"), 6, 0, 10)
+    max_ou_picks = _safe_int(request.args.get("max_ou_picks"), 6, 0, 10)
+    max_ml_picks = _safe_int(request.args.get("max_ml_picks"), 4, 0, 50)
 
     try:
         from src.eval.high_likelihood import HighLikelihoodConfig, build_high_likelihood, reconcile_picks, recent_results_dates
@@ -33548,6 +33557,7 @@ def high_likelihood_page():
         include_markets=inc,
         max_ats_picks=max_ats_picks,
         max_ou_picks=max_ou_picks,
+        max_ml_picks=max_ml_picks,
     )
     day_today = build_high_likelihood(cfg_today)
     today_picks = (day_today.get("picks") or []) if isinstance(day_today, dict) else []
@@ -33589,6 +33599,7 @@ def high_likelihood_page():
             include_markets=inc,
             max_ats_picks=max_ats_picks,
             max_ou_picks=max_ou_picks,
+            max_ml_picks=max_ml_picks,
         )
         day = build_high_likelihood(cfg)
         picks = (day.get("picks") or []) if isinstance(day, dict) else []
@@ -33633,6 +33644,7 @@ def high_likelihood_page():
             include_markets=inc,
             max_ats_picks=max_ats_picks,
             max_ou_picks=max_ou_picks,
+            max_ml_picks=max_ml_picks,
         )
         day = build_high_likelihood(cfg)
         picks = (day.get("picks") or []) if isinstance(day, dict) else []
@@ -33650,6 +33662,7 @@ def high_likelihood_page():
         min_score=float(min_score),
         max_ats_picks=int(max_ats_picks),
         max_ou_picks=int(max_ou_picks),
+        max_ml_picks=int(max_ml_picks),
         ytd_start=str(ytd_start),
         ytd=ytd,
         today={
