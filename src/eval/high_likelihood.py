@@ -60,6 +60,27 @@ def _american_profit_per_1_risk(odds: float | None) -> float:
         return 100.0 / 110.0
 
 
+def _expected_units_per_1_risk(p_win: float | None, odds: float | None) -> float | None:
+    """Expected profit in units for risking 1 unit at the given odds.
+
+    EV_units = p_win * profit_per_1_risk - (1 - p_win)
+    """
+    if p_win is None:
+        return None
+    try:
+        p = float(p_win)
+    except Exception:
+        return None
+    if not np.isfinite(p):
+        return None
+    p = max(0.0, min(1.0, p))
+    prof = _american_profit_per_1_risk(odds)
+    try:
+        return float(p * prof - (1.0 - p))
+    except Exception:
+        return None
+
+
 def _american_implied_prob(odds: float | None) -> float | None:
     """Convert American odds to implied probability in (0,1)."""
     if odds is None:
@@ -146,10 +167,17 @@ class HighLikelihoodConfig:
     max_ats_picks: int = 2
     max_ou_picks: int = 2
     # Hit-rate oriented gates for ML.
-    ml_favorites_only: bool = True
-    min_ml_implied_prob: float = 0.60
-    min_ml_model_prob: float = 0.60
-    max_ml_underdog_price: float = 120.0
+    ml_favorites_only: bool = False
+    # Keep the hit-rate gate primarily on model probability; implied prob is no longer
+    # used as a hard filter so modest underdogs can pass when EV is strong.
+    min_ml_implied_prob: float = 0.0
+    min_ml_model_prob: float = 0.55
+    max_ml_underdog_price: float = 180.0
+    # Unit-efficiency/ROI gates for ML.
+    # - Avoid tying up units in extreme prices.
+    # - Require positive expected units per 1 unit risk (and optionally a minimum).
+    max_ml_favorite_abs_price: float = 200.0
+    min_ml_ev_units: float = 0.02
 
     # Hit-rate oriented gates for ATS/OU.
     min_ats_model_prob: float = 0.60
@@ -157,6 +185,9 @@ class HighLikelihoodConfig:
     min_ats_edge_pts: float = 4.0
     min_ou_edge_pts: float = 4.0
     min_prob_edge_vs_implied: float = 0.05
+    # Unit-efficiency/ROI gates for OU/ATS (expected units per 1 unit risk).
+    min_ats_ev_units: float = 0.02
+    min_ou_ev_units: float = 0.02
 
 
 def _load_edges(out_dir: Path, date: str) -> pd.DataFrame:
@@ -373,13 +404,17 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                     continue
                 if float(p_side) < float(cfg.min_ou_model_prob):
                     continue
-                if float(p_side) < float(implied) + float(cfg.min_prob_edge_vs_implied):
+                ev_units = _expected_units_per_1_risk(p_side, price)
+                if ev_units is None:
+                    continue
+                if float(ev_units) < float(cfg.min_ou_ev_units):
                     continue
 
                 conf_model = _conf_strength(p_side, target=0.85)
-                conf_implied = _conf_strength(float(implied), target=0.70)
                 edge_s = _clamp01(abs(edge) / 6.0)
-                score = 100.0 * (0.65 * conf_model + 0.20 * conf_implied + 0.15 * edge_s)
+                ev_s = _clamp01((float(ev_units) - 0.0) / 0.08)
+                juice_p = _juice_penalty(price, max_abs=cfg.max_juice_abs)
+                score = 100.0 * (0.55 * conf_model + 0.15 * edge_s + 0.30 * ev_s) - 25.0 * juice_p
                 score = float(max(0.0, min(100.0, score)))
 
                 recs.append(
@@ -399,6 +434,7 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                             f"p_win={p_side:.3f}",
                             f"p_implied={float(implied):.3f}",
                             f"edge_pts={edge:+.1f}",
+                            f"ev_units={ev_units:+.3f}" if ev_units is not None else "ev_units=–",
                             "src=sim_quantiles",
                         ],
                     }
@@ -441,13 +477,17 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                     continue
                 if float(p_side) < float(cfg.min_ats_model_prob):
                     continue
-                if float(p_side) < float(implied) + float(cfg.min_prob_edge_vs_implied):
+                ev_units = _expected_units_per_1_risk(p_side, price)
+                if ev_units is None:
+                    continue
+                if float(ev_units) < float(cfg.min_ats_ev_units):
                     continue
 
                 conf_model = _conf_strength(p_side, target=0.85)
-                conf_implied = _conf_strength(float(implied), target=0.70)
                 edge_s = _clamp01(abs(edge_home_cover) / 3.0)
-                score = 100.0 * (0.70 * conf_model + 0.20 * conf_implied + 0.10 * edge_s)
+                ev_s = _clamp01((float(ev_units) - 0.0) / 0.08)
+                juice_p = _juice_penalty(price, max_abs=cfg.max_juice_abs)
+                score = 100.0 * (0.60 * conf_model + 0.10 * edge_s + 0.30 * ev_s) - 25.0 * juice_p
                 score = float(max(0.0, min(100.0, score)))
 
                 recs.append(
@@ -469,6 +509,7 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                             f"p_win={p_side:.3f}",
                             f"p_implied={float(implied):.3f}",
                             f"edge_pts={edge_home_cover:+.1f}",
+                            f"ev_units={ev_units:+.3f}" if ev_units is not None else "ev_units=–",
                             "src=sim_quantiles",
                         ],
                     }
@@ -504,15 +545,18 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             continue
         if float(p_side) < float(cfg.min_ou_model_prob):
             continue
-        if float(p_side) < float(implied) + float(cfg.min_prob_edge_vs_implied):
+
+        ev_units = _expected_units_per_1_risk(p_side, price)
+        if ev_units is None:
+            continue
+        if float(ev_units) < float(cfg.min_ou_ev_units):
             continue
 
         conf_model = _conf_strength(p_side, target=0.85)
-        conf_implied = _conf_strength(float(implied), target=0.70)
         edge_s = _clamp01(abs(edge) / 6.0)
-        kelly_s = _clamp01((kelly or 0.0) / 0.05)
+        ev_s = _clamp01(((ev_units or 0.0) - 0.0) / 0.08)
         juice_p = _juice_penalty(price, max_abs=cfg.max_juice_abs)
-        score = 100.0 * (0.50 * conf_model + 0.20 * conf_implied + 0.20 * edge_s + 0.10 * kelly_s) - 25.0 * juice_p
+        score = 100.0 * (0.55 * conf_model + 0.15 * edge_s + 0.30 * ev_s) - 25.0 * juice_p
         score = float(max(0.0, min(100.0, score)))
 
         recs.append(
@@ -532,7 +576,7 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                     f"p_win={p_side:.3f}",
                     f"p_implied={float(implied):.3f}",
                     f"edge_pts={edge:+.1f}",
-                    f"kelly={kelly:.3f}" if kelly is not None else "kelly=–",
+                    f"ev_units={ev_units:+.3f}" if ev_units is not None else "ev_units=–",
                     f"price={int(price):+d}" if price is not None and float(price).is_integer() else (f"price={price:+.0f}" if price is not None else "price=–"),
                 ],
             }
@@ -563,15 +607,18 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             continue
         if float(p_side) < float(cfg.min_ats_model_prob):
             continue
-        if float(p_side) < float(implied) + float(cfg.min_prob_edge_vs_implied):
+
+        ev_units = _expected_units_per_1_risk(p_side, price)
+        if ev_units is None:
+            continue
+        if float(ev_units) < float(cfg.min_ats_ev_units):
             continue
 
         conf_model = _conf_strength(p_side, target=0.85)
-        conf_implied = _conf_strength(float(implied), target=0.70)
         edge_s = _clamp01(abs(edge_home_cover) / 3.0)
-        kelly_s = 0.0
+        ev_s = _clamp01(((ev_units or 0.0) - 0.0) / 0.08)
         juice_p = _juice_penalty(price, max_abs=cfg.max_juice_abs)
-        score = 100.0 * (0.55 * conf_model + 0.25 * conf_implied + 0.20 * edge_s) - 25.0 * juice_p
+        score = 100.0 * (0.60 * conf_model + 0.10 * edge_s + 0.30 * ev_s) - 25.0 * juice_p
         score = float(max(0.0, min(100.0, score)))
 
         recs.append(
@@ -592,6 +639,7 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                     f"p_win={p_side:.3f}",
                     f"p_implied={float(implied):.3f}",
                     f"edge_pts={edge_home_cover:+.1f}",
+                    f"ev_units={ev_units:+.3f}" if ev_units is not None else "ev_units=–",
                     f"price={int(price):+d}" if price is not None and float(price).is_integer() else (f"price={price:+.0f}" if price is not None else "price=–"),
                 ],
             }
@@ -631,23 +679,37 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             continue
         if (not bool(cfg.ml_favorites_only)) and float(price) > float(cfg.max_ml_underdog_price):
             continue
+        # Avoid extreme favorites (unit efficiency guardrail).
+        try:
+            if float(price) < 0 and cfg.max_ml_favorite_abs_price is not None and float(cfg.max_ml_favorite_abs_price) > 0:
+                if abs(float(price)) > float(cfg.max_ml_favorite_abs_price):
+                    continue
+        except Exception:
+            pass
         if float(implied) < float(cfg.min_ml_implied_prob):
             continue
         if float(p_win) < float(cfg.min_ml_model_prob):
             continue
 
+        # Unit-efficiency gate: require positive (or minimum) expected units per 1 unit risk.
+        ev_units = _expected_units_per_1_risk(p_win, price)
+        if ev_units is None:
+            continue
+        try:
+            if float(ev_units) < float(cfg.min_ml_ev_units):
+                continue
+        except Exception:
+            pass
+
         # Secondary signals.
-        ev_h = _to_float(r.get("home_ml_ev"))
-        ev_a = _to_float(r.get("away_ml_ev"))
-        ev = ev_h if pick_home else ev_a
         kelly = _to_float(r.get("kelly_fraction_ml_home" if pick_home else "kelly_fraction_ml_away"))
 
-        # Score: prioritize actual win probability; EV/Kelly should not drag us into longshots.
+        # Score: prioritize win probability + implied probability + EV per unit; avoid long-shot drift.
         conf_model = _conf_strength(p_win, target=0.70)
         conf_implied = _conf_strength(float(implied), target=0.70)
-        kelly_s = _clamp01((kelly or 0.0) / 0.05)
+        ev_s = _clamp01((float(ev_units) - 0.0) / 0.10)
         juice_p = _juice_penalty(price, max_abs=cfg.max_juice_abs)
-        score = 100.0 * (0.60 * conf_model + 0.30 * conf_implied + 0.10 * kelly_s) - 25.0 * juice_p
+        score = 100.0 * (0.55 * conf_model + 0.20 * conf_implied + 0.25 * ev_s) - 25.0 * juice_p
         score = float(max(0.0, min(100.0, score)))
 
         recs.append(
@@ -667,11 +729,10 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                 "reasons": [
                     f"p_win={p_win:.3f}",
                     f"p_implied={float(implied):.3f}",
-                    f"ev={ev:+.3f}" if ev is not None else "ev=–",
-                    f"kelly={kelly:.3f}" if kelly is not None else "kelly=–",
+                    f"ev_units={ev_units:+.3f}",
                     f"price={price:+.0f}" if price is not None else "price=–",
                 ],
-                "ev": ev,
+                "ev": ev_units,
             }
         )
 
@@ -770,6 +831,8 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             "min_ats_edge_pts": float(cfg.min_ats_edge_pts),
             "min_ou_edge_pts": float(cfg.min_ou_edge_pts),
             "min_prob_edge_vs_implied": float(cfg.min_prob_edge_vs_implied),
+            "min_ats_ev_units": float(cfg.min_ats_ev_units),
+            "min_ou_ev_units": float(cfg.min_ou_ev_units),
             "max_ats_picks": int(cfg.max_ats_picks),
             "max_ou_picks": int(cfg.max_ou_picks),
         },

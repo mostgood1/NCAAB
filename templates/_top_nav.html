@@ -3,7 +3,7 @@
 {% set _path = request.path or '' %}
 <div class="top-nav" role="navigation" aria-label="Site navigation">
   <a class="nav-pill{% if _path == '/' %} active{% endif %}" href="/">Cards</a>
-  <a class="nav-pill{% if _path.startswith('/high-likelihood') or _path.startswith('/recommendations') %} active{% endif %}" href="/high-likelihood{% if _nav_date %}?date={{ _nav_date }}{% endif %}" title="High-likelihood recommendations + recaps">Recommendations</a>
+  <a class="nav-pill{% if _path.startswith('/high-likelihood') %} active{% endif %}" href="/high-likelihood{% if _nav_date %}?date={{ _nav_date }}{% endif %}" title="High-likelihood recommendations + recaps">Recommendations</a>
   <a class="nav-pill{% if _path.startswith('/results-archive') or _path.startswith('/finals') %} active{% endif %}" href="/results-archive">Results</a>
   <a class="nav-pill{% if _path.startswith('/accuracy') and not _path.startswith('/accuracy-market') %} active{% endif %}" href="/accuracy">Accuracy</a>
   <a class="nav-pill{% if _path.startswith('/interval-accuracy') %} active{% endif %}" href="/interval-accuracy">Interval</a>

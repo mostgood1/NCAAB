@@ -47,13 +47,6 @@
     /* Prevent vertical overflow by allowing content to wrap inline */
     .compact-card .stack { display: contents; }
 
-    /* In-card bet callout (under Recommendation) */
-    .bet-callout{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(134,46,156,0.75);background:rgba(134,46,156,0.16);}
-    .bet-callout .bet-label{display:inline-block;font-weight:700;letter-spacing:0.08em;font-size:11px;line-height:16px;padding:2px 8px;border-radius:999px;background:#862e9c;color:#fff;}
-    .bet-callout .bet-item{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.08);}
-    .bet-callout.edge{border-color:rgba(11,114,133,0.75);background:rgba(11,114,133,0.14);}
-    .bet-callout.edge .bet-label{background:#0b7285;}
-
     /* Header date picker */
     .header-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
     .date-form{display:flex;align-items:center;gap:8px;}
@@ -69,11 +62,13 @@
     .compact-game-strip .pill{flex:0 0 auto;white-space:nowrap;}
     .compact-game-strip .pill:focus{outline:2px solid var(--accent);outline-offset:2px;}
     /* Compact box-score tiles (not pill-shaped) */
-    .compact-game-strip .compact-game-item{white-space:normal;text-align:left;display:flex;flex-direction:column;align-items:stretch;gap:2px;line-height:1.06;padding:5px 7px;border-radius:10px;min-width:160px;max-width:200px;max-height:78px;overflow:hidden;}
+    .compact-game-strip .compact-game-item{white-space:normal;text-align:left;display:flex;flex-direction:column;align-items:stretch;gap:2px;line-height:1.06;padding:5px 7px;border-radius:10px;min-width:160px;max-width:200px;}
     .compact-game-strip .compact-game-line{display:block;}
     .compact-game-strip .compact-game-status{opacity:0.92;font-size:10px;}
-    .compact-game-strip .compact-game-callout{opacity:0.95;font-size:10px;}
+    .compact-game-strip .compact-game-callout{opacity:0.95;font-size:10px;white-space:pre-line;}
     .compact-game-strip .compact-game-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .compact-game-strip .compact-game-team-wrap{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;}
+    .compact-game-strip .compact-team-logo{width:14px;height:14px;object-fit:contain;flex:0 0 auto;}
     .compact-game-strip .compact-game-team{min-width:0;flex:1 1 auto;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .compact-game-strip .compact-game-team.away{font-weight:700;}
     .compact-game-strip .compact-game-team.home{font-weight:700;}
@@ -106,7 +101,7 @@
         padding:2px 0;
         overflow-x:auto;
         overflow-y:hidden;
-        max-height:170px;
+        max-height:none;
         -webkit-overflow-scrolling:touch;
       }
       .filters-bar-row{gap:6px;}
@@ -116,6 +111,7 @@
       .compact-game-strip .compact-game-top{font-size:11px;}
       .compact-game-strip .compact-game-team{font-size:12px;}
       .compact-game-strip .compact-game-score{font-size:12px;}
+      .compact-game-strip .compact-team-logo{width:12px;height:12px;}
     }
   </style>
   {% set e = 2.718281828459045 %}
@@ -194,7 +190,7 @@
         {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
         {% set _spr_full = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else None)) %}
         {% set _spr_1h = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}">
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}" data-away-logo="{{ (r.away_logo if (r.away_logo is defined and r.away_logo) else '') }}" data-home-logo="{{ (r.home_logo if (r.home_logo is defined and r.home_logo) else '') }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -940,56 +936,6 @@
                   <div class="pill strong">ATS: {{ rec_ats }}</div>
                   <div class="pill strong">Total: {{ rec_ou }}</div>
                 </div>
-
-                {# Best bet selection by Kelly fraction across Total / ATS (ML intentionally excluded). #}
-                {% set k_ou = (r.kelly_fraction_total if (r.kelly_fraction_total is defined and r.kelly_fraction_total is not none and r.kelly_fraction_total == r.kelly_fraction_total) else none) %}
-
-                {# ATS Kelly computed from p_cover_home + spread prices. #}
-                {% set p_cov_h = (r.p_cover_home if (r.p_cover_home is defined and r.p_cover_home is not none and r.p_cover_home == r.p_cover_home) else none) %}
-                {% set p_cov_a = (1.0 - p_cov_h) if p_cov_h is not none else none %}
-                {% set sp_price_h = (r.home_spread_price if (r.home_spread_price is defined and r.home_spread_price is not none and r.home_spread_price == r.home_spread_price) else none) %}
-                {% set sp_price_a = (r.away_spread_price if (r.away_spread_price is defined and r.away_spread_price is not none and r.away_spread_price == r.away_spread_price) else none) %}
-
-                  {% set k_ats_h = none %}
-                  {% set k_ats_a = none %}
-                  {% if p_cov_h is not none and sp_price_h is not none %}
-                    {% set b = (sp_price_h/100.0) if sp_price_h>0 else (100.0/(-sp_price_h)) %}
-                    {% set k = (b*p_cov_h - (1.0-p_cov_h)) / b %}
-                    {% set k_ats_h = k if k>0 else 0.0 %}
-                  {% endif %}
-                  {% if p_cov_a is not none and sp_price_a is not none %}
-                    {% set b = (sp_price_a/100.0) if sp_price_a>0 else (100.0/(-sp_price_a)) %}
-                    {% set k = (b*p_cov_a - (1.0-p_cov_a)) / b %}
-                    {% set k_ats_a = k if k>0 else 0.0 %}
-                  {% endif %}
-
-                {% set ok_ou = (k_ou is not none and mt is not none and rec_t is not none) %}
-
-                  {% set best_kind = none %}
-                  {% set best_k = 0.0 %}
-                  {% if ok_ou and k_ou > best_k %}{% set best_k = k_ou %}{% set best_kind = 'ou' %}{% endif %}
-                  {% if k_ats_h is not none and k_ats_h > best_k %}{% set best_k = k_ats_h %}{% set best_kind = 'ats_h' %}{% endif %}
-                  {% if k_ats_a is not none and k_ats_a > best_k %}{% set best_k = k_ats_a %}{% set best_kind = 'ats_a' %}{% endif %}
-
-                  {# Avoid spam: only show when Kelly is at least 1% of bankroll. #}
-                  {% if best_kind and best_k >= 0.01 %}
-                    <div class="bet-callout edge" title="Best bet by Kelly fraction across Total/ATS">
-                      <span class="bet-label">KELLY</span>
-                      {% if best_kind == 'ou' and (mt is not none) %}
-                        {% set ou_price = (r.over_price if (r.over_price is defined and r.over_price is not none and r.over_price==r.over_price) else none) if (rec_t is not none and rec_t > mt) else (r.under_price if (r.under_price is defined and r.under_price is not none and r.under_price==r.under_price) else none) %}
-                        <span class="bet-item">Total: {% if rec_t is not none and rec_t > mt %}Over{% else %}Under{% endif %} {{ '%.1f' % mt }}{% if ou_price is not none %} @{{ '%.0f' % ou_price }}{% endif %}</span>
-                        <span class="bet-item">Kelly {{ '%.1f' % (best_k*100) }}%</span>
-                      {% elif best_kind == 'ats_h' and (spr is not none) %}
-                        <span class="bet-item">ATS: {{ home_disp }} {% if spr > 0 %}+{% endif %}{{ '%.1f' % spr }}{% if sp_price_h is not none %} @{{ '%.0f' % sp_price_h }}{% endif %}</span>
-                        <span class="bet-item">Kelly {{ '%.1f' % (best_k*100) }}%</span>
-                      {% elif best_kind == 'ats_a' and (spr is not none) %}
-                        {% set asp = (-spr) %}
-                        <span class="bet-item">ATS: {{ away_disp }} {% if asp > 0 %}+{% endif %}{{ '%.1f' % asp }}{% if sp_price_a is not none %} @{{ '%.0f' % sp_price_a }}{% endif %}</span>
-                        <span class="bet-item">Kelly {{ '%.1f' % (best_k*100) }}%</span>
-                      {% endif %}
-                      {% if _conf is not none %}<span class="bet-item">Conf {{ '%.0f' % _conf }}%</span>{% endif %}
-                    </div>
-                  {% endif %}
               </div>
             </div>
           {% else %}
@@ -1264,13 +1210,6 @@
             <div class="line-row odds-row section-odds">
               <div class="seg label">Odds</div>
               <div class="seg">ATS: {% if spread_full is not none %}{% if spread_full < 0 %}{{ home_disp or '–' }} {{ '%.1f' % spread_full }}{% elif spread_full > 0 %}{{ away_disp or '–' }} -{{ '%.1f' % spread_full }}{% else %}Pick{% endif %}{% else %}–{% endif %}</div>
-              <div class="seg">
-                {% if r.kelly_frac_spread is defined and r.kelly_frac_spread is not none and r.kelly_frac_spread == r.kelly_frac_spread %}
-                  <span class="badge" title="Kelly fraction suggestion for ATS using calibrated K and -110 price">Kelly: {{ '%.1f' % (r.kelly_frac_spread * 100) }}% {{ r.kelly_side_spread or '' }}</span>
-                {% else %}
-                  <span class="badge" title="Kelly fraction suggestion unavailable">Kelly: –</span>
-                {% endif %}
-              </div>
               {% if spread_full is not none %}
                 <div class="seg">Winner: {% if spread_full < 0 %}{{ home_disp or '–' }}{% elif spread_full > 0 %}{{ away_disp or '–' }}{% else %}Even{% endif %}</div>
               {% else %}
@@ -1310,22 +1249,6 @@
               <div class="seg">Team Totals: {% if total_full is not none and spread_full is not none %}{% set home_imp_full = (total_full / 2) - (spread_full / 2) %}{% set away_imp_full = total_full - home_imp_full %}{{ away_disp or '–' }} {{ '%.1f' % away_imp_full }} / {{ home_disp or '–' }} {{ '%.1f' % home_imp_full }}{% else %}–{% endif %}</div>
               <div class="seg">Overall: {% if total_full is not none %}{{ '%.1f' % total_full }}{% else %}–{% endif %}</div>
             </div>
-
-            {# Clear best-bet callout (standard/compact view): spread Kelly. #}
-            {% set k_sp = (r.kelly_frac_spread if (r.kelly_frac_spread is defined and r.kelly_frac_spread is not none and r.kelly_frac_spread == r.kelly_frac_spread) else none) %}
-            {% set side_sp = (r.kelly_side_spread if (r.kelly_side_spread is defined and r.kelly_side_spread) else none) %}
-            {% if k_sp is not none and k_sp >= 0.01 and spread_full is not none and side_sp is not none %}
-              <div class="bet-callout edge" title="Recommended bet from spread Kelly (threshold 1%)">
-                <span class="bet-label">KELLY</span>
-                {% if side_sp == 'HOME' %}
-                  <span class="bet-item">ATS: {{ home_disp }} {% if spread_full > 0 %}+{% endif %}{{ '%.1f' % spread_full }}</span>
-                {% elif side_sp == 'AWAY' %}
-                  {% set asp = (-spread_full) %}
-                  <span class="bet-item">ATS: {{ away_disp }} {% if asp > 0 %}+{% endif %}{{ '%.1f' % asp }}</span>
-                {% endif %}
-                <span class="bet-item">Kelly {{ '%.1f' % (k_sp*100) }}%</span>
-              </div>
-            {% endif %}
             {% endif %}
             {% if r.has_actuals is defined and r.has_actuals %}
             <div class="line-row actuals-row section-actuals">
@@ -2924,7 +2847,7 @@
           }
 
           var card0 = getCardForWrap(wrap);
-          var lensKey0 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+          var lensKey0 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : (((lens === 'full_game') || (lens === 'fg')) ? 'fg' : null));
           var per0 = null;
           try {
             if(card0 && typeof card0.__livePeriod === 'number' && isFinite(card0.__livePeriod)) per0 = card0.__livePeriod;
@@ -3015,7 +2938,7 @@
           var intervalCalSigma = null;
           try {
             // Apply calibration only for full-game horizon (interval backtest calibration is fit on full_game snapshots).
-            var isFullGame = (lens === 'full_game') && (horizon !== null) && (horizon >= 39);
+            var isFullGame = ((lens === 'full_game') || (lens === 'fg')) && (horizon !== null) && (horizon >= 39);
             if(isFullGame){
               var sp = getIntervalCalSigma(elapsed);
               if(sp && sp.sigma_cal !== null && isFinite(sp.sigma_cal)){
@@ -3114,6 +3037,7 @@
           // Driver + lean
           var driver = '–';
           var lean = '–';
+          var driverTagsForLog = null;
           var isStrong = false;
           var isWatchLine = false;
           var isStrongNoLine = false;
@@ -3155,7 +3079,7 @@
             // Write both the legacy attributes and per-lens attributes.
             try {
               var cardE = card0 || getCardForWrap(wrap);
-              var lensKey = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+              var lensKey = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game' || lens === 'fg') ? 'fg' : null));
               if(cardE){
                 if(side === 'Over' || side === 'Under'){
                   cardE.setAttribute('data-live-total-side', side.toLowerCase());
@@ -3484,7 +3408,7 @@
             var oddsWindowOk = true;
             try {
               if(remaining !== null && isFinite(remaining)){
-                if(lens === 'full_game') oddsWindowOk = (remaining >= 4);
+                if(lens === 'full_game' || lens === 'fg') oddsWindowOk = (remaining >= 4);
                 else if(lens === '1h' && remaining < 5) oddsWindowOk = (totSidePrice !== null && totSidePrice !== undefined);
               }
             } catch(_eOdds){ oddsWindowOk = true; }
@@ -3670,12 +3594,79 @@
             driver = (delta > 0 ? 'Below sim (so far)' : (delta < 0 ? 'Above sim (so far)' : 'On sim'));
           }
 
+          // Compute stable driver tags for logging (avoid relying on DOM attributes).
+          try {
+            var tagsT = [];
+            function addTagT(t){
+              t = String(t || '').trim();
+              if(!t) return;
+              if(tagsT.indexOf(t) >= 0) return;
+              tagsT.push(t);
+            }
+
+            // Canonical pace/eff hi/lo when we have PBP-derived rates.
+            try {
+              if(typeof possRate === 'number' && isFinite(possRate)){
+                if(typeof paceHi === 'number' && isFinite(paceHi) && possRate >= paceHi){ addTagT('pace_hi'); addTagT('pace'); }
+                else if(typeof paceLo === 'number' && isFinite(paceLo) && possRate <= paceLo){ addTagT('pace_lo'); addTagT('pace'); }
+                else { addTagT('pace'); }
+              }
+            } catch(_ePR){ /* noop */ }
+            try {
+              if(typeof ppp === 'number' && isFinite(ppp)){
+                if(typeof ppsHi === 'number' && isFinite(ppsHi) && ppp >= ppsHi){ addTagT('eff_hi'); addTagT('eff'); }
+                else if(typeof ppsLo === 'number' && isFinite(ppsLo) && ppp <= ppsLo){ addTagT('eff_lo'); addTagT('eff'); }
+                else { addTagT('eff'); }
+              }
+            } catch(_ePPP){ /* noop */ }
+
+            // Explanatory flags used in the driver text.
+            try { if(latePenApplied) addTagT('late_over'); } catch(_eLateT){ /* noop */ }
+            try { if(earlyPenApplied) addTagT('early_over'); } catch(_eEarlyT){ /* noop */ }
+            try { if(tagPenaltyApplied) addTagT('flags'); } catch(_eFlagsT){ /* noop */ }
+
+            // Generic components: edge + sim-gap + pbp.
+            try { if(typeof edge === 'number' && isFinite(edge)) addTagT('edge'); } catch(_eEdgeT2){ /* noop */ }
+            try { if(delta !== null && delta !== undefined && isFinite(delta)) addTagT('sim_gap'); } catch(_eDeltaT2){ /* noop */ }
+            try { if(pbp) addTagT('pbp'); } catch(_ePbpT2){ /* noop */ }
+
+            // Parse driver text for additional categories (shooting/ft/ppp) when present.
+            try {
+              var rawD = String(driver || '').trim();
+              if(rawD){
+                var toksD = rawD.split('|').map(function(x){ return String(x||'').trim(); }).filter(Boolean);
+                toksD.forEach(function(t){
+                  var tl = String(t||'').toLowerCase();
+                  if(tl.indexOf('shooting ') === 0) addTagT('shooting');
+                  else if(tl.indexOf('ft rate ') === 0) addTagT('ft');
+                  else if(tl.indexOf('ppp ') === 0) addTagT('ppp');
+                });
+              }
+            } catch(_eParseDT2){ /* noop */ }
+
+            driverTagsForLog = (tagsT && tagsT.length) ? tagsT : null;
+          } catch(_eTagsForLog){ driverTagsForLog = null; }
+
           // Attach driver context to the logged signal so offline analysis/learning
           // can segment hits vs misses by regime/flags.
           try {
             if(logSig && typeof logSig === 'object'){
               logSig.driver = String(driver || '').trim() || null;
+              if(driverTagsForLog && driverTagsForLog.length) logSig.driver_tags = driverTagsForLog.slice(0);
             }
+
+            // If multiple totals signals exist for this update, stamp them all.
+            try {
+              if(logSigs && logSigs.length){
+                var d0 = String(driver || '').trim() || null;
+                logSigs.forEach(function(s){
+                  if(!s || typeof s !== 'object') return;
+                  if(String(s.kind || '').toLowerCase() !== 'total') return;
+                  s.driver = d0;
+                  if(driverTagsForLog && driverTagsForLog.length) s.driver_tags = driverTagsForLog.slice(0);
+                });
+              }
+            } catch(_eStamp){ /* noop */ }
           } catch(_eLogDrv){ /* noop */ }
 
           setText(wrap, 'driver', 'Driver: ' + driver);
@@ -3684,7 +3675,7 @@
           // Persist per-lens driver text for compact strip.
           try {
             var cardDrv = card0 || getCardForWrap(wrap);
-            var lensKeyD2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+            var lensKeyD2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game' || lens === 'fg') ? 'fg' : null));
             if(cardDrv && lensKeyD2){
               cardDrv.setAttribute('data-live-driver-' + lensKeyD2, String(driver || '').trim());
 
@@ -3757,7 +3748,7 @@
           // Persist per-lens lean text for compact strip fallback.
           try {
             var cardLean = card0 || getCardForWrap(wrap);
-            var lensKey2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+            var lensKey2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game' || lens === 'fg') ? 'fg' : null));
             if(cardLean && lensKey2){
               cardLean.setAttribute('data-live-lean-' + lensKey2, String(lean || '').trim());
             }
@@ -3771,7 +3762,7 @@
           }
 
           // ATS recommendations (card-level only; totals remain primary).
-          var doMarketSignals = (lens === 'full_game' || lens === '1h' || lens === '2h');
+          var doMarketSignals = (lens === 'full_game' || lens === 'fg' || lens === '1h' || lens === '2h');
           if(!doMarketSignals){
             setText(wrap, 'ml', 'ML: –');
             setText(wrap, 'ats', 'ATS: –');
@@ -3900,7 +3891,7 @@
             var fgOddsOk = true;
             try {
               if(remaining !== null && isFinite(remaining)){
-                if(lens === 'full_game') fgOddsOk = (remaining >= 4);
+                if(lens === 'full_game' || lens === 'fg') fgOddsOk = (remaining >= 4);
               }
             } catch(_eOdds2){ fgOddsOk = true; }
 
@@ -3908,7 +3899,7 @@
             try {
               var cardM2 = card0 || getCardForWrap(wrap);
               if(cardM2){
-                if(lens === 'full_game') cardM2.removeAttribute('data-live-ml-fg');
+                if(lens === 'full_game' || lens === 'fg') cardM2.removeAttribute('data-live-ml-fg');
                 if(lens === '1h') cardM2.removeAttribute('data-live-ml-1h');
                 if(lens === '2h') cardM2.removeAttribute('data-live-ml-2h');
               }
@@ -4076,13 +4067,13 @@
               try {
                 var cardA = card0 || getCardForWrap(wrap);
                 if(cardA){
-                  if(lens === 'full_game') cardA.setAttribute('data-live-ats-fg', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
+                  if(lens === 'full_game' || lens === 'fg') cardA.setAttribute('data-live-ats-fg', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
                   if(lens === '1h') cardA.setAttribute('data-live-ats-1h', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
                   if(lens === '2h') cardA.setAttribute('data-live-ats-2h', String(atsTxt).replace(/^ATS:\s*/i,'').trim());
 
                   // Persist ATS metadata for compact WATCH/BET notifier.
                   // (Use "market" prefix since ML/ATS can share this channel in the future.)
-                  var lensKeyA = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+                  var lensKeyA = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : (((lens === 'full_game') || (lens === 'fg')) ? 'fg' : null));
                   if(lensKeyA){
                     var sideKeyA = (bestATS === 'Home') ? 'home' : ((bestATS === 'Away') ? 'away' : '');
                     if(sideKeyA) cardA.setAttribute('data-live-market-side-' + lensKeyA, sideKeyA);
@@ -4157,11 +4148,11 @@
               try {
                 var cardA2 = card0 || getCardForWrap(wrap);
                 if(cardA2){
-                  if(lens === 'full_game') cardA2.removeAttribute('data-live-ats-fg');
+                  if(lens === 'full_game' || lens === 'fg') cardA2.removeAttribute('data-live-ats-fg');
                   if(lens === '1h') cardA2.removeAttribute('data-live-ats-1h');
                   if(lens === '2h') cardA2.removeAttribute('data-live-ats-2h');
 
-                  var lensKeyA2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+                  var lensKeyA2 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : (((lens === 'full_game') || (lens === 'fg')) ? 'fg' : null));
                   if(lensKeyA2){
                     try { cardA2.removeAttribute('data-live-market-side-' + lensKeyA2); } catch(_eMS) { /* noop */ }
                     try { cardA2.removeAttribute('data-live-market-line-' + lensKeyA2); } catch(_eML) { /* noop */ }
@@ -4200,7 +4191,7 @@
 
             // Persist per-lens signal flags on the card for compact strip.
             try {
-              var lensKey3 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game') ? 'fg' : null));
+              var lensKey3 = (lens === '1h') ? '1h' : ((lens === '2h') ? '2h' : ((lens === 'full_game' || lens === 'fg') ? 'fg' : null));
               if(card2 && lensKey3){
                 card2.setAttribute('data-live-edge-ok-' + lensKey3, okNow ? '1' : '0');
                 card2.setAttribute('data-live-edge-warn-' + lensKey3, (!okNow && warnNow) ? '1' : '0');
@@ -5479,7 +5470,7 @@
             var pFm = lensPieceMarket('FG', 'fg', mkOkFg2, mkWarnFg2);
             if(pFm) parts.push(pFm);
 
-            if(parts.length) return parts.join(' | ');
+            if(parts.length) return parts.join('\n');
 
             // Legacy fallback (should be rare now): single total callout.
             try {
@@ -5510,26 +5501,50 @@
             
 
             var sc = scoreText();
+            var awayLogo = safeStr(card.getAttribute('data-away-logo'));
+            var homeLogo = safeStr(card.getAttribute('data-home-logo'));
             var rowA = document.createElement('div');
             rowA.className = 'compact-game-row';
+            var aWrap = document.createElement('span');
+            aWrap.className = 'compact-game-team-wrap';
+            if(awayLogo){
+              var aImg = document.createElement('img');
+              aImg.className = 'compact-team-logo';
+              aImg.src = awayLogo;
+              aImg.alt = '';
+              try { aImg.loading = 'lazy'; } catch(_eL1) {}
+              aWrap.appendChild(aImg);
+            }
             var aName = document.createElement('span');
             aName.className = 'compact-game-team away';
             aName.textContent = away;
             var aScore = document.createElement('span');
             aScore.className = 'compact-game-score';
             aScore.textContent = sc.away;
-            rowA.appendChild(aName);
+            aWrap.appendChild(aName);
+            rowA.appendChild(aWrap);
             rowA.appendChild(aScore);
 
             var rowH = document.createElement('div');
             rowH.className = 'compact-game-row';
+            var hWrap = document.createElement('span');
+            hWrap.className = 'compact-game-team-wrap';
+            if(homeLogo){
+              var hImg = document.createElement('img');
+              hImg.className = 'compact-team-logo';
+              hImg.src = homeLogo;
+              hImg.alt = '';
+              try { hImg.loading = 'lazy'; } catch(_eL2) {}
+              hWrap.appendChild(hImg);
+            }
             var hName = document.createElement('span');
             hName.className = 'compact-game-team home';
             hName.textContent = home;
             var hScore = document.createElement('span');
             hScore.className = 'compact-game-score';
             hScore.textContent = sc.home;
-            rowH.appendChild(hName);
+            hWrap.appendChild(hName);
+            rowH.appendChild(hWrap);
             rowH.appendChild(hScore);
 
             var co = document.createElement('span');

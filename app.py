@@ -24690,6 +24690,19 @@ def api_time_debug():
 
 @app.route("/recommendations")
 def recommendations():
+    # Deprecated endpoint: redirect to the High Likelihood page.
+    # Keeping a redirect avoids breaking old bookmarks/links.
+    try:
+        date_q = (request.args.get('date') or '').strip()
+    except Exception:
+        date_q = ''
+    try:
+        if date_q:
+            return redirect(f"/high-likelihood?date={date_q}", code=302)
+    except Exception:
+        pass
+    return redirect("/high-likelihood", code=302)
+
     # Early fast-path: for grouped view, build from API payload to avoid rare server-side errors
     try:
         group_req = (str(request.args.get("group") or "1").strip().lower() not in ("0","false","no"))
@@ -32736,7 +32749,7 @@ def api_recommendations():
         per_game_q = False
 
     # Guardrail: avoid recommending extremely large ML underdogs in strip mode.
-    # Default chosen to be conservative; override with query or env.
+    # Default chosen to align with the global ML band; override with query or env.
     try:
         ml_dog_max = None
         qv = (request.args.get("ml_dog_max") or "").strip()
@@ -32747,9 +32760,9 @@ def api_recommendations():
             if ev:
                 ml_dog_max = float(ev)
         if ml_dog_max is None or (not np.isfinite(ml_dog_max)):
-            ml_dog_max = 450.0
+            ml_dog_max = 180.0
     except Exception:
-        ml_dog_max = 450.0
+        ml_dog_max = 180.0
 
     def _as_float(val: Any) -> float | None:
         try:
@@ -32963,6 +32976,32 @@ def api_recommendations():
             except Exception:
                 return False
 
+        def _american_profit_per_1_risk(odds: float | None) -> float:
+            try:
+                if odds is None:
+                    return 100.0 / 110.0
+                o = float(odds)
+                if not np.isfinite(o) or o == 0:
+                    return 100.0 / 110.0
+                if o > 0:
+                    return o / 100.0
+                return 100.0 / (-o)
+            except Exception:
+                return 100.0 / 110.0
+
+        def _expected_units_per_1_risk(p_win: float | None, odds: float | None) -> float | None:
+            if p_win is None or odds is None:
+                return None
+            try:
+                p = float(p_win)
+                if not np.isfinite(p):
+                    return None
+                p = max(0.0, min(1.0, p))
+                prof = _american_profit_per_1_risk(odds)
+                return float(p * prof - (1.0 - p))
+            except Exception:
+                return None
+
         cleaned: list[dict[str, Any]] = []
         for r in (rows or []):
             if not isinstance(r, dict):
@@ -33008,6 +33047,28 @@ def api_recommendations():
                         pm = _sf(rr.get('pred_margin'))
                         if pm is not None:
                             rr['edge'] = float(max(0.0, min(2.0, abs(pm) / 6.0)))
+
+            # Global ML ROI guardrails (applies to /api/recommendations output).
+            # Band: favorites no worse than -200; underdogs no bigger than +180.
+            # Require EV_units >= 0.02 per 1 unit risk.
+            if code == 'ML':
+                price_v = _sf(rr.get('price'))
+                if price_v is None:
+                    continue
+                if price_v < 0 and abs(price_v) > 200.0:
+                    continue
+                if price_v > 180.0:
+                    continue
+                p_win = _sf(rr.get('prob'))
+                if p_win is None:
+                    p_win = _sf(rr.get('p_win'))
+                if p_win is None:
+                    continue
+                ev_units = _expected_units_per_1_risk(p_win, price_v)
+                if ev_units is None or float(ev_units) < 0.02:
+                    continue
+                rr['ev_units'] = float(ev_units)
+                rr['edge'] = float(ev_units)
 
             # Maintain abs_edge when possible (many consumers sort by it)
             ev = _sf(rr.get('edge'))

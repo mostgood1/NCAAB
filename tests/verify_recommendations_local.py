@@ -22,8 +22,7 @@ except Exception as e:
 
 client = app.test_client()
 urls = [
-    ("/recommendations?group=1&date=2026-01-12", "grouped"),
-    ("/recommendations?group=0&date=2026-01-12", "flat"),
+    ("/high-likelihood?date=2026-01-12", "high_likelihood"),
     ("/api/recommendations?date=2026-01-12", "api"),
 ]
 
@@ -40,7 +39,7 @@ for url, name in urls:
 try:
     idx = client.get('/', follow_redirects=False)
     html = idx.get_data(as_text=True)
-    m = re.search(r'href=\"(/recommendations[^\"]*)\"[^>]*>Recommendations<', html)
+    m = re.search(r'href=\"(/high-likelihood[^\"]*)\"[^>]*>Recommendations<', html)
     print('INDEX STATUS', idx.status_code, 'REC_LINK', (m.group(1) if m else 'NOT_FOUND'))
     if m:
         rr = client.get(m.group(1), follow_redirects=False)
