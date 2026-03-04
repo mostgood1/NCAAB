@@ -39881,6 +39881,153 @@ def api_display_predictions():
                     except Exception:
                         pass
 
+                    # Fallback: latest logged live_lines snapshots (JSONL) for missing market lines.
+                    # This unblocks Render when CSV odds artifacts are missing but cron polling is
+                    # still logging live_lines snapshots.
+                    try:
+                        if isinstance(base, pd.DataFrame) and (not base.empty) and ('game_id' in base.columns):
+                            # Ensure canonical columns exist.
+                            for c in ('market_total', 'spread_home', 'ml_home', 'ml_away'):
+                                if c not in base.columns:
+                                    base[c] = np.nan
+                            for c in ('over_price', 'under_price', 'home_spread_price', 'away_spread_price'):
+                                if c not in base.columns:
+                                    base[c] = np.nan
+                            if 'book_name' not in base.columns:
+                                base['book_name'] = np.nan
+
+                            mt0 = pd.to_numeric(base.get('market_total'), errors='coerce')
+                            sh0 = pd.to_numeric(base.get('spread_home'), errors='coerce')
+                            mh0 = pd.to_numeric(base.get('ml_home'), errors='coerce')
+                            ma0 = pd.to_numeric(base.get('ml_away'), errors='coerce')
+                            need_any = bool(mt0.isna().any() or sh0.isna().any() or mh0.isna().any() or ma0.isna().any())
+
+                            if need_any:
+                                from ncaab_model.live_snapshots import latest_live_lines_by_event_id  # type: ignore
+
+                                date_s = str(date_q)
+                                ll0 = latest_live_lines_by_event_id(date_s=date_s, period='full_game')
+                                # UTC-midnight rollover: also consult next day's snapshot.
+                                try:
+                                    date_s2 = (dt.date.fromisoformat(date_s) + dt.timedelta(days=1)).isoformat()
+                                except Exception:
+                                    date_s2 = None
+                                ll1 = latest_live_lines_by_event_id(date_s=date_s2, period='full_game') if date_s2 else {}
+
+                                def _ts_epoch(ts_iso: Any) -> float | None:
+                                    try:
+                                        if ts_iso is None:
+                                            return None
+                                        s = str(ts_iso).strip()
+                                        if not s:
+                                            return None
+                                        d = dt.datetime.fromisoformat(s.replace('Z', '+00:00'))
+                                        if d.tzinfo is None:
+                                            d = d.replace(tzinfo=dt.timezone.utc)
+                                        return float(d.timestamp())
+                                    except Exception:
+                                        return None
+
+                                def _merge_latest(a: dict[str, dict[str, Any]], b: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+                                    out = dict(a or {})
+                                    for eid, rec in (b or {}).items():
+                                        try:
+                                            if eid not in out:
+                                                out[eid] = rec
+                                                continue
+                                            t0 = _ts_epoch((out.get(eid) or {}).get('ts'))
+                                            t1 = _ts_epoch((rec or {}).get('ts'))
+                                            if (t1 is not None) and (t0 is not None) and float(t1) > float(t0):
+                                                out[eid] = rec
+                                            elif (t1 is not None) and (t0 is None):
+                                                out[eid] = rec
+                                        except Exception:
+                                            continue
+                                    return out
+
+                                ll = _merge_latest(ll0, ll1)
+
+                                if ll:
+                                    gid = base['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+
+                                    def _get_num(eid: str, *keys: str) -> float | None:
+                                        try:
+                                            rec = ll.get(str(eid)) or {}
+                                            for k in keys:
+                                                v = rec.get(k)
+                                                if v is None:
+                                                    continue
+                                                try:
+                                                    x = float(v)
+                                                except Exception:
+                                                    try:
+                                                        x = float(str(v).strip())
+                                                    except Exception:
+                                                        continue
+                                                if np.isfinite(x):
+                                                    return float(x)
+                                            return None
+                                        except Exception:
+                                            return None
+
+                                    def _get_str(eid: str, *keys: str) -> str | None:
+                                        try:
+                                            rec = ll.get(str(eid)) or {}
+                                            for k in keys:
+                                                v = rec.get(k)
+                                                if v is None:
+                                                    continue
+                                                s = str(v).strip()
+                                                if s and s.lower() not in ('nan', 'none', 'null'):
+                                                    return s
+                                            return None
+                                        except Exception:
+                                            return None
+
+                                    total_map = {eid: _get_num(eid, 'total', 'market_total') for eid in ll.keys()}
+                                    spread_map = {eid: _get_num(eid, 'spread_home') for eid in ll.keys()}
+                                    mlh_map = {eid: _get_num(eid, 'moneyline_home', 'ml_home') for eid in ll.keys()}
+                                    mla_map = {eid: _get_num(eid, 'moneyline_away', 'ml_away') for eid in ll.keys()}
+                                    over_map = {eid: _get_num(eid, 'over_price') for eid in ll.keys()}
+                                    under_map = {eid: _get_num(eid, 'under_price') for eid in ll.keys()}
+                                    sh_price_map = {eid: _get_num(eid, 'spread_home_price', 'home_spread_price') for eid in ll.keys()}
+                                    sa_price_map = {eid: _get_num(eid, 'spread_away_price', 'away_spread_price') for eid in ll.keys()}
+                                    book_map = {eid: _get_str(eid, 'book', 'book_key', 'book_name') for eid in ll.keys()}
+
+                                    mt_alt = pd.to_numeric(gid.map(total_map), errors='coerce')
+                                    sh_alt = pd.to_numeric(gid.map(spread_map), errors='coerce')
+                                    mh_alt = pd.to_numeric(gid.map(mlh_map), errors='coerce')
+                                    ma_alt = pd.to_numeric(gid.map(mla_map), errors='coerce')
+
+                                    base['market_total'] = mt0.where(mt0.notna(), mt_alt)
+                                    base['spread_home'] = sh0.where(sh0.notna(), sh_alt)
+                                    base['ml_home'] = mh0.where(mh0.notna(), mh_alt)
+                                    base['ml_away'] = ma0.where(ma0.notna(), ma_alt)
+
+                                    # Prices and book label (optional for UI)
+                                    try:
+                                        op0 = pd.to_numeric(base.get('over_price'), errors='coerce')
+                                        up0 = pd.to_numeric(base.get('under_price'), errors='coerce')
+                                        hp0 = pd.to_numeric(base.get('home_spread_price'), errors='coerce')
+                                        ap0 = pd.to_numeric(base.get('away_spread_price'), errors='coerce')
+                                        base['over_price'] = op0.where(op0.notna(), pd.to_numeric(gid.map(over_map), errors='coerce'))
+                                        base['under_price'] = up0.where(up0.notna(), pd.to_numeric(gid.map(under_map), errors='coerce'))
+                                        base['home_spread_price'] = hp0.where(hp0.notna(), pd.to_numeric(gid.map(sh_price_map), errors='coerce'))
+                                        base['away_spread_price'] = ap0.where(ap0.notna(), pd.to_numeric(gid.map(sa_price_map), errors='coerce'))
+                                    except Exception:
+                                        pass
+
+                                    try:
+                                        bn = base.get('book_name')
+                                        bn_s = bn.astype(str) if hasattr(bn, 'astype') else bn
+                                        missing_bn = bn.isna() | bn_s.astype(str).str.strip().eq('') | bn_s.astype(str).str.lower().isin(['nan', 'none', 'null'])
+                                        if hasattr(missing_bn, 'any') and missing_bn.any():
+                                            base.loc[missing_bn, 'book_name'] = gid.loc[missing_bn].map(book_map)
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
+
                     # Finalize time fields: derive start_time_iso from commence_time/start_time when possible.
                     try:
                         if 'start_time_iso' not in base.columns:
@@ -41122,6 +41269,29 @@ def api_display_predictions():
                     item['display_date'] = item.get('date') or item.get('display_date_local')
             except Exception:
                 pass
+
+            # has_odds flag for UI consumers (templates/JS hide odds sections without it)
+            try:
+                def _is_num(v: Any) -> bool:
+                    try:
+                        if v is None:
+                            return False
+                        if isinstance(v, (float, int)):
+                            return not pd.isna(v)
+                        s = str(v).strip().lower()
+                        if s in ('', 'nan', 'none', 'null', '–', '-'):
+                            return False
+                        return not pd.isna(pd.to_numeric(v, errors='coerce'))
+                    except Exception:
+                        return False
+                item['has_odds'] = bool(
+                    _is_num(item.get('market_total'))
+                    or _is_num(item.get('spread_home'))
+                    or _is_num(item.get('ml_home'))
+                    or _is_num(item.get('ml_away'))
+                )
+            except Exception:
+                item['has_odds'] = False
 
             # Attach conferences (cards view only)
             try:

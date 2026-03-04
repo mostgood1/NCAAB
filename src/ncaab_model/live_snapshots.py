@@ -304,6 +304,112 @@ def summarize_live_lines_moves(
     return out
 
 
+def latest_live_lines_by_event_id(
+    *,
+    date_s: str,
+    period: str | None = "full_game",
+) -> Dict[str, Dict[str, Any]]:
+    """Return the latest logged `live_lines` quote per event_id for a given date.
+
+    Reads the append-only JSONL snapshot file:
+      - outputs/live_snapshots/live_<date>.jsonl
+
+    Returns a mapping keyed by ESPN event_id (as string). Each value is the
+    per-event `data` dict logged for `endpoint=="live_lines"` with two extra keys:
+      - ts: snapshot log timestamp (UTC ISO string, usually ending with 'Z')
+      - event_id: event id string
+
+    Notes:
+    - Filters to records where rec.endpoint == 'live_lines'.
+    - If `period` is not None, also filters to data.period == period.
+    - When multiple records exist for an event_id, keeps the newest by snapshot
+      timestamp (falling back to file order when timestamps are missing).
+    """
+
+    date_s2 = str(date_s or "").strip()
+    if not date_s2:
+        return {}
+
+    p = _get_snapshot_dir() / f"live_{date_s2}.jsonl"
+    if not p.exists():
+        return {}
+
+    def _ts_epoch(ts_iso: Any) -> float | None:
+        try:
+            if ts_iso is None:
+                return None
+            import datetime as _dt
+
+            s = str(ts_iso).strip()
+            if not s:
+                return None
+            d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=_dt.timezone.utc)
+            return float(d.timestamp())
+        except Exception:
+            return None
+
+    want_period = (str(period).strip().lower() if period is not None else None)
+
+    out: Dict[str, Dict[str, Any]] = {}
+    best_key: Dict[str, tuple[float | None, int]] = {}
+    order = 0
+    try:
+        with p.open("r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                order += 1
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if str(rec.get("endpoint") or "").strip() != "live_lines":
+                    continue
+                eid = str(rec.get("event_id") or "").strip()
+                if not eid:
+                    continue
+                data = rec.get("data") if isinstance(rec.get("data"), dict) else None
+                if not isinstance(data, dict):
+                    continue
+
+                if want_period:
+                    try:
+                        if str(data.get("period") or "").strip().lower() != want_period:
+                            continue
+                    except Exception:
+                        continue
+
+                ts = rec.get("ts")
+                te = _ts_epoch(ts)
+                prev = best_key.get(eid)
+                if prev is not None:
+                    prev_te, prev_order = prev
+                    # Prefer newer timestamp; if missing/unparseable, fall back to file order.
+                    if (te is not None) and (prev_te is not None):
+                        if float(te) < float(prev_te):
+                            continue
+                    elif (te is None) and (prev_te is not None):
+                        continue
+                    elif (te is None) and (prev_te is None) and int(order) <= int(prev_order):
+                        continue
+
+                # Copy data so callers can mutate safely.
+                d = dict(data)
+                d["ts"] = (str(ts).strip() if ts is not None else None)
+                d["event_id"] = eid
+                out[eid] = d
+                best_key[eid] = (te, int(order))
+    except Exception:
+        return {}
+
+    return out
+
+
 _LOCK = threading.Lock()
 _LAST_SEEN: Dict[str, Dict[str, Any]] = {}
 _WARNED: set[str] = set()
