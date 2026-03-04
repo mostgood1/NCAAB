@@ -15,6 +15,9 @@
     .badge.stake{background:#862e9c;}
     .badge.raw{background:#5c940d;}
     .badge.adj{background:#d9480f;}
+    /* Live vs pregame line-move badges */
+    .badge.move-pregame{background:#0b7285;}
+    .badge.move-live{background:#d9480f;}
     .badge.toggle-raw{background:#495057;cursor:pointer;}
     .badge.toggle-raw:hover,.badge:hover{opacity:0.85;}
     /* Time pill styling: base + rollover emphasis */
@@ -161,6 +164,10 @@
             <span class="pill small neutral" aria-hidden="true">Status</span>
             <div id="statusPills" class="flex-row-wrap" aria-label="Status filter pills"></div>
           </div>
+          <div class="flex-row-wrap">
+            <span class="pill small neutral" aria-hidden="true">Movement</span>
+            <div id="movePills" class="flex-row-wrap" aria-label="Movement filter pills"></div>
+          </div>
         </div>
       </div>
 
@@ -190,7 +197,7 @@
         {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
         {% set _spr_full = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else None)) %}
         {% set _spr_1h = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}" data-away-logo="{{ (r.away_logo if (r.away_logo is defined and r.away_logo) else '') }}" data-home-logo="{{ (r.home_logo if (r.home_logo is defined and r.home_logo) else '') }}">
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-has-move="{{ '1' if (r.line_move_badges is defined and r.line_move_badges) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}" data-away-logo="{{ (r.away_logo if (r.away_logo is defined and r.away_logo) else '') }}" data-home-logo="{{ (r.home_logo if (r.home_logo is defined and r.home_logo) else '') }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -262,7 +269,7 @@
               {% if r.line_move_badges is defined and r.line_move_badges %}
                 {% for b in r.line_move_badges %}
                   {% if b is mapping and b.label is defined and b.label %}
-                    <span class="badge adj" title="{{ b.title if (b.title is defined and b.title) else 'Material line move' }}">{{ b.label }}</span>
+                    <span class="badge {% if b.phase is defined and b.phase == 'live' %}move-live{% else %}move-pregame{% endif %}" title="{{ b.title if (b.title is defined and b.title) else 'Material line move' }}">{{ b.label }}</span>
                   {% endif %}
                 {% endfor %}
               {% endif %}
@@ -5580,7 +5587,7 @@
         });
       }
 
-      function applyFilters(cards, selConfs, selTimes, selStatus){
+      function applyFilters(cards, selConfs, selTimes, selStatus, selMove){
         cards.forEach(function(card){
           var ch = normStr(card.getAttribute('data-conf-home'));
           var ca = normStr(card.getAttribute('data-conf-away'));
@@ -5640,7 +5647,11 @@
           if(selTimes.size){
             okTime = selTimes.has(tb);
           }
-          card.style.display = (okConf && okTime && okStatus) ? '' : 'none';
+          var okMove = true;
+          if(selMove && selMove.size){
+            okMove = (normStr(card.getAttribute('data-has-move')) === '1');
+          }
+          card.style.display = (okConf && okTime && okStatus && okMove) ? '' : 'none';
         });
       }
 
@@ -5648,7 +5659,8 @@
         var confWrap = document.getElementById('confPills');
         var timeWrap = document.getElementById('timePills');
         var statusWrap = document.getElementById('statusPills');
-        if(!confWrap || !timeWrap || !statusWrap) return;
+        var moveWrap = document.getElementById('movePills');
+        if(!confWrap || !timeWrap || !statusWrap || !moveWrap) return;
 
         var cards = Array.from(document.querySelectorAll('.game-card'));
         if(!cards.length) return;
@@ -5695,6 +5707,7 @@
         var selConfs = new Set();
         var selTimes = new Set();
         var selStatus = new Set();
+        var selMove = new Set();
 
         function setActive(btn, on){
           btn.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -5786,13 +5799,19 @@
             setActive(btn, selTimes.has(t));
           });
 
+          Array.from(moveWrap.querySelectorAll('button')).forEach(function(btn){
+            var t = normStr(btn.textContent);
+            if(t === 'All') { setActive(btn, selMove.size === 0); return; }
+            setActive(btn, selMove.has(t));
+          });
+
           Array.from(statusWrap.querySelectorAll('button')).forEach(function(btn){
             var t = normStr(btn.textContent);
             if(t === 'All') { setActive(btn, selStatus.size === 0); return; }
             setStatusActive(btn, selStatus.has(t));
           });
 
-          applyFilters(cards, selConfs, selTimes, selStatus);
+          applyFilters(cards, selConfs, selTimes, selStatus, selMove);
 
           // Keep the compact game strip in sync with what's visible.
           try { initCompactGameStrip(); } catch(eG) { /* noop */ }
@@ -5800,6 +5819,7 @@
 
         renderGroup(confWrap, confs, selConfs, updateUI);
         renderGroup(timeWrap, times, selTimes, updateUI);
+        renderGroup(moveWrap, ['MOVE'], selMove, updateUI);
         renderStatusGroup(statusWrap, updateUI);
         updateUI();
 

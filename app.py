@@ -18470,7 +18470,7 @@ def index():
                 if not gid:
                     continue
                 try:
-                    st = rr.get("start_time")
+                    st = rr.get("start_time_iso") or rr.get("start_time")
                 except Exception:
                     st = None
                 if st is None or not str(st).strip():
@@ -18507,6 +18507,25 @@ def index():
                     if not isinstance(info, dict) or not info.get("badges"):
                         continue
 
+                    # Classify as pregame vs live based on move timestamp vs scheduled start.
+                    phase = "pregame"
+                    if used_live_fallback:
+                        phase = "live"
+                        try:
+                            st0 = r.get("start_time_iso") or r.get("start_time")
+                        except Exception:
+                            st0 = None
+                        try:
+                            start_e = _parse_ts_epoch(st0)
+                        except Exception:
+                            start_e = None
+                        try:
+                            move_e = _parse_ts_epoch(info.get("ts_last"))
+                        except Exception:
+                            move_e = None
+                        if start_e is not None and move_e is not None and float(move_e) <= float(start_e):
+                            phase = "pregame"
+
                     # If we fell back to post-tip movement (because no pregame snapshots exist),
                     # label steam explicitly as LIVE so it isn't mistaken for pregame sentiment.
                     home_team = str(r.get("home_team") or "").strip()
@@ -18516,6 +18535,7 @@ def index():
                         if not isinstance(b, dict):
                             continue
                         bb = dict(b)
+                        bb["phase"] = phase
                         try:
                             kind = str(bb.get("kind") or "")
                         except Exception:
@@ -18529,11 +18549,12 @@ def index():
                             elif side == "away" and away_team:
                                 bb["label"] = f"STEAM {away_team} ATS"
 
-                        # Prefix steam badges when they are live/in-game fallback.
-                        if used_live_fallback and kind.startswith("steam_"):
+                        # Prefix steam badges with phase (Pregame vs Live).
+                        if kind.startswith("steam_"):
                             lab = str(bb.get("label") or "").strip()
-                            if lab and not lab.upper().startswith("LIVE "):
-                                bb["label"] = f"LIVE {lab}"
+                            pfx = "PREGAME" if phase == "pregame" else "LIVE"
+                            if lab and not lab.upper().startswith(pfx + " "):
+                                bb["label"] = f"{pfx} {lab}"
                         out_badges.append(bb)
 
                     r["line_move_badges"] = out_badges
@@ -41536,27 +41557,27 @@ def api_display_predictions():
                     if not gid:
                         continue
                     try:
-                        st = rr.get("start_time")
+                        st = rr.get("start_time_iso") or rr.get("start_time")
                     except Exception:
                         st = None
                     if st is None or not str(st).strip():
                         continue
                     cutoff_by_gid[gid] = str(st)
 
-                    date_s = str(date_q)
+                date_s = str(date_q)
+                date_s2 = None
+                try:
+                    import datetime as _dt
+
+                    date_s2 = (_dt.date.fromisoformat(date_s) + _dt.timedelta(days=1)).isoformat()
+                except Exception:
                     date_s2 = None
-                    try:
-                        import datetime as _dt
 
-                        date_s2 = (_dt.date.fromisoformat(date_s) + _dt.timedelta(days=1)).isoformat()
-                    except Exception:
-                        date_s2 = None
-
-                    mv_pregame = summarize_live_lines_moves(date_s=date_s, cutoff_ts_by_event_id=cutoff_by_gid)
-                    mv_any = summarize_live_lines_moves(date_s=date_s)
-                    if date_s2:
-                        mv_pregame = _merge_mv(mv_pregame, summarize_live_lines_moves(date_s=date_s2, cutoff_ts_by_event_id=cutoff_by_gid))
-                        mv_any = _merge_mv(mv_any, summarize_live_lines_moves(date_s=date_s2))
+                mv_pregame = summarize_live_lines_moves(date_s=date_s, cutoff_ts_by_event_id=cutoff_by_gid)
+                mv_any = summarize_live_lines_moves(date_s=date_s)
+                if date_s2:
+                    mv_pregame = _merge_mv(mv_pregame, summarize_live_lines_moves(date_s=date_s2, cutoff_ts_by_event_id=cutoff_by_gid))
+                    mv_any = _merge_mv(mv_any, summarize_live_lines_moves(date_s=date_s2))
                 if (isinstance(mv_pregame, dict) and mv_pregame) or (isinstance(mv_any, dict) and mv_any):
                     for it in rows:
                         try:
@@ -41573,6 +41594,24 @@ def api_display_predictions():
                         if not isinstance(info, dict) or not info.get("badges"):
                             continue
 
+                        phase = "pregame"
+                        if used_live_fallback:
+                            phase = "live"
+                            try:
+                                st0 = it.get("start_time_iso") or it.get("start_time")
+                            except Exception:
+                                st0 = None
+                            try:
+                                start_e = _parse_ts_epoch(st0)
+                            except Exception:
+                                start_e = None
+                            try:
+                                move_e = _parse_ts_epoch(info.get("ts_last"))
+                            except Exception:
+                                move_e = None
+                            if start_e is not None and move_e is not None and float(move_e) <= float(start_e):
+                                phase = "pregame"
+
                         home_team = str(it.get("home_team") or "").strip()
                         away_team = str(it.get("away_team") or "").strip()
                         out_badges: list[dict[str, Any]] = []
@@ -41582,6 +41621,8 @@ def api_display_predictions():
                             bb = dict(b)
                             kind = str(bb.get("kind") or "")
 
+                            bb["phase"] = phase
+
                             if kind == "steam_spread":
                                 side = str(bb.get("side") or "").strip().lower()
                                 if side == "home" and home_team:
@@ -41589,10 +41630,11 @@ def api_display_predictions():
                                 elif side == "away" and away_team:
                                     bb["label"] = f"STEAM {away_team} ATS"
 
-                            if used_live_fallback and kind.startswith("steam_"):
+                            if kind.startswith("steam_"):
                                 lab = str(bb.get("label") or "").strip()
-                                if lab and not lab.upper().startswith("LIVE "):
-                                    bb["label"] = f"LIVE {lab}"
+                                pfx = "PREGAME" if phase == "pregame" else "LIVE"
+                                if lab and not lab.upper().startswith(pfx + " "):
+                                    bb["label"] = f"{pfx} {lab}"
 
                             out_badges.append(bb)
 
