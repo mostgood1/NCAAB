@@ -5010,6 +5010,16 @@
             card.__livePbpStats = stats;
             if(stats1h) card.__livePbpStats1H = stats1h;
             card.__livePbpFetchedFrom = pbp.fetched_from || '';
+
+            // FINAL games: remember we've fetched PBP for this final-score key
+            // so we don't refetch repeatedly on subsequent poll cycles.
+            try {
+              if(card && card.__liveIsFinal && card.__liveFinalAutofillKey){
+                card.__livePbpFinalFetchedKey = card.__liveFinalAutofillKey;
+              } else {
+                try { delete card.__livePbpFinalFetchedKey; } catch(_eFK){ /* noop */ }
+              }
+            } catch(_eFK2){ /* ignore */ }
           } catch(_e) { /* ignore */ }
           var wraps = card.querySelectorAll('.live-lens-wrap');
           if(!wraps || !wraps.length) return;
@@ -5045,7 +5055,17 @@
 
           // Recompute bet signal now that PBP context is available.
           try {
+            var isFinalNow = false;
+            try { isFinalNow = !!(card && card.__liveIsFinal); } catch(_eF){ isFinalNow = false; }
             wraps.forEach(function(wrap){
+              // Avoid log spam when backfilling FINAL games after refresh.
+              try {
+                if(isFinalNow){
+                  var n0 = wrap.__suppressLogsN;
+                  if(typeof n0 !== 'number' || !isFinite(n0)) n0 = 0;
+                  wrap.__suppressLogsN = Math.max(n0, 2);
+                }
+              } catch(_eSup){ /* ignore */ }
               var selMin = wrap.querySelector('.live-lens-min');
               if(selMin) selMin.dispatchEvent(new Event('change', {bubbles:true}));
             });
@@ -5300,184 +5320,279 @@
             try {
               if(!js || js.status !== 'ok' || !js.games) return null;
               var liveEventIds = [];
+              var finalNeedPbp = [];
+              var cardById = {};
+
+              // Guardrail: only backfill FINAL PBP for near-term slates.
+              var allowFinalPbp = false;
+              try {
+                var dd = _dayDiffFromLocalToday(slate);
+                if(isFinite(dd) && Math.abs(dd) <= 1) allowFinalPbp = true;
+              } catch(_eDD){ allowFinalPbp = false; }
+
               cards.forEach(function(card){
                 var gid = String(card.getAttribute('data-game-id') || '').trim();
                 if(!gid) return;
+                cardById[gid] = card;
                 var live = js.games[gid];
                 if(!live) return;
                 applyLiveStateToCard(card, live);
-                if(live.is_live) liveEventIds.push(gid);
+
+                if(live.is_live){
+                  liveEventIds.push(gid);
+                  return;
+                }
+
+                // FINAL games: best-effort one-time PBP fetch so attempt pills
+                // don't stay blank after refresh.
+                if(!(hasWrap && allowFinalPbp && live.is_final)) return;
+                try {
+                  // If we already have stats, skip.
+                  if(card && card.__livePbpStats) return;
+
+                  // Skip if we've already fetched for this final key.
+                  try {
+                    var fk = (card && card.__liveFinalAutofillKey !== undefined) ? card.__liveFinalAutofillKey : null;
+                    if(fk && card.__livePbpFinalFetchedKey === fk) return;
+                  } catch(_eFK){ /* ignore */ }
+
+                  // Only fetch if the UI actually has PBP pills.
+                  try { if(card.querySelector('.live-lens-pbp') === null) return; } catch(_ePP){ /* ignore */ }
+
+                  // Throttle retries if ESPN is flaky.
+                  try {
+                    var lastA = (card && typeof card.__livePbpFinalAttemptMs === 'number') ? card.__livePbpFinalAttemptMs : null;
+                    if(lastA !== null && isFinite(lastA)){
+                      var ageA = Date.now() - lastA;
+                      if(isFinite(ageA) && ageA < 120000) return;
+                    }
+                  } catch(_eA){ /* ignore */ }
+
+                  finalNeedPbp.push(gid);
+                } catch(_eNeed){ /* ignore */ }
               });
 
-              // Fetch PBP-derived stat attempts (FTA/2PA/3PA) only for live games.
-              if(!liveEventIds.length) return null;
+              // No Live Lens widgets: keep compact strip in sync only.
+              if(!hasWrap) return null;
+
               // De-dupe + cap to avoid huge URLs.
-              var uniq = Array.from(new Set(liveEventIds)).slice(0, 50);
+              var uniqLive = Array.from(new Set(liveEventIds)).slice(0, 50);
+
+              // FINAL PBP backfill: cap per poll to avoid heavy loads on large slates.
+              var FINAL_PBP_CAP = 8;
+              var uniqFinal = [];
+              try {
+                uniqFinal = Array.from(new Set(finalNeedPbp)).slice(0, Math.max(0, FINAL_PBP_CAP));
+              } catch(_eUF){ uniqFinal = []; }
+
+              // Stamp attempt times for throttling.
+              try {
+                if(uniqFinal && uniqFinal.length){
+                  var nowA = Date.now();
+                  uniqFinal.forEach(function(gid){
+                    try {
+                      var c = cardById[gid];
+                      if(c) c.__livePbpFinalAttemptMs = nowA;
+                    } catch(_eAT){ /* ignore */ }
+                  });
+                }
+              } catch(_eAT2){ /* ignore */ }
+
               // Shared set of live event ids for all live-lines handlers.
               var wantSet = null;
-              try { wantSet = new Set(uniq || []); } catch(_eWantSet){ wantSet = null; }
-              // Run PBP fetch and live-lines fetch independently so one failure doesn't block the other.
-              var pbpUrl = '/api/live_pbp_stats?ttl=20&event_ids=' + encodeURIComponent(uniq.join(','));
-              var oddsUrl = '/api/live_lines?ttl=20&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniq.join(','));
+              try { wantSet = new Set(uniqLive || []); } catch(_eWantSet){ wantSet = null; }
 
-              var pPbp = fetch(pbpUrl, { cache: 'no-store' })
-                .then(function(r2){ return r2.json(); })
-                .then(function(js2){
-                  try {
-                    if(!js2 || js2.status !== 'ok' || !js2.games) return null;
-                    cards.forEach(function(card){
-                      var gid = String(card.getAttribute('data-game-id') || '').trim();
-                      if(!gid) return;
-                      var pbp = js2.games[gid];
-                      if(!pbp) return;
-                      applyLivePbpToCard(card, pbp);
-                    });
-                  } catch(e) { /* ignore */ }
-                  return true;
-                })
-                .catch(function(){ return null; });
-
-              var want1h = false;
-              var want2h = false;
-              try {
-                want1h = Array.from(document.querySelectorAll('.live-lens-wrap')).some(function(w){
-                  try { return parseLensKind(w) === '1h'; } catch(_eH){ return false; }
-                });
-                want2h = Array.from(document.querySelectorAll('.live-lens-wrap')).some(function(w){
-                  try { return parseLensKind(w) === '2h'; } catch(_eH2){ return false; }
-                });
-              } catch(_eWant){ want1h = false; }
-
-              var pLines = fetch(oddsUrl, { cache: 'no-store' })
-                .then(function(r3){ return r3.json(); })
-                .then(function(js3){
-                  try {
-                    if(!js3) return null;
-                    if(js3.status !== 'ok'){
-                      try { console.warn('[live_lines]', js3.message || js3.status || 'error', js3); } catch(eW) {}
-                      return null;
-                    }
-                    if(js3.warning){
-                      try { console.warn('[live_lines]', js3.warning, js3); } catch(eW2) {}
-                    }
-                    if(!js3.lines) return null;
-                    var missing = [];
-                    cards.forEach(function(card){
-                      try {
+              // Run PBP fetch(es) and live-lines fetch independently so one failure doesn't block the other.
+              var pPbp = Promise.resolve(null);
+              if(uniqLive.length){
+                var pbpUrl = '/api/live_pbp_stats?ttl=20&event_ids=' + encodeURIComponent(uniqLive.join(','));
+                pPbp = fetch(pbpUrl, { cache: 'no-store' })
+                  .then(function(r2){ return r2.json(); })
+                  .then(function(js2){
+                    try {
+                      if(!js2 || js2.status !== 'ok' || !js2.games) return null;
+                      cards.forEach(function(card){
                         var gid = String(card.getAttribute('data-game-id') || '').trim();
                         if(!gid) return;
-                        if(wantSet && !wantSet.has(gid)) return;
-                        if(!js3.lines[gid]) missing.push(gid);
-                        applyLiveLinesToCard(card, js3.lines, 'full_game');
-                      } catch(_eC){ /* ignore */ }
-                    });
-                    try {
-                      var dbg = false;
-                      try { dbg = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD){ dbg = false; }
-                      if(dbg && missing.length){
-                        var key = missing.slice().sort().join(',');
-                        if(window.__ncaabMissingLiveLinesKey !== key){
-                          window.__ncaabMissingLiveLinesKey = key;
-                          try { console.warn('[live_lines] missing totals for game_ids', missing, (js3.debug || null)); } catch(_eW3) {}
-                        }
-                      }
-                    } catch(_eDbg){ /* ignore */ }
-                  } catch(e) { /* ignore */ }
-                  return true;
-                })
-                .catch(function(){ return null; });
+                        var pbp = js2.games[gid];
+                        if(!pbp) return;
+                        applyLivePbpToCard(card, pbp);
+                      });
+                    } catch(e) { /* ignore */ }
+                    return true;
+                  })
+                  .catch(function(){ return null; });
+              }
 
+              var pPbpFinal = Promise.resolve(null);
+              if(uniqFinal.length){
+                var pbpUrlF = '/api/live_pbp_stats?ttl=180&event_ids=' + encodeURIComponent(uniqFinal.join(','));
+                pPbpFinal = fetch(pbpUrlF, { cache: 'no-store' })
+                  .then(function(rF){ return rF.json(); })
+                  .then(function(jsF){
+                    try {
+                      if(!jsF || jsF.status !== 'ok' || !jsF.games) return null;
+                      cards.forEach(function(card){
+                        var gid = String(card.getAttribute('data-game-id') || '').trim();
+                        if(!gid) return;
+                        var pbp = jsF.games[gid];
+                        if(!pbp) return;
+                        applyLivePbpToCard(card, pbp);
+                      });
+                    } catch(e) { /* ignore */ }
+                    return true;
+                  })
+                  .catch(function(){ return null; });
+              }
+
+              // Live odds lines (OddsAPI): only for live games.
+              var pLines = Promise.resolve(null);
               var pLines1H = Promise.resolve(null);
-              if(want1h){
-                var oddsUrl1h = oddsUrl + '&period=1h';
-                pLines1H = fetch(oddsUrl1h, { cache: 'no-store' })
-                  .then(function(r4){ return r4.json(); })
-                  .then(function(js4){
-                    try {
-                      if(!js4 || js4.status !== 'ok' || !js4.lines) return null;
-                      var missing1 = [];
-                      cards.forEach(function(card){
-                        try {
-                          var gid = String(card.getAttribute('data-game-id') || '').trim();
-                          if(!gid) return;
-                          if(wantSet && !wantSet.has(gid)) return;
-                          if(!js4.lines[gid] || js4.lines[gid].total === null || js4.lines[gid].total === undefined) missing1.push(gid);
-
-                          // Debug aid: confirm we have a 1H lens input to write into.
-                          try {
-                            var dbgApply = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || ''));
-                            if(dbgApply && js4.lines[gid] && js4.lines[gid].total !== null && js4.lines[gid].total !== undefined){
-                              var has1HLens = false;
-                              try {
-                                var wraps = card.querySelectorAll('.live-lens-wrap');
-                                wraps.forEach(function(w){
-                                  try {
-                                    if(parseLensKind(w) === '1h' && w.querySelector('.live-lens-line')) has1HLens = true;
-                                  } catch(_eW){ /* ignore */ }
-                                });
-                              } catch(_eWrap){ /* ignore */ }
-                              if(!has1HLens){
-                                console.warn('[live_lines 1h] line received but no 1H lens input on card', gid, js4.lines[gid]);
-                              }
-                            }
-                          } catch(_eDbgApply){ /* ignore */ }
-
-                          applyLiveLinesToCard(card, js4.lines, '1h');
-                        } catch(_eC2){ /* ignore */ }
-                      });
-                      try {
-                        var dbg1 = false;
-                        try { dbg1 = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD1){ dbg1 = false; }
-                        if(dbg1 && missing1.length){
-                          var key1 = missing1.slice().sort().join(',');
-                          if(window.__ncaabMissingLiveLines1HKey !== key1){
-                            window.__ncaabMissingLiveLines1HKey = key1;
-                            try { console.warn('[live_lines 1h] missing totals for game_ids', missing1, (js4.debug || null)); } catch(_eW1) {}
-                          }
-                        }
-                      } catch(_eDbg1){ /* ignore */ }
-                    } catch(_eJ4){ /* ignore */ }
-                    return true;
-                  })
-                  .catch(function(){ return null; });
-              }
-
               var pLines2H = Promise.resolve(null);
-              if(want2h){
-                var oddsUrl2h = oddsUrl + '&period=2h';
-                pLines2H = fetch(oddsUrl2h, { cache: 'no-store' })
-                  .then(function(r5){ return r5.json(); })
-                  .then(function(js5){
+
+              if(uniqLive.length){
+                var oddsUrl = '/api/live_lines?ttl=20&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(uniqLive.join(','));
+
+                var want1h = false;
+                var want2h = false;
+                try {
+                  want1h = Array.from(document.querySelectorAll('.live-lens-wrap')).some(function(w){
+                    try { return parseLensKind(w) === '1h'; } catch(_eH){ return false; }
+                  });
+                  want2h = Array.from(document.querySelectorAll('.live-lens-wrap')).some(function(w){
+                    try { return parseLensKind(w) === '2h'; } catch(_eH2){ return false; }
+                  });
+                } catch(_eWant){ want1h = false; want2h = false; }
+
+                pLines = fetch(oddsUrl, { cache: 'no-store' })
+                  .then(function(r3){ return r3.json(); })
+                  .then(function(js3){
                     try {
-                      if(!js5 || js5.status !== 'ok' || !js5.lines) return null;
-                      var missing2 = [];
+                      if(!js3) return null;
+                      if(js3.status !== 'ok'){
+                        try { console.warn('[live_lines]', js3.message || js3.status || 'error', js3); } catch(eW) {}
+                        return null;
+                      }
+                      if(js3.warning){
+                        try { console.warn('[live_lines]', js3.warning, js3); } catch(eW2) {}
+                      }
+                      if(!js3.lines) return null;
+                      var missing = [];
                       cards.forEach(function(card){
                         try {
                           var gid = String(card.getAttribute('data-game-id') || '').trim();
                           if(!gid) return;
                           if(wantSet && !wantSet.has(gid)) return;
-                          if(!js5.lines[gid] || js5.lines[gid].total === null || js5.lines[gid].total === undefined) missing2.push(gid);
-                          applyLiveLinesToCard(card, js5.lines, '2h');
-                        } catch(_eC3){ /* ignore */ }
+                          if(!js3.lines[gid]) missing.push(gid);
+                          applyLiveLinesToCard(card, js3.lines, 'full_game');
+                        } catch(_eC){ /* ignore */ }
                       });
                       try {
-                        var dbg2 = false;
-                        try { dbg2 = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD2){ dbg2 = false; }
-                        if(dbg2 && missing2.length){
-                          var key2 = missing2.slice().sort().join(',');
-                          if(window.__ncaabMissingLiveLines2HKey !== key2){
-                            window.__ncaabMissingLiveLines2HKey = key2;
-                            try { console.warn('[live_lines 2h] missing totals for game_ids', missing2, (js5.debug || null)); } catch(_eW2) {}
+                        var dbg = false;
+                        try { dbg = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD){ dbg = false; }
+                        if(dbg && missing.length){
+                          var key = missing.slice().sort().join(',');
+                          if(window.__ncaabMissingLiveLinesKey !== key){
+                            window.__ncaabMissingLiveLinesKey = key;
+                            try { console.warn('[live_lines] missing totals for game_ids', missing, (js3.debug || null)); } catch(_eW3) {}
                           }
                         }
-                      } catch(_eDbg2){ /* ignore */ }
-                    } catch(_eJ5){ /* ignore */ }
+                      } catch(_eDbg){ /* ignore */ }
+                    } catch(e) { /* ignore */ }
                     return true;
                   })
                   .catch(function(){ return null; });
+
+                if(want1h){
+                  var oddsUrl1h = oddsUrl + '&period=1h';
+                  pLines1H = fetch(oddsUrl1h, { cache: 'no-store' })
+                    .then(function(r4){ return r4.json(); })
+                    .then(function(js4){
+                      try {
+                        if(!js4 || js4.status !== 'ok' || !js4.lines) return null;
+                        var missing1 = [];
+                        cards.forEach(function(card){
+                          try {
+                            var gid = String(card.getAttribute('data-game-id') || '').trim();
+                            if(!gid) return;
+                            if(wantSet && !wantSet.has(gid)) return;
+                            if(!js4.lines[gid] || js4.lines[gid].total === null || js4.lines[gid].total === undefined) missing1.push(gid);
+
+                            // Debug aid: confirm we have a 1H lens input to write into.
+                            try {
+                              var dbgApply = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || ''));
+                              if(dbgApply && js4.lines[gid] && js4.lines[gid].total !== null && js4.lines[gid].total !== undefined){
+                                var has1HLens = false;
+                                try {
+                                  var wraps = card.querySelectorAll('.live-lens-wrap');
+                                  wraps.forEach(function(w){
+                                    try {
+                                      if(parseLensKind(w) === '1h' && w.querySelector('.live-lens-line')) has1HLens = true;
+                                    } catch(_eW){ /* ignore */ }
+                                  });
+                                } catch(_eWrap){ /* ignore */ }
+                                if(!has1HLens){
+                                  console.warn('[live_lines 1h] line received but no 1H lens input on card', gid, js4.lines[gid]);
+                                }
+                              }
+                            } catch(_eDbgApply){ /* ignore */ }
+
+                            applyLiveLinesToCard(card, js4.lines, '1h');
+                          } catch(_eC2){ /* ignore */ }
+                        });
+                        try {
+                          var dbg1 = false;
+                          try { dbg1 = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD1){ dbg1 = false; }
+                          if(dbg1 && missing1.length){
+                            var key1 = missing1.slice().sort().join(',');
+                            if(window.__ncaabMissingLiveLines1HKey !== key1){
+                              window.__ncaabMissingLiveLines1HKey = key1;
+                              try { console.warn('[live_lines 1h] missing totals for game_ids', missing1, (js4.debug || null)); } catch(_eW1) {}
+                            }
+                          }
+                        } catch(_eDbg1){ /* ignore */ }
+                      } catch(_eJ4){ /* ignore */ }
+                      return true;
+                    })
+                    .catch(function(){ return null; });
+                }
+
+                if(want2h){
+                  var oddsUrl2h = oddsUrl + '&period=2h';
+                  pLines2H = fetch(oddsUrl2h, { cache: 'no-store' })
+                    .then(function(r5){ return r5.json(); })
+                    .then(function(js5){
+                      try {
+                        if(!js5 || js5.status !== 'ok' || !js5.lines) return null;
+                        var missing2 = [];
+                        cards.forEach(function(card){
+                          try {
+                            var gid = String(card.getAttribute('data-game-id') || '').trim();
+                            if(!gid) return;
+                            if(wantSet && !wantSet.has(gid)) return;
+                            if(!js5.lines[gid] || js5.lines[gid].total === null || js5.lines[gid].total === undefined) missing2.push(gid);
+                            applyLiveLinesToCard(card, js5.lines, '2h');
+                          } catch(_eC3){ /* ignore */ }
+                        });
+                        try {
+                          var dbg2 = false;
+                          try { dbg2 = /(?:\?|&)debug=1(?:&|$)/.test(String(window.location.search || '')); } catch(_eD2){ dbg2 = false; }
+                          if(dbg2 && missing2.length){
+                            var key2 = missing2.slice().sort().join(',');
+                            if(window.__ncaabMissingLiveLines2HKey !== key2){
+                              window.__ncaabMissingLiveLines2HKey = key2;
+                              try { console.warn('[live_lines 2h] missing totals for game_ids', missing2, (js5.debug || null)); } catch(_eW2) {}
+                            }
+                          }
+                        } catch(_eDbg2){ /* ignore */ }
+                      } catch(_eJ5){ /* ignore */ }
+                      return true;
+                    })
+                    .catch(function(){ return null; });
+                }
               }
 
-              return Promise.all([pPbp, pLines, pLines1H, pLines2H]);
+              return Promise.all([pPbp, pPbpFinal, pLines, pLines1H, pLines2H]);
             } catch(e) {
               return null;
             }
