@@ -16,6 +16,7 @@ def summarize_live_lines_moves(
     min_spread_pts: float = 2.0,
     max_age_s: float = 12 * 3600,
     cutoff_ts_by_event_id: Optional[Dict[str, str]] = None,
+    min_ts_by_event_id: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Summarize latest material line moves from the append-only live snapshots.
 
@@ -52,28 +53,9 @@ def summarize_live_lines_moves(
             return 999
 
     def _ts_epoch(ts_iso: str | None) -> float | None:
-        if not ts_iso:
-            return None
-
-    cutoff_epoch_by_event_id: Dict[str, float] = {}
-    if isinstance(cutoff_ts_by_event_id, dict) and cutoff_ts_by_event_id:
-        for eid, ts_str in cutoff_ts_by_event_id.items():
-            try:
-                ee = str(eid or "").strip()
-                if not ee:
-                    continue
-                import datetime as _dt
-
-                s = str(ts_str or "").strip()
-                if not s:
-                    continue
-                d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
-                if d.tzinfo is None:
-                    d = d.replace(tzinfo=_dt.timezone.utc)
-                cutoff_epoch_by_event_id[ee] = float(d.timestamp())
-            except Exception:
-                continue
         try:
+            if not ts_iso:
+                return None
             import datetime as _dt
 
             s = str(ts_iso).strip()
@@ -85,6 +67,34 @@ def summarize_live_lines_moves(
             return float(d.timestamp())
         except Exception:
             return None
+
+    cutoff_epoch_by_event_id: Dict[str, float] = {}
+    if isinstance(cutoff_ts_by_event_id, dict) and cutoff_ts_by_event_id:
+        for eid, ts_str in cutoff_ts_by_event_id.items():
+            try:
+                ee = str(eid or "").strip()
+                if not ee:
+                    continue
+                te = _ts_epoch(str(ts_str or "").strip() or None)
+                if te is None:
+                    continue
+                cutoff_epoch_by_event_id[ee] = float(te)
+            except Exception:
+                continue
+
+    min_epoch_by_event_id: Dict[str, float] = {}
+    if isinstance(min_ts_by_event_id, dict) and min_ts_by_event_id:
+        for eid, ts_str in min_ts_by_event_id.items():
+            try:
+                ee = str(eid or "").strip()
+                if not ee:
+                    continue
+                te = _ts_epoch(str(ts_str or "").strip() or None)
+                if te is None:
+                    continue
+                min_epoch_by_event_id[ee] = float(te)
+            except Exception:
+                continue
 
     def _coerce_num(v: Any) -> float | None:
         try:
@@ -137,11 +147,19 @@ def summarize_live_lines_moves(
                     continue
                 ts = str(rec.get("ts") or "").strip() or None
 
+                te = _ts_epoch(ts)
+
+                # Optional per-game lower-bound (e.g., scheduled start time) so we can
+                # summarize *live/in-game* moves separately from pregame movement.
+                min_epoch = min_epoch_by_event_id.get(eid)
+                if min_epoch is not None:
+                    if te is None or float(te) <= float(min_epoch):
+                        continue
+
                 # If we have a per-game cutoff (scheduled start time), only
                 # consider movement up to tipoff so badges reflect *pregame* moves.
                 cutoff_epoch = cutoff_epoch_by_event_id.get(eid)
                 if cutoff_epoch is not None:
-                    te = _ts_epoch(ts)
                     if te is None or float(te) > float(cutoff_epoch):
                         continue
 

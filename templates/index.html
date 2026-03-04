@@ -4811,6 +4811,80 @@
       }
 
       var inFlight = false;
+      var pregameInFlight = false;
+
+      function _dayDiffFromLocalToday(dateStr){
+        try {
+          var s = String(dateStr || '').trim();
+          if(!s) return 999;
+          var ms = Date.parse(s + 'T00:00:00');
+          if(!isFinite(ms)) return 999;
+          var now = new Date();
+          var todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+          return Math.round((ms - todayMs) / 86400000);
+        } catch(e){
+          return 999;
+        }
+      }
+
+      function pollPregameLinesOnce(){
+        if(pregameInFlight) return;
+
+        var cards = Array.from(document.querySelectorAll('.game-card[data-game-id]'));
+        if(!cards.length) return;
+
+        var slate = getSlateDate();
+        if(!slate) return;
+
+        // Guardrail: only poll near-term slates to avoid burning odds credits when browsing history.
+        try {
+          var dd = _dayDiffFromLocalToday(slate);
+          if(!isFinite(dd) || Math.abs(dd) > 1) return;
+        } catch(_eDD){ /* ignore */ }
+
+        var ids = [];
+        cards.forEach(function(card){
+          try {
+            var gid = String(card.getAttribute('data-game-id') || '').trim();
+            if(!gid) return;
+            var isLive = (String(card.getAttribute('data-live') || '').trim() === '1');
+            if(isLive) return;
+            // Skip completed games.
+            try {
+              var isFinal = false;
+              try { isFinal = !!(card && card.__liveIsFinal); } catch(_eF){ isFinal = false; }
+              if(!isFinal){
+                try { isFinal = (String(card.getAttribute('data-has-actuals') || '').trim() === '1'); } catch(_eF2){ isFinal = false; }
+              }
+              if(isFinal) return;
+            } catch(_eFinal){ /* ignore */ }
+            ids.push(gid);
+          } catch(_e){ /* ignore */ }
+        });
+
+        if(!ids.length) return;
+
+        // De-dupe, then chunk to keep query strings small and stay under server-side caps.
+        var uniq = Array.from(new Set(ids));
+        var chunks = [];
+        var chunkSize = 50;
+        for(var i=0;i<uniq.length;i+=chunkSize){
+          chunks.push(uniq.slice(i, i+chunkSize));
+        }
+
+        pregameInFlight = true;
+        var run = Promise.resolve(true);
+        chunks.forEach(function(chunk){
+          var oddsUrl = '/api/live_lines?ttl=60&allow_future=1&date=' + encodeURIComponent(slate) + '&event_ids=' + encodeURIComponent(chunk.join(','));
+          run = run.then(function(){
+            return fetch(oddsUrl, { cache: 'no-store' })
+              .then(function(r){ return r.json(); })
+              .catch(function(){ return null; });
+          });
+        });
+        run.finally(function(){ pregameInFlight = false; });
+      }
+
       function pollOnce(){
         if(inFlight) return;
         var hasWrap = document.querySelector('.live-lens-wrap') !== null;
@@ -5033,6 +5107,11 @@
 
         pollOnce();
         setInterval(pollOnce, 12000);
+
+        // Pregame OddsAPI polling (every 15 minutes) so we keep logging live_lines
+        // snapshots before tipoff for movement tracking.
+        try { setTimeout(pollPregameLinesOnce, 1500); } catch(_eT){ /* noop */ }
+        try { setInterval(pollPregameLinesOnce, 900000); } catch(_eI){ /* noop */ }
       });
     })();
   </script>
@@ -5649,7 +5728,17 @@
           }
           var okMove = true;
           if(selMove && selMove.size){
-            okMove = (normStr(card.getAttribute('data-has-move')) === '1');
+            var isLiveNow = (normStr(card.getAttribute('data-live')) === '1');
+            var hasPreg = (normStr(card.getAttribute('data-has-move-pregame')) === '1');
+            var hasLive = (normStr(card.getAttribute('data-has-move-live')) === '1');
+            okMove = false;
+            if(selMove.has('Pregame Move')){
+              // IMPORTANT: once a game is live, exclude it from Pregame Move filtering.
+              okMove = okMove || (!isLiveNow && hasPreg);
+            }
+            if(selMove.has('Live Move')){
+              okMove = okMove || (isLiveNow && hasLive);
+            }
           }
           card.style.display = (okConf && okTime && okStatus && okMove) ? '' : 'none';
         });
@@ -5670,6 +5759,16 @@
           var lbl = normStr(card.getAttribute('data-time-label'));
           var b = bucketFromTimeLabel(lbl);
           card.setAttribute('data-time-bucket', b);
+        });
+
+        // Derive per-card move phase flags from rendered badge classes.
+        cards.forEach(function(card){
+          try {
+            var hasPreg = (card.querySelector('.badge.move-pregame') !== null);
+            var hasLive = (card.querySelector('.badge.move-live') !== null);
+            card.setAttribute('data-has-move-pregame', hasPreg ? '1' : '0');
+            card.setAttribute('data-has-move-live', hasLive ? '1' : '0');
+          } catch(_eM){ /* noop */ }
         });
 
         // Collect unique conferences/times
@@ -5819,7 +5918,7 @@
 
         renderGroup(confWrap, confs, selConfs, updateUI);
         renderGroup(timeWrap, times, selTimes, updateUI);
-        renderGroup(moveWrap, ['MOVE'], selMove, updateUI);
+        renderGroup(moveWrap, ['Pregame Move','Live Move'], selMove, updateUI);
         renderStatusGroup(statusWrap, updateUI);
         updateUI();
 

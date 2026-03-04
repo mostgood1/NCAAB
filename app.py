@@ -18487,11 +18487,18 @@ def index():
                 date_s2 = None
 
             mv_pregame = summarize_live_lines_moves(date_s=date_s, cutoff_ts_by_event_id=cutoff_by_gid)
+            mv_live = summarize_live_lines_moves(date_s=date_s, min_ts_by_event_id=cutoff_by_gid)
             mv_any = summarize_live_lines_moves(date_s=date_s)
             if date_s2:
                 mv_pregame = _merge_mv(mv_pregame, summarize_live_lines_moves(date_s=date_s2, cutoff_ts_by_event_id=cutoff_by_gid))
+                mv_live = _merge_mv(mv_live, summarize_live_lines_moves(date_s=date_s2, min_ts_by_event_id=cutoff_by_gid))
                 mv_any = _merge_mv(mv_any, summarize_live_lines_moves(date_s=date_s2))
-            if (isinstance(mv_pregame, dict) and mv_pregame) or (isinstance(mv_any, dict) and mv_any):
+
+            if (
+                (isinstance(mv_pregame, dict) and mv_pregame)
+                or (isinstance(mv_live, dict) and mv_live)
+                or (isinstance(mv_any, dict) and mv_any)
+            ):
                 for r in rows:
                     try:
                         gid = str(r.get("game_id") or "").replace(".0", "").strip()
@@ -18499,69 +18506,105 @@ def index():
                         gid = ""
                     if not gid:
                         continue
-                    info = mv_pregame.get(gid) if isinstance(mv_pregame, dict) else None
-                    used_live_fallback = False
-                    if not (isinstance(info, dict) and info.get("badges")):
-                        info = mv_any.get(gid) if isinstance(mv_any, dict) else None
-                        used_live_fallback = True
-                    if not isinstance(info, dict) or not info.get("badges"):
-                        continue
 
-                    # Classify as pregame vs live based on move timestamp vs scheduled start.
-                    phase = "pregame"
-                    if used_live_fallback:
-                        phase = "live"
+                    try:
+                        st0 = r.get("start_time_iso") or r.get("start_time")
+                    except Exception:
+                        st0 = None
+                    try:
+                        start_e = _parse_ts_epoch(st0)
+                    except Exception:
+                        start_e = None
+
+                    pre_info = mv_pregame.get(gid) if isinstance(mv_pregame, dict) else None
+                    live_info = mv_live.get(gid) if isinstance(mv_live, dict) else None
+                    any_info = mv_any.get(gid) if isinstance(mv_any, dict) else None
+
+                    # Best-effort fallback: if a split view is missing for a game but a material
+                    # move exists overall, assign it to the appropriate phase by timestamp.
+                    if (not (isinstance(pre_info, dict) and pre_info.get("badges"))) and isinstance(any_info, dict) and any_info.get("badges"):
                         try:
-                            st0 = r.get("start_time_iso") or r.get("start_time")
-                        except Exception:
-                            st0 = None
-                        try:
-                            start_e = _parse_ts_epoch(st0)
-                        except Exception:
-                            start_e = None
-                        try:
-                            move_e = _parse_ts_epoch(info.get("ts_last"))
+                            move_e = _parse_ts_epoch(any_info.get("ts_last"))
                         except Exception:
                             move_e = None
                         if start_e is not None and move_e is not None and float(move_e) <= float(start_e):
-                            phase = "pregame"
+                            pre_info = any_info
 
-                    # If we fell back to post-tip movement (because no pregame snapshots exist),
-                    # label steam explicitly as LIVE so it isn't mistaken for pregame sentiment.
+                    if (not (isinstance(live_info, dict) and live_info.get("badges"))) and isinstance(any_info, dict) and any_info.get("badges"):
+                        try:
+                            move_e = _parse_ts_epoch(any_info.get("ts_last"))
+                        except Exception:
+                            move_e = None
+                        if start_e is not None and move_e is not None and float(move_e) > float(start_e):
+                            live_info = any_info
+
                     home_team = str(r.get("home_team") or "").strip()
                     away_team = str(r.get("away_team") or "").strip()
                     out_badges: list[dict[str, Any]] = []
-                    for b in (info.get("badges") or []):
-                        if not isinstance(b, dict):
-                            continue
-                        bb = dict(b)
-                        bb["phase"] = phase
-                        try:
-                            kind = str(bb.get("kind") or "")
-                        except Exception:
-                            kind = ""
 
-                        # Replace HOME/AWAY in spread steam labels with actual team name.
-                        if kind == "steam_spread":
-                            side = str(bb.get("side") or "").strip().lower()
-                            if side == "home" and home_team:
-                                bb["label"] = f"STEAM {home_team} ATS"
-                            elif side == "away" and away_team:
-                                bb["label"] = f"STEAM {away_team} ATS"
+                    def _extend_badges(info: Any, phase: str) -> None:
+                        if not isinstance(info, dict) or not info.get("badges"):
+                            return
+                        for b in (info.get("badges") or []):
+                            if not isinstance(b, dict):
+                                continue
+                            bb = dict(b)
+                            bb["phase"] = phase
+                            try:
+                                kind = str(bb.get("kind") or "")
+                            except Exception:
+                                kind = ""
 
-                        # Prefix steam badges with phase (Pregame vs Live).
-                        if kind.startswith("steam_"):
-                            lab = str(bb.get("label") or "").strip()
-                            pfx = "PREGAME" if phase == "pregame" else "LIVE"
-                            if lab and not lab.upper().startswith(pfx + " "):
-                                bb["label"] = f"{pfx} {lab}"
-                        out_badges.append(bb)
+                            # Replace HOME/AWAY in spread steam labels with actual team name.
+                            if kind == "steam_spread":
+                                side = str(bb.get("side") or "").strip().lower()
+                                if side == "home" and home_team:
+                                    bb["label"] = f"STEAM {home_team} ATS"
+                                elif side == "away" and away_team:
+                                    bb["label"] = f"STEAM {away_team} ATS"
+
+                            # Prefix steam badges with phase (Pregame vs Live).
+                            if kind.startswith("steam_"):
+                                lab = str(bb.get("label") or "").strip()
+                                pfx = "PREGAME" if phase == "pregame" else "LIVE"
+                                if lab and not lab.upper().startswith(pfx + " "):
+                                    bb["label"] = f"{pfx} {lab}"
+
+                            out_badges.append(bb)
+
+                    _extend_badges(pre_info, "pregame")
+                    _extend_badges(live_info, "live")
+                    if not out_badges:
+                        continue
 
                     r["line_move_badges"] = out_badges
-                    r["line_move_ts_last"] = info.get("ts_last")
-                    r["line_move_age_s"] = info.get("age_s")
-                    r["delta_total_live"] = info.get("delta_total")
-                    r["delta_spread_home_live"] = info.get("delta_spread_home")
+
+                    # Phase-specific metadata + deltas (useful for JSON consumers).
+                    if isinstance(pre_info, dict) and pre_info.get("badges"):
+                        r["line_move_ts_last_pregame"] = pre_info.get("ts_last")
+                        r["line_move_age_s_pregame"] = pre_info.get("age_s")
+                        r["delta_total_pregame"] = pre_info.get("delta_total")
+                        r["delta_spread_home_pregame"] = pre_info.get("delta_spread_home")
+                    if isinstance(live_info, dict) and live_info.get("badges"):
+                        r["line_move_ts_last_live"] = live_info.get("ts_last")
+                        r["line_move_age_s_live"] = live_info.get("age_s")
+                        r["delta_total_live"] = live_info.get("delta_total")
+                        r["delta_spread_home_live"] = live_info.get("delta_spread_home")
+
+                    # Back-compat summary fields: prefer live if present, else pregame.
+                    info_latest = None
+                    try:
+                        tp = _parse_ts_epoch((pre_info or {}).get("ts_last") if isinstance(pre_info, dict) else None)
+                        tl = _parse_ts_epoch((live_info or {}).get("ts_last") if isinstance(live_info, dict) else None)
+                        if tl is not None and (tp is None or float(tl) >= float(tp)):
+                            info_latest = live_info
+                        else:
+                            info_latest = pre_info
+                    except Exception:
+                        info_latest = live_info if isinstance(live_info, dict) else pre_info
+                    if isinstance(info_latest, dict):
+                        r["line_move_ts_last"] = info_latest.get("ts_last")
+                        r["line_move_age_s"] = info_latest.get("age_s")
     except Exception:
         pass
 
@@ -42195,11 +42238,17 @@ def api_display_predictions():
                     date_s2 = None
 
                 mv_pregame = summarize_live_lines_moves(date_s=date_s, cutoff_ts_by_event_id=cutoff_by_gid)
+                mv_live = summarize_live_lines_moves(date_s=date_s, min_ts_by_event_id=cutoff_by_gid)
                 mv_any = summarize_live_lines_moves(date_s=date_s)
                 if date_s2:
                     mv_pregame = _merge_mv(mv_pregame, summarize_live_lines_moves(date_s=date_s2, cutoff_ts_by_event_id=cutoff_by_gid))
+                    mv_live = _merge_mv(mv_live, summarize_live_lines_moves(date_s=date_s2, min_ts_by_event_id=cutoff_by_gid))
                     mv_any = _merge_mv(mv_any, summarize_live_lines_moves(date_s=date_s2))
-                if (isinstance(mv_pregame, dict) and mv_pregame) or (isinstance(mv_any, dict) and mv_any):
+                if (
+                    (isinstance(mv_pregame, dict) and mv_pregame)
+                    or (isinstance(mv_live, dict) and mv_live)
+                    or (isinstance(mv_any, dict) and mv_any)
+                ):
                     for it in rows:
                         try:
                             gid = str(it.get("game_id") or "").replace(".0", "").strip()
@@ -42207,63 +42256,100 @@ def api_display_predictions():
                             gid = ""
                         if not gid:
                             continue
-                        info = mv_pregame.get(gid) if isinstance(mv_pregame, dict) else None
-                        used_live_fallback = False
-                        if not (isinstance(info, dict) and info.get("badges")):
-                            info = mv_any.get(gid) if isinstance(mv_any, dict) else None
-                            used_live_fallback = True
-                        if not isinstance(info, dict) or not info.get("badges"):
-                            continue
 
-                        phase = "pregame"
-                        if used_live_fallback:
-                            phase = "live"
+                        try:
+                            st0 = it.get("start_time_iso") or it.get("start_time")
+                        except Exception:
+                            st0 = None
+                        try:
+                            start_e = _parse_ts_epoch(st0)
+                        except Exception:
+                            start_e = None
+
+                        pre_info = mv_pregame.get(gid) if isinstance(mv_pregame, dict) else None
+                        live_info = mv_live.get(gid) if isinstance(mv_live, dict) else None
+                        any_info = mv_any.get(gid) if isinstance(mv_any, dict) else None
+
+                        # Best-effort fallback: if a split view is missing for a game but a material
+                        # move exists overall, assign it to the appropriate phase by timestamp.
+                        if (not (isinstance(pre_info, dict) and pre_info.get("badges"))) and isinstance(any_info, dict) and any_info.get("badges"):
                             try:
-                                st0 = it.get("start_time_iso") or it.get("start_time")
-                            except Exception:
-                                st0 = None
-                            try:
-                                start_e = _parse_ts_epoch(st0)
-                            except Exception:
-                                start_e = None
-                            try:
-                                move_e = _parse_ts_epoch(info.get("ts_last"))
+                                move_e = _parse_ts_epoch(any_info.get("ts_last"))
                             except Exception:
                                 move_e = None
                             if start_e is not None and move_e is not None and float(move_e) <= float(start_e):
-                                phase = "pregame"
+                                pre_info = any_info
+
+                        if (not (isinstance(live_info, dict) and live_info.get("badges"))) and isinstance(any_info, dict) and any_info.get("badges"):
+                            try:
+                                move_e = _parse_ts_epoch(any_info.get("ts_last"))
+                            except Exception:
+                                move_e = None
+                            if start_e is not None and move_e is not None and float(move_e) > float(start_e):
+                                live_info = any_info
 
                         home_team = str(it.get("home_team") or "").strip()
                         away_team = str(it.get("away_team") or "").strip()
                         out_badges: list[dict[str, Any]] = []
-                        for b in (info.get("badges") or []):
-                            if not isinstance(b, dict):
-                                continue
-                            bb = dict(b)
-                            kind = str(bb.get("kind") or "")
 
-                            bb["phase"] = phase
+                        def _extend_badges(info: Any, phase: str) -> None:
+                            if not isinstance(info, dict) or not info.get("badges"):
+                                return
+                            for b in (info.get("badges") or []):
+                                if not isinstance(b, dict):
+                                    continue
+                                bb = dict(b)
+                                bb["phase"] = phase
+                                kind = str(bb.get("kind") or "")
 
-                            if kind == "steam_spread":
-                                side = str(bb.get("side") or "").strip().lower()
-                                if side == "home" and home_team:
-                                    bb["label"] = f"STEAM {home_team} ATS"
-                                elif side == "away" and away_team:
-                                    bb["label"] = f"STEAM {away_team} ATS"
+                                if kind == "steam_spread":
+                                    side = str(bb.get("side") or "").strip().lower()
+                                    if side == "home" and home_team:
+                                        bb["label"] = f"STEAM {home_team} ATS"
+                                    elif side == "away" and away_team:
+                                        bb["label"] = f"STEAM {away_team} ATS"
 
-                            if kind.startswith("steam_"):
-                                lab = str(bb.get("label") or "").strip()
-                                pfx = "PREGAME" if phase == "pregame" else "LIVE"
-                                if lab and not lab.upper().startswith(pfx + " "):
-                                    bb["label"] = f"{pfx} {lab}"
+                                if kind.startswith("steam_"):
+                                    lab = str(bb.get("label") or "").strip()
+                                    pfx = "PREGAME" if phase == "pregame" else "LIVE"
+                                    if lab and not lab.upper().startswith(pfx + " "):
+                                        bb["label"] = f"{pfx} {lab}"
 
-                            out_badges.append(bb)
+                                out_badges.append(bb)
+
+                        _extend_badges(pre_info, "pregame")
+                        _extend_badges(live_info, "live")
+                        if not out_badges:
+                            continue
 
                         it["line_move_badges"] = out_badges
-                        it["line_move_ts_last"] = info.get("ts_last")
-                        it["line_move_age_s"] = info.get("age_s")
-                        it["delta_total_live"] = info.get("delta_total")
-                        it["delta_spread_home_live"] = info.get("delta_spread_home")
+
+                        # Phase-specific metadata + deltas (useful for JSON consumers).
+                        if isinstance(pre_info, dict) and pre_info.get("badges"):
+                            it["line_move_ts_last_pregame"] = pre_info.get("ts_last")
+                            it["line_move_age_s_pregame"] = pre_info.get("age_s")
+                            it["delta_total_pregame"] = pre_info.get("delta_total")
+                            it["delta_spread_home_pregame"] = pre_info.get("delta_spread_home")
+                        if isinstance(live_info, dict) and live_info.get("badges"):
+                            it["line_move_ts_last_live"] = live_info.get("ts_last")
+                            it["line_move_age_s_live"] = live_info.get("age_s")
+                            it["delta_total_live"] = live_info.get("delta_total")
+                            it["delta_spread_home_live"] = live_info.get("delta_spread_home")
+
+                        # Back-compat summary fields: prefer live if present, else pregame.
+                        info_latest = None
+                        try:
+                            tp = _parse_ts_epoch((pre_info or {}).get("ts_last") if isinstance(pre_info, dict) else None)
+                            tl = _parse_ts_epoch((live_info or {}).get("ts_last") if isinstance(live_info, dict) else None)
+                            if tl is not None and (tp is None or float(tl) >= float(tp)):
+                                info_latest = live_info
+                            else:
+                                info_latest = pre_info
+                        except Exception:
+                            info_latest = live_info if isinstance(live_info, dict) else pre_info
+                        if isinstance(info_latest, dict):
+                            it["line_move_ts_last"] = info_latest.get("ts_last")
+                            it["line_move_age_s"] = info_latest.get("age_s")
         except Exception:
             pass
 
