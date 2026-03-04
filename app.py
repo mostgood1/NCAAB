@@ -41384,6 +41384,32 @@ def api_display_predictions():
         except Exception:
             pass
 
+        # Live line movement (steam) badges from append-only OddsAPI snapshots.
+        # Only applied for cards view so the main UI can surface intraday moves.
+        try:
+            if cards_view and rows and date_q:
+                from ncaab_model.live_snapshots import summarize_live_lines_moves  # type: ignore
+
+                mv = summarize_live_lines_moves(date_s=str(date_q))
+                if isinstance(mv, dict) and mv:
+                    for it in rows:
+                        try:
+                            gid = str(it.get("game_id") or "").replace(".0", "").strip()
+                        except Exception:
+                            gid = ""
+                        if not gid:
+                            continue
+                        info = mv.get(gid)
+                        if not isinstance(info, dict) or not info.get("badges"):
+                            continue
+                        it["line_move_badges"] = info.get("badges")
+                        it["line_move_ts_last"] = info.get("ts_last")
+                        it["line_move_age_s"] = info.get("age_s")
+                        it["delta_total_live"] = info.get("delta_total")
+                        it["delta_spread_home_live"] = info.get("delta_spread_home")
+        except Exception:
+            pass
+
         def _sanitize(v: Any) -> Any:
             """Recursively sanitize values for JSON/template safety.
 

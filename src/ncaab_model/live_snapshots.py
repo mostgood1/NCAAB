@@ -37,8 +37,34 @@ def summarize_live_lines_moves(
     if not p.exists():
         return {}
 
-    # Track last and previous distinct values per event.
-    state: Dict[str, Dict[str, Any]] = {}
+    # Track last and previous distinct values per (event,book) to avoid mixing
+    # different books/periods which can create misleading deltas.
+    state: Dict[tuple[str, str], Dict[str, Any]] = {}
+
+    book_priority = ["draftkings", "fanduel", "betmgm"]
+
+    def _book_rank(book: str) -> int:
+        b = str(book or "").strip().lower()
+        try:
+            return book_priority.index(b)
+        except Exception:
+            return 999
+
+    def _ts_epoch(ts_iso: str | None) -> float | None:
+        if not ts_iso:
+            return None
+        try:
+            import datetime as _dt
+
+            s = str(ts_iso).strip()
+            if not s:
+                return None
+            d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=_dt.timezone.utc)
+            return float(d.timestamp())
+        except Exception:
+            return None
 
     def _coerce_num(v: Any) -> float | None:
         try:
@@ -94,11 +120,20 @@ def summarize_live_lines_moves(
                 if not isinstance(data, dict):
                     data = {}
 
+                # Only track pregame full-game lines for movement badges.
+                try:
+                    if str(data.get("period") or "").strip().lower() != "full_game":
+                        continue
+                except Exception:
+                    continue
+
+                book = str(data.get("book") or "").strip() or ""
+
                 total = _coerce_num(data.get("total"))
                 spread_home = _coerce_num(data.get("spread_home"))
 
                 st = state.setdefault(
-                    eid,
+                    (eid, book),
                     {
                         "total_prev": None,
                         "total_last": None,
@@ -135,8 +170,24 @@ def summarize_live_lines_moves(
     except Exception:
         return {}
 
+    # Pick a single "best" book per event for UI surfacing.
+    by_event: Dict[str, list[tuple[str, Dict[str, Any]]]] = {}
+    for (eid, book), st in state.items():
+        by_event.setdefault(eid, []).append((book, st))
+
     out: Dict[str, Dict[str, Any]] = {}
-    for eid, st in state.items():
+    for eid, items in by_event.items():
+        if not items:
+            continue
+
+        def _item_sort_key(it: tuple[str, Dict[str, Any]]) -> tuple[int, float]:
+            book, st = it
+            ts_last = st.get("ts_last")
+            te = _ts_epoch(ts_last)
+            # Prefer known books, then newest timestamp.
+            return (_book_rank(book), -(te if te is not None else -1.0))
+
+        book, st = sorted(items, key=_item_sort_key)[0]
         ts_last = st.get("ts_last")
         age = _age_s(ts_last)
         if age is not None and float(age) > float(max_age_s):
@@ -161,11 +212,15 @@ def summarize_live_lines_moves(
                 d_spread = None
 
         badges = []
+        book_disp = str(book or "").strip() or None
         if d_total is not None and abs(float(d_total)) >= float(min_total_pts):
             badges.append(
                 {
                     "label": f"T {float(d_total):+.1f}",
-                    "title": f"Total moved {float(total_prev):.1f}→{float(total_last):.1f} (Δ {float(d_total):+.1f})",
+                    "title": (
+                        f"Total moved {float(total_prev):.1f}→{float(total_last):.1f} (Δ {float(d_total):+.1f})"
+                        + (f" • {book_disp}" if book_disp else "")
+                    ),
                     "kind": "total",
                 }
             )
@@ -180,7 +235,10 @@ def summarize_live_lines_moves(
             badges.append(
                 {
                     "label": f"S {float(d_spread):+.1f}",
-                    "title": f"Home spread moved {float(spread_prev):+.1f}→{float(spread_last):+.1f} (Δ {float(d_spread):+.1f})",
+                    "title": (
+                        f"Home spread moved {float(spread_prev):+.1f}→{float(spread_last):+.1f} (Δ {float(d_spread):+.1f})"
+                        + (f" • {book_disp}" if book_disp else "")
+                    ),
                     "kind": "spread",
                 }
             )
@@ -197,6 +255,7 @@ def summarize_live_lines_moves(
 
         out[eid] = {
             "event_id": eid,
+            "book": book_disp,
             "total_prev": total_prev,
             "total_last": total_last,
             "delta_total": d_total,
