@@ -2762,6 +2762,20 @@
         } catch(e) { /* noop */ }
 
         function update(){
+          // Optional log suppression (used when auto-filling FINAL states so browsing
+          // historic slates doesn't spam live-lens projection/signal logs).
+          var suppressLogs = false;
+          try {
+            var n0 = wrap.__suppressLogsN;
+            var n = (n0 !== null && n0 !== undefined) ? parseInt(String(n0), 10) : 0;
+            if(isFinite(n) && n > 0){
+              suppressLogs = true;
+              wrap.__suppressLogsN = n - 1;
+            } else {
+              try { delete wrap.__suppressLogsN; } catch(_eSLDel) { /* noop */ }
+            }
+          } catch(_eSL){ suppressLogs = false; }
+
           // Optional daily-tuned thresholds (best-effort).
           var tune = null;
           try {
@@ -2993,31 +3007,33 @@
           } catch(_eApply){ /* noop */ }
 
           // Log projection snapshots (rate-limited via per-minute buckets).
-          try {
-            var cardP = card0 || getCardForWrap(wrap);
-            var perP = null;
-            try { perP = (cardP && typeof cardP.__livePeriod === 'number') ? cardP.__livePeriod : null; } catch(_ePer){ perP = null; }
-            maybeLogLiveLensProjection(wrap, cardP, {
-              horizon: horizon,
-              elapsed: elapsed,
-              remaining: remaining,
-              total_points: act,
-              live_line: line,
-              proj_final: projFinal,
-              proj_blend: projBlend,
-              proj_blend_uncal: projBlendUncal,
-              interval_cal_source: intervalCalSrc,
-              interval_cal_delta_add: intervalCalDeltaAdd,
-              interval_cal_sigma: intervalCalSigma,
-              interval_cal_sigma_mult: intervalCalSigmaMult,
-              blend_w: blendW,
-              sim_exp_total: exp,
-              sim_final: simFinal,
-              home_score: liveHome,
-              away_score: liveAway,
-              period: perP
-            });
-          } catch(_eLogP){ /* ignore */ }
+          if(!suppressLogs){
+            try {
+              var cardP = card0 || getCardForWrap(wrap);
+              var perP = null;
+              try { perP = (cardP && typeof cardP.__livePeriod === 'number') ? cardP.__livePeriod : null; } catch(_ePer){ perP = null; }
+              maybeLogLiveLensProjection(wrap, cardP, {
+                horizon: horizon,
+                elapsed: elapsed,
+                remaining: remaining,
+                total_points: act,
+                live_line: line,
+                proj_final: projFinal,
+                proj_blend: projBlend,
+                proj_blend_uncal: projBlendUncal,
+                interval_cal_source: intervalCalSrc,
+                interval_cal_delta_add: intervalCalDeltaAdd,
+                interval_cal_sigma: intervalCalSigma,
+                interval_cal_sigma_mult: intervalCalSigmaMult,
+                blend_w: blendW,
+                sim_exp_total: exp,
+                sim_final: simFinal,
+                home_score: liveHome,
+                away_score: liveAway,
+                period: perP
+              });
+            } catch(_eLogP){ /* ignore */ }
+          }
 
           // If we don't have a usable live line for this lens, clear side/edge so compact strip can't show stale line-based callouts.
           try {
@@ -4287,7 +4303,7 @@
               }
             } catch(_eBtnSt){ /* noop */ }
 
-            if(logSigs && logSigs.length){
+            if(!suppressLogs && logSigs && logSigs.length){
               var cardL = card0 || getCardForWrap(wrap);
               logSigs.forEach(function(s){ maybeLogLiveLensSignal(wrap, cardL, s); });
             }
@@ -4856,6 +4872,30 @@
           if(isFinite(cs)) card.__liveClockSeconds = cs; else try { delete card.__liveClockSeconds; } catch(_eCS) {}
         } catch(_eMeta) { /* ignore */ }
 
+        // FINAL games: allow a one-time auto-fill so completed games keep showing
+        // Live Lens stats after refresh (without re-running constantly).
+        var doFinalAutofill = false;
+        try {
+          if(!!live.is_final){
+            var fk = 'F|'
+              + String((live.home_score !== null && live.home_score !== undefined) ? live.home_score : '')
+              + '|'
+              + String((live.away_score !== null && live.away_score !== undefined) ? live.away_score : '')
+              + '|'
+              + String((live.home_score_1h !== null && live.home_score_1h !== undefined) ? live.home_score_1h : '')
+              + '|'
+              + String((live.away_score_1h !== null && live.away_score_1h !== undefined) ? live.away_score_1h : '')
+              + '|'
+              + String((live.period !== null && live.period !== undefined) ? live.period : '');
+            if(card.__liveFinalAutofillKey !== fk){
+              card.__liveFinalAutofillKey = fk;
+              doFinalAutofill = true;
+            }
+          } else {
+            try { delete card.__liveFinalAutofillKey; } catch(_eFKDel) { /* noop */ }
+          }
+        } catch(_eFK){ doFinalAutofill = false; }
+
         var wraps = card.querySelectorAll('.live-lens-wrap');
         if(!wraps || !wraps.length) return;
         wraps.forEach(function(wrap){
@@ -4891,14 +4931,32 @@
           }
 
           if(!autoOn) return;
-          if(!live.is_live) return;
+          if(!live.is_live && !doFinalAutofill) return;
           if(lock2H) return;
+
+          // If we are auto-filling a FINAL state, suppress live-lens logging for a
+          // couple of update() invocations triggered by input/change events.
+          try {
+            if(doFinalAutofill && !live.is_live){
+              wrap.__suppressLogsN = 3;
+            }
+          } catch(_eSup){ /* ignore */ }
 
           if(inpTot){
             var vTot = null;
             if(lensKind === '1h'){
-              if(lock1H && live.total_points_1h !== null && live.total_points_1h !== undefined) vTot = live.total_points_1h;
-              else if(live.total_points !== null && live.total_points !== undefined) vTot = live.total_points;
+              if(lock1H){
+                if(live.total_points_1h !== null && live.total_points_1h !== undefined) vTot = live.total_points_1h;
+                else {
+                  try {
+                    var h1t = (typeof card.__liveHomeScore1H === 'number') ? card.__liveHomeScore1H : null;
+                    var a1t = (typeof card.__liveAwayScore1H === 'number') ? card.__liveAwayScore1H : null;
+                    if(h1t !== null && a1t !== null) vTot = toNum(h1t) + toNum(a1t);
+                  } catch(_eHTTot){ /* ignore */ }
+                }
+              } else {
+                if(live.total_points !== null && live.total_points !== undefined) vTot = live.total_points;
+              }
             } else if(lensKind === '2h'){
               // Prefer explicit 1H total if present; otherwise derive from halftime scores.
               var tp = (live.total_points !== null && live.total_points !== undefined) ? toNum(live.total_points) : null;
@@ -4923,6 +4981,7 @@
 
           var remSec = null;
           if(lock1H) remSec = 0;
+          else if(!!live.is_final) remSec = 0;
           else if(lensKind === '1h') remSec = live.remaining_1h_seconds;
           else if(lensKind === '2h') remSec = live.remaining_reg_seconds;
           else remSec = live.remaining_reg_seconds;
