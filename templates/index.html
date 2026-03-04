@@ -198,7 +198,7 @@
         {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
         {% set _spr_full = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else None)) %}
         {% set _spr_1h = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-has-move="{{ '1' if (r.line_move_badges is defined and r.line_move_badges) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}" data-away-logo="{{ (r.away_logo if (r.away_logo is defined and r.away_logo) else '') }}" data-home-logo="{{ (r.home_logo if (r.home_logo is defined and r.home_logo) else '') }}"
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-has-move="{{ '1' if (r.line_move_badges is defined and r.line_move_badges) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else (r.commence_time if (r.commence_time is defined and r.commence_time) else (r.start_time if (r.start_time is defined and r.start_time) else ''))) }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}" data-away-logo="{{ (r.away_logo if (r.away_logo is defined and r.away_logo) else '') }}" data-home-logo="{{ (r.home_logo if (r.home_logo is defined and r.home_logo) else '') }}"
           data-move-open-total="{{ ('%.1f' % r.line_move_total_open) if (r.line_move_total_open is defined and r.line_move_total_open is not none and r.line_move_total_open == r.line_move_total_open) else '' }}"
           data-move-open-total-last="{{ ('%.1f' % r.line_move_total_last_any) if (r.line_move_total_last_any is defined and r.line_move_total_last_any is not none and r.line_move_total_last_any == r.line_move_total_last_any) else '' }}"
           data-move-open-spread="{{ ('%.1f' % r.line_move_spread_open) if (r.line_move_spread_open is defined and r.line_move_spread_open is not none and r.line_move_spread_open == r.line_move_spread_open) else '' }}"
@@ -4578,6 +4578,29 @@
       function _applyPregameLineForMoves(card, rec){
         if(!card || !rec) return;
 
+        // Safety: never let pregame polling overwrite opening/pregame move state
+        // once the game is live/final or its scheduled start time has passed.
+        try {
+          var isLiveNow = (String(card.getAttribute('data-live') || '').trim() === '1');
+          if(isLiveNow) return;
+        } catch(_eLiveNow){ /* ignore */ }
+        try {
+          var isFinalNow = false;
+          try { isFinalNow = !!(card && card.__liveIsFinal); } catch(_eF0){ isFinalNow = false; }
+          if(!isFinalNow){
+            try { isFinalNow = (String(card.getAttribute('data-has-actuals') || '').trim() === '1'); } catch(_eF1){ isFinalNow = false; }
+          }
+          if(isFinalNow) return;
+        } catch(_eFinalNow){ /* ignore */ }
+        try {
+          var stIsoNow = String(card.getAttribute('data-start-iso') || '').trim();
+          if(stIsoNow){
+            var stMsNow = Date.parse(stIsoNow);
+            var nowMsNow = Date.now();
+            if(isFinite(stMsNow) && isFinite(nowMsNow) && nowMsNow >= stMsNow) return;
+          }
+        } catch(_eStartNow){ /* ignore */ }
+
         // Totals
         try {
           var t = toNum(rec.total);
@@ -5128,6 +5151,18 @@
             if(!gid) return;
             var isLive = (String(card.getAttribute('data-live') || '').trim() === '1');
             if(isLive) return;
+
+            // Skip games whose scheduled start is already in the past.
+            // This prevents live/in-game quotes from being applied to the OPEN/PREGAME move state.
+            try {
+              var stIso = String(card.getAttribute('data-start-iso') || '').trim();
+              if(stIso){
+                var stMs = Date.parse(stIso);
+                var nowMs = Date.now();
+                if(isFinite(stMs) && isFinite(nowMs) && nowMs >= stMs) return;
+              }
+            } catch(_eStart){ /* ignore */ }
+
             // Skip completed games.
             try {
               var isFinal = false;

@@ -18490,7 +18490,7 @@ def index():
                 if not gid:
                     continue
                 try:
-                    st = rr.get("start_time_iso") or rr.get("start_time")
+                    st = rr.get("start_time_iso") or rr.get("commence_time") or rr.get("start_time")
                 except Exception:
                     st = None
                 if st is None or not str(st).strip():
@@ -18528,7 +18528,7 @@ def index():
                         continue
 
                     try:
-                        st0 = r.get("start_time_iso") or r.get("start_time")
+                        st0 = r.get("start_time_iso") or r.get("commence_time") or r.get("start_time")
                     except Exception:
                         st0 = None
                     try:
@@ -42402,7 +42402,7 @@ def api_display_predictions():
                     if not gid:
                         continue
                     try:
-                        st = rr.get("start_time_iso") or rr.get("start_time")
+                        st = rr.get("start_time_iso") or rr.get("commence_time") or rr.get("start_time")
                     except Exception:
                         st = None
                     if st is None or not str(st).strip():
@@ -42439,7 +42439,7 @@ def api_display_predictions():
                             continue
 
                         try:
-                            st0 = it.get("start_time_iso") or it.get("start_time")
+                            st0 = it.get("start_time_iso") or it.get("commence_time") or it.get("start_time")
                         except Exception:
                             st0 = None
                         try:
