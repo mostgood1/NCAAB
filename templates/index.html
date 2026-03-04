@@ -18,6 +18,7 @@
     /* Live vs pregame line-move badges */
     .badge.move-pregame{background:#0b7285;}
     .badge.move-live{background:#d9480f;}
+    .badge.move-opening{background:var(--accent);color:var(--bg);}
     .badge.toggle-raw{background:#495057;cursor:pointer;}
     .badge.toggle-raw:hover,.badge:hover{opacity:0.85;}
     /* Time pill styling: base + rollover emphasis */
@@ -197,7 +198,19 @@
         {% set _time_label = (r.display_time_ampm if (r.display_time_ampm is defined and r.display_time_ampm) else (r.display_time_str if (r.display_time_str is defined and r.display_time_str) else '')) %}
         {% set _spr_full = (r.spread_home if (r.spread_home is defined and r.spread_home is not none and r.spread_home == r.spread_home) else (r.closing_spread_home if (r.closing_spread_home is defined and r.closing_spread_home is not none and r.closing_spread_home == r.closing_spread_home) else None)) %}
         {% set _spr_1h = (r.spread_home_1h if (r.spread_home_1h is defined and r.spread_home_1h is not none and r.spread_home_1h == r.spread_home_1h) else None) %}
-        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-has-move="{{ '1' if (r.line_move_badges is defined and r.line_move_badges) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}" data-away-logo="{{ (r.away_logo if (r.away_logo is defined and r.away_logo) else '') }}" data-home-logo="{{ (r.home_logo if (r.home_logo is defined and r.home_logo) else '') }}">
+        <div class="card game-card" role="article" tabindex="0" aria-label="Game card {{ r.away_team }} at {{ r.home_team }}" data-game-id="{{ (r.game_id|string).replace('.0','') if (r.game_id is defined and r.game_id is not none) else '' }}" data-live="{{ '1' if (r.live is defined and r.live) else '0' }}" data-has-move="{{ '1' if (r.line_move_badges is defined and r.line_move_badges) else '0' }}" data-edge="{{ ('%.2f' % _edge) if _edge is not none else '' }}" data-confidence="{{ ('%.0f' % _conf) if _conf is not none else '' }}" data-market-available="{{ _market_avail }}" data-fair-price="{{ (r.fair_price if (r.fair_price is defined and r.fair_price is not none) else '') }}" data-fair-delta="{{ ('%.4f' % r.fair_delta) if (r.fair_delta is defined and r.fair_delta is not none and r.fair_delta == r.fair_delta) else '' }}" data-ev="{{ ('%.3f' % r.ev) if (r.ev is defined and r.ev is not none and r.ev == r.ev) else '' }}" data-implied-prob="{{ ('%.4f' % r.implied_prob) if (r.implied_prob is defined and r.implied_prob is not none and r.implied_prob == r.implied_prob) else '' }}" data-market="{{ r.market_basis if (r.market_basis is defined and r.market_basis) else '' }}" data-book="{{ r.book_name if (r.book_name is defined and r.book_name) else '' }}" data-market-price="{{ (r.market_price if (r.market_price is defined and r.market_price is not none and r.market_price == r.market_price) else (r.ml_home if (r.ml_home is defined and r.ml_home is not none and r.ml_home == r.ml_home) else (r.ml_away if (r.ml_away is defined and r.ml_away is not none and r.ml_away == r.ml_away) else ''))) }}" data-quote-ts="{{ r.quote_ts if (r.quote_ts is defined and r.quote_ts) else '' }}" data-has-odds="{{ '1' if (r.has_odds is defined and r.has_odds) else '0' }}" data-has-actuals="{{ '1' if (r.has_actuals is defined and r.has_actuals) else '0' }}" data-has-derivatives="{{ '1' if (r.has_derivatives is defined and r.has_derivatives) else '0' }}" data-p-over-emp="{{ ('%.4f' % r.p_over_emp) if (r.p_over_emp is defined and r.p_over_emp is not none and r.p_over_emp == r.p_over_emp) else '' }}" data-p-home-cover-emp="{{ ('%.4f' % r.p_home_cover_emp) if (r.p_home_cover_emp is defined and r.p_home_cover_emp is not none and r.p_home_cover_emp == r.p_home_cover_emp) else '' }}" data-conf-home="{{ _conf_home }}" data-conf-away="{{ _conf_away }}" data-time-label="{{ _time_label }}" data-start-iso="{{ (r.start_time_iso if (r.start_time_iso is defined and r.start_time_iso) else '') }}" data-spread-home="{{ ('%.1f' % _spr_full) if (_spr_full is not none) else '' }}" data-spread-home-1h="{{ ('%.1f' % _spr_1h) if (_spr_1h is not none) else '' }}" data-away-logo="{{ (r.away_logo if (r.away_logo is defined and r.away_logo) else '') }}" data-home-logo="{{ (r.home_logo if (r.home_logo is defined and r.home_logo) else '') }}"
+          data-move-open-total="{{ ('%.1f' % r.line_move_total_open) if (r.line_move_total_open is defined and r.line_move_total_open is not none and r.line_move_total_open == r.line_move_total_open) else '' }}"
+          data-move-open-total-last="{{ ('%.1f' % r.line_move_total_last_any) if (r.line_move_total_last_any is defined and r.line_move_total_last_any is not none and r.line_move_total_last_any == r.line_move_total_last_any) else '' }}"
+          data-move-open-spread="{{ ('%.1f' % r.line_move_spread_open) if (r.line_move_spread_open is defined and r.line_move_spread_open is not none and r.line_move_spread_open == r.line_move_spread_open) else '' }}"
+          data-move-open-spread-last="{{ ('%.1f' % r.line_move_spread_last_any) if (r.line_move_spread_last_any is defined and r.line_move_spread_last_any is not none and r.line_move_spread_last_any == r.line_move_spread_last_any) else '' }}"
+          data-move-pregame-total-prev="{{ ('%.1f' % r.line_move_total_prev_pregame) if (r.line_move_total_prev_pregame is defined and r.line_move_total_prev_pregame is not none and r.line_move_total_prev_pregame == r.line_move_total_prev_pregame) else '' }}"
+          data-move-pregame-total-last="{{ ('%.1f' % r.line_move_total_last_pregame) if (r.line_move_total_last_pregame is defined and r.line_move_total_last_pregame is not none and r.line_move_total_last_pregame == r.line_move_total_last_pregame) else '' }}"
+          data-move-pregame-spread-prev="{{ ('%.1f' % r.line_move_spread_prev_pregame) if (r.line_move_spread_prev_pregame is defined and r.line_move_spread_prev_pregame is not none and r.line_move_spread_prev_pregame == r.line_move_spread_prev_pregame) else '' }}"
+          data-move-pregame-spread-last="{{ ('%.1f' % r.line_move_spread_last_pregame) if (r.line_move_spread_last_pregame is defined and r.line_move_spread_last_pregame is not none and r.line_move_spread_last_pregame == r.line_move_spread_last_pregame) else '' }}"
+          data-move-live-total-prev="{{ ('%.1f' % r.line_move_total_prev_live) if (r.line_move_total_prev_live is defined and r.line_move_total_prev_live is not none and r.line_move_total_prev_live == r.line_move_total_prev_live) else '' }}"
+          data-move-live-total-last="{{ ('%.1f' % r.line_move_total_last_live) if (r.line_move_total_last_live is defined and r.line_move_total_last_live is not none and r.line_move_total_last_live == r.line_move_total_last_live) else '' }}"
+          data-move-live-spread-prev="{{ ('%.1f' % r.line_move_spread_prev_live) if (r.line_move_spread_prev_live is defined and r.line_move_spread_prev_live is not none and r.line_move_spread_prev_live == r.line_move_spread_prev_live) else '' }}"
+          data-move-live-spread-last="{{ ('%.1f' % r.line_move_spread_last_live) if (r.line_move_spread_last_live is defined and r.line_move_spread_last_live is not none and r.line_move_spread_last_live == r.line_move_spread_last_live) else '' }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -266,13 +279,20 @@
               {% endif %}
 
               {# Live OddsAPI material movement / steam indicators (from outputs/live_snapshots). #}
-              {% if r.line_move_badges is defined and r.line_move_badges %}
-                {% for b in r.line_move_badges %}
-                  {% if b is mapping and b.label is defined and b.label %}
-                    <span class="badge {% if b.phase is defined and b.phase == 'live' %}move-live{% else %}move-pregame{% endif %}" title="{{ b.title if (b.title is defined and b.title) else 'Material line move' }}">{{ b.label }}</span>
-                  {% endif %}
-                {% endfor %}
-              {% endif %}
+              <span class="move-badges" aria-label="Line movement badges">
+                {% if r.line_move_badges is defined and r.line_move_badges %}
+                  {% for b in r.line_move_badges %}
+                    {% if b is mapping and b.label is defined and b.label %}
+                      <span
+                        class="badge {% if b.phase is defined and b.phase == 'live' %}move-live{% elif b.phase is defined and b.phase == 'opening' %}move-opening{% else %}move-pregame{% endif %}"
+                        {% if b.kind is defined and b.kind %}data-kind="{{ b.kind }}"{% endif %}
+                        {% if b.phase is defined and b.phase %}data-phase="{{ b.phase }}"{% endif %}
+                        title="{{ b.title if (b.title is defined and b.title) else 'Material line move' }}"
+                      >{{ b.label }}</span>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              </span>
               {% set venue = (r.venue_full or r.venue or r.arena or r.stadium or r.site_name or r.location or r.city) if (r is defined) else None %}
               {% if venue %}<span class="pill venue">{{ venue }}{% if r.city and r.state %} – {{ r.city }}, {{ r.state }}{% elif r.city %} – {{ r.city }}{% endif %}</span>{% endif %}
               {% if r.neutral_site %}<span class="pill neutral">Neutral Site</span>{% endif %}
@@ -4350,6 +4370,257 @@
         return (isFinite(x) ? x : null);
       }
 
+      // ---- Real-time line movement badges (Opening / Pregame / Live) ----
+      // Keep thresholds aligned with backend defaults.
+      var MOVE_MIN_TOTAL = 1.5;
+      var MOVE_MIN_SPREAD = 2.0;
+      var MOVE_EPS = 1e-6;
+
+      function _numEq(a, b){
+        try {
+          if(a === null || a === undefined || b === null || b === undefined) return false;
+          return Math.abs(a - b) <= MOVE_EPS;
+        } catch(e){
+          return false;
+        }
+      }
+
+      function _readNumAttr(card, attr){
+        try {
+          if(!card) return null;
+          return toNum(card.getAttribute(attr));
+        } catch(e){
+          return null;
+        }
+      }
+
+      function _writeNumAttr(card, attr, val){
+        try {
+          if(!card) return;
+          if(val === null || val === undefined || !isFinite(val)){
+            try { card.removeAttribute(attr); } catch(_eR){ /* noop */ }
+            return;
+          }
+          var v = Math.round(val * 10) / 10;
+          card.setAttribute(attr, v.toFixed(1));
+        } catch(e){ /* noop */ }
+      }
+
+      function _fmtSigned1(v){
+        var x = toNum(v);
+        if(x === null) return '';
+        var s = x.toFixed(1);
+        return (x > 0 ? ('+' + s) : s);
+      }
+
+      function _teamNames(card){
+        var away = '';
+        var home = '';
+        try {
+          var awayEl = card ? card.querySelector('.badge-team.away .name') : null;
+          var homeEl = card ? card.querySelector('.badge-team.home .name') : null;
+          if(awayEl && awayEl.textContent) away = String(awayEl.textContent || '').trim();
+          if(homeEl && homeEl.textContent) home = String(homeEl.textContent || '').trim();
+        } catch(_e){ /* noop */ }
+        return {away: away, home: home};
+      }
+
+      function _badgeClassForPhase(phase){
+        if(phase === 'live') return 'move-live';
+        if(phase === 'opening') return 'move-opening';
+        return 'move-pregame';
+      }
+
+      function _buildBadgeEl(b){
+        var sp = document.createElement('span');
+        sp.className = 'badge ' + _badgeClassForPhase(b.phase);
+        if(b && b.kind) sp.setAttribute('data-kind', String(b.kind));
+        if(b && b.phase) sp.setAttribute('data-phase', String(b.phase));
+        sp.title = (b && b.title) ? String(b.title) : 'Material line move';
+        sp.textContent = (b && b.label) ? String(b.label) : '';
+        return sp;
+      }
+
+      function _renderMoveBadges(card, badges){
+        if(!card) return;
+        var wrap = null;
+        try { wrap = card.querySelector('.move-badges'); } catch(_e){ wrap = null; }
+        if(!wrap) return;
+
+        try { wrap.innerHTML = ''; } catch(_eC){ /* noop */ }
+        try {
+          (badges || []).forEach(function(b){
+            try {
+              if(!b || !b.label) return;
+              wrap.appendChild(_buildBadgeEl(b));
+            } catch(_eB){ /* noop */ }
+          });
+        } catch(_eAll){ /* noop */ }
+
+        // Update per-card move flags for top filters.
+        try {
+          var hasOpen = false;
+          var hasPreg = false;
+          var hasLive = false;
+          (badges || []).forEach(function(b){
+            if(!b || !b.phase) return;
+            if(b.phase === 'opening') hasOpen = true;
+            else if(b.phase === 'pregame') hasPreg = true;
+            else if(b.phase === 'live') hasLive = true;
+          });
+          card.setAttribute('data-has-move-opening', hasOpen ? '1' : '0');
+          card.setAttribute('data-has-move-pregame', hasPreg ? '1' : '0');
+          card.setAttribute('data-has-move-live', hasLive ? '1' : '0');
+          card.setAttribute('data-has-move', (hasOpen || hasPreg || hasLive) ? '1' : '0');
+        } catch(_eF){ /* noop */ }
+      }
+
+      function _computeMoveBadgesFromState(card){
+        if(!card) return [];
+        var badges = [];
+        var tn = _teamNames(card);
+
+        // Opening: opening pregame line -> latest pregame line (numeric badges only).
+        var ot0 = _readNumAttr(card, 'data-move-open-total');
+        var ot1 = _readNumAttr(card, 'data-move-open-total-last');
+        if(ot0 !== null && ot1 !== null){
+          var dOt = ot1 - ot0;
+          if(isFinite(dOt) && Math.abs(dOt) >= MOVE_MIN_TOTAL){
+            badges.push({
+              phase: 'opening',
+              kind: 'opening_total',
+              label: 'OPEN T ' + _fmtSigned1(dOt),
+              title: 'Opening total moved ' + ot0.toFixed(1) + '→' + ot1.toFixed(1) + ' (Δ ' + _fmtSigned1(dOt) + ')'
+            });
+          }
+        }
+        var os0 = _readNumAttr(card, 'data-move-open-spread');
+        var os1 = _readNumAttr(card, 'data-move-open-spread-last');
+        if(os0 !== null && os1 !== null){
+          var dOs = os1 - os0;
+          if(isFinite(dOs) && Math.abs(dOs) >= MOVE_MIN_SPREAD){
+            badges.push({
+              phase: 'opening',
+              kind: 'opening_spread',
+              label: 'OPEN S ' + _fmtSigned1(dOs),
+              title: 'Opening home spread moved ' + _fmtSigned1(os0) + '→' + _fmtSigned1(os1) + ' (Δ ' + _fmtSigned1(dOs) + ')'
+            });
+          }
+        }
+
+        function addPhase(phase){
+          var pfx = (phase === 'live') ? 'LIVE' : 'PREGAME';
+
+          // Totals
+          var tPrev = _readNumAttr(card, 'data-move-' + phase + '-total-prev');
+          var tLast = _readNumAttr(card, 'data-move-' + phase + '-total-last');
+          if(tPrev !== null && tLast !== null){
+            var dT = tLast - tPrev;
+            if(isFinite(dT) && Math.abs(dT) >= MOVE_MIN_TOTAL){
+              var sideTotal = (dT > 0) ? 'over' : 'under';
+              badges.push({
+                phase: phase,
+                kind: 'total',
+                label: 'T ' + _fmtSigned1(dT),
+                title: 'Total moved ' + tPrev.toFixed(1) + '→' + tLast.toFixed(1) + ' (Δ ' + _fmtSigned1(dT) + ')'
+              });
+              badges.push({
+                phase: phase,
+                kind: 'steam_total',
+                label: pfx + ' STEAM TOTAL ' + sideTotal.toUpperCase(),
+                title: 'Material total move toward ' + (sideTotal === 'over' ? 'Over' : 'Under') + ' (steam)'
+              });
+            }
+          }
+
+          // Spreads (home)
+          var sPrev = _readNumAttr(card, 'data-move-' + phase + '-spread-prev');
+          var sLast = _readNumAttr(card, 'data-move-' + phase + '-spread-last');
+          if(sPrev !== null && sLast !== null){
+            var dS = sLast - sPrev;
+            if(isFinite(dS) && Math.abs(dS) >= MOVE_MIN_SPREAD){
+              var sideSpread = (dS < 0) ? 'home' : 'away';
+              badges.push({
+                phase: phase,
+                kind: 'spread',
+                label: 'S ' + _fmtSigned1(dS),
+                title: 'Home spread moved ' + _fmtSigned1(sPrev) + '→' + _fmtSigned1(sLast) + ' (Δ ' + _fmtSigned1(dS) + ')'
+              });
+              var team = (sideSpread === 'home') ? (tn.home || 'HOME') : (tn.away || 'AWAY');
+              badges.push({
+                phase: phase,
+                kind: 'steam_spread',
+                label: pfx + ' STEAM ' + team + ' ATS',
+                title: 'Material spread move toward ' + (sideSpread === 'home' ? 'Home' : 'Away') + ' (steam)'
+              });
+            }
+          }
+        }
+
+        addPhase('pregame');
+        addPhase('live');
+        return badges;
+      }
+
+      function _updateDistinctPair(card, prevAttr, lastAttr, nextVal){
+        if(!card) return;
+        if(nextVal === null || nextVal === undefined || !isFinite(nextVal)) return;
+        var last = _readNumAttr(card, lastAttr);
+        if(last === null){
+          _writeNumAttr(card, lastAttr, nextVal);
+          return;
+        }
+        if(_numEq(nextVal, last)) return;
+        _writeNumAttr(card, prevAttr, last);
+        _writeNumAttr(card, lastAttr, nextVal);
+      }
+
+      function _applyPregameLineForMoves(card, rec){
+        if(!card || !rec) return;
+
+        // Totals
+        try {
+          var t = toNum(rec.total);
+          if(t !== null){
+            var openT = _readNumAttr(card, 'data-move-open-total');
+            if(openT === null) _writeNumAttr(card, 'data-move-open-total', t);
+            _writeNumAttr(card, 'data-move-open-total-last', t);
+            _updateDistinctPair(card, 'data-move-pregame-total-prev', 'data-move-pregame-total-last', t);
+          }
+        } catch(_eT){ /* noop */ }
+
+        // Spreads (home)
+        try {
+          var s = toNum(rec.spread_home);
+          if(s !== null){
+            var openS = _readNumAttr(card, 'data-move-open-spread');
+            if(openS === null) _writeNumAttr(card, 'data-move-open-spread', s);
+            _writeNumAttr(card, 'data-move-open-spread-last', s);
+            _updateDistinctPair(card, 'data-move-pregame-spread-prev', 'data-move-pregame-spread-last', s);
+          }
+        } catch(_eS){ /* noop */ }
+
+        _renderMoveBadges(card, _computeMoveBadgesFromState(card));
+      }
+
+      function _applyLiveLineForMoves(card, rec){
+        if(!card || !rec) return;
+
+        // Totals
+        try {
+          var t = toNum(rec.total);
+          if(t !== null) _updateDistinctPair(card, 'data-move-live-total-prev', 'data-move-live-total-last', t);
+        } catch(_eT){ /* noop */ }
+
+        // Spreads (home)
+        try {
+          var s = toNum(rec.spread_home);
+          if(s !== null) _updateDistinctPair(card, 'data-move-live-spread-prev', 'data-move-live-spread-last', s);
+        } catch(_eS){ /* noop */ }
+
+        _renderMoveBadges(card, _computeMoveBadgesFromState(card));
+      }
+
       function getSlateDate(){
         var el = document.querySelector('input[type="date"][name="date"]');
         return el ? String(el.value || '').trim() : '';
@@ -4709,6 +4980,13 @@
           if(!rec) return;
           var per = (period !== null && period !== undefined && String(period).trim() !== '') ? String(period).trim().toLowerCase() : 'full_game';
 
+          // Real-time movement badges: update from full-game live lines (totals/spreads) even if totals are missing.
+          try {
+            if(per === 'full_game' && typeof _applyLiveLineForMoves === 'function'){
+              _applyLiveLineForMoves(card, rec);
+            }
+          } catch(_eMv){ /* ignore */ }
+
           // If spreads are present, store them on the card for other UI/widgets.
           try {
             var sprH = toNum(rec.spread_home);
@@ -4843,6 +5121,7 @@
         } catch(_eDD){ /* ignore */ }
 
         var ids = [];
+        var cardById = {};
         cards.forEach(function(card){
           try {
             var gid = String(card.getAttribute('data-game-id') || '').trim();
@@ -4859,6 +5138,7 @@
               if(isFinal) return;
             } catch(_eFinal){ /* ignore */ }
             ids.push(gid);
+            cardById[gid] = card;
           } catch(_e){ /* ignore */ }
         });
 
@@ -4879,10 +5159,28 @@
           run = run.then(function(){
             return fetch(oddsUrl, { cache: 'no-store' })
               .then(function(r){ return r.json(); })
-              .catch(function(){ return null; });
+              .catch(function(){ return null; })
+              .then(function(js){
+                try {
+                  if(js && js.status === 'ok' && js.lines){
+                    chunk.forEach(function(gid){
+                      try {
+                        var c = cardById[gid];
+                        var rec = js.lines[gid];
+                        if(c && rec) _applyPregameLineForMoves(c, rec);
+                      } catch(_eA){ /* noop */ }
+                    });
+                  }
+                } catch(_eJ){ /* noop */ }
+                return js;
+              });
           });
         });
-        run.finally(function(){ pregameInFlight = false; });
+        run.finally(function(){
+          pregameInFlight = false;
+          try { if(window.__ncaabUpdateTopFilters) window.__ncaabUpdateTopFilters(); } catch(_eF){ /* noop */ }
+          try { if(window.__ncaabUpdateCompactGameStrip) window.__ncaabUpdateCompactGameStrip(); } catch(_eG){ /* noop */ }
+        });
       }
 
       function pollOnce(){
@@ -5393,6 +5691,61 @@
           }
 
           function calloutText(){
+            // Pregame compact tiles: show material movement callouts (numeric badges only).
+            if(!isLive && !isFinal){
+              try {
+                var bs = Array.from(card.querySelectorAll('.move-badges .badge'));
+                if(!bs.length) return '';
+                var open = [];
+                var preg = [];
+                bs.forEach(function(b){
+                  try {
+                    if(!b) return;
+                    var kind = safeStr(b.getAttribute('data-kind')).toLowerCase();
+                    var txt = safeStr(b.textContent);
+                    if(!txt) return;
+                    // Exclude verbose steam badges in compact callouts.
+                    if(kind && kind.indexOf('steam_') === 0) return;
+                    if(!kind && /\bSTEAM\b/i.test(txt)) return;
+
+                    var phase = safeStr(b.getAttribute('data-phase')).toLowerCase();
+                    if(!phase){
+                      try {
+                        if(b.classList.contains('move-opening')) phase = 'opening';
+                        else if(b.classList.contains('move-pregame')) phase = 'pregame';
+                        else if(b.classList.contains('move-live')) phase = 'live';
+                      } catch(_eCls){ /* noop */ }
+                    }
+
+                    if(phase === 'opening') open.push(txt);
+                    else if(phase === 'pregame') preg.push(txt);
+                  } catch(_eB){ /* noop */ }
+                });
+
+                function uniq(arr){
+                  var out = [];
+                  var seen = {};
+                  (arr || []).forEach(function(x){
+                    var k = String(x || '');
+                    if(!k) return;
+                    if(seen[k]) return;
+                    seen[k] = true;
+                    out.push(k);
+                  });
+                  return out;
+                }
+                open = uniq(open);
+                preg = uniq(preg);
+
+                var lines = [];
+                if(open.length) lines.push(open.slice(0, 2).join(' · '));
+                if(preg.length) lines.push(preg.slice(0, 2).join(' · '));
+                return lines.join('\n');
+              } catch(_eMove){
+                return '';
+              }
+            }
+
             var show = isBet || isWatch;
             if(!show) return '';
 
@@ -5729,9 +6082,14 @@
           var okMove = true;
           if(selMove && selMove.size){
             var isLiveNow = (normStr(card.getAttribute('data-live')) === '1');
+            var hasOpen = (normStr(card.getAttribute('data-has-move-opening')) === '1');
             var hasPreg = (normStr(card.getAttribute('data-has-move-pregame')) === '1');
             var hasLive = (normStr(card.getAttribute('data-has-move-live')) === '1');
             okMove = false;
+            if(selMove.has('Opening Move')){
+              // Opening Move is a pregame-only filter (but opening badges can remain visible once live).
+              okMove = okMove || (!isLiveNow && hasOpen);
+            }
             if(selMove.has('Pregame Move')){
               // IMPORTANT: once a game is live, exclude it from Pregame Move filtering.
               okMove = okMove || (!isLiveNow && hasPreg);
@@ -5764,8 +6122,10 @@
         // Derive per-card move phase flags from rendered badge classes.
         cards.forEach(function(card){
           try {
+            var hasOpen = (card.querySelector('.badge.move-opening') !== null);
             var hasPreg = (card.querySelector('.badge.move-pregame') !== null);
             var hasLive = (card.querySelector('.badge.move-live') !== null);
+            card.setAttribute('data-has-move-opening', hasOpen ? '1' : '0');
             card.setAttribute('data-has-move-pregame', hasPreg ? '1' : '0');
             card.setAttribute('data-has-move-live', hasLive ? '1' : '0');
           } catch(_eM){ /* noop */ }
@@ -5918,7 +6278,7 @@
 
         renderGroup(confWrap, confs, selConfs, updateUI);
         renderGroup(timeWrap, times, selTimes, updateUI);
-        renderGroup(moveWrap, ['Pregame Move','Live Move'], selMove, updateUI);
+        renderGroup(moveWrap, ['Opening Move','Pregame Move','Live Move'], selMove, updateUI);
         renderStatusGroup(statusWrap, updateUI);
         updateUI();
 

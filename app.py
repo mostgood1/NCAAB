@@ -18542,10 +18542,10 @@ def index():
                     away_team = str(r.get("away_team") or "").strip()
                     out_badges: list[dict[str, Any]] = []
 
-                    def _extend_badges(info: Any, phase: str) -> None:
-                        if not isinstance(info, dict) or not info.get("badges"):
+                    def _extend_badges(info: Any, phase: str, key: str = "badges") -> None:
+                        if not isinstance(info, dict) or not info.get(key):
                             return
-                        for b in (info.get("badges") or []):
+                        for b in (info.get(key) or []):
                             if not isinstance(b, dict):
                                 continue
                             bb = dict(b)
@@ -18566,18 +18566,43 @@ def index():
                             # Prefix steam badges with phase (Pregame vs Live).
                             if kind.startswith("steam_"):
                                 lab = str(bb.get("label") or "").strip()
-                                pfx = "PREGAME" if phase == "pregame" else "LIVE"
+                                pfx = "PREGAME" if phase == "pregame" else ("LIVE" if phase == "live" else "OPENING")
                                 if lab and not lab.upper().startswith(pfx + " "):
                                     bb["label"] = f"{pfx} {lab}"
 
                             out_badges.append(bb)
 
+                    # Opening Move should reflect pregame opening -> latest pregame line (closing),
+                    # not pregame opening -> live in-game total (which is not comparable).
+                    _extend_badges(pre_info, "opening", key="badges_opening")
                     _extend_badges(pre_info, "pregame")
                     _extend_badges(live_info, "live")
                     if not out_badges:
                         continue
 
                     r["line_move_badges"] = out_badges
+
+                    # Underlying values for real-time UI updates (best-effort).
+                    # For opening deltas, use pregame-only info so values stay meaningful even once live.
+                    if isinstance(pre_info, dict):
+                        r["line_move_total_open"] = pre_info.get("total_open")
+                        r["line_move_total_last_any"] = pre_info.get("total_last")
+                        r["line_move_spread_open"] = pre_info.get("spread_open")
+                        r["line_move_spread_last_any"] = pre_info.get("spread_last")
+                        r["delta_total_opening"] = pre_info.get("delta_total_opening")
+                        r["delta_spread_home_opening"] = pre_info.get("delta_spread_home_opening")
+                        r["line_move_ts_last_opening"] = pre_info.get("ts_last")
+                        r["line_move_age_s_opening"] = pre_info.get("age_s")
+                    if isinstance(pre_info, dict):
+                        r["line_move_total_prev_pregame"] = pre_info.get("total_prev")
+                        r["line_move_total_last_pregame"] = pre_info.get("total_last")
+                        r["line_move_spread_prev_pregame"] = pre_info.get("spread_prev")
+                        r["line_move_spread_last_pregame"] = pre_info.get("spread_last")
+                    if isinstance(live_info, dict):
+                        r["line_move_total_prev_live"] = live_info.get("total_prev")
+                        r["line_move_total_last_live"] = live_info.get("total_last")
+                        r["line_move_spread_prev_live"] = live_info.get("spread_prev")
+                        r["line_move_spread_last_live"] = live_info.get("spread_last")
 
                     # Phase-specific metadata + deltas (useful for JSON consumers).
                     if isinstance(pre_info, dict) and pre_info.get("badges"):
@@ -42292,10 +42317,10 @@ def api_display_predictions():
                         away_team = str(it.get("away_team") or "").strip()
                         out_badges: list[dict[str, Any]] = []
 
-                        def _extend_badges(info: Any, phase: str) -> None:
-                            if not isinstance(info, dict) or not info.get("badges"):
+                        def _extend_badges(info: Any, phase: str, key: str = "badges") -> None:
+                            if not isinstance(info, dict) or not info.get(key):
                                 return
-                            for b in (info.get("badges") or []):
+                            for b in (info.get(key) or []):
                                 if not isinstance(b, dict):
                                     continue
                                 bb = dict(b)
@@ -42311,18 +42336,43 @@ def api_display_predictions():
 
                                 if kind.startswith("steam_"):
                                     lab = str(bb.get("label") or "").strip()
-                                    pfx = "PREGAME" if phase == "pregame" else "LIVE"
+                                    pfx = "PREGAME" if phase == "pregame" else ("LIVE" if phase == "live" else "OPENING")
                                     if lab and not lab.upper().startswith(pfx + " "):
                                         bb["label"] = f"{pfx} {lab}"
 
                                 out_badges.append(bb)
 
+                        # Opening Move should reflect pregame opening -> latest pregame line (closing),
+                        # not pregame opening -> live in-game total (which is not comparable).
+                        _extend_badges(pre_info, "opening", key="badges_opening")
                         _extend_badges(pre_info, "pregame")
                         _extend_badges(live_info, "live")
                         if not out_badges:
                             continue
 
                         it["line_move_badges"] = out_badges
+
+                        # Underlying values for real-time UI updates (best-effort).
+                        # For opening deltas, use pregame-only info so values stay meaningful even once live.
+                        if isinstance(pre_info, dict):
+                            it["line_move_total_open"] = pre_info.get("total_open")
+                            it["line_move_total_last_any"] = pre_info.get("total_last")
+                            it["line_move_spread_open"] = pre_info.get("spread_open")
+                            it["line_move_spread_last_any"] = pre_info.get("spread_last")
+                            it["delta_total_opening"] = pre_info.get("delta_total_opening")
+                            it["delta_spread_home_opening"] = pre_info.get("delta_spread_home_opening")
+                            it["line_move_ts_last_opening"] = pre_info.get("ts_last")
+                            it["line_move_age_s_opening"] = pre_info.get("age_s")
+                        if isinstance(pre_info, dict):
+                            it["line_move_total_prev_pregame"] = pre_info.get("total_prev")
+                            it["line_move_total_last_pregame"] = pre_info.get("total_last")
+                            it["line_move_spread_prev_pregame"] = pre_info.get("spread_prev")
+                            it["line_move_spread_last_pregame"] = pre_info.get("spread_last")
+                        if isinstance(live_info, dict):
+                            it["line_move_total_prev_live"] = live_info.get("total_prev")
+                            it["line_move_total_last_live"] = live_info.get("total_last")
+                            it["line_move_spread_prev_live"] = live_info.get("spread_prev")
+                            it["line_move_spread_last_live"] = live_info.get("spread_last")
 
                         # Phase-specific metadata + deltas (useful for JSON consumers).
                         if isinstance(pre_info, dict) and pre_info.get("badges"):

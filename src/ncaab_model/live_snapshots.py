@@ -182,10 +182,14 @@ def summarize_live_lines_moves(
                 st = state.setdefault(
                     (eid, book),
                     {
+                        "total_open": None,
                         "total_prev": None,
                         "total_last": None,
+                        "spread_open": None,
                         "spread_prev": None,
                         "spread_last": None,
+                        "ts_open_total": None,
+                        "ts_open_spread": None,
                         "ts_prev": None,
                         "ts_last": None,
                     },
@@ -195,6 +199,9 @@ def summarize_live_lines_moves(
                 if total is not None:
                     last = st.get("total_last")
                     if last is None:
+                        if st.get("total_open") is None:
+                            st["total_open"] = total
+                            st["ts_open_total"] = ts
                         st["total_last"] = total
                         st["ts_last"] = ts
                     elif float(total) != float(last):
@@ -207,6 +214,9 @@ def summarize_live_lines_moves(
                 if spread_home is not None:
                     last = st.get("spread_last")
                     if last is None:
+                        if st.get("spread_open") is None:
+                            st["spread_open"] = spread_home
+                            st["ts_open_spread"] = ts
                         st["spread_last"] = spread_home
                         st["ts_last"] = ts
                     elif float(spread_home) != float(last):
@@ -242,8 +252,10 @@ def summarize_live_lines_moves(
 
         total_prev = st.get("total_prev")
         total_last = st.get("total_last")
+        total_open = st.get("total_open")
         spread_prev = st.get("spread_prev")
         spread_last = st.get("spread_last")
+        spread_open = st.get("spread_open")
 
         d_total = None
         if total_prev is not None and total_last is not None:
@@ -251,6 +263,13 @@ def summarize_live_lines_moves(
                 d_total = float(total_last) - float(total_prev)
             except Exception:
                 d_total = None
+
+        d_total_opening = None
+        if total_open is not None and total_last is not None:
+            try:
+                d_total_opening = float(total_last) - float(total_open)
+            except Exception:
+                d_total_opening = None
         d_spread = None
         if spread_prev is not None and spread_last is not None:
             try:
@@ -258,7 +277,15 @@ def summarize_live_lines_moves(
             except Exception:
                 d_spread = None
 
+        d_spread_opening = None
+        if spread_open is not None and spread_last is not None:
+            try:
+                d_spread_opening = float(spread_last) - float(spread_open)
+            except Exception:
+                d_spread_opening = None
+
         badges = []
+        opening_badges = []
         book_disp = str(book or "").strip() or None
         if d_total is not None and abs(float(d_total)) >= float(min_total_pts):
             side_total = "over" if float(d_total) > 0 else "under"
@@ -301,22 +328,54 @@ def summarize_live_lines_moves(
                 }
             )
 
-        if not badges:
+        # Opening move: opening line -> latest line seen (numeric badges only).
+        if d_total_opening is not None and abs(float(d_total_opening)) >= float(min_total_pts):
+            opening_badges.append(
+                {
+                    "label": f"OPEN T {float(d_total_opening):+.1f}",
+                    "title": (
+                        f"Opening total moved {float(total_open):.1f}→{float(total_last):.1f} (Δ {float(d_total_opening):+.1f})"
+                        + (f" • {book_disp}" if book_disp else "")
+                    ),
+                    "kind": "opening_total",
+                }
+            )
+
+        if d_spread_opening is not None and abs(float(d_spread_opening)) >= float(min_spread_pts):
+            opening_badges.append(
+                {
+                    "label": f"OPEN S {float(d_spread_opening):+.1f}",
+                    "title": (
+                        f"Opening home spread moved {float(spread_open):+.1f}→{float(spread_last):+.1f} (Δ {float(d_spread_opening):+.1f})"
+                        + (f" • {book_disp}" if book_disp else "")
+                    ),
+                    "kind": "opening_spread",
+                }
+            )
+
+        if not badges and not opening_badges:
             continue
 
         out[eid] = {
             "event_id": eid,
             "book": book_disp,
+            "total_open": total_open,
             "total_prev": total_prev,
             "total_last": total_last,
             "delta_total": d_total,
+            "delta_total_opening": d_total_opening,
+            "spread_open": spread_open,
             "spread_prev": spread_prev,
             "spread_last": spread_last,
             "delta_spread_home": d_spread,
+            "delta_spread_home_opening": d_spread_opening,
+            "ts_open_total": st.get("ts_open_total"),
+            "ts_open_spread": st.get("ts_open_spread"),
             "ts_prev": st.get("ts_prev"),
             "ts_last": ts_last,
             "age_s": age,
             "badges": badges,
+            "badges_opening": opening_badges,
         }
 
     return out
