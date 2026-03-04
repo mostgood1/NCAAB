@@ -385,6 +385,8 @@ def latest_live_lines_by_event_id(
     *,
     date_s: str,
     period: str | None = "full_game",
+    cutoff_ts_by_event_id: Optional[Dict[str, str]] = None,
+    min_ts_by_event_id: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Return the latest logged `live_lines` quote per event_id for a given date.
 
@@ -396,11 +398,15 @@ def latest_live_lines_by_event_id(
       - ts: snapshot log timestamp (UTC ISO string, usually ending with 'Z')
       - event_id: event id string
 
-    Notes:
-    - Filters to records where rec.endpoint == 'live_lines'.
-    - If `period` is not None, also filters to data.period == period.
-    - When multiple records exist for an event_id, keeps the newest by snapshot
-      timestamp (falling back to file order when timestamps are missing).
+        Notes:
+        - Filters to records where rec.endpoint == 'live_lines'.
+        - If `period` is not None, also filters to data.period == period.
+        - If `cutoff_ts_by_event_id` is provided, only considers snapshot records with
+            ts <= cutoff for that event_id.
+        - If `min_ts_by_event_id` is provided, only considers snapshot records with
+            ts > min for that event_id.
+        - When multiple records exist for an event_id, keeps the newest by snapshot
+            timestamp (falling back to file order when timestamps are missing).
     """
 
     date_s2 = str(date_s or "").strip()
@@ -428,6 +434,34 @@ def latest_live_lines_by_event_id(
             return None
 
     want_period = (str(period).strip().lower() if period is not None else None)
+
+    cutoff_epoch_by_event_id: Dict[str, float] = {}
+    if isinstance(cutoff_ts_by_event_id, dict) and cutoff_ts_by_event_id:
+        for eid, ts_str in cutoff_ts_by_event_id.items():
+            try:
+                ee = str(eid or "").strip()
+                if not ee:
+                    continue
+                te = _ts_epoch(str(ts_str or "").strip() or None)
+                if te is None:
+                    continue
+                cutoff_epoch_by_event_id[ee] = float(te)
+            except Exception:
+                continue
+
+    min_epoch_by_event_id: Dict[str, float] = {}
+    if isinstance(min_ts_by_event_id, dict) and min_ts_by_event_id:
+        for eid, ts_str in min_ts_by_event_id.items():
+            try:
+                ee = str(eid or "").strip()
+                if not ee:
+                    continue
+                te = _ts_epoch(str(ts_str or "").strip() or None)
+                if te is None:
+                    continue
+                min_epoch_by_event_id[ee] = float(te)
+            except Exception:
+                continue
 
     out: Dict[str, Dict[str, Any]] = {}
     best_key: Dict[str, tuple[float | None, int]] = {}
@@ -463,6 +497,16 @@ def latest_live_lines_by_event_id(
 
                 ts = rec.get("ts")
                 te = _ts_epoch(ts)
+
+                # Optional per-event time windowing (e.g., pre-tip cutoffs).
+                min_epoch = min_epoch_by_event_id.get(eid)
+                if min_epoch is not None:
+                    if te is None or float(te) <= float(min_epoch):
+                        continue
+                cutoff_epoch = cutoff_epoch_by_event_id.get(eid)
+                if cutoff_epoch is not None:
+                    if te is None or float(te) > float(cutoff_epoch):
+                        continue
                 prev = best_key.get(eid)
                 if prev is not None:
                     prev_te, prev_order = prev

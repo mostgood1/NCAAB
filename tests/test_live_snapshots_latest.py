@@ -76,3 +76,64 @@ def test_latest_live_lines_by_event_id_filters_period_and_picks_newest(tmp_path,
 
     # Timestamp missing: fall back to file order.
     assert out["999"]["total"] == 141.0
+
+
+def test_latest_live_lines_by_event_id_supports_cutoff_and_min(tmp_path, monkeypatch):
+    monkeypatch.setenv("NCAAB_LIVE_SNAPSHOT_DIR", str(tmp_path))
+
+    p = tmp_path / "live_2026-03-04.jsonl"
+    rows = [
+        {
+            "endpoint": "live_lines",
+            "event_id": "123",
+            "ts": "2026-03-04T09:00:00Z",
+            "data": {"period": "full_game", "total": 150.0},
+        },
+        {
+            "endpoint": "live_lines",
+            "event_id": "123",
+            "ts": "2026-03-04T10:00:00Z",
+            "data": {"period": "full_game", "total": 151.0},
+        },
+        {
+            "endpoint": "live_lines",
+            "event_id": "123",
+            "ts": "2026-03-04T11:00:00Z",
+            "data": {"period": "full_game", "total": 152.0},
+        },
+        {
+            "endpoint": "live_lines",
+            "event_id": "123",
+            "ts": "2026-03-04T12:00:00Z",
+            "data": {"period": "full_game", "total": 153.0},
+        },
+    ]
+    p.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    # Cutoff: pick the newest quote at or before cutoff.
+    out = latest_live_lines_by_event_id(
+        date_s="2026-03-04",
+        period="full_game",
+        cutoff_ts_by_event_id={"123": "2026-03-04T10:30:00Z"},
+    )
+    assert out["123"]["ts"] == "2026-03-04T10:00:00Z"
+    assert out["123"]["total"] == 151.0
+
+    # Min: pick the newest quote strictly after min.
+    out2 = latest_live_lines_by_event_id(
+        date_s="2026-03-04",
+        period="full_game",
+        min_ts_by_event_id={"123": "2026-03-04T10:00:00Z"},
+    )
+    assert out2["123"]["ts"] == "2026-03-04T12:00:00Z"
+    assert out2["123"]["total"] == 153.0
+
+    # Combination window.
+    out3 = latest_live_lines_by_event_id(
+        date_s="2026-03-04",
+        period="full_game",
+        min_ts_by_event_id={"123": "2026-03-04T09:30:00Z"},
+        cutoff_ts_by_event_id={"123": "2026-03-04T11:00:00Z"},
+    )
+    assert out3["123"]["ts"] == "2026-03-04T11:00:00Z"
+    assert out3["123"]["total"] == 152.0

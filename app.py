@@ -8441,6 +8441,16 @@ def index():
                     "venue", "venue_full", "arena", "stadium", "location", "site", "site_name", "city", "state"
                 ] if c in g2.columns]
                 if keep:
+                    # Avoid MergeError when df already contains *_g columns
+                    # (e.g., loaded from a persisted artifact that already merged games).
+                    try:
+                        rsuffix = "_g"
+                        overlap = (set(df.columns) & set(g2[keep].columns)) - {"game_id"}
+                        drop_dups = [f"{c}{rsuffix}" for c in overlap if f"{c}{rsuffix}" in df.columns]
+                        if drop_dups:
+                            df = df.drop(columns=drop_dups, errors="ignore")
+                    except Exception:
+                        pass
                     df = df.merge(g2[keep], on="game_id", how="left", suffixes=("", "_g"))
         except Exception:
             pass
@@ -8520,6 +8530,16 @@ def index():
                 ] if c in games.columns]
                 keep += (home_cols[:1] or []) + (away_cols[:1] or [])
                 # Use suffixes so left (preds) keeps original names, right (games) gets _g on collisions
+                # Avoid MergeError when df already contains *_g columns
+                # (e.g., persisted predictions artifacts that already performed this merge).
+                try:
+                    rsuffix = "_g"
+                    overlap = (set(df.columns) & set(games[keep].columns)) - {"game_id"}
+                    drop_dups = [f"{c}{rsuffix}" for c in overlap if f"{c}{rsuffix}" in df.columns]
+                    if drop_dups:
+                        df = df.drop(columns=drop_dups, errors="ignore")
+                except Exception:
+                    pass
                 df = df.merge(games[keep], on="game_id", how="left", suffixes=("", "_g"))
 
                 # ------------------------------------------------------------------
@@ -18777,6 +18797,91 @@ def index():
     # (moved before return to ensure execution)
     # ------------------------------------------------------------------
     try:
+        # Start time normalization guarantee: keep `start_time` as a stable
+        # `YYYY-MM-DD HH:MM` string for downstream consumers and tests.
+        # When no time signal exists (synthetic/pred-only slates), fall back
+        # to the slate date at 00:00.
+        try:
+            if isinstance(df, pd.DataFrame) and (not df.empty):
+                if 'start_time' not in df.columns:
+                    df['start_time'] = pd.NA
+
+                st_raw = df['start_time']
+                st_s = st_raw.astype(str).str.strip()
+                norm_re = r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$'
+                norm_mask = st_s.str.match(norm_re)
+                need = ~norm_mask
+
+                if need.any():
+                    filled = pd.Series([pd.NA] * len(df), index=df.index, dtype=object)
+
+                    # Prefer existing local/normalized strings when present.
+                    for col in ('start_time_local', 'start_time_normalized'):
+                        if col in df.columns:
+                            s0 = df[col].astype(str).str.strip()
+                            good = s0.str.match(norm_re)
+                            take = need & filled.isna() & good
+                            if take.any():
+                                filled.loc[take] = s0.loc[take]
+
+                    # Extract from display strings like "YYYY-MM-DD HH:MM TZ".
+                    for col in ('start_time_display', 'display_time_str'):
+                        if col in df.columns:
+                            s0 = df[col].astype(str).str.strip()
+                            m = s0.str.extract(r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})')
+                            s1 = (m[0].fillna('') + ' ' + m[1].fillna('')).str.strip()
+                            good = s1.str.match(norm_re)
+                            take = need & filled.isna() & good
+                            if take.any():
+                                filled.loc[take] = s1.loc[take]
+
+                    # Parse ISO/UTC timestamps and format in display tz.
+                    try:
+                        _tz_name_eff = os.getenv('DISPLAY_TZ') or os.getenv('SCHEDULE_TZ') or 'America/Chicago'
+                        _tz_eff = ZoneInfo(_tz_name_eff)
+                    except Exception:
+                        _tz_eff = None
+                    for col in ('start_time_iso', 'commence_time', '_start_dt'):
+                        if col in df.columns:
+                            try:
+                                raw = df[col].astype(str).str.replace('Z', '+00:00', regex=False)
+                                ts = pd.to_datetime(raw, errors='coerce', utc=True)
+                                if _tz_eff is not None:
+                                    try:
+                                        ts = ts.dt.tz_convert(_tz_eff)
+                                    except Exception:
+                                        pass
+                                s1 = ts.dt.strftime('%Y-%m-%d %H:%M')
+                                take = need & filled.isna() & s1.notna()
+                                if take.any():
+                                    filled.loc[take] = s1.loc[take]
+                            except Exception:
+                                continue
+
+                    # Final fallback: use slate date at 00:00.
+                    for col in ('date', 'display_date'):
+                        if col in df.columns:
+                            try:
+                                d0 = pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d')
+                                d_ok = d0.notna()
+                                v = (d0.astype(str) + ' 00:00').where(d_ok, pd.NA)
+                                take = need & filled.isna() & v.notna()
+                                if take.any():
+                                    filled.loc[take] = v.loc[take]
+                            except Exception:
+                                continue
+
+                    take_final = need & filled.notna()
+                    if take_final.any():
+                        try:
+                            if getattr(df['start_time'], 'dtype', None) != object:
+                                df['start_time'] = df['start_time'].astype(object)
+                        except Exception:
+                            pass
+                        df.loc[take_final, 'start_time'] = filled.loc[take_final]
+        except Exception:
+            pass
+
         global _LAST_UNIFIED_FRAME
         _LAST_UNIFIED_FRAME = df.copy()
         # ------------------------------------------------------------------
@@ -40344,13 +40449,64 @@ def api_display_predictions():
                                 from ncaab_model.live_snapshots import latest_live_lines_by_event_id  # type: ignore
 
                                 date_s = str(date_q)
-                                ll0 = latest_live_lines_by_event_id(date_s=date_s, period='full_game')
+
+                                # Prefer *pregame* quotes: for games already started (or Final),
+                                # use the scheduled start time as a per-game cutoff so we keep
+                                # the last pre-tip line even if later snapshots stop carrying
+                                # full-game markets.
+                                cutoff_ts_by_event_id: dict[str, str] = {}
+                                try:
+                                    if isinstance(base, pd.DataFrame) and (not base.empty) and ('game_id' in base.columns):
+                                        def _good_ts(v) -> bool:
+                                            try:
+                                                if v is None:
+                                                    return False
+                                                s = str(v).strip()
+                                                return bool(s and s.lower() not in ('nan', 'none', 'null'))
+                                            except Exception:
+                                                return False
+
+                                        for _, rr in base.iterrows():
+                                            try:
+                                                eid = str(rr.get('game_id') or '').strip()
+                                                if eid.endswith('.0'):
+                                                    eid = eid[:-2]
+                                                if not eid:
+                                                    continue
+                                                ts_str = None
+                                                for c in ('start_time_iso', 'commence_time', 'start_time'):
+                                                    try:
+                                                        if c in base.columns and _good_ts(rr.get(c)):
+                                                            ts_str = str(rr.get(c)).strip()
+                                                            break
+                                                    except Exception:
+                                                        continue
+                                                if ts_str:
+                                                    cutoff_ts_by_event_id[eid] = ts_str
+                                            except Exception:
+                                                continue
+                                except Exception:
+                                    cutoff_ts_by_event_id = {}
+
+                                ll0 = latest_live_lines_by_event_id(
+                                    date_s=date_s,
+                                    period='full_game',
+                                    cutoff_ts_by_event_id=cutoff_ts_by_event_id,
+                                )
                                 # UTC-midnight rollover: also consult next day's snapshot.
                                 try:
                                     date_s2 = (dt.date.fromisoformat(date_s) + dt.timedelta(days=1)).isoformat()
                                 except Exception:
                                     date_s2 = None
-                                ll1 = latest_live_lines_by_event_id(date_s=date_s2, period='full_game') if date_s2 else {}
+                                ll1 = (
+                                    latest_live_lines_by_event_id(
+                                        date_s=date_s2,
+                                        period='full_game',
+                                        cutoff_ts_by_event_id=cutoff_ts_by_event_id,
+                                    )
+                                    if date_s2
+                                    else {}
+                                )
 
                                 def _ts_epoch(ts_iso: Any) -> float | None:
                                     try:
