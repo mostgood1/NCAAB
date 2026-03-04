@@ -342,8 +342,23 @@ def _load_live_snapshot_moves(
     Returns mapping keyed by ESPN event_id (game_id).
     """
 
-    p = out_dir / "live_snapshots" / f"live_{date}.jsonl"
-    if not p.exists():
+    # Late-night games can cause snapshot records to spill into the next day's file.
+    # To keep pregame movement available for those games, read date and date+1 if present.
+    paths: list[Path] = []
+    try:
+        p0 = out_dir / "live_snapshots" / f"live_{date}.jsonl"
+        if p0.exists():
+            paths.append(p0)
+    except Exception:
+        pass
+    try:
+        d2 = (dt.date.fromisoformat(str(date)) + dt.timedelta(days=1)).isoformat()
+        p1 = out_dir / "live_snapshots" / f"live_{d2}.jsonl"
+        if p1.exists():
+            paths.append(p1)
+    except Exception:
+        pass
+    if not paths:
         return {}
 
     def _to_num(v: Any) -> float | None:
@@ -413,79 +428,80 @@ def _load_live_snapshot_moves(
     try:
         import json
 
-        with p.open("r", encoding="utf-8", errors="ignore") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except Exception:
-                    continue
-                if not isinstance(rec, dict):
-                    continue
-                if str(rec.get("endpoint") or "").strip() != "live_lines":
-                    continue
-                eid = _norm_gid(rec.get("event_id"))
-                if not eid:
-                    continue
-                data = rec.get("data") if isinstance(rec.get("data"), dict) else {}
-                if not isinstance(data, dict):
-                    data = {}
-                ts = str(rec.get("ts") or "").strip() or None
-
-                # Only use full-game pregame lines (not 1H/2H etc).
-                try:
-                    if str(data.get("period") or "").strip().lower() != "full_game":
+        for p in paths:
+            with p.open("r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
                         continue
-                except Exception:
-                    continue
+                    try:
+                        rec = json.loads(line)
+                    except Exception:
+                        continue
+                    if not isinstance(rec, dict):
+                        continue
+                    if str(rec.get("endpoint") or "").strip() != "live_lines":
+                        continue
+                    eid = _norm_gid(rec.get("event_id"))
+                    if not eid:
+                        continue
+                    data = rec.get("data") if isinstance(rec.get("data"), dict) else {}
+                    if not isinstance(data, dict):
+                        data = {}
+                    ts = str(rec.get("ts") or "").strip() or None
 
-                # Pregame cutoff (ignore snapshots after scheduled start_time).
-                cutoff_epoch = cutoff_epoch_by_event_id.get(eid)
-                if cutoff_epoch is not None:
-                    te = _ts_epoch(ts)
-                    if te is None or float(te) > float(cutoff_epoch):
+                    # Only use full-game pregame lines (not 1H/2H etc).
+                    try:
+                        if str(data.get("period") or "").strip().lower() != "full_game":
+                            continue
+                    except Exception:
                         continue
 
-                book = str(data.get("book") or "").strip() or ""
+                    # Pregame cutoff (ignore snapshots after scheduled start_time).
+                    cutoff_epoch = cutoff_epoch_by_event_id.get(eid)
+                    if cutoff_epoch is not None:
+                        te = _ts_epoch(ts)
+                        if te is None or float(te) > float(cutoff_epoch):
+                            continue
 
-                tot = _to_num(data.get("total"))
-                spr = _to_num(data.get("spread_home"))
+                    book = str(data.get("book") or "").strip() or ""
 
-                st = state.setdefault(
-                    (eid, book),
-                    {
-                        "total_prev": None,
-                        "total_last": None,
-                        "spread_prev": None,
-                        "spread_last": None,
-                        "ts_prev": None,
-                        "ts_last": None,
-                    },
-                )
+                    tot = _to_num(data.get("total"))
+                    spr = _to_num(data.get("spread_home"))
 
-                if tot is not None:
-                    last = st.get("total_last")
-                    if last is None:
-                        st["total_last"] = tot
-                        st["ts_last"] = ts
-                    elif float(tot) != float(last):
-                        st["total_prev"] = last
-                        st["total_last"] = tot
-                        st["ts_prev"] = st.get("ts_last")
-                        st["ts_last"] = ts
+                    st = state.setdefault(
+                        (eid, book),
+                        {
+                            "total_prev": None,
+                            "total_last": None,
+                            "spread_prev": None,
+                            "spread_last": None,
+                            "ts_prev": None,
+                            "ts_last": None,
+                        },
+                    )
 
-                if spr is not None:
-                    last = st.get("spread_last")
-                    if last is None:
-                        st["spread_last"] = spr
-                        st["ts_last"] = ts
-                    elif float(spr) != float(last):
-                        st["spread_prev"] = last
-                        st["spread_last"] = spr
-                        st["ts_prev"] = st.get("ts_last")
-                        st["ts_last"] = ts
+                    if tot is not None:
+                        last = st.get("total_last")
+                        if last is None:
+                            st["total_last"] = tot
+                            st["ts_last"] = ts
+                        elif float(tot) != float(last):
+                            st["total_prev"] = last
+                            st["total_last"] = tot
+                            st["ts_prev"] = st.get("ts_last")
+                            st["ts_last"] = ts
+
+                    if spr is not None:
+                        last = st.get("spread_last")
+                        if last is None:
+                            st["spread_last"] = spr
+                            st["ts_last"] = ts
+                        elif float(spr) != float(last):
+                            st["spread_prev"] = last
+                            st["spread_last"] = spr
+                            st["ts_prev"] = st.get("ts_last")
+                            st["ts_last"] = ts
     except Exception:
         return {}
 

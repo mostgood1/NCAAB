@@ -18424,6 +18424,43 @@ def index():
         if cards_view and rows and date_q:
             from ncaab_model.live_snapshots import summarize_live_lines_moves  # type: ignore
 
+            def _parse_ts_epoch(ts_iso: Any) -> float | None:
+                try:
+                    if ts_iso is None:
+                        return None
+                    import datetime as _dt
+
+                    s = str(ts_iso).strip()
+                    if not s:
+                        return None
+                    d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+                    if d.tzinfo is None:
+                        d = d.replace(tzinfo=_dt.timezone.utc)
+                    return float(d.timestamp())
+                except Exception:
+                    return None
+
+            def _merge_mv(a: Any, b: Any) -> dict[str, dict[str, Any]]:
+                out: dict[str, dict[str, Any]] = {}
+                if isinstance(a, dict):
+                    for k, v in a.items():
+                        if isinstance(v, dict):
+                            out[str(k)] = v
+                if isinstance(b, dict):
+                    for k, v in b.items():
+                        if not isinstance(v, dict):
+                            continue
+                        kk = str(k)
+                        cur = out.get(kk)
+                        if not isinstance(cur, dict):
+                            out[kk] = v
+                            continue
+                        t_cur = _parse_ts_epoch(cur.get("ts_last"))
+                        t_new = _parse_ts_epoch(v.get("ts_last"))
+                        if (t_new is not None) and (t_cur is None or float(t_new) > float(t_cur)):
+                            out[kk] = v
+                return out
+
             cutoff_by_gid: dict[str, str] = {}
             for rr in rows:
                 try:
@@ -18440,8 +18477,20 @@ def index():
                     continue
                 cutoff_by_gid[gid] = str(st)
 
-            mv_pregame = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
-            mv_any = summarize_live_lines_moves(date_s=str(date_q))
+            date_s = str(date_q)
+            date_s2 = None
+            try:
+                import datetime as _dt
+
+                date_s2 = (_dt.date.fromisoformat(date_s) + _dt.timedelta(days=1)).isoformat()
+            except Exception:
+                date_s2 = None
+
+            mv_pregame = summarize_live_lines_moves(date_s=date_s, cutoff_ts_by_event_id=cutoff_by_gid)
+            mv_any = summarize_live_lines_moves(date_s=date_s)
+            if date_s2:
+                mv_pregame = _merge_mv(mv_pregame, summarize_live_lines_moves(date_s=date_s2, cutoff_ts_by_event_id=cutoff_by_gid))
+                mv_any = _merge_mv(mv_any, summarize_live_lines_moves(date_s=date_s2))
             if (isinstance(mv_pregame, dict) and mv_pregame) or (isinstance(mv_any, dict) and mv_any):
                 for r in rows:
                     try:
@@ -41441,6 +41490,43 @@ def api_display_predictions():
             if cards_view and rows and date_q:
                 from ncaab_model.live_snapshots import summarize_live_lines_moves  # type: ignore
 
+                def _parse_ts_epoch(ts_iso: Any) -> float | None:
+                    try:
+                        if ts_iso is None:
+                            return None
+                        import datetime as _dt
+
+                        s = str(ts_iso).strip()
+                        if not s:
+                            return None
+                        d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+                        if d.tzinfo is None:
+                            d = d.replace(tzinfo=_dt.timezone.utc)
+                        return float(d.timestamp())
+                    except Exception:
+                        return None
+
+                def _merge_mv(a: Any, b: Any) -> dict[str, dict[str, Any]]:
+                    out: dict[str, dict[str, Any]] = {}
+                    if isinstance(a, dict):
+                        for k, v in a.items():
+                            if isinstance(v, dict):
+                                out[str(k)] = v
+                    if isinstance(b, dict):
+                        for k, v in b.items():
+                            if not isinstance(v, dict):
+                                continue
+                            kk = str(k)
+                            cur = out.get(kk)
+                            if not isinstance(cur, dict):
+                                out[kk] = v
+                                continue
+                            t_cur = _parse_ts_epoch(cur.get("ts_last"))
+                            t_new = _parse_ts_epoch(v.get("ts_last"))
+                            if (t_new is not None) and (t_cur is None or float(t_new) > float(t_cur)):
+                                out[kk] = v
+                    return out
+
                 cutoff_by_gid: dict[str, str] = {}
                 for rr in rows:
                     try:
@@ -41457,8 +41543,20 @@ def api_display_predictions():
                         continue
                     cutoff_by_gid[gid] = str(st)
 
-                mv_pregame = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
-                mv_any = summarize_live_lines_moves(date_s=str(date_q))
+                    date_s = str(date_q)
+                    date_s2 = None
+                    try:
+                        import datetime as _dt
+
+                        date_s2 = (_dt.date.fromisoformat(date_s) + _dt.timedelta(days=1)).isoformat()
+                    except Exception:
+                        date_s2 = None
+
+                    mv_pregame = summarize_live_lines_moves(date_s=date_s, cutoff_ts_by_event_id=cutoff_by_gid)
+                    mv_any = summarize_live_lines_moves(date_s=date_s)
+                    if date_s2:
+                        mv_pregame = _merge_mv(mv_pregame, summarize_live_lines_moves(date_s=date_s2, cutoff_ts_by_event_id=cutoff_by_gid))
+                        mv_any = _merge_mv(mv_any, summarize_live_lines_moves(date_s=date_s2))
                 if (isinstance(mv_pregame, dict) and mv_pregame) or (isinstance(mv_any, dict) and mv_any):
                     for it in rows:
                         try:
