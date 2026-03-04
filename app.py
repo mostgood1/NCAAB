@@ -22540,6 +22540,342 @@ def _get_provider_team_alias_map() -> dict[str, str]:
     return m
 
 
+# Cards-view safety net: fetch pregame full-game lines directly from TheOddsAPI when
+# CSV odds artifacts and live_lines snapshots are missing (common on Render pregame).
+_CARDS_LIVE_LINES_CACHE: dict[str, object] = {"ts": 0.0, "key": None, "payload": None}
+
+
+def _cards_live_lines_ttl_s() -> int:
+    try:
+        v = int(str(os.environ.get("NCAAB_CARDS_LIVE_LINES_TTL_S") or "900").strip())
+    except Exception:
+        v = 900
+    return max(30, min(v, 6 * 3600))
+
+
+def _fetch_full_game_lines_for_cards(
+    *,
+    date_s: str,
+    base_df: pd.DataFrame,
+    bookmakers: str = "draftkings,fanduel,betmgm",
+) -> dict[str, dict]:
+    """Best-effort pregame odds fallback for cards view.
+
+    Returns a mapping keyed by ESPN event_id (string) with values in the same
+    shape as `/api/live_lines` payload['lines'][event_id].
+
+    Notes:
+    - Uses a small in-memory TTL cache to avoid burning odds credits.
+    - Logs the resulting lines via `log_live_api_payload(endpoint='live_lines', ...)`
+      so downstream snapshot-based backfills can work as well.
+    """
+
+    date_s2 = str(date_s or "").strip()
+    if not date_s2:
+        return {}
+    if not isinstance(base_df, pd.DataFrame) or base_df.empty:
+        return {}
+    for req_col in ("game_id", "home_team", "away_team"):
+        if req_col not in base_df.columns:
+            return {}
+
+    # Build game_id -> (home_slug, away_slug) and unordered pair keys.
+    core = base_df[["game_id", "home_team", "away_team"]].copy()
+    try:
+        core = core.dropna(subset=["game_id"])
+    except Exception:
+        pass
+    try:
+        core["game_id"] = core["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+    except Exception:
+        core["game_id"] = core["game_id"].astype(str)
+    try:
+        core = core[core["game_id"].astype(str).str.strip().ne("")]
+    except Exception:
+        pass
+    if core.empty:
+        return {}
+
+    alias_map = _get_provider_team_alias_map()
+
+    def _alias_team_name(name: object) -> str:
+        try:
+            s = str(name or "").strip()
+        except Exception:
+            return ""
+        if not s:
+            return ""
+        return alias_map.get(s.lower(), s)
+
+    def _slug(name: object) -> str:
+        try:
+            return _canon_slug(_alias_team_name(name))
+        except Exception:
+            try:
+                return _canon_slug(str(name or ""))
+            except Exception:
+                return ""
+
+    pair_to_game_ids: dict[str, list[str]] = {}
+    game_id_to_slugs: dict[str, tuple[str, str]] = {}
+    for _, r in core.iterrows():
+        try:
+            gid = str(r.get("game_id") or "").strip()
+            if not gid:
+                continue
+            hs = _slug(r.get("home_team"))
+            a_s = _slug(r.get("away_team"))
+            if not hs or not a_s:
+                continue
+            pk = "::".join(sorted([hs, a_s]))
+            pair_to_game_ids.setdefault(pk, []).append(gid)
+            game_id_to_slugs[gid] = (hs, a_s)
+        except Exception:
+            continue
+
+    if not pair_to_game_ids:
+        return {}
+
+    # Cache key: stable over date + books + event_ids set.
+    try:
+        import hashlib as _hashlib
+        ids_sorted = sorted(game_id_to_slugs.keys())
+        ids_hash = _hashlib.sha256(",".join(ids_sorted).encode("utf-8", errors="ignore")).hexdigest()[:12]
+        cache_key = f"cards_live_lines|{date_s2}|{bookmakers}|{ids_hash}"
+    except Exception:
+        cache_key = f"cards_live_lines|{date_s2}|{bookmakers}|{len(game_id_to_slugs)}"
+
+    # In-memory TTL cache.
+    ttl_s = float(_cards_live_lines_ttl_s())
+    try:
+        import time as _time
+
+        now_ts = float(_time.time())
+        ts0 = float(_CARDS_LIVE_LINES_CACHE.get("ts") or 0.0)
+        payload0 = _CARDS_LIVE_LINES_CACHE.get("payload")
+        if ttl_s > 0 and payload0 is not None and _CARDS_LIVE_LINES_CACHE.get("key") == cache_key:
+            try:
+                ttl_eff = float((payload0 or {}).get("_cache_ttl_s") or ttl_s) if isinstance(payload0, dict) else ttl_s
+            except Exception:
+                ttl_eff = ttl_s
+            if ts0 and (now_ts - ts0) <= float(ttl_eff):
+                if isinstance(payload0, dict) and isinstance(payload0.get("lines"), dict):
+                    return dict(payload0.get("lines") or {})
+    except Exception:
+        pass
+
+    # Fetch from TheOddsAPI.
+    try:
+        from ncaab_model.data.adapters.odds_theoddsapi import TheOddsAPIAdapter  # type: ignore
+    except Exception:
+        return {}
+
+    try:
+        adapter = TheOddsAPIAdapter()
+    except Exception:
+        return {}
+
+    preferred = ["draftkings", "fanduel", "betmgm"]
+    by_pair: dict[str, dict[str, dict]] = {}
+
+    try:
+        for row in adapter.iter_current_odds_expanded(
+            markets="totals,spreads,h2h",
+            date_iso=date_s2,
+            bookmakers=bookmakers,
+        ):
+            try:
+                if (row.period or "") != "full_game":
+                    continue
+                ht_slug = _slug(getattr(row, "home_team_name", None))
+                at_slug = _slug(getattr(row, "away_team_name", None))
+                if not ht_slug or not at_slug:
+                    continue
+                pk = "::".join(sorted([ht_slug, at_slug]))
+                if pk not in pair_to_game_ids:
+                    continue
+
+                book = str(getattr(row, "book", None) or "").strip()
+                book_key = "".join(ch for ch in book.lower() if ch.isalnum())
+                last_update = getattr(row, "last_update", None)
+                last_update_iso = (last_update.isoformat().replace("+00:00", "Z") if last_update else None)
+
+                slot = by_pair.setdefault(pk, {}).setdefault(
+                    book_key,
+                    {
+                        "book": book,
+                        "book_key": book_key,
+                        "event_id_provider": str(getattr(row, "event_id", None) or ""),
+                        "last_update": last_update_iso,
+                        "total": None,
+                        "over_price": None,
+                        "under_price": None,
+                        "spread_home": None,
+                        "spread_away": None,
+                        "spread_home_price": None,
+                        "spread_away_price": None,
+                        "moneyline_home": None,
+                        "moneyline_away": None,
+                        "_home_slug_provider": ht_slug,
+                        "_away_slug_provider": at_slug,
+                    },
+                )
+
+                # Keep the most recent last_update if we see multiple markets.
+                try:
+                    if last_update_iso and (not slot.get("last_update") or str(last_update_iso) > str(slot.get("last_update"))):
+                        slot["last_update"] = last_update_iso
+                except Exception:
+                    pass
+
+                mkt = str(getattr(row, "market", None) or "").strip().lower()
+                if mkt == "totals":
+                    try:
+                        if getattr(row, "total", None) is not None:
+                            slot["total"] = float(getattr(row, "total"))
+                        if getattr(row, "over_price", None) is not None:
+                            slot["over_price"] = float(getattr(row, "over_price"))
+                        if getattr(row, "under_price", None) is not None:
+                            slot["under_price"] = float(getattr(row, "under_price"))
+                    except Exception:
+                        pass
+                elif mkt == "spreads":
+                    try:
+                        if getattr(row, "home_spread", None) is not None:
+                            slot["spread_home"] = float(getattr(row, "home_spread"))
+                        if getattr(row, "away_spread", None) is not None:
+                            slot["spread_away"] = float(getattr(row, "away_spread"))
+                        if getattr(row, "home_spread_price", None) is not None:
+                            slot["spread_home_price"] = float(getattr(row, "home_spread_price"))
+                        if getattr(row, "away_spread_price", None) is not None:
+                            slot["spread_away_price"] = float(getattr(row, "away_spread_price"))
+                    except Exception:
+                        pass
+                elif mkt == "h2h":
+                    try:
+                        if getattr(row, "moneyline_home", None) is not None:
+                            slot["moneyline_home"] = float(getattr(row, "moneyline_home"))
+                        if getattr(row, "moneyline_away", None) is not None:
+                            slot["moneyline_away"] = float(getattr(row, "moneyline_away"))
+                    except Exception:
+                        pass
+            except Exception:
+                continue
+    except Exception:
+        return {}
+
+    def _pick_best_merged(book_map: dict[str, dict]) -> dict | None:
+        if not book_map:
+            return None
+
+        def _usable(obj: dict) -> bool:
+            return bool(
+                obj.get("total") is not None
+                or obj.get("spread_home") is not None
+                or obj.get("moneyline_home") is not None
+            )
+
+        for pref in preferred:
+            for obj in book_map.values():
+                if pref in str(obj.get("book_key") or "") and _usable(obj):
+                    return obj
+        for obj in book_map.values():
+            if _usable(obj):
+                return obj
+        return None
+
+    out_lines: dict[str, dict] = {}
+    for pk, gids in pair_to_game_ids.items():
+        best = _pick_best_merged(by_pair.get(pk) or {})
+        if not best:
+            continue
+
+        qh = str(best.get("_home_slug_provider") or "")
+        qa = str(best.get("_away_slug_provider") or "")
+
+        for gid in gids:
+            gh, ga = game_id_to_slugs.get(gid) if gid in game_id_to_slugs else (None, None)
+            swapped = bool(gh and ga and qh and qa and gh == qa and ga == qh)
+
+            sh = best.get("spread_home")
+            sa = best.get("spread_away")
+            mh = best.get("moneyline_home")
+            ma = best.get("moneyline_away")
+            shp = best.get("spread_home_price")
+            sap = best.get("spread_away_price")
+
+            if swapped:
+                # Our home/away are reversed relative to provider; swap ML and spread prices,
+                # and orient spread_home to our home team.
+                sh = sa if sa is not None else ((-float(sh)) if sh is not None else None)
+                sa = best.get("spread_home") if best.get("spread_home") is not None else ((-float(sa)) if sa is not None else None)
+                mh = best.get("moneyline_away")
+                ma = best.get("moneyline_home")
+                shp = best.get("spread_away_price")
+                sap = best.get("spread_home_price")
+
+            out_lines[str(gid)] = {
+                "game_id": str(gid),
+                "espn_event_id": str(gid),
+                "total": best.get("total"),
+                "over_price": best.get("over_price"),
+                "under_price": best.get("under_price"),
+                "spread_home": sh,
+                "spread_away": sa,
+                "spread_home_price": shp,
+                "spread_away_price": sap,
+                "moneyline_home": mh,
+                "moneyline_away": ma,
+                "period": "full_game",
+                "book": best.get("book"),
+                "event_id_provider": best.get("event_id_provider"),
+                "last_update": best.get("last_update"),
+            }
+
+    payload = {
+        "status": "ok",
+        "date": date_s2,
+        "bookmakers": bookmakers,
+        "count": int(len(out_lines)),
+        "lines": out_lines,
+    }
+
+    # Log to snapshots so movement + backfills can use the same source.
+    try:
+        from ncaab_model.live_snapshots import log_live_api_payload  # type: ignore
+
+        log_live_api_payload(
+            endpoint="live_lines",
+            date_s=date_s2,
+            request_args={
+                "source": "cards_fallback",
+                "allow_future": "1",
+                "period": "full_game",
+                "bookmakers": bookmakers,
+            },
+            payload=payload,
+        )
+    except Exception:
+        pass
+
+    # Cache (even when empty, but with a shorter TTL so transient issues can recover).
+    try:
+        import time as _time
+
+        now_ts = float(_time.time())
+        ttl_eff = float(ttl_s)
+        if not out_lines:
+            ttl_eff = float(min(ttl_eff, 120.0))
+        payload["_cache_ttl_s"] = ttl_eff
+        _CARDS_LIVE_LINES_CACHE["ts"] = now_ts
+        _CARDS_LIVE_LINES_CACHE["key"] = cache_key
+        _CARDS_LIVE_LINES_CACHE["payload"] = payload
+    except Exception:
+        pass
+
+    return out_lines
+
+
 @app.get("/api/odds_status")
 def api_odds_status():
     """Debug endpoint to verify OddsAPI configuration in the running environment.
@@ -40014,6 +40350,87 @@ def api_display_predictions():
                                         base['under_price'] = up0.where(up0.notna(), pd.to_numeric(gid.map(under_map), errors='coerce'))
                                         base['home_spread_price'] = hp0.where(hp0.notna(), pd.to_numeric(gid.map(sh_price_map), errors='coerce'))
                                         base['away_spread_price'] = ap0.where(ap0.notna(), pd.to_numeric(gid.map(sa_price_map), errors='coerce'))
+                                    except Exception:
+                                        pass
+
+                                    try:
+                                        bn = base.get('book_name')
+                                        bn_s = bn.astype(str) if hasattr(bn, 'astype') else bn
+                                        missing_bn = bn.isna() | bn_s.astype(str).str.strip().eq('') | bn_s.astype(str).str.lower().isin(['nan', 'none', 'null'])
+                                        if hasattr(missing_bn, 'any') and missing_bn.any():
+                                            base.loc[missing_bn, 'book_name'] = gid.loc[missing_bn].map(book_map)
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
+
+                    # Fallback: when CSV odds artifacts are missing and we have no live_lines
+                    # snapshots yet (common pregame on Render), pull current full-game lines
+                    # directly from TheOddsAPI (cached) so the UI can show odds.
+                    try:
+                        if isinstance(base, pd.DataFrame) and (not base.empty) and ('game_id' in base.columns):
+                            # Ensure canonical columns exist.
+                            for c in ('market_total', 'spread_home', 'ml_home', 'ml_away'):
+                                if c not in base.columns:
+                                    base[c] = np.nan
+                            for c in ('over_price', 'under_price', 'home_spread_price', 'away_spread_price'):
+                                if c not in base.columns:
+                                    base[c] = np.nan
+                            if 'book_name' not in base.columns:
+                                base['book_name'] = np.nan
+
+                            mt1 = pd.to_numeric(base.get('market_total'), errors='coerce')
+                            sh1 = pd.to_numeric(base.get('spread_home'), errors='coerce')
+                            mh1 = pd.to_numeric(base.get('ml_home'), errors='coerce')
+                            ma1 = pd.to_numeric(base.get('ml_away'), errors='coerce')
+                            miss_mask = mt1.isna() & sh1.isna() & mh1.isna() & ma1.isna()
+                            miss_rate = float(miss_mask.mean()) if len(base) else 0.0
+
+                            # Only attempt for near-term dates to avoid spending credits on historical views.
+                            near_term = False
+                            try:
+                                tdate = dt.date.fromisoformat(str(date_q))
+                                near_term = abs((tdate - _today_local()).days) <= 2
+                            except Exception:
+                                near_term = False
+
+                            enable = str(os.environ.get('NCAAB_CARDS_LIVE_LINES_FALLBACK') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+                            if not enable:
+                                try:
+                                    enable = bool(os.environ.get('RENDER_SERVICE_ID') or os.environ.get('RENDER_INSTANCE_ID') or os.environ.get('RENDER'))
+                                except Exception:
+                                    enable = False
+
+                            if enable and near_term and miss_rate >= 0.80:
+                                lines_map = _fetch_full_game_lines_for_cards(date_s=str(date_q), base_df=base)
+                                if lines_map:
+                                    gid = base['game_id'].astype(str).str.replace(r'\.0$', '', regex=True)
+
+                                    total_map = {eid: (rec or {}).get('total') for eid, rec in lines_map.items()}
+                                    spread_map = {eid: (rec or {}).get('spread_home') for eid, rec in lines_map.items()}
+                                    mlh_map = {eid: (rec or {}).get('moneyline_home') for eid, rec in lines_map.items()}
+                                    mla_map = {eid: (rec or {}).get('moneyline_away') for eid, rec in lines_map.items()}
+                                    over_map = {eid: (rec or {}).get('over_price') for eid, rec in lines_map.items()}
+                                    under_map = {eid: (rec or {}).get('under_price') for eid, rec in lines_map.items()}
+                                    shp_map = {eid: (rec or {}).get('spread_home_price') for eid, rec in lines_map.items()}
+                                    sap_map = {eid: (rec or {}).get('spread_away_price') for eid, rec in lines_map.items()}
+                                    book_map = {eid: (rec or {}).get('book') for eid, rec in lines_map.items()}
+
+                                    base['market_total'] = mt1.where(mt1.notna(), pd.to_numeric(gid.map(total_map), errors='coerce'))
+                                    base['spread_home'] = sh1.where(sh1.notna(), pd.to_numeric(gid.map(spread_map), errors='coerce'))
+                                    base['ml_home'] = mh1.where(mh1.notna(), pd.to_numeric(gid.map(mlh_map), errors='coerce'))
+                                    base['ml_away'] = ma1.where(ma1.notna(), pd.to_numeric(gid.map(mla_map), errors='coerce'))
+
+                                    # Prices and book label (optional for UI)
+                                    try:
+                                        op1 = pd.to_numeric(base.get('over_price'), errors='coerce')
+                                        up1 = pd.to_numeric(base.get('under_price'), errors='coerce')
+                                        hp1 = pd.to_numeric(base.get('home_spread_price'), errors='coerce')
+                                        ap1 = pd.to_numeric(base.get('away_spread_price'), errors='coerce')
+                                        base['over_price'] = op1.where(op1.notna(), pd.to_numeric(gid.map(over_map), errors='coerce'))
+                                        base['under_price'] = up1.where(up1.notna(), pd.to_numeric(gid.map(under_map), errors='coerce'))
+                                        base['home_spread_price'] = hp1.where(hp1.notna(), pd.to_numeric(gid.map(shp_map), errors='coerce'))
+                                        base['away_spread_price'] = ap1.where(ap1.notna(), pd.to_numeric(gid.map(sap_map), errors='coerce'))
                                     except Exception:
                                         pass
 
