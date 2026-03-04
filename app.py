@@ -22678,15 +22678,49 @@ def _fetch_full_game_lines_for_cards(
     preferred = ["draftkings", "fanduel", "betmgm"]
     by_pair: dict[str, dict[str, dict]] = {}
 
+    # Best-effort: use commence_time to keep only the target slate (+/-1 day to
+    # tolerate UTC-midnight drift). This avoids accidental matches for the same
+    # matchup on adjacent days when we fetch without a date filter.
     try:
+        target_date = dt.date.fromisoformat(date_s2)
+    except Exception:
+        target_date = None
+    try:
+        tz_name = os.getenv("SCHEDULE_TZ") or os.getenv("NCAAB_SCHEDULE_TZ") or "America/New_York"
+        tz_slate = ZoneInfo(str(tz_name))
+    except Exception:
+        tz_slate = dt.timezone.utc
+
+    try:
+        # IMPORTANT: do not rely on TheOddsAPI `date` parameter here.
+        # Some plans accept it but return an empty list for date-only strings.
+        # `/api/live_lines` uses the unfiltered feed and matches by pair key;
+        # we mirror that approach for pregame odds on Render.
         for row in adapter.iter_current_odds_expanded(
             markets="totals,spreads,h2h",
-            date_iso=date_s2,
+            date_iso=None,
             bookmakers=bookmakers,
         ):
             try:
                 if (row.period or "") != "full_game":
                     continue
+
+                # If commence_time is present, restrict to the target slate (+/-1 day).
+                try:
+                    if target_date is not None:
+                        ct = getattr(row, "commence_time", None)
+                        if ct is not None:
+                            try:
+                                if ct.tzinfo is None:
+                                    ct = ct.replace(tzinfo=dt.timezone.utc)
+                                ct_d = ct.astimezone(tz_slate).date()
+                                if abs((ct_d - target_date).days) > 1:
+                                    continue
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
                 ht_slug = _slug(getattr(row, "home_team_name", None))
                 at_slug = _slug(getattr(row, "away_team_name", None))
                 if not ht_slug or not at_slug:
