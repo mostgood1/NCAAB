@@ -15,6 +15,7 @@ def summarize_live_lines_moves(
     min_total_pts: float = 1.5,
     min_spread_pts: float = 2.0,
     max_age_s: float = 12 * 3600,
+    cutoff_ts_by_event_id: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Summarize latest material line moves from the append-only live snapshots.
 
@@ -53,6 +54,25 @@ def summarize_live_lines_moves(
     def _ts_epoch(ts_iso: str | None) -> float | None:
         if not ts_iso:
             return None
+
+    cutoff_epoch_by_event_id: Dict[str, float] = {}
+    if isinstance(cutoff_ts_by_event_id, dict) and cutoff_ts_by_event_id:
+        for eid, ts_str in cutoff_ts_by_event_id.items():
+            try:
+                ee = str(eid or "").strip()
+                if not ee:
+                    continue
+                import datetime as _dt
+
+                s = str(ts_str or "").strip()
+                if not s:
+                    continue
+                d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+                if d.tzinfo is None:
+                    d = d.replace(tzinfo=_dt.timezone.utc)
+                cutoff_epoch_by_event_id[ee] = float(d.timestamp())
+            except Exception:
+                continue
         try:
             import datetime as _dt
 
@@ -116,6 +136,15 @@ def summarize_live_lines_moves(
                 if not eid:
                     continue
                 ts = str(rec.get("ts") or "").strip() or None
+
+                # If we have a per-game cutoff (scheduled start time), only
+                # consider movement up to tipoff so badges reflect *pregame* moves.
+                cutoff_epoch = cutoff_epoch_by_event_id.get(eid)
+                if cutoff_epoch is not None:
+                    te = _ts_epoch(ts)
+                    if te is None or float(te) > float(cutoff_epoch):
+                        continue
+
                 data = rec.get("data") if isinstance(rec.get("data"), dict) else {}
                 if not isinstance(data, dict):
                     data = {}

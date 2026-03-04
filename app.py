@@ -18424,7 +18424,23 @@ def index():
         if cards_view and rows and date_q:
             from ncaab_model.live_snapshots import summarize_live_lines_moves  # type: ignore
 
-            mv = summarize_live_lines_moves(date_s=str(date_q))
+            cutoff_by_gid: dict[str, str] = {}
+            for rr in rows:
+                try:
+                    gid = str(rr.get("game_id") or "").replace(".0", "").strip()
+                except Exception:
+                    gid = ""
+                if not gid:
+                    continue
+                try:
+                    st = rr.get("start_time")
+                except Exception:
+                    st = None
+                if st is None or not str(st).strip():
+                    continue
+                cutoff_by_gid[gid] = str(st)
+
+            mv = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
             if isinstance(mv, dict) and mv:
                 for r in rows:
                     try:
@@ -41390,7 +41406,23 @@ def api_display_predictions():
             if cards_view and rows and date_q:
                 from ncaab_model.live_snapshots import summarize_live_lines_moves  # type: ignore
 
-                mv = summarize_live_lines_moves(date_s=str(date_q))
+                cutoff_by_gid: dict[str, str] = {}
+                for rr in rows:
+                    try:
+                        gid = str(rr.get("game_id") or "").replace(".0", "").strip()
+                    except Exception:
+                        gid = ""
+                    if not gid:
+                        continue
+                    try:
+                        st = rr.get("start_time")
+                    except Exception:
+                        st = None
+                    if st is None or not str(st).strip():
+                        continue
+                    cutoff_by_gid[gid] = str(st)
+
+                mv = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
                 if isinstance(mv, dict) and mv:
                     for it in rows:
                         try:
