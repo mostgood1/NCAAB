@@ -243,6 +243,7 @@ def summarize_live_lines_moves(
         badges = []
         book_disp = str(book or "").strip() or None
         if d_total is not None and abs(float(d_total)) >= float(min_total_pts):
+            side_total = "over" if float(d_total) > 0 else "under"
             badges.append(
                 {
                     "label": f"T {float(d_total):+.1f}",
@@ -255,12 +256,14 @@ def summarize_live_lines_moves(
             )
             badges.append(
                 {
-                    "label": "STEAM",
-                    "title": "Material total move (steam)",
+                    "label": f"STEAM TOTAL {side_total.upper()}",
+                    "title": f"Material total move toward {side_total.title()} (steam)",
                     "kind": "steam_total",
+                    "side": side_total,
                 }
             )
         if d_spread is not None and abs(float(d_spread)) >= float(min_spread_pts):
+            side_spread = "home" if float(d_spread) < 0 else "away"
             badges.append(
                 {
                     "label": f"S {float(d_spread):+.1f}",
@@ -273,9 +276,10 @@ def summarize_live_lines_moves(
             )
             badges.append(
                 {
-                    "label": "STEAM",
-                    "title": "Material spread move (steam)",
+                    "label": f"STEAM {side_spread.upper()} ATS",
+                    "title": f"Material spread move toward {side_spread.title()} (steam)",
                     "kind": "steam_spread",
+                    "side": side_spread,
                 }
             )
 

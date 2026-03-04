@@ -1168,6 +1168,25 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             reasons.append(f"move_{move_market}_delta={float(move_delta):+.2f}")
         if steam:
             reasons.append(f"steam_{move_market}=1")
+            try:
+                if code == "OU":
+                    reasons.append(f"steam_badge=STEAM TOTAL {'OVER' if float(move_delta) > 0 else 'UNDER'}")
+                elif code == "ATS":
+                    home_team = str(rec.get("home_team") or "").strip()
+                    away_team = str(rec.get("away_team") or "").strip()
+                    if float(move_delta) < 0:
+                        reasons.append(f"steam_badge=STEAM {home_team or 'HOME'} ATS")
+                    else:
+                        reasons.append(f"steam_badge=STEAM {away_team or 'AWAY'} ATS")
+                elif code == "ML":
+                    home_team = str(rec.get("home_team") or "").strip()
+                    away_team = str(rec.get("away_team") or "").strip()
+                    if float(move_delta) < 0:
+                        reasons.append(f"steam_badge=STEAM {home_team or 'HOME'} ML")
+                    else:
+                        reasons.append(f"steam_badge=STEAM {away_team or 'AWAY'} ML")
+            except Exception:
+                pass
         reasons.append("sent=align" if align else "sent=fade")
         reasons.append(f"sent_adj={float(adj):+.1f}")
         rec["reasons"] = reasons

@@ -18440,8 +18440,9 @@ def index():
                     continue
                 cutoff_by_gid[gid] = str(st)
 
-            mv = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
-            if isinstance(mv, dict) and mv:
+            mv_pregame = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
+            mv_any = summarize_live_lines_moves(date_s=str(date_q))
+            if (isinstance(mv_pregame, dict) and mv_pregame) or (isinstance(mv_any, dict) and mv_any):
                 for r in rows:
                     try:
                         gid = str(r.get("game_id") or "").replace(".0", "").strip()
@@ -18449,10 +18450,44 @@ def index():
                         gid = ""
                     if not gid:
                         continue
-                    info = mv.get(gid)
+                    info = mv_pregame.get(gid) if isinstance(mv_pregame, dict) else None
+                    used_live_fallback = False
+                    if not (isinstance(info, dict) and info.get("badges")):
+                        info = mv_any.get(gid) if isinstance(mv_any, dict) else None
+                        used_live_fallback = True
                     if not isinstance(info, dict) or not info.get("badges"):
                         continue
-                    r["line_move_badges"] = info.get("badges")
+
+                    # If we fell back to post-tip movement (because no pregame snapshots exist),
+                    # label steam explicitly as LIVE so it isn't mistaken for pregame sentiment.
+                    home_team = str(r.get("home_team") or "").strip()
+                    away_team = str(r.get("away_team") or "").strip()
+                    out_badges: list[dict[str, Any]] = []
+                    for b in (info.get("badges") or []):
+                        if not isinstance(b, dict):
+                            continue
+                        bb = dict(b)
+                        try:
+                            kind = str(bb.get("kind") or "")
+                        except Exception:
+                            kind = ""
+
+                        # Replace HOME/AWAY in spread steam labels with actual team name.
+                        if kind == "steam_spread":
+                            side = str(bb.get("side") or "").strip().lower()
+                            if side == "home" and home_team:
+                                bb["label"] = f"STEAM {home_team} ATS"
+                            elif side == "away" and away_team:
+                                bb["label"] = f"STEAM {away_team} ATS"
+
+                        # Prefix steam badges when they are live/in-game fallback.
+                        if used_live_fallback and kind.startswith("steam_"):
+                            lab = str(bb.get("label") or "").strip()
+                            if lab and not lab.upper().startswith("LIVE "):
+                                bb["label"] = f"LIVE {lab}"
+                        out_badges.append(bb)
+
+                    r["line_move_badges"] = out_badges
                     r["line_move_ts_last"] = info.get("ts_last")
                     r["line_move_age_s"] = info.get("age_s")
                     r["delta_total_live"] = info.get("delta_total")
@@ -41422,8 +41457,9 @@ def api_display_predictions():
                         continue
                     cutoff_by_gid[gid] = str(st)
 
-                mv = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
-                if isinstance(mv, dict) and mv:
+                mv_pregame = summarize_live_lines_moves(date_s=str(date_q), cutoff_ts_by_event_id=cutoff_by_gid)
+                mv_any = summarize_live_lines_moves(date_s=str(date_q))
+                if (isinstance(mv_pregame, dict) and mv_pregame) or (isinstance(mv_any, dict) and mv_any):
                     for it in rows:
                         try:
                             gid = str(it.get("game_id") or "").replace(".0", "").strip()
@@ -41431,10 +41467,38 @@ def api_display_predictions():
                             gid = ""
                         if not gid:
                             continue
-                        info = mv.get(gid)
+                        info = mv_pregame.get(gid) if isinstance(mv_pregame, dict) else None
+                        used_live_fallback = False
+                        if not (isinstance(info, dict) and info.get("badges")):
+                            info = mv_any.get(gid) if isinstance(mv_any, dict) else None
+                            used_live_fallback = True
                         if not isinstance(info, dict) or not info.get("badges"):
                             continue
-                        it["line_move_badges"] = info.get("badges")
+
+                        home_team = str(it.get("home_team") or "").strip()
+                        away_team = str(it.get("away_team") or "").strip()
+                        out_badges: list[dict[str, Any]] = []
+                        for b in (info.get("badges") or []):
+                            if not isinstance(b, dict):
+                                continue
+                            bb = dict(b)
+                            kind = str(bb.get("kind") or "")
+
+                            if kind == "steam_spread":
+                                side = str(bb.get("side") or "").strip().lower()
+                                if side == "home" and home_team:
+                                    bb["label"] = f"STEAM {home_team} ATS"
+                                elif side == "away" and away_team:
+                                    bb["label"] = f"STEAM {away_team} ATS"
+
+                            if used_live_fallback and kind.startswith("steam_"):
+                                lab = str(bb.get("label") or "").strip()
+                                if lab and not lab.upper().startswith("LIVE "):
+                                    bb["label"] = f"LIVE {lab}"
+
+                            out_badges.append(bb)
+
+                        it["line_move_badges"] = out_badges
                         it["line_move_ts_last"] = info.get("ts_last")
                         it["line_move_age_s"] = info.get("age_s")
                         it["delta_total_live"] = info.get("delta_total")
