@@ -331,7 +331,12 @@ def _load_closing_movement(out_dir: Path, date: str) -> pd.DataFrame:
     return g
 
 
-def _load_live_snapshot_moves(out_dir: Path, date: str) -> dict[str, dict[str, Any]]:
+def _load_live_snapshot_moves(
+    out_dir: Path,
+    date: str,
+    *,
+    cutoff_ts_by_event_id: dict[str, str] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Load material intraday moves from outputs/live_snapshots/live_<date>.jsonl.
 
     Returns mapping keyed by ESPN event_id (game_id).
@@ -356,7 +361,55 @@ def _load_live_snapshot_moves(out_dir: Path, date: str) -> dict[str, dict[str, A
         except Exception:
             return None
 
-    state: dict[str, dict[str, Any]] = {}
+    # Track last/prev distinct values per (event,book) to avoid mixing.
+    state: dict[tuple[str, str], dict[str, Any]] = {}
+
+    book_priority = ["draftkings", "fanduel", "betmgm"]
+
+    def _book_rank(book: str) -> int:
+        b = str(book or "").strip().lower()
+        try:
+            return book_priority.index(b)
+        except Exception:
+            return 999
+
+    def _ts_epoch(ts_iso: str | None) -> float | None:
+        if not ts_iso:
+            return None
+        try:
+            import datetime as _dt
+
+            s = str(ts_iso).strip()
+            if not s:
+                return None
+            d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=_dt.timezone.utc)
+            return float(d.timestamp())
+        except Exception:
+            return None
+
+    cutoff_epoch_by_event_id: dict[str, float] = {}
+    if isinstance(cutoff_ts_by_event_id, dict) and cutoff_ts_by_event_id:
+        try:
+            import datetime as _dt
+
+            for eid, ts_str in cutoff_ts_by_event_id.items():
+                try:
+                    ee = _norm_gid(eid)
+                    if not ee:
+                        continue
+                    s = str(ts_str or "").strip()
+                    if not s:
+                        continue
+                    d = _dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+                    if d.tzinfo is None:
+                        d = d.replace(tzinfo=_dt.timezone.utc)
+                    cutoff_epoch_by_event_id[ee] = float(d.timestamp())
+                except Exception:
+                    continue
+        except Exception:
+            cutoff_epoch_by_event_id = {}
     try:
         import json
 
@@ -381,11 +434,27 @@ def _load_live_snapshot_moves(out_dir: Path, date: str) -> dict[str, dict[str, A
                     data = {}
                 ts = str(rec.get("ts") or "").strip() or None
 
+                # Only use full-game pregame lines (not 1H/2H etc).
+                try:
+                    if str(data.get("period") or "").strip().lower() != "full_game":
+                        continue
+                except Exception:
+                    continue
+
+                # Pregame cutoff (ignore snapshots after scheduled start_time).
+                cutoff_epoch = cutoff_epoch_by_event_id.get(eid)
+                if cutoff_epoch is not None:
+                    te = _ts_epoch(ts)
+                    if te is None or float(te) > float(cutoff_epoch):
+                        continue
+
+                book = str(data.get("book") or "").strip() or ""
+
                 tot = _to_num(data.get("total"))
                 spr = _to_num(data.get("spread_home"))
 
                 st = state.setdefault(
-                    eid,
+                    (eid, book),
                     {
                         "total_prev": None,
                         "total_last": None,
@@ -420,8 +489,21 @@ def _load_live_snapshot_moves(out_dir: Path, date: str) -> dict[str, dict[str, A
     except Exception:
         return {}
 
+    by_event: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    for (eid, book), st in state.items():
+        by_event.setdefault(eid, []).append((book, st))
+
     out: dict[str, dict[str, Any]] = {}
-    for eid, st in state.items():
+    for eid, items in by_event.items():
+        if not items:
+            continue
+
+        def _item_sort_key(it: tuple[str, dict[str, Any]]) -> tuple[int, float]:
+            book, st = it
+            te = _ts_epoch(st.get("ts_last"))
+            return (_book_rank(book), -(te if te is not None else -1.0))
+
+        book, st = sorted(items, key=_item_sort_key)[0]
         d_total = None
         if st.get("total_prev") is not None and st.get("total_last") is not None:
             try:
@@ -443,6 +525,7 @@ def _load_live_snapshot_moves(out_dir: Path, date: str) -> dict[str, dict[str, A
             "spread_last": st.get("spread_last"),
             "delta_spread_home": d_spread,
             "ts_last": st.get("ts_last"),
+            "book": (str(book).strip() or None),
         }
 
     return out
@@ -586,7 +669,9 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
             if gid:
                 mv_by_gid[gid] = r
 
-    live_mv_by_gid = _load_live_snapshot_moves(out_dir, date)
+    # Load optional intraday movement from live snapshots. We'll provide a per-game
+    # cutoff after recs are built (start_time) so we only use *pregame* movement.
+    live_mv_by_gid: dict[str, dict[str, Any]] = {}
 
     recs: list[dict[str, Any]] = []
 
@@ -1088,10 +1173,23 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
         rec["reasons"] = reasons
 
         # Optional intraday live snapshot movement (only totals/spreads available).
-        try:
-            lmv = live_mv_by_gid.get(gid) if isinstance(live_mv_by_gid, dict) else None
-        except Exception:
-            lmv = None
+        # Lazily load with a per-game cutoff (scheduled start_time) so we only use pregame movement.
+        if not live_mv_by_gid:
+            try:
+                cutoff_by_gid: dict[str, str] = {}
+                for rr in recs:
+                    g2 = _norm_gid(rr.get("game_id"))
+                    if not g2:
+                        continue
+                    st = rr.get("start_time")
+                    if st is None or not str(st).strip():
+                        continue
+                    cutoff_by_gid[g2] = str(st)
+                live_mv_by_gid = _load_live_snapshot_moves(out_dir, date, cutoff_ts_by_event_id=cutoff_by_gid)
+            except Exception:
+                live_mv_by_gid = {}
+
+        lmv = live_mv_by_gid.get(gid) if live_mv_by_gid else None
         if isinstance(lmv, dict):
             live_adj = 0.0
             live_reasons: list[str] = []
@@ -1130,6 +1228,11 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
                         rlist = []
                     rlist.extend(live_reasons)
                     rlist.append(f"live_adj={float(live_adj):+.1f}")
+                    try:
+                        if lmv.get("book"):
+                            rlist.append(f"live_book={str(lmv.get('book'))}")
+                    except Exception:
+                        pass
                     rec["reasons"] = rlist
                 except Exception:
                     pass
