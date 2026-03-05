@@ -17484,12 +17484,12 @@ def index():
             # 1H
             if ("spread_home_1h" not in df.columns) or df["spread_home_1h"].isna().all():
                 df["spread_home_1h"] = np.where(sh_full.notna(), sh_full * 0.5, np.nan)
-                df["spread_home_1h_basis"] = np.where(sh_full.notna(), "derived2", df.get("spread_home_1h_basis"))
+                df["spread_home_1h_basis"] = np.where(sh_full.notna(), "derived", df.get("spread_home_1h_basis"))
             # 2H
             if ("spread_home_2h" not in df.columns) or df["spread_home_2h"].isna().all():
                 base_1h = pd.to_numeric(df.get("spread_home_1h"), errors="coerce") if "spread_home_1h" in df.columns else (sh_full * 0.5)
                 df["spread_home_2h"] = np.where((sh_full.notna()) & (base_1h.notna()), sh_full - base_1h, np.nan)
-                df["spread_home_2h_basis"] = np.where(sh_full.notna(), "derived2", df.get("spread_home_2h_basis"))
+                df["spread_home_2h_basis"] = np.where(sh_full.notna(), "derived", df.get("spread_home_2h_basis"))
         # Derive half scores (2H) if missing but 1H + final available
         if {"home_score","away_score","home_score_1h","away_score_1h"}.issubset(df.columns):
             hs = pd.to_numeric(df["home_score"], errors="coerce")
@@ -40922,21 +40922,79 @@ def api_display_predictions():
 
                     # Derive 1H market totals/spreads when provider lines are missing
                     try:
+                        # Basis/provenance flags (used by the UI D/P badge).
+                        # NOTE: initialize as object dtype so assigning strings doesn't error.
+                        if 'market_total_1h_basis' not in base.columns:
+                            base['market_total_1h_basis'] = None
+                        else:
+                            try:
+                                if base['market_total_1h_basis'].dtype != object:
+                                    base['market_total_1h_basis'] = base['market_total_1h_basis'].astype(object)
+                            except Exception:
+                                pass
+
+                        if 'spread_home_1h_basis' not in base.columns:
+                            base['spread_home_1h_basis'] = None
+                        else:
+                            try:
+                                if base['spread_home_1h_basis'].dtype != object:
+                                    base['spread_home_1h_basis'] = base['spread_home_1h_basis'].astype(object)
+                            except Exception:
+                                pass
+
                         mt_full = _num(base.get('market_total'))
                         sp_full = _num(base.get('spread_home'))
-                        # projection-based halftime scoring ratio when available; else 0.5
+
+                        mt1_before = _num(base.get('market_total_1h'))
+                        sh1_before = _num(base.get('spread_home_1h'))
+
+                        # projection-based halftime scoring ratio when available; else 0.485
                         denom = _num(base.get('proj_home')) + _num(base.get('proj_away'))
                         numer = _num(base.get('proj_home_1h')) + _num(base.get('proj_away_1h'))
                         hratio = (numer / denom.replace(0, np.nan)) if isinstance(denom, pd.Series) else pd.Series(np.nan, index=base.index)
-                        hratio = hratio.clip(lower=0.35, upper=0.65).fillna(0.5)
-                        base['market_total_1h'] = _num(base.get('market_total_1h')).where(_num(base.get('market_total_1h')).notna(), mt_full * hratio)
-                        base['spread_home_1h'] = _num(base.get('spread_home_1h')).where(_num(base.get('spread_home_1h')).notna(), sp_full * 0.5)
+                        hratio = hratio.clip(lower=0.35, upper=0.65).fillna(0.485)
+
+                        mt1_cur = _num(base.get('market_total_1h'))
+                        sh1_cur = _num(base.get('spread_home_1h'))
+                        base['market_total_1h'] = mt1_cur.where(mt1_cur.notna(), mt_full * hratio)
+                        base['spread_home_1h'] = sh1_cur.where(sh1_cur.notna(), sp_full * 0.5)
+
+                        # Mark any values we *filled* here as derived.
+                        mt1_after = _num(base.get('market_total_1h'))
+                        sh1_after = _num(base.get('spread_home_1h'))
+                        filled_mt1 = mt1_before.isna() & mt1_after.notna()
+                        filled_sh1 = sh1_before.isna() & sh1_after.notna()
+                        if filled_mt1.any():
+                            base.loc[filled_mt1, 'market_total_1h_basis'] = 'derived'
+                        if filled_sh1.any():
+                            base.loc[filled_sh1, 'spread_home_1h_basis'] = 'derived'
+
+                        # If a 1H line exists but basis is missing, default to provider.
+                        try:
+                            b1 = base.get('market_total_1h_basis')
+                            b1s = b1.astype(str) if hasattr(b1, 'astype') else b1
+                            missing_b1 = b1.isna() | b1s.astype(str).str.strip().eq('') | b1s.astype(str).str.lower().isin(['nan', 'none', 'null'])
+                            mask = mt1_after.notna() & missing_b1
+                            if mask.any():
+                                base.loc[mask, 'market_total_1h_basis'] = 'provider'
+                        except Exception:
+                            pass
+
+                        try:
+                            b2 = base.get('spread_home_1h_basis')
+                            b2s = b2.astype(str) if hasattr(b2, 'astype') else b2
+                            missing_b2 = b2.isna() | b2s.astype(str).str.strip().eq('') | b2s.astype(str).str.lower().isin(['nan', 'none', 'null'])
+                            mask2 = sh1_after.notna() & missing_b2
+                            if mask2.any():
+                                base.loc[mask2, 'spread_home_1h_basis'] = 'provider'
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
                     # Derive 1H Model/SIM/Blend
                     # Prefer projection-derived 1H totals/margins for the "Model" row; otherwise scale
-                    # full-game Model using a halftime ratio (projection-based when available, else 0.5).
+                    # full-game Model using a halftime ratio (projection-based when available, else 0.485).
                     # IMPORTANT: do not wipe out existing *_model_1h values if a model artifact already provided them.
                     if 'pred_total_model_1h' not in base.columns:
                         base['pred_total_model_1h'] = np.nan
@@ -40957,7 +41015,7 @@ def api_display_predictions():
                             denom = _num(base.get('proj_home')) + _num(base.get('proj_away'))
                             numer = _num(base.get('proj_home_1h')) + _num(base.get('proj_away_1h'))
                             hratio = (numer / denom.replace(0, np.nan)) if isinstance(denom, pd.Series) else pd.Series(np.nan, index=base.index)
-                            hratio = hratio.clip(lower=0.35, upper=0.65).fillna(0.5)
+                            hratio = hratio.clip(lower=0.35, upper=0.65).fillna(0.485)
 
                             pt_full = _num(base.get('pred_total_model'))
                             pm_full = _num(base.get('pred_margin_model'))
@@ -41288,7 +41346,7 @@ def api_display_predictions():
                 'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
                 'kelly_fraction_total','kelly_fraction_ml_home','kelly_fraction_ml_away',
                 'over_price','under_price','home_spread_price','away_spread_price',
-                'market_total_1h','spread_home_1h','ml_home_1h','ml_away_1h',
+                'market_total_1h','market_total_1h_basis','spread_home_1h','spread_home_1h_basis','ml_home_1h','ml_away_1h',
                 'mu_home','mu_away','mu_home_1h','mu_away_1h',
                 'pred_total_model','pred_margin_model','pred_total_sim','pred_margin_sim','pred_total_blend','pred_margin_blend',
                 'p_home_win','p_cover_home','p_over_market',
@@ -41840,7 +41898,7 @@ def api_display_predictions():
                 'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
                 'kelly_fraction_total','kelly_fraction_ml_home','kelly_fraction_ml_away',
                 'over_price','under_price','home_spread_price','away_spread_price',
-                'market_total_1h','spread_home_1h','ml_home_1h','ml_away_1h',
+                'market_total_1h','market_total_1h_basis','spread_home_1h','spread_home_1h_basis','ml_home_1h','ml_away_1h',
                 'mu_home','mu_away','mu_home_1h','mu_away_1h',
                 'pred_total_model','pred_margin_model','pred_total_sim','pred_margin_sim','pred_total_blend','pred_margin_blend',
                 'p_home_win','p_cover_home','p_over_market',

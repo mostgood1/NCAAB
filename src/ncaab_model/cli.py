@@ -4270,7 +4270,7 @@ def fetch_odds_history(
 ):
     """Fetch expanded odds snapshots across a date range and write partitioned CSV files.
 
-    - mode=current: uses /odds endpoint and normalizes markets (fast, good for daily snapshots)
+    - mode=current: snapshots current odds; uses event-level odds when period keys are requested
     - mode=history: uses /odds-history for all events found on each day (requires premium access)
     """
     adapter = TheOddsAPIAdapter(region=region)
@@ -4288,8 +4288,96 @@ def fetch_odds_history(
         rows = []
         try:
             if mode == "current":
-                for row in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_iso, bookmakers=bookmakers):
-                    rows.append(row.model_dump())
+                # IMPORTANT: TheOddsAPI period markets for NCAAB (e.g. totals_h1/spreads_h1) are
+                # available on the event-level endpoint, not reliably on the sport-level /odds feed.
+                # When the caller requests period keys, discover event IDs for the target schedule
+                # date and then fetch per-event odds.
+                mk_l = (markets or "").lower()
+                wants_period = any(tok in mk_l for tok in ("_h1", "_h2", "1st_half", "2nd_half", "first_half", "second_half"))
+
+                if wants_period:
+                    tz = ZoneInfo("America/Chicago")
+                    target_date = dt.date.fromisoformat(date_iso)
+                    event_ids_set: set[str] = set()
+                    period_rows = 0
+
+                    def _event_on_target_date(ct_raw: object) -> bool:
+                        if not ct_raw:
+                            return False
+                        try:
+                            if isinstance(ct_raw, str):
+                                dt_utc = dt.datetime.fromisoformat(ct_raw.replace("Z", "+00:00"))
+                            elif isinstance(ct_raw, dt.datetime):
+                                dt_utc = ct_raw
+                            else:
+                                return False
+                            if dt_utc.tzinfo is None:
+                                dt_utc = dt_utc.replace(tzinfo=dt.timezone.utc)
+                            return dt_utc.astimezone(tz).date() == target_date
+                        except Exception:
+                            return False
+
+                    # 1) Prefer /events with commence-time bounds (cheap). Filter to the schedule
+                    # date in America/Chicago to avoid UTC-midnight bleed.
+                    try:
+                        events = adapter.list_events_by_date(date_iso)
+                        for ev in events or []:
+                            try:
+                                eid = str((ev or {}).get("id") or "").strip()
+                                ct_raw = (ev or {}).get("commence_time")
+                                if eid and _event_on_target_date(ct_raw):
+                                    event_ids_set.add(eid)
+                            except Exception:
+                                continue
+                    except Exception:
+                        pass
+
+                    # 2) Augment with the sport-level /odds feed (includes started/in-play games).
+                    # Use a core market to reduce payload; then filter by local (Chicago) date.
+                    try:
+                        for r in adapter.iter_current_odds_expanded(markets="h2h", date_iso=date_iso, bookmakers=bookmakers):
+                            try:
+                                eid = str(getattr(r, "event_id", "") or "").strip()
+                                ct = getattr(r, "commence_time", None)
+                                if not (eid and ct):
+                                    continue
+                                if ct.tzinfo is None:
+                                    ct = ct.replace(tzinfo=dt.timezone.utc)
+                                if ct.astimezone(tz).date() == target_date:
+                                    event_ids_set.add(eid)
+                            except Exception:
+                                continue
+                    except Exception:
+                        pass
+
+                    event_ids = sorted(event_ids_set)
+                    if event_ids:
+                        for eid in event_ids:
+                            for row in adapter.iter_event_odds(eid, markets=markets, bookmakers=bookmakers):
+                                try:
+                                    if (row.period or "") in ("1h", "2h"):
+                                        period_rows += 1
+                                except Exception:
+                                    pass
+                                rows.append(row.model_dump())
+                    else:
+                        # Fall back to the sport-level endpoint if we couldn't discover any events.
+                        for row in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_iso, bookmakers=bookmakers):
+                            try:
+                                if (row.period or "") in ("1h", "2h"):
+                                    period_rows += 1
+                            except Exception:
+                                pass
+                            rows.append(row.model_dump())
+
+                    if rows and period_rows == 0:
+                        print(
+                            f"[yellow]Warning:[/yellow] requested period markets but got 0 period rows for {date_iso}. "
+                            "Try removing the --bookmakers filter, or verify your plan supports period markets."
+                        )
+                else:
+                    for row in adapter.iter_current_odds_expanded(markets=markets, date_iso=date_iso, bookmakers=bookmakers):
+                        rows.append(row.model_dump())
             else:
                 # history mode: list events for the date, then pull odds-history
                 events = adapter.list_events_by_date(date_iso)
@@ -4338,8 +4426,8 @@ def fetch_odds_multiregion(
     date: str = typer.Option(..., help="Target date YYYY-MM-DD"),
     regions: str = typer.Option("us,uk,eu,au", help="Comma-separated TheOddsAPI regions to aggregate"),
     markets: str = typer.Option(
-        "h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half",
-        help="Markets to request; halves variants included if plan supports them.",
+        "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2",
+        help="Markets to request; use *_h1 / *_h2 for NCAAB period markets (if your plan supports them).",
     ),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory to write odds_YYYY-MM-DD.csv"),
 ):
@@ -4389,8 +4477,8 @@ def fetch_odds_window(
     days_after: int = typer.Option(1, help="Include this many days after the anchor"),
     regions: str = typer.Option("us,uk,eu,au", help="Comma-separated regions to aggregate"),
     markets: str = typer.Option(
-        "h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half",
-        help="Markets to request; halves variants included if plan supports them.",
+        "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2",
+        help="Markets to request; use *_h1 / *_h2 for NCAAB period markets (if your plan supports them).",
     ),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory for odds_YYYY-MM-DD.csv snapshots"),
 ):
@@ -4569,7 +4657,7 @@ def probe_odds_events(
 def odds_snapshot(
     date: str = typer.Option(_today_local().isoformat(), help="Target date YYYY-MM-DD for odds snapshot (optional)"),
     region: str = typer.Option("us", help="Region for odds (e.g., us, uk, eu)"),
-    markets: str = typer.Option("h2h,spreads,totals,spreads_1st_half,totals_1st_half", help="Markets to request"),
+    markets: str = typer.Option("h2h,spreads,totals,spreads_h1,totals_h1", help="Markets to request"),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory to store timestamped snapshots"),
 ):
     """Capture a timestamped odds snapshot for the given date/region/markets."""
@@ -4597,7 +4685,7 @@ def odds_snapshot(
 def snapshot_loop(
     date: str = typer.Option(_today_local().isoformat(), help="Target date YYYY-MM-DD for odds snapshot"),
     regions: str = typer.Option("us", help="Comma-separated regions (e.g., us,uk)"),
-    markets: str = typer.Option("h2h,spreads,totals,spreads_1st_half,totals_1st_half", help="Markets to request"),
+    markets: str = typer.Option("h2h,spreads,totals,spreads_h1,totals_h1", help="Markets to request"),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory to store timestamped snapshots"),
     interval_seconds: int = typer.Option(900, help="Interval between snapshots in seconds (default 15 minutes)"),
     iterations: int = typer.Option(1, help="Number of snapshots to take (set high for long-running capture)"),
@@ -4837,7 +4925,7 @@ def backfill_odds_history(
         help="Optional comma-separated bookmaker keys to request from TheOddsAPI (e.g. draftkings,fanduel,betmgm).",
     ),
     markets: str = typer.Option(
-        "h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half",
+        "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2",
         help="Comma-separated markets (include half variants if plan supports)."
     ),
     out_dir: Path = typer.Option(settings.outputs_dir / "odds_history", help="Directory for per-day odds_YYYY-MM-DD.csv snapshots"),
@@ -9178,10 +9266,74 @@ def daily_run(
 
     # 2b) Fetch expanded odds snapshot for derivatives (full + halves) into odds_history/odds_YYYY-MM-DD.csv
     try:
-        markets_full = "h2h,spreads,totals,spreads_1st_half,totals_1st_half,spreads_2nd_half,totals_2nd_half"
+        markets_full = "h2h,spreads,totals,spreads_h1,totals_h1,spreads_h2,totals_h2"
         hist_rows = []
-        for row in adapter.iter_current_odds_expanded(markets=markets_full, date_iso=target_date.isoformat()):
-            hist_rows.append(row.model_dump())
+
+        mk_l = (markets_full or "").lower()
+        wants_period = any(tok in mk_l for tok in ("_h1", "_h2", "1st_half", "2nd_half", "first_half", "second_half"))
+
+        if wants_period:
+            tz = ZoneInfo("America/Chicago")
+            event_ids_set: set[str] = set()
+
+            def _event_on_target_date(ct_raw: object) -> bool:
+                if not ct_raw:
+                    return False
+                try:
+                    if isinstance(ct_raw, str):
+                        dt_utc = dt.datetime.fromisoformat(ct_raw.replace("Z", "+00:00"))
+                    elif isinstance(ct_raw, dt.datetime):
+                        dt_utc = ct_raw
+                    else:
+                        return False
+                    if dt_utc.tzinfo is None:
+                        dt_utc = dt_utc.replace(tzinfo=dt.timezone.utc)
+                    return dt_utc.astimezone(tz).date() == target_date
+                except Exception:
+                    return False
+
+            # Prefer events endpoint (bounded) and then augment from /odds (includes started games).
+            try:
+                events = adapter.list_events_by_date(target_date.isoformat())
+                for ev in events or []:
+                    try:
+                        eid = str((ev or {}).get("id") or "").strip()
+                        ct_raw = (ev or {}).get("commence_time")
+                        if eid and _event_on_target_date(ct_raw):
+                            event_ids_set.add(eid)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+            try:
+                for r in adapter.iter_current_odds_expanded(markets="h2h", date_iso=target_date.isoformat()):
+                    try:
+                        eid = str(getattr(r, "event_id", "") or "").strip()
+                        ct = getattr(r, "commence_time", None)
+                        if not (eid and ct):
+                            continue
+                        if ct.tzinfo is None:
+                            ct = ct.replace(tzinfo=dt.timezone.utc)
+                        if ct.astimezone(tz).date() == target_date:
+                            event_ids_set.add(eid)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+            event_ids = sorted(event_ids_set)
+            if event_ids:
+                for eid in event_ids:
+                    for row in adapter.iter_event_odds(eid, markets=markets_full):
+                        hist_rows.append(row.model_dump())
+            else:
+                # Fall back to sport-level if we can't discover events.
+                for row in adapter.iter_current_odds_expanded(markets=markets_full, date_iso=target_date.isoformat()):
+                    hist_rows.append(row.model_dump())
+        else:
+            for row in adapter.iter_current_odds_expanded(markets=markets_full, date_iso=target_date.isoformat()):
+                hist_rows.append(row.model_dump())
         hist_dir = settings.outputs_dir / "odds_history"
         hist_dir.mkdir(parents=True, exist_ok=True)
         hist_path = hist_dir / f"odds_{target_date.isoformat()}.csv"
@@ -11917,7 +12069,7 @@ def probe_oddsapi_depth(
     games_path: Path = typer.Argument(settings.outputs_dir / "games_curr.csv", help="Scheduled games CSV (date, home_team, away_team)"),
     date: str | None = typer.Option(None, help="ISO date to probe; defaults to unique dates in games"),
     regions: str = typer.Option("us,us2", help="Comma-separated region codes for odds endpoint (passed through as regions param)"),
-    markets: str = typer.Option("h2h,spreads,totals,spreads_1st_half,totals_1st_half", help="Markets for odds endpoint"),
+    markets: str = typer.Option("h2h,spreads,totals,spreads_h1,totals_h1", help="Markets for odds endpoint"),
     union_days: int = typer.Option(1, help="Union provider events across +/- this many days"),
     use_no_date: bool = typer.Option(True, help="Fetch unfiltered events and odds, then filter locally by date"),
     show: int = typer.Option(10, help="Show up to N missing examples per section"),
@@ -12058,8 +12210,8 @@ def probe_oddsapi_live(
         help="Comma-separated bookmaker keys to request (e.g., draftkings,fanduel,betmgm).",
     ),
     markets: str = typer.Option(
-        "h2h,spreads,totals,spreads_1st_half,totals_1st_half",
-        help="Markets to request (comma-separated). Include *_1st_half to test 1H lines.",
+        "h2h,spreads,totals,spreads_h1,totals_h1",
+        help="Markets to request (comma-separated). Include *_h1 to test 1H lines.",
     ),
     sport_key: str = typer.Option("basketball_ncaab", help="Sport key (default: basketball_ncaab)."),
     only_live: bool = typer.Option(True, help="If true, only show in-play games (commence_time <= now UTC)."),
