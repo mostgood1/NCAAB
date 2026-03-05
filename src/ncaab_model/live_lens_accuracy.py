@@ -79,6 +79,153 @@ def signals_path(date: str, out_dir: Path | None = None) -> Path:
     return out_root / f"live_lens_signals_{d}.jsonl"
 
 
+def _candidate_signals_paths(date: str, out_dir: Path) -> list[tuple[str, Path]]:
+    d = _safe_date(date)
+    out_root = Path(out_dir) if out_dir is not None else _root_outputs()
+    return [
+        ("canonical", signals_path(d, out_dir=out_root)),
+        ("reconstructed", out_root / f"live_lens_signals_reconstructed_{d}.jsonl"),
+        ("recovered", out_root / f"live_lens_signals_recovered_{d}.jsonl"),
+    ]
+
+
+def _parse_tags(v: Any) -> list[str]:
+    if v is None:
+        return []
+    try:
+        if isinstance(v, float) and (math.isnan(v) or (not math.isfinite(v))):
+            return []
+    except Exception:
+        pass
+    if isinstance(v, list):
+        out: list[str] = []
+        for x in v:
+            if x is None:
+                continue
+            try:
+                if isinstance(x, float) and (math.isnan(x) or (not math.isfinite(x))):
+                    continue
+            except Exception:
+                pass
+            s = str(x).strip()
+            if not s or s.lower() in {"nan", "none", "null"}:
+                continue
+            if s not in out:
+                out.append(s)
+        return out
+    if isinstance(v, str):
+        s0 = v.strip()
+        if not s0 or s0.lower() in {"nan", "none", "null"}:
+            return []
+        # Accept either comma-separated or pipe-separated formats.
+        if "," in s0:
+            parts = [p.strip() for p in s0.split(",") if p.strip()]
+        elif "|" in s0:
+            parts = [p.strip() for p in s0.split("|") if p.strip()]
+        else:
+            parts = [s0]
+        out: list[str] = []
+        for p in parts:
+            if p and p.lower() not in {"nan", "none", "null"} and p not in out:
+                out.append(p)
+        return out
+    return []
+
+
+def _tags_from_driver_text(driver_text: Any) -> list[str]:
+    try:
+        s = str(driver_text or "").strip()
+    except Exception:
+        return []
+    if not s or s.lower() in {"none", "null", "nan"}:
+        return []
+
+    # Legacy single-token drivers.
+    legacy = {"pace_hi", "pace_lo", "pace_mid", "pace_missing", "eff_hi", "eff_lo", "eff_mid", "eff_missing"}
+    sl = s.lower()
+    if sl in legacy:
+        return [sl]
+
+    # Detailed explainer: "edge +3 | d +12 | ..." -> coarse categorical tags.
+    tags: list[str] = []
+
+    def add(t: str) -> None:
+        if t and t not in tags:
+            tags.append(t)
+
+    try:
+        toks = [t.strip() for t in s.split("|") if str(t or "").strip()]
+        for t in toks:
+            tl = t.lower().strip()
+            if tl.startswith("edge "):
+                add("edge")
+            elif tl.startswith("d "):
+                add("sim_gap")
+            elif tl.startswith("ppp "):
+                add("ppp")
+            elif tl.startswith("shooting "):
+                add("shooting")
+            elif tl.startswith("ft rate "):
+                add("ft")
+            elif tl.startswith("pbp+"):
+                add("pbp")
+            elif "late-over" in tl:
+                add("late_over")
+            elif "early-over" in tl:
+                add("early_over")
+            elif tl.startswith("flags -"):
+                add("flags")
+    except Exception:
+        return tags
+
+    return tags
+
+
+def _signals_tag_richness(rows: list[dict[str, Any]], *, sample_n: int = 5000) -> tuple[int, int, int]:
+    tag_rows = 0
+    tag_total = 0
+    uniq: set[str] = set()
+
+    for r in (rows or [])[: int(sample_n)]:
+        if not isinstance(r, dict):
+            continue
+        tags = _parse_tags(r.get("driver_tags"))
+        tags2 = _tags_from_driver_text(r.get("driver"))
+        merged: list[str] = []
+        for t in (tags or []) + (tags2 or []):
+            s = str(t or "").strip()
+            if not s or s.lower() in {"nan", "none", "null"}:
+                continue
+            if s not in merged:
+                merged.append(s)
+        if merged:
+            tag_rows += 1
+            tag_total += len(merged)
+            uniq.update(merged)
+
+    return int(tag_rows), int(tag_total), int(len(uniq))
+
+
+def _load_best_signals_jsonl(date: str, out_dir: Path) -> tuple[list[dict[str, Any]], Path, str, list[str]]:
+    candidates = _candidate_signals_paths(date, out_dir)
+    tried = [str(p) for _, p in candidates]
+
+    loaded: list[tuple[str, Path, list[dict[str, Any]], tuple[int, int, int]]] = []
+    for kind, p in candidates:
+        rows = _read_jsonl(p)
+        if rows:
+            loaded.append((kind, p, rows, _signals_tag_richness(rows)))
+
+    if not loaded:
+        return [], candidates[0][1], candidates[0][0], tried
+
+    # Choose best by richness; tie-break by preference.
+    pref_rank = {"canonical": 0, "reconstructed": 1, "recovered": 2}
+    best = max(loaded, key=lambda x: (x[3], -pref_rank.get(x[0], 99)))
+    kind, p, rows, _richness = best
+    return rows, p, kind, tried
+
+
 def projections_path(date: str, out_dir: Path | None = None) -> Path:
     d = _safe_date(date)
     out_root = Path(out_dir) if out_dir is not None else _root_outputs()
@@ -236,16 +383,16 @@ def compute_live_lens_accuracy_retuned(cfg: LiveLensAccuracyRetunedConfig) -> di
     date = _safe_date(cfg.date)
     out_root = Path(cfg.out_dir) if cfg.out_dir is not None else _root_outputs()
 
-    sig_p = signals_path(date, out_dir=out_root)
+    signals, sig_p, sig_kind, sig_tried = _load_best_signals_jsonl(date, out_root)
     res_p = results_path(date, out_dir=out_root, daily_results_dir=cfg.daily_results_dir)
-
-    signals = _read_jsonl(sig_p)
     if not signals:
         return {
             "status": "missing",
             "date": date,
             "message": f"No signals found at {sig_p}",
             "signals_path": str(sig_p),
+            "signals_kind": sig_kind,
+            "signals_tried": sig_tried,
             "results_path": str(res_p),
         }
 
@@ -884,16 +1031,17 @@ def compute_live_lens_total_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[s
     date = _safe_date(cfg.date)
     out_root = Path(cfg.out_dir) if cfg.out_dir is not None else _root_outputs()
 
-    sig_p = signals_path(date, out_dir=out_root)
+    signals, sig_p, sig_kind, sig_tried = _load_best_signals_jsonl(date, out_root)
     res_p = results_path(date, out_dir=out_root, daily_results_dir=cfg.daily_results_dir)
 
-    signals = _read_jsonl(sig_p)
     if not signals:
         return {
             "status": "missing",
             "date": date,
-            "message": f"No signals found at {sig_p}",
+            "message": f"No signals found for {date}",
             "signals_path": str(sig_p),
+            "signals_kind": str(sig_kind),
+            "signals_tried": list(sig_tried),
             "results_path": str(res_p),
         }
 
@@ -1214,16 +1362,17 @@ def compute_live_lens_ats_side_accuracy(cfg: LiveLensAccuracyConfig) -> dict[str
     date = _safe_date(cfg.date)
     out_root = Path(cfg.out_dir) if cfg.out_dir is not None else _root_outputs()
 
-    sig_p = signals_path(date, out_dir=out_root)
+    signals, sig_p, sig_kind, sig_tried = _load_best_signals_jsonl(date, out_root)
     res_p = results_path(date, out_dir=out_root, daily_results_dir=cfg.daily_results_dir)
 
-    signals = _read_jsonl(sig_p)
     if not signals:
         return {
             "status": "missing",
             "date": date,
-            "message": f"No signals found at {sig_p}",
+            "message": f"No signals found for {date}",
             "signals_path": str(sig_p),
+            "signals_kind": str(sig_kind),
+            "signals_tried": list(sig_tried),
             "results_path": str(res_p),
         }
 

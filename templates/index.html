@@ -3422,15 +3422,28 @@
                   xs.forEach(function(p){
                     var tl = String(p || '').trim().toLowerCase();
                     if(!tl) return;
-                    if(tl.indexOf('edge ') === 0) addTag('EDGE');
-                    else if(tl.indexOf('d ') === 0) addTag('SIM-GAP');
-                    else if(tl.indexOf('pace ') === 0) addTag('PACE');
-                    else if(tl.indexOf('ppp ') === 0) addTag('PPP');
-                    else if(tl.indexOf('shooting ') === 0) addTag('SHOOTING');
-                    else if(tl.indexOf('ft rate ') === 0) addTag('FT');
-                    else if(tl.indexOf('pbp+') === 0) addTag('PBP');
-                    else if(tl.indexOf('late-over') >= 0) addTag('LATE-OVER');
-                    else if(tl.indexOf('early-over') >= 0) addTag('EARLY-OVER');
+                    // Emit both the newer canonical tag vocabulary (lowercase) and the
+                    // older coarse tag set (uppercase) for backward compatibility.
+                    if(tl.indexOf('edge ') === 0){ addTag('edge'); addTag('EDGE'); }
+                    else if(tl.indexOf('d ') === 0){ addTag('sim_gap'); addTag('SIM-GAP'); }
+                    else if(tl.indexOf('pace ') === 0){
+                      addTag('pace');
+                      addTag('PACE');
+                      if(tl.indexOf(' hi') >= 0) addTag('pace_hi');
+                      else if(tl.indexOf(' lo') >= 0) addTag('pace_lo');
+                    }
+                    else if(tl.indexOf('ppp ') === 0){
+                      addTag('ppp');
+                      addTag('PPP');
+                      addTag('eff');
+                      if(tl.indexOf(' hi') >= 0) addTag('eff_hi');
+                      else if(tl.indexOf(' lo') >= 0) addTag('eff_lo');
+                    }
+                    else if(tl.indexOf('shooting ') === 0){ addTag('shooting'); addTag('SHOOTING'); }
+                    else if(tl.indexOf('ft rate ') === 0){ addTag('ft'); addTag('FT'); }
+                    else if(tl.indexOf('pbp+') === 0){ addTag('pbp'); addTag('PBP'); }
+                    else if(tl.indexOf('late-over') >= 0){ addTag('late_over'); addTag('LATE-OVER'); }
+                    else if(tl.indexOf('early-over') >= 0){ addTag('early_over'); addTag('EARLY-OVER'); }
                   });
                   return tags;
                 } catch(_eT){
@@ -3447,6 +3460,39 @@
 
               if(tagPenMap){
                 var dTags = tagsFromDriverParts(driverParts);
+
+                // Add stable pace/eff buckets derived from numeric PBP rates (so penalties
+                // learned on driver_tags match the UI's live application).
+                try {
+                  if(typeof possRate === 'number' && isFinite(possRate)){
+                    if(typeof paceHi === 'number' && isFinite(paceHi) && possRate >= paceHi){ if(dTags.indexOf('pace_hi') < 0) dTags.push('pace_hi'); }
+                    else if(typeof paceLo === 'number' && isFinite(paceLo) && possRate <= paceLo){ if(dTags.indexOf('pace_lo') < 0) dTags.push('pace_lo'); }
+                    else { if(dTags.indexOf('pace_mid') < 0) dTags.push('pace_mid'); }
+                  } else {
+                    if(dTags.indexOf('pace_missing') < 0) dTags.push('pace_missing');
+                  }
+                } catch(_ePaceBucket){ /* noop */ }
+                try {
+                  if(typeof ppp === 'number' && isFinite(ppp)){
+                    if(typeof ppsHi === 'number' && isFinite(ppsHi) && ppp >= ppsHi){ if(dTags.indexOf('eff_hi') < 0) dTags.push('eff_hi'); }
+                    else if(typeof ppsLo === 'number' && isFinite(ppsLo) && ppp <= ppsLo){ if(dTags.indexOf('eff_lo') < 0) dTags.push('eff_lo'); }
+                    else { if(dTags.indexOf('eff_mid') < 0) dTags.push('eff_mid'); }
+                  } else {
+                    if(dTags.indexOf('eff_missing') < 0) dTags.push('eff_missing');
+                  }
+                } catch(_eEffBucket){ /* noop */ }
+                try {
+                  if(latePenApplied){
+                    if(dTags.indexOf('late_over') < 0) dTags.push('late_over');
+                    if(dTags.indexOf('LATE-OVER') < 0) dTags.push('LATE-OVER');
+                  }
+                } catch(_eLateTag){ /* noop */ }
+                try {
+                  if(earlyPenApplied){
+                    if(dTags.indexOf('early_over') < 0) dTags.push('early_over');
+                    if(dTags.indexOf('EARLY-OVER') < 0) dTags.push('EARLY-OVER');
+                  }
+                } catch(_eEarlyTag){ /* noop */ }
                 var sum = 0;
                 dTags.forEach(function(tg){
                   try {
@@ -3660,19 +3706,23 @@
               tagsT.push(t);
             }
 
-            // Canonical pace/eff hi/lo when we have PBP-derived rates.
+            // Mutually-exclusive pace/eff buckets (hi/mid/lo/missing).
             try {
               if(typeof possRate === 'number' && isFinite(possRate)){
-                if(typeof paceHi === 'number' && isFinite(paceHi) && possRate >= paceHi){ addTagT('pace_hi'); addTagT('pace'); }
-                else if(typeof paceLo === 'number' && isFinite(paceLo) && possRate <= paceLo){ addTagT('pace_lo'); addTagT('pace'); }
-                else { addTagT('pace'); }
+                if(typeof paceHi === 'number' && isFinite(paceHi) && possRate >= paceHi){ addTagT('pace_hi'); }
+                else if(typeof paceLo === 'number' && isFinite(paceLo) && possRate <= paceLo){ addTagT('pace_lo'); }
+                else { addTagT('pace_mid'); }
+              } else {
+                addTagT('pace_missing');
               }
             } catch(_ePR){ /* noop */ }
             try {
               if(typeof ppp === 'number' && isFinite(ppp)){
-                if(typeof ppsHi === 'number' && isFinite(ppsHi) && ppp >= ppsHi){ addTagT('eff_hi'); addTagT('eff'); }
-                else if(typeof ppsLo === 'number' && isFinite(ppsLo) && ppp <= ppsLo){ addTagT('eff_lo'); addTagT('eff'); }
-                else { addTagT('eff'); }
+                if(typeof ppsHi === 'number' && isFinite(ppsHi) && ppp >= ppsHi){ addTagT('eff_hi'); }
+                else if(typeof ppsLo === 'number' && isFinite(ppsLo) && ppp <= ppsLo){ addTagT('eff_lo'); }
+                else { addTagT('eff_mid'); }
+              } else {
+                addTagT('eff_missing');
               }
             } catch(_ePPP){ /* noop */ }
 
@@ -3746,19 +3796,23 @@
                   tagsT.push(t);
                 }
 
-                // Canonical pace/eff hi/lo when we have PBP-derived rates.
+                // Mutually-exclusive pace/eff buckets (hi/mid/lo/missing).
                 try {
                   if(typeof possRate === 'number' && isFinite(possRate)){
-                    if(typeof paceHi === 'number' && isFinite(paceHi) && possRate >= paceHi){ addTagT('pace_hi'); addTagT('pace'); }
-                    else if(typeof paceLo === 'number' && isFinite(paceLo) && possRate <= paceLo){ addTagT('pace_lo'); addTagT('pace'); }
-                    else { addTagT('pace'); }
+                    if(typeof paceHi === 'number' && isFinite(paceHi) && possRate >= paceHi){ addTagT('pace_hi'); }
+                    else if(typeof paceLo === 'number' && isFinite(paceLo) && possRate <= paceLo){ addTagT('pace_lo'); }
+                    else { addTagT('pace_mid'); }
+                  } else {
+                    addTagT('pace_missing');
                   }
                 } catch(_ePR){ /* noop */ }
                 try {
                   if(typeof ppp === 'number' && isFinite(ppp)){
-                    if(typeof ppsHi === 'number' && isFinite(ppsHi) && ppp >= ppsHi){ addTagT('eff_hi'); addTagT('eff'); }
-                    else if(typeof ppsLo === 'number' && isFinite(ppsLo) && ppp <= ppsLo){ addTagT('eff_lo'); addTagT('eff'); }
-                    else { addTagT('eff'); }
+                    if(typeof ppsHi === 'number' && isFinite(ppsHi) && ppp >= ppsHi){ addTagT('eff_hi'); }
+                    else if(typeof ppsLo === 'number' && isFinite(ppsLo) && ppp <= ppsLo){ addTagT('eff_lo'); }
+                    else { addTagT('eff_mid'); }
+                  } else {
+                    addTagT('eff_missing');
                   }
                 } catch(_ePPP){ /* noop */ }
 

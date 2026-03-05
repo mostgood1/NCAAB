@@ -54,7 +54,7 @@ def test_live_lens_signal_autotags_backfill_driver_tags(client):
         last = _read_last_jsonl(sig_p)
         assert last.get("game_id") == "g1"
         assert last.get("driver") == "pace_hi"
-        assert last.get("driver_tags") == ["pace_hi"]
+        assert last.get("driver_tags") == ["pace_hi", "eff_mid", "kind_total", "lens_fg"]
     finally:
         try:
             if sig_p.exists():
@@ -93,7 +93,7 @@ def test_live_lens_signal_autotags_respect_client_tags(client):
 
         last = _read_last_jsonl(sig_p)
         assert last.get("driver") == "client_driver"
-        assert last.get("driver_tags") == ["client_tag"]
+        assert last.get("driver_tags") == ["client_tag", "pace_lo", "eff_mid", "kind_total", "lens_fg"]
     finally:
         try:
             if sig_p.exists():

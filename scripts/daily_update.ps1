@@ -2003,10 +2003,14 @@ sys.exit(1 if nan_count>0 else 0)
     & $VenvPython scripts/probability_stability.py
   } catch { Write-Warning "probability_stability failed: $($_)" }
 
-  Write-Section '6g) Auto-refresh probability calibration (ECE/drift/age)'
-  try {
-    & $VenvPython scripts/auto_refresh_calibration.py --date $todayIso
-  } catch { Write-Warning "auto_refresh_calibration failed: $($_)" }
+  if (-not $SkipProbCalibrationFit) {
+    Write-Section "6g) Auto-refresh probability calibration (as-of=$prevDate; ECE/drift/age)"
+    try {
+      & $VenvPython scripts/auto_refresh_calibration.py --date $prevDate
+    } catch { Write-Warning "auto_refresh_calibration failed: $($_)" }
+  } else {
+    Write-Host '[skip] Auto-refresh probability calibration' -ForegroundColor Yellow
+  }
 
   Write-Section '6g.i) Meta probability reliability + calibration'
   try {

@@ -43,6 +43,15 @@ class FlagLearningConfig:
     min_improve_roi: float = 0.002
     max_tags: int = 12
 
+    # Balance knobs (optional): constrain how much volume/profit can drop vs baseline.
+    # Set to 0 to disable.
+    min_volume_frac: float = 0.0
+    min_profit_frac: float = 0.0
+
+    # Objective: 'roi' (default) or 'profit'.
+    objective: str = "roi"
+    min_improve_profit_units: float = 0.0
+
 
 def _iter_date_range(start_date: str, end_date: str) -> list[str]:
     s = dt.date.fromisoformat(_safe_date(start_date))
@@ -55,6 +64,108 @@ def _iter_date_range(start_date: str, end_date: str) -> list[str]:
         days.append(cur.isoformat())
         cur = cur + dt.timedelta(days=1)
     return days
+
+
+def _signals_have_any_tags(rows: list[dict[str, Any]]) -> bool:
+    if not rows:
+        return False
+    # Scan a limited window to avoid pathological JSONLs.
+    for r in rows[:5000]:
+        try:
+            if _parse_tags(r.get("driver_tags")):
+                return True
+        except Exception:
+            pass
+        try:
+            if _tags_from_driver_explainer(r.get("driver")):
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def _signals_tag_richness(rows: list[dict[str, Any]], *, sample_n: int = 5000) -> tuple[int, int, int]:
+    """Return a tag-richness score for choosing among multiple signals JSONLs.
+
+    Score is (tag_rows, tag_total, unique_tags) over a small sample.
+    """
+
+    tag_rows = 0
+    tag_total = 0
+    uniq: set[str] = set()
+
+    for r in (rows or [])[: int(sample_n)]:
+        try:
+            tags = []
+            try:
+                tags = _parse_tags(r.get("driver_tags"))
+            except Exception:
+                tags = []
+            try:
+                tags2 = _tags_from_driver_explainer(r.get("driver"))
+            except Exception:
+                tags2 = []
+
+            merged: list[str] = []
+            for t in (tags or []) + (tags2 or []):
+                s = str(t or "").strip()
+                if not s or s.lower() in {"nan", "none", "null"}:
+                    continue
+                if s not in merged:
+                    merged.append(s)
+
+            if merged:
+                tag_rows += 1
+                tag_total += len(merged)
+                uniq.update(merged)
+        except Exception:
+            continue
+
+    return int(tag_rows), int(tag_total), int(len(uniq))
+
+
+def _candidate_signals_paths(date: str, out_dir: Path) -> list[tuple[str, Path]]:
+    d = _safe_date(date)
+    out_root = Path(out_dir) if out_dir is not None else Path("outputs")
+    return [
+        ("canonical", signals_path(d, out_dir=out_root)),
+        ("reconstructed", out_root / f"live_lens_signals_reconstructed_{d}.jsonl"),
+        ("recovered", out_root / f"live_lens_signals_recovered_{d}.jsonl"),
+    ]
+
+
+def _load_best_signals_jsonl(date: str, out_dir: Path) -> tuple[list[dict[str, Any]], Path, str, list[str]]:
+    candidates = _candidate_signals_paths(date, out_dir)
+    tried = [str(p) for _, p in candidates]
+
+    loaded: list[tuple[str, Path, list[dict[str, Any]], bool, tuple[int, int, int]]] = []
+    for kind, p in candidates:
+        rows = _read_jsonl(p)
+        if rows:
+            has_tags = _signals_have_any_tags(rows)
+            richness = _signals_tag_richness(rows)
+            loaded.append((kind, p, rows, has_tags, richness))
+
+    if not loaded:
+        # Default to canonical path for error reporting.
+        return [], candidates[0][1], candidates[0][0], tried
+
+    # Prefer the file with the richest usable tags; tie-break by kind preference.
+    pref_rank = {"canonical": 0, "reconstructed": 1, "recovered": 2}
+    tagged = [(kind, p, rows, has_tags, richness) for (kind, p, rows, has_tags, richness) in loaded if has_tags]
+    if tagged:
+        best = max(tagged, key=lambda x: (x[4], -pref_rank.get(x[0], 99)))
+        kind, p, rows, _has_tags, _richness = best
+        return rows, p, kind, tried
+
+    # Otherwise, fall back to the first available file by preference.
+    for kind_pref in ["canonical", "reconstructed", "recovered"]:
+        for kind, p, rows, _has_tags, _richness in loaded:
+            if kind == kind_pref:
+                return rows, p, kind, tried
+
+    kind, p, rows, _has_tags, _richness = loaded[0]
+    return rows, p, kind, tried
 
 
 def _parse_tags(v: Any) -> list[str]:
@@ -303,23 +414,49 @@ def learn_driver_tag_strength_penalties(
     missing: list[dict[str, Any]] = []
 
     for d in dates:
-        sig_p = signals_path(d, out_dir=cfg.out_dir)
         res_p = results_path(d, out_dir=cfg.out_dir, daily_results_dir=cfg.daily_results_dir)
 
-        signals = _read_jsonl(sig_p)
+        signals, sig_p, sig_kind, sig_tried = _load_best_signals_jsonl(d, cfg.out_dir)
         if not signals:
-            missing.append({"date": d, "status": "missing_signals", "signals_path": str(sig_p), "results_path": str(res_p)})
+            missing.append(
+                {
+                    "date": d,
+                    "status": "missing_signals",
+                    "signals_path": str(sig_p),
+                    "signals_candidates": sig_tried,
+                    "results_path": str(res_p),
+                }
+            )
             continue
 
         sig_df = pd.DataFrame(signals)
         if sig_df.empty:
-            missing.append({"date": d, "status": "empty_signals", "signals_path": str(sig_p), "results_path": str(res_p)})
+            missing.append(
+                {
+                    "date": d,
+                    "status": "empty_signals",
+                    "signals_path": str(sig_p),
+                    "signals_kind": sig_kind,
+                    "signals_candidates": sig_tried,
+                    "results_path": str(res_p),
+                }
+            )
             continue
 
         if "game_id" not in sig_df.columns and "event_id" in sig_df.columns:
             sig_df["game_id"] = sig_df["event_id"]
         if "game_id" not in sig_df.columns:
-            missing.append({"date": d, "status": "bad_signals", "message": "missing game_id", "signals_path": str(sig_p), "results_path": str(res_p)})
+            missing.append(
+                {
+                    "date": d,
+                    "status": "bad_signals",
+                    "message": "missing game_id",
+                    "signals_path": str(sig_p),
+                    "signals_kind": sig_kind,
+                    "signals_candidates": sig_tried,
+                    "results_path": str(res_p),
+                }
+            )
             continue
 
         sig_df["game_id"] = sig_df["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
@@ -393,12 +530,30 @@ def learn_driver_tag_strength_penalties(
 
         # Results
         if not res_p.exists():
-            missing.append({"date": d, "status": "missing_results", "signals_path": str(sig_p), "results_path": str(res_p)})
+            missing.append(
+                {
+                    "date": d,
+                    "status": "missing_results",
+                    "signals_path": str(sig_p),
+                    "signals_kind": sig_kind,
+                    "signals_candidates": sig_tried,
+                    "results_path": str(res_p),
+                }
+            )
             continue
         try:
             res_df = pd.read_csv(res_p)
         except Exception:
-            missing.append({"date": d, "status": "bad_results", "signals_path": str(sig_p), "results_path": str(res_p)})
+            missing.append(
+                {
+                    "date": d,
+                    "status": "bad_results",
+                    "signals_path": str(sig_p),
+                    "signals_kind": sig_kind,
+                    "signals_candidates": sig_tried,
+                    "results_path": str(res_p),
+                }
+            )
             continue
 
         settled = _settle_totals(sig_df, res_df, assume_price=float(cfg.assume_price))
@@ -425,11 +580,14 @@ def learn_driver_tag_strength_penalties(
     elif "driver" in df.columns:
         tags_list = [_tags_from_driver_explainer(v) for v in df["driver"].tolist()]
     else:
+        tags_list = []
+
+    if not tags_list or not {t for tags in tags_list for t in tags}:
         return {
             "status": "missing",
             "start_date": cfg.start_date,
             "end_date": cfg.end_date,
-            "message": "Signals missing driver_tags/driver (need updated frontend/backend logging)",
+            "message": "No non-empty driver tags found in signals (try reconstructed signals or updated logging).",
             "missing": missing,
         }
 
@@ -444,8 +602,13 @@ def learn_driver_tag_strength_penalties(
 
     # Base bet selection.
     base_bet = (el.to_numpy(dtype=float) >= min_elapsed) & (base_strength >= thr)
+
+    profit_units = pd.to_numeric(df["profit_units"], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+    n0 = int(base_bet.sum())
+    profit0 = float(profit_units[base_bet].sum())
+    roi0: float | None = (profit0 / float(n0)) if n0 > 0 else None
+
     base_df = df[base_bet].copy()
-    n0, roi0 = _roi(base_df)
 
     if n0 < int(cfg.min_overall_n):
         return {
@@ -453,7 +616,7 @@ def learn_driver_tag_strength_penalties(
             "start_date": cfg.start_date,
             "end_date": cfg.end_date,
             "message": f"Too few baseline BETs to learn from (n={n0} < min_overall_n={cfg.min_overall_n})",
-            "baseline": {"n": n0, "roi_units_per_bet": roi0},
+            "baseline": {"n": n0, "roi_units_per_bet": roi0, "profit_units": profit0},
             "missing": missing,
         }
 
@@ -495,13 +658,38 @@ def learn_driver_tag_strength_penalties(
     # Track running penalty sum so each greedy step is O(N) for each grid value.
     pen_sum = np.zeros(len(df), dtype=float)
 
-    def eval_roi(pen_sum_extra: np.ndarray) -> tuple[int, float | None]:
-        st = base_strength - (pen_sum + pen_sum_extra)
-        bet = (el.to_numpy(dtype=float) >= min_elapsed) & (st >= thr)
-        bet_df = df[bet]
-        return _roi(bet_df)
+    obj = str(getattr(cfg, "objective", "roi") or "roi").strip().lower()
+    if obj not in {"roi", "profit"}:
+        obj = "roi"
 
-    best_n, best_roi = n0, roi0
+    # Floors relative to baseline.
+    vol_floor = int(cfg.min_overall_n)
+    try:
+        if float(cfg.min_volume_frac or 0.0) > 0 and n0 > 0:
+            vol_floor = max(vol_floor, int(math.ceil(float(cfg.min_volume_frac) * float(n0))))
+    except Exception:
+        vol_floor = int(cfg.min_overall_n)
+
+    profit_floor: float | None = None
+    try:
+        if float(cfg.min_profit_frac or 0.0) > 0 and math.isfinite(float(profit0)):
+            profit_floor = float(cfg.min_profit_frac) * float(profit0)
+    except Exception:
+        profit_floor = None
+
+    el_arr = el.to_numpy(dtype=float)
+
+    def eval_stats(pen_sum_extra: np.ndarray) -> tuple[int, float | None, float]:
+        st = base_strength - (pen_sum + pen_sum_extra)
+        bet = (el_arr >= min_elapsed) & (st >= thr)
+        n = int(bet.sum())
+        if n <= 0:
+            return 0, None, 0.0
+        prof = float(profit_units[bet].sum())
+        roi = (prof / float(n)) if n > 0 else None
+        return n, roi, prof
+
+    best_n, best_roi, best_profit = n0, roi0, profit0
 
     grid = [round(x, 6) for x in np.arange(0.0, float(cfg.max_penalty) + 1e-9, float(cfg.step)).tolist()]
 
@@ -511,30 +699,51 @@ def learn_driver_tag_strength_penalties(
         cur_best_pen = 0.0
         cur_best_n = best_n
         cur_best_roi = best_roi
+        cur_best_profit = best_profit
 
         for pen in grid:
             extra = has_tag * float(pen)
-            n1, roi1 = eval_roi(extra)
-            if roi1 is None or not math.isfinite(float(roi1)):
+            n1, roi1, prof1 = eval_stats(extra)
+            if n1 < int(vol_floor):
                 continue
-            if n1 < int(cfg.min_overall_n):
+            if profit_floor is not None and float(prof1) < float(profit_floor):
                 continue
-            if cur_best_roi is None or float(roi1) > float(cur_best_roi):
-                cur_best_pen = float(pen)
-                cur_best_n = int(n1)
-                cur_best_roi = float(roi1)
+
+            if obj == "profit":
+                if cur_best_profit is None or float(prof1) > float(cur_best_profit):
+                    cur_best_pen = float(pen)
+                    cur_best_n = int(n1)
+                    cur_best_roi = float(roi1) if roi1 is not None and math.isfinite(float(roi1)) else cur_best_roi
+                    cur_best_profit = float(prof1)
+            else:
+                if roi1 is None or not math.isfinite(float(roi1)):
+                    continue
+                if cur_best_roi is None or float(roi1) > float(cur_best_roi):
+                    cur_best_pen = float(pen)
+                    cur_best_n = int(n1)
+                    cur_best_roi = float(roi1)
+                    cur_best_profit = float(prof1)
 
         # Accept only if it improves enough.
-        if (
-            cur_best_pen > 0
-            and cur_best_roi is not None
-            and best_roi is not None
-            and (float(cur_best_roi) - float(best_roi)) >= float(cfg.min_improve_roi)
-        ):
-            penalties[tg] = float(cur_best_pen)
-            pen_sum = pen_sum + (has_tag * float(cur_best_pen))
-            best_n = int(cur_best_n)
-            best_roi = float(cur_best_roi)
+        if cur_best_pen > 0:
+            if obj == "profit":
+                if (float(cur_best_profit) - float(best_profit)) >= float(cfg.min_improve_profit_units or 0.0):
+                    penalties[tg] = float(cur_best_pen)
+                    pen_sum = pen_sum + (has_tag * float(cur_best_pen))
+                    best_n = int(cur_best_n)
+                    best_roi = float(cur_best_roi) if cur_best_roi is not None else best_roi
+                    best_profit = float(cur_best_profit)
+            else:
+                if (
+                    cur_best_roi is not None
+                    and best_roi is not None
+                    and (float(cur_best_roi) - float(best_roi)) >= float(cfg.min_improve_roi)
+                ):
+                    penalties[tg] = float(cur_best_pen)
+                    pen_sum = pen_sum + (has_tag * float(cur_best_pen))
+                    best_n = int(cur_best_n)
+                    best_roi = float(cur_best_roi)
+                    best_profit = float(cur_best_profit)
 
     return {
         "status": "ok",
@@ -544,8 +753,15 @@ def learn_driver_tag_strength_penalties(
         "assume_price": float(cfg.assume_price),
         "full_game_only": bool(cfg.full_game_only),
         "include_watch": bool(cfg.include_watch),
-        "baseline": {"n": int(n0), "roi_units_per_bet": roi0},
-        "learned": {"n": int(best_n), "roi_units_per_bet": best_roi},
+        "objective": obj,
+        "constraints": {
+            "min_volume_frac": float(cfg.min_volume_frac or 0.0),
+            "min_profit_frac": float(cfg.min_profit_frac or 0.0),
+            "volume_floor_n": int(vol_floor),
+            "profit_floor_units": float(profit_floor) if profit_floor is not None else None,
+        },
+        "baseline": {"n": int(n0), "roi_units_per_bet": roi0, "profit_units": float(profit0)},
+        "learned": {"n": int(best_n), "roi_units_per_bet": best_roi, "profit_units": float(best_profit)},
         "candidates": [
             {"tag": t, "n": int(tag_counts.get(t, 0)), "roi_units_per_bet": tag_roi.get(t)}
             for t in cand_tags
@@ -555,7 +771,12 @@ def learn_driver_tag_strength_penalties(
     }
 
 
-def apply_penalties_to_tuning_json(tuning_json_path: Path, penalties: dict[str, float]) -> dict[str, Any]:
+def apply_penalties_to_tuning_json(
+    tuning_json_path: Path,
+    penalties: dict[str, float],
+    *,
+    replace_existing: bool = False,
+) -> dict[str, Any]:
     """Merge penalties into outputs/live_lens_tuning.json.
 
     Writes under tuning.driver_tag_strength_penalties. Preserves any unknown keys.
@@ -590,7 +811,28 @@ def apply_penalties_to_tuning_json(tuning_json_path: Path, penalties: dict[str, 
         except Exception:
             continue
 
-    t["driver_tag_strength_penalties"] = out_map
+    if bool(replace_existing):
+        t["driver_tag_strength_penalties"] = out_map
+    else:
+        # Merge with existing map (do not drop previously-learned penalties).
+        merged: dict[str, float] = {}
+        try:
+            raw_existing = t.get("driver_tag_strength_penalties")
+            if isinstance(raw_existing, dict):
+                for k, v in raw_existing.items():
+                    try:
+                        kk = str(k).strip()
+                        vv = float(v)
+                        if not kk or not math.isfinite(vv) or vv <= 0:
+                            continue
+                        merged[kk] = float(vv)
+                    except Exception:
+                        continue
+        except Exception:
+            merged = {}
+
+        merged.update(out_map)
+        t["driver_tag_strength_penalties"] = merged
     raw["tuning"] = t
 
     path.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")

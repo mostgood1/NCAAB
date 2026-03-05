@@ -13273,10 +13273,19 @@ def learn_live_lens_flag_penalties_cmd(
     max_penalty: float = typer.Option(2.0, help="Maximum per-tag penalty applied to strength (default 2.0)."),
     step: float = typer.Option(0.25, help="Grid step for per-tag penalty search (default 0.25)."),
     min_improve_roi: float = typer.Option(0.002, help="Minimum ROI improvement (units/bet) required to accept a tag penalty (default 0.002)."),
+    objective: str = typer.Option("roi", help="Objective for greedy search: roi (default) or profit."),
+    min_improve_profit_units: float = typer.Option(0.0, help="For objective=profit: minimum profit units improvement required to accept a penalty (default 0)."),
+    min_volume_frac: float = typer.Option(0.0, help="Optional: require learned BET count >= this fraction of baseline (0 disables)."),
+    min_profit_frac: float = typer.Option(0.0, help="Optional: require learned profit_units >= this fraction of baseline (0 disables)."),
     max_tags: int = typer.Option(12, help="Max number of tags to consider (worst-first) (default 12)."),
     include_watch: bool = typer.Option(True, "--include-watch/--bet-only", help="Learn from BET+WATCH pool (default include WATCH)."),
     full_game_only: bool = typer.Option(True, "--full-game-only/--all-lenses", help="Restrict to horizon>=39 (default true)."),
     price: float = typer.Option(-110.0, help="Assumed odds price for ROI (default -110)."),
+    replace_existing: bool = typer.Option(
+        False,
+        "--replace-existing",
+        help="When applying, replace tuning.driver_tag_strength_penalties instead of merging (default merge).",
+    ),
 ):
     """Learn per-flag (driver tag) strength penalties from historical Live Lens outcomes.
 
@@ -13355,6 +13364,10 @@ def learn_live_lens_flag_penalties_cmd(
         step=float(step),
         min_improve_roi=float(min_improve_roi),
         max_tags=int(max_tags),
+        min_volume_frac=float(min_volume_frac),
+        min_profit_frac=float(min_profit_frac),
+        objective=str(objective),
+        min_improve_profit_units=float(min_improve_profit_units),
     )
 
     payload = learn_driver_tag_strength_penalties(cfg, late_over=late_over, early_over=early_over)
@@ -13365,7 +13378,7 @@ def learn_live_lens_flag_penalties_cmd(
     if bool(apply) and payload.get("status") == "ok":
         pens = payload.get("driver_tag_strength_penalties")
         if isinstance(pens, dict):
-            apply_penalties_to_tuning_json(Path(tuning_json), pens)
+            apply_penalties_to_tuning_json(Path(tuning_json), pens, replace_existing=bool(replace_existing))
             print({"applied": True, "tuning_json": str(tuning_json), "n_tags": len(pens)})
 
 

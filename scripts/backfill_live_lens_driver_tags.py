@@ -179,10 +179,14 @@ def derive_driver_tags(row: dict[str, Any]) -> list[str]:
             return []
 
         legacy_map = {
-            "pace_hi": ["pace_hi", "pace"],
-            "pace_lo": ["pace_lo", "pace"],
-            "eff_hi": ["eff_hi", "eff"],
-            "eff_lo": ["eff_lo", "eff"],
+            "pace_hi": ["pace_hi"],
+            "pace_lo": ["pace_lo"],
+            "pace_mid": ["pace_mid"],
+            "pace_missing": ["pace_missing"],
+            "eff_hi": ["eff_hi"],
+            "eff_lo": ["eff_lo"],
+            "eff_mid": ["eff_mid"],
+            "eff_missing": ["eff_missing"],
         }
         sl = s.lower()
         if sl in legacy_map:
@@ -201,8 +205,6 @@ def derive_driver_tags(row: dict[str, Any]) -> list[str]:
                 add("edge")
             elif tl.startswith("d "):
                 add("sim_gap")
-            elif tl.startswith("pace "):
-                add("pace")
             elif tl.startswith("ppp "):
                 add("ppp")
             elif tl.startswith("shooting "):
@@ -259,6 +261,10 @@ def derive_driver_tags(row: dict[str, Any]) -> list[str]:
             tags.append("pace_hi")
         elif pace_lo is not None and poss_rate <= pace_lo:
             tags.append("pace_lo")
+        else:
+            tags.append("pace_mid")
+    else:
+        tags.append("pace_missing")
 
     # Efficiency = points per possession.
     if total_points is not None and poss is not None and poss > 0:
@@ -267,6 +273,36 @@ def derive_driver_tags(row: dict[str, Any]) -> list[str]:
             tags.append("eff_hi")
         elif pps_lo is not None and pps <= pps_lo:
             tags.append("eff_lo")
+        else:
+            tags.append("eff_mid")
+    else:
+        tags.append("eff_missing")
+
+    # Context tags: kind + lens (low-cardinality, stable).
+    try:
+        k = str(row.get("kind") or "").strip().lower()
+        if k in {"total", "ats"}:
+            tags.append(f"kind_{k}")
+    except Exception:
+        pass
+
+    try:
+        lens0 = row.get("lens")
+        lens = str(lens0).strip().lower() if lens0 is not None else ""
+        if lens in {"full_game", "full", "game", "fg"}:
+            lens = "fg"
+        elif lens in {"first_half", "1h"}:
+            lens = "1h"
+        elif lens in {"second_half", "2h"}:
+            lens = "2h"
+        if not lens:
+            hz = _coerce_float(row.get("horizon"))
+            if hz is not None and math.isfinite(hz):
+                lens = "1h" if float(hz) <= 20.5 else "fg"
+        if lens in {"fg", "1h", "2h"}:
+            tags.append(f"lens_{lens}")
+    except Exception:
+        pass
 
     # Also incorporate explanatory tags derived from the driver text.
     tags.extend(_tags_from_driver_text(row.get("driver")))
@@ -439,6 +475,11 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--upload", action="store_true", help="Upload backfilled signals to base-url")
     ap.add_argument("--force", action="store_true", help="Use force=1 when uploading (required to overwrite existing server log)")
     ap.add_argument("--overwrite", action="store_true", help="Overwrite existing driver_tags if present (default only fills missing)")
+    ap.add_argument(
+        "--write-recovered",
+        action="store_true",
+        help="Write to outputs/live_lens_signals_recovered_<date>.jsonl (default writes canonical filename)",
+    )
     ap.add_argument("--dry-run", action="store_true", help="Do not write local file or upload; just report counts")
 
     args = ap.parse_args(argv)
@@ -464,7 +505,12 @@ def main(argv: list[str]) -> int:
     }
 
     for d in dates:
-        local_path = out_dir / f"live_lens_signals_{d}.jsonl"
+        in_path = out_dir / f"live_lens_signals_{d}.jsonl"
+        out_path = (
+            (out_dir / f"live_lens_signals_recovered_{d}.jsonl")
+            if bool(args.write_recovered)
+            else (out_dir / f"live_lens_signals_{d}.jsonl")
+        )
 
         text: str | None = None
         if args.download:
@@ -475,10 +521,10 @@ def main(argv: list[str]) -> int:
                 print(f"[skip] {d} missing on server (404)")
                 continue
             if not args.dry_run:
-                local_path.write_text(text, encoding="utf-8", errors="replace")
+                in_path.write_text(text, encoding="utf-8", errors="replace")
         else:
-            if local_path.exists():
-                text = local_path.read_text(encoding="utf-8", errors="ignore")
+            if in_path.exists():
+                text = in_path.read_text(encoding="utf-8", errors="ignore")
             elif base_url:
                 # Fallback: download if local missing but base-url provided.
                 text = download_signals(base_url, d)
@@ -486,9 +532,9 @@ def main(argv: list[str]) -> int:
                     print(f"[skip] {d} missing on server (404)")
                     continue
                 if not args.dry_run:
-                    local_path.write_text(text, encoding="utf-8", errors="replace")
+                    in_path.write_text(text, encoding="utf-8", errors="replace")
             else:
-                print(f"[skip] missing local file and no base-url: {local_path}")
+                print(f"[skip] missing local file and no base-url: {in_path}")
                 continue
 
         rows = read_jsonl(text or "")
@@ -501,7 +547,7 @@ def main(argv: list[str]) -> int:
         overall["tag_counts"].update(st.tag_counts)
 
         overall["per_date"][d] = {
-            "path": str(local_path),
+            "path": str(out_path),
             "total_rows": st.total_rows,
             "updated_rows": st.updated_rows,
             "already_tagged_rows": st.already_tagged_rows,
@@ -510,7 +556,7 @@ def main(argv: list[str]) -> int:
         }
 
         if st.updated_rows > 0 and not args.dry_run:
-            local_path.write_text(to_jsonl(new_rows), encoding="utf-8", errors="replace")
+            out_path.write_text(to_jsonl(new_rows), encoding="utf-8", errors="replace")
 
         if args.upload:
             if not base_url:

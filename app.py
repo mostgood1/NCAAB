@@ -24549,10 +24549,14 @@ def api_live_lens_signal():
 
             # Map legacy single-token drivers to stable tags.
             legacy_map = {
-                "pace_hi": ["pace_hi", "pace"],
-                "pace_lo": ["pace_lo", "pace"],
-                "eff_hi": ["eff_hi", "eff"],
-                "eff_lo": ["eff_lo", "eff"],
+                "pace_hi": ["pace_hi"],
+                "pace_lo": ["pace_lo"],
+                "pace_mid": ["pace_mid"],
+                "pace_missing": ["pace_missing"],
+                "eff_hi": ["eff_hi"],
+                "eff_lo": ["eff_lo"],
+                "eff_mid": ["eff_mid"],
+                "eff_missing": ["eff_missing"],
             }
             sl = s.lower()
             if sl in legacy_map:
@@ -24622,6 +24626,10 @@ def api_live_lens_signal():
                     derived.append("pace_hi")
                 elif pace_lo is not None and poss_rate <= pace_lo:
                     derived.append("pace_lo")
+                else:
+                    derived.append("pace_mid")
+            else:
+                derived.append("pace_missing")
 
             # Efficiency = points per possession.
             if total_points is not None and poss is not None and poss > 0:
@@ -24630,6 +24638,10 @@ def api_live_lens_signal():
                     derived.append("eff_hi")
                 elif pps_lo is not None and pps <= pps_lo:
                     derived.append("eff_lo")
+                else:
+                    derived.append("eff_mid")
+            else:
+                derived.append("eff_missing")
 
             # Unique-preserve order.
             out: list[str] = []
@@ -24638,16 +24650,38 @@ def api_live_lens_signal():
                     out.append(t)
             return out
 
+        def _tags_from_context_fields(rec: dict[str, Any]) -> list[str]:
+            out: list[str] = []
+
+            try:
+                k = str(rec.get("kind") or "").strip().lower()
+                if k in {"total", "ats"}:
+                    out.append(f"kind_{k}")
+            except Exception:
+                pass
+
+            try:
+                lens0 = rec.get("lens")
+                lens = str(lens0).strip().lower() if lens0 is not None else ""
+                if not lens:
+                    hz = _coerce_float(rec.get("horizon"))
+                    if hz is not None and math.isfinite(hz):
+                        lens = "1h" if float(hz) <= 20.5 else "fg"
+                if lens in {"fg", "1h", "2h"}:
+                    out.append(f"lens_{lens}")
+            except Exception:
+                pass
+
+            return out
+
         driver_s = str(keep.get("driver") or "").strip() or None
         tags0 = _norm_tags(keep.get("driver_tags"))
 
-        # Respect client-provided tags as-is.
-        # Only derive tags when the client doesn't send driver_tags.
-        tags_merged = tags0
-        if tags0 is None or not tags0:
-            derived_num = _tags_from_numeric_fields(keep)
-            derived_txt = _tags_from_driver_text(driver_s)
-            tags_merged = _merge_tags(derived_txt, derived_num)
+        # Always merge derived tags so even minimal client tagging can be enriched.
+        derived_num = _tags_from_numeric_fields(keep)
+        derived_txt = _tags_from_driver_text(driver_s)
+        derived_ctx = _tags_from_context_fields(keep)
+        tags_merged = _merge_tags(tags0, derived_txt, derived_num, derived_ctx)
 
         if (driver_s is None or not driver_s) and tags_merged:
             driver_s = tags_merged[0]
