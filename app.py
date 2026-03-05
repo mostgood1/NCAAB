@@ -199,6 +199,7 @@ try:
                 '/api/upload_predictions_display',
                 '/api/upload_align_edges',
                 '/api/upload_daily_results',
+                '/api/upload_odds_history',
                 '/api/upload_live_interval_calibration'
             }
             # Allow version and health endpoints for diagnostics
@@ -35851,6 +35852,76 @@ def api_upload_predictions_model_interval():
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
 
+        try:
+            df2 = _safe_read_csv(out_path)
+            raw = out_path.read_bytes()
+            sha = _hashlib_mod.sha256(raw).hexdigest() if raw else None
+            return jsonify({
+                "status": "ok",
+                "rows_uploaded": int(len(df)),
+                "rows_verified": int(len(df2)) if not df2.empty else 0,
+                "date": date_q,
+                "path": str(out_path),
+                "sha": sha,
+            })
+        except Exception as e:
+            return jsonify({"status": "ok", "rows_uploaded": int(len(df)), "date": date_q, "path": str(out_path), "verify_error": str(e)})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/upload_odds_history", methods=["POST"])
+def api_upload_odds_history():
+    """Upload expanded odds snapshot for a given date (full game + period markets).
+
+    Query param: date=YYYY-MM-DD (required).
+    Body: multipart 'file' or raw CSV text.
+    Writes to outputs/odds_history/odds_<date>.csv.
+    """
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        return jsonify({"status": "error", "message": "missing date"}), 400
+    try:
+        allow_empty = (request.args.get("allow_empty") or "").strip().lower() in ("1", "true", "yes")
+        csv_bytes: bytes | None = None
+        if 'file' in request.files:
+            f = request.files['file']
+            csv_bytes = f.read()
+        else:
+            data = request.get_data() or b''
+            csv_bytes = data if data else None
+
+        if not csv_bytes:
+            return jsonify({"status": "error", "message": "no CSV content provided"}), 400
+        if (not allow_empty) and len(csv_bytes) < 16:
+            return jsonify({"status": "error", "message": f"CSV payload too small ({len(csv_bytes)} bytes)"}), 400
+
+        # Validate CSV
+        try:
+            buf = io.BytesIO(csv_bytes)
+            df = pd.read_csv(buf)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        if (not allow_empty) and (not isinstance(df, pd.DataFrame) or df.empty or len(df.columns) == 0):
+            return jsonify({"status": "error", "message": "empty CSV (0 rows)"}), 400
+
+        out_dir = OUT / "odds_history"
+        out_path = out_dir / f"odds_{date_q}.csv"
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with open(tmp_path, 'wb') as fh:
+                fh.write(csv_bytes)
+                try:
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                except Exception:
+                    pass
+            os.replace(tmp_path, out_path)
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
+
+        # Verify
         try:
             df2 = _safe_read_csv(out_path)
             raw = out_path.read_bytes()

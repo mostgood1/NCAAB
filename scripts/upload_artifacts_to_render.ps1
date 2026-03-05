@@ -68,7 +68,7 @@ function Upload-File {
 
             if (-not $resp.IsSuccessStatusCode) {
                 # Optional endpoints may not exist on older deployments; treat as skip.
-                if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_projections|upload_live_lens_tuning|upload_live_interval_calibration')) {
+                if (($code -eq 404) -and ($Uri -match 'upload_sim_inputs_diagnostic|upload_sim_calibration|upload_sim_segments_2min|upload_sim_segments|upload_predictions_model_interval|upload_odds_history|upload_live_snapshots|upload_live_snapshot_summary|upload_live_snapshot_eval_summary|upload_live_snapshot_lines|upload_live_snapshot_eval|upload_live_features|upload_live_lens_signals|upload_live_lens_projections|upload_live_lens_tuning|upload_live_interval_calibration')) {
                     Write-Host "[Skip] Endpoint not available yet: $Uri" -ForegroundColor Yellow
                     return @{ status = 'skipped'; code = 404; uri = $Uri }
                 }
@@ -125,6 +125,7 @@ $picksAtsPath  = Join-Path -Path $OutputsDir -ChildPath ("picks/ats_picks_{0}.cs
 $edgesPath     = Join-Path -Path $OutputsDir -ChildPath ("align_period_{0}_edges.csv" -f $Date)
 $displayPath   = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.csv" -f $Date)
 $enrichedPath  = Join-Path -Path $OutputsDir -ChildPath ("predictions_unified_enriched_{0}.csv" -f $Date)
+$oddsHistoryPath = Join-Path -Path $OutputsDir -ChildPath ("odds_history/odds_{0}.csv" -f $Date)
 $resultsPath   = Join-Path -Path $OutputsDir -ChildPath ("daily_results/results_{0}.csv" -f $Date)
 $modelIntervalPath = Join-Path -Path $OutputsDir -ChildPath ("predictions_model_interval_{0}.csv" -f $Date)
 $simQuantilesPath = Join-Path -Path $OutputsDir -ChildPath ("sim_quantiles_{0}.csv" -f $Date)
@@ -465,6 +466,21 @@ if ($u2) {
     $sha = if ($u2.sha) { $u2.sha } else { $null }
     $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
     Write-Host ("[OK] edges uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+}
+
+# Upload odds history snapshot (full game + period markets) so Render can display real 1H/2H lines.
+$oddsRows = Get-CsvRowCount -Path $oddsHistoryPath
+if ($oddsRows -gt 0) {
+    $uOdds = Upload-File -Uri "$BaseUrl/api/upload_odds_history" -FilePath $oddsHistoryPath -Query @{ date = $Date }
+    if ($uOdds) {
+        $rv = if ($uOdds.rows_verified) { $uOdds.rows_verified } elseif ($uOdds.rows) { $uOdds.rows } else { $null }
+        $ru = if ($uOdds.rows_uploaded) { $uOdds.rows_uploaded } else { $null }
+        $sha = if ($uOdds.sha) { $uOdds.sha } else { $null }
+        $shaSuffix = if ($sha) { " sha=$sha" } else { "" }
+        Write-Host ("[OK] odds_history uploaded: rows_uploaded={0} rows_verified={1}{2}" -f $ru, $rv, $shaSuffix) -ForegroundColor Green
+    }
+} else {
+    Write-Host "[Skip] odds_history missing or empty for $Date" -ForegroundColor Yellow
 }
 
 $sanitizedDisplayPath = Sanitize-DisplayCsv -Path $displayPath
