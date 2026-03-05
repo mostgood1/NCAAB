@@ -173,6 +173,13 @@
             <span class="pill small neutral" aria-hidden="true">Movement</span>
             <div id="movePills" class="flex-row-wrap" aria-label="Movement filter pills"></div>
           </div>
+          <div class="flex-row-wrap">
+            <span class="pill small neutral" aria-hidden="true">2H Live Lens</span>
+            <select id="toggle2hLiveLens" class="date-input" aria-label="2H Live Lens" title="Turn 2H Live Lens on/off">
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -2114,12 +2121,15 @@
         var anyWarn = false;
         wraps.forEach(function(w){
           if(!w) return;
+          var knd = null;
+          try { knd = parseLensKind(w); } catch(_eK){ knd = null; }
+
+          // If 2H Live Lens is toggled OFF, ignore 2H indicators entirely.
+          try { if(knd === '2h' && (window.__ncaabShow2HLiveLens === false)) return; } catch(_e2H){ /* noop */ }
+
           if(is2H){
             // In 2H, ignore 1H lens indicators.
-            try {
-              var knd = parseLensKind(w);
-              if(knd === '1h') return;
-            } catch(e3) { /* noop */ }
+            try { if(knd === '1h') return; } catch(_e1H){ /* noop */ }
           }
           if(w.getAttribute('data-live-edge-ok') === '1') anyOk = true;
           if(w.getAttribute('data-live-edge-warn') === '1') anyWarn = true;
@@ -2127,6 +2137,43 @@
         card.classList.toggle('live-edge-ok', anyOk);
         // Only show warn if we are not already in ok.
         card.classList.toggle('live-edge-warn', (!anyOk && anyWarn));
+      }
+
+      function clear2HLiveLensSignals(card){
+        if(!card) return;
+        var attrs = [
+          'data-live-edge-ok-2h',
+          'data-live-edge-warn-2h',
+          'data-live-total-ok-2h',
+          'data-live-total-warn-2h',
+          'data-live-total-side-2h',
+          'data-live-total-edge-2h',
+          'data-live-market-ok-2h',
+          'data-live-market-warn-2h',
+          'data-live-market-opp-2h',
+          'data-live-market-side-2h',
+          'data-live-market-line-2h',
+          'data-live-market-driver-2h',
+          'data-live-market-tags-2h',
+          'data-live-ml-2h',
+          'data-live-ats-2h'
+        ];
+        try {
+          attrs.forEach(function(a){
+            try { card.removeAttribute(a); } catch(_eA) { /* noop */ }
+          });
+        } catch(_e){ /* noop */ }
+
+        // Legacy fallback callout: clear only if it was last written by 2H.
+        try {
+          var lk = '';
+          try { lk = String(card.getAttribute('data-live-total-lens') || '').trim().toLowerCase(); } catch(_eLK){ lk = ''; }
+          if(lk === '2h'){
+            try { card.removeAttribute('data-live-total-side'); } catch(_eS) { /* noop */ }
+            try { card.removeAttribute('data-live-total-edge'); } catch(_eE) { /* noop */ }
+            try { card.removeAttribute('data-live-total-lens'); } catch(_eL) { /* noop */ }
+          }
+        } catch(_e2){ /* noop */ }
       }
 
       function getSlateDate(){
@@ -2916,6 +2963,43 @@
           var is2H0 = (per0 !== null && per0 >= 2);
           var lock1H = (lens === '1h') && is2H0;
 
+          // 2H Live Lens master toggle (top-of-page selector).
+          // When OFF: hide 2H Live Lens UI and suppress/clear 2H WATCH/BET signals.
+          var show2H = true;
+          try { show2H = !(window.__ncaabShow2HLiveLens === false); } catch(_e2H){ show2H = true; }
+
+          // Maintain 2H section visibility even when updates are triggered by polling.
+          if(lens === '2h'){
+            try {
+              var blk = (wrap && wrap.closest) ? wrap.closest('.section-block') : null;
+              if(blk) blk.style.display = show2H ? '' : 'none';
+              else if(wrap) wrap.style.display = show2H ? '' : 'none';
+            } catch(_e2HVis){ /* noop */ }
+          }
+
+          if(lens === '2h' && !show2H){
+            // Disable tracking UI.
+            try {
+              if(btnTrack){
+                btnTrack.disabled = true;
+                btnTrack.textContent = 'Track bet';
+                btnTrack.title = '2H Live Lens is off';
+              }
+            } catch(_e2HBtn){ /* noop */ }
+
+            // Clear per-wrap and per-card signal flags.
+            try { wrap.setAttribute('data-live-edge-ok', '0'); } catch(_e2HW1) { /* noop */ }
+            try { wrap.setAttribute('data-live-edge-warn', '0'); } catch(_e2HW2) { /* noop */ }
+            try {
+              var cardOff = card0 || getCardForWrap(wrap);
+              clear2HLiveLensSignals(cardOff);
+              updateCardLiveEdgeClass(cardOff);
+            } catch(_e2HClr){ /* noop */ }
+
+            scheduleCompactStripRefresh();
+            return;
+          }
+
           var remaining = null;
           try {
             // When live polling is active, use the raw fractional remaining minutes derived from seconds.
@@ -3140,6 +3224,7 @@
                 if(side === 'Over' || side === 'Under'){
                   cardE.setAttribute('data-live-total-side', side.toLowerCase());
                   cardE.setAttribute('data-live-total-edge', String(round1(edge)));
+                  if(lensKey) cardE.setAttribute('data-live-total-lens', lensKey);
                   if(lensKey){
                     cardE.setAttribute('data-live-total-side-' + lensKey, side.toLowerCase());
                     cardE.setAttribute('data-live-total-edge-' + lensKey, String(round1(edge)));
@@ -4382,6 +4467,36 @@
       }
 
       document.addEventListener('DOMContentLoaded', function(){
+        // 2H Live Lens toggle (default ON). Persisted via localStorage.
+        try {
+          var sel2h = document.getElementById('toggle2hLiveLens');
+          var on2h = true;
+          try {
+            var raw2h = localStorage.getItem('ncaabShow2HLiveLens');
+            var s2h = (raw2h !== null && raw2h !== undefined) ? String(raw2h).trim().toLowerCase() : '';
+            if(s2h && (s2h === '0' || s2h === 'false' || s2h === 'off' || s2h === 'no')) on2h = false;
+          } catch(_e2HLS){ on2h = true; }
+          try { window.__ncaabShow2HLiveLens = on2h; } catch(_e2HSet){ /* noop */ }
+          if(sel2h){
+            try { sel2h.value = on2h ? 'on' : 'off'; } catch(_e2HSV){ /* noop */ }
+            try {
+              sel2h.addEventListener('change', function(){
+                var v2 = '';
+                try { v2 = String(sel2h.value || '').trim().toLowerCase(); } catch(_e2HV){ v2 = ''; }
+                var onNow = !(v2 === 'off' || v2 === '0' || v2 === 'false' || v2 === 'no');
+                try { window.__ncaabShow2HLiveLens = onNow; } catch(_e2HSet2){ /* noop */ }
+                try { localStorage.setItem('ncaabShow2HLiveLens', onNow ? '1' : '0'); } catch(_e2HLS2){ /* noop */ }
+                try {
+                  document.querySelectorAll('.live-lens-wrap').forEach(function(w){
+                    try { if(w && typeof w.__liveLensUpdate === 'function') w.__liveLensUpdate(); } catch(_e2HRU){ /* noop */ }
+                  });
+                } catch(_e2HAll){ /* noop */ }
+                scheduleCompactStripRefresh();
+              });
+            } catch(_e2HWire){ /* noop */ }
+          }
+        } catch(_e2HInit){ /* noop */ }
+
         document.querySelectorAll('.live-lens-wrap').forEach(wireOne);
 
         // Best-effort load of daily tuning thresholds; re-run updates when loaded.
@@ -5883,7 +5998,9 @@
 
             // In 2H+ we don't want 1H callouts (1H is over).
             var use1h = (perCompact === null || perCompact < 2);
-            var use2h = (perCompact !== null && perCompact >= 2);
+            var show2hLL = true;
+            try { show2hLL = !(window.__ncaabShow2HLiveLens === false); } catch(_e2H){ show2hLL = true; }
+            var use2h = (show2hLL && perCompact !== null && perCompact >= 2);
 
             // Primary compact pill state: totals + ATS market signals.
             var totBet = (okFg || (use1h && ok1h) || (use2h && ok2h));
@@ -6163,6 +6280,8 @@
             var mkWarnFg2 = (safeStr(card.getAttribute('data-live-market-warn-fg')) === '1');
             var use1h2 = (perCompact === null || perCompact < 2);
             var use2h2 = (perCompact !== null && perCompact >= 2);
+            var show2hLL2 = true;
+            try { show2hLL2 = !(window.__ncaabShow2HLiveLens === false); } catch(_e2H2){ show2hLL2 = true; }
 
             var parts = [];
             if(use1h2){
@@ -6172,7 +6291,7 @@
               var p1m = lensPieceMarket('1H', '1h', mkOk1h2, mkWarn1h2);
               if(p1m) parts.push(p1m);
             }
-            if(use2h2){
+            if(use2h2 && show2hLL2){
               var p2 = lensPiece('2H', '2h', ok2h2, warn2h2);
               if(p2) parts.push(p2);
 
@@ -6195,7 +6314,7 @@
               var sideTxt0 = (side0 === 'over') ? 'Over' : (side0 === 'under' ? 'Under' : '');
               if(sideTxt0 && isFinite(edge0)){
                 var edgeTxt0 = (edge0 > 0 ? '+' : '') + edge0.toFixed(1);
-                var lbl0 = (perCompact !== null && perCompact >= 2) ? '2H' : (use1h2 ? '1H' : 'FG');
+                var lbl0 = (perCompact !== null && perCompact >= 2 && show2hLL2) ? '2H' : (use1h2 ? '1H' : 'FG');
                 return (lbl0 + ': TOTAL ' + action0 + ' ' + sideTxt0 + ' (' + edgeTxt0 + ')').toUpperCase();
               }
             } catch(_eLegacy){ /* noop */ }
