@@ -6527,13 +6527,6 @@
       }
 
       btn.addEventListener('click', function(){
-        try {
-          var topRegion = document.getElementById('compactGameList') || document.getElementById('filtersBar');
-          if(topRegion && topRegion.scrollIntoView) {
-            topRegion.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            return;
-          }
-        } catch(_e0) { /* noop */ }
         try { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); }
         catch(e) { window.scrollTo(0, 0); }
       });
