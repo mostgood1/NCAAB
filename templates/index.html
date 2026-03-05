@@ -86,6 +86,10 @@
     /* Prevent scroll-to-card landing under the sticky header */
     .game-card{scroll-margin-top:130px;}
 
+    /* Floating "Back to top" button */
+    .back-to-top{position:fixed;right:14px;bottom:14px;z-index:80;display:none;}
+    .back-to-top.show{display:inline-flex;}
+
     /* Mobile visual tightening */
     @media (max-width:760px){
       /* Mobile: disable persistence (too tall / hard to jump to cards) */
@@ -6506,6 +6510,37 @@
       } catch(e) {
         try { initTopFilters(); } catch(_e2) { /* noop */ }
       }
+    })();
+  </script>
+
+  <button id="backToTopBtn" type="button" class="pill small neutral back-to-top" aria-label="Back to top" title="Back to top">Back to top</button>
+
+  <script>
+    (function(){
+      var btn = document.getElementById('backToTopBtn');
+      if(!btn) return;
+
+      function update(){
+        var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+        if(y > 450) btn.classList.add('show');
+        else btn.classList.remove('show');
+      }
+
+      btn.addEventListener('click', function(){
+        try {
+          var topRegion = document.getElementById('compactGameList') || document.getElementById('filtersBar');
+          if(topRegion && topRegion.scrollIntoView) {
+            topRegion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+          }
+        } catch(_e0) { /* noop */ }
+        try { window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }); }
+        catch(e) { window.scrollTo(0, 0); }
+      });
+
+      window.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update);
+      update();
     })();
   </script>
 </body>
