@@ -7414,6 +7414,33 @@ def produce_picks(
 
     odds_merged_path must include columns: game_id, book, market (h2h|spreads|totals), period (full_game|1h|2h), plus line fields.
     """
+    # When called programmatically rather than via Typer CLI, defaulted options can
+    # remain as OptionInfo objects. Normalize them to concrete values before any
+    # numeric comparisons or path checks.
+    try:
+        from typer.models import OptionInfo as _TyperOptionInfo  # type: ignore
+    except Exception:  # pragma: no cover
+        _TyperOptionInfo = None  # type: ignore
+    if _TyperOptionInfo is not None:
+        if isinstance(out, _TyperOptionInfo):
+            out = settings.outputs_dir / "picks_raw.csv"
+        if isinstance(total_threshold, _TyperOptionInfo):
+            total_threshold = 1.5
+        if isinstance(spread_threshold, _TyperOptionInfo):
+            spread_threshold = 1.0
+        if isinstance(moneyline_margin_scale, _TyperOptionInfo):
+            moneyline_margin_scale = 7.0
+        if isinstance(moneyline_edge_pct, _TyperOptionInfo):
+            moneyline_edge_pct = 2.0
+        if isinstance(cal_edge_min, _TyperOptionInfo):
+            cal_edge_min = 0.0
+        if isinstance(adaptive_ou, _TyperOptionInfo):
+            adaptive_ou = True
+        if isinstance(min_ou_picks, _TyperOptionInfo):
+            min_ou_picks = 3
+        if isinstance(ou_pmin_default, _TyperOptionInfo):
+            ou_pmin_default = 0.65
+
     if not preds_path.exists():
         print(f"[red]Missing predictions file {preds_path}[/red]"); raise typer.Exit(code=1)
     if not odds_merged_path.exists():
