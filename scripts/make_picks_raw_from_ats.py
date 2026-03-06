@@ -55,6 +55,18 @@ def build_picks_raw(date: str, outputs_dir: Path) -> Path | None:
     out["pred_total"] = None
     out["rec_type"] = "Spread"
     out["rec_code"] = "ATS"
+    try:
+        if "game_id" in out.columns:
+            out["game_id"] = out["game_id"].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            out["_edge_abs"] = pd.to_numeric(out.get("edge"), errors="coerce").abs()
+            out = (
+                out.sort_values(["game_id", "_edge_abs"], ascending=[True, False], na_position="last")
+                .drop_duplicates(subset=["game_id"], keep="first")
+                .drop(columns=["_edge_abs"], errors="ignore")
+                .reset_index(drop=True)
+            )
+    except Exception:
+        pass
     # Write to outputs/picks_raw.csv
     out_path = outputs_dir / "picks_raw.csv"
     out.to_csv(out_path, index=False)

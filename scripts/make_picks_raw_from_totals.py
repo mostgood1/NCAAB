@@ -8,6 +8,30 @@ import numpy as np
 DEF_OUT = Path(__file__).resolve().parents[1] / "outputs"
 
 
+def _dedupe_games(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "game_id" not in df.columns:
+        return df
+    work = df.copy()
+    try:
+        work["game_id"] = work["game_id"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
+        work = work[work["game_id"].ne("")].copy()
+    except Exception:
+        pass
+    if work.empty:
+        return work
+    score = pd.Series(0, index=work.index, dtype=float)
+    for col in ["market_total", "closing_total", "total", "pred_total", "p_over_blend", "p_over", "p_over_final"]:
+        if col in work.columns:
+            try:
+                score = score + pd.to_numeric(work[col], errors="coerce").notna().astype(float)
+            except Exception:
+                pass
+    work["_score"] = score
+    work = work.sort_values(["game_id", "_score"], ascending=[True, False], na_position="last")
+    work = work.drop_duplicates(subset=["game_id"], keep="first")
+    return work.drop(columns=["_score"], errors="ignore").reset_index(drop=True)
+
+
 def _find_prob_col(df: pd.DataFrame) -> str | None:
     for c in [
         "p_over_blend",  # preferred when sim blend available
@@ -124,6 +148,7 @@ def build_totals_picks(date: str, outputs: Path, p_hi: float, p_lo: float) -> pd
     # Normalize IDs
     if "game_id" in df.columns:
         df["game_id"] = df["game_id"].astype(str)
+        df = _dedupe_games(df)
     # Merge sim blend if available
     df = _try_merge_sim_blend(df, outputs, date)
     # Merge quantiles for the date to ensure p_over_quantile and sigma_total_quantile are available
@@ -341,6 +366,18 @@ def merge_into_picks_raw(out_df: pd.DataFrame, outputs: Path) -> Path:
     else:
         base = pd.DataFrame()
     merged = pd.concat([base, out_df], ignore_index=True) if not out_df.empty else base
+    try:
+        dedupe_subset = [c for c in ["date", "game_id", "market", "period"] if c in merged.columns]
+        if dedupe_subset:
+            merged["_edge_abs"] = pd.to_numeric(merged.get("edge"), errors="coerce").abs()
+            merged = (
+                merged.sort_values(dedupe_subset + ["_edge_abs"], ascending=[True] * len(dedupe_subset) + [False], na_position="last")
+                .drop_duplicates(subset=dedupe_subset, keep="first")
+                .drop(columns=["_edge_abs"], errors="ignore")
+                .reset_index(drop=True)
+            )
+    except Exception:
+        pass
     merged.to_csv(raw_path, index=False)
     return raw_path
 

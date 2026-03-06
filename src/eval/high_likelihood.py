@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -688,6 +689,11 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
     # Load optional intraday movement from live snapshots. We'll provide a per-game
     # cutoff after recs are built (start_time) so we only use *pregame* movement.
     live_mv_by_gid: dict[str, dict[str, Any]] = {}
+    live_snapshot_moves_enabled = not (
+        str(os.getenv("NCAAB_DISABLE_LIVE_SNAPSHOT_MOVES", "")).strip().lower() in ("1", "true", "yes", "on")
+        or str(os.getenv("NCAAB_LIGHT_MODE", "")).strip().lower() in ("1", "true", "yes", "on")
+        or str(os.getenv("RENDER", "")).strip().lower() in ("1", "true", "yes", "on")
+    )
 
     recs: list[dict[str, Any]] = []
 
@@ -1209,7 +1215,7 @@ def build_high_likelihood(cfg: HighLikelihoodConfig) -> dict[str, Any]:
 
         # Optional intraday live snapshot movement (only totals/spreads available).
         # Lazily load with a per-game cutoff (scheduled start_time) so we only use pregame movement.
-        if not live_mv_by_gid:
+        if live_snapshot_moves_enabled and not live_mv_by_gid:
             try:
                 cutoff_by_gid: dict[str, str] = {}
                 for rr in recs:

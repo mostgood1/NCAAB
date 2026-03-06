@@ -4,13 +4,17 @@ services:
     env: python
     plan: free
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: gunicorn wsgi:application --workers 1 --threads 2 --timeout 120 --max-requests 200 --max-requests-jitter 50 --bind 0.0.0.0:$PORT
+    startCommand: gunicorn wsgi:application --workers 1 --threads 1 --timeout 120 --max-requests 200 --max-requests-jitter 50 --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: FLASK_DEBUG
         value: "0"
+      - key: RENDER
+        value: "1"
       - key: NCAAB_BOOTSTRAP_ON_START
         value: "0"
+      - key: NCAAB_DISABLE_LIVE_SNAPSHOT_MOVES
+        value: "1"
       - key: RECS_FAST_GROUP
         value: "0"
       - key: NCAAB_THEODDS_API_KEY
@@ -23,6 +27,18 @@ services:
         value: UTC
       - key: NCAAB_LIGHT_MODE
         value: "1"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: NUMEXPR_NUM_THREADS
+        value: "1"
+      - key: VECLIB_MAXIMUM_THREADS
+        value: "1"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
       - key: NCAAB_P_OVER_THRESHOLD_HIGH
         value: "0.60"
       - key: NCAAB_P_OVER_THRESHOLD_LOW

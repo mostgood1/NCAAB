@@ -5227,6 +5227,39 @@ def _today_local() -> dt.date:
         return dt.date.today()
 
 
+def _today_local_str() -> str:
+    """Return the configured local slate date as YYYY-MM-DD."""
+    try:
+        return _today_local().isoformat()
+    except Exception:
+        try:
+            return dt.datetime.utcnow().strftime("%Y-%m-%d")
+        except Exception:
+            return dt.date.today().isoformat()
+
+
+def _today_request_local() -> dt.date:
+    """Return today's date in the active request/display timezone when available."""
+    try:
+        tz_name = _get_display_tz_name()
+    except Exception:
+        tz_name = os.getenv("DISPLAY_TZ") or os.getenv("SCHEDULE_TZ") or None
+    if tz_name:
+        try:
+            return dt.datetime.now(ZoneInfo(str(tz_name))).date()
+        except Exception:
+            pass
+    return _today_local()
+
+
+def _today_request_local_str() -> str:
+    """Return the active request-local slate date as YYYY-MM-DD."""
+    try:
+        return _today_request_local().isoformat()
+    except Exception:
+        return _today_local_str()
+
+
 def _get_display_tz_name() -> str:
     """Resolve the display timezone name, driven by end-user context.
 
@@ -7004,18 +7037,10 @@ def index():
         except Exception:
             return None
 
-    # If no explicit date was provided, prefer latest non-empty snapshot (prevents blank UI when "today" exists but is empty)
+    # Default to the active request-local slate date.
     try:
         if not date_q:
-            d0 = _latest_nonempty_display_date_index()
-            if d0:
-                date_q = d0
-            else:
-                try:
-                    from zoneinfo import ZoneInfo as _ZI
-                    date_q = dt.datetime.now(_ZI("America/New_York")).date().isoformat()
-                except Exception:
-                    date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+            date_q = _today_request_local_str()
     except Exception:
         pass
 
@@ -7205,7 +7230,7 @@ def index():
         # Use explicit date if provided; else resolve from latest display
         api_date = (request.args.get("date") or "").strip()
         if not api_date:
-            api_date = _latest_nonempty_display_date_index()
+            api_date = _today_request_local_str()
         if api_date:
             try:
                 with app.test_request_context(f"/api/display_predictions?date={api_date}&view=cards"):
@@ -25513,6 +25538,8 @@ def recommendations():
     except Exception:
         date_q = ''
     try:
+        if not date_q:
+            date_q = _today_request_local_str()
         if date_q:
             return redirect(f"/high-likelihood?date={date_q}", code=302)
     except Exception:
@@ -30318,41 +30345,18 @@ def api_recommendations():
                 prob_map = {}
                 line_map = {}
         return prob_map, line_map
-    # Resolve default date when not provided: prefer latest display snapshot, else latest edges
+    # Resolve default date when not provided: prefer the active request-local day.
     if not date_q:
         try:
-            import re as _re_mod
-            pat = _re_mod.compile(r'^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$')
-            _dates = []
-            for _p in OUT.glob('predictions_display_*.csv'):
-                m = pat.match(_p.name)
-                if m:
-                    _dates.append(m.group(1))
-            if _dates:
-                date_q = sorted(_dates)[-1]
-            else:
-                # Fallback: derive from latest edges file name
-                pat_e = _re_mod.compile(r'^align_period_(\d{4}-\d{2}-\d{2})_edges\.csv$')
-                _ed_dates = []
-                for _pe in OUT.glob('align_period_*_edges.csv'):
-                    me = pat_e.match(_pe.name)
-                    if me:
-                        _ed_dates.append(me.group(1))
-                if _ed_dates:
-                    date_q = sorted(_ed_dates)[-1]
+            date_q = _today_request_local_str()
         except Exception:
-            date_q = date_q
-    # Final fallback to ET-aligned "today" when still empty
+            date_q = _today_local_str()
+    # Final fallback to configured local "today" when still empty
     if not date_q:
         try:
-            from zoneinfo import ZoneInfo as _ZI
-            now_et = dt.datetime.now(_ZI("America/New_York"))
-            date_q = now_et.date().isoformat()
+            date_q = _today_request_local_str()
         except Exception:
-            try:
-                date_q = dt.datetime.utcnow().date().isoformat()
-            except Exception:
-                date_q = dt.date.today().isoformat()
+            date_q = _today_local_str()
 
     # ------------------------------------------------------------------
     # SIM-only mode: build OU/ATS/ML rows from simulation quantiles and market lines
@@ -31920,6 +31924,12 @@ def api_recommendations():
                 picks = out2
         except Exception:
             picks = pd.DataFrame()
+    # Collapse duplicated per-book rows down to one recommendation per game/market/period.
+    try:
+        if isinstance(picks, pd.DataFrame) and not picks.empty:
+            picks = _dedupe_recommendation_frame(picks)
+    except Exception:
+        pass
     # Compute explicit labels for OU/ATS/ML similar to page
     # Build closing totals and name/date maps for robust line fallback in labels
     closing_total_map_api: dict[str, float] = {}
@@ -34114,7 +34124,12 @@ def api_high_likelihood():
         max_ml_picks = 4
     max_ml_picks = max(0, min(50, max_ml_picks))
 
-    # Resolve default date in the same spirit as /api/recommendations
+    # Resolve default date from the active request-local day first.
+    if not date_q:
+        try:
+            date_q = _today_request_local_str()
+        except Exception:
+            date_q = _today_local_str()
     if not date_q:
         try:
             import re as _re_mod
@@ -34262,8 +34277,13 @@ def high_likelihood_page():
             x = float(default)
         return max(lo, min(hi, x))
 
-    # Resolve default date in the same spirit as /api/high_likelihood
+    # Resolve default date from the active request-local day first.
     date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        try:
+            date_q = _today_request_local_str()
+        except Exception:
+            date_q = _today_local_str()
     if not date_q:
         try:
             import re as _re_mod
@@ -35489,7 +35509,7 @@ def api_upload_picks_raw():
             csv_bytes = data if data else None
         if not csv_bytes:
             return jsonify({"status": "error", "message": "no CSV content provided"}), 400
-        # Validate CSV by attempting to parse a small buffer
+        # Validate CSV and normalize to one row per game/market/period.
         try:
             buf = io.BytesIO(csv_bytes)
             df = pd.read_csv(buf)
@@ -35500,11 +35520,18 @@ def api_upload_picks_raw():
             try:
                 df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
                 df = df[df['date'] == date_q].copy()
-                out_buf = io.StringIO()
-                df.to_csv(out_buf, index=False)
-                csv_bytes_out = out_buf.getvalue().encode('utf-8')
             except Exception:
                 pass
+        try:
+            df = _dedupe_recommendation_frame(df)
+        except Exception:
+            pass
+        try:
+            out_buf = io.StringIO()
+            df.to_csv(out_buf, index=False)
+            csv_bytes_out = out_buf.getvalue().encode('utf-8')
+        except Exception:
+            csv_bytes_out = csv_bytes
         # Write to outputs/picks_raw.csv or outputs/picks_raw_<date>.csv
         out_path = OUT / (f"picks_raw_{date_q}.csv" if date_q else "picks_raw.csv")
         try:
@@ -35558,6 +35585,16 @@ def api_upload_predictions_display():
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
         if (not allow_empty) and (not isinstance(df, pd.DataFrame) or df.empty or len(df.columns) == 0):
             return jsonify({"status": "error", "message": "empty CSV (0 rows)"}), 400
+        try:
+            df = _collapse_display_frame(df, date_q)
+        except Exception:
+            pass
+        try:
+            out_buf = io.StringIO()
+            df.to_csv(out_buf, index=False)
+            csv_bytes = out_buf.getvalue().encode('utf-8')
+        except Exception:
+            pass
         # Write atomically to outputs/predictions_display_<date>.csv and verify
         out_path = OUT / f"predictions_display_{date_q}.csv"
         try:
@@ -39143,6 +39180,231 @@ def _normalize_display(df: DataFrame) -> DataFrame:
     out['pred_margin_basis'] = m_bases
     return out
 
+
+def _collapse_display_frame(df: DataFrame, date_str: str | None = None) -> DataFrame:
+    """Collapse duplicated per-book display rows down to one row per `game_id`."""
+    try:
+        if df is None or df.empty or 'game_id' not in df.columns:
+            return df
+
+        work = df.copy()
+        try:
+            work['game_id'] = work['game_id'].astype(str).str.replace('.0', '', regex=False).str.strip()
+            work = work[work['game_id'].ne('')].copy()
+        except Exception:
+            pass
+        if work.empty:
+            return work
+
+        try:
+            dup_counts = work['game_id'].value_counts(dropna=False)
+            if dup_counts.le(1).all():
+                return work.reset_index(drop=True)
+        except Exception:
+            pass
+
+        def _blankish_mask(ser: pd.Series) -> pd.Series:
+            try:
+                s = ser.astype(str).str.strip().str.lower()
+                return ser.isna() | s.eq('') | s.isin(['nan', 'none', 'null'])
+            except Exception:
+                try:
+                    return ser.isna()
+                except Exception:
+                    return pd.Series([False] * len(work), index=work.index)
+
+        for flag, col in {
+            '__has_market_total': 'market_total',
+            '__has_spread_home': 'spread_home',
+            '__has_display_time': 'display_time_str',
+            '__has_start_iso': 'start_time_iso',
+            '__has_start_time': 'start_time',
+        }.items():
+            if col in work.columns:
+                try:
+                    work[flag] = (~_blankish_mask(work[col])).astype(int)
+                except Exception:
+                    work[flag] = 0
+            else:
+                work[flag] = 0
+
+        sort_ts = None
+        for col in ('last_update', 'updated_at', 'commence_time', 'start_time_iso', 'start_time'):
+            if col in work.columns:
+                try:
+                    cand = pd.to_datetime(work[col], errors='coerce', utc=True)
+                    if cand.notna().any():
+                        sort_ts = cand
+                        break
+                except Exception:
+                    continue
+        work['__sort_ts'] = sort_ts if sort_ts is not None else pd.NaT
+        work = work.sort_values(
+            ['game_id', '__has_market_total', '__has_spread_home', '__has_display_time', '__has_start_iso', '__has_start_time', '__sort_ts'],
+            ascending=[True, False, False, False, False, False, False],
+            na_position='last',
+        )
+        dedup = work.drop_duplicates(subset=['game_id'], keep='first').copy()
+
+        for col in ('pred_total', 'pred_margin', 'market_total', 'spread_home'):
+            if col not in work.columns:
+                continue
+            try:
+                med = pd.to_numeric(work[col], errors='coerce').groupby(work['game_id']).median()
+                base = pd.to_numeric(dedup[col], errors='coerce')
+                dedup[col] = base.where(base.notna(), dedup['game_id'].map(med))
+            except Exception:
+                pass
+
+        def _first_nonblank_map(col: str) -> dict[str, Any]:
+            if col not in work.columns:
+                return {}
+            try:
+                mask = ~_blankish_mask(work[col])
+                if not mask.any():
+                    return {}
+                tmp = work.loc[mask, ['game_id', col]].drop_duplicates(subset=['game_id'], keep='first')
+                return tmp.set_index('game_id')[col].to_dict()
+            except Exception:
+                return {}
+
+        for col in ('home_team', 'away_team', 'display_date', 'date', 'display_time_str', 'start_time', 'start_time_local', 'start_time_iso', 'commence_time'):
+            if col not in work.columns:
+                continue
+            fill_map = _first_nonblank_map(col)
+            if not fill_map:
+                continue
+            try:
+                if col not in dedup.columns:
+                    dedup[col] = dedup['game_id'].map(fill_map)
+                else:
+                    miss = _blankish_mask(dedup[col])
+                    if miss.any():
+                        dedup.loc[miss, col] = dedup.loc[miss, 'game_id'].map(fill_map)
+            except Exception:
+                pass
+
+        if date_str:
+            for col in ('display_date', 'date'):
+                if col in dedup.columns:
+                    try:
+                        miss = _blankish_mask(dedup[col])
+                        if miss.any():
+                            dedup.loc[miss, col] = str(date_str)
+                    except Exception:
+                        pass
+
+        dedup = dedup.drop(
+            columns=[
+                '__has_market_total',
+                '__has_spread_home',
+                '__has_display_time',
+                '__has_start_iso',
+                '__has_start_time',
+                '__sort_ts',
+            ],
+            errors='ignore',
+        )
+
+        order_ts = None
+        for col in ('start_time_iso', 'start_time', 'commence_time', 'display_date'):
+            if col in dedup.columns:
+                try:
+                    cand = pd.to_datetime(dedup[col], errors='coerce', utc=True)
+                    if cand.notna().any():
+                        order_ts = cand
+                        break
+                except Exception:
+                    continue
+        if order_ts is not None:
+            dedup['__order_ts'] = order_ts
+            dedup = dedup.sort_values(['__order_ts', 'game_id'], ascending=[True, True], na_position='last')
+            dedup = dedup.drop(columns=['__order_ts'], errors='ignore')
+        else:
+            dedup = dedup.sort_values(['game_id'])
+
+        return dedup.reset_index(drop=True)
+    except Exception:
+        return df
+
+
+def _dedupe_recommendation_frame(df: DataFrame) -> DataFrame:
+    """Collapse recommendation rows to a single best row per game/market/period."""
+    try:
+        if df is None or df.empty:
+            return df
+        work = df.copy()
+        if 'game_id' in work.columns:
+            try:
+                work['game_id'] = work['game_id'].astype(str).str.replace('.0', '', regex=False).str.strip()
+                work = work[work['game_id'].ne('')].copy()
+            except Exception:
+                pass
+        if work.empty:
+            return work
+
+        if ('market' not in work.columns) or work['market'].astype(str).str.strip().eq('').all():
+            if 'rec_code' in work.columns:
+                try:
+                    code_map = {'OU': 'totals', 'ATS': 'spreads', 'ML': 'moneyline'}
+                    work['market'] = work['rec_code'].astype(str).str.upper().map(code_map).fillna(
+                        work['rec_code'].astype(str).str.lower()
+                    )
+                except Exception:
+                    pass
+
+        if 'period' not in work.columns:
+            work['period'] = 'full_game'
+        else:
+            try:
+                work['period'] = work['period'].astype(str)
+                work.loc[work['period'].str.strip().eq(''), 'period'] = 'full_game'
+            except Exception:
+                pass
+
+        if 'market' in work.columns:
+            try:
+                work['market'] = work['market'].astype(str).str.lower().str.strip()
+            except Exception:
+                pass
+
+        dedupe_subset = [c for c in ['date', 'game_id', 'period', 'market'] if c in work.columns]
+        if not dedupe_subset:
+            return work
+
+        try:
+            edge_ser = pd.to_numeric(work['edge'], errors='coerce') if 'edge' in work.columns else pd.Series(np.nan, index=work.index)
+        except Exception:
+            edge_ser = pd.Series(np.nan, index=work.index)
+        work['__edge_abs'] = edge_ser.abs()
+
+        try:
+            work['__has_book'] = work['book'].astype(str).str.strip().ne('').astype(int) if 'book' in work.columns else 0
+        except Exception:
+            work['__has_book'] = 0
+
+        try:
+            work['__has_price'] = pd.to_numeric(work['price'], errors='coerce').notna().astype(int) if 'price' in work.columns else 0
+        except Exception:
+            work['__has_price'] = 0
+
+        try:
+            work['__has_line'] = pd.to_numeric(work['line'], errors='coerce').notna().astype(int) if 'line' in work.columns else 0
+        except Exception:
+            try:
+                work['__has_line'] = pd.to_numeric(work['line_value'], errors='coerce').notna().astype(int) if 'line_value' in work.columns else 0
+            except Exception:
+                work['__has_line'] = 0
+
+        sort_cols = dedupe_subset + ['__edge_abs', '__has_price', '__has_line', '__has_book']
+        ascending = [True] * len(dedupe_subset) + [False, False, False, False]
+        work = work.sort_values(sort_cols, ascending=ascending, na_position='last')
+        work = work.drop_duplicates(subset=dedupe_subset, keep='first')
+        work = work.drop(columns=['__edge_abs', '__has_price', '__has_line', '__has_book'], errors='ignore')
+        return work.reset_index(drop=True)
+    except Exception:
+        return df
+
 def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
     # Normalize with minimal copying to reduce memory footprint
     norm = _normalize_display(df)
@@ -39443,6 +39705,11 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
             norm = apply_pred_total_view(norm)
     except Exception:
         pass
+    try:
+        if isinstance(norm, pd.DataFrame) and not norm.empty:
+            norm = _collapse_display_frame(norm, date_str)
+    except Exception:
+        pass
 
     # Ensure we never write a zero-column CSV.
     # Pandas will emit a 0-byte file in that case, which then breaks readers/tests.
@@ -39601,23 +39868,12 @@ def api_display_predictions():
         except Exception:
             return None
 
-    # Infer date if not provided: prefer latest non-empty display snapshot, then last_index_df, else today
+    # Infer date if not provided: prefer the active request-local day.
     if not date_q:
         try:
-            d0 = _latest_nonempty_display_date()
-            if d0:
-                date_q = d0
-            else:
-                raise RuntimeError('no_nonempty_display_snapshots')
+            date_q = _today_request_local_str()
         except Exception:
-            base_df = getattr(app, 'last_index_df', pd.DataFrame())
-            if isinstance(base_df, pd.DataFrame) and 'date' in base_df.columns and base_df['date'].notna().any():
-                try:
-                    date_q = str(base_df['date'].dropna().astype(str).unique()[0])
-                except Exception:
-                    date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
-            else:
-                date_q = dt.datetime.utcnow().strftime('%Y-%m-%d')
+            date_q = _today_local_str()
     path = OUT / f'predictions_display_{date_q}.csv'
     def _read_csv_resilient(_p: Path) -> pd.DataFrame:
         # Try pandas in multiple modes; fall back to csv module when needed
@@ -39651,6 +39907,11 @@ def api_display_predictions():
     if path.exists():
         # Read full CSV first to avoid dropping rows due to column projection
         df_full = _read_csv_resilient(path)
+        try:
+            if isinstance(df_full, pd.DataFrame) and not df_full.empty:
+                df_full = _collapse_display_frame(df_full, date_q)
+        except Exception:
+            pass
         # Do not modify or persist the snapshot; serve values exactly as stored to ensure alignment
         try:
             _ = df_full  # no-op to satisfy lints in some environments

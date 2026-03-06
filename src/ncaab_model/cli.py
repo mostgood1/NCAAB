@@ -7750,6 +7750,22 @@ def produce_picks(
         pd.DataFrame(columns=["game_id"]).to_csv(out, index=False)
         return
     picks_df = pd.DataFrame(out_rows).sort_values(["period","market","edge"], ascending=[True,True,False]).reset_index(drop=True)
+    try:
+        dedupe_subset = [c for c in ["game_id", "period", "market"] if c in picks_df.columns]
+        if dedupe_subset:
+            picks_df["_edge_abs"] = pd.to_numeric(picks_df.get("edge"), errors="coerce").abs()
+            if "book" in picks_df.columns:
+                picks_df["_has_book"] = picks_df["book"].astype(str).str.strip().ne("").astype(int)
+            else:
+                picks_df["_has_book"] = 0
+            picks_df = (
+                picks_df.sort_values(dedupe_subset + ["_edge_abs", "_has_book"], ascending=[True] * len(dedupe_subset) + [False, False])
+                .drop_duplicates(subset=dedupe_subset, keep="first")
+                .drop(columns=["_edge_abs", "_has_book"], errors="ignore")
+                .reset_index(drop=True)
+            )
+    except Exception:
+        pass
     out.parent.mkdir(parents=True, exist_ok=True)
     picks_df.to_csv(out, index=False)
     print(f"[green]Wrote {len(picks_df)} picks (totals/spreads/moneyline) to[/green] {out}")
