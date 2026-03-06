@@ -144,6 +144,49 @@ function Copy-ArtifactIfExists {
   }
 }
 
+function Copy-CsvForDateIfMatching {
+  param(
+    [string]$Source,
+    [string]$Destination,
+    [string]$Date,
+    [string]$DateColumn = 'date'
+  )
+  if (-not $Source -or -not $Destination -or -not $Date) { return $false }
+  if (-not (Test-Path -LiteralPath $Source)) {
+    try {
+      if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue }
+    } catch {}
+    return $false
+  }
+  try {
+    $rows = @(Import-Csv -LiteralPath $Source)
+    if ($rows.Count -le 0) {
+      try {
+        if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue }
+      } catch {}
+      return $false
+    }
+    $propNames = @($rows[0].PSObject.Properties.Name)
+    if ($propNames -contains $DateColumn) {
+      $filtered = @($rows | Where-Object { (([string]($_.$DateColumn)).Trim()) -eq $Date })
+      if ($filtered.Count -le 0) {
+        try {
+          if (Test-Path -LiteralPath $Destination) { Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue }
+        } catch {}
+        return $false
+      }
+      $parent = Split-Path -Parent $Destination
+      if ($parent) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+      $filtered | Export-Csv -LiteralPath $Destination -NoTypeInformation -Encoding UTF8
+      return $true
+    }
+    return (Copy-ArtifactIfExists -Source $Source -Destination $Destination)
+  } catch {
+    Write-Warning ("Copy-CsvForDateIfMatching failed: {0} -> {1} ({2})" -f $Source, $Destination, $_.Exception.Message)
+    return $false
+  }
+}
+
 function Backup-ExistingFiles {
   param(
     [string[]]$Paths,
@@ -172,7 +215,7 @@ function Backup-ExistingFiles {
     }
     [void]$items.Add($entry)
   }
-  return ,@($items)
+  return $items.ToArray()
 }
 
 function Restore-BackedUpFiles {
@@ -3189,11 +3232,12 @@ print({'path': str(display_path), 'rows': len(disp)})
           $dayArchiveRoot = Join-Path $OutDir 'archive'
           $dayArchiveDir = Join-Path $dayArchiveRoot $dayAheadIso
           New-Item -ItemType Directory -Path $dayArchiveDir -Force | Out-Null
-          $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'picks_raw.csv') -Destination (Join-Path $OutDir ("picks_raw_" + $dayAheadIso + ".csv"))
+          $dayPicksRawSource = Join-Path $OutDir 'picks_raw.csv'
+          $null = Copy-CsvForDateIfMatching -Source $dayPicksRawSource -Destination (Join-Path $OutDir ("picks_raw_" + $dayAheadIso + ".csv")) -Date $dayAheadIso
           $null = Copy-ArtifactIfExists -Source $dayMergedLastShared -Destination (Join-Path $dayArchiveDir ("games_with_last_" + $dayAheadIso + ".csv"))
           $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'last_odds.csv') -Destination (Join-Path $dayArchiveDir ("last_odds_" + $dayAheadIso + ".csv"))
           $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'picks_clean.csv') -Destination (Join-Path $dayArchiveDir ("picks_clean_" + $dayAheadIso + ".csv"))
-          $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'picks_raw.csv') -Destination (Join-Path $dayArchiveDir ("picks_raw_" + $dayAheadIso + ".csv"))
+          $null = Copy-CsvForDateIfMatching -Source $dayPicksRawSource -Destination (Join-Path $dayArchiveDir ("picks_raw_" + $dayAheadIso + ".csv")) -Date $dayAheadIso
         } catch {
           Write-Warning ("day-ahead archive copy failed: {0}" -f $_.Exception.Message)
         }

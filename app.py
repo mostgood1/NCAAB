@@ -30766,7 +30766,14 @@ def api_recommendations():
             if p_date.exists():
                 df_date = _safe_read_csv(p_date)
                 if isinstance(df_date, pd.DataFrame) and not df_date.empty:
-                    picks = df_date
+                    if 'date' in df_date.columns:
+                        try:
+                            df_date['date'] = pd.to_datetime(df_date['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                            df_date = df_date[df_date['date'] == date_q].copy()
+                        except Exception:
+                            pass
+                    if not df_date.empty:
+                        picks = df_date
     except Exception:
         pass
     # If we have base picks_raw but no totals, synthesize gated totals and append
@@ -31867,7 +31874,14 @@ def api_recommendations():
                 if p_date2.exists():
                     df_date2 = _safe_read_csv(p_date2)
                     if isinstance(df_date2, pd.DataFrame) and not df_date2.empty:
-                        picks = df_date2
+                        if 'date' in df_date2.columns:
+                            try:
+                                df_date2['date'] = pd.to_datetime(df_date2['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                                df_date2 = df_date2[df_date2['date'] == date_q].copy()
+                            except Exception:
+                                pass
+                        if not df_date2.empty:
+                            picks = df_date2
         except Exception:
             pass
     # If filtering resulted in no rows, retry display-based OU fallback for the specific date
@@ -35213,6 +35227,12 @@ def api_picks_raw():
         if date_q:
             p_date = OUT / f"picks_raw_{date_q}.csv"
             df = _safe_read_csv(p_date)
+            if isinstance(df, pd.DataFrame) and not df.empty and 'date' in df.columns:
+                try:
+                    df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                    df = df[df['date'] == date_q].copy()
+                except Exception:
+                    pass
         # 2) Derive from aligned edges for the date
         if (df is None) or (isinstance(df, pd.DataFrame) and df.empty):
             try:
@@ -35475,13 +35495,23 @@ def api_upload_picks_raw():
             df = pd.read_csv(buf)
         except Exception as e:
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
+        csv_bytes_out = csv_bytes
+        if date_q and isinstance(df, pd.DataFrame) and 'date' in df.columns:
+            try:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                df = df[df['date'] == date_q].copy()
+                out_buf = io.StringIO()
+                df.to_csv(out_buf, index=False)
+                csv_bytes_out = out_buf.getvalue().encode('utf-8')
+            except Exception:
+                pass
         # Write to outputs/picks_raw.csv or outputs/picks_raw_<date>.csv
         out_path = OUT / (f"picks_raw_{date_q}.csv" if date_q else "picks_raw.csv")
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
             with open(tmp_path, 'wb') as fh:
-                fh.write(csv_bytes)
+                fh.write(csv_bytes_out)
                 try:
                     fh.flush()
                     os.fsync(fh.fileno())
