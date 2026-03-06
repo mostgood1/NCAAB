@@ -35451,11 +35451,14 @@ def api_picks_raw():
 
 @app.route("/api/upload_picks_raw", methods=["POST"])
 def api_upload_picks_raw():
-    """Upload picks_raw.csv to outputs for recommendations rendering on Render.
+    """Upload picks_raw artifacts to outputs for recommendations rendering on Render.
 
     Accepts either a multipart file field named 'file' or raw CSV text in the request body.
+    Optional query param: date=YYYY-MM-DD writes to outputs/picks_raw_<date>.csv.
+    Without a date query param, writes to outputs/picks_raw.csv.
     """
     try:
+        date_q = (request.args.get("date") or "").strip()
         # Read CSV content from multipart or raw body
         csv_bytes: bytes | None = None
         if 'file' in request.files:
@@ -35472,14 +35475,22 @@ def api_upload_picks_raw():
             df = pd.read_csv(buf)
         except Exception as e:
             return jsonify({"status": "error", "message": f"invalid CSV: {e}"}), 400
-        # Write to outputs/picks_raw.csv
-        out_path = OUT / "picks_raw.csv"
+        # Write to outputs/picks_raw.csv or outputs/picks_raw_<date>.csv
+        out_path = OUT / (f"picks_raw_{date_q}.csv" if date_q else "picks_raw.csv")
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            out_path.write_bytes(csv_bytes)
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with open(tmp_path, 'wb') as fh:
+                fh.write(csv_bytes)
+                try:
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                except Exception:
+                    pass
+            os.replace(tmp_path, out_path)
         except Exception as e:
             return jsonify({"status": "error", "message": f"write failed: {e}"}), 500
-        return jsonify({"status": "ok", "rows": int(len(df)), "path": str(out_path)})
+        return jsonify({"status": "ok", "rows": int(len(df)), "date": date_q or None, "path": str(out_path)})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

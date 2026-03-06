@@ -3,6 +3,7 @@ param(
     [string]$BaseUrl = 'https://ncaab.onrender.com',
     [string]$OutputsDir = "$PSScriptRoot/../outputs",
     [switch]$TriggerRedeploy,
+    [switch]$DateScopedPicksRaw,
     [switch]$SlimSimOnly,
     [switch]$UploadLiveLensLogs,
     [string]$DeployHookUrl = $env:RENDER_DEPLOY_HOOK_URL,
@@ -120,7 +121,7 @@ function Upload-File {
 }
 
 # Resolve artifact paths
-$picksPath     = Join-Path -Path $OutputsDir -ChildPath 'picks_raw.csv'
+$picksPath     = if ($DateScopedPicksRaw.IsPresent) { Join-Path -Path $OutputsDir -ChildPath ("picks_raw_{0}.csv" -f $Date) } else { Join-Path -Path $OutputsDir -ChildPath 'picks_raw.csv' }
 $picksAtsPath  = Join-Path -Path $OutputsDir -ChildPath ("picks/ats_picks_{0}.csv" -f $Date)
 $edgesPath     = Join-Path -Path $OutputsDir -ChildPath ("align_period_{0}_edges.csv" -f $Date)
 $displayPath   = Join-Path -Path $OutputsDir -ChildPath ("predictions_display_{0}.csv" -f $Date)
@@ -444,10 +445,16 @@ function Build-ModelFirstEnriched {
 # Upload in preferred order: picks_raw -> ATS picks(date) -> edges(date) -> display(date) -> enriched(date)
 $picksRows = Get-CsvRowCount -Path $picksPath
 if ($picksRows -gt 0) {
-    $u1 = Upload-File -Uri "$BaseUrl/api/upload_picks_raw" -FilePath $picksPath
+    $picksQuery = @{}
+    if ($DateScopedPicksRaw.IsPresent) { $picksQuery.date = $Date }
+    $u1 = Upload-File -Uri "$BaseUrl/api/upload_picks_raw" -FilePath $picksPath -Query $picksQuery
     if ($u1) { Write-Host "[OK] picks_raw uploaded: $($u1.path) rows=$($u1.rows)" -ForegroundColor Green }
 } else {
-    Write-Host "[Skip] picks_raw.csv has 0 rows; preserving remote non-empty file." -ForegroundColor Yellow
+    if ($DateScopedPicksRaw.IsPresent) {
+        Write-Host "[Skip] date-scoped picks_raw missing or empty for $Date" -ForegroundColor Yellow
+    } else {
+        Write-Host "[Skip] picks_raw.csv has 0 rows; preserving remote non-empty file." -ForegroundColor Yellow
+    }
 }
 
 # Upload ATS picks if present
