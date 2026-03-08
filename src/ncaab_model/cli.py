@@ -5095,6 +5095,11 @@ def compute_line_movement_cmd(
     Totals: steam_total_flag when abs(delta_total) >= 1.5
     Spreads: steam_spread_flag when abs(delta_home_spread) >= 2.0
     Moneyline: steam_ml_home_flag when abs(delta_moneyline_home) >= 40 (American odds)
+
+        Timing/recency columns are also emitted:
+            - ts_open, ts_close (prefer last_update else fetched_at; UTC)
+            - close_prio (selection quality)
+            - mins_open_to_close, mins_open_to_tip, mins_close_to_tip
     """
     try:
         paths = read_directory_for_dates(in_dir)

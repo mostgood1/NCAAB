@@ -2,17 +2,32 @@
 # Usage: schedule this script to run daily after finalization window.
 
 param(
-    [string]$WorkspaceRoot = "C:/Users/mostg/OneDrive/Coding/NCAAB",
-    [string]$PythonExe = "C:/Users/mostg/OneDrive/Coding/NCAAB/.venv/Scripts/python.exe",
-    [string]$LogDir = "C:/Users/mostg/OneDrive/Coding/NCAAB/outputs/logs"
+    [string]$WorkspaceRoot = "",
+    [string]$PythonExe = "",
+    [string]$LogDir = ""
 )
 
 try {
+    $pushed = $false
+    $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") | Select-Object -ExpandProperty Path
+    if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) { $WorkspaceRoot = $repoRoot }
+    if ([string]::IsNullOrWhiteSpace($LogDir)) { $LogDir = Join-Path $WorkspaceRoot "outputs\\logs" }
+
     if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
     $dateStr = Get-Date -Format "yyyy-MM-dd"
     $logPath = Join-Path $LogDir ("e2e_nightly_" + $dateStr + ".log")
 
+    if ([string]::IsNullOrWhiteSpace($PythonExe)) { $PythonExe = Join-Path $WorkspaceRoot ".venv\\Scripts\\python.exe" }
+    if (-not (Test-Path $PythonExe)) {
+        $cmd = Get-Command python -ErrorAction SilentlyContinue
+        if ($cmd) { $PythonExe = $cmd.Source }
+    }
+    if (-not (Test-Path $PythonExe)) { throw "Python executable not found. Create .venv in repo root or pass -PythonExe." }
+
+    if (-not (Test-Path $WorkspaceRoot)) { throw "WorkspaceRoot not found: $WorkspaceRoot" }
+
     Push-Location $WorkspaceRoot
+    $pushed = $true
     "$dateStr Running synthetic E2E harness..." | Out-File -FilePath $logPath -Append
 
     $scriptPath = Join-Path $WorkspaceRoot "scripts/synthetic_e2e_harness.py"
@@ -23,5 +38,5 @@ try {
 } catch {
     "ERROR: $($_.Exception.Message)" | Out-File -FilePath $logPath -Append
 } finally {
-    Pop-Location
+    if ($pushed) { Pop-Location }
 }

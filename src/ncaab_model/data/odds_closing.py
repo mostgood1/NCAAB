@@ -66,6 +66,14 @@ def compute_closing_lines(df: pd.DataFrame, window_minutes: int | None = None) -
 
     window_minutes: restrict primary eligibility to rows with last_update >= commence_time - window and <= commence_time.
       If None, treat all pre-tip last_update rows equally.
+
+        Output columns include:
+            - Closing line fields per market (e.g. total/home_spread/moneyline_home)
+            - Movement fields (open_*, close_*, delta_*, steam_*_flag)
+            - Timing fields:
+                    - ts_open/ts_close: row timestamps (prefer last_update else fetched_at), UTC
+                    - close_prio: selection priority (3=in-window last_update, 2=pre-tip last_update, 1=pre-tip fetched_at, 0=fallback)
+                    - mins_open_to_close, mins_open_to_tip, mins_close_to_tip
     """
     if df.empty:
         return df
@@ -75,6 +83,10 @@ def compute_closing_lines(df: pd.DataFrame, window_minutes: int | None = None) -
     missing = REQUIRED_COLS - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns for closing lines: {missing}")
+
+    # last_update is optional in some feeds, but this routine expects the column.
+    if "last_update" not in df.columns:
+        df["last_update"] = pd.NaT
 
     # Guard window
     if window_minutes is not None:
@@ -125,35 +137,109 @@ def compute_closing_lines(df: pd.DataFrame, window_minutes: int | None = None) -
     totals = picked[picked["market"] == "totals"].copy()
     totals = totals[[c for c in common_cols + ["total", "over_price", "under_price"] if c in totals.columns]]
     out = pd.concat([h2h, spreads, totals], ignore_index=True)
-    # Attach movement metrics by reconstructing earliest vs picked per key
+
+    # Attach movement + timing context.
+    base_cols = ["event_id", "book", "market", "period"]
     try:
-        base_cols = ["event_id", "book", "market", "period"]
-        earliest = df.sort_values([*base_cols, "tstamp"]).groupby(base_cols, as_index=False).head(1)
+        # Opening line is the earliest observed snapshot (by fetched_at) per key.
+        earliest = (
+            df.sort_values([*base_cols, "fetched_at"], kind="mergesort")
+            .groupby(base_cols, as_index=False)
+            .head(1)
+        )
         latest = picked
-        def _merge_mv(col_earliest: str, col_latest: str, out_open: str, out_close: str, out_delta: str, flag_name: str, frame_market: str):
-            if col_latest not in latest.columns or col_earliest not in earliest.columns:
-                return
-            # Only compute within matching market subset
-            e_sub = earliest[earliest["market"] == frame_market][base_cols + [col_earliest]]
-            l_sub = latest[latest["market"] == frame_market][base_cols + [col_latest]]
-            merged_mv = l_sub.merge(e_sub, on=base_cols, how="left", suffixes=("_latest","_earliest"))
-            merged_mv[out_open] = merged_mv[col_earliest]
-            merged_mv[out_close] = merged_mv[col_latest]
-            merged_mv[out_delta] = merged_mv[out_close] - merged_mv[out_open]
-            # Steam flag: large absolute move beyond heuristic thresholds
-            thresh = 1.5 if frame_market == "totals" else (2.0 if frame_market == "spreads" else 40.0)
-            merged_mv[flag_name] = merged_mv[out_delta].abs() >= thresh
-            # Map back into out DataFrame
-            out.merge(merged_mv[base_cols + [out_open, out_close, out_delta, flag_name]], on=base_cols, how="left", inplace=True)
-        # Totals movement
-        _merge_mv("total", "total", "open_total", "close_total", "delta_total", "steam_total_flag", "totals")
-        # Spread movement (home perspective)
-        _merge_mv("home_spread", "home_spread", "open_home_spread", "close_home_spread", "delta_home_spread", "steam_spread_flag", "spreads")
-        # Moneyline movement (home side)
-        _merge_mv("moneyline_home", "moneyline_home", "open_moneyline_home", "close_moneyline_home", "delta_moneyline_home", "steam_ml_home_flag", "h2h")
+
+        # Timing columns (UTC): prefer last_update if present else fetched_at.
+        timing = latest[base_cols + ["prio", "tstamp"]].rename(
+            columns={"prio": "close_prio", "tstamp": "ts_close"}
+        )
+        timing = timing.merge(
+            earliest[base_cols + ["tstamp"]].rename(columns={"tstamp": "ts_open"}),
+            on=base_cols,
+            how="left",
+        )
+        out = out.merge(timing, on=base_cols, how="left")
+
+        # Derived durations (minutes). Negative mins_close_to_tip can occur if close is post-tip fallback.
+        if "commence_time" in out.columns:
+            ct = pd.to_datetime(out["commence_time"], errors="coerce", utc=True)
+            ts_open = pd.to_datetime(out.get("ts_open"), errors="coerce", utc=True)
+            ts_close = pd.to_datetime(out.get("ts_close"), errors="coerce", utc=True)
+            out["mins_open_to_close"] = (ts_close - ts_open).dt.total_seconds() / 60.0
+            out["mins_open_to_tip"] = (ct - ts_open).dt.total_seconds() / 60.0
+            out["mins_close_to_tip"] = (ct - ts_close).dt.total_seconds() / 60.0
+        else:
+            out["mins_open_to_close"] = np.nan
+            out["mins_open_to_tip"] = np.nan
+            out["mins_close_to_tip"] = np.nan
+
+        def _mv_for_market(
+            frame_market: str,
+            value_col: str,
+            out_open: str,
+            out_close: str,
+            out_delta: str,
+            flag_name: str,
+            thresh: float,
+        ) -> pd.DataFrame:
+            if value_col not in earliest.columns or value_col not in latest.columns:
+                return pd.DataFrame(columns=base_cols + [out_open, out_close, out_delta, flag_name])
+            e_sub = earliest[earliest["market"] == frame_market][base_cols + [value_col]].rename(
+                columns={value_col: out_open}
+            )
+            l_sub = latest[latest["market"] == frame_market][base_cols + [value_col]].rename(
+                columns={value_col: out_close}
+            )
+            mv = l_sub.merge(e_sub, on=base_cols, how="left")
+            mv[out_open] = pd.to_numeric(mv[out_open], errors="coerce")
+            mv[out_close] = pd.to_numeric(mv[out_close], errors="coerce")
+            mv[out_delta] = mv[out_close] - mv[out_open]
+            mv[flag_name] = mv[out_delta].abs() >= float(thresh)
+            return mv[base_cols + [out_open, out_close, out_delta, flag_name]]
+
+        mv_frames = [
+            _mv_for_market(
+                "totals",
+                "total",
+                "open_total",
+                "close_total",
+                "delta_total",
+                "steam_total_flag",
+                1.5,
+            ),
+            _mv_for_market(
+                "spreads",
+                "home_spread",
+                "open_home_spread",
+                "close_home_spread",
+                "delta_home_spread",
+                "steam_spread_flag",
+                2.0,
+            ),
+            _mv_for_market(
+                "h2h",
+                "moneyline_home",
+                "open_moneyline_home",
+                "close_moneyline_home",
+                "delta_moneyline_home",
+                "steam_ml_home_flag",
+                40.0,
+            ),
+        ]
+        mv = pd.concat([m for m in mv_frames if not m.empty], ignore_index=True, sort=False)
+        if not mv.empty:
+            out = out.merge(mv, on=base_cols, how="left")
     except Exception:
-        # Best-effort; leave movement columns empty on failure
-        for c in movement_cols:
+        # Best-effort; leave movement/timing columns empty on failure.
+        for c in [
+            "ts_open",
+            "ts_close",
+            "close_prio",
+            "mins_open_to_close",
+            "mins_open_to_tip",
+            "mins_close_to_tip",
+            *movement_cols,
+        ]:
             if c not in out.columns:
                 out[c] = np.nan
     return out

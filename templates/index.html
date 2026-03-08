@@ -221,7 +221,10 @@
           data-move-live-total-prev="{{ ('%.1f' % r.line_move_total_prev_live) if (r.line_move_total_prev_live is defined and r.line_move_total_prev_live is not none and r.line_move_total_prev_live == r.line_move_total_prev_live) else '' }}"
           data-move-live-total-last="{{ ('%.1f' % r.line_move_total_last_live) if (r.line_move_total_last_live is defined and r.line_move_total_last_live is not none and r.line_move_total_last_live == r.line_move_total_last_live) else '' }}"
           data-move-live-spread-prev="{{ ('%.1f' % r.line_move_spread_prev_live) if (r.line_move_spread_prev_live is defined and r.line_move_spread_prev_live is not none and r.line_move_spread_prev_live == r.line_move_spread_prev_live) else '' }}"
-          data-move-live-spread-last="{{ ('%.1f' % r.line_move_spread_last_live) if (r.line_move_spread_last_live is defined and r.line_move_spread_last_live is not none and r.line_move_spread_last_live == r.line_move_spread_last_live) else '' }}">
+          data-move-live-spread-last="{{ ('%.1f' % r.line_move_spread_last_live) if (r.line_move_spread_last_live is defined and r.line_move_spread_last_live is not none and r.line_move_spread_last_live == r.line_move_spread_last_live) else '' }}"
+          data-move-open-ts-last="{{ (r.line_move_ts_last_opening if (r.line_move_ts_last_opening is defined and r.line_move_ts_last_opening) else '') }}"
+          data-move-pregame-ts-last="{{ (r.line_move_ts_last_pregame if (r.line_move_ts_last_pregame is defined and r.line_move_ts_last_pregame) else '') }}"
+          data-move-live-ts-last="{{ (r.line_move_ts_last_live if (r.line_move_ts_last_live is defined and r.line_move_ts_last_live) else '') }}">
           <div class="game-header">
             <div class="teams-row">
               <div class="badge-team away" data-bg="{{ r.away_color or '' }}">
@@ -294,11 +297,20 @@
                 {% if r.line_move_badges is defined and r.line_move_badges %}
                   {% for b in r.line_move_badges %}
                     {% if b is mapping and b.label is defined and b.label %}
+                      {% set mv_ts = '' %}
+                      {% if b.phase is defined and b.phase == 'live' %}
+                        {% set mv_ts = (r.line_move_ts_last_live if (r.line_move_ts_last_live is defined and r.line_move_ts_last_live) else '') %}
+                      {% elif b.phase is defined and b.phase == 'opening' %}
+                        {% set mv_ts = (r.line_move_ts_last_opening if (r.line_move_ts_last_opening is defined and r.line_move_ts_last_opening) else '') %}
+                      {% else %}
+                        {% set mv_ts = (r.line_move_ts_last_pregame if (r.line_move_ts_last_pregame is defined and r.line_move_ts_last_pregame) else '') %}
+                      {% endif %}
                       <span
                         class="badge {% if b.phase is defined and b.phase == 'live' %}move-live{% elif b.phase is defined and b.phase == 'opening' %}move-opening{% else %}move-pregame{% endif %}"
                         {% if b.kind is defined and b.kind %}data-kind="{{ b.kind }}"{% endif %}
                         {% if b.phase is defined and b.phase %}data-phase="{{ b.phase }}"{% endif %}
-                        title="{{ b.title if (b.title is defined and b.title) else 'Material line move' }}"
+                        {% if mv_ts %}data-ts="{{ mv_ts }}"{% endif %}
+                        title="{{ b.title if (b.title is defined and b.title) else 'Material line move' }}{% if mv_ts %} • @ {{ mv_ts }}{% endif %}"
                       >{{ b.label }}</span>
                     {% endif %}
                   {% endfor %}
@@ -4565,6 +4577,77 @@
       var MOVE_MIN_SPREAD = 2.0;
       var MOVE_EPS = 1e-6;
 
+      function _readStrAttr(card, attr){
+        try {
+          if(!card) return '';
+          return String(card.getAttribute(attr) || '').trim();
+        } catch(e){
+          return '';
+        }
+      }
+
+      function _parseIsoMs(iso){
+        try {
+          var s = String(iso || '').trim();
+          if(!s) return null;
+          if(s.indexOf(' ')>=0 && s.indexOf('T')<0){ s = s.replace(' ', 'T'); }
+          var ms = Date.parse(s);
+          if(!isFinite(ms)) return null;
+          return ms;
+        } catch(e){
+          return null;
+        }
+      }
+
+      function _ageSFromIso(iso){
+        var ms = _parseIsoMs(iso);
+        if(ms === null) return null;
+        var now = Date.now();
+        if(!isFinite(now)) return null;
+        return (now - ms) / 1000.0;
+      }
+
+      function _fmtAgeShort(ageS){
+        try {
+          if(ageS === null || ageS === undefined || !isFinite(ageS)) return '';
+          var s = Math.max(0, ageS);
+          if(s < 60) return String(Math.round(s)) + 's';
+          if(s < 3600) return String(Math.max(1, Math.floor(s/60))) + 'm';
+          if(s < 86400) return String(Math.max(1, Math.floor(s/3600))) + 'h';
+          return String(Math.max(1, Math.floor(s/86400))) + 'd';
+        } catch(e){
+          return '';
+        }
+      }
+
+      function _fmtLocalHM(iso){
+        try {
+          var ms = _parseIsoMs(iso);
+          if(ms === null) return '';
+          var d = new Date(ms);
+          if(isNaN(d)) return '';
+          return d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+        } catch(e){
+          return '';
+        }
+      }
+
+      function _decorateMoveTitle(baseTitle, iso){
+        var base = String(baseTitle || '').trim();
+        if(!base) base = 'Material line move';
+        var isoS = String(iso || '').trim();
+        if(!isoS) return base;
+        var ageS = _ageSFromIso(isoS);
+        var ageTxt = _fmtAgeShort(ageS);
+        var hm = _fmtLocalHM(isoS);
+        if(ageTxt){
+          if(hm) return base + ' • ' + hm + ' (' + ageTxt + ' ago)';
+          return base + ' • ' + ageTxt + ' ago';
+        }
+        if(hm) return base + ' • ' + hm;
+        return base + ' • @ ' + isoS;
+      }
+
       function _numEq(a, b){
         try {
           if(a === null || a === undefined || b === null || b === undefined) return false;
@@ -4625,6 +4708,7 @@
         sp.className = 'badge ' + _badgeClassForPhase(b.phase);
         if(b && b.kind) sp.setAttribute('data-kind', String(b.kind));
         if(b && b.phase) sp.setAttribute('data-phase', String(b.phase));
+        if(b && b.ts) sp.setAttribute('data-ts', String(b.ts));
         sp.title = (b && b.title) ? String(b.title) : 'Material line move';
         sp.textContent = (b && b.label) ? String(b.label) : '';
         return sp;
@@ -4669,6 +4753,12 @@
         var badges = [];
         var tn = _teamNames(card);
 
+        // Phase timestamps (best-effort). Used for recency on move badges.
+        var tsOpen = _readStrAttr(card, 'data-move-open-ts-last');
+        var tsPreg = _readStrAttr(card, 'data-move-pregame-ts-last');
+        var tsLive = _readStrAttr(card, 'data-move-live-ts-last');
+        var tsOpenEff = tsOpen || tsPreg;
+
         // Opening: opening pregame line -> latest pregame line (numeric badges only).
         var ot0 = _readNumAttr(card, 'data-move-open-total');
         var ot1 = _readNumAttr(card, 'data-move-open-total-last');
@@ -4678,8 +4768,9 @@
             badges.push({
               phase: 'opening',
               kind: 'opening_total',
+              ts: (tsOpenEff ? tsOpenEff : null),
               label: 'OPEN T ' + _fmtSigned1(dOt),
-              title: 'Opening total moved ' + ot0.toFixed(1) + '→' + ot1.toFixed(1) + ' (Δ ' + _fmtSigned1(dOt) + ')'
+              title: _decorateMoveTitle('Opening total moved ' + ot0.toFixed(1) + '→' + ot1.toFixed(1) + ' (Δ ' + _fmtSigned1(dOt) + ')', tsOpenEff)
             });
           }
         }
@@ -4691,14 +4782,18 @@
             badges.push({
               phase: 'opening',
               kind: 'opening_spread',
+              ts: (tsOpenEff ? tsOpenEff : null),
               label: 'OPEN S ' + _fmtSigned1(dOs),
-              title: 'Opening home spread moved ' + _fmtSigned1(os0) + '→' + _fmtSigned1(os1) + ' (Δ ' + _fmtSigned1(dOs) + ')'
+              title: _decorateMoveTitle('Opening home spread moved ' + _fmtSigned1(os0) + '→' + _fmtSigned1(os1) + ' (Δ ' + _fmtSigned1(dOs) + ')', tsOpenEff)
             });
           }
         }
 
         function addPhase(phase){
           var pfx = (phase === 'live') ? 'LIVE' : 'PREGAME';
+          var tsPhase = (phase === 'live') ? tsLive : tsPreg;
+          var ageTxt = _fmtAgeShort(_ageSFromIso(tsPhase));
+          var showAge = (phase === 'live');
 
           // Totals
           var tPrev = _readNumAttr(card, 'data-move-' + phase + '-total-prev');
@@ -4710,14 +4805,16 @@
               badges.push({
                 phase: phase,
                 kind: 'total',
+                ts: (tsPhase ? tsPhase : null),
                 label: 'T ' + _fmtSigned1(dT),
-                title: 'Total moved ' + tPrev.toFixed(1) + '→' + tLast.toFixed(1) + ' (Δ ' + _fmtSigned1(dT) + ')'
+                title: _decorateMoveTitle('Total moved ' + tPrev.toFixed(1) + '→' + tLast.toFixed(1) + ' (Δ ' + _fmtSigned1(dT) + ')', tsPhase)
               });
               badges.push({
                 phase: phase,
                 kind: 'steam_total',
-                label: pfx + ' STEAM TOTAL ' + sideTotal.toUpperCase(),
-                title: 'Material total move toward ' + (sideTotal === 'over' ? 'Over' : 'Under') + ' (steam)'
+                ts: (tsPhase ? tsPhase : null),
+                label: pfx + ' STEAM TOTAL ' + sideTotal.toUpperCase() + (showAge && ageTxt ? (' · ' + ageTxt) : ''),
+                title: _decorateMoveTitle('Material total move toward ' + (sideTotal === 'over' ? 'Over' : 'Under') + ' (steam)', tsPhase)
               });
             }
           }
@@ -4732,15 +4829,17 @@
               badges.push({
                 phase: phase,
                 kind: 'spread',
+                ts: (tsPhase ? tsPhase : null),
                 label: 'S ' + _fmtSigned1(dS),
-                title: 'Home spread moved ' + _fmtSigned1(sPrev) + '→' + _fmtSigned1(sLast) + ' (Δ ' + _fmtSigned1(dS) + ')'
+                title: _decorateMoveTitle('Home spread moved ' + _fmtSigned1(sPrev) + '→' + _fmtSigned1(sLast) + ' (Δ ' + _fmtSigned1(dS) + ')', tsPhase)
               });
               var team = (sideSpread === 'home') ? (tn.home || 'HOME') : (tn.away || 'AWAY');
               badges.push({
                 phase: phase,
                 kind: 'steam_spread',
-                label: pfx + ' STEAM ' + team + ' ATS',
-                title: 'Material spread move toward ' + (sideSpread === 'home' ? 'Home' : 'Away') + ' (steam)'
+                ts: (tsPhase ? tsPhase : null),
+                label: pfx + ' STEAM ' + team + ' ATS' + (showAge && ageTxt ? (' · ' + ageTxt) : ''),
+                title: _decorateMoveTitle('Material spread move toward ' + (sideSpread === 'home' ? 'Home' : 'Away') + ' (steam)', tsPhase)
               });
             }
           }
@@ -4752,20 +4851,27 @@
       }
 
       function _updateDistinctPair(card, prevAttr, lastAttr, nextVal){
-        if(!card) return;
-        if(nextVal === null || nextVal === undefined || !isFinite(nextVal)) return;
+        if(!card) return false;
+        if(nextVal === null || nextVal === undefined || !isFinite(nextVal)) return false;
         var last = _readNumAttr(card, lastAttr);
         if(last === null){
           _writeNumAttr(card, lastAttr, nextVal);
-          return;
+          return true;
         }
-        if(_numEq(nextVal, last)) return;
+        if(_numEq(nextVal, last)) return false;
         _writeNumAttr(card, prevAttr, last);
         _writeNumAttr(card, lastAttr, nextVal);
+        return true;
       }
 
       function _applyPregameLineForMoves(card, rec){
         if(!card || !rec) return;
+
+        var tsIso = '';
+        try {
+          tsIso = String((rec.last_update !== undefined && rec.last_update !== null) ? rec.last_update : ((rec.ts !== undefined && rec.ts !== null) ? rec.ts : '')).trim();
+        } catch(_eTs){ tsIso = ''; }
+        var changedAny = false;
 
         // Safety: never let pregame polling overwrite opening/pregame move state
         // once the game is live/final or its scheduled start time has passed.
@@ -4797,7 +4903,7 @@
             var openT = _readNumAttr(card, 'data-move-open-total');
             if(openT === null) _writeNumAttr(card, 'data-move-open-total', t);
             _writeNumAttr(card, 'data-move-open-total-last', t);
-            _updateDistinctPair(card, 'data-move-pregame-total-prev', 'data-move-pregame-total-last', t);
+            if(_updateDistinctPair(card, 'data-move-pregame-total-prev', 'data-move-pregame-total-last', t)) changedAny = true;
           }
         } catch(_eT){ /* noop */ }
 
@@ -4808,9 +4914,17 @@
             var openS = _readNumAttr(card, 'data-move-open-spread');
             if(openS === null) _writeNumAttr(card, 'data-move-open-spread', s);
             _writeNumAttr(card, 'data-move-open-spread-last', s);
-            _updateDistinctPair(card, 'data-move-pregame-spread-prev', 'data-move-pregame-spread-last', s);
+            if(_updateDistinctPair(card, 'data-move-pregame-spread-prev', 'data-move-pregame-spread-last', s)) changedAny = true;
           }
         } catch(_eS){ /* noop */ }
+
+        // Persist timestamp only when a distinct line value is recorded.
+        try {
+          if(changedAny && tsIso){
+            card.setAttribute('data-move-pregame-ts-last', tsIso);
+            card.setAttribute('data-move-open-ts-last', tsIso);
+          }
+        } catch(_eTsSet){ /* noop */ }
 
         _renderMoveBadges(card, _computeMoveBadgesFromState(card));
       }
@@ -4818,17 +4932,34 @@
       function _applyLiveLineForMoves(card, rec){
         if(!card || !rec) return;
 
+        var tsIso = '';
+        try {
+          tsIso = String((rec.last_update !== undefined && rec.last_update !== null) ? rec.last_update : ((rec.ts !== undefined && rec.ts !== null) ? rec.ts : '')).trim();
+        } catch(_eTs){ tsIso = ''; }
+        var changedAny = false;
+
         // Totals
         try {
           var t = toNum(rec.total);
-          if(t !== null) _updateDistinctPair(card, 'data-move-live-total-prev', 'data-move-live-total-last', t);
+          if(t !== null){
+            if(_updateDistinctPair(card, 'data-move-live-total-prev', 'data-move-live-total-last', t)) changedAny = true;
+          }
         } catch(_eT){ /* noop */ }
 
         // Spreads (home)
         try {
           var s = toNum(rec.spread_home);
-          if(s !== null) _updateDistinctPair(card, 'data-move-live-spread-prev', 'data-move-live-spread-last', s);
+          if(s !== null){
+            if(_updateDistinctPair(card, 'data-move-live-spread-prev', 'data-move-live-spread-last', s)) changedAny = true;
+          }
         } catch(_eS){ /* noop */ }
+
+        // Persist timestamp only when a distinct line value is recorded.
+        try {
+          if(changedAny && tsIso){
+            card.setAttribute('data-move-live-ts-last', tsIso);
+          }
+        } catch(_eTsSet){ /* noop */ }
 
         _renderMoveBadges(card, _computeMoveBadgesFromState(card));
       }

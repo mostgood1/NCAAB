@@ -18683,6 +18683,14 @@ def index():
                                 continue
                             bb = dict(b)
                             bb["phase"] = phase
+                            # Attach timing metadata so the UI can display recency.
+                            try:
+                                if "ts_last" not in bb:
+                                    bb["ts_last"] = info.get("ts_last")
+                                if "age_s" not in bb:
+                                    bb["age_s"] = info.get("age_s")
+                            except Exception:
+                                pass
                             try:
                                 kind = str(bb.get("kind") or "")
                             except Exception:
@@ -43083,6 +43091,14 @@ def api_display_predictions():
                                     continue
                                 bb = dict(b)
                                 bb["phase"] = phase
+                                # Attach timing metadata so the UI can display recency.
+                                try:
+                                    if "ts_last" not in bb:
+                                        bb["ts_last"] = info.get("ts_last")
+                                    if "age_s" not in bb:
+                                        bb["age_s"] = info.get("age_s")
+                                except Exception:
+                                    pass
                                 kind = str(bb.get("kind") or "")
 
                                 if kind == "steam_spread":

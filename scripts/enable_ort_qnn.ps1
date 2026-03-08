@@ -3,10 +3,32 @@ param(
     [Parameter(Mandatory=$false)] [string] $OrtPyWheelOrDir = "",
     [Parameter(Mandatory=$false)] [string] $QnnSdkDir = "C:\Qualcomm\QNN_SDK",
     [Parameter(Mandatory=$false)] [switch] $InstallWheel,
-    [Parameter(Mandatory=$false)] [string] $Python = "C:/Users/mostg/OneDrive/Coding/NCAAB/.venv/Scripts/python.exe"
+    [Parameter(Mandatory=$false)] [string] $Python = ""
 )
 
 Write-Host "Configuring ONNX Runtime (QNN) environment..."
+
+# Resolve default Python interpreter (prefer this repo's .venv, fall back to PATH)
+if ([string]::IsNullOrWhiteSpace($Python)) {
+    $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") | Select-Object -ExpandProperty Path
+    $candidatePy = Join-Path $repoRoot ".venv\Scripts\python.exe"
+    if (Test-Path $candidatePy) {
+        $Python = $candidatePy
+    } else {
+        $cmd = Get-Command python -ErrorAction SilentlyContinue
+        if ($cmd) { $Python = $cmd.Source }
+    }
+} elseif (-not (Test-Path $Python)) {
+    $cmd = Get-Command $Python -ErrorAction SilentlyContinue
+    if ($cmd) { $Python = $cmd.Source }
+}
+
+if ([string]::IsNullOrWhiteSpace($Python) -or -not (Test-Path $Python)) {
+    Write-Error "Python executable not found. Pass -Python, or create a .venv in the repo root."
+    exit 1
+}
+
+Write-Host "Using Python=$Python"
 
 if (-not (Test-Path -Path $OrtBinDir -PathType Container)) {
     Write-Error "OrtBinDir not found: $OrtBinDir"

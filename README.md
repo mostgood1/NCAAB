@@ -52,16 +52,16 @@ python -m scripts.synthetic_demo --make-model --predict
 5. Run the Flask app:
 
 ```powershell
-$env:FLASK_APP = "C:\Users\mostg\OneDrive\Coding\NCAAB\app.py"
+$env:FLASK_APP = "app.py"
 $env:FLASK_ENV = "development"
 $env:WERKZEUG_RUN_MAIN = $null
-& C:\Users\mostg\OneDrive\Coding\NCAAB\.venv\Scripts\python.exe -m flask run --host 127.0.0.1 --port 5050
+python -m flask run --host 127.0.0.1 --port 5050
 ```
 
 6. Emit meta feature sidecars (align LightGBM meta inference feature order):
 
 ```powershell
-& C:\Users\mostg\OneDrive\Coding\NCAAB\.venv\Scripts\python.exe C:\Users\mostg\OneDrive\Coding\NCAAB\src\emit_meta_sidecars.py
+python src/emit_meta_sidecars.py
 ```
 
 This writes `outputs\meta_features_cover.json` and `outputs\meta_features_total.json` based on the latest `predictions_unified_<date>.csv`. The app will prefer these sidecars for meta feature ordering.

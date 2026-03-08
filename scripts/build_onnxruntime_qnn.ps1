@@ -3,13 +3,32 @@ param(
   [string]$BuildDir = "C:\onnxruntime_build",
   [string]$QnnSdkDir = "C:\Qualcomm\QNN_SDK",
   [string]$Config = "Release",
-  [string]$Python = "C:/Users/mostg/OneDrive/Coding/NCAAB/.venv/Scripts/python.exe",
+  [string]$Python = "",
   [string]$CMakeExe = "",
   [switch]$SkipClone,
   [switch]$UseCMakeDirect
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Resolve default Python interpreter (prefer this repo's .venv, fall back to PATH)
+if ([string]::IsNullOrWhiteSpace($Python)) {
+  $thisRepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") | Select-Object -ExpandProperty Path
+  $candidatePy = Join-Path $thisRepoRoot ".venv\Scripts\python.exe"
+  if (Test-Path $candidatePy) {
+    $Python = $candidatePy
+  } else {
+    $cmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($cmd) { $Python = $cmd.Source }
+  }
+} elseif (-not (Test-Path $Python)) {
+  $cmd = Get-Command $Python -ErrorAction SilentlyContinue
+  if ($cmd) { $Python = $cmd.Source }
+}
+
+if ([string]::IsNullOrWhiteSpace($Python) -or -not (Test-Path $Python)) {
+  throw "Python interpreter not found. Pass -Python, or create a .venv in the repo root."
+}
 
 Write-Host "=== ONNX Runtime QNN Build Script ===" -ForegroundColor Cyan
 Write-Host "SrcRoot=$SrcRoot"; Write-Host "BuildDir=$BuildDir"; Write-Host "QnnSdkDir=$QnnSdkDir"; Write-Host "Config=$Config"
