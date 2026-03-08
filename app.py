@@ -84,7 +84,6 @@ def _apply_calibration_and_sigma_post_run():
         return
     except Exception:
         return
-
 def preload_meta_models_and_sidecars(outputs_dir: Optional[str] = None) -> None:
     global _META_PRELOAD_DONE, _META_FEATURES_CACHE
     if _META_PRELOAD_DONE:
@@ -5144,29 +5143,41 @@ except Exception:
     pass
                     
 
-# Normalize basis labels in existing unified artifacts on import (best-effort)
+# Normalize basis labels in existing unified artifacts on import (best-effort).
+# Skip this historical rewrite pass on constrained runtimes like Render where the
+# extra CSV scans increase cold-start memory with no user-visible benefit.
 try:
-    import pandas as _pd
-    for _p in list(OUT.glob('predictions_unified_*.csv')):
-        try:
-            _df = _pd.read_csv(_p)
-            changed = False
-            if 'pred_total_basis' in _df.columns:
-                _new_t = _df['pred_total_basis'].replace({'model_calibrated':'cal','calibrated':'cal'})
-                if not _new_t.equals(_df['pred_total_basis']):
-                    _df['pred_total_basis'] = _new_t
-                    changed = True
-            if 'pred_margin_basis' in _df.columns:
-                _new_m = _df['pred_margin_basis'].replace({'model_calibrated':'cal','calibrated':'cal'})
-                if not _new_m.equals(_df['pred_margin_basis']):
-                    _df['pred_margin_basis'] = _new_m
-                    changed = True
-            if changed:
-                _df.to_csv(_p, index=False)
-        except Exception:
-            continue
+    _skip_import_artifact_normalization = (
+        str(os.getenv("NCAAB_SKIP_IMPORT_ARTIFACT_NORMALIZATION", "")).strip().lower() in ("1", "true", "yes", "on")
+        or str(os.getenv("RENDER", "")).strip().lower() in ("1", "true", "yes", "on")
+        or str(os.getenv("NCAAB_LIGHT_MODE", "")).strip().lower() in ("1", "true", "yes", "on")
+    )
 except Exception:
-    pass
+    _skip_import_artifact_normalization = False
+
+if not _skip_import_artifact_normalization:
+    try:
+        import pandas as _pd
+        for _p in list(OUT.glob('predictions_unified_*.csv')):
+            try:
+                _df = _pd.read_csv(_p)
+                changed = False
+                if 'pred_total_basis' in _df.columns:
+                    _new_t = _df['pred_total_basis'].replace({'model_calibrated':'cal','calibrated':'cal'})
+                    if not _new_t.equals(_df['pred_total_basis']):
+                        _df['pred_total_basis'] = _new_t
+                        changed = True
+                if 'pred_margin_basis' in _df.columns:
+                    _new_m = _df['pred_margin_basis'].replace({'model_calibrated':'cal','calibrated':'cal'})
+                    if not _new_m.equals(_df['pred_margin_basis']):
+                        _df['pred_margin_basis'] = _new_m
+                        changed = True
+                if changed:
+                    _df.to_csv(_p, index=False)
+            except Exception:
+                continue
+    except Exception:
+        pass
 
 
 
@@ -6277,6 +6288,82 @@ def _load_schedule_coverage() -> pd.DataFrame:
             return pd.read_csv(p)
         except Exception:
             return pd.DataFrame()
+
+
+    def _filter_frame_to_date(
+        df: DataFrame,
+        date_str: str | None,
+        *,
+        date_cols: tuple[str, ...] = ("date", "date_game", "display_date", "date_line"),
+    ) -> tuple[DataFrame, bool]:
+        if df is None or df.empty or not date_str:
+            return df, False
+        try:
+            date_norm = str(date_str).strip()
+        except Exception:
+            return df, False
+        if not date_norm:
+            return df, False
+        found_date_col = False
+        try:
+            mask = pd.Series(False, index=df.index)
+        except Exception:
+            return df, False
+        for col in date_cols:
+            if col not in df.columns:
+                continue
+            found_date_col = True
+            try:
+                mask = mask | pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d').eq(date_norm)
+                continue
+            except Exception:
+                pass
+            try:
+                mask = mask | df[col].astype(str).str.strip().str.slice(0, 10).eq(date_norm)
+            except Exception:
+                continue
+        if not found_date_col:
+            return df, False
+        try:
+            return df.loc[mask].copy(), True
+        except Exception:
+            return pd.DataFrame(), True
+
+
+    def _read_csv_filtered_by_date(
+        p: Path,
+        date_str: str | None,
+        *,
+        date_cols: tuple[str, ...] = ("date", "date_game", "display_date", "date_line"),
+        chunk_rows: int = 25000,
+        chunk_threshold_mb: float = 4.0,
+    ) -> DataFrame:
+        if not p.exists():
+            return pd.DataFrame()
+        if not date_str:
+            return _safe_read_csv(p)
+        try:
+            use_chunked = (p.stat().st_size / (1024 * 1024)) >= float(chunk_threshold_mb)
+        except Exception:
+            use_chunked = False
+        if use_chunked:
+            matched_chunks: list[pd.DataFrame] = []
+            found_date_col = False
+            try:
+                for chunk in pd.read_csv(p, chunksize=chunk_rows, low_memory=True):
+                    filtered, found = _filter_frame_to_date(chunk, date_str, date_cols=date_cols)
+                    found_date_col = found_date_col or found
+                    if found and not filtered.empty:
+                        matched_chunks.append(filtered)
+                if matched_chunks:
+                    return pd.concat(matched_chunks, ignore_index=True)
+                if found_date_col:
+                    return pd.DataFrame()
+            except Exception:
+                pass
+        df = _safe_read_csv(p)
+        filtered, found = _filter_frame_to_date(df, date_str, date_cols=date_cols)
+        return filtered if found else df
     # Fallback to simple day counts
     q = OUT / "schedule_day_counts.csv"
     if q.exists():
@@ -6422,16 +6509,16 @@ def api_quantile_segment_metrics():
             'thresholds': {'total': total_thr, 'margin': margin_thr},
             'totals': {
                 'overall': agg(jw, 'total'),
-                'low': agg(jw[jw['_seg_total']=='low'], 'total'),
-                'mid': agg(jw[jw['_seg_total']=='mid'], 'total'),
-                'high': agg(jw[jw['_seg_total']=='high'], 'total'),
+                'low': agg(jw[jw['_seg_total'] == 'low'], 'total'),
+                'mid': agg(jw[jw['_seg_total'] == 'mid'], 'total'),
+                'high': agg(jw[jw['_seg_total'] == 'high'], 'total'),
             },
             'margins': {
                 'overall': agg(jw, 'margin'),
-                'small': agg(jw[jw['_seg_margin']=='small'], 'margin'),
-                'med': agg(jw[jw['_seg_margin']=='med'], 'margin'),
-                'large': agg(jw[jw['_seg_margin']=='large'], 'margin'),
-            }
+                'small': agg(jw[jw['_seg_margin'] == 'small'], 'margin'),
+                'med': agg(jw[jw['_seg_margin'] == 'med'], 'margin'),
+                'large': agg(jw[jw['_seg_margin'] == 'large'], 'margin'),
+            },
         }
         # include target coverage if available
         try:
@@ -21154,6 +21241,56 @@ def api_health():
     try:
         out_dir = OUT
         daily_dir = out_dir / "daily_results"
+        try:
+            full_health = (request.args.get('full') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        except Exception:
+            full_health = False
+        try:
+            light_health = (not full_health) and (
+                str(os.getenv('RENDER', '')).strip().lower() in ('1', 'true', 'yes', 'on')
+                or str(os.getenv('NCAAB_LIGHT_MODE', '')).strip().lower() in ('1', 'true', 'yes', 'on')
+            )
+        except Exception:
+            light_health = False
+        if light_health:
+            results_latest = None
+            try:
+                import re as _re
+                pat = _re.compile(r'^results_(\d{4}-\d{2}-\d{2})\.csv$')
+                dates = []
+                if daily_dir.exists():
+                    for p in daily_dir.glob('results_*.csv'):
+                        m = pat.match(p.name)
+                        if m:
+                            dates.append(m.group(1))
+                dates = sorted(set(dates))
+                results_latest = dates[-1] if dates else None
+            except Exception:
+                results_latest = None
+            try:
+                disp_files = sorted(OUT.glob('predictions_display_*.csv'), key=lambda p: p.stat().st_mtime)
+                if disp_files:
+                    _p = disp_files[-1]
+                    display_hash = _hashlib_mod.sha256(_p.read_bytes()).hexdigest()
+                else:
+                    display_hash = None
+            except Exception:
+                display_hash = None
+            try:
+                today_str = _today_local().strftime('%Y-%m-%d')
+            except Exception:
+                today_str = None
+            return jsonify({
+                'status': 'ok',
+                'light': True,
+                'outputs_dir': str(OUT),
+                'providers': [],
+                'display_hash': display_hash,
+                'results_latest': results_latest,
+                'today': {'date': today_str},
+                'timestamp': dt.datetime.utcnow().isoformat() + 'Z',
+                'build_time_utc': BUILD_TIME_UTC,
+            }), 200
         games_files = [p.name for p in out_dir.glob("games*.csv")]
         odds_files = [p.name for p in out_dir.glob("odds*.csv")]
         preds_files = [p.name for p in out_dir.glob("predictions*.csv")]
