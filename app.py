@@ -199,6 +199,7 @@ try:
                 '/api/upload_align_edges',
                 '/api/upload_daily_results',
                 '/api/upload_odds_history',
+                '/api/upload_live_lens_tuning',
                 '/api/upload_live_interval_calibration'
             }
             # Allow version and health endpoints for diagnostics
@@ -22391,10 +22392,40 @@ def api_live_lens_tuning():
                 if isinstance(t, dict):
                     # Merge onto defaults
                     merged = dict(payload.get("tuning") or {})
+                    # Allow a small set of non-scalar tuning keys to flow through to
+                    # the UI (e.g., learned penalties). These keys are ignored unless
+                    # present in outputs/live_lens_tuning.json.
+                    passthrough_map_keys = {
+                        "driver_tag_strength_penalties",
+                        "driver_tagset_strength_penalties",
+                    }
                     for k, v in t.items():
                         if k in merged:
                             try:
-                                merged[k] = float(v)
+                                # Permit explicit nulls for optional knobs.
+                                if v is None:
+                                    if merged.get(k) is None:
+                                        merged[k] = None
+                                else:
+                                    merged[k] = float(v)
+                            except Exception:
+                                pass
+                        elif k in passthrough_map_keys:
+                            try:
+                                if isinstance(v, dict):
+                                    import math
+
+                                    m2: dict[str, float] = {}
+                                    for kk, vv in v.items():
+                                        if kk is None:
+                                            continue
+                                        try:
+                                            fvv = float(vv)
+                                        except Exception:
+                                            continue
+                                        if math.isfinite(fvv):
+                                            m2[str(kk)] = fvv
+                                    merged[k] = m2
                             except Exception:
                                 pass
                     payload["source"] = "outputs/live_lens_tuning.json"
