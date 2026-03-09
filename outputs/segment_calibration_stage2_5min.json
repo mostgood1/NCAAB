@@ -1,0 +1,45 @@
+{
+  "actual_col": "actual_total",
+  "bias_by_end_min": {
+    "10": 3.1453431589973597,
+    "15": 3.205996740253359,
+    "20": 0.0,
+    "25": 3.0967015477838524,
+    "30": 3.9088521952238118,
+    "35": 4.208178571939144,
+    "40": 0.0,
+    "5": 1.3160479759075947
+  },
+  "end": "2026-03-08",
+  "end_mins": [
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40
+  ],
+  "generated_at": "2026-03-09T14:48:56.936497Z",
+  "kind": "stage2_residual_bias_by_end_min",
+  "min_rows_per_end_min": 150,
+  "pred_col": "pred_q50",
+  "rows_by_end_min": {
+    "10": 620,
+    "15": 620,
+    "20": 620,
+    "25": 620,
+    "30": 620,
+    "35": 620,
+    "40": 620,
+    "5": 620
+  },
+  "rows_used": 4960,
+  "source_backtest_csv": "C:\\Users\\mostg\\OneDrive\\Coding\\NCAAB\\outputs\\backtests\\segments_5min_stage2off_window_2026-02-23_to_2026-03-08.csv",
+  "start": "2026-02-23",
+  "zero_end_mins": [
+    "20",
+    "40"
+  ]
+}

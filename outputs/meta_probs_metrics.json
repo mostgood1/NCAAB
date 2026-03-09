@@ -1,0 +1,53 @@
+{
+  "cover": {
+    "auc": 0.0,
+    "base_rate": 0.44022988505747124,
+    "brier": 0.25,
+    "calibrated_features_used": [
+      "p_home_cover_meta_cal"
+    ],
+    "ece": 0.06439393939393939,
+    "features_used": [
+      "p_home_cover_meta_cal",
+      "p_home_cover_emp",
+      "p_home_cover",
+      "p_home_cover_dist",
+      "p_home_cover_ensemble"
+    ],
+    "ks": 0.0,
+    "legacy_features_present": [
+      "p_home_cover",
+      "p_home_cover_dist",
+      "p_home_cover_ensemble"
+    ],
+    "log_loss": 0.6931471805599452,
+    "n_features": 5,
+    "samples": 1740
+  },
+  "over": {
+    "auc": 0.0,
+    "base_rate": 0.44803695150115475,
+    "brier": 0.25,
+    "calibrated_features_used": [
+      "p_over_meta_cal"
+    ],
+    "ece": 0.06760204081632654,
+    "features_used": [
+      "p_over_meta_cal",
+      "p_over_emp",
+      "p_over",
+      "p_over_dist",
+      "p_over_ensemble",
+      "p_over_display"
+    ],
+    "ks": 0.0,
+    "legacy_features_present": [
+      "p_over",
+      "p_over_dist",
+      "p_over_ensemble"
+    ],
+    "log_loss": 0.6931471805599452,
+    "n_features": 6,
+    "samples": 1732
+  }
+}

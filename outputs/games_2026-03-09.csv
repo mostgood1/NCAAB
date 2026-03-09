@@ -1,0 +1,15 @@
+game_id,season,date,start_time,start_time_local,start_tz_abbr,home_team,away_team,home_score,away_score,home_score_1h,away_score_1h,home_score_2h,away_score_2h,status,completed,neutral_site,venue
+401851714,2026,2026-03-09,2026-03-09 18:00:00+00:00,2026-03-09 14:00,EDT,Alabama State Hornets,Alcorn State Braves,0,0,,,,,STATUS_SCHEDULED,False,True,Gateway Center
+401856431,2026,2026-03-09,2026-03-09 22:00:00+00:00,2026-03-09 18:00,EDT,Monmouth Hawks,Campbell Fighting Camels,0,0,,,,,STATUS_SCHEDULED,False,True,CareFirst Arena
+401851607,2026,2026-03-09,2026-03-09 22:00:00+00:00,2026-03-09 18:00,EDT,Texas A&M-Corpus Christi Islanders,New Orleans Privateers,0,0,,,,,STATUS_SCHEDULED,False,True,Townsley Law Arena
+401851706,2026,2026-03-09,2026-03-09 23:00:00+00:00,2026-03-09 19:00,EDT,Troy Trojans,Georgia Southern Eagles,0,0,,,,,STATUS_SCHEDULED,False,True,Pensacola Bay Center
+401851593,2026,2026-03-09,2026-03-09 23:00:00+00:00,2026-03-09 19:00,EDT,East Tennessee State Buccaneers,Furman Paladins,0,0,,,,,STATUS_SCHEDULED,False,True,Harrah's Cherokee Center
+401851432,2026,2026-03-09,2026-03-09 23:00:00+00:00,2026-03-09 19:00,EDT,Wright State Raiders,Northern Kentucky Norse,0,0,,,,,STATUS_SCHEDULED,False,True,Corteva Coliseum
+401851332,2026,2026-03-09,2026-03-09 23:30:00+00:00,2026-03-09 19:30,EDT,Montana Grizzlies,Northern Colorado Bears,0,0,,,,,STATUS_SCHEDULED,False,True,Idaho Central Arena
+401856432,2026,2026-03-09,2026-03-10 00:30:00+00:00,2026-03-09 20:30,EDT,Hofstra Pride,Towson Tigers,0,0,,,,,STATUS_SCHEDULED,False,True,CareFirst Arena
+401851715,2026,2026-03-09,2026-03-10 00:30:00+00:00,2026-03-09 20:30,EDT,Grambling Tigers,Mississippi Valley State Delta Devils,0,0,,,,,STATUS_SCHEDULED,False,True,Gateway Center
+401851608,2026,2026-03-09,2026-03-10 00:30:00+00:00,2026-03-09 20:30,EDT,UT Rio Grande Valley Vaqueros,Nicholls Colonels,0,0,,,,,STATUS_SCHEDULED,False,True,Townsley Law Arena
+401851759,2026,2026-03-09,2026-03-10 01:00:00+00:00,2026-03-09 21:00,EDT,Gonzaga Bulldogs,Oregon State Beavers,0,0,,,,,STATUS_SCHEDULED,False,True,Orleans Arena
+401851433,2026,2026-03-09,2026-03-10 01:30:00+00:00,2026-03-09 21:30,EDT,Robert Morris Colonials,Detroit Mercy Titans,0,0,,,,,STATUS_SCHEDULED,False,True,Corteva Coliseum
+401851333,2026,2026-03-09,2026-03-10 02:00:00+00:00,2026-03-09 22:00,EDT,Eastern Washington Eagles,Weber State Wildcats,0,0,,,,,STATUS_SCHEDULED,False,True,Idaho Central Arena
+401851760,2026,2026-03-09,2026-03-10 03:30:00+00:00,2026-03-09 23:30,EDT,Saint Mary's Gaels,Santa Clara Broncos,0,0,,,,,STATUS_SCHEDULED,False,True,Orleans Arena
