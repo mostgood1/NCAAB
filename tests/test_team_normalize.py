@@ -31,3 +31,25 @@ def test_mount_st_marys_is_saint_not_state():
 
 def test_alias_loyola_chi_abbrev():
     assert canonical_slug("Loyola Chi") == canonical_slug("Loyola Chicago")
+
+
+def test_alias_prairie_view_aandm_variant():
+    # Odds feeds sometimes omit the A&M qualifier for Prairie View A&M.
+    assert canonical_slug("Prairie View Panthers") == canonical_slug("Prairie View A&M Panthers")
+
+
+def test_alias_florida_international_intl_variant():
+    # Provider may use Intl / Int'l and include legacy 'Golden Panthers' nickname.
+    assert canonical_slug("Florida Int'l Golden Panthers") == canonical_slug("Florida International Panthers")
+    assert canonical_slug("Florida Intl Panthers") == canonical_slug("Florida International Panthers")
+    assert canonical_slug("FIU") == canonical_slug("Florida International")
+
+
+def test_alias_texas_am_cc_variant():
+    # Provider abbreviates Texas A&M-Corpus Christi as Texas A&M-CC.
+    assert canonical_slug("Texas A&M-CC Islanders") == canonical_slug("Texas A&M-Corpus Christi Islanders")
+
+
+def test_alias_grambling_state_variant():
+    # Some schedules list just 'Grambling'; provider often uses Grambling State/Grambling St.
+    assert canonical_slug("Grambling Tigers") == canonical_slug("Grambling St Tigers")

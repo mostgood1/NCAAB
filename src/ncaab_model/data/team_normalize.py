@@ -66,6 +66,8 @@ ALIAS_MAP: Dict[str, str] = {
     "southernmississippi": "southernmiss",
     "southernmiss": "southernmiss",
     "alcorn": "alcornstate",
+    # Prairie View A&M often appears without the A&M qualifier in odds feeds.
+    "prairieview": "prairieviewaandm",
     "calbaptist": "californiabaptist",
     "williamandmary": "williammary",
     "williammary": "williammary",
@@ -143,6 +145,8 @@ ALIAS_MAP: Dict[str, str] = {
         "coloradostaterams": "coloradostate",
         "howardbison": "howard",
         "gramblingtigers": "gramblingstate",
+        # Grambling is commonly listed as just "Grambling" (no 'State') in some schedules.
+        "grambling": "gramblingstate",
         "oklahomastate": "oklahomastate",  # idempotent
         # Provider-specific fused mascot forms
         "georgiabulldogs": "georgia",
@@ -154,6 +158,12 @@ ALIAS_MAP: Dict[str, str] = {
         "denverpioneers": "denver",
         "omahamavericks": "omaha",
         "oklahomacitystars": "oklahomacity",  # generic example
+
+        # Today's live-lines coverage fixes (provider abbreviations / legacy nicknames)
+        "fiu": "floridainternational",
+        "floridaintl": "floridainternational",
+        "floridaintlgolden": "floridainternational",
+        "texasaandmcc": "texasaandmcorpuschristi",
 }
 
 STOP_TOKENS = {
