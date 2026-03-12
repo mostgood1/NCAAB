@@ -67,6 +67,9 @@
     .compact-game-strip .pill:focus{outline:2px solid var(--accent);outline-offset:2px;}
     /* Compact box-score tiles (not pill-shaped) */
     .compact-game-strip .compact-game-item{white-space:normal;text-align:left;display:flex;flex-direction:column;align-items:stretch;gap:2px;line-height:1.06;padding:5px 7px;border-radius:10px;min-width:160px;max-width:200px;}
+    /* Compact strip: highlight BET tiles with a "Higher Success Tag" driver tag (>=60% win-rate with n>=25) */
+    .compact-game-strip .compact-game-item.good-tag{position:relative;}
+    .compact-game-strip .compact-game-item.good-tag::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);opacity:0.95;border-top-left-radius:10px;border-bottom-left-radius:10px;pointer-events:none;}
     .compact-game-strip .compact-game-line{display:block;}
     .compact-game-strip .compact-game-status{opacity:0.92;font-size:10px;}
     .compact-game-strip .compact-game-callout{opacity:0.95;font-size:10px;white-space:pre-line;}
@@ -85,6 +88,10 @@
 
     /* Prevent scroll-to-card landing under the sticky header */
     .game-card{scroll-margin-top:130px;}
+
+    /* Game cards: highlight BET cards with a "Higher Success Tag" driver tag (>=60% win-rate with n>=25) */
+    .game-card.good-tag{position:relative;}
+    .game-card.good-tag::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);opacity:0.95;border-top-left-radius:12px;border-bottom-left-radius:12px;pointer-events:none;}
 
     /* Floating "Back to top" button */
     .back-to-top{position:fixed;right:14px;bottom:14px;z-index:80;display:none;}
@@ -5964,6 +5971,62 @@
         return b;
       }
 
+      // Live Lens tag-accuracy highlight for BET opportunities.
+      // We fetch the default Live Lens Analytics window and mark tags with win_rate >= 0.60 and n >= 25.
+      var __llGoodTagLabel = 'Higher Success Tag';
+      var __llGoodTags = { totals: null, ats: null, loaded: false, loading: false };
+      function toNum(v){
+        var x = parseFloat(String(v || ''));
+        return (isFinite(x) ? x : NaN);
+      }
+      function toInt(v){
+        var x = parseInt(String(v || ''), 10);
+        return (isFinite(x) ? x : NaN);
+      }
+      function buildGoodTagMap(stats){
+        var out = {};
+        if(!Array.isArray(stats)) return out;
+        stats.forEach(function(r){
+          try {
+            if(!r) return;
+            var tag = normStr(r.tag);
+            if(!tag) return;
+            var n = toInt(r.n);
+            var wr = toNum(r.win_rate);
+            if(!isFinite(n) || !isFinite(wr)) return;
+            if(n >= 25 && wr >= 0.60) out[String(tag).toLowerCase()] = true;
+          } catch(_eR){ /* noop */ }
+        });
+        return out;
+      }
+      function loadGoodTagRecap(){
+        try {
+          if(__llGoodTags.loaded || __llGoodTags.loading) return;
+          if(!window.fetch) return;
+          __llGoodTags.loading = true;
+
+          fetch('/api/live_lens_analytics')
+            .then(function(r){ return r.json(); })
+            .then(function(js){
+              try {
+                var overall = (js && js.overall) ? js.overall : null;
+                var tot = overall && overall.totals ? overall.totals : null;
+                var ats = overall && overall.ats ? overall.ats : null;
+                var totStats = tot ? (tot.by_driver_tag_full || tot.by_driver_tag || []) : [];
+                var atsStats = ats ? (ats.by_driver_tag_full || ats.by_driver_tag || []) : [];
+                __llGoodTags.totals = buildGoodTagMap(totStats);
+                __llGoodTags.ats = buildGoodTagMap(atsStats);
+                __llGoodTags.loaded = true;
+              } catch(_eParse){ /* noop */ }
+            })
+            .catch(function(){ /* ignore */ })
+            .then(function(){
+              __llGoodTags.loading = false;
+              try { initCompactGameStrip(); } catch(_eUp){ /* noop */ }
+            });
+        } catch(_eFetch){ /* noop */ }
+      }
+
       function initCompactGameStrip(){
         var wrap = document.getElementById('compactGameList');
         var strip = document.getElementById('compactGameStrip');
@@ -6454,9 +6517,48 @@
 
           // Live games: Bet (green), Watch (yellow), otherwise Live (blue).
           // Non-live games: neutral.
+          var hasGoodTag = false;
+          try {
+            if(isBet && __llGoodTags && __llGoodTags.loaded){
+              function hit(attrName, goodMap){
+                if(!goodMap) return false;
+                var raw = safeStr(card.getAttribute(attrName));
+                if(!raw) return false;
+                var parts = raw.split('|').map(function(x){ return String(x||'').trim().toLowerCase(); }).filter(Boolean);
+                for(var i=0;i<parts.length;i++){
+                  if(goodMap[parts[i]]) return true;
+                }
+                return false;
+              }
+
+              // Totals BET signals.
+              if(totBet){
+                if(okFg && hit('data-live-total-tags-fg', __llGoodTags.totals)) hasGoodTag = true;
+                else if(use1h && ok1h && hit('data-live-total-tags-1h', __llGoodTags.totals)) hasGoodTag = true;
+                else if(use2h && ok2h && hit('data-live-total-tags-2h', __llGoodTags.totals)) hasGoodTag = true;
+              }
+
+              // ATS BET signals.
+              if(!hasGoodTag && mkBet){
+                if(mkOkFg && hit('data-live-market-tags-fg', __llGoodTags.ats)) hasGoodTag = true;
+                else if(use1h && mkOk1h && hit('data-live-market-tags-1h', __llGoodTags.ats)) hasGoodTag = true;
+                else if(use2h && mkOk2h && hit('data-live-market-tags-2h', __llGoodTags.ats)) hasGoodTag = true;
+              }
+            }
+          } catch(_eGT){ /* noop */ }
+          try {
+            card.classList.toggle('good-tag', !!hasGoodTag);
+            if(hasGoodTag){
+              // Provide a tiny UI hint on hover without changing the layout.
+              if(!card.getAttribute('title')) card.setAttribute('title', __llGoodTagLabel);
+            } else {
+              if(card.getAttribute('title') === __llGoodTagLabel) card.removeAttribute('title');
+            }
+          } catch(_eGTC){ /* noop */ }
           var cls = isBet ? 'ok' : (isWatch ? 'warn' : (isLive ? 'edge-mod' : (isFinal ? 'edge-zero' : 'neutral')));
           var btn = mkPill('', cls);
           btn.classList.add('compact-game-item');
+          if(hasGoodTag) btn.classList.add('good-tag');
 
           // Compact box-score tile.
           try {
@@ -6522,7 +6624,8 @@
             btn.appendChild(co);
           } catch(_eBuild) { /* noop */ }
 
-          btn.title = (isBet ? 'Bet' : (isWatch ? 'Watch' : (isLive ? 'Live' : 'Game'))) + ': ' + away + ' @ ' + home;
+          var baseTitle = (isBet ? 'Bet' : (isWatch ? 'Watch' : (isLive ? 'Live' : 'Game'))) + ': ' + away + ' @ ' + home;
+          btn.title = hasGoodTag ? (baseTitle + ' • ' + __llGoodTagLabel) : baseTitle;
           btn.addEventListener('click', function(){
             try {
               card.scrollIntoView({behavior:'smooth', block:'start'});
@@ -6628,6 +6731,9 @@
 
         var cards = Array.from(document.querySelectorAll('.game-card'));
         if(!cards.length) return;
+
+        // Kick off loading tag-accuracy recap for compact BET-tile highlight.
+        try { loadGoodTagRecap(); } catch(_eLTL){ /* noop */ }
 
         // Derive per-card time buckets
         cards.forEach(function(card){
