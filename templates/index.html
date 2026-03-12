@@ -68,8 +68,8 @@
     /* Compact box-score tiles (not pill-shaped) */
     .compact-game-strip .compact-game-item{white-space:normal;text-align:left;display:flex;flex-direction:column;align-items:stretch;gap:2px;line-height:1.06;padding:5px 7px;border-radius:10px;min-width:160px;max-width:200px;}
     /* Compact strip: highlight BET tiles with a "Higher Success Tag" driver tag (>=60% win-rate) */
-    .compact-game-strip .compact-game-item.good-tag{position:relative;}
-    .compact-game-strip .compact-game-item.good-tag::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent);opacity:0.95;border-top-left-radius:10px;border-bottom-left-radius:10px;pointer-events:none;}
+    .compact-game-strip .compact-game-item.good-tag{position:relative;border-color:var(--accent);background-image:linear-gradient(0deg,color-mix(in srgb, var(--accent) 22%, transparent),color-mix(in srgb, var(--accent) 22%, transparent));}
+    .compact-game-strip .compact-game-item.good-tag::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--accent);opacity:0.95;border-top-left-radius:10px;border-bottom-left-radius:10px;pointer-events:none;}
     .compact-game-strip .compact-game-line{display:block;}
     .compact-game-strip .compact-game-status{opacity:0.92;font-size:10px;}
     .compact-game-strip .compact-game-callout{opacity:0.95;font-size:10px;white-space:pre-line;}
