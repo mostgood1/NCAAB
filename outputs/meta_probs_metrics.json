@@ -1,12 +1,12 @@
 {
   "cover": {
     "auc": 0.0,
-    "base_rate": 0.4423076923076923,
+    "base_rate": 0.437219730941704,
     "brier": 0.25,
     "calibrated_features_used": [
       "p_home_cover_meta_cal"
     ],
-    "ece": 0.057279236276849665,
+    "ece": 0.05969267139479906,
     "features_used": [
       "p_home_cover_meta_cal",
       "p_home_cover_emp",
@@ -22,16 +22,16 @@
     ],
     "log_loss": 0.6931471805599453,
     "n_features": 5,
-    "samples": 1768
+    "samples": 1784
   },
   "over": {
     "auc": 0.0,
-    "base_rate": 0.44937428896473264,
+    "base_rate": 0.447576099210823,
     "brier": 0.25,
     "calibrated_features_used": [
       "p_over_meta_cal"
     ],
-    "ece": 0.050663449939686356,
+    "ece": 0.05170352659892408,
     "features_used": [
       "p_over_meta_cal",
       "p_over_emp",
@@ -46,8 +46,8 @@
       "p_over_dist",
       "p_over_ensemble"
     ],
-    "log_loss": 0.6931471805599452,
+    "log_loss": 0.6931471805599453,
     "n_features": 6,
-    "samples": 1758
+    "samples": 1774
   }
 }
