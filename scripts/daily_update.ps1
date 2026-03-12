@@ -19,6 +19,10 @@ param(
   # Deprecated (stake sheets removed from app). Retained for backward compatibility; now a no-op.
   [switch]$SkipStakeSheets,
   [switch]$SkipGitPush,
+  # Opt-in: include generated outputs/** artifacts in git commits.
+  # Render reads outputs from its persistent disk (`NCAAB_OUTPUTS_DIR`) and daily_update uploads artifacts,
+  # so committing outputs is usually unnecessary and creates noisy diffs.
+  [switch]$GitIncludeOutputs,
   [switch]$SkipModelTests,
   [switch]$SkipVarianceDiag,
   [switch]$BootstrapEnv,
@@ -2608,13 +2612,24 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
           }
         }
 
+        $artifactsToStage = @()
+        if ($GitIncludeOutputs.IsPresent) {
+          $artifactsToStage = @($toStage)
+        } else {
+          Write-Host "[git] Skipping outputs/** artifacts (pass -GitIncludeOutputs to enable)." -ForegroundColor DarkGray
+        }
+
         # Stage curated artifacts (force-add if ignored)
-        foreach ($p in $toStage) { if ($p) { Add-PathSmart -Path $p } }
+        foreach ($p in $artifactsToStage) { if ($p) { Add-PathSmart -Path $p } }
 
         # Also stage core code paths if they exist (so code fixes ship with Option A)
         $codePaths = @(
           (Join-Path $RepoRoot 'app.py'),
           (Join-Path $RepoRoot 'render.yaml'),
+          (Join-Path $RepoRoot 'data\team_map.csv'),
+          (Join-Path $RepoRoot 'data\conferences.csv'),
+          (Join-Path $RepoRoot 'data\d1_conferences.csv'),
+          (Join-Path $RepoRoot 'data\team_branding.csv'),
           (Join-Path $RepoRoot 'scripts\daily_update.ps1'),
           (Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'),
           (Join-Path $RepoRoot 'scripts\upsert_segments_5min_master.py'),
@@ -2631,11 +2646,13 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
         # Optionally stage variance diagnostics if produced today
         $varTotalPath = Join-Path $OutDir ("variance/variance_total_" + $todayIso + ".json")
         $varMarginPath = Join-Path $OutDir ("variance/variance_margin_" + $todayIso + ".json")
-        if (Test-Path $varTotalPath) { Add-PathSmart -Path $varTotalPath }
-        if (Test-Path $varMarginPath) { Add-PathSmart -Path $varMarginPath }
-  # Inference variance summary (produced earlier in step 5d) if present
-  $infVarSummaryPath = Join-Path $OutDir ("variance/inference_variance_" + $todayIso + ".json")
-  if (Test-Path $infVarSummaryPath) { Add-PathSmart -Path $infVarSummaryPath }
+        # Inference variance summary (produced earlier in step 5d) if present
+        $infVarSummaryPath = Join-Path $OutDir ("variance/inference_variance_" + $todayIso + ".json")
+        if ($GitIncludeOutputs.IsPresent) {
+          if (Test-Path $varTotalPath) { Add-PathSmart -Path $varTotalPath }
+          if (Test-Path $varMarginPath) { Add-PathSmart -Path $varMarginPath }
+          if (Test-Path $infVarSummaryPath) { Add-PathSmart -Path $infVarSummaryPath }
+        }
         # Guard: Unstage any files not explicitly allowlisted to keep repo lean
         try {
           $stagedRel = git diff --name-only --cached
@@ -2653,18 +2670,20 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
             return ($full2 -replace '\\', '/').Trim()
           }
 
-          foreach ($p in $toStage) { $rel = Get-RelPath -Full $p; if ($rel) { $allowedRel += $rel } }
+          foreach ($p in $artifactsToStage) { $rel = Get-RelPath -Full $p; if ($rel) { $allowedRel += $rel } }
           foreach ($cp in $codePaths) { $rel = Get-RelPath -Full $cp; if ($rel) { $allowedRel += $rel } }
-          if (Test-Path $varTotalPath) { $allowedRel += (Get-RelPath -Full $varTotalPath) }
-          if (Test-Path $varMarginPath) { $allowedRel += (Get-RelPath -Full $varMarginPath) }
-          if (Test-Path $infVarSummaryPath) { $allowedRel += (Get-RelPath -Full $infVarSummaryPath) }
+          if ($GitIncludeOutputs.IsPresent) {
+            if (Test-Path $varTotalPath) { $allowedRel += (Get-RelPath -Full $varTotalPath) }
+            if (Test-Path $varMarginPath) { $allowedRel += (Get-RelPath -Full $varMarginPath) }
+            if (Test-Path $infVarSummaryPath) { $allowedRel += (Get-RelPath -Full $infVarSummaryPath) }
+          }
 
           # Normalize and trim paths for reliable comparison with git output
           $allowedRel = $allowedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() } | Where-Object { $_ }
           $stagedRel = $stagedRel | ForEach-Object { ($_ -replace '\\', '/').Trim() } | Where-Object { $_ }
           foreach ($s in $stagedRel) {
             # Never unstage core daily UI/data snapshots even if comparison fails
-            if (
+            if ($GitIncludeOutputs.IsPresent -and (
               $s -like 'outputs/predictions_display_*' -or
               $s -like 'outputs/predictions_unified_enriched_*' -or
               $s -like 'outputs/archive/*/predictions_display_*' -or
@@ -2672,7 +2691,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
               $s -like 'outputs/align_period_*_edges.csv' -or
               $s -like 'outputs/picks_raw.csv' -or
               $s -like 'outputs/picks/ats_picks_*'
-            ) { continue }
+            )) { continue }
             if (-not ($allowedRel -contains $s)) {
               Write-Host "[unstage] Non-allowlisted: $s" -ForegroundColor DarkGray
               git restore --staged -- $s
@@ -2724,7 +2743,12 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
           }
         } catch { Write-Host "[Render] Baseline version check failed." -ForegroundColor Yellow }
 
-        $msg = if ($GitCommitMessage) { $GitCommitMessage } else { "chore(data+ui): update outputs and UI for $prevDate (today $todayIso)" }
+        $msg = if ($GitCommitMessage) {
+          $GitCommitMessage
+        } else {
+          if ($GitIncludeOutputs.IsPresent) { "chore(data+ui): update outputs and UI for $prevDate (today $todayIso)" }
+          else { "chore: daily update code/config for $todayIso" }
+        }
         $stagedNow = git diff --name-only --cached
         if ($stagedNow) {
           try {
