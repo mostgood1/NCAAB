@@ -53,3 +53,15 @@ def test_alias_texas_am_cc_variant():
 def test_alias_grambling_state_variant():
     # Some schedules list just 'Grambling'; provider often uses Grambling State/Grambling St.
     assert canonical_slug("Grambling Tigers") == canonical_slug("Grambling St Tigers")
+
+
+def test_alias_george_washington_revolutionaries_variant():
+    assert canonical_slug("George Washington Revolutionaries") == canonical_slug("GW Revolutionaries")
+
+
+def test_alias_csu_northridge_variant():
+    assert canonical_slug("Cal State Northridge Matadors") == canonical_slug("CSU Northridge Matadors")
+
+
+def test_alias_sam_houston_state_variant():
+    assert canonical_slug("Sam Houston Bearkats") == canonical_slug("Sam Houston St Bearkats")

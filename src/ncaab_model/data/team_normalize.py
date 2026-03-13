@@ -107,6 +107,11 @@ ALIAS_MAP: Dict[str, str] = {
     "missvalleystdeltadevils": "mississippivalleystatedeltadevils",
     # Rebrand / abbreviation adjustments
     "gwrevolutionaries": "georgewashington",  # GWU rebrand, odds feed shortened
+    "georgewashingtonrevolutionaries": "georgewashington",
+    "georgewashingtoncolonials": "georgewashington",
+    "csunorthridge": "calstatenorthridge",
+    "samhoustonstatebearkats": "samhouston",
+    "samhoustonbearkats": "samhouston",
     "maineblack": "maine",  # truncated 'maineblackbears'
     "idahostatebengals": "idahostate",
     "texasaandmaggies": "texasam",  # fused variant

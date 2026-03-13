@@ -2205,9 +2205,6 @@ if 'game_id' in df.columns:
 if gid_today:
   gc_ids = pd.DataFrame({'game_id': list(gid_today)})
   df_today = df.merge(gc_ids, on='game_id', how='inner')
-  # Ensure one row per game for downstream alignment
-  if 'game_id' in df_today.columns:
-    df_today = df_today.drop_duplicates(subset=['game_id'])
 else:
   df_today = df.iloc[0:0].copy()
 if df_today.empty and ('date' in df.columns):
@@ -2287,8 +2284,6 @@ if 'game_id' in df.columns:
 if gid_today:
   gc_ids = pd.DataFrame({'game_id': list(gid_today)})
   df_today = df.merge(gc_ids, on='game_id', how='inner')
-  if 'game_id' in df_today.columns:
-    df_today = df_today.drop_duplicates(subset=['game_id'])
 else:
   df_today = df.iloc[0:0].copy()
 if df_today.empty and ('date' in df.columns):
