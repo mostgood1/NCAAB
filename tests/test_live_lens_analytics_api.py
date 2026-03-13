@@ -169,3 +169,13 @@ def test_live_lens_analytics_range_aggregates_totals_and_ats(client):
                 res_p.unlink()
         except Exception:
             pass
+
+
+def test_live_lens_accuracy_page_renders_tag_guides(client):
+    resp = client.get('/live_lens_accuracy')
+    assert resp.status_code == 200
+    text = resp.get_data(as_text=True)
+    assert 'Live Lens Accuracy' in text
+    assert 'How To Read This' in text
+    assert 'Driver Tag Guide' in text
+    assert 'Tag Family Guide' in text

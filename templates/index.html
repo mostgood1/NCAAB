@@ -3830,6 +3830,13 @@
               }
             } catch(_ePPP){ /* noop */ }
 
+            // Stable context tags so compact highlights match analytics/tag backfill.
+            try { addTagT('kind_total'); } catch(_eKindT){ /* noop */ }
+            try {
+              var lensTagT = (lens === '1h') ? 'lens_1h' : ((lens === '2h') ? 'lens_2h' : ((lens === 'full_game' || lens === 'fg') ? 'lens_fg' : ''));
+              if(lensTagT) addTagT(lensTagT);
+            } catch(_eLensTagT){ /* noop */ }
+
             // Explanatory flags used in the driver text.
             try { if(latePenApplied) addTagT('late_over'); } catch(_eLateT){ /* noop */ }
             try { if(earlyPenApplied) addTagT('early_over'); } catch(_eEarlyT){ /* noop */ }
@@ -3919,6 +3926,13 @@
                     addTagT('eff_missing');
                   }
                 } catch(_ePPP){ /* noop */ }
+
+                // Stable context tags so compact highlights match analytics/tag backfill.
+                try { addTagT('kind_total'); } catch(_eKindT2){ /* noop */ }
+                try {
+                  var lensTagT2 = (lens === '1h') ? 'lens_1h' : ((lens === '2h') ? 'lens_2h' : ((lens === 'full_game' || lens === 'fg') ? 'lens_fg' : ''));
+                  if(lensTagT2) addTagT(lensTagT2);
+                } catch(_eLensTagT2){ /* noop */ }
 
                 // Explanatory flags used in the driver text.
                 try { if(latePenApplied) addTagT('late_over'); } catch(_eLate){ /* noop */ }
@@ -4258,6 +4272,35 @@
                 if(!fgOddsOk) {
                   addATSTag('LATE-FG');
                 }
+
+                // Stable pace/eff + context tags so compact highlights use the same
+                // vocabulary surfaced by analytics and server-side signal backfill.
+                try {
+                  if(possLive !== null && isFinite(possLive) && elapsed !== null && isFinite(elapsed) && elapsed > 0){
+                    var atsPossRate = possLive / elapsed;
+                    if(typeof paceHi === 'number' && isFinite(paceHi) && atsPossRate >= paceHi) addATSTag('pace_hi');
+                    else if(typeof paceLo === 'number' && isFinite(paceLo) && atsPossRate <= paceLo) addATSTag('pace_lo');
+                    else addATSTag('pace_mid');
+                  } else {
+                    addATSTag('pace_missing');
+                  }
+                } catch(_eATSPace){ /* noop */ }
+                try {
+                  if(act !== null && isFinite(act) && possLive !== null && isFinite(possLive) && possLive > 0){
+                    var atsPpp = act / possLive;
+                    if(typeof ppsHi === 'number' && isFinite(ppsHi) && atsPpp >= ppsHi) addATSTag('eff_hi');
+                    else if(typeof ppsLo === 'number' && isFinite(ppsLo) && atsPpp <= ppsLo) addATSTag('eff_lo');
+                    else addATSTag('eff_mid');
+                  } else {
+                    addATSTag('eff_missing');
+                  }
+                } catch(_eATSEff){ /* noop */ }
+                try { addATSTag('kind_ats'); } catch(_eATSKind){ /* noop */ }
+                try {
+                  var lensTagA = (lens === '1h') ? 'lens_1h' : ((lens === '2h') ? 'lens_2h' : ((lens === 'full_game' || lens === 'fg') ? 'lens_fg' : ''));
+                  if(lensTagA) addATSTag(lensTagA);
+                } catch(_eATSLens){ /* noop */ }
+
                 if(parts.length) atsDriver = parts.join(' | ');
               } catch(_eATSD){ atsDriver = null; atsDriverTags = []; }
 

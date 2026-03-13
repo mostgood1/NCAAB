@@ -100,3 +100,42 @@ def test_live_lens_signal_autotags_respect_client_tags(client):
                 sig_p.unlink()
         except Exception:
             pass
+
+
+def test_live_lens_signal_autotags_enrich_ats_tags(client):
+    out_dir = Path(getattr(app_module, "OUT"))
+    date = "1900-01-05"
+    sig_p = out_dir / f"live_lens_signals_{date}.jsonl"
+
+    payload = {
+        "date": date,
+        "game_id": "g3",
+        "kind": "ats",
+        "lens": "1h",
+        "side": "away",
+        "live_line": 3.5,
+        "is_bet": True,
+        "elapsed": 10,
+        "total_points": 30,
+        "pbp": {"poss": 28},
+        "tuning": {"pace_hi": 3.25, "pace_lo": 2.75, "pps_hi": 1.18, "pps_lo": 0.95},
+        "driver": "client_driver",
+        "driver_tags": ["CONF-LOW"],
+        "ts": "1900-01-05T01:00:00Z",
+    }
+
+    try:
+        resp = client.post("/api/live_lens_signal", json=payload)
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body.get("status") == "ok"
+
+        last = _read_last_jsonl(sig_p)
+        assert last.get("driver") == "client_driver"
+        assert last.get("driver_tags") == ["CONF-LOW", "pace_mid", "eff_mid", "kind_ats", "lens_1h"]
+    finally:
+        try:
+            if sig_p.exists():
+                sig_p.unlink()
+        except Exception:
+            pass

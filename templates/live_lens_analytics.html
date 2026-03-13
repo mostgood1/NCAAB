@@ -34,6 +34,13 @@
     .lla-scroll { overflow: auto; max-height: 520px; }
     .lla-small { font-size: 12px; }
     .lla-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15); font-size: 12px; opacity: 0.9; }
+    .lla-explain { font-size: 13px; line-height: 1.5; }
+    .lla-guide-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; margin-top: 12px; }
+    .lla-span-all { grid-column: 1 / -1; }
+    .lla-m0 { margin: 0; }
+    .lla-mt8 { margin-top: 8px; }
+    .lla-mb8 { margin-bottom: 8px; }
+    @media (max-width: 980px) { .lla-guide-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -236,6 +243,40 @@
         </div>
       </div>
 
+      <div class="lla-card lla-span-all">
+        <h2>How To Read This</h2>
+        <p class="lla-explain lla-muted lla-m0">
+          Driver tags are the short labels attached to each settled Live Lens BET. They explain why the signal fired,
+          like pace running fast, efficiency running cold, or a half-market guardrail making ATS thresholds stricter.
+        </p>
+        <p class="lla-explain lla-muted lla-m0 lla-mt8">
+          The guide below follows the NHL Live Lens accuracy page pattern: plain-English definitions for the tags you see
+          in the totals and ATS recap tables, plus a smaller family guide that groups similar tags together.
+        </p>
+
+        <div class="lla-guide-grid">
+          <div>
+            <div class="lla-muted lla-small lla-mb8">Driver Tag Guide</div>
+            <div class="lla-scroll">
+              <table>
+                <thead><tr><th>Tag</th><th>Plain English</th></tr></thead>
+                <tbody id="tbl_driver_tag_guide"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="lla-muted lla-small lla-mb8">Tag Family Guide</div>
+            <div class="lla-scroll">
+              <table>
+                <thead><tr><th>Family</th><th>Plain English</th></tr></thead>
+                <tbody id="tbl_tag_type_guide"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="lla-card" style="grid-column: 1 / -1;">
         <h2>History (Settled Signals)</h2>
         <div class="lla-muted lla-small" style="margin-bottom: 8px;">Only included when “Include history rows” is checked.</div>
@@ -266,6 +307,166 @@
     }
     function setStatus(msg) {
       document.getElementById('status').textContent = msg;
+    }
+
+    const DRIVER_TAG_ORDER = [
+      'pace_hi', 'pace_mid', 'pace_lo', 'pace_missing',
+      'eff_hi', 'eff_mid', 'eff_lo', 'eff_missing',
+      'edge', 'sim_gap', 'pbp', 'shooting', 'ft', 'ppp',
+      'late_over', 'early_over', 'flags',
+      'kind_total', 'kind_ats',
+      'lens_fg', 'lens_1h', 'lens_2h',
+      'PROB-EDGE', 'PTS-EDGE', 'CONF-LOW', 'POSS-LOW',
+      'AWAY-HALF-STRICT', 'REMAIN-10-20', 'ODDS-GATE', 'LATE-FG'
+    ];
+
+    const DRIVER_TAG_DESCRIPTIONS = {
+      'pace_hi': 'Possessions were running faster than the tuned live baseline, which usually supports more scoring pressure.',
+      'pace_mid': 'Possession pace was in the normal middle range, so pace itself was not an extreme driver.',
+      'pace_lo': 'Possessions were running slower than the tuned live baseline, which usually supports a calmer scoring environment.',
+      'pace_missing': 'The live possession estimate was missing, so the signal could not lean on pace directly.',
+      'eff_hi': 'Points per possession were running above the tuned efficiency baseline.',
+      'eff_mid': 'Points per possession were in the normal middle range, so efficiency was not an extreme input.',
+      'eff_lo': 'Points per possession were running below the tuned efficiency baseline.',
+      'eff_missing': 'The live efficiency estimate was missing, so the signal could not lean on scoring efficiency directly.',
+      'edge': 'The model had a measurable gap versus the posted market line.',
+      'sim_gap': 'The current score was ahead of or behind the simulation pace, and that gap influenced the signal.',
+      'pbp': 'Play-by-play box score context supported the signal instead of relying only on the raw score and line.',
+      'shooting': 'Shooting performance looked notably hot or cold and was part of the explanation.',
+      'ft': 'Free-throw rate was materially high or low and helped shape the signal.',
+      'ppp': 'The driver text explicitly referenced points per possession as part of the explanation.',
+      'late_over': 'A late-game over penalty or caution was active for this totals signal.',
+      'early_over': 'An early-game over penalty or caution was active for this totals signal.',
+      'flags': 'A learned or configured driver-tag penalty adjusted the raw live strength before the bet was shown.',
+      'kind_total': 'This tag belongs to the totals Live Lens path.',
+      'kind_ats': 'This tag belongs to the ATS Live Lens path.',
+      'lens_fg': 'The signal came from the full-game lens.',
+      'lens_1h': 'The signal came from the first-half lens.',
+      'lens_2h': 'The signal came from the second-half lens.',
+      'prob-edge': 'For ATS, the model probability edge versus the market price was part of the case.',
+      'pts-edge': 'For ATS, the projected margin edge in points was part of the case.',
+      'conf-low': 'The live sample was still light, so the ATS logic marked confidence as lower than usual.',
+      'poss-low': 'There were still relatively few live possessions, so the ATS sample was treated cautiously.',
+      'away-half-strict': 'Away-side ATS bets in half markets were held to a stricter rule set.',
+      'remain-10-20': 'The ATS half-market signal fell in the tougher 10 to 20 minutes remaining window.',
+      'odds-gate': 'The market price or timing gate was restrictive, so the bet had to clear an availability check.',
+      'late-fg': 'This was a late full-game ATS situation, where the model applies extra caution to stale or disappearing odds.'
+    };
+
+    const TAG_TYPE_DESCRIPTIONS = {
+      'pace': 'How fast or slow the game is playing relative to the live tuned possession baseline.',
+      'efficiency': 'How strong or weak scoring efficiency is relative to the live tuned points-per-possession baseline.',
+      'edge': 'Model-versus-market edge context, including score-vs-sim gap and ATS edge measures.',
+      'play_by_play': 'Signals backed by live play-by-play rollups instead of only score and line snapshots.',
+      'shooting': 'Shot-making or shot-quality style cues that help explain why the model leaned one way.',
+      'free_throw': 'Free-throw rate context that can lift or suppress scoring expectations.',
+      'timing': 'Early-game or late-game timing effects that change how aggressive the totals model should be.',
+      'market': 'Which live betting lane the tag belongs to, like totals versus ATS.',
+      'lens': 'Which time horizon generated the signal: full game, first half, or second half.',
+      'guardrail': 'Risk controls or stricter rules that prevent fragile live signals from firing too easily.',
+      '(other)': 'A catch-all family for uncommon or one-off driver tags.'
+    };
+
+    function normTagKey(tag) {
+      return String(tag ?? '').trim().toLowerCase().replace(/\s+/g, '_');
+    }
+
+    function inferTagType(tag) {
+      const key = normTagKey(tag);
+      if (!key) return '(other)';
+      if (key.startsWith('pace_')) return 'pace';
+      if (key.startsWith('eff_') || key === 'ppp') return 'efficiency';
+      if (key === 'edge' || key === 'sim_gap' || key === 'prob-edge' || key === 'pts-edge') return 'edge';
+      if (key === 'pbp') return 'play_by_play';
+      if (key === 'shooting') return 'shooting';
+      if (key === 'ft') return 'free_throw';
+      if (key === 'late_over' || key === 'early_over') return 'timing';
+      if (key.startsWith('kind_')) return 'market';
+      if (key.startsWith('lens_')) return 'lens';
+      if (key === 'flags' || key === 'conf-low' || key === 'poss-low' || key === 'away-half-strict' || key === 'remain-10-20' || key === 'odds-gate' || key === 'late-fg') return 'guardrail';
+      return '(other)';
+    }
+
+    function describeDriverTag(tag) {
+      const raw = String(tag ?? '').trim();
+      if (!raw) return 'No plain-English definition is available for this tag yet.';
+      const key = normTagKey(raw);
+      if (DRIVER_TAG_DESCRIPTIONS[key]) return DRIVER_TAG_DESCRIPTIONS[key];
+      if (key.startsWith('pace_')) return TAG_TYPE_DESCRIPTIONS.pace;
+      if (key.startsWith('eff_')) return TAG_TYPE_DESCRIPTIONS.efficiency;
+      if (key.startsWith('kind_')) return TAG_TYPE_DESCRIPTIONS.market;
+      if (key.startsWith('lens_')) return TAG_TYPE_DESCRIPTIONS.lens;
+      return 'A model context tag used to explain why this Live Lens signal became a BET or WATCH candidate.';
+    }
+
+    function describeTagType(tagType) {
+      const key = String(tagType ?? '').trim() || '(other)';
+      return TAG_TYPE_DESCRIPTIONS[key] || TAG_TYPE_DESCRIPTIONS['(other)'];
+    }
+
+    function renderGuideTable(tbodyId, rows) {
+      const tb = document.getElementById(tbodyId);
+      tb.innerHTML = '';
+      (rows || []).forEach(r => {
+        const tr = document.createElement('tr');
+        const c1 = document.createElement('td');
+        c1.textContent = String(r.key ?? '');
+        const c2 = document.createElement('td');
+        c2.textContent = String(r.description ?? '');
+        tr.appendChild(c1);
+        tr.appendChild(c2);
+        tb.appendChild(tr);
+      });
+    }
+
+    function collectDriverTags(overall) {
+      const seen = new Set();
+      const ordered = [];
+
+      function add(tag) {
+        const raw = String(tag ?? '').trim();
+        if (!raw || seen.has(raw)) return;
+        seen.add(raw);
+        ordered.push(raw);
+      }
+
+      DRIVER_TAG_ORDER.forEach(add);
+
+      ['totals', 'ats'].forEach(mkt => {
+        const summary = overall && overall[mkt] ? overall[mkt] : null;
+        const rows = summary ? (summary.by_driver_tag_full || summary.by_driver_tag || []) : [];
+        (rows || []).forEach(r => add(r && r.tag));
+      });
+
+      return ordered;
+    }
+
+    function renderDriverTagGuide(overall) {
+      const tags = collectDriverTags(overall);
+      const rows = tags.map(tag => ({ key: tag, description: describeDriverTag(tag) }));
+      renderGuideTable('tbl_driver_tag_guide', rows);
+    }
+
+    function renderTagTypeGuide(overall) {
+      const seen = new Set();
+      const rows = [];
+      const types = ['pace', 'efficiency', 'edge', 'play_by_play', 'shooting', 'free_throw', 'timing', 'market', 'lens', 'guardrail'];
+
+      types.forEach(type => {
+        if (seen.has(type)) return;
+        seen.add(type);
+        rows.push({ key: type, description: describeTagType(type) });
+      });
+
+      const extraTags = collectDriverTags(overall);
+      extraTags.forEach(tag => {
+        const type = inferTagType(tag);
+        if (seen.has(type)) return;
+        seen.add(type);
+        rows.push({ key: type, description: describeTagType(type) });
+      });
+
+      renderGuideTable('tbl_tag_type_guide', rows);
     }
 
     function renderKpi(containerId, summary) {
@@ -380,6 +581,8 @@
           renderKeyedStats('tbl_ats_driver_type', [], 'type');
           renderKeyedStats('tbl_totals_driver_single', [], 'driver');
           renderKeyedStats('tbl_ats_driver_single', [], 'driver');
+          renderDriverTagGuide(null);
+          renderTagTypeGuide(null);
           renderHistory('tbl_history', null);
           return;
         }
@@ -402,6 +605,8 @@
         renderKeyedStats('tbl_ats_driver_type', (overall.ats && overall.ats.by_driver_tag_type) ? overall.ats.by_driver_tag_type : [], 'type');
         renderKeyedStats('tbl_totals_driver_single', (overall.totals && overall.totals.by_driver) ? overall.totals.by_driver : [], 'driver');
         renderKeyedStats('tbl_ats_driver_single', (overall.ats && overall.ats.by_driver) ? overall.ats.by_driver : [], 'driver');
+        renderDriverTagGuide(overall);
+        renderTagTypeGuide(overall);
         renderPerDay('tbl_per_day', data.per_day || []);
         renderHistory('tbl_history', data.history || null);
       } catch (e) {
