@@ -6251,6 +6251,41 @@
 
           } catch(eS) { /* noop */ }
 
+          function goodTagHit(attrName, goodMap){
+            if(!goodMap) return false;
+            var raw = safeStr(card.getAttribute(attrName));
+            if(!raw) return false;
+            var parts = raw.split('|').map(function(x){ return String(x||'').trim().toLowerCase(); }).filter(Boolean);
+            for(var i=0;i<parts.length;i++){
+              if(goodMap[parts[i]]) return true;
+            }
+            return false;
+          }
+
+          function collectGoodTagSignals(){
+            var hits = [];
+            function add(label){
+              if(!label) return;
+              if(hits.indexOf(label) >= 0) return;
+              hits.push(label);
+            }
+            try {
+              if(!(isBet && __llGoodTags && __llGoodTags.loaded)) return hits;
+
+              if(okFg && goodTagHit('data-live-total-tags-fg', __llGoodTags.totals)) add('FG TOTAL');
+              if(use1h && ok1h && goodTagHit('data-live-total-tags-1h', __llGoodTags.totals)) add('1H TOTAL');
+              if(use2h && ok2h && goodTagHit('data-live-total-tags-2h', __llGoodTags.totals)) add('2H TOTAL');
+
+              if(mkOkFg && goodTagHit('data-live-market-tags-fg', __llGoodTags.ats)) add('FG ATS');
+              if(use1h && mkOk1h && goodTagHit('data-live-market-tags-1h', __llGoodTags.ats)) add('1H ATS');
+              if(use2h && mkOk2h && goodTagHit('data-live-market-tags-2h', __llGoodTags.ats)) add('2H ATS');
+            } catch(_eGTH){ /* noop */ }
+            return hits;
+          }
+
+          var goodTagSignals = collectGoodTagSignals();
+          var goodTagDetail = goodTagSignals.length ? (__llGoodTagLabel + ': ' + goodTagSignals.join(', ')) : '';
+
           var away = 'Away';
           var home = 'Home';
           try {
@@ -6540,7 +6575,10 @@
             var pFm = lensPieceMarket('FG', 'fg', mkOkFg2, mkWarnFg2);
             if(pFm) parts.push(pFm);
 
-            if(parts.length) return parts.join('\n');
+            if(parts.length){
+              if(goodTagDetail) return parts.join('\n') + '\n' + String(goodTagDetail || '').toUpperCase();
+              return parts.join('\n');
+            }
 
             // Legacy fallback (should be rare now): single total callout.
             try {
@@ -6559,42 +6597,18 @@
 
           // Live games: Bet (green), Watch (yellow), otherwise Live (blue).
           // Non-live games: neutral.
-          var hasGoodTag = false;
-          try {
-            if(isBet && __llGoodTags && __llGoodTags.loaded){
-              function hit(attrName, goodMap){
-                if(!goodMap) return false;
-                var raw = safeStr(card.getAttribute(attrName));
-                if(!raw) return false;
-                var parts = raw.split('|').map(function(x){ return String(x||'').trim().toLowerCase(); }).filter(Boolean);
-                for(var i=0;i<parts.length;i++){
-                  if(goodMap[parts[i]]) return true;
-                }
-                return false;
-              }
-
-              // Totals BET signals.
-              if(totBet){
-                if(okFg && hit('data-live-total-tags-fg', __llGoodTags.totals)) hasGoodTag = true;
-                else if(use1h && ok1h && hit('data-live-total-tags-1h', __llGoodTags.totals)) hasGoodTag = true;
-                else if(use2h && ok2h && hit('data-live-total-tags-2h', __llGoodTags.totals)) hasGoodTag = true;
-              }
-
-              // ATS BET signals.
-              if(!hasGoodTag && mkBet){
-                if(mkOkFg && hit('data-live-market-tags-fg', __llGoodTags.ats)) hasGoodTag = true;
-                else if(use1h && mkOk1h && hit('data-live-market-tags-1h', __llGoodTags.ats)) hasGoodTag = true;
-                else if(use2h && mkOk2h && hit('data-live-market-tags-2h', __llGoodTags.ats)) hasGoodTag = true;
-              }
-            }
-          } catch(_eGT){ /* noop */ }
+          var hasGoodTag = (goodTagSignals && goodTagSignals.length > 0);
           try {
             card.classList.toggle('good-tag', !!hasGoodTag);
             if(hasGoodTag){
               // Provide a tiny UI hint on hover without changing the layout.
-              if(!card.getAttribute('title')) card.setAttribute('title', __llGoodTagLabel);
+              var cardTitle = safeStr(card.getAttribute('title'));
+              if(!cardTitle || cardTitle === __llGoodTagLabel || cardTitle.indexOf(__llGoodTagLabel + ':') === 0){
+                card.setAttribute('title', goodTagDetail || __llGoodTagLabel);
+              }
             } else {
-              if(card.getAttribute('title') === __llGoodTagLabel) card.removeAttribute('title');
+              var prevTitle = safeStr(card.getAttribute('title'));
+              if(prevTitle === __llGoodTagLabel || prevTitle.indexOf(__llGoodTagLabel + ':') === 0) card.removeAttribute('title');
             }
           } catch(_eGTC){ /* noop */ }
           var cls = isBet ? 'ok' : (isWatch ? 'warn' : (isLive ? 'edge-mod' : (isFinal ? 'edge-zero' : 'neutral')));
@@ -6667,7 +6681,7 @@
           } catch(_eBuild) { /* noop */ }
 
           var baseTitle = (isBet ? 'Bet' : (isWatch ? 'Watch' : (isLive ? 'Live' : 'Game'))) + ': ' + away + ' @ ' + home;
-          btn.title = hasGoodTag ? (baseTitle + ' • ' + __llGoodTagLabel) : baseTitle;
+          btn.title = hasGoodTag ? (baseTitle + ' • ' + (goodTagDetail || __llGoodTagLabel)) : baseTitle;
           btn.addEventListener('click', function(){
             try {
               card.scrollIntoView({behavior:'smooth', block:'start'});
