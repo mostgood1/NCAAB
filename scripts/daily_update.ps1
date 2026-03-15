@@ -833,12 +833,20 @@ print({'path': str(games_path), 'rows': len(df2)})
         try {
           # Learn a small set of strength penalties for historically-bad driver tags and
           # write them into outputs/live_lens_tuning.json under tuning.driver_tag_strength_penalties.
-          # This is a safe filter: it only suppresses bad regimes; it does not flip sides.
+          # Restrict learning to the FG totals surface and replace the prior map so stale
+          # multi-lens penalties do not accumulate across days.
           & $VenvPython -m ncaab_model.cli learn-live-lens-flag-penalties `
             --end-date $prevDate `
             --days $LiveLensFlagPenaltiesLookbackDays `
-            --all-lenses `
+            --full-game-only `
+            --replace-existing `
             --tuning-json (Join-Path $OutDir 'live_lens_tuning.json')
+
+          try {
+            & $VenvPython -m ncaab_model.cli compute-live-lens-accuracy-retuned --date $prevDate
+          } catch {
+            Write-Warning "compute-live-lens-accuracy-retuned failed (post-flag-penalties) for ${prevDate}: $($_)"
+          }
         } catch {
           Write-Warning "Live Lens flag penalties learning failed: $($_)"
         }

@@ -4,6 +4,11 @@ from pathlib import Path
 
 import pytest
 
+from ncaab_model.live_lens_flag_learning import (
+    _is_penalty_eligible_tag,
+    apply_penalties_to_tuning_json,
+)
+
 
 app_module = importlib.import_module("app")
 app = getattr(app_module, "app")
@@ -78,3 +83,39 @@ def test_live_lens_tuning_passes_penalty_map(client):
                 p.unlink()
             except FileNotFoundError:
                 pass
+
+
+def test_flag_learning_excludes_scope_and_global_tags():
+    assert not _is_penalty_eligible_tag("lens_fg", tag_count=60, baseline_count=80)
+    assert not _is_penalty_eligible_tag("kind_total", tag_count=60, baseline_count=80)
+    assert not _is_penalty_eligible_tag("eff_mid", tag_count=95, baseline_count=100)
+    assert _is_penalty_eligible_tag("eff_mid", tag_count=94, baseline_count=100)
+    assert _is_penalty_eligible_tag("pace_lo", tag_count=60, baseline_count=100)
+
+
+def test_apply_penalties_replace_existing_overwrites_stale_map(tmp_path):
+    tuning_path = tmp_path / "live_lens_tuning.json"
+    tuning_path.write_text(
+        json.dumps(
+            {
+                "generated_at": "test",
+                "tuning": {
+                    "driver_tag_strength_penalties": {
+                        "pace_hi": 2.0,
+                        "eff_hi": 1.0,
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = apply_penalties_to_tuning_json(
+        tuning_path,
+        {"pace_lo": 1.5},
+        replace_existing=True,
+    )
+
+    assert payload["tuning"]["driver_tag_strength_penalties"] == {"pace_lo": 1.5}
+    persisted = json.loads(tuning_path.read_text(encoding="utf-8"))
+    assert persisted["tuning"]["driver_tag_strength_penalties"] == {"pace_lo": 1.5}

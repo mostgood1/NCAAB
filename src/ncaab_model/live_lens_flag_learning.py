@@ -53,6 +53,38 @@ class FlagLearningConfig:
     min_improve_profit_units: float = 0.0
 
 
+_NON_DISCRIMINATIVE_PENALTY_TAGS = frozenset({
+    "kind_total",
+    "kind_ats",
+    "lens_fg",
+    "lens_1h",
+    "lens_2h",
+})
+_MAX_GLOBAL_TAG_SUPPORT_FRAC = 0.95
+
+
+def _is_penalty_eligible_tag(
+    tag: str,
+    *,
+    tag_count: int,
+    baseline_count: int,
+    max_support_frac: float = _MAX_GLOBAL_TAG_SUPPORT_FRAC,
+) -> bool:
+    tag_key = str(tag or "").strip().lower()
+    if not tag_key:
+        return False
+    if tag_key in _NON_DISCRIMINATIVE_PENALTY_TAGS:
+        return False
+    if baseline_count > 0:
+        try:
+            support_frac = float(tag_count) / float(baseline_count)
+        except Exception:
+            support_frac = 0.0
+        if support_frac >= float(max_support_frac):
+            return False
+    return True
+
+
 def _iter_date_range(start_date: str, end_date: str) -> list[str]:
     s = dt.date.fromisoformat(_safe_date(start_date))
     e = dt.date.fromisoformat(_safe_date(end_date))
@@ -648,6 +680,7 @@ def learn_driver_tag_strength_penalties(
         t
         for t, n in tag_counts.items()
         if n >= int(cfg.min_tag_n)
+        and _is_penalty_eligible_tag(t, tag_count=n, baseline_count=n0)
         and (roi0 is None or not math.isfinite(float(roi0)) or (tag_roi.get(t) is not None and float(tag_roi[t]) < float(roi0)))
     ]
     cand_tags.sort(key=lambda t: (tag_roi.get(t, float("inf")), -tag_counts.get(t, 0)))
