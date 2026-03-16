@@ -119,16 +119,52 @@ def _load_predictions(pred_path: Path, date_str: str) -> pd.DataFrame:
     return out
 
 
+def _load_games(games_path: Path, date_str: str) -> pd.DataFrame:
+    if not games_path.exists():
+        return pd.DataFrame()
+    games = pd.read_csv(games_path, low_memory=False)
+    if games.empty or "game_id" not in games.columns:
+        return pd.DataFrame()
+    games = games.copy()
+    games["game_id"] = _norm_gid(games["game_id"])
+    keep = [
+        c
+        for c in [
+            "game_id",
+            "date",
+            "home_team",
+            "away_team",
+            "display_date",
+            "start_time",
+            "start_time_local",
+            "start_time_iso",
+            "tournament_label",
+            "tournament_note",
+        ]
+        if c in games.columns
+    ]
+    out = games[keep].drop_duplicates(subset=["game_id"], keep="first").copy()
+    if "date" in out.columns:
+        try:
+            out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+            out = out[out["date"].astype(str) == str(date_str)].copy()
+        except Exception:
+            pass
+    return out
+
+
 def build_display_frame(base_dir: Path, date_str: str) -> pd.DataFrame:
     edges_path = base_dir / f"align_period_{date_str}_edges.csv"
     pred_path = base_dir / f"predictions_{date_str}.csv"
+    games_path = base_dir / f"games_{date_str}.csv"
 
-    if not edges_path.exists() and not pred_path.exists():
+    if not edges_path.exists() and not pred_path.exists() and not games_path.exists():
         return pd.DataFrame()
 
     edges = pd.read_csv(edges_path, low_memory=False) if edges_path.exists() else pd.DataFrame()
     edge_agg = _aggregate_edges(edges, date_str)
     preds = _load_predictions(pred_path, date_str)
+    games = _load_games(games_path, date_str)
 
     if not preds.empty:
         out_df = preds.copy()
@@ -154,6 +190,27 @@ def build_display_frame(base_dir: Path, date_str: str) -> pd.DataFrame:
             out_df = out_df.drop(columns=[c for c in out_df.columns if c.endswith("_edge")], errors="ignore")
     else:
         out_df = edge_agg.copy()
+
+    if not out_df.empty and not games.empty:
+        out_df = out_df.merge(games, on="game_id", how="left", suffixes=("", "_game"))
+        for col in ("date", "home_team", "away_team", "display_date", "start_time", "start_time_local", "start_time_iso", "tournament_label", "tournament_note"):
+            game_col = f"{col}_game"
+            if game_col not in out_df.columns:
+                continue
+            if col not in out_df.columns:
+                out_df[col] = out_df[game_col]
+                continue
+            try:
+                base = out_df[col]
+                if base.dtype == object:
+                    miss = base.isna() | base.astype(str).str.strip().eq("") | base.astype(str).str.strip().str.lower().isin(["nan", "none", "null"])
+                else:
+                    miss = base.isna()
+                if miss.any():
+                    out_df.loc[miss, col] = out_df.loc[miss, game_col]
+            except Exception:
+                pass
+        out_df = out_df.drop(columns=[c for c in out_df.columns if c.endswith("_game")], errors="ignore")
 
     if out_df.empty:
         return out_df
@@ -188,6 +245,8 @@ def build_display_frame(base_dir: Path, date_str: str) -> pd.DataFrame:
         "date",
         "home_team",
         "away_team",
+        "tournament_label",
+        "tournament_note",
         "pred_total",
         "pred_margin",
         "market_total",

@@ -31,6 +31,72 @@ class FetchResult:
     source: str  # "cache" or "network" or "none"
 
 
+def _clean_text(value: object) -> str | None:
+    try:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text or text.lower() in {"nan", "none", "null"}:
+            return None
+        return text
+    except Exception:
+        return None
+
+
+def _extract_note_text(*sources: object) -> str | None:
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        direct = _clean_text(source.get("note"))
+        if direct:
+            return direct
+        notes = source.get("notes")
+        if isinstance(notes, list):
+            for note in notes:
+                if not isinstance(note, dict):
+                    continue
+                for key in ("headline", "text", "description", "detail"):
+                    candidate = _clean_text(note.get(key))
+                    if candidate:
+                        return candidate
+    return None
+
+
+def _derive_tournament_label(note_text: str | None, *sources: object) -> str | None:
+    note = _clean_text(note_text)
+    if note:
+        base = note.split(" - ")[0].strip()
+        lower = base.lower()
+        if "ncaa men's basketball championship" in lower:
+            return "NCAA Tournament"
+        if "national invitation tournament" in lower or lower == "nit":
+            return "NIT"
+        if "college basketball invitational" in lower or lower == "cbi":
+            return "CBI"
+        if "collegeinsider.com postseason tournament" in lower or "college insider tournament" in lower or lower == "cit":
+            return "CIT"
+        if "college basketball crown" in lower or lower == "cbc":
+            return "College Basketball Crown"
+        return base or None
+
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        comp_type = ((source.get("type") or {}).get("abbreviation") or "")
+        season_slug = ((source.get("season") or {}).get("slug") or "")
+        if str(comp_type).strip().upper() == "TRNMNT":
+            return "Conference Tournament" if source.get("conferenceCompetition") else "Tournament"
+        if "post" in str(season_slug).strip().lower():
+            return "Postseason"
+    return None
+
+
+def _extract_tournament_fields(*sources: object) -> tuple[str | None, str | None]:
+    note = _extract_note_text(*sources)
+    label = _derive_tournament_label(note, *sources)
+    return label, note
+
+
 def _fetch_day(date: dt.date, use_cache: bool = True, cache_only: bool = False) -> dict | None:
     cache_file = cache_path("espn", f"{date.isoformat()}.json")
     if use_cache and cache_file.exists():
@@ -221,6 +287,8 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
                 start_time_local = None
                 start_tz_abbr = None
 
+            tournament_label, tournament_note = _extract_tournament_fields(ev, comps)
+
             games.append(
                 Game(
                     game_id=game_id,
@@ -241,6 +309,8 @@ def _parse_games(date: dt.date, payload: dict) -> List[Game]:
                     completed=completed,
                     neutral_site=bool(neutral_site) if neutral_site is not None else None,
                     venue=venue_name,
+                    tournament_label=tournament_label,
+                    tournament_note=tournament_note,
                 )
             )
         except Exception:
@@ -339,6 +409,7 @@ def _parse_schedule_games(date: dt.date, payload: dict) -> List[Game]:
                 status_name = None
 
             season = (ev.get("season") or {}).get("year") or date.year
+            tournament_label, tournament_note = _extract_tournament_fields(ev)
             games.append(
                 Game(
                     game_id=game_id,
@@ -355,6 +426,8 @@ def _parse_schedule_games(date: dt.date, payload: dict) -> List[Game]:
                     completed=completed,
                     neutral_site=bool(ev.get("neutralSite")) if ev.get("neutralSite") is not None else None,
                     venue=venue_name,
+                    tournament_label=tournament_label,
+                    tournament_note=tournament_note,
                 )
             )
         except Exception:

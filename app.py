@@ -2620,6 +2620,8 @@ def _postprocess_enriched_file(date_q: str):
                                 'commence_time',
                                 'venue_tz',
                                 'venue',
+                                'tournament_label',
+                                'tournament_note',
                             ]
                             if c in g.columns
                         ]
@@ -2627,7 +2629,7 @@ def _postprocess_enriched_file(date_q: str):
                             g = g[keep_cols].drop_duplicates(subset=['game_id'])
                             enr = enr.merge(g, on='game_id', how='left', suffixes=('', '_sched'))
                             # Fill missing/blank values from schedule.
-                            for col in ['start_time', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue', 'date']:
+                            for col in ['start_time', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue', 'date', 'tournament_label', 'tournament_note']:
                                 sched_col = f'{col}_sched'
                                 if col in enr.columns and sched_col in enr.columns:
                                     try:
@@ -17274,6 +17276,8 @@ def index():
             'game_id',
             'home_team',
             'away_team',
+            'tournament_label',
+            'tournament_note',
             'pred_total',
             'pred_margin',
             'pred_total_basis',
@@ -39444,7 +39448,7 @@ def _collapse_display_frame(df: DataFrame, date_str: str | None = None) -> DataF
             except Exception:
                 return {}
 
-        for col in ('home_team', 'away_team', 'display_date', 'date', 'display_time_str', 'start_time', 'start_time_local', 'start_time_iso', 'commence_time'):
+        for col in ('home_team', 'away_team', 'display_date', 'date', 'display_time_str', 'start_time', 'start_time_local', 'start_time_iso', 'commence_time', 'tournament_label', 'tournament_note'):
             if col not in work.columns:
                 continue
             fill_map = _first_nonblank_map(col)
@@ -39502,6 +39506,111 @@ def _collapse_display_frame(df: DataFrame, date_str: str | None = None) -> DataF
         return dedup.reset_index(drop=True)
     except Exception:
         return df
+
+
+def _clean_text_value(value: Any) -> str | None:
+    try:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text or text.lower() in {'nan', 'none', 'null'}:
+            return None
+        return text
+    except Exception:
+        return None
+
+
+def _load_tournament_lookups(date_str: str) -> tuple[dict[str, dict[str, str]], dict[tuple[str, str], dict[str, str]]]:
+    if not date_str:
+        return {}, {}
+
+    cache = getattr(_load_tournament_lookups, '_cache', None)
+    if not isinstance(cache, dict):
+        cache = {}
+        setattr(_load_tournament_lookups, '_cache', cache)
+    if date_str in cache:
+        return cache[date_str]
+
+    gid_map: dict[str, dict[str, str]] = {}
+    pair_map: dict[tuple[str, str], dict[str, str]] = {}
+    expected_games = 0
+
+    def _store_entry(game_id: Any, home_team: Any, away_team: Any, label: Any, note: Any) -> None:
+        label_text = _clean_text_value(label)
+        note_text = _clean_text_value(note)
+        if not label_text and not note_text:
+            return
+        entry: dict[str, str] = {}
+        if label_text:
+            entry['tournament_label'] = label_text
+        if note_text:
+            entry['tournament_note'] = note_text
+
+        gid = _clean_text_value(game_id)
+        if gid:
+            gid_map[gid.replace('.0', '')] = entry
+
+        home = _clean_text_value(home_team)
+        away = _clean_text_value(away_team)
+        if home and away:
+            pair_map[(_canon_slug(home), _canon_slug(away))] = entry
+            pair_map[(_canon_slug(away), _canon_slug(home))] = entry
+
+    try:
+        gpath = OUT / f'games_{date_str}.csv'
+        gdf = _safe_read_csv(gpath)
+        if isinstance(gdf, pd.DataFrame) and not gdf.empty:
+            if 'game_id' in gdf.columns:
+                try:
+                    expected_games = int(
+                        gdf['game_id']
+                        .astype(str)
+                        .str.replace('.0', '', regex=False)
+                        .str.strip()
+                        .loc[lambda s: s.ne('')]
+                        .nunique()
+                    )
+                except Exception:
+                    expected_games = int(len(gdf))
+            else:
+                expected_games = int(len(gdf))
+
+            for row in gdf.to_dict(orient='records'):
+                _store_entry(
+                    row.get('game_id'),
+                    row.get('home_team') or row.get('home'),
+                    row.get('away_team') or row.get('away'),
+                    row.get('tournament_label'),
+                    row.get('tournament_note'),
+                )
+    except Exception:
+        pass
+
+    try:
+        month = dt.date.fromisoformat(str(date_str)[:10]).month
+    except Exception:
+        month = None
+
+    should_fetch = bool(month in {3, 4} and ((expected_games and len(gid_map) < expected_games) or not gid_map))
+    if should_fetch:
+        try:
+            from ncaab_model.data.adapters.espn_scoreboard import iter_games_by_date
+
+            target_date = dt.date.fromisoformat(str(date_str)[:10])
+            for result in iter_games_by_date(target_date, target_date, use_cache=True, cache_only=False):
+                for game in (result.games or []):
+                    _store_entry(
+                        getattr(game, 'game_id', None),
+                        getattr(game, 'home_team', None),
+                        getattr(game, 'away_team', None),
+                        getattr(game, 'tournament_label', None),
+                        getattr(game, 'tournament_note', None),
+                    )
+        except Exception:
+            pass
+
+    cache[date_str] = (gid_map, pair_map)
+    return cache[date_str]
 
 
 def _dedupe_recommendation_frame(df: DataFrame) -> DataFrame:
@@ -39624,13 +39733,15 @@ def _persist_display(df: DataFrame, date_str: str) -> tuple[Path, str]:
                                     'commence_time',
                                     'venue_tz',
                                     'venue',
+                                    'tournament_label',
+                                    'tournament_note',
                                 ]
                                 if c in g.columns
                             ]
                             if keep_cols:
                                 g2 = g[keep_cols].drop_duplicates(subset=['game_id'])
                                 work = work.merge(g2, on='game_id', how='left', suffixes=('', '_sched'))
-                                for col in ['start_time', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue', 'date']:
+                                for col in ['start_time', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue', 'date', 'tournament_label', 'tournament_note']:
                                     sched_col = f'{col}_sched'
                                     if sched_col not in work.columns:
                                         continue
@@ -40107,6 +40218,8 @@ def api_display_predictions():
                     'game_id': _pick_col(df_full, ['game_id','id','gid']),
                     'home_team': _pick_col(df_full, ['home_team','home_team_name','home']),
                     'away_team': _pick_col(df_full, ['away_team','away_team_name','away']),
+                    'tournament_label': _pick_col(df_full, ['tournament_label']),
+                    'tournament_note': _pick_col(df_full, ['tournament_note']),
                     'pred_total': _pick_col(df_full, ['pred_total','pred_total_cal','total_pred','total']),
                     'pred_margin': _pick_col(df_full, ['pred_margin','pred_margin_cal','margin_pred','margin']),
                     'pred_total_basis': _pick_col(df_full, ['pred_total_basis']),
@@ -40580,7 +40693,7 @@ def api_display_predictions():
                         if gpath.exists():
                             g = _safe_read_csv(gpath)
                             if isinstance(g, pd.DataFrame) and (not g.empty):
-                                for c in ['date', 'start_time', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue']:
+                                for c in ['date', 'start_time', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'commence_time', 'venue_tz', 'venue', 'tournament_label', 'tournament_note']:
                                     if c in g.columns:
                                         _map_from(g, c, c, numeric=False)
                     except Exception:
@@ -41890,7 +42003,7 @@ def api_display_predictions():
         keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','date','display_date','display_time_str']
         if cards_view:
             keep_cols = [
-                'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site',
+                'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site','tournament_label','tournament_note',
                 'market_total','spread_home','ml_home','ml_away',
                 'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
                 'kelly_fraction_total','kelly_fraction_ml_home','kelly_fraction_ml_away',
@@ -42442,7 +42555,7 @@ def api_display_predictions():
         keep_cols = ['game_id','home_team','away_team','pred_total','pred_margin','pred_total_basis','pred_margin_basis','market_total','spread_home','edge_total','edge_ats','start_time','date','display_date','display_time_str']
         if cards_view:
             keep_cols = [
-                'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site',
+                'game_id','date','home_team','away_team','start_time','start_time_iso','start_time_local','start_tz_abbr','venue','city','state','neutral_site','tournament_label','tournament_note',
                 'market_total','spread_home','ml_home','ml_away',
                 'market_price','fair_price','implied_prob','ev','fair_delta','market_basis','book_name',
                 'kelly_fraction_total','kelly_fraction_ml_home','kelly_fraction_ml_away',
@@ -42480,6 +42593,15 @@ def api_display_predictions():
                 conf_map = _conference_map() or {}
         except Exception:
             conf_map = {}
+
+        tournament_gid_map: dict[str, dict[str, str]] = {}
+        tournament_pair_map: dict[tuple[str, str], dict[str, str]] = {}
+        try:
+            if cards_view and date_q:
+                tournament_gid_map, tournament_pair_map = _load_tournament_lookups(str(date_q))
+        except Exception:
+            tournament_gid_map = {}
+            tournament_pair_map = {}
 
         rows: list[dict[str, Any]] = []
         for _, r in df.iterrows():
@@ -42628,6 +42750,33 @@ def api_display_predictions():
                     item['conference_away'] = None
                 except Exception:
                     pass
+
+            try:
+                if cards_view:
+                    current_label = _clean_text_value(item.get('tournament_label'))
+                    current_note = _clean_text_value(item.get('tournament_note'))
+                    lookup = None
+                    gid = _clean_text_value(item.get('game_id'))
+                    if gid:
+                        lookup = tournament_gid_map.get(gid.replace('.0', ''))
+                    if lookup is None:
+                        ht = _clean_text_value(item.get('home_team'))
+                        at = _clean_text_value(item.get('away_team'))
+                        if ht and at:
+                            lookup = tournament_pair_map.get((_canon_slug(ht), _canon_slug(at)))
+                    if lookup:
+                        if not current_label:
+                            current_label = _clean_text_value(lookup.get('tournament_label'))
+                        if not current_note:
+                            current_note = _clean_text_value(lookup.get('tournament_note'))
+                    if current_label:
+                        item['tournament_label'] = current_label
+                    if current_note:
+                        item['tournament_note'] = current_note
+                    elif current_label:
+                        item['tournament_note'] = current_label
+            except Exception:
+                pass
 
             # Attach 5-minute segments if available (cards view only)
             try:

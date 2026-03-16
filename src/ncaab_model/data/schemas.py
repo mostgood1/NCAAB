@@ -26,6 +26,8 @@ class Game(BaseModel):
     completed: Optional[bool] = None
     neutral_site: Optional[bool] = None
     venue: Optional[str] = None
+    tournament_label: Optional[str] = None
+    tournament_note: Optional[str] = None
 
 
 class Odds(BaseModel):

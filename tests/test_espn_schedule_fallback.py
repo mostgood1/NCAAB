@@ -13,6 +13,7 @@ def _schedule_html(date_key: str = "20260319") -> str:
                         {
                             "id": "401856479",
                             "date": "2026-03-19T16:15Z",
+                            "note": "NCAA Men's Basketball Championship - Midwest Region - 1st Round",
                             "completed": False,
                             "neutralSite": True,
                             "season": {"year": 2026, "type": 3, "slug": "post-season"},
@@ -100,3 +101,44 @@ def test_iter_games_by_date_falls_back_to_schedule_html(monkeypatch, tmp_path):
     assert game.completed is False
     assert game.start_time is not None
     assert "Greenville, SC" in (game.venue or "")
+    assert game.tournament_label == "NCAA Tournament"
+    assert game.tournament_note == "NCAA Men's Basketball Championship - Midwest Region - 1st Round"
+
+
+def test_parse_games_extracts_tournament_fields_from_scoreboard_notes():
+    payload = {
+        "events": [
+            {
+                "id": "401856480",
+                "notes": [{"headline": "NCAA Men's Basketball Championship - West Region - 1st Round"}],
+                "season": {"year": 2026, "type": 3, "slug": "post-season"},
+                "competitions": [
+                    {
+                        "date": "2026-03-20T19:25Z",
+                        "neutralSite": True,
+                        "type": {"abbreviation": "TRNMNT"},
+                        "venue": {"fullName": "Rupp Arena"},
+                        "status": {"type": {"name": "STATUS_SCHEDULED", "completed": False}},
+                        "competitors": [
+                            {
+                                "homeAway": "home",
+                                "team": {"displayName": "Gonzaga Bulldogs"},
+                                "score": "0",
+                            },
+                            {
+                                "homeAway": "away",
+                                "team": {"displayName": "Drake Bulldogs"},
+                                "score": "0",
+                            },
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+
+    games = espn_scoreboard._parse_games(dt.date(2026, 3, 20), payload)
+    assert len(games) == 1
+    game = games[0]
+    assert game.tournament_label == "NCAA Tournament"
+    assert game.tournament_note == "NCAA Men's Basketball Championship - West Region - 1st Round"
