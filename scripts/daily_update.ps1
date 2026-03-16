@@ -354,11 +354,202 @@ function Resolve-LookaheadDatesWithGames {
   }
 }
 
+function ConvertTo-LookaheadKeyText {
+  param(
+    [object]$Value
+  )
+
+  $text = ''
+  try { $text = ([string]$Value).Trim() } catch { $text = '' }
+  if ([string]::IsNullOrWhiteSpace($text)) { return '' }
+  if ($text -match '^(?i:na|nan|none|null)$') { return '' }
+  $text = [regex]::Replace($text, '\s+', ' ')
+  return $text.ToUpperInvariant()
+}
+
+function Get-LookaheadRowTeamValue {
+  param(
+    [object]$Row,
+    [string]$Primary,
+    [string]$Fallback
+  )
+
+  $value = ''
+  try { $value = [string]$Row.$Primary } catch { $value = '' }
+  if ([string]::IsNullOrWhiteSpace($value) -and $Fallback) {
+    try { $value = [string]$Row.$Fallback } catch { $value = '' }
+  }
+  return (ConvertTo-LookaheadKeyText -Value $value)
+}
+
+function Get-LookaheadSlateSignatures {
+  param(
+    [object[]]$Rows
+  )
+
+  $sigs = New-Object System.Collections.ArrayList
+  $seen = @{}
+  foreach ($row in @($Rows)) {
+    $gameId = ''
+    try { $gameId = ConvertTo-LookaheadKeyText -Value $row.game_id } catch { $gameId = '' }
+    if ($gameId) { $gameId = ($gameId -replace '\.0$','') }
+    $awayTeamKey = Get-LookaheadRowTeamValue -Row $row -Primary 'away_team' -Fallback 'away'
+    $teamHomeKey = Get-LookaheadRowTeamValue -Row $row -Primary 'home_team' -Fallback 'home'
+    $sig = ($gameId, $awayTeamKey, $teamHomeKey) -join '|'
+    if (-not [string]::IsNullOrWhiteSpace($sig) -and -not $seen.ContainsKey($sig)) {
+      $seen[$sig] = $true
+      [void]$sigs.Add($sig)
+    }
+  }
+  return @($sigs | Sort-Object)
+}
+
+function Test-LookaheadRowsHaveTbd {
+  param(
+    [object[]]$Rows
+  )
+
+  foreach ($row in @($Rows)) {
+    $awayTeamKey = Get-LookaheadRowTeamValue -Row $row -Primary 'away_team' -Fallback 'away'
+    $teamHomeKey = Get-LookaheadRowTeamValue -Row $row -Primary 'home_team' -Fallback 'home'
+    if ($awayTeamKey -eq 'TBD' -or $teamHomeKey -eq 'TBD') { return $true }
+  }
+  return $false
+}
+
+function Get-WatchedLookaheadRefreshPlan {
+  param(
+    [datetime]$ReferenceDate,
+    [object[]]$ExcludeDates = @()
+  )
+
+  $excludeIso = @{}
+  foreach ($dt in @($ExcludeDates)) {
+    try {
+      $excludeIso[([datetime]$dt).ToString('yyyy-MM-dd')] = $true
+    } catch {}
+  }
+
+  $candidates = New-Object System.Collections.ArrayList
+  foreach ($file in @(Get-ChildItem -LiteralPath $OutDir -File -Filter 'games_*.csv' -ErrorAction SilentlyContinue)) {
+    if ($file.BaseName -notmatch '^games_(\d{4}-\d{2}-\d{2})$') { continue }
+    $iso = $matches[1]
+    try {
+      $dt = [datetime]::ParseExact($iso, 'yyyy-MM-dd', $null)
+    } catch {
+      continue
+    }
+    if ($dt -le $ReferenceDate) { continue }
+    if ($excludeIso.ContainsKey($iso)) { continue }
+
+    $rows = @()
+    try {
+      $rows = @(Import-Csv -LiteralPath $file.FullName -ErrorAction Stop)
+    } catch {
+      Write-Warning ("lookahead watch read failed for {0}: {1}" -f $file.FullName, $_.Exception.Message)
+      continue
+    }
+    if ($rows.Count -le 0) { continue }
+
+    [void]$candidates.Add([pscustomobject]@{
+      Date = $dt
+      IsoDate = $iso
+      ExistingRows = $rows
+      ExistingHasTbd = (Test-LookaheadRowsHaveTbd -Rows $rows)
+    })
+  }
+
+  $sortedCandidates = @($candidates | Sort-Object IsoDate)
+  if ($sortedCandidates.Count -le 0) { return @() }
+
+  $startIso = $sortedCandidates[0].IsoDate
+  $endIso = $sortedCandidates[-1].IsoDate
+  $probePath = Join-Path $OutDir ("_tmp_watch_probe_" + $startIso + "_" + $endIso + ".csv")
+  $providerByDate = @{}
+  $probeSucceeded = $false
+
+  try {
+    $probeArgs = @(
+      'fetch-games',
+      '--season', $seasonStartYear,
+      '--start', $startIso,
+      '--end', $endIso,
+      '--provider', $Provider,
+      '--out', $probePath,
+      '--no-use-cache'
+    )
+    $null = (& $VenvPython -m ncaab_model.cli @probeArgs | Out-String)
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $probePath)) {
+      throw "fetch-games watch probe failed for $startIso..$endIso"
+    }
+
+    foreach ($row in @(Import-Csv -LiteralPath $probePath -ErrorAction Stop)) {
+      $iso = ([string]$row.date).Trim()
+      if ([string]::IsNullOrWhiteSpace($iso)) { continue }
+      if (-not $providerByDate.ContainsKey($iso)) {
+        $providerByDate[$iso] = New-Object System.Collections.ArrayList
+      }
+      [void]$providerByDate[$iso].Add($row)
+    }
+    $probeSucceeded = $true
+  } catch {
+    Write-Warning ("lookahead watch probe failed for {0}..{1}: {2}. Falling back to existing TBD watchlist only." -f $startIso, $endIso, $_.Exception.Message)
+  } finally {
+    try {
+      if (Test-Path -LiteralPath $probePath) {
+        Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
+      }
+    } catch {}
+  }
+
+  $plan = New-Object System.Collections.ArrayList
+  foreach ($item in $sortedCandidates) {
+    $providerRows = @()
+    if ($providerByDate.ContainsKey($item.IsoDate)) {
+      $providerRows = @($providerByDate[$item.IsoDate])
+    }
+
+    $slateChanged = $false
+    if ($probeSucceeded) {
+      $existingSigs = @(Get-LookaheadSlateSignatures -Rows $item.ExistingRows)
+      $providerSigs = @(Get-LookaheadSlateSignatures -Rows $providerRows)
+      $slateChanged = (@(Compare-Object -ReferenceObject $existingSigs -DifferenceObject $providerSigs)).Count -gt 0
+    }
+
+    if (-not ($item.ExistingHasTbd -or $slateChanged)) { continue }
+
+    $reasons = @()
+    if ($item.ExistingHasTbd) { $reasons += 'tbd' }
+    if ($slateChanged) { $reasons += 'slate-changed' }
+
+    [void]$plan.Add([pscustomobject]@{
+      Date = $item.Date
+      IsoDate = $item.IsoDate
+      ExistingHasTbd = $item.ExistingHasTbd
+      SlateChanged = $slateChanged
+      ProviderRows = $providerRows.Count
+      ExistingRows = @($item.ExistingRows).Count
+      ShouldUpload = $slateChanged
+      Reason = ($reasons -join ',')
+    })
+  }
+
+  $sortedPlan = @($plan | Sort-Object IsoDate)
+  if ($sortedPlan.Count -gt 0) {
+    $planText = @($sortedPlan | ForEach-Object {
+      if ([string]::IsNullOrWhiteSpace($_.Reason)) { $_.IsoDate } else { "{0} ({1})" -f $_.IsoDate, $_.Reason }
+    }) -join ', '
+    Write-Host ("[lookahead-watch] Future refresh candidates: {0}" -f $planText) -ForegroundColor DarkGray
+  }
+  return $sortedPlan
+}
+
 function Invoke-LookaheadPreview {
   param(
     [datetime]$PreviewDate,
     [bool]$UploadArtifacts = $false,
-    [string]$HeaderLabel = 'Lookahead preview'
+    [string]$HeaderLabel = 'Lookahead preview',
+    [bool]$ForceNoCache = $false
   )
 
   $previewIso = $PreviewDate.ToString('yyyy-MM-dd')
@@ -402,7 +593,7 @@ function Invoke-LookaheadPreview {
       '--no-accumulate-schedule',
       '--no-accumulate-predictions'
     )
-    if ($NoCache.IsPresent) { $dayArgs += '--no-use-cache' }
+    if ($NoCache.IsPresent -or $ForceNoCache) { $dayArgs += '--no-use-cache' }
     & $VenvPython -m ncaab_model.cli @dayArgs
     if ($LASTEXITCODE -ne 0) {
       Write-Warning ("lookahead daily-run returned exit code {0} for {1}" -f $LASTEXITCODE, $previewIso)
@@ -414,6 +605,13 @@ function Invoke-LookaheadPreview {
     $dayAlign = Join-Path $OutDir ("align_period_" + $previewIso + ".csv")
     $dayEdges = Join-Path $OutDir ("align_period_" + $previewIso + "_edges.csv")
     $dayDisplay = Join-Path $OutDir ("predictions_display_" + $previewIso + ".csv")
+    $daySimQuant = Join-Path $OutDir ("sim_quantiles_" + $previewIso + ".csv")
+    $daySimBlend = Join-Path $OutDir ("sim_blend_" + $previewIso + ".csv")
+    $daySimSegments = Join-Path $OutDir ("sim_segments_" + $previewIso + ".csv")
+    $daySimSegments2Min = Join-Path $OutDir ("sim_segments_2min_" + $previewIso + ".csv")
+    $daySimQuant2Min = Join-Path $OutDir ("sim_quantiles_2min_" + $previewIso + ".csv")
+    $daySimMeta = Join-Path $OutDir ("sim_meta_" + $previewIso + ".json")
+    $daySimMeta2Min = Join-Path $OutDir ("sim_meta_2min_" + $previewIso + ".json")
 
     $scheduledRows = 0
     try {
@@ -518,6 +716,82 @@ print({'path': str(display_path), 'rows': len(disp)})
       Write-Warning ("lookahead sanitize-artifacts failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
     }
 
+    Write-Section ("lookahead.sim) Generate simulations ({0})" -f $previewIso)
+    $prevSimSeed = $env:NCAAB_SIM_SEED
+    $prevBlendEventPace = $env:NCAAB_SIM_BLEND_EVENT_PACE
+    $prevSimMeanSource = $env:NCAAB_SIM_MEAN_SOURCE
+    try {
+      if (-not $env:NCAAB_SIM_SEED -or $env:NCAAB_SIM_SEED.Trim() -eq '') {
+        $env:NCAAB_SIM_SEED = $previewIso.Replace('-', '')
+        Write-Host "NCAAB_SIM_SEED not set; defaulting to $($env:NCAAB_SIM_SEED)" -ForegroundColor DarkGray
+      } else {
+        Write-Host "Using NCAAB_SIM_SEED=$($env:NCAAB_SIM_SEED)" -ForegroundColor DarkGray
+      }
+      if (-not $env:NCAAB_SIM_BLEND_EVENT_PACE -or $env:NCAAB_SIM_BLEND_EVENT_PACE.Trim() -eq '') {
+        $env:NCAAB_SIM_BLEND_EVENT_PACE = '1'
+        Write-Host "NCAAB_SIM_BLEND_EVENT_PACE not set; defaulting to $($env:NCAAB_SIM_BLEND_EVENT_PACE)" -ForegroundColor DarkGray
+      } else {
+        Write-Host "Using NCAAB_SIM_BLEND_EVENT_PACE=$($env:NCAAB_SIM_BLEND_EVENT_PACE)" -ForegroundColor DarkGray
+      }
+      if (-not $env:NCAAB_SIM_MEAN_SOURCE -or $env:NCAAB_SIM_MEAN_SOURCE.Trim() -eq '') {
+        $env:NCAAB_SIM_MEAN_SOURCE = 'auto'
+        Write-Host "NCAAB_SIM_MEAN_SOURCE not set; defaulting to $($env:NCAAB_SIM_MEAN_SOURCE)" -ForegroundColor DarkGray
+      } else {
+        Write-Host "Using NCAAB_SIM_MEAN_SOURCE=$($env:NCAAB_SIM_MEAN_SOURCE)" -ForegroundColor DarkGray
+      }
+
+      try {
+        & $VenvPython scripts/validate_sim_inputs.py $previewIso $OutDir
+      } catch {
+        Write-Warning ("lookahead validate_sim_inputs failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+
+      try {
+        & $VenvPython scripts/run_game_simulations.py $previewIso $OutDir
+      } catch {
+        Write-Warning ("lookahead run_game_simulations failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+
+      try {
+        & $VenvPython scripts/run_game_simulations.py $previewIso $OutDir --segments-grid-min 2 --segments-out-prefix sim_segments_2min_ --quantiles-out-prefix sim_quantiles_2min_ --meta-out-prefix sim_meta_2min_
+      } catch {
+        Write-Warning ("lookahead 2-min run_game_simulations failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+
+      try {
+        if ((-not (Test-Path -LiteralPath $daySimSegments2Min)) -or (-not (Test-Path -LiteralPath $daySimQuant2Min)) -or (-not (Test-Path -LiteralPath $daySimMeta2Min))) {
+          Write-Warning ("[lookahead 2-min] Missing after sim run for {0}; retrying once." -f $previewIso)
+          & $VenvPython scripts/run_game_simulations.py $previewIso $OutDir --segments-grid-min 2 --segments-out-prefix sim_segments_2min_ --quantiles-out-prefix sim_quantiles_2min_ --meta-out-prefix sim_meta_2min_
+        }
+      } catch {
+        Write-Warning ("lookahead 2-min retry failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+
+      try {
+        $BlendSimWeight = if ($env:BLEND_SIM_WEIGHT) { [double]$env:BLEND_SIM_WEIGHT } else { 0.2 }
+        Write-Host "Blending simulations with weight $BlendSimWeight" -ForegroundColor DarkGray
+        & $VenvPython scripts/blend_sim_quantiles.py $previewIso $OutDir $BlendSimWeight
+      } catch {
+        Write-Warning ("lookahead blend_sim_quantiles failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+    } finally {
+      if ($null -eq $prevSimSeed) {
+        Remove-Item Env:\NCAAB_SIM_SEED -ErrorAction SilentlyContinue
+      } else {
+        $env:NCAAB_SIM_SEED = $prevSimSeed
+      }
+      if ($null -eq $prevBlendEventPace) {
+        Remove-Item Env:\NCAAB_SIM_BLEND_EVENT_PACE -ErrorAction SilentlyContinue
+      } else {
+        $env:NCAAB_SIM_BLEND_EVENT_PACE = $prevBlendEventPace
+      }
+      if ($null -eq $prevSimMeanSource) {
+        Remove-Item Env:\NCAAB_SIM_MEAN_SOURCE -ErrorAction SilentlyContinue
+      } else {
+        $env:NCAAB_SIM_MEAN_SOURCE = $prevSimMeanSource
+      }
+    }
+
     try {
       $dayArchiveRoot = Join-Path $OutDir 'archive'
       $dayArchiveDir = Join-Path $dayArchiveRoot $previewIso
@@ -528,6 +802,12 @@ print({'path': str(display_path), 'rows': len(disp)})
       $null = Copy-ArtifactIfExists -Source $dayPreds -Destination (Join-Path $dayArchiveDir ("predictions_" + $previewIso + ".csv"))
       $null = Copy-ArtifactIfExists -Source $dayDisplay -Destination (Join-Path $dayArchiveDir ("predictions_display_" + $previewIso + ".csv"))
       $null = Copy-ArtifactIfExists -Source $dayMergedLastShared -Destination (Join-Path $dayArchiveDir ("games_with_last_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $daySimQuant -Destination (Join-Path $dayArchiveDir ("sim_quantiles_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $daySimBlend -Destination (Join-Path $dayArchiveDir ("sim_blend_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $daySimSegments -Destination (Join-Path $dayArchiveDir ("sim_segments_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $daySimSegments2Min -Destination (Join-Path $dayArchiveDir ("sim_segments_2min_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $daySimMeta -Destination (Join-Path $dayArchiveDir ("sim_meta_" + $previewIso + ".json"))
+      $null = Copy-ArtifactIfExists -Source $daySimMeta2Min -Destination (Join-Path $dayArchiveDir ("sim_meta_2min_" + $previewIso + ".json"))
       $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'last_odds.csv') -Destination (Join-Path $dayArchiveDir ("last_odds_" + $previewIso + ".csv"))
       $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'picks_clean.csv') -Destination (Join-Path $dayArchiveDir ("picks_clean_" + $previewIso + ".csv"))
       $null = Copy-CsvForDateIfMatching -Source $dayPicksRawSource -Destination (Join-Path $dayArchiveDir ("picks_raw_" + $previewIso + ".csv")) -Date $previewIso
@@ -3502,6 +3782,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
 
     # Optional local lookahead previews: either a single next-day preview or an explicit postseason range.
     # Shared current-day files are always restored after each lookahead date.
+    $executedPreviewDates = @()
     if ($lookaheadRangeSpecified) {
       $uploadRange = $false
       if ($UploadLookaheadRange.IsPresent) { $uploadRange = $true }
@@ -3510,6 +3791,7 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
         Write-Host '[lookahead] No posted postseason dates to preview after schedule probe.' -ForegroundColor Yellow
       }
       foreach ($previewDate in @($lookaheadRangeDates)) {
+        $executedPreviewDates += $previewDate
         [void](Invoke-LookaheadPreview -PreviewDate $previewDate -UploadArtifacts:$uploadRange -HeaderLabel '11d.lookahead) Postseason lookahead')
       }
     } else {
@@ -3521,9 +3803,22 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
         $dayAheadDate = $todayDate.AddDays($dayAheadOffset)
         $doDayAheadUpload = $true
         if ($PSBoundParameters.ContainsKey('SkipRenderUpload') -and $SkipRenderUpload.IsPresent) { $doDayAheadUpload = $false }
+        $executedPreviewDates += $dayAheadDate
         [void](Invoke-LookaheadPreview -PreviewDate $dayAheadDate -UploadArtifacts:$doDayAheadUpload -HeaderLabel '11d) Early day-ahead preview')
       } else {
         Write-Host 'SkipDayAhead flag set; skipping early next-day preview.' -ForegroundColor Yellow
+      }
+
+      $watchUploadEnabled = $true
+      if ($PSBoundParameters.ContainsKey('SkipRenderUpload') -and $SkipRenderUpload.IsPresent) { $watchUploadEnabled = $false }
+      $watchPlan = @(Get-WatchedLookaheadRefreshPlan -ReferenceDate $todayDate -ExcludeDates $executedPreviewDates)
+      if ($watchPlan.Count -gt 0) {
+        foreach ($watchItem in $watchPlan) {
+          $uploadThis = $watchUploadEnabled -and [bool]$watchItem.ShouldUpload
+          [void](Invoke-LookaheadPreview -PreviewDate $watchItem.Date -UploadArtifacts:$uploadThis -HeaderLabel '11d.watch) Future TBD refresh' -ForceNoCache $true)
+        }
+      } else {
+        Write-Host '[lookahead-watch] No future watched dates need refresh.' -ForegroundColor DarkGray
       }
     }
 
