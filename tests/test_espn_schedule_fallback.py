@@ -142,3 +142,17 @@ def test_parse_games_extracts_tournament_fields_from_scoreboard_notes():
     game = games[0]
     assert game.tournament_label == "NCAA Tournament"
     assert game.tournament_note == "NCAA Men's Basketball Championship - West Region - 1st Round"
+
+
+def test_derive_tournament_label_normalizes_sponsored_and_postseason_names():
+    cases = {
+        "T. Rowe Price ACC Tournament - Quarterfinal": "ACC Tournament",
+        "Phillips 66 Big 12 Tournament - Final": "Big 12 Tournament",
+        "Ivy League Tournament pres. by TIAA - Final": "Ivy League Tournament",
+        "NIT - 1st Round": "NIT",
+        "College Basketball Invitational - Quarterfinal": "CBI",
+        "College Basketball Crown - Quarterfinals": "College Basketball Crown",
+    }
+
+    for note, expected in cases.items():
+        assert espn_scoreboard._derive_tournament_label(note) == expected

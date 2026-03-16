@@ -62,22 +62,47 @@ def _extract_note_text(*sources: object) -> str | None:
     return None
 
 
+def _normalize_tournament_base(base_text: str | None) -> str | None:
+    base = _clean_text(base_text)
+    if not base:
+        return None
+
+    base = re.sub(r"\s+pres\.\s+by\s+.+$", "", base, flags=re.I).strip()
+    lower = base.lower()
+
+    if "ncaa men's basketball championship" in lower:
+        return "NCAA Tournament"
+    if "national invitation tournament" in lower or lower == "nit":
+        return "NIT"
+    if "college basketball invitational" in lower or lower == "cbi":
+        return "CBI"
+    if "collegeinsider.com postseason tournament" in lower or "college insider tournament" in lower or lower == "cit":
+        return "CIT"
+    if "college basketball crown" in lower or lower == "cbc":
+        return "College Basketball Crown"
+
+    if "acc tournament" in lower:
+        return "ACC Tournament"
+    if "big 12 tournament" in lower:
+        return "Big 12 Tournament"
+    if "ivy league tournament" in lower:
+        return "Ivy League Tournament"
+
+    if lower.startswith("t. rowe price ") and " tournament" in lower:
+        return base[len("T. Rowe Price "):].strip()
+    if lower.startswith("phillips 66 ") and " tournament" in lower:
+        return base[len("Phillips 66 "):].strip()
+
+    return base
+
+
 def _derive_tournament_label(note_text: str | None, *sources: object) -> str | None:
     note = _clean_text(note_text)
     if note:
         base = note.split(" - ")[0].strip()
-        lower = base.lower()
-        if "ncaa men's basketball championship" in lower:
-            return "NCAA Tournament"
-        if "national invitation tournament" in lower or lower == "nit":
-            return "NIT"
-        if "college basketball invitational" in lower or lower == "cbi":
-            return "CBI"
-        if "collegeinsider.com postseason tournament" in lower or "college insider tournament" in lower or lower == "cit":
-            return "CIT"
-        if "college basketball crown" in lower or lower == "cbc":
-            return "College Basketball Crown"
-        return base or None
+        normalized = _normalize_tournament_base(base)
+        if normalized:
+            return normalized
 
     for source in sources:
         if not isinstance(source, dict):
