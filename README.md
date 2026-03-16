@@ -714,6 +714,18 @@ Run it after activating your venv:
 . .\scripts\daily_update.ps1 -NoCache
 ```
 
+For March/April tournament lookaheads, you can now stage future slates without overwriting today's shared artifacts:
+
+```powershell
+# Append a postseason preview range after the normal daily run
+. .\scripts\daily_update.ps1 -Today 2026-03-16 -LookaheadStartDate 2026-03-18 -LookaheadEndDate 2026-04-07
+
+# Or run only the future preview range when matchups are posted
+. .\scripts\daily_update.ps1 -Today 2026-03-16 -LookaheadOnly -LookaheadStartDate 2026-03-18 -LookaheadEndDate 2026-04-07 -SkipRenderUpload
+```
+
+Future lookaheads use the normal ESPN/NCAA scoreboard feeds first, then fall back to ESPN's schedule page when postseason matchups appear there before the scoreboard API is populated.
+
 ### Simulation quantile targeting (sim-rooted)
 
 The simulator can optionally reshape its per-game total/margin distributions to match target quantiles ($q_{10}/q_{50}/q_{90}$). This is evaluated and tuned via the `ab-sim-quantiles` harness, and should be enabled/disabled strictly based on sim backtest metrics.

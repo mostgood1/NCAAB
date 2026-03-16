@@ -103,7 +103,11 @@ param(
 
   # Local next-day preview generation (dated artifacts only; shared today/current files are restored afterward)
   [switch]$SkipDayAhead,
-  [int]$DayAheadOffsetDays = 1
+  [int]$DayAheadOffsetDays = 1,
+  [string]$LookaheadStartDate,
+  [string]$LookaheadEndDate,
+  [switch]$LookaheadOnly,
+  [switch]$UploadLookaheadRange
 )
 
 $ErrorActionPreference = 'Stop'
@@ -248,6 +252,372 @@ function Restore-BackedUpFiles {
       try {
         Remove-Item -LiteralPath $src -Force -ErrorAction SilentlyContinue
       } catch {}
+    }
+  }
+}
+
+function Get-LookaheadDates {
+  param(
+    [string]$StartDate,
+    [string]$EndDate
+  )
+
+  $hasStart = -not [string]::IsNullOrWhiteSpace($StartDate)
+  $hasEnd = -not [string]::IsNullOrWhiteSpace($EndDate)
+  if ((-not $hasStart) -and (-not $hasEnd)) { return @() }
+
+  $startRaw = if ($hasStart) { $StartDate } else { $EndDate }
+  $endRaw = if ($hasEnd) { $EndDate } else { $startRaw }
+
+  try {
+    $startDt = [DateTime]::ParseExact($startRaw, 'yyyy-MM-dd', $null)
+  } catch {
+    throw "Invalid LookaheadStartDate '$startRaw'. Expected YYYY-MM-DD."
+  }
+  try {
+    $endDt = [DateTime]::ParseExact($endRaw, 'yyyy-MM-dd', $null)
+  } catch {
+    throw "Invalid LookaheadEndDate '$endRaw'. Expected YYYY-MM-DD."
+  }
+  if ($endDt -lt $startDt) {
+    throw "LookaheadEndDate ($($endDt.ToString('yyyy-MM-dd'))) must be on or after LookaheadStartDate ($($startDt.ToString('yyyy-MM-dd')))."
+  }
+
+  $dates = New-Object System.Collections.ArrayList
+  $cursor = $startDt
+  while ($cursor -le $endDt) {
+    [void]$dates.Add($cursor)
+    $cursor = $cursor.AddDays(1)
+  }
+  return $dates.ToArray()
+}
+
+function Resolve-LookaheadDatesWithGames {
+  param(
+    [object[]]$CandidateDates
+  )
+
+  $sortedDates = @($CandidateDates | Sort-Object)
+  if ($sortedDates.Count -le 0) { return @() }
+
+  $startIso = $sortedDates[0].ToString('yyyy-MM-dd')
+  $endIso = $sortedDates[-1].ToString('yyyy-MM-dd')
+  $probePath = Join-Path $OutDir ("_tmp_lookahead_probe_" + $startIso + "_" + $endIso + ".csv")
+
+  try {
+    $probeArgs = @(
+      'fetch-games',
+      '--season', $seasonStartYear,
+      '--start', $startIso,
+      '--end', $endIso,
+      '--provider', $Provider,
+      '--out', $probePath
+    )
+    if ($NoCache.IsPresent) { $probeArgs += '--no-use-cache' }
+    $null = (& $VenvPython -m ncaab_model.cli @probeArgs | Out-String)
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $probePath)) {
+      throw "fetch-games probe failed for $startIso..$endIso"
+    }
+
+    $rows = @(Import-Csv -LiteralPath $probePath -ErrorAction Stop)
+    $posted = @{}
+    foreach ($row in $rows) {
+      $d = ([string]$row.date).Trim()
+      if (-not [string]::IsNullOrWhiteSpace($d)) { $posted[$d] = $true }
+    }
+
+    $runDates = @($sortedDates | Where-Object { $posted.ContainsKey($_.ToString('yyyy-MM-dd')) })
+    $skipDates = @($sortedDates | Where-Object { -not $posted.ContainsKey($_.ToString('yyyy-MM-dd')) })
+
+    if ($runDates.Count -gt 0) {
+      $runIso = @($runDates | ForEach-Object { $_.ToString('yyyy-MM-dd') }) -join ', '
+      Write-Host ("[lookahead] Posted schedule dates: {0}" -f $runIso) -ForegroundColor DarkGray
+    } else {
+      Write-Host ("[lookahead] No posted games found between {0} and {1}." -f $startIso, $endIso) -ForegroundColor Yellow
+    }
+
+    if ($skipDates.Count -gt 0) {
+      $skipIso = @($skipDates | ForEach-Object { $_.ToString('yyyy-MM-dd') }) -join ', '
+      Write-Host ("[lookahead] Skipping empty dates: {0}" -f $skipIso) -ForegroundColor Yellow
+    }
+
+    return $runDates
+  } catch {
+    Write-Warning ("lookahead schedule probe failed for {0}..{1}: {2}. Continuing with requested dates." -f $startIso, $endIso, $_.Exception.Message)
+    return $sortedDates
+  } finally {
+    try {
+      if (Test-Path -LiteralPath $probePath) {
+        Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
+      }
+    } catch {}
+  }
+}
+
+function Invoke-LookaheadPreview {
+  param(
+    [datetime]$PreviewDate,
+    [bool]$UploadArtifacts = $false,
+    [string]$HeaderLabel = 'Lookahead preview'
+  )
+
+  $previewIso = $PreviewDate.ToString('yyyy-MM-dd')
+  Write-Section ("{0} ({1})" -f $HeaderLabel, $previewIso)
+
+  $backupDir = Join-Path $OutDir ("_tmp_lookahead_restore_" + (Get-Date).ToString('yyyyMMdd_HHmmss_fff'))
+  $tempDb = Join-Path $OutDir ("_tmp_lookahead_" + $previewIso + ".sqlite")
+  $backups = @()
+  $sharedPaths = @(
+    (Join-Path $OutDir 'games_curr.csv'),
+    (Join-Path $OutDir 'features_curr.csv'),
+    (Join-Path $OutDir 'odds_today.csv'),
+    (Join-Path $OutDir 'games_with_odds_today.csv'),
+    (Join-Path $OutDir 'last_odds.csv'),
+    (Join-Path $OutDir 'games_with_last.csv'),
+    (Join-Path $OutDir 'picks_clean.csv'),
+    (Join-Path $OutDir 'picks_raw.csv'),
+    (Join-Path $OutDir 'predictions_week.csv'),
+    (Join-Path $OutDir 'predictions_time_validation.csv')
+  )
+
+  try {
+    $backups = @(Backup-ExistingFiles -Paths $sharedPaths -BackupDir $backupDir)
+    try {
+      if (Test-Path -LiteralPath $tempDb) {
+        Remove-Item -LiteralPath $tempDb -Force -ErrorAction SilentlyContinue
+      }
+    } catch {}
+
+    $dayArgs = @(
+      'daily-run',
+      '--date', $previewIso,
+      '--season', $PreviewDate.Year,
+      '--region', $Region,
+      '--provider', $Provider,
+      '--segment', 'team',
+      '--preseason-weight', '0.4',
+      '--threshold', '1.5',
+      '--default-price', '-110',
+      '--db', $tempDb,
+      '--no-accumulate-schedule',
+      '--no-accumulate-predictions'
+    )
+    if ($NoCache.IsPresent) { $dayArgs += '--no-use-cache' }
+    & $VenvPython -m ncaab_model.cli @dayArgs
+    if ($LASTEXITCODE -ne 0) {
+      Write-Warning ("lookahead daily-run returned exit code {0} for {1}" -f $LASTEXITCODE, $previewIso)
+    }
+
+    $dayPreds = Join-Path $OutDir ("predictions_" + $previewIso + ".csv")
+    $dayGames = Join-Path $OutDir ("games_" + $previewIso + ".csv")
+    $dayMergedLastShared = Join-Path $OutDir 'games_with_last.csv'
+    $dayAlign = Join-Path $OutDir ("align_period_" + $previewIso + ".csv")
+    $dayEdges = Join-Path $OutDir ("align_period_" + $previewIso + "_edges.csv")
+    $dayDisplay = Join-Path $OutDir ("predictions_display_" + $previewIso + ".csv")
+
+    $scheduledRows = 0
+    try {
+      if (Test-Path -LiteralPath $dayGames) {
+        $scheduledRows = @((Import-Csv -LiteralPath $dayGames -ErrorAction Stop)).Count
+      }
+    } catch {
+      Write-Warning ("lookahead schedule count probe failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+    }
+    if ($scheduledRows -le 0) {
+      Write-Host ("[lookahead] No scheduled games for {0}; skipping artifact staging." -f $previewIso) -ForegroundColor Yellow
+      return $false
+    }
+
+    if ((Test-Path -LiteralPath $dayMergedLastShared) -and (Test-Path -LiteralPath $dayPreds)) {
+      try {
+        & $VenvPython -m ncaab_model.cli align-period-preds --merged-csv $dayMergedLastShared --predictions-csv $dayPreds --out $dayAlign --half-ratio 0.485 --margin-half-ratio 0.5
+      } catch {
+        Write-Warning ("lookahead align-period-preds failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+    } else {
+      Write-Warning ("lookahead align skipped (missing merged last or predictions for {0})" -f $previewIso)
+    }
+
+    if (Test-Path -LiteralPath $dayEdges) {
+      try {
+        $displayScript = Join-Path $RepoRoot 'scripts\generate_display_from_edges.py'
+        if (Test-Path -LiteralPath $displayScript) {
+          & $VenvPython $displayScript $previewIso
+        }
+      } catch {
+        Write-Warning ("lookahead generate_display_from_edges failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+    }
+
+    if (-not (Test-Path -LiteralPath $dayDisplay)) {
+      try {
+        $pyDayDisplay = @"
+from pathlib import Path
+import pandas as pd
+
+out_dir = Path(r'${OutDir}')
+date = '${previewIso}'
+pred_path = out_dir / f'predictions_{date}.csv'
+games_path = out_dir / f'games_{date}.csv'
+display_path = out_dir / f'predictions_display_{date}.csv'
+
+try:
+    preds = pd.read_csv(pred_path)
+except Exception as e:
+    print(f'[lookahead-display] read predictions failed: {e}')
+    raise SystemExit(1)
+
+try:
+    games = pd.read_csv(games_path)
+except Exception:
+    games = pd.DataFrame()
+
+if 'game_id' in preds.columns:
+    preds['game_id'] = preds['game_id'].astype(str).str.replace(r'\\.0$', '', regex=True)
+if not games.empty and 'game_id' in games.columns:
+    games['game_id'] = games['game_id'].astype(str).str.replace(r'\\.0$', '', regex=True)
+
+base_cols = ['game_id', 'date', 'home_team', 'away_team', 'pred_total', 'pred_margin']
+disp = preds[[c for c in base_cols if c in preds.columns]].copy()
+
+pred_extra = [c for c in ['display_date', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'start_time_display'] if c in preds.columns]
+for c in pred_extra:
+    if c not in disp.columns:
+        disp[c] = preds[c]
+
+if not games.empty and 'game_id' in disp.columns and 'game_id' in games.columns:
+    game_extra = [c for c in ['game_id', 'display_date', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'start_time_display'] if c in games.columns]
+    if game_extra:
+        disp = disp.merge(games[game_extra].drop_duplicates(subset=['game_id']), on='game_id', how='left', suffixes=('', '_g'))
+        for c in ['display_date', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'start_time_display']:
+            gc = c + '_g'
+            if gc in disp.columns:
+                if c not in disp.columns:
+                    disp[c] = disp[gc]
+                else:
+                    disp[c] = disp[c].where(disp[c].notna() & (disp[c].astype(str) != ''), disp[gc])
+                disp.drop(columns=[gc], inplace=True, errors='ignore')
+
+if 'date' in disp.columns:
+    disp['date'] = disp['date'].astype(str)
+    disp = disp[disp['date'] == date].copy()
+
+display_path.parent.mkdir(parents=True, exist_ok=True)
+disp.to_csv(display_path, index=False)
+print({'path': str(display_path), 'rows': len(disp)})
+"@
+        & $VenvPython -c $pyDayDisplay
+      } catch {
+        Write-Warning ("lookahead display fallback failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+      }
+    }
+
+    try {
+      & $VenvPython -m ncaab_model.cli sanitize-artifacts --date $previewIso --outputs-dir $OutDir
+    } catch {
+      Write-Warning ("lookahead sanitize-artifacts failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+    }
+
+    try {
+      $dayArchiveRoot = Join-Path $OutDir 'archive'
+      $dayArchiveDir = Join-Path $dayArchiveRoot $previewIso
+      New-Item -ItemType Directory -Path $dayArchiveDir -Force | Out-Null
+      $dayPicksRawSource = Join-Path $OutDir 'picks_raw.csv'
+      $null = Copy-CsvForDateIfMatching -Source $dayPicksRawSource -Destination (Join-Path $OutDir ("picks_raw_" + $previewIso + ".csv")) -Date $previewIso
+      $null = Copy-ArtifactIfExists -Source $dayGames -Destination (Join-Path $dayArchiveDir ("games_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $dayPreds -Destination (Join-Path $dayArchiveDir ("predictions_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $dayDisplay -Destination (Join-Path $dayArchiveDir ("predictions_display_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source $dayMergedLastShared -Destination (Join-Path $dayArchiveDir ("games_with_last_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'last_odds.csv') -Destination (Join-Path $dayArchiveDir ("last_odds_" + $previewIso + ".csv"))
+      $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'picks_clean.csv') -Destination (Join-Path $dayArchiveDir ("picks_clean_" + $previewIso + ".csv"))
+      $null = Copy-CsvForDateIfMatching -Source $dayPicksRawSource -Destination (Join-Path $dayArchiveDir ("picks_raw_" + $previewIso + ".csv")) -Date $previewIso
+    } catch {
+      Write-Warning ("lookahead archive copy failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+    }
+  } catch {
+    Write-Warning ("lookahead preview failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+  } finally {
+    try { Restore-BackedUpFiles -Backups $backups } catch { Write-Warning ("lookahead restore failed for {0}: {1}" -f $previewIso, $_.Exception.Message) }
+    try {
+      if (Test-Path -LiteralPath $backupDir) {
+        Remove-Item -LiteralPath $backupDir -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    } catch {}
+    try {
+      if ($tempDb -and (Test-Path -LiteralPath $tempDb)) {
+        Remove-Item -LiteralPath $tempDb -Force -ErrorAction SilentlyContinue
+      }
+    } catch {}
+  }
+
+  if ($UploadArtifacts) {
+    try {
+      $uploader = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
+      if (Test-Path -LiteralPath $uploader) {
+        $dispPath = Join-Path $OutDir ("predictions_display_" + $previewIso + ".csv")
+        $edgesPath = Join-Path $OutDir ("align_period_" + $previewIso + "_edges.csv")
+        $picksRawPath = Join-Path $OutDir ("picks_raw_" + $previewIso + ".csv")
+        if ((Test-Path -LiteralPath $dispPath) -or (Test-Path -LiteralPath $edgesPath) -or (Test-Path -LiteralPath $picksRawPath)) {
+          Write-Section ("11d.render) Upload lookahead preview ({0})" -f $previewIso)
+          powershell.exe -ExecutionPolicy Bypass -File $uploader -Date $previewIso -DateScopedPicksRaw
+        } else {
+          Write-Host ("[Render] Skipping lookahead upload for {0}; no dated artifacts found." -f $previewIso) -ForegroundColor Yellow
+        }
+      } else {
+        Write-Warning "Lookahead Render upload skipped: uploader script not found."
+      }
+    } catch {
+      Write-Warning ("lookahead Render upload failed for {0}: {1}" -f $previewIso, $_.Exception.Message)
+    }
+  }
+
+  return $true
+}
+
+function Write-RunSummary {
+  param(
+    [string]$SummaryDate
+  )
+
+  Write-Section 'DONE'
+  $elapsed = (Get-Date) - $script:StartTime
+  Write-Host ("Completed in {0:c}" -f $elapsed)
+
+  try {
+    $statusRows = @()
+    foreach ($s in $script:Steps) {
+      $sec = $s.section
+      $errs = if ($script:StepErrors.ContainsKey($sec)) { $script:StepErrors[$sec] } else { @() }
+      $statusRows += [pscustomobject]@{
+        section = $sec
+        start   = $s.start.ToString('o')
+        errors  = $errs
+        status  = if ($errs.Count -gt 0) { 'error' } else { 'ok' }
+      }
+    }
+    $summary = [pscustomobject]@{
+      date     = $SummaryDate
+      finished = (Get-Date).ToString('o')
+      elapsed_seconds = [Math]::Round($elapsed.TotalSeconds,2)
+      critical_failures = $script:CriticalFailures
+      steps    = $statusRows
+    }
+    $diagDir = Join-Path $OutDir 'logs'
+    $diagPath = Join-Path $diagDir ("daily_update_status_" + $SummaryDate + ".json")
+    ($summary | ConvertTo-Json -Depth 6) | Out-File -FilePath $diagPath -Encoding UTF8
+    Write-Host "Wrote status summary -> $diagPath" -ForegroundColor Green
+  } catch {
+    Write-Warning "Failed writing status summary JSON: $($_)"
+  }
+
+  if ($script:CriticalFailures.Count -gt 0) {
+    Write-Host "Critical failures encountered: $($script:CriticalFailures.Count)" -ForegroundColor Red
+    foreach ($cf in $script:CriticalFailures) { Write-Host " - $cf" -ForegroundColor Red }
+    if ($env:NCAAB_STRICT_EXIT -eq '1') {
+      Write-Host 'STRICT mode enabled (NCAAB_STRICT_EXIT=1); exiting with code 1.' -ForegroundColor Red
+      exit 1
+    } else {
+      Write-Host 'STRICT mode disabled; returning success (0) despite failures.' -ForegroundColor Yellow
     }
   }
 }
@@ -398,6 +768,30 @@ try {
     )
   )
   Write-Host "[quantile-gating] day=$dow targetDay=$QuantileRetrainDay ageDays=$([Math]::Round($artifactAgeDays,2)) runHeavy=$RunHeavyQuantiles" -ForegroundColor DarkGray
+
+  $lookaheadRangeSpecified = (-not [string]::IsNullOrWhiteSpace($LookaheadStartDate)) -or (-not [string]::IsNullOrWhiteSpace($LookaheadEndDate))
+  $lookaheadRangeDates = @()
+  if ($lookaheadRangeSpecified) {
+    $lookaheadRangeDates = @(Resolve-LookaheadDatesWithGames -CandidateDates @(Get-LookaheadDates -StartDate $LookaheadStartDate -EndDate $LookaheadEndDate))
+  }
+  if ($LookaheadOnly.IsPresent) {
+    $previewDates = @()
+    if ($lookaheadRangeSpecified) {
+      $previewDates = @($lookaheadRangeDates)
+    } else {
+      $singleOffset = 1
+      try { $singleOffset = [Math]::Max(1, [int]$DayAheadOffsetDays) } catch { $singleOffset = 1 }
+      $previewDates = @($todayDate.AddDays($singleOffset))
+    }
+    if ($previewDates.Count -le 0) {
+      Write-Host '[lookahead] No posted lookahead dates to run.' -ForegroundColor Yellow
+    }
+    foreach ($previewDate in $previewDates) {
+      [void](Invoke-LookaheadPreview -PreviewDate $previewDate -UploadArtifacts:$UploadLookaheadRange.IsPresent -HeaderLabel 'LOOKAHEAD) Standalone postseason preview')
+    }
+    Write-RunSummary -SummaryDate $todayIso
+    return
+  }
 
   # 0.tuning) Compute Live Lens pace/efficiency thresholds from cached ESPN PBP
   # Writes: outputs/live_lens_tuning.json (used by /api/live_lens_tuning -> Live Lens JS)
@@ -3106,256 +3500,34 @@ print(f'Filtered games_with_closing.csv -> {len(df)} total, {len(df_today)} rows
       Write-Warning "Failed to start watcher job: $($_)"
     }
 
-    # Optional local next-day preview: generate dated artifacts for the next slate
-    # without leaving shared current-day files (odds_today/games_with_last/picks_raw/etc.) overwritten.
-    $doDayAhead = $true
-    if ($PSBoundParameters.ContainsKey('SkipDayAhead') -and $SkipDayAhead.IsPresent) { $doDayAhead = $false }
-    if ($doDayAhead) {
-      $dayAheadOffset = 1
-      try { $dayAheadOffset = [Math]::Max(1, [int]$DayAheadOffsetDays) } catch { $dayAheadOffset = 1 }
-      $dayAheadDate = $todayDate.AddDays($dayAheadOffset)
-      $dayAheadIso = $dayAheadDate.ToString('yyyy-MM-dd')
-      Write-Section ("11d) Early day-ahead preview ({0})" -f $dayAheadIso)
-
-      $dayAheadBackupDir = Join-Path $OutDir ("_tmp_dayahead_restore_" + (Get-Date).ToString('yyyyMMdd_HHmmss'))
-      $dayAheadTempDb = Join-Path $OutDir ("_tmp_dayahead_" + $dayAheadIso + ".sqlite")
-      $dayAheadBackups = @()
-      $dayAheadShared = @(
-        (Join-Path $OutDir 'games_curr.csv'),
-        (Join-Path $OutDir 'features_curr.csv'),
-        (Join-Path $OutDir 'odds_today.csv'),
-        (Join-Path $OutDir 'games_with_odds_today.csv'),
-        (Join-Path $OutDir 'last_odds.csv'),
-        (Join-Path $OutDir 'games_with_last.csv'),
-        (Join-Path $OutDir 'picks_clean.csv'),
-        (Join-Path $OutDir 'picks_raw.csv'),
-        (Join-Path $OutDir 'predictions_week.csv'),
-        (Join-Path $OutDir 'predictions_time_validation.csv')
-      )
-
-      try {
-        $dayAheadBackups = @(Backup-ExistingFiles -Paths $dayAheadShared -BackupDir $dayAheadBackupDir)
-        try {
-          if (Test-Path -LiteralPath $dayAheadTempDb) {
-            Remove-Item -LiteralPath $dayAheadTempDb -Force -ErrorAction SilentlyContinue
-          }
-        } catch {}
-
-        $dayArgs = @(
-          'daily-run',
-          '--date', $dayAheadIso,
-          '--season', $dayAheadDate.Year,
-          '--region', $Region,
-          '--provider', $Provider,
-          '--segment', 'team',
-          '--preseason-weight', '0.4',
-          '--threshold', '1.5',
-          '--default-price', '-110',
-          '--db', $dayAheadTempDb,
-          '--no-accumulate-schedule',
-          '--no-accumulate-predictions'
-        )
-        if ($NoCache.IsPresent) { $dayArgs += '--no-use-cache' }
-        & $VenvPython -m ncaab_model.cli @dayArgs
-
-        $dayPreds = Join-Path $OutDir ("predictions_" + $dayAheadIso + ".csv")
-        $dayGames = Join-Path $OutDir ("games_" + $dayAheadIso + ".csv")
-        $dayMergedLastShared = Join-Path $OutDir 'games_with_last.csv'
-        $dayAlign = Join-Path $OutDir ("align_period_" + $dayAheadIso + ".csv")
-        $dayEdges = Join-Path $OutDir ("align_period_" + $dayAheadIso + "_edges.csv")
-        $dayDisplay = Join-Path $OutDir ("predictions_display_" + $dayAheadIso + ".csv")
-
-        if ((Test-Path -LiteralPath $dayMergedLastShared) -and (Test-Path -LiteralPath $dayPreds)) {
-          try {
-            & $VenvPython -m ncaab_model.cli align-period-preds --merged-csv $dayMergedLastShared --predictions-csv $dayPreds --out $dayAlign --half-ratio 0.485 --margin-half-ratio 0.5
-          } catch {
-            Write-Warning ("day-ahead align-period-preds failed: {0}" -f $_.Exception.Message)
-          }
-        } else {
-          Write-Warning ("day-ahead align skipped (missing merged last or predictions for {0})" -f $dayAheadIso)
-        }
-
-        if (Test-Path -LiteralPath $dayEdges) {
-          try {
-            $displayScript = Join-Path $RepoRoot 'scripts\generate_display_from_edges.py'
-            if (Test-Path -LiteralPath $displayScript) {
-              & $VenvPython $displayScript $dayAheadIso
-            }
-          } catch {
-            Write-Warning ("day-ahead generate_display_from_edges failed: {0}" -f $_.Exception.Message)
-          }
-        }
-
-        if (-not (Test-Path -LiteralPath $dayDisplay)) {
-          try {
-            $pyDayDisplay = @"
-from pathlib import Path
-import pandas as pd
-
-out_dir = Path(r'${OutDir}')
-date = '${dayAheadIso}'
-pred_path = out_dir / f'predictions_{date}.csv'
-games_path = out_dir / f'games_{date}.csv'
-display_path = out_dir / f'predictions_display_{date}.csv'
-
-try:
-    preds = pd.read_csv(pred_path)
-except Exception as e:
-    print(f'[day-ahead-display] read predictions failed: {e}')
-    raise SystemExit(1)
-
-try:
-    games = pd.read_csv(games_path)
-except Exception:
-    games = pd.DataFrame()
-
-if 'game_id' in preds.columns:
-    preds['game_id'] = preds['game_id'].astype(str).str.replace(r'\\.0$', '', regex=True)
-if not games.empty and 'game_id' in games.columns:
-    games['game_id'] = games['game_id'].astype(str).str.replace(r'\\.0$', '', regex=True)
-
-base_cols = ['game_id', 'date', 'home_team', 'away_team', 'pred_total', 'pred_margin']
-disp = preds[[c for c in base_cols if c in preds.columns]].copy()
-
-pred_extra = [c for c in ['display_date', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'start_time_display'] if c in preds.columns]
-for c in pred_extra:
-    if c not in disp.columns:
-        disp[c] = preds[c]
-
-if not games.empty and 'game_id' in disp.columns and 'game_id' in games.columns:
-    game_extra = [c for c in ['game_id', 'display_date', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'start_time_display'] if c in games.columns]
-    if game_extra:
-        disp = disp.merge(games[game_extra].drop_duplicates(subset=['game_id']), on='game_id', how='left', suffixes=('', '_g'))
-        for c in ['display_date', 'start_time_iso', 'start_time_local', 'start_tz_abbr', 'start_time_display']:
-            gc = c + '_g'
-            if gc in disp.columns:
-                if c not in disp.columns:
-                    disp[c] = disp[gc]
-                else:
-                    disp[c] = disp[c].where(disp[c].notna() & (disp[c].astype(str) != ''), disp[gc])
-                disp.drop(columns=[gc], inplace=True, errors='ignore')
-
-if 'date' in disp.columns:
-    disp['date'] = disp['date'].astype(str)
-    disp = disp[disp['date'] == date].copy()
-
-display_path.parent.mkdir(parents=True, exist_ok=True)
-disp.to_csv(display_path, index=False)
-print({'path': str(display_path), 'rows': len(disp)})
-"@
-            & $VenvPython -c $pyDayDisplay
-          } catch {
-            Write-Warning ("day-ahead display fallback failed: {0}" -f $_.Exception.Message)
-          }
-        }
-
-        try {
-          & $VenvPython -m ncaab_model.cli sanitize-artifacts --date $dayAheadIso --outputs-dir $OutDir
-        } catch {
-          Write-Warning ("day-ahead sanitize-artifacts failed: {0}" -f $_.Exception.Message)
-        }
-
-        try {
-          $dayArchiveRoot = Join-Path $OutDir 'archive'
-          $dayArchiveDir = Join-Path $dayArchiveRoot $dayAheadIso
-          New-Item -ItemType Directory -Path $dayArchiveDir -Force | Out-Null
-          $dayPicksRawSource = Join-Path $OutDir 'picks_raw.csv'
-          $null = Copy-CsvForDateIfMatching -Source $dayPicksRawSource -Destination (Join-Path $OutDir ("picks_raw_" + $dayAheadIso + ".csv")) -Date $dayAheadIso
-          $null = Copy-ArtifactIfExists -Source $dayMergedLastShared -Destination (Join-Path $dayArchiveDir ("games_with_last_" + $dayAheadIso + ".csv"))
-          $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'last_odds.csv') -Destination (Join-Path $dayArchiveDir ("last_odds_" + $dayAheadIso + ".csv"))
-          $null = Copy-ArtifactIfExists -Source (Join-Path $OutDir 'picks_clean.csv') -Destination (Join-Path $dayArchiveDir ("picks_clean_" + $dayAheadIso + ".csv"))
-          $null = Copy-CsvForDateIfMatching -Source $dayPicksRawSource -Destination (Join-Path $dayArchiveDir ("picks_raw_" + $dayAheadIso + ".csv")) -Date $dayAheadIso
-        } catch {
-          Write-Warning ("day-ahead archive copy failed: {0}" -f $_.Exception.Message)
-        }
-      } catch {
-        Write-Warning ("day-ahead preview failed for {0}: {1}" -f $dayAheadIso, $_.Exception.Message)
-      } finally {
-        try { Restore-BackedUpFiles -Backups $dayAheadBackups } catch { Write-Warning ("day-ahead restore failed: {0}" -f $_.Exception.Message) }
-        try {
-          if (Test-Path -LiteralPath $dayAheadBackupDir) {
-            Remove-Item -LiteralPath $dayAheadBackupDir -Recurse -Force -ErrorAction SilentlyContinue
-          }
-        } catch {}
-        try {
-          if ($dayAheadTempDb -and (Test-Path -LiteralPath $dayAheadTempDb)) {
-            Remove-Item -LiteralPath $dayAheadTempDb -Force -ErrorAction SilentlyContinue
-          }
-        } catch {}
+    # Optional local lookahead previews: either a single next-day preview or an explicit postseason range.
+    # Shared current-day files are always restored after each lookahead date.
+    if ($lookaheadRangeSpecified) {
+      $uploadRange = $false
+      if ($UploadLookaheadRange.IsPresent) { $uploadRange = $true }
+      elseif ($UploadToRender.IsPresent -and -not $SkipRenderUpload.IsPresent) { $uploadRange = $true }
+      if ($lookaheadRangeDates.Count -le 0) {
+        Write-Host '[lookahead] No posted postseason dates to preview after schedule probe.' -ForegroundColor Yellow
       }
-
-      # Publish the day-ahead slate to Render using date-scoped picks_raw_<date>.csv
-      # so future recommendations are available without replacing today's live picks_raw.csv.
-      try {
-        $doDayAheadRenderUpload = $true
-        if ($PSBoundParameters.ContainsKey('SkipRenderUpload') -and $SkipRenderUpload.IsPresent) { $doDayAheadRenderUpload = $false }
-        if ($doDayAheadRenderUpload -or $UploadToRender.IsPresent) {
-          $uploaderDayAhead = Join-Path $RepoRoot 'scripts\upload_artifacts_to_render.ps1'
-          if (Test-Path -LiteralPath $uploaderDayAhead) {
-            $dispDayAhead = Join-Path $OutDir ("predictions_display_" + $dayAheadIso + ".csv")
-            $edgesDayAhead = Join-Path $OutDir ("align_period_" + $dayAheadIso + "_edges.csv")
-            $picksRawDayAhead = Join-Path $OutDir ("picks_raw_" + $dayAheadIso + ".csv")
-            if ((Test-Path -LiteralPath $dispDayAhead) -or (Test-Path -LiteralPath $edgesDayAhead) -or (Test-Path -LiteralPath $picksRawDayAhead)) {
-              Write-Section ("11d.render) Upload day-ahead preview to Render ({0})" -f $dayAheadIso)
-              powershell.exe -ExecutionPolicy Bypass -File $uploaderDayAhead -Date $dayAheadIso -DateScopedPicksRaw
-            } else {
-              Write-Host ("[Render] Skipping day-ahead upload for {0}; no dated artifacts found." -f $dayAheadIso) -ForegroundColor Yellow
-            }
-          } else {
-            Write-Warning "day-ahead Render upload skipped: uploader script not found."
-          }
-        } else {
-          Write-Host '[Render] SkipRenderUpload flag set; skipping day-ahead Render upload.' -ForegroundColor Yellow
-        }
-      } catch {
-        Write-Warning ("day-ahead Render upload failed for {0}: {1}" -f $dayAheadIso, $_.Exception.Message)
+      foreach ($previewDate in @($lookaheadRangeDates)) {
+        [void](Invoke-LookaheadPreview -PreviewDate $previewDate -UploadArtifacts:$uploadRange -HeaderLabel '11d.lookahead) Postseason lookahead')
       }
     } else {
-      Write-Host 'SkipDayAhead flag set; skipping early next-day preview.' -ForegroundColor Yellow
-    }
-
-  Write-Section 'DONE'
-  $elapsed = (Get-Date) - $script:StartTime
-  Write-Host ("Completed in {0:c}" -f $elapsed)
-
-  # Emit structured status JSON for external diagnosis
-  try {
-    $statusRows = @()
-    foreach ($s in $script:Steps) {
-      $sec = $s.section
-      $errs = if ($script:StepErrors.ContainsKey($sec)) { $script:StepErrors[$sec] } else { @() }
-      $statusRows += [pscustomobject]@{
-        section = $sec
-        start   = $s.start.ToString('o')
-        errors  = $errs
-        status  = if ($errs.Count -gt 0) { 'error' } else { 'ok' }
+      $doDayAhead = $true
+      if ($PSBoundParameters.ContainsKey('SkipDayAhead') -and $SkipDayAhead.IsPresent) { $doDayAhead = $false }
+      if ($doDayAhead) {
+        $dayAheadOffset = 1
+        try { $dayAheadOffset = [Math]::Max(1, [int]$DayAheadOffsetDays) } catch { $dayAheadOffset = 1 }
+        $dayAheadDate = $todayDate.AddDays($dayAheadOffset)
+        $doDayAheadUpload = $true
+        if ($PSBoundParameters.ContainsKey('SkipRenderUpload') -and $SkipRenderUpload.IsPresent) { $doDayAheadUpload = $false }
+        [void](Invoke-LookaheadPreview -PreviewDate $dayAheadDate -UploadArtifacts:$doDayAheadUpload -HeaderLabel '11d) Early day-ahead preview')
+      } else {
+        Write-Host 'SkipDayAhead flag set; skipping early next-day preview.' -ForegroundColor Yellow
       }
     }
-    $summary = [pscustomobject]@{
-      date     = $todayIso
-      finished = (Get-Date).ToString('o')
-      elapsed_seconds = [Math]::Round($elapsed.TotalSeconds,2)
-      critical_failures = $script:CriticalFailures
-      steps    = $statusRows
-    }
-    $diagDir = Join-Path $OutDir 'logs'
-    $diagPath = Join-Path $diagDir ("daily_update_status_" + $todayIso + ".json")
-    ($summary | ConvertTo-Json -Depth 6) | Out-File -FilePath $diagPath -Encoding UTF8
-    Write-Host "Wrote status summary -> $diagPath" -ForegroundColor Green
-  } catch {
-    Write-Warning "Failed writing status summary JSON: $($_)"
-  }
 
-  if ($script:CriticalFailures.Count -gt 0) {
-    Write-Host "Critical failures encountered: $($script:CriticalFailures.Count)" -ForegroundColor Red
-    foreach ($cf in $script:CriticalFailures) { Write-Host " - $cf" -ForegroundColor Red }
-    if ($env:NCAAB_STRICT_EXIT -eq '1') {
-      Write-Host 'STRICT mode enabled (NCAAB_STRICT_EXIT=1); exiting with code 1.' -ForegroundColor Red
-      exit 1
-    } else {
-      Write-Host 'STRICT mode disabled; returning success (0) despite failures.' -ForegroundColor Yellow
-    }
-  }
+  Write-RunSummary -SummaryDate $todayIso
 }
 catch {
   Add-CriticalFailure "Unhandled top-level error: $($_)"
