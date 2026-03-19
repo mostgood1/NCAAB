@@ -278,3 +278,311 @@ def test_api_recommendations_dedupes_per_book_rows(monkeypatch, tmp_path: Path):
 	ou_rows = [r for r in rows if str(r.get("game_id")) == "3001" and str(r.get("code") or r.get("rec_code") or "").upper() == "OU"]
 	assert len(ou_rows) == 1
 	assert float(ou_rows[0].get("edge")) == pytest.approx(4.5)
+
+
+def test_api_recommendations_adds_basketball_matchup_logic(monkeypatch, tmp_path: Path):
+	app_module = importlib.import_module("app")
+	date_str = "2026-03-19"
+
+	pd.DataFrame(
+		[
+			{
+				"date": date_str,
+				"game_id": "4101",
+				"home_team": "Matchup Home",
+				"away_team": "Matchup Away",
+				"market": "spreads",
+				"period": "full_game",
+				"bet": "Matchup Home",
+				"selection": "Matchup Home",
+				"line": -4.5,
+				"price": -110,
+				"edge": 2.5,
+				"book": "book_a",
+				"rec_type": "Spread",
+				"rec_code": "ATS",
+				"pred_margin": 7.0,
+			},
+			{
+				"date": date_str,
+				"game_id": "4102",
+				"home_team": "Tempo Home",
+				"away_team": "Tempo Away",
+				"market": "totals",
+				"period": "full_game",
+				"bet": "Over",
+				"selection": "Over",
+				"line": 149.5,
+				"price": -110,
+				"edge": 3.0,
+				"book": "book_b",
+				"rec_type": "Totals",
+				"rec_code": "OU",
+				"pred_total": 155.0,
+			},
+		]
+	).to_csv(tmp_path / "picks_raw.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4101",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Matchup Home",
+				"away_team": "Matchup Away",
+				"pred_total": 141.0,
+				"pred_margin": 7.0,
+				"market_total": 140.5,
+				"start_time": "2026-03-19T19:00:00Z",
+			},
+			{
+				"game_id": "4102",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Tempo Home",
+				"away_team": "Tempo Away",
+				"pred_total": 155.0,
+				"pred_margin": 2.0,
+				"market_total": 149.5,
+				"start_time": "2026-03-19T21:00:00Z",
+			},
+		]
+	).to_csv(tmp_path / f"predictions_display_{date_str}.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4101",
+				"home_team": "Matchup Home",
+				"away_team": "Matchup Away",
+				"home_off_rating": 112.0,
+				"away_off_rating": 103.0,
+				"home_def_rating": 96.0,
+				"away_def_rating": 101.0,
+				"pace_game_est": 68.0,
+				"home_ppp_mu": 1.12,
+				"away_ppp_mu": 1.00,
+				"home_ppp_allowed_mu": 0.94,
+				"away_ppp_allowed_mu": 1.05,
+				"rest_home": 4.0,
+				"rest_away": 1.0,
+			},
+			{
+				"game_id": "4102",
+				"home_team": "Tempo Home",
+				"away_team": "Tempo Away",
+				"home_off_rating": 111.0,
+				"away_off_rating": 110.0,
+				"home_def_rating": 102.0,
+				"away_def_rating": 101.0,
+				"pace_game_est": 74.5,
+				"home_ppp_mu": 1.11,
+				"away_ppp_mu": 1.10,
+				"home_ppp_allowed_mu": 1.02,
+				"away_ppp_allowed_mu": 1.03,
+				"rest_home": 2.0,
+				"rest_away": 2.0,
+			},
+		]
+	).to_csv(tmp_path / f"features_{date_str}.csv", index=False)
+
+	monkeypatch.setattr(app_module, "OUT", tmp_path)
+	app_module.app.testing = True
+	with app_module.app.test_client() as client:
+		resp = client.get(f"/api/recommendations?date={date_str}")
+
+	assert resp.status_code == 200
+	payload = resp.get_json() or {}
+	rows = payload.get("data") or payload.get("rows") or []
+
+	ats_row = next(r for r in rows if str(r.get("game_id")) == "4101" and str(r.get("code") or r.get("rec_code") or "").upper() == "ATS")
+	ou_row = next(r for r in rows if str(r.get("game_id")) == "4102" and str(r.get("code") or r.get("rec_code") or "").upper() == "OU")
+
+	assert ats_row.get("basketball_source") == f"features_{date_str}.csv"
+	assert float(ats_row.get("basketball_matchup_score")) > 0.0
+	assert "efficiency matchup" in str(ats_row.get("basketball_summary") or "").lower()
+	assert isinstance(ats_row.get("basketball_reasons"), list) and ats_row.get("basketball_reasons")
+
+	assert ou_row.get("basketball_source") == f"features_{date_str}.csv"
+	assert float(ou_row.get("basketball_matchup_score")) > 0.0
+	assert any(
+		phrase in str(ou_row.get("basketball_summary") or "")
+		for phrase in ("Tempo projects faster", "Feature-based scoring", "model total sits")
+	)
+	assert isinstance(ou_row.get("basketball_reasons"), list) and ou_row.get("basketball_reasons")
+
+
+def test_api_recommendations_per_game_prioritizes_basketball_then_value(monkeypatch, tmp_path: Path):
+	app_module = importlib.import_module("app")
+	date_str = "2026-03-20"
+
+	pd.DataFrame(
+		[
+			{
+				"date": date_str,
+				"game_id": "4201",
+				"home_team": "Priority Home",
+				"away_team": "Priority Away",
+				"market": "spreads",
+				"period": "full_game",
+				"bet": "Priority Home",
+				"selection": "Priority Home",
+				"line": -4.5,
+				"price": -110,
+				"edge": 2.5,
+				"confidence": 0.78,
+				"book": "book_a",
+				"rec_type": "Spread",
+				"rec_code": "ATS",
+				"pred_margin": 8.0,
+			},
+			{
+				"date": date_str,
+				"game_id": "4201",
+				"home_team": "Priority Home",
+				"away_team": "Priority Away",
+				"market": "totals",
+				"period": "full_game",
+				"bet": "Over",
+				"selection": "Over",
+				"line": 144.5,
+				"price": -110,
+				"edge": 7.0,
+				"confidence": 0.72,
+				"book": "book_b",
+				"rec_type": "Totals",
+				"rec_code": "OU",
+				"pred_total": 145.0,
+			},
+		]
+	).to_csv(tmp_path / "picks_raw.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4201",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Priority Home",
+				"away_team": "Priority Away",
+				"pred_total": 145.0,
+				"pred_margin": 8.0,
+				"market_total": 144.5,
+				"start_time": "2026-03-20T19:00:00Z",
+			},
+		]
+	).to_csv(tmp_path / f"predictions_display_{date_str}.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4201",
+				"home_team": "Priority Home",
+				"away_team": "Priority Away",
+				"home_off_rating": 113.0,
+				"away_off_rating": 103.0,
+				"home_def_rating": 95.0,
+				"away_def_rating": 102.0,
+				"pace_game_est": 70.0,
+				"home_ppp_mu": 1.12,
+				"away_ppp_mu": 1.00,
+				"home_ppp_allowed_mu": 0.95,
+				"away_ppp_allowed_mu": 1.06,
+				"rest_home": 4.0,
+				"rest_away": 1.0,
+			},
+		]
+	).to_csv(tmp_path / f"features_{date_str}.csv", index=False)
+
+	monkeypatch.setattr(app_module, "OUT", tmp_path)
+	app_module.app.testing = True
+	with app_module.app.test_client() as client:
+		resp = client.get(f"/api/recommendations?date={date_str}&per_game=1")
+
+	assert resp.status_code == 200
+	payload = resp.get_json() or {}
+	rows = payload.get("data") or payload.get("rows") or []
+	assert len(rows) == 1
+	row = rows[0]
+
+	assert str(row.get("code") or row.get("rec_code") or "").upper() == "ATS"
+	assert float(row.get("recommendation_priority_score")) > float(row.get("value_support_score"))
+	assert float(row.get("basketball_priority_score")) > float(row.get("value_support_score"))
+	assert row.get("basketball_summary")
+
+
+def test_recommendations_page_renders_basketball_rationale(monkeypatch, tmp_path: Path):
+	app_module = importlib.import_module("app")
+	date_str = "2026-03-21"
+
+	pd.DataFrame(
+		[
+			{
+				"date": date_str,
+				"game_id": "4301",
+				"home_team": "Render Home",
+				"away_team": "Render Away",
+				"market": "spreads",
+				"period": "full_game",
+				"bet": "Render Home",
+				"selection": "Render Home",
+				"line": -3.5,
+				"price": -110,
+				"edge": 2.0,
+				"confidence": 0.77,
+				"book": "book_a",
+				"rec_type": "Spread",
+				"rec_code": "ATS",
+				"pred_margin": 6.0,
+			},
+		]
+	).to_csv(tmp_path / "picks_raw.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4301",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Render Home",
+				"away_team": "Render Away",
+				"pred_total": 140.0,
+				"pred_margin": 6.0,
+				"market_total": 139.5,
+				"start_time": "2026-03-21T19:00:00Z",
+			},
+		]
+	).to_csv(tmp_path / f"predictions_display_{date_str}.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4301",
+				"home_team": "Render Home",
+				"away_team": "Render Away",
+				"home_off_rating": 112.0,
+				"away_off_rating": 104.0,
+				"home_def_rating": 95.0,
+				"away_def_rating": 101.0,
+				"pace_game_est": 69.0,
+				"home_ppp_mu": 1.11,
+				"away_ppp_mu": 1.01,
+				"home_ppp_allowed_mu": 0.95,
+				"away_ppp_allowed_mu": 1.05,
+				"rest_home": 3.0,
+				"rest_away": 1.0,
+			},
+		]
+	).to_csv(tmp_path / f"features_{date_str}.csv", index=False)
+
+	monkeypatch.setattr(app_module, "OUT", tmp_path)
+	app_module.app.testing = True
+	with app_module.app.test_client() as client:
+		resp = client.get(f"/recommendations?date={date_str}")
+
+	assert resp.status_code == 200
+	html = resp.get_data(as_text=True)
+	assert "efficiency matchup" in html.lower()
+	assert "Overall" in html
+	assert "Render Home" in html

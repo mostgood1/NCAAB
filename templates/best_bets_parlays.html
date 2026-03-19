@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB Betting - Best Bets and Parlays</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <style>
+    :root{ --bg:#0a0f1c; --card:#111931; --text:#f6f8ff; --muted:#b6c2df; --pill:#152042; --pill-br:#2a3a63; --accent:#9ec5ff }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text)}
+    a{color:var(--accent)}
+    .container{max-width:1120px;margin:24px auto;padding:0 16px}
+    .header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .spacer{flex:1}
+    .card{background:var(--card); border:1px solid var(--pill-br); border-radius:10px; padding:12px; margin:12px 0}
+    .pill{display:inline-block;background:var(--pill);border:1px solid var(--pill-br);border-radius:999px;padding:3px 8px;font-size:12px}
+    .meta{color:var(--muted);font-size:12px}
+    .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    .date-input{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#f6f8ff;border-radius:10px;padding:6px 10px;}
+    .date-input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.9;}
+    .narrow{max-width:110px}
+    .grid{display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:10px}
+    .kpi{background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); border-radius:10px; padding:10px}
+    .kpi .label{color:var(--muted); font-size:11px}
+    .kpi .value{font-size:18px; font-weight:700; margin-top:2px}
+    .chip{display:inline-block;border-radius:12px;padding:3px 8px;font-size:12px;line-height:1;border:1px solid transparent}
+    .chip.ml{background:#12324e22;border-color:#1d4d75;color:#bfe2ff}
+    .chip.ou{background:#5e2a0a22;border-color:#a55c21;color:#ffd8ad}
+    .chip.ats{background:#1f3f2a22;border-color:#2b5a3a;color:#bfeecb}
+    .best-play{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+    table{width:100%; border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--pill-br); padding:8px 6px; font-size:13px; vertical-align:top}
+    th{color:var(--muted); text-align:left}
+    .right{text-align:right}
+    .parlay{background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.10); border-radius:10px; padding:12px; margin-top:12px}
+    .legs{margin-top:10px}
+    .leg{padding:8px 0; border-top:1px solid rgba(255,255,255,0.08)}
+    .leg:first-child{border-top:0; padding-top:0}
+    .error{color:#ff9d9d}
+    .muted{color:var(--muted)}
+    .mt8{margin-top:8px}
+    .mt10{margin-top:10px}
+    .mt14{margin-top:14px}
+    .xscroll{overflow-x:auto}
+    @media (max-width: 900px){
+      .grid{grid-template-columns: repeat(2, minmax(0, 1fr));}
+      .best-play{grid-template-columns:1fr;}
+    }
+    @media (max-width: 640px){
+      .grid{grid-template-columns: 1fr;}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    {% include '_top_nav.html' %}
+
+    <div class="header">
+      <h1>NCAAB - Best Bets & Parlays</h1>
+      <div class="spacer"></div>
+      <a class="pill" href="/api/best-bets-parlays?date={{ asof_date }}&min_score={{ min_score }}&best_bets={{ best_bets_count }}&candidate_pool={{ candidate_pool }}&parlay_size={{ parlay_size }}&max_parlays={{ max_parlays }}&future_only={{ 1 if future_only else 0 }}&markets={{ markets_csv }}">JSON</a>
+    </div>
+
+    <div class="card">
+      <form method="get" action="/best-bets-parlays" class="controls" aria-label="Best bets and parlays controls">
+        <span class="pill">As of</span>
+        <input class="date-input" type="date" name="date" value="{{ asof_date }}" onchange="this.form.submit()" title="As-of date" aria-label="As-of date" />
+        <span class="pill">Min Score</span>
+        <input class="date-input narrow" type="number" min="0" max="100" step="1" name="min_score" value="{{ min_score }}" onchange="this.form.submit()" title="Minimum score" aria-label="Minimum score" />
+        <span class="pill">Best Bets</span>
+        <input class="date-input narrow" type="number" min="1" max="25" name="best_bets" value="{{ best_bets_count }}" onchange="this.form.submit()" title="Best bet count" aria-label="Best bet count" />
+        <span class="pill">Pool</span>
+        <input class="date-input narrow" type="number" min="2" max="15" name="candidate_pool" value="{{ candidate_pool }}" onchange="this.form.submit()" title="Parlay candidate pool" aria-label="Parlay candidate pool" />
+        <span class="pill">Legs</span>
+        <input class="date-input narrow" type="number" min="2" max="6" name="parlay_size" value="{{ parlay_size }}" onchange="this.form.submit()" title="Parlay size" aria-label="Parlay size" />
+        <span class="pill">Parlays</span>
+        <input class="date-input narrow" type="number" min="1" max="20" name="max_parlays" value="{{ max_parlays }}" onchange="this.form.submit()" title="Maximum parlays" aria-label="Maximum parlays" />
+        <span class="pill">Scope</span>
+        <select class="date-input narrow" name="future_only" onchange="this.form.submit()" title="Future-only filter" aria-label="Future-only filter">
+          <option value="1"{% if future_only %} selected{% endif %}>Future only</option>
+          <option value="0"{% if not future_only %} selected{% endif %}>All games</option>
+        </select>
+        <input type="hidden" name="markets" value="{{ markets_csv }}" />
+        <noscript><button type="submit" class="pill">Go</button></noscript>
+      </form>
+      {% if card and card.as_of_local %}
+        <div class="meta mt8">Local as-of time: <span class="pill">{{ card.as_of_local }}</span></div>
+      {% endif %}
+    </div>
+
+    {% if _error %}
+      <div class="card error">{{ _error }}</div>
+    {% endif %}
+
+    {% if card and card.status == 'ok' %}
+      <div class="card">
+        <h2>Best Play Overall</h2>
+        {% if card.best_bet %}
+          {% set best = card.best_bet %}
+          {% set code = (best.rec_code or '')|lower %}
+          <div class="best-play mt10">
+            <div>
+              <div><span class="chip {{ code }}">{{ best.rec_code }}</span> <strong>{{ best.display_pick }}</strong></div>
+              <div class="meta mt8">{{ best.matchup }}{% if best.start_time_local %} | {{ best.start_time_local }}{% endif %}</div>
+              <div class="meta mt8">{{ (best.reasons or [])|join(', ') }}</div>
+            </div>
+            <div class="grid">
+              <div class="kpi"><div class="label">Price</div><div class="value">{% if best.price is not none %}{{ '%+.0f' % best.price }}{% else %}-{% endif %}</div></div>
+              <div class="kpi"><div class="label">P(win)</div><div class="value">{{ '%.3f' % (best.p_win or 0.0) }}</div></div>
+              <div class="kpi"><div class="label">Score</div><div class="value">{{ '%.1f' % (best.score or 0.0) }}</div></div>
+              <div class="kpi"><div class="label">Line</div><div class="value">{% if best.line is not none %}{{ '%.1f' % best.line }}{% else %}-{% endif %}</div></div>
+            </div>
+          </div>
+        {% else %}
+          <div class="meta">No qualifying best bet for this request.</div>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h2>Best Bets</h2>
+        {% if card.message %}
+          <div class="meta mt8">{{ card.message }}</div>
+        {% endif %}
+        {% if not card.best_bets %}
+          <div class="meta mt8">No qualifying bets found.</div>
+        {% else %}
+          <div class="xscroll mt10">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Type</th>
+                  <th>Pick</th>
+                  <th class="right">Price</th>
+                  <th class="right">P(win)</th>
+                  <th class="right">Score</th>
+                  <th>Start</th>
+                  <th>Reasons</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pick in card.best_bets %}
+                  {% set code = (pick.rec_code or '')|lower %}
+                  <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><span class="chip {{ code }}">{{ pick.rec_code }}</span></td>
+                    <td>{{ pick.display_pick }}</td>
+                    <td class="right">{% if pick.price is not none %}{{ '%+.0f' % pick.price }}{% else %}-{% endif %}</td>
+                    <td class="right">{{ '%.3f' % (pick.p_win or 0.0) }}</td>
+                    <td class="right">{{ '%.1f' % (pick.score or 0.0) }}</td>
+                    <td>{{ pick.start_time_local or '' }}</td>
+                    <td class="muted">{{ (pick.reasons or [])|join(', ') }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h2>{{ parlay_size }}-Leg Parlays</h2>
+        {% if not card.parlays %}
+          <div class="meta mt8">Not enough qualifying games to build a parlay for this request.</div>
+        {% else %}
+          {% for parlay in card.parlays %}
+            <div class="parlay">
+              <div class="grid">
+                <div class="kpi"><div class="label">Combined P(win)</div><div class="value">{{ '%.3f' % (parlay.combined_p_win or 0.0) }}</div></div>
+                <div class="kpi"><div class="label">Approx Odds</div><div class="value">{% if parlay.approx_american_odds is not none %}{{ '%+d' % parlay.approx_american_odds }}{% else %}-{% endif %}</div></div>
+                <div class="kpi"><div class="label">EV / 1 Risk</div><div class="value">{{ '%+.2f' % (parlay.expected_units_per_1_risk or 0.0) }}</div></div>
+                <div class="kpi"><div class="label">Min Leg Score</div><div class="value">{{ '%.1f' % (parlay.min_leg_score or 0.0) }}</div></div>
+              </div>
+              <div class="legs">
+                {% for leg in parlay.legs %}
+                  {% set code = (leg.rec_code or '')|lower %}
+                  <div class="leg">
+                    <div><span class="chip {{ code }}">{{ leg.rec_code }}</span> <strong>{{ leg.display_pick }}</strong></div>
+                    <div class="meta mt8">{{ leg.matchup }}{% if leg.start_time_local %} | {{ leg.start_time_local }}{% endif %}</div>
+                    <div class="meta mt8">Price {% if leg.price is not none %}{{ '%+.0f' % leg.price }}{% else %}-{% endif %} | P(win) {{ '%.3f' % (leg.p_win or 0.0) }} | Score {{ '%.1f' % (leg.score or 0.0) }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h2>Source Summary</h2>
+        <div class="meta mt8">
+          {% for row in (card.source_summary or []) %}
+            <span class="pill">{{ row.market }}: {{ row.count }} {{ row.status }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="meta mt14">Generated {{ generated_utc }}</div>
+  </div>
+</body>
+</html>

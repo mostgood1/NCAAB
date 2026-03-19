@@ -34,6 +34,12 @@
     td.num{ text-align:right }
     a{color:var(--accent)}
     .pill.hr{background:#1f3f2a;border-color:#2b5a3a;color:#bfeecb;font-weight:600}
+    .betCell{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+    .whyCopy{color:var(--muted);font-size:12px;line-height:1.4;max-width:360px}
+    .priorityCell{min-width:160px}
+    .priorityPills{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+    .priorityPill{display:inline-block;background:#0f1730;border:1px solid #2a3a63;border-radius:999px;padding:2px 8px;font-size:11px;color:#d7e0f7}
+    .priorityPill.main{background:#19324a;border-color:#2f5d84;color:#d7eeff}
   </style>
 </head>
 <body>
@@ -108,7 +114,19 @@
                 if(!byGame.has(k)) byGame.set(k, []);
                 byGame.get(k).push(r);
               });
-              // For each game, pick best OU and ATS by abs edge
+              function absEdgeValue(it){
+                try{
+                  const e = parseFloat(it.abs_edge ?? it._abs_edge ?? it.edge ?? 0);
+                  return isFinite(e) ? Math.abs(e) : 0;
+                }catch(e){ return 0; }
+              }
+              function priorityValue(it){
+                try{
+                  const p = parseFloat(it.recommendation_priority_score ?? '');
+                  if(isFinite(p)) return p;
+                }catch(e){}
+                return absEdgeValue(it);
+              }
               const typeOrder = { OU:0, ATS:1, ML:2, Other:9 };
               const root = document.getElementById('js-fallback-root');
               if(!root) return;
@@ -118,16 +136,19 @@
               // Render cards
               const frag = document.createDocumentFragment();
               for(const [gkey, items] of byGame.entries()){
-                // Compute abs edge and pick representative
+                // Compute sort signals and pick a representative row.
                 items.forEach(it=>{
-                  const e = (typeof it._abs_edge==='number'?it._abs_edge:parseFloat(it._abs_edge||it.edge||0));
-                  it.__abs_edge = isFinite(e)?Math.abs(e):0;
+                  it.__abs_edge = absEdgeValue(it);
+                  it.__priority = priorityValue(it);
                 });
-                const rep = items.reduce((a,b)=> (a.__abs_edge>=b.__abs_edge?a:b));
+                const rep = items.reduce((a,b)=>{
+                  if(a.__priority !== b.__priority) return a.__priority >= b.__priority ? a : b;
+                  return a.__abs_edge >= b.__abs_edge ? a : b;
+                });
                 // Best per type
                 const best = {};
                 items
-                  .sort((a,b)=> (b.__abs_edge - a.__abs_edge))
+                  .sort((a,b)=> ((b.__priority - a.__priority) || (b.__abs_edge - a.__abs_edge)))
                   .forEach(it=>{ const code=(it.rec_code||'Other'); if(!(code in best)) best[code]=it; });
                 // Build ordered list (OU, ATS, ML)
                 const ordered = Object.values(best).sort((a,b)=>{
@@ -136,6 +157,7 @@
                   const ta = (ca in typeOrder)?typeOrder[ca]:9;
                   const tb = (cb in typeOrder)?typeOrder[cb]:9;
                   if(ta!==tb) return ta-tb;
+                  if(a.__priority !== b.__priority) return b.__priority - a.__priority;
                   return b.__abs_edge - a.__abs_edge;
                 });
                 // Card element
@@ -165,11 +187,33 @@
                 // Table
                 const table = document.createElement('table');
                 const thead = document.createElement('thead');
-                thead.innerHTML = '<tr><th>Type</th><th>Book</th><th>Bet</th><th>Line</th><th>Price</th><th>Edge</th><th>Confidence</th></tr>';
+                thead.innerHTML = '<tr><th>Type</th><th>Book</th><th>Bet</th><th>Line</th><th>Price</th><th>Edge</th><th>Confidence</th><th>Priority</th></tr>';
                 table.appendChild(thead);
                 const tbody = document.createElement('tbody');
                 function pill(code){ const s=document.createElement('span'); s.className='pill '+code; s.textContent = (code==='OU'?'Totals':code==='ATS'?'Spread':code==='ML'?'Moneyline':code); return s; }
                 function numCell(val){ const td=document.createElement('td'); td.className='num'; td.textContent = (val==null||val==='')?'':(typeof val==='number'?val.toFixed(1):val); return td; }
+                function priorityCell(it){
+                  const td = document.createElement('td');
+                  td.className = 'priorityCell';
+                  const wrap = document.createElement('div');
+                  wrap.className = 'priorityPills';
+                  const scores = [
+                    ['Overall', it.recommendation_priority_score, 'main'],
+                    ['B', it.basketball_priority_score, ''],
+                    ['S', it.sim_support_score, ''],
+                    ['V', it.value_support_score, ''],
+                  ];
+                  scores.forEach(([label, val, klass])=>{
+                    const num = parseFloat(val ?? '');
+                    if(!isFinite(num)) return;
+                    const chip = document.createElement('span');
+                    chip.className = 'priorityPill' + (klass ? (' ' + klass) : '');
+                    chip.textContent = label + ' ' + Math.round(num);
+                    wrap.appendChild(chip);
+                  });
+                  td.appendChild(wrap);
+                  return td;
+                }
                 function betChip(code, lbl, it){
                   const sp=document.createElement('span');
                   const l = (lbl||'').toString();
@@ -217,7 +261,16 @@
                   const tdType=document.createElement('td'); tdType.appendChild(pill(it.rec_code||'Other')); tr.appendChild(tdType);
                   const tdBook=document.createElement('td'); tdBook.textContent = it.book||''; tr.appendChild(tdBook);
                   const lbl=(it.bet_label||it.bet||'').toString();
-                  const tdBet=document.createElement('td'); tdBet.appendChild(betChip((it.rec_code||'Other').toUpperCase(), lbl, it)); tr.appendChild(tdBet);
+                  const tdBet=document.createElement('td');
+                  tdBet.className='betCell';
+                  tdBet.appendChild(betChip((it.rec_code||'Other').toUpperCase(), lbl, it));
+                  if(it.basketball_summary){
+                    const why=document.createElement('div');
+                    why.className='whyCopy';
+                    why.textContent = it.basketball_summary;
+                    tdBet.appendChild(why);
+                  }
+                  tr.appendChild(tdBet);
                   tr.appendChild(numCell(it.line));
                   tr.appendChild(numCell(it.price));
                   tr.appendChild(numCell(it._abs_edge||it.edge||it.abs_edge||''));
@@ -225,6 +278,7 @@
                   const c = (typeof it.confidence==='number' ? Math.round(it.confidence*100) : '');
                   tdConf.textContent = (c!=='' ? (c+'%') : '');
                   tr.appendChild(tdConf);
+                  tr.appendChild(priorityCell(it));
                   tbody.appendChild(tr);
                 });
                 table.appendChild(tbody);
@@ -270,6 +324,7 @@
                 <th>Price</th>
                 <th>Edge</th>
                 <th>Confidence</th>
+                <th>Priority</th>
               </tr>
             </thead>
             <tbody>
@@ -279,32 +334,35 @@
                 <td><span class="pill {{ it.code|e }}" title="{{ it.market }}">{{ it.type }}</span></td>
                 <td>{{ it.book or '' }}</td>
                 <td>
-                  {% if (it.code or '')|upper == 'OU' and (it.bet_label or it.bet) %}
-                    {%- set bl = (it.bet_label or it.bet)|string -%}
-                    {%- set bl_low = (bl|lower) -%}
-                    {# Resolve a numeric total for display if label lacks it #}
-                    {%- set ln = (it.line if (it.line is defined and it.line is not none) else (it.market_total if (it.market_total is defined and it.market_total is not none) else (it.total if (it.total is defined and it.total is not none) else None))) -%}
-                    {%- set base = bl_low|replace('over','')|replace('under','')|trim -%}
-                    {%- set show_lbl = (bl if base else (bl ~ (' ' ~ ('%.1f' % ln) if ln is not none else ''))) -%}
-                    <span class="chip {{ 'over' if (bl_low.startswith('over')) else 'under' }}">{{ show_lbl }}</span>
-                  {% elif (it.code or '')|upper == 'ATS' and (it.bet_label or it.bet) %}
-                    {%- set bl = (it.bet_label or it.bet)|string -%}
-                    {%- set bl_low = (bl|lower) -%}
-                    {%- set is_home = ('home' in bl_low) or (bl_low.startswith((g.home or '')|lower)) -%}
-                    {# Resolve numeric spread for label when missing #}
-                    {%- set ln_home = (it.closing_spread_home if (it.closing_spread_home is defined and it.closing_spread_home is not none) else (it.home_spread if (it.home_spread is defined and it.home_spread is not none) else None)) -%}
-                    {%- set ln_away = (it.away_spread if (it.away_spread is defined and it.away_spread is not none) else None) -%}
-                    {%- set ln_base = (it.line if (it.line is defined and it.line is not none) else ln_home) -%}
-                    {%- set line_val = (ln_base if (ln_base is not none) else (ln_away if (ln_away is not none) else None)) -%}
-                    {%- if line_val is not none -%}
-                      {%- set signed = (line_val if is_home else (0 - line_val)) -%}
-                      <span class="chip {{ 'home' if is_home else 'away' }}">{{ (g.home if is_home else g.away) ~ ' ' ~ ('%+.1f' % signed) }}</span>
-                    {%- else -%}
-                      <span class="chip {{ 'home' if is_home else 'away' }}">{{ bl }}</span>
-                    {%- endif -%}
-                  {% else %}
-                    {{ it.bet_label or it.bet or '' }}
-                  {% endif %}
+                  <div class="betCell">
+                    {% if (it.code or '')|upper == 'OU' and (it.bet_label or it.bet) %}
+                      {%- set bl = (it.bet_label or it.bet)|string -%}
+                      {%- set bl_low = (bl|lower) -%}
+                      {%- set ln = (it.line if (it.line is defined and it.line is not none) else (it.market_total if (it.market_total is defined and it.market_total is not none) else (it.total if (it.total is defined and it.total is not none) else None))) -%}
+                      {%- set base = bl_low|replace('over','')|replace('under','')|trim -%}
+                      {%- set show_lbl = (bl if base else (bl ~ (' ' ~ ('%.1f' % ln) if ln is not none else ''))) -%}
+                      <span class="chip {{ 'over' if (bl_low.startswith('over')) else 'under' }}">{{ show_lbl }}</span>
+                    {% elif (it.code or '')|upper == 'ATS' and (it.bet_label or it.bet) %}
+                      {%- set bl = (it.bet_label or it.bet)|string -%}
+                      {%- set bl_low = (bl|lower) -%}
+                      {%- set is_home = ('home' in bl_low) or (bl_low.startswith((g.home or '')|lower)) -%}
+                      {%- set ln_home = (it.closing_spread_home if (it.closing_spread_home is defined and it.closing_spread_home is not none) else (it.home_spread if (it.home_spread is defined and it.home_spread is not none) else None)) -%}
+                      {%- set ln_away = (it.away_spread if (it.away_spread is defined and it.away_spread is not none) else None) -%}
+                      {%- set ln_base = (it.line if (it.line is defined and it.line is not none) else ln_home) -%}
+                      {%- set line_val = (ln_base if (ln_base is not none) else (ln_away if (ln_away is not none) else None)) -%}
+                      {%- if line_val is not none -%}
+                        {%- set signed = (line_val if is_home else (0 - line_val)) -%}
+                        <span class="chip {{ 'home' if is_home else 'away' }}">{{ (g.home if is_home else g.away) ~ ' ' ~ ('%+.1f' % signed) }}</span>
+                      {%- else -%}
+                        <span class="chip {{ 'home' if is_home else 'away' }}">{{ bl }}</span>
+                      {%- endif -%}
+                    {% else %}
+                      <span>{{ it.bet_label or it.bet or '' }}</span>
+                    {% endif %}
+                    {% if it.basketball_summary %}
+                      <div class="whyCopy">{{ it.basketball_summary }}</div>
+                    {% endif %}
+                  </div>
                 </td>
                 <td class="num">
                   {%- if (it.code|upper == 'ATS') -%}
@@ -380,6 +438,22 @@
                   {% if it.highly_recommended or (conf is not none and conf >= 0.75) %}
                     <span class="pill hr" title="Top pick">Highly Recommended</span>
                   {% endif %}
+                </td>
+                <td class="priorityCell">
+                  <div class="priorityPills">
+                    {% if it.recommendation_priority_score is defined and it.recommendation_priority_score is not none %}
+                      <span class="priorityPill main">Overall {{ '%.0f' % it.recommendation_priority_score }}</span>
+                    {% endif %}
+                    {% if it.basketball_priority_score is defined and it.basketball_priority_score is not none %}
+                      <span class="priorityPill">B {{ '%.0f' % it.basketball_priority_score }}</span>
+                    {% endif %}
+                    {% if it.sim_support_score is defined and it.sim_support_score is not none %}
+                      <span class="priorityPill">S {{ '%.0f' % it.sim_support_score }}</span>
+                    {% endif %}
+                    {% if it.value_support_score is defined and it.value_support_score is not none %}
+                      <span class="priorityPill">V {{ '%.0f' % it.value_support_score }}</span>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
               {% endif %}

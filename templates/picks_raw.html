@@ -32,7 +32,7 @@
     <div class="row header">
       <h1>Expanded Picks</h1>
       <div class="spacer"></div>
-      <a href="/high-likelihood{% if date_val %}?date={{ date_val }}{% endif %}" class="pill">Recommendations</a>
+      <a href="/recommendations{% if date_val %}?date={{ date_val }}{% endif %}" class="pill">Recommendations</a>
     </div>
     <form method="get" class="filters">
       <label>Date <input type="date" name="date" value="{{ date_val or '' }}"/></label>

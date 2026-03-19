@@ -7,7 +7,7 @@ r = c.get('/')
 print('INDEX', r.status_code, len(r.get_data()))
 html = r.get_data(as_text=True)
 # Use a raw string with proper escaping for double quotes
-m = re.search(r'href="(/high-likelihood[^"]*)"[^>]*>Recommendations<', html)
+m = re.search(r'href="(/recommendations[^"]*)"[^>]*>Recommendations<', html)
 print('REC_LINK:', m.group(1) if m else 'NOT_FOUND')
 if m:
     rr = c.get(m.group(1), follow_redirects=False)

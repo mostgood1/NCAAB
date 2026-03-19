@@ -25711,20 +25711,129 @@ def api_time_debug():
 
 @app.route("/recommendations")
 def recommendations():
-    # Deprecated endpoint: redirect to the High Likelihood page.
-    # Keeping a redirect avoids breaking old bookmarks/links.
+    # Basketball-first recommendations page backed by /api/recommendations.
+    # This route intentionally renders the richer matchup-based page rather than
+    # redirecting to the separate high-likelihood card.
+
     try:
-        date_q = (request.args.get('date') or '').strip()
-    except Exception:
-        date_q = ''
-    try:
-        if not date_q:
-            date_q = _today_request_local_str()
-        if date_q:
-            return redirect(f"/high-likelihood?date={date_q}", code=302)
+        group_req = (str(request.args.get("group") or "1").strip().lower() not in ("0", "false", "no"))
+
+        resp = api_recommendations()
+        js = None
+        base_resp = resp[0] if isinstance(resp, tuple) else resp
+        try:
+            if hasattr(base_resp, 'get_json'):
+                js = base_resp.get_json(silent=True)
+        except Exception:
+            js = None
+        if js is None:
+            try:
+                js = json.loads(base_resp.get_data(as_text=True))
+            except Exception:
+                js = None
+
+        data = (js.get('data') if isinstance(js, dict) else None) or []
+        if data:
+            def _priority_val(it: dict[str, Any]) -> float:
+                try:
+                    pv = it.get('recommendation_priority_score')
+                    if pv is not None and str(pv).strip() != '':
+                        out = float(pv)
+                        if np.isfinite(out):
+                            return float(out)
+                except Exception:
+                    pass
+                try:
+                    ev = it.get('abs_edge') if it.get('abs_edge') is not None else it.get('edge')
+                    out2 = abs(float(ev)) if ev is not None and str(ev).strip() != '' else 0.0
+                    return float(out2) if np.isfinite(out2) else 0.0
+                except Exception:
+                    return 0.0
+
+            def _abs_edge_val(it: dict[str, Any]) -> float:
+                try:
+                    ev = it.get('abs_edge') if it.get('abs_edge') is not None else it.get('edge')
+                    out = abs(float(ev)) if ev is not None and str(ev).strip() != '' else 0.0
+                    return float(out) if np.isfinite(out) else 0.0
+                except Exception:
+                    return 0.0
+
+            if not group_req:
+                rows_fp = sorted(
+                    [dict(r) for r in data],
+                    key=lambda x: (
+                        _priority_val(x),
+                        _abs_edge_val(x),
+                    ),
+                    reverse=True,
+                )
+                _page_std = render_template("recommendations.html", rows=rows_fp, total_rows=len(rows_fp))
+                _resp = make_response(_page_std)
+                _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+                _resp.headers['Pragma'] = 'no-cache'
+                return _resp
+
+            by_game: dict[str, list[dict[str, Any]]] = {}
+
+            def _norm_name(s: Any) -> str:
+                try:
+                    return normalize_name(str(s or ''))
+                except Exception:
+                    return str(s or '')
+
+            for r in data:
+                gid = str(r.get('game_id') or '').strip()
+                key = gid or f"{_norm_name(r.get('home_team'))}__{_norm_name(r.get('away_team'))}__{str(r.get('date') or '')}"
+                by_game.setdefault(key, []).append(dict(r))
+
+            type_order = {'OU': 0, 'ATS': 1, 'ML': 2, 'Other': 9}
+            grouped_fp: list[dict[str, Any]] = []
+            for gkey, items in by_game.items():
+                if not items:
+                    continue
+                rep = max(items, key=lambda x: (_priority_val(x), _abs_edge_val(x)))
+                best_by_code: dict[str, dict[str, Any]] = {}
+                for it in sorted(items, key=lambda x: (_priority_val(x), _abs_edge_val(x)), reverse=True):
+                    code = str(it.get('rec_code') or it.get('code') or 'Other')
+                    if code not in best_by_code:
+                        best_by_code[code] = it
+                ordered = sorted(
+                    best_by_code.values(),
+                    key=lambda x: (
+                        type_order.get(str(x.get('rec_code') or x.get('code') or 'Other'), 9),
+                        -_priority_val(x),
+                        -_abs_edge_val(x),
+                    ),
+                )
+
+                grouped_fp.append({
+                    'game_key': gkey,
+                    'matchup': f"{str(rep.get('home_team') or rep.get('home_team_name') or '')} vs {str(rep.get('away_team') or rep.get('away_team_name') or '')}",
+                    'date': str(rep.get('display_date') or rep.get('date') or ''),
+                    'time': str(rep.get('display_time_ampm') or rep.get('display_time_str') or ''),
+                    'time_ampm': str(rep.get('display_time_ampm') or rep.get('display_time_str') or ''),
+                    'tz': str(rep.get('start_tz_abbr_venue') or rep.get('start_tz_abbr') or ''),
+                    'start_time_iso': rep.get('start_time_iso'),
+                    'start_time_sort': rep.get('start_time_iso') or rep.get('date') or '',
+                    'home': str(rep.get('home_team') or rep.get('home_team_name') or ''),
+                    'away': str(rep.get('away_team') or rep.get('away_team_name') or ''),
+                    'home_logo': rep.get('home_logo'),
+                    'away_logo': rep.get('away_logo'),
+                    'home_color': rep.get('home_color') or '#152042',
+                    'away_color': rep.get('away_color') or '#2a3a63',
+                    'home_text': rep.get('home_text') or rep.get('home_text_color') or '#f6f8ff',
+                    'away_text': rep.get('away_text') or rep.get('away_text_color') or '#f6f8ff',
+                    'recs': ordered,
+                })
+
+            grouped_fp = sorted(grouped_fp, key=lambda g: str(g.get('start_time_sort') or ''))
+            _page_grouped = render_template("recommendations_grouped.html", games=grouped_fp, total_games=len(grouped_fp))
+            _resp = make_response(_page_grouped)
+            _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            _resp.headers['Pragma'] = 'no-cache'
+            return _resp
     except Exception:
         pass
-    return redirect("/high-likelihood", code=302)
 
     # Early fast-path: for grouped view, build from API payload to avoid rare server-side errors
     try:
@@ -32354,6 +32463,316 @@ def api_recommendations():
             return '#0a0a0a' if brightness > 180 else '#ffffff'
         except Exception:
             return '#ffffff'
+
+    def _recommendation_matchup_float(val: Any) -> float | None:
+        try:
+            if val is None:
+                return None
+            s = str(val).strip()
+            if (not s) or (s.lower() in ('nan', 'none', 'null')):
+                return None
+            out = float(s)
+            return out if np.isfinite(out) else None
+        except Exception:
+            return None
+
+    def _recommendation_pair_key(home_team: Any, away_team: Any) -> str:
+        try:
+            home_key = normalize_name(str(home_team or '')) if home_team else ''
+            away_key = normalize_name(str(away_team or '')) if away_team else ''
+            return f"{home_key}::{away_key}" if (home_key and away_key) else ''
+        except Exception:
+            return ''
+
+    def _recommendation_selected_side(row: dict[str, Any]) -> str | None:
+        try:
+            selection = str(
+                row.get('selection')
+                or row.get('selection_team')
+                or row.get('bet_label')
+                or row.get('bet')
+                or ''
+            ).strip()
+            if not selection:
+                return None
+            sel_key = normalize_name(selection)
+            if selection.lower() in ('home', 'h'):
+                return 'home'
+            if selection.lower() in ('away', 'a'):
+                return 'away'
+            home_team = str(row.get('home_team') or row.get('home_team_name') or '').strip()
+            away_team = str(row.get('away_team') or row.get('away_team_name') or '').strip()
+            home_key = normalize_name(home_team) if home_team else ''
+            away_key = normalize_name(away_team) if away_team else ''
+            if home_key and sel_key.startswith(home_key):
+                return 'home'
+            if away_key and sel_key.startswith(away_key):
+                return 'away'
+            bet_key = normalize_name(str(row.get('bet_label') or row.get('bet') or ''))
+            if home_key and bet_key.startswith(home_key):
+                return 'home'
+            if away_key and bet_key.startswith(away_key):
+                return 'away'
+        except Exception:
+            return None
+        return None
+
+    def _expected_combined_ppp_from_feature_row(row: dict[str, Any]) -> float | None:
+        home_ppp = _recommendation_matchup_float(row.get('home_ppp_mu'))
+        away_ppp = _recommendation_matchup_float(row.get('away_ppp_mu'))
+        home_allowed = _recommendation_matchup_float(row.get('home_ppp_allowed_mu'))
+        away_allowed = _recommendation_matchup_float(row.get('away_ppp_allowed_mu'))
+
+        if (home_ppp is not None) and (away_allowed is not None):
+            exp_home = (home_ppp + away_allowed) / 2.0
+        else:
+            exp_home = home_ppp if home_ppp is not None else away_allowed
+        if (away_ppp is not None) and (home_allowed is not None):
+            exp_away = (away_ppp + home_allowed) / 2.0
+        else:
+            exp_away = away_ppp if away_ppp is not None else home_allowed
+        if (exp_home is None) or (exp_away is None):
+            return None
+        return float(exp_home + exp_away)
+
+    def _load_recommendation_matchup_context(date_str: str | None) -> dict[str, Any]:
+        ctx: dict[str, Any] = {
+            'by_game': {},
+            'by_pair': {},
+            'pace_median': None,
+            'combined_ppp_median': None,
+            'source': None,
+        }
+        try:
+            candidates: list[Path] = []
+            if date_str:
+                candidates.append(OUT / f"features_{date_str}.csv")
+            candidates.append(OUT / 'features_curr.csv')
+            feat_df = pd.DataFrame()
+            src_name = None
+            for path in candidates:
+                try:
+                    if not path.exists():
+                        continue
+                    tmp = _safe_read_csv(path)
+                    if isinstance(tmp, pd.DataFrame) and not tmp.empty:
+                        feat_df = tmp.copy()
+                        src_name = path.name
+                        break
+                except Exception:
+                    continue
+            if feat_df.empty:
+                return ctx
+
+            if 'game_id' in feat_df.columns:
+                try:
+                    feat_df['game_id'] = feat_df['game_id'].astype(str)
+                except Exception:
+                    pass
+
+            if 'pace_game_est' in feat_df.columns:
+                try:
+                    pace_vals = pd.to_numeric(feat_df['pace_game_est'], errors='coerce').dropna()
+                    if len(pace_vals):
+                        ctx['pace_median'] = float(pace_vals.median())
+                except Exception:
+                    pass
+
+            combined_ppp_vals: list[float] = []
+            for feat_row in feat_df.to_dict(orient='records'):
+                combo = _expected_combined_ppp_from_feature_row(feat_row)
+                if combo is not None:
+                    combined_ppp_vals.append(combo)
+                gid = str(feat_row.get('game_id') or '').strip()
+                if gid:
+                    ctx['by_game'][gid] = feat_row
+                pair_key = _recommendation_pair_key(feat_row.get('home_team'), feat_row.get('away_team'))
+                if pair_key:
+                    ctx['by_pair'][pair_key] = feat_row
+            if combined_ppp_vals:
+                ctx['combined_ppp_median'] = float(pd.Series(combined_ppp_vals).median())
+            ctx['source'] = src_name
+        except Exception:
+            return ctx
+        return ctx
+
+    def _build_recommendation_matchup_logic(row: dict[str, Any], feature_ctx: dict[str, Any]) -> dict[str, Any]:
+        try:
+            code = str(row.get('rec_code') or row.get('code') or '').strip().upper()
+            if code not in ('ATS', 'ML', 'OU'):
+                return {}
+
+            gid = str(row.get('game_id') or '').strip()
+            feature_row = feature_ctx.get('by_game', {}).get(gid)
+            if feature_row is None:
+                pair_key = _recommendation_pair_key(row.get('home_team') or row.get('home_team_name'), row.get('away_team') or row.get('away_team_name'))
+                feature_row = feature_ctx.get('by_pair', {}).get(pair_key)
+            if not isinstance(feature_row, dict) or not feature_row:
+                return {}
+
+            pace_median = _recommendation_matchup_float(feature_ctx.get('pace_median'))
+            combined_ppp_median = _recommendation_matchup_float(feature_ctx.get('combined_ppp_median'))
+            source_name = str(feature_ctx.get('source') or '')
+
+            home_team = str(row.get('home_team') or row.get('home_team_name') or feature_row.get('home_team') or '').strip()
+            away_team = str(row.get('away_team') or row.get('away_team_name') or feature_row.get('away_team') or '').strip()
+            pace_game = _recommendation_matchup_float(feature_row.get('pace_game_est'))
+
+            if code in ('ATS', 'ML'):
+                selected_side = _recommendation_selected_side(row)
+                if selected_side not in ('home', 'away'):
+                    return {}
+                if selected_side == 'home':
+                    selected_team = home_team
+                    opp_team = away_team
+                    selected_off = _recommendation_matchup_float(feature_row.get('home_off_rating'))
+                    opp_off = _recommendation_matchup_float(feature_row.get('away_off_rating'))
+                    selected_def = _recommendation_matchup_float(feature_row.get('home_def_rating'))
+                    opp_def = _recommendation_matchup_float(feature_row.get('away_def_rating'))
+                    selected_ppp = _recommendation_matchup_float(feature_row.get('home_ppp_mu'))
+                    opp_ppp = _recommendation_matchup_float(feature_row.get('away_ppp_mu'))
+                    selected_allowed = _recommendation_matchup_float(feature_row.get('home_ppp_allowed_mu'))
+                    opp_allowed = _recommendation_matchup_float(feature_row.get('away_ppp_allowed_mu'))
+                    selected_rest = _recommendation_matchup_float(feature_row.get('rest_home'))
+                    opp_rest = _recommendation_matchup_float(feature_row.get('rest_away'))
+                    model_margin = _recommendation_matchup_float(row.get('pred_margin'))
+                else:
+                    selected_team = away_team
+                    opp_team = home_team
+                    selected_off = _recommendation_matchup_float(feature_row.get('away_off_rating'))
+                    opp_off = _recommendation_matchup_float(feature_row.get('home_off_rating'))
+                    selected_def = _recommendation_matchup_float(feature_row.get('away_def_rating'))
+                    opp_def = _recommendation_matchup_float(feature_row.get('home_def_rating'))
+                    selected_ppp = _recommendation_matchup_float(feature_row.get('away_ppp_mu'))
+                    opp_ppp = _recommendation_matchup_float(feature_row.get('home_ppp_mu'))
+                    selected_allowed = _recommendation_matchup_float(feature_row.get('away_ppp_allowed_mu'))
+                    opp_allowed = _recommendation_matchup_float(feature_row.get('home_ppp_allowed_mu'))
+                    selected_rest = _recommendation_matchup_float(feature_row.get('rest_away'))
+                    opp_rest = _recommendation_matchup_float(feature_row.get('rest_home'))
+                    base_margin = _recommendation_matchup_float(row.get('pred_margin'))
+                    model_margin = (-base_margin) if (base_margin is not None) else None
+
+                attack_edge = (selected_ppp - opp_allowed) if (selected_ppp is not None and opp_allowed is not None) else None
+                defense_edge = (opp_ppp - selected_allowed) if (opp_ppp is not None and selected_allowed is not None) else None
+                eff_attack = (selected_off - opp_def) if (selected_off is not None and opp_def is not None) else None
+                eff_defense = (opp_off - selected_def) if (opp_off is not None and selected_def is not None) else None
+                rest_edge = (selected_rest - opp_rest) if (selected_rest is not None and opp_rest is not None) else None
+
+                reasons: list[str] = []
+                if (attack_edge is not None) and (attack_edge > 0.025) and (defense_edge is not None) and (defense_edge > 0.025):
+                    reasons.append(
+                        f"{selected_team} owns the cleaner efficiency matchup: its offense projects {attack_edge:.3f} PPP above what {opp_team} usually allows, and its defense grades {defense_edge:.3f} PPP better than {opp_team}'s scoring baseline."
+                    )
+                else:
+                    if (attack_edge is not None) and (attack_edge > 0.03):
+                        reasons.append(f"{selected_team}'s offense projects {attack_edge:.3f} PPP above {opp_team}'s defensive allowance.")
+                    if (defense_edge is not None) and (defense_edge > 0.03):
+                        reasons.append(f"{selected_team}'s defense grades {defense_edge:.3f} PPP better than {opp_team}'s usual scoring rate.")
+                if (not reasons) and (eff_attack is not None) and (eff_attack > 2.0) and (eff_defense is not None) and (eff_defense > 2.0):
+                    reasons.append(
+                        f"{selected_team} grades better on both sides here, with a +{eff_attack:.1f} attack edge and a +{eff_defense:.1f} defensive edge in the rating matchup."
+                    )
+                if (rest_edge is not None) and (rest_edge >= 2.0):
+                    reasons.append(f"{selected_team} also carries a {rest_edge:.0f}-day rest edge into the matchup.")
+                if (pace_game is not None) and (pace_median is not None):
+                    if pace_game <= (pace_median - 1.5):
+                        reasons.append(f"Tempo projects slower than the slate median at about {pace_game:.1f} possessions, which points to a more controlled half-court game.")
+                    elif pace_game >= (pace_median + 1.5):
+                        reasons.append(f"Tempo projects above the slate median at about {pace_game:.1f} possessions, creating more chances for the stronger side to separate.")
+
+                line_edge = None
+                if code == 'ATS':
+                    line_val = _recommendation_matchup_float(row.get('line'))
+                    if (model_margin is not None) and (line_val is not None):
+                        line_edge = model_margin + line_val
+                        if line_edge > 0.75:
+                            reasons.append(f"Projected margin clears the spread by about {line_edge:.1f} points.")
+                elif (model_margin is not None) and (model_margin > 1.5):
+                    reasons.append(f"The win condition is backed by roughly a {model_margin:.1f}-point projected margin.")
+
+                score = 0.0
+                if attack_edge is not None:
+                    score += max(0.0, attack_edge) * 18.0
+                if defense_edge is not None:
+                    score += max(0.0, defense_edge) * 14.0
+                if eff_attack is not None:
+                    score += max(0.0, eff_attack) * 0.45
+                if eff_defense is not None:
+                    score += max(0.0, eff_defense) * 0.35
+                if rest_edge is not None:
+                    score += max(0.0, min(rest_edge, 4.0))
+                if line_edge is not None:
+                    score += max(0.0, min(line_edge * 1.15, 4.0))
+                elif model_margin is not None:
+                    score += max(0.0, min(model_margin * 0.35, 3.5))
+
+                if not reasons:
+                    return {}
+                return {
+                    'basketball_matchup_score': round(min(score, 25.0), 2),
+                    'basketball_summary': ' '.join(reasons[:3]),
+                    'basketball_reasons': reasons[:3],
+                    'basketball_source': source_name,
+                }
+
+            selection = str(row.get('selection') or row.get('bet_label') or row.get('bet') or '').strip().lower()
+            is_over = selection.startswith('over') or selection.startswith('o ')
+            is_under = selection.startswith('under') or selection.startswith('u ')
+            if (not is_over) and (not is_under):
+                return {}
+
+            line_val = _recommendation_matchup_float(row.get('line'))
+            pred_total = _recommendation_matchup_float(row.get('pred_total'))
+            combined_ppp = _expected_combined_ppp_from_feature_row(feature_row)
+            expected_total = (pace_game * combined_ppp) if (pace_game is not None and combined_ppp is not None) else None
+            reasons = []
+            if is_over:
+                if (pace_game is not None) and (pace_median is not None) and (pace_game >= (pace_median + 1.5)):
+                    reasons.append(f"Tempo projects faster than the slate median at about {pace_game:.1f} possessions.")
+                if (combined_ppp is not None) and (combined_ppp_median is not None) and (combined_ppp >= (combined_ppp_median + 0.04)):
+                    reasons.append(f"The combined scoring environment is strong at roughly {combined_ppp:.3f} expected PPP.")
+                elif (expected_total is not None) and (line_val is not None) and (expected_total > (line_val + 3.0)):
+                    reasons.append(f"Feature-based scoring comes in around {expected_total:.1f}, above the market total.")
+                if (pred_total is not None) and (line_val is not None) and (pred_total > (line_val + 2.0)):
+                    reasons.append(f"The model total sits {pred_total - line_val:.1f} points above the number.")
+                score = 0.0
+                if (pace_game is not None) and (pace_median is not None):
+                    score += max(0.0, pace_game - pace_median) * 0.8
+                if (combined_ppp is not None) and (combined_ppp_median is not None):
+                    score += max(0.0, combined_ppp - combined_ppp_median) * 30.0
+                if (pred_total is not None) and (line_val is not None):
+                    score += max(0.0, pred_total - line_val) * 0.3
+                if (expected_total is not None) and (line_val is not None):
+                    score += max(0.0, expected_total - line_val) * 0.15
+            else:
+                if (pace_game is not None) and (pace_median is not None) and (pace_game <= (pace_median - 1.5)):
+                    reasons.append(f"Tempo projects slower than the slate median at about {pace_game:.1f} possessions.")
+                if (combined_ppp is not None) and (combined_ppp_median is not None) and (combined_ppp <= (combined_ppp_median - 0.04)):
+                    reasons.append(f"The combined scoring environment lands on the lower end of the slate at roughly {combined_ppp:.3f} expected PPP.")
+                elif (expected_total is not None) and (line_val is not None) and (expected_total < (line_val - 3.0)):
+                    reasons.append(f"Feature-based scoring lands around {expected_total:.1f}, below the market total.")
+                if (pred_total is not None) and (line_val is not None) and (pred_total < (line_val - 2.0)):
+                    reasons.append(f"The model total sits {line_val - pred_total:.1f} points below the number.")
+                score = 0.0
+                if (pace_game is not None) and (pace_median is not None):
+                    score += max(0.0, pace_median - pace_game) * 0.8
+                if (combined_ppp is not None) and (combined_ppp_median is not None):
+                    score += max(0.0, combined_ppp_median - combined_ppp) * 30.0
+                if (pred_total is not None) and (line_val is not None):
+                    score += max(0.0, line_val - pred_total) * 0.3
+                if (expected_total is not None) and (line_val is not None):
+                    score += max(0.0, line_val - expected_total) * 0.15
+
+            if not reasons:
+                return {}
+            return {
+                'basketball_matchup_score': round(min(score, 20.0), 2),
+                'basketball_summary': ' '.join(reasons[:3]),
+                'basketball_reasons': reasons[:3],
+                'basketball_source': source_name,
+            }
+        except Exception:
+            return {}
     # Prepare rows with branding
     rows: list[dict] = []
     branding = _load_branding_map()
@@ -33796,6 +34215,95 @@ def api_recommendations():
         except Exception:
             return None
 
+    def _recommendation_priority_payload(r: dict[str, Any], matchup_present: bool = False) -> dict[str, Any]:
+        try:
+            code = str(r.get("rec_code") or r.get("code") or "").upper()
+
+            basketball_raw = _as_float(r.get("basketball_matchup_score"))
+            if basketball_raw is None:
+                basketball_norm = 0.0
+            else:
+                basketball_scale = 7.5 if code == "OU" else 10.0
+                basketball_norm = min(1.0, max(0.0, basketball_raw / basketball_scale))
+
+            conf_v = _as_float(r.get("confidence"))
+            conf01 = min(1.0, max(0.0, conf_v if (conf_v is not None and conf_v <= 1.5) else ((conf_v or 0.0) / 100.0)))
+
+            prob_v = _as_float(r.get("prob"))
+            if prob_v is None:
+                prob_v = _as_float(r.get("p_win"))
+            prob_strength = None
+            if prob_v is not None:
+                prob_strength = min(1.0, max(0.0, abs(prob_v - 0.5) * 2.0))
+
+            model_support = 0.0
+            if code == "OU":
+                pred_total = _as_float(r.get("pred_total"))
+                line_val = _as_float(r.get("line"))
+                if (pred_total is not None) and (line_val is not None):
+                    aligned = pred_total - line_val
+                    model_support = min(1.0, max(0.0, aligned) / 8.0)
+            elif code == "ATS":
+                pred_margin = _as_float(r.get("pred_margin"))
+                line_val = _as_float(r.get("line"))
+                sel_side = _recommendation_selected_side(r)
+                if (pred_margin is not None) and (line_val is not None):
+                    if sel_side == "away":
+                        aligned = (-pred_margin) + line_val
+                    else:
+                        aligned = pred_margin + line_val
+                    model_support = min(1.0, max(0.0, aligned) / 5.0)
+            elif code == "ML":
+                pred_margin = _as_float(r.get("pred_margin"))
+                if pred_margin is not None:
+                    sel_side = _recommendation_selected_side(r)
+                    aligned = (-pred_margin) if sel_side == "away" else pred_margin
+                    model_support = min(1.0, max(0.0, aligned) / 6.0)
+
+            conviction = prob_strength if prob_strength is not None else model_support
+            sim_support = min(1.0, max(0.0, (0.55 * conf01) + (0.25 * conviction) + (0.20 * model_support)))
+
+            edge_v = _as_float(r.get("edge"))
+            abs_edge = abs(edge_v) if edge_v is not None else (_as_float(r.get("abs_edge")) or 0.0)
+            if code == "OU":
+                value_norm = min(1.0, max(0.0, abs_edge) / 7.0)
+            elif code == "ATS":
+                value_norm = min(1.0, max(0.0, abs_edge) / 4.5)
+            elif code == "ML":
+                value_norm = min(1.0, max(0.0, abs_edge) / 0.06)
+            else:
+                value_norm = min(1.0, max(0.0, abs_edge) / 5.0)
+
+            if _as_float(r.get("price")) is None:
+                value_norm *= 0.85
+
+            priority = (0.60 * basketball_norm) + (0.30 * sim_support) + (0.10 * value_norm)
+            if matchup_present and code in ("ATS", "ML", "OU") and basketball_raw is None:
+                priority *= 0.65
+            if sim_support < 0.25:
+                priority *= 0.8
+
+            return {
+                "basketball_priority_score": round(basketball_norm * 100.0, 1),
+                "sim_support_score": round(sim_support * 100.0, 1),
+                "value_support_score": round(value_norm * 100.0, 1),
+                "recommendation_priority_score": round(priority * 100.0, 1),
+            }
+        except Exception:
+            return {}
+
+    def _recommendation_priority_sort_key(r: dict[str, Any]) -> tuple[float, float, float, float, float]:
+        try:
+            return (
+                _as_float(r.get("recommendation_priority_score")) or 0.0,
+                _as_float(r.get("basketball_priority_score")) or 0.0,
+                _as_float(r.get("sim_support_score")) or 0.0,
+                _as_float(r.get("confidence")) or 0.0,
+                _as_float(r.get("abs_edge")) or abs(_as_float(r.get("edge")) or 0.0),
+            )
+        except Exception:
+            return (0.0, 0.0, 0.0, 0.0, 0.0)
+
     def _infer_selection(code: str, bet_label: Any, bet: Any) -> str:
         try:
             c = str(code or "").upper()
@@ -33863,6 +34371,33 @@ def api_recommendations():
     except Exception:
         pass
 
+    matchup_ctx: dict[str, Any] = {'by_game': {}, 'by_pair': {}, 'pace_median': None, 'combined_ppp_median': None, 'source': None}
+    try:
+        matchup_date = (request.args.get('date') or '').strip()
+        if (not matchup_date) and rows:
+            matchup_date = str(rows[0].get('date') or '').strip()
+        matchup_ctx = _load_recommendation_matchup_context(matchup_date)
+        if matchup_ctx.get('by_game') or matchup_ctx.get('by_pair'):
+            enriched_rows = []
+            for r in rows:
+                rr = dict(r)
+                rr.update(_build_recommendation_matchup_logic(rr, matchup_ctx))
+                enriched_rows.append(rr)
+            rows = enriched_rows
+    except Exception:
+        pass
+
+    try:
+        matchup_present = bool(matchup_ctx.get('by_game') or matchup_ctx.get('by_pair'))
+        prioritized_rows = []
+        for r in rows:
+            rr = dict(r)
+            rr.update(_recommendation_priority_payload(rr, matchup_present=matchup_present))
+            prioritized_rows.append(rr)
+        rows = sorted(prioritized_rows, key=_recommendation_priority_sort_key, reverse=True)
+    except Exception:
+        pass
+
     if per_game_q and rows:
         try:
             def _ml_is_huge_underdog(r: dict) -> bool:
@@ -33880,36 +34415,26 @@ def api_recommendations():
 
             def _rank_score(r: dict) -> float:
                 try:
-                    edge_v = _as_float(r.get("edge"))
-                    abs_edge = abs(edge_v) if edge_v is not None else (_as_float(r.get("abs_edge")) or 0.0)
-                    conf_v = _as_float(r.get("confidence"))
-                    if conf_v is None:
-                        conf_v = 0.0
-                    # Confidence is expected in [0,1] but sometimes comes in as [0,100].
-                    conf01 = min(1.0, max(0.0, conf_v if conf_v <= 1.5 else (conf_v / 100.0)))
+                    priority_v = _as_float(r.get("recommendation_priority_score")) or 0.0
                     code = str(r.get("rec_code") or r.get("code") or "").upper()
                     has_line = (_as_float(r.get("line")) is not None)
                     has_price = (_as_float(r.get("price")) is not None)
 
-                    # Base score: edge scaled by confidence (0.5..1.5 multiplier)
-                    score = float(abs_edge) * float(0.5 + conf01)
+                    score = float(priority_v)
 
-                    # Prefer markets with better support in the data.
-                    # (This reduces speculative ML dominance when ML prices are missing.)
                     if code == "OU":
-                        score += 0.05
+                        score += 0.4
                     elif code == "ATS":
-                        score += 0.04
+                        score += 0.3
                     elif code == "ML":
-                        score += 0.02
+                        score += 0.1
 
-                    # Prefer picks that have a line/price filled in; penalize missing price.
                     if has_line:
-                        score += 0.02
+                        score += 0.2
                     if has_price:
-                        score += 0.06
+                        score += 0.3
                     else:
-                        score -= 0.03
+                        score -= 0.2
 
                     return float(score)
                 except Exception:
@@ -33968,6 +34493,11 @@ def api_recommendations():
             rows = list(best_by_game.values())
         except Exception:
             pass
+
+    try:
+        rows = sorted(rows, key=_recommendation_priority_sort_key, reverse=True)
+    except Exception:
+        pass
 
     # Ensure JSON-safe nulls (avoid NaN/Inf leaking into responses) and
     # backfill missing edges so rows remain rankable.
@@ -34702,6 +35232,209 @@ def high_likelihood_page():
         },
         daily=daily,
         generated_utc=dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ"),
+    )
+
+
+@app.route("/api/best-bets-parlays")
+def api_best_bets_parlays():
+    date_q = (request.args.get("date") or "").strip()
+    try:
+        min_score = float(request.args.get("min_score") or 70.0)
+    except Exception:
+        min_score = 70.0
+    min_score = max(0.0, min(100.0, min_score))
+
+    try:
+        best_bets_count = int(request.args.get("best_bets") or 8)
+    except Exception:
+        best_bets_count = 8
+    best_bets_count = max(1, min(25, best_bets_count))
+
+    try:
+        candidate_pool = int(request.args.get("candidate_pool") or 10)
+    except Exception:
+        candidate_pool = 10
+    candidate_pool = max(2, min(15, candidate_pool))
+
+    try:
+        parlay_size = int(request.args.get("parlay_size") or 4)
+    except Exception:
+        parlay_size = 4
+    parlay_size = max(2, min(6, parlay_size))
+
+    try:
+        max_parlays = int(request.args.get("max_parlays") or 5)
+    except Exception:
+        max_parlays = 5
+    max_parlays = max(1, min(20, max_parlays))
+
+    future_only_arg = (request.args.get("future_only") or "1").strip().lower()
+    future_only = future_only_arg not in ("0", "false", "no", "off")
+
+    markets_q = (request.args.get("markets") or "ATS,OU,ML").strip()
+    inc = tuple(x.strip().upper() for x in markets_q.split(",") if x.strip())
+    if not inc:
+        inc = ("ATS", "OU", "ML")
+
+    if not date_q:
+        try:
+            date_q = _today_request_local_str()
+        except Exception:
+            date_q = _today_local_str()
+    if not date_q:
+        try:
+            import re as _re_mod
+
+            pat = _re_mod.compile(r"^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$")
+            _dates = []
+            for _p in OUT.glob("predictions_display_*.csv"):
+                m = pat.match(_p.name)
+                if m:
+                    _dates.append(m.group(1))
+            if _dates:
+                date_q = sorted(_dates)[-1]
+        except Exception:
+            date_q = date_q
+    if not date_q:
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+
+            now_et = dt.datetime.now(_ZI("America/New_York"))
+            date_q = now_et.date().isoformat()
+        except Exception:
+            date_q = dt.date.today().isoformat()
+
+    try:
+        from src.eval.parlays import BestBetsParlayConfig, build_best_bets_and_parlays
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"parlays module import failed: {e}"}), 500
+
+    payload = build_best_bets_and_parlays(
+        BestBetsParlayConfig(
+            out_dir=OUT,
+            date=str(date_q),
+            min_score=float(min_score),
+            best_bets=int(best_bets_count),
+            candidate_pool=max(int(candidate_pool), int(parlay_size)),
+            parlay_size=int(parlay_size),
+            max_parlays=int(max_parlays),
+            future_only=bool(future_only),
+            include_markets=inc,
+        )
+    )
+
+    _resp = jsonify(payload)
+    try:
+        _resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        _resp.headers["Pragma"] = "no-cache"
+    except Exception:
+        pass
+    return _resp, 200
+
+
+@app.route("/best-bets-parlays")
+def best_bets_parlays_page():
+    def _safe_int(v: str | None, default: int, lo: int, hi: int) -> int:
+        try:
+            x = int(v) if v is not None and str(v).strip() != "" else int(default)
+        except Exception:
+            x = int(default)
+        return max(lo, min(hi, x))
+
+    def _safe_float(v: str | None, default: float, lo: float, hi: float) -> float:
+        try:
+            x = float(v) if v is not None and str(v).strip() != "" else float(default)
+        except Exception:
+            x = float(default)
+        return max(lo, min(hi, x))
+
+    date_q = (request.args.get("date") or "").strip()
+    if not date_q:
+        try:
+            date_q = _today_request_local_str()
+        except Exception:
+            date_q = _today_local_str()
+    if not date_q:
+        try:
+            import re as _re_mod
+
+            pat = _re_mod.compile(r"^predictions_display_(\d{4}-\d{2}-\d{2})\.csv$")
+            _dates = []
+            for _p in OUT.glob("predictions_display_*.csv"):
+                m = pat.match(_p.name)
+                if m:
+                    _dates.append(m.group(1))
+            if _dates:
+                date_q = sorted(_dates)[-1]
+        except Exception:
+            date_q = date_q
+    if not date_q:
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+
+            now_et = dt.datetime.now(_ZI("America/New_York"))
+            date_q = now_et.date().isoformat()
+        except Exception:
+            date_q = dt.date.today().isoformat()
+
+    min_score = _safe_float(request.args.get("min_score"), 70.0, 0.0, 100.0)
+    best_bets_count = _safe_int(request.args.get("best_bets"), 8, 1, 25)
+    candidate_pool = _safe_int(request.args.get("candidate_pool"), 10, 2, 15)
+    parlay_size = _safe_int(request.args.get("parlay_size"), 4, 2, 6)
+    max_parlays = _safe_int(request.args.get("max_parlays"), 5, 1, 20)
+    future_only_arg = (request.args.get("future_only") or "1").strip().lower()
+    future_only = future_only_arg not in ("0", "false", "no", "off")
+
+    markets_q = (request.args.get("markets") or "ATS,OU,ML").strip()
+    inc = tuple(x.strip().upper() for x in markets_q.split(",") if x.strip())
+    if not inc:
+        inc = ("ATS", "OU", "ML")
+
+    try:
+        from src.eval.parlays import BestBetsParlayConfig, build_best_bets_and_parlays
+    except Exception as e:
+        return render_template(
+            "best_bets_parlays.html",
+            asof_date=str(date_q),
+            min_score=float(min_score),
+            best_bets_count=int(best_bets_count),
+            candidate_pool=int(candidate_pool),
+            parlay_size=int(parlay_size),
+            max_parlays=int(max_parlays),
+            future_only=bool(future_only),
+            markets_csv=",".join(inc),
+            card=None,
+            generated_utc=dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ"),
+            _error=f"parlays module import failed: {e}",
+        )
+
+    card = build_best_bets_and_parlays(
+        BestBetsParlayConfig(
+            out_dir=OUT,
+            date=str(date_q),
+            min_score=float(min_score),
+            best_bets=int(best_bets_count),
+            candidate_pool=max(int(candidate_pool), int(parlay_size)),
+            parlay_size=int(parlay_size),
+            max_parlays=int(max_parlays),
+            future_only=bool(future_only),
+            include_markets=inc,
+        )
+    )
+
+    return render_template(
+        "best_bets_parlays.html",
+        asof_date=str(date_q),
+        min_score=float(min_score),
+        best_bets_count=int(best_bets_count),
+        candidate_pool=max(int(candidate_pool), int(parlay_size)),
+        parlay_size=int(parlay_size),
+        max_parlays=int(max_parlays),
+        future_only=bool(future_only),
+        markets_csv=",".join(inc),
+        card=card,
+        generated_utc=dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ"),
+        _error=(card.get("message") if isinstance(card, dict) and card.get("status") == "error" else None),
     )
 
 def _derive_ats_from_edges(date_str: str, existing_gids: set[str] | None = None, ddf: pd.DataFrame | None = None) -> list[dict]:
