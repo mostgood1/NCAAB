@@ -586,3 +586,173 @@ def test_recommendations_page_renders_basketball_rationale(monkeypatch, tmp_path
 	assert "efficiency matchup" in html.lower()
 	assert "Overall" in html
 	assert "Render Home" in html
+
+
+def test_api_recommendations_normalizes_incomplete_rows_and_grouped_hides_null_angles(monkeypatch, tmp_path: Path):
+	app_module = importlib.import_module("app")
+	date_str = "2026-03-22"
+
+	pd.DataFrame(
+		[
+			{
+				"date": date_str,
+				"game_id": "4401",
+				"home_team": "Normalize Home",
+				"away_team": "Normalize Away",
+				"market": "spreads",
+				"period": "full_game",
+				"bet": "Normalize Home",
+				"selection": "Normalize Home",
+				"line": -4.5,
+				"price": -110,
+				"edge": 2.2,
+				"confidence": 0.74,
+				"book": "book_a",
+				"rec_type": "Spread",
+				"rec_code": "ATS",
+				"pred_margin": 7.0,
+			},
+			{
+				"date": date_str,
+				"game_id": "4401",
+				"home_team": "Normalize Home",
+				"away_team": "Normalize Away",
+				"market": "moneyline",
+				"period": "full_game",
+				"pick": "Normalize Home ML",
+				"bet": float("nan"),
+				"selection": float("nan"),
+				"line": None,
+				"line_value": -145.0,
+				"price": None,
+				"edge": 5.5,
+				"confidence": 0.81,
+				"book": "book_b",
+				"rec_type": float("nan"),
+				"rec_code": float("nan"),
+				"pred_margin": 7.0,
+			},
+			{
+				"date": date_str,
+				"game_id": "4401",
+				"home_team": "Normalize Home",
+				"away_team": "Normalize Away",
+				"market": "totals",
+				"period": "full_game",
+				"pick": "Under",
+				"bet": float("nan"),
+				"selection": float("nan"),
+				"line": None,
+				"line_value": 141.5,
+				"price": None,
+				"edge": 6.0,
+				"confidence": 0.79,
+				"book": "book_c",
+				"rec_type": float("nan"),
+				"rec_code": float("nan"),
+				"pred_total": 136.0,
+			},
+			{
+				"date": date_str,
+				"game_id": "4401",
+				"home_team": "Normalize Home",
+				"away_team": "Normalize Away",
+				"market": "spreads",
+				"period": "2h",
+				"pick": "Normalize Away +0.5",
+				"bet": float("nan"),
+				"selection": float("nan"),
+				"line": None,
+				"line_value": 0.5,
+				"price": None,
+				"edge": 9.0,
+				"confidence": 0.86,
+				"book": "book_d",
+				"rec_type": float("nan"),
+				"rec_code": float("nan"),
+				"pred_margin": -1.0,
+			},
+		]
+	).to_csv(tmp_path / "picks_raw.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4401",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Normalize Home",
+				"away_team": "Normalize Away",
+				"pred_total": 136.0,
+				"pred_margin": 7.0,
+				"market_total": 141.5,
+				"start_time": "2026-03-22T19:00:00Z",
+			},
+		]
+	).to_csv(tmp_path / f"predictions_display_{date_str}.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4401",
+				"home_team": "Normalize Home",
+				"away_team": "Normalize Away",
+				"home_off_rating": 114.0,
+				"away_off_rating": 103.0,
+				"home_def_rating": 95.0,
+				"away_def_rating": 101.0,
+				"pace_game_est": 68.5,
+				"home_ppp_mu": 1.13,
+				"away_ppp_mu": 1.01,
+				"home_ppp_allowed_mu": 0.95,
+				"away_ppp_allowed_mu": 1.05,
+				"rest_home": 3.0,
+				"rest_away": 1.0,
+			},
+		]
+	).to_csv(tmp_path / f"features_{date_str}.csv", index=False)
+
+	monkeypatch.setattr(app_module, "OUT", tmp_path)
+	app_module.app.testing = True
+	with app_module.app.test_client() as client:
+		api_resp = client.get(f"/api/recommendations?date={date_str}")
+
+	assert api_resp.status_code == 200
+	payload = api_resp.get_json() or {}
+	rows = payload.get("data") or payload.get("rows") or []
+
+	ats_rows = [r for r in rows if str(r.get("code") or r.get("rec_code") or "").upper() == "ATS"]
+	ou_rows = [r for r in rows if str(r.get("code") or r.get("rec_code") or "").upper() == "OU"]
+	ml_rows = [r for r in rows if str(r.get("code") or r.get("rec_code") or "").upper() == "ML"]
+
+	assert len(ats_rows) == 2
+	assert any(str(r.get("period") or "").lower() == "full_game" for r in ats_rows)
+	assert any(str(r.get("period") or "").lower() == "2h" for r in ats_rows)
+	assert len(ou_rows) == 1
+	assert len(ml_rows) == 1
+
+	ml_row = ml_rows[0]
+	assert ml_row.get("bet_label") == "Normalize Home ML"
+	assert ml_row.get("selection") == "Normalize Home"
+	assert float(ml_row.get("price")) == pytest.approx(-145.0)
+	assert ml_row.get("basketball_summary")
+
+	ou_row = ou_rows[0]
+	assert ou_row.get("bet_label") == "Under 141.5"
+	assert ou_row.get("selection") == "Under"
+	assert ou_row.get("basketball_summary")
+
+	assert not any(str(r.get("bet_label") or "").lower() == "nan" for r in rows)
+	assert not any(str(r.get("code") or r.get("rec_code") or "").strip().lower() in ("", "nan", "none", "null") for r in rows)
+
+	with app_module.app.test_client() as client:
+		page_resp = client.get(f"/recommendations?date={date_str}")
+
+	assert page_resp.status_code == 200
+	html = page_resp.get_data(as_text=True)
+	assert "Normalize Home ML" in html
+	assert "Under 141.5" in html
+	assert "Normalize Home -4.5" in html
+	assert "Normalize Away +0.5" not in html
+	assert ">None<" not in html
+	assert ">nan<" not in html.lower()

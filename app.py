@@ -25750,6 +25750,38 @@ def recommendations():
                 except Exception:
                     return 0.0
 
+            def _group_code(it: dict[str, Any]) -> str:
+                try:
+                    code = str(it.get('rec_code') or it.get('code') or it.get('type') or '').strip().upper()
+                except Exception:
+                    return ''
+                if code in ('', 'NAN', 'NONE', 'NULL', 'OTHER'):
+                    return ''
+                return {
+                    'TOTAL': 'OU',
+                    'TOTALS': 'OU',
+                    'OU': 'OU',
+                    'SPREAD': 'ATS',
+                    'SPREADS': 'ATS',
+                    'ATS': 'ATS',
+                    'MONEYLINE': 'ML',
+                    'ML': 'ML',
+                    'H2H': 'ML',
+                }.get(code, code)
+
+            def _group_period_rank(it: dict[str, Any]) -> int:
+                try:
+                    period_txt = str(it.get('period') or '').strip().lower()
+                except Exception:
+                    return 3
+                if period_txt in ('', 'full_game', 'full', 'game'):
+                    return 0
+                if period_txt in ('2h', 'h2', 'second_half'):
+                    return 1
+                if period_txt in ('1h', 'h1', 'first_half'):
+                    return 2
+                return 3
+
             def _abs_edge_val(it: dict[str, Any]) -> float:
                 try:
                     ev = it.get('abs_edge') if it.get('abs_edge') is not None else it.get('edge')
@@ -25791,16 +25823,23 @@ def recommendations():
             for gkey, items in by_game.items():
                 if not items:
                     continue
-                rep = max(items, key=lambda x: (_priority_val(x), _abs_edge_val(x)))
+                valid_items = [it for it in items if _group_code(it) in ('OU', 'ATS', 'ML')]
+                rep_source = valid_items or items
+                rep = max(rep_source, key=lambda x: (_priority_val(x), -_group_period_rank(x), _abs_edge_val(x)))
                 best_by_code: dict[str, dict[str, Any]] = {}
-                for it in sorted(items, key=lambda x: (_priority_val(x), _abs_edge_val(x)), reverse=True):
-                    code = str(it.get('rec_code') or it.get('code') or 'Other')
+                for it in sorted(items, key=lambda x: (-_group_period_rank(x), _priority_val(x), _abs_edge_val(x)), reverse=True):
+                    code = _group_code(it)
+                    if code not in ('OU', 'ATS', 'ML'):
+                        continue
                     if code not in best_by_code:
                         best_by_code[code] = it
+                if not best_by_code:
+                    continue
                 ordered = sorted(
                     best_by_code.values(),
                     key=lambda x: (
-                        type_order.get(str(x.get('rec_code') or x.get('code') or 'Other'), 9),
+                        type_order.get(_group_code(x) or 'Other', 9),
+                        _group_period_rank(x),
                         -_priority_val(x),
                         -_abs_edge_val(x),
                     ),
@@ -32916,21 +32955,156 @@ def api_recommendations():
             if any(x in m for x in ('moneyline','ml')) or ('moneyline' in b or b.endswith(' ml')):
                 return ('ML','Moneyline')
             return ('Other', 'Other')
-        for r in df.to_dict(orient='records'):
-            item = dict(r)
-            # Infer types when missing
-            rc = str(item.get('rec_code') or '')
-            rt = str(item.get('rec_type') or '')
-            if not rc or not rt:
-                rc2, rt2 = _infer_type(str(item.get('market') or ''), str(item.get('bet') or ''))
-                item['rec_code'] = rc or rc2
-                item['rec_type'] = rt or rt2
-            # Explicit type fields for API consumers
+
+        def _recommendation_missing(val: Any) -> bool:
             try:
-                item['type'] = item.get('type') or item.get('rec_code')
-                item['type_label'] = item.get('type_label') or item.get('rec_type')
+                if val is None:
+                    return True
+                if pd.isna(val):
+                    return True
             except Exception:
                 pass
+            try:
+                s = str(val).strip()
+            except Exception:
+                return True
+            return (not s) or (s.lower() in ('nan', 'none', 'null'))
+
+        def _recommendation_text(val: Any) -> str:
+            return '' if _recommendation_missing(val) else str(val).strip()
+
+        def _recommendation_code(val: Any) -> str:
+            code = _recommendation_text(val).upper()
+            code_map = {
+                'TOTAL': 'OU',
+                'TOTALS': 'OU',
+                'OU': 'OU',
+                'SPREAD': 'ATS',
+                'SPREADS': 'ATS',
+                'ATS': 'ATS',
+                'MONEYLINE': 'ML',
+                'ML': 'ML',
+                'H2H': 'ML',
+            }
+            if code in ('', 'OTHER'):
+                return ''
+            return code_map.get(code, code)
+
+        def _seed_selection(code: str, primary: Any, fallback: Any) -> str:
+            try:
+                c = str(code or '').upper()
+                s = _recommendation_text(primary) or _recommendation_text(fallback)
+                if not s:
+                    return ''
+                sl = s.lower()
+                if c == 'OU':
+                    if sl.startswith('over'):
+                        return 'Over'
+                    if sl.startswith('under'):
+                        return 'Under'
+                    return s.split(' ')[0] if s else ''
+                if c == 'ML':
+                    if s.upper().endswith(' ML'):
+                        return s[:-3].strip()
+                    return s.split(' ML')[0].strip() if ' ML' in s else s
+                if c == 'ATS':
+                    parts = s.split()
+                    if len(parts) >= 2:
+                        return ' '.join(parts[:-1]).strip()
+                    return s
+                return s
+            except Exception:
+                return ''
+
+        def _normalize_recommendation_item(item: dict[str, Any]) -> dict[str, Any]:
+            row = dict(item)
+
+            def _numeric(val: Any) -> float | None:
+                try:
+                    if val is None:
+                        return None
+                    s = str(val).strip()
+                    if (not s) or (s.lower() in ('nan', 'none', 'null')):
+                        return None
+                    out = float(s)
+                    return out if np.isfinite(out) else None
+                except Exception:
+                    return None
+
+            market_txt = _recommendation_text(row.get('market')).lower()
+            pick_txt = _recommendation_text(row.get('pick'))
+            bet_txt = _recommendation_text(row.get('bet'))
+            label_txt = _recommendation_text(row.get('bet_label'))
+            selection_txt = _recommendation_text(row.get('selection'))
+            type_txt = _recommendation_text(row.get('rec_type') or row.get('type_label'))
+            code_txt = _recommendation_code(row.get('rec_code') or row.get('code') or row.get('type'))
+
+            row['book'] = _recommendation_text(row.get('book'))
+
+            period_txt = _recommendation_text(row.get('period')).lower()
+            row['period'] = period_txt or 'full_game'
+
+            if not bet_txt and pick_txt:
+                bet_txt = pick_txt
+            row['bet'] = bet_txt or None
+
+            if (not code_txt) or (not type_txt):
+                code_infer, type_infer = _infer_type(market_txt, bet_txt or pick_txt or selection_txt or label_txt)
+                if not code_txt:
+                    code_txt = _recommendation_code(code_infer)
+                if not type_txt:
+                    type_txt = type_infer
+
+            if code_txt:
+                row['rec_code'] = code_txt
+                row['code'] = code_txt
+                row['type'] = code_txt
+            else:
+                row['rec_code'] = None
+                row['code'] = None
+                row['type'] = None
+
+            if type_txt:
+                row['rec_type'] = type_txt
+                row['type_label'] = type_txt
+            else:
+                row['rec_type'] = None
+                row['type_label'] = None
+
+            line_num = _numeric(row.get('line'))
+            line_value_num = _numeric(row.get('line_value'))
+            price_num = _numeric(row.get('price'))
+            if code_txt == 'ML':
+                if price_num is None and line_value_num is not None:
+                    row['price'] = float(line_value_num)
+            elif line_num is None and line_value_num is not None:
+                row['line'] = float(line_value_num)
+
+            if not selection_txt:
+                selection_txt = _seed_selection(code_txt, pick_txt or label_txt or bet_txt, bet_txt or pick_txt or label_txt)
+            row['selection'] = selection_txt or None
+
+            if code_txt == 'ML':
+                if not row.get('bet') and selection_txt:
+                    row['bet'] = f"{selection_txt} ML"
+            elif code_txt == 'OU':
+                if not row.get('bet') and selection_txt:
+                    row['bet'] = selection_txt
+            elif code_txt == 'ATS':
+                if not row.get('bet') and (pick_txt or selection_txt):
+                    row['bet'] = pick_txt or selection_txt
+
+            if not label_txt and row.get('bet'):
+                row['bet_label'] = _recommendation_text(row.get('bet'))
+            elif label_txt:
+                row['bet_label'] = label_txt
+            else:
+                row['bet_label'] = None
+
+            return row
+
+        for r in df.to_dict(orient='records'):
+            item = _normalize_recommendation_item(dict(r))
             # Explicit label
             item['bet_label'] = _label(item)
             # Branding
@@ -34216,6 +34390,141 @@ def api_recommendations():
         except Exception:
             return None
 
+    def _recommendation_missing(val: Any) -> bool:
+        try:
+            if val is None:
+                return True
+            if pd.isna(val):
+                return True
+        except Exception:
+            pass
+        try:
+            s = str(val).strip()
+        except Exception:
+            return True
+        return (not s) or (s.lower() in ('nan', 'none', 'null'))
+
+    def _recommendation_text(val: Any) -> str:
+        return '' if _recommendation_missing(val) else str(val).strip()
+
+    def _recommendation_code(val: Any) -> str:
+        code = _recommendation_text(val).upper()
+        code_map = {
+            'TOTAL': 'OU',
+            'TOTALS': 'OU',
+            'OU': 'OU',
+            'SPREAD': 'ATS',
+            'SPREADS': 'ATS',
+            'ATS': 'ATS',
+            'MONEYLINE': 'ML',
+            'ML': 'ML',
+            'H2H': 'ML',
+        }
+        if code in ('', 'OTHER'):
+            return ''
+        return code_map.get(code, code)
+
+    def _seed_selection(code: str, primary: Any, fallback: Any) -> str:
+        try:
+            c = str(code or '').upper()
+            s = _recommendation_text(primary) or _recommendation_text(fallback)
+            if not s:
+                return ''
+            sl = s.lower()
+            if c == 'OU':
+                if sl.startswith('over'):
+                    return 'Over'
+                if sl.startswith('under'):
+                    return 'Under'
+                return s.split(' ')[0] if s else ''
+            if c == 'ML':
+                if s.upper().endswith(' ML'):
+                    return s[:-3].strip()
+                return s.split(' ML')[0].strip() if ' ML' in s else s
+            if c == 'ATS':
+                parts = s.split()
+                if len(parts) >= 2:
+                    return ' '.join(parts[:-1]).strip()
+                return s
+            return s
+        except Exception:
+            return ''
+
+    def _normalize_recommendation_item(item: dict[str, Any]) -> dict[str, Any]:
+        row = dict(item)
+
+        market_txt = _recommendation_text(row.get('market')).lower()
+        pick_txt = _recommendation_text(row.get('pick'))
+        bet_txt = _recommendation_text(row.get('bet'))
+        label_txt = _recommendation_text(row.get('bet_label'))
+        selection_txt = _recommendation_text(row.get('selection'))
+        type_txt = _recommendation_text(row.get('rec_type') or row.get('type_label'))
+        code_txt = _recommendation_code(row.get('rec_code') or row.get('code') or row.get('type'))
+
+        row['book'] = _recommendation_text(row.get('book'))
+
+        period_txt = _recommendation_text(row.get('period')).lower()
+        row['period'] = period_txt or 'full_game'
+
+        if not bet_txt and pick_txt:
+            bet_txt = pick_txt
+        row['bet'] = bet_txt or None
+
+        if (not code_txt) or (not type_txt):
+            code_infer, type_infer = _infer_type(market_txt, bet_txt or pick_txt or selection_txt or label_txt)
+            if not code_txt:
+                code_txt = _recommendation_code(code_infer)
+            if not type_txt:
+                type_txt = type_infer
+
+        if code_txt:
+            row['rec_code'] = code_txt
+            row['code'] = code_txt
+            row['type'] = code_txt
+        else:
+            row['rec_code'] = None
+            row['code'] = None
+            row['type'] = None
+
+        if type_txt:
+            row['rec_type'] = type_txt
+            row['type_label'] = type_txt
+        else:
+            row['rec_type'] = None
+            row['type_label'] = None
+
+        line_num = _as_float(row.get('line'))
+        line_value_num = _as_float(row.get('line_value'))
+        price_num = _as_float(row.get('price'))
+        if code_txt == 'ML':
+            if price_num is None and line_value_num is not None:
+                row['price'] = float(line_value_num)
+        elif line_num is None and line_value_num is not None:
+            row['line'] = float(line_value_num)
+
+        if not selection_txt:
+            selection_txt = _seed_selection(code_txt, pick_txt or label_txt or bet_txt, bet_txt or pick_txt or label_txt)
+        row['selection'] = selection_txt or None
+
+        if code_txt == 'ML':
+            if not row.get('bet') and selection_txt:
+                row['bet'] = f"{selection_txt} ML"
+        elif code_txt == 'OU':
+            if not row.get('bet') and selection_txt:
+                row['bet'] = selection_txt
+        elif code_txt == 'ATS':
+            if not row.get('bet') and (pick_txt or selection_txt):
+                row['bet'] = pick_txt or selection_txt
+
+        if not label_txt and row.get('bet'):
+            row['bet_label'] = _recommendation_text(row.get('bet'))
+        elif label_txt:
+            row['bet_label'] = label_txt
+        else:
+            row['bet_label'] = None
+
+        return row
+
     def _recommendation_priority_payload(r: dict[str, Any], matchup_present: bool = False) -> dict[str, Any]:
         try:
             code = str(r.get("rec_code") or r.get("code") or "").upper()
@@ -34305,6 +34614,49 @@ def api_recommendations():
         except Exception:
             return (0.0, 0.0, 0.0, 0.0, 0.0)
 
+    def _recommendation_period_rank(period_val: Any) -> int:
+        period_txt = _recommendation_text(period_val).lower()
+        if period_txt in ('', 'full_game', 'full', 'game'):
+            return 0
+        if period_txt in ('2h', 'h2', 'second_half'):
+            return 1
+        if period_txt in ('1h', 'h1', 'first_half'):
+            return 2
+        return 3
+
+    def _dedupe_recommendation_rows(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        def _key(row: dict[str, Any]) -> tuple[str, str, str]:
+            gid = _recommendation_text(row.get('game_id'))
+            if not gid:
+                gid = f"{_recommendation_pair_key(row.get('home_team') or row.get('home_team_name'), row.get('away_team') or row.get('away_team_name'))}::{_recommendation_text(row.get('date'))}"
+            code = _recommendation_code(row.get('rec_code') or row.get('code') or row.get('type'))
+            period = _recommendation_text(row.get('period')).lower() or 'full_game'
+            return gid, code, period
+
+        def _rank(row: dict[str, Any]) -> tuple[int, int, int, float, float, int, int, int]:
+            return (
+                1 if _recommendation_period_rank(row.get('period')) == 0 else 0,
+                1 if _recommendation_text(row.get('basketball_summary')) else 0,
+                1 if _recommendation_text(row.get('bet_label') or row.get('bet')) else 0,
+                _as_float(row.get('recommendation_priority_score')) or 0.0,
+                _as_float(row.get('abs_edge')) or abs(_as_float(row.get('edge')) or 0.0),
+                1 if _as_float(row.get('line')) is not None else 0,
+                1 if _as_float(row.get('price')) is not None else 0,
+                1 if _recommendation_text(row.get('book')) else 0,
+            )
+
+        best: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for raw in items or []:
+            row = _normalize_recommendation_item(dict(raw))
+            code = _recommendation_code(row.get('rec_code') or row.get('code') or row.get('type'))
+            if code not in ('OU', 'ATS', 'ML'):
+                continue
+            dedupe_key = _key(row)
+            current = best.get(dedupe_key)
+            if current is None or _rank(row) > _rank(current):
+                best[dedupe_key] = row
+        return sorted(best.values(), key=_recommendation_priority_sort_key, reverse=True)
+
     def _infer_selection(code: str, bet_label: Any, bet: Any) -> str:
         try:
             c = str(code or "").upper()
@@ -34340,16 +34692,56 @@ def api_recommendations():
         # Ensure selection field exists for the UI pills
         normalized = []
         for r in (rows or []):
-            rr = dict(r)
-            code = str(rr.get("rec_code") or rr.get("code") or "").upper()
-            if not rr.get("selection"):
-                rr["selection"] = _infer_selection(code, rr.get("bet_label"), rr.get("bet"))
+            rr = _normalize_recommendation_item(dict(r))
+            code = _recommendation_code(rr.get("rec_code") or rr.get("code") or rr.get("type"))
+            if code:
+                rr["rec_code"] = code
+                rr["code"] = code
+                rr["type"] = code
+            if not _recommendation_text(rr.get("selection")):
+                rr["selection"] = _infer_selection(code, rr.get("bet_label") or rr.get("pick"), rr.get("bet") or rr.get("pick")) or None
+            if not _recommendation_text(rr.get("bet")) and _recommendation_text(rr.get("pick")):
+                rr["bet"] = _recommendation_text(rr.get("pick"))
+            if not _recommendation_text(rr.get("bet_label")):
+                rr["bet_label"] = _label(rr)
             # Ensure abs_edge is present as a numeric when possible
             if rr.get("abs_edge") is None:
                 ev = _as_float(rr.get("edge"))
                 rr["abs_edge"] = abs(ev) if ev is not None else None
             normalized.append(rr)
         rows = normalized
+    except Exception:
+        pass
+
+    try:
+        repaired_rows = list(rows or [])
+        for r in (rows or []):
+            rr = _normalize_recommendation_item(dict(r))
+            market_txt = _recommendation_text(rr.get('market')).lower()
+            pick_txt = _recommendation_text(rr.get('pick') or rr.get('bet') or rr.get('bet_label'))
+            code = _recommendation_code(rr.get('rec_code') or rr.get('code') or rr.get('type'))
+            is_moneyline_like = (
+                code == 'ML'
+                or market_txt in ('moneyline', 'h2h')
+                or (' ML' in pick_txt.upper())
+                or pick_txt.upper().endswith('ML')
+            )
+            if not is_moneyline_like:
+                continue
+            rr['rec_code'] = 'ML'
+            rr['code'] = 'ML'
+            rr['type'] = 'ML'
+            rr['rec_type'] = 'Moneyline'
+            rr['type_label'] = 'Moneyline'
+            if not _recommendation_text(rr.get('selection')):
+                rr['selection'] = _seed_selection('ML', rr.get('pick') or rr.get('bet_label'), rr.get('bet')) or None
+            if rr.get('selection') and not _recommendation_text(rr.get('bet')):
+                rr['bet'] = f"{rr['selection']} ML"
+            if _as_float(rr.get('price')) is None and _as_float(rr.get('line_value')) is not None:
+                rr['price'] = _as_float(rr.get('line_value'))
+            rr['bet_label'] = _label(rr)
+            repaired_rows.append(rr)
+        rows = repaired_rows
     except Exception:
         pass
 
@@ -34369,6 +34761,97 @@ def api_recommendations():
                     slate_ids = set(ddf['game_id'].astype(str).tolist())
                     if slate_ids:
                         rows = [r for r in rows if str(r.get('game_id') or '').strip() in slate_ids]
+    except Exception:
+        pass
+
+    try:
+        ml_seed_map: dict[str, dict[str, Any]] = {}
+        for raw in rows:
+            rr = _normalize_recommendation_item(dict(raw))
+            gid = _recommendation_text(rr.get('game_id'))
+            if not gid:
+                continue
+            market_txt = _recommendation_text(rr.get('market')).lower()
+            pick_txt = _recommendation_text(rr.get('pick') or rr.get('bet') or rr.get('bet_label'))
+            code_txt = _recommendation_code(rr.get('rec_code') or rr.get('code') or rr.get('type'))
+            is_moneyline_like = (
+                code_txt == 'ML'
+                or market_txt in ('moneyline', 'h2h')
+                or (' ML' in pick_txt.upper())
+                or pick_txt.upper().endswith('ML')
+            )
+            if not is_moneyline_like:
+                continue
+            current = ml_seed_map.get(gid)
+            current_edge = _as_float((current or {}).get('abs_edge')) or abs(_as_float((current or {}).get('edge')) or 0.0)
+            rr_edge = _as_float(rr.get('abs_edge')) or abs(_as_float(rr.get('edge')) or 0.0)
+            if current is None or rr_edge > current_edge:
+                ml_seed_map[gid] = rr
+
+        existing_ml_ids = {
+            str(r.get('game_id') or '').strip()
+            for r in rows
+            if _recommendation_code(r.get('rec_code') or r.get('code') or r.get('type')) == 'ML'
+        }
+
+        target_date = (request.args.get('date') or '').strip()
+        disp_path_ml_fix = OUT / f"predictions_display_{target_date}.csv" if target_date else None
+        ddf_ml_fix = pd.read_csv(disp_path_ml_fix, dtype=str, low_memory=False) if (disp_path_ml_fix and disp_path_ml_fix.exists()) else pd.DataFrame()
+        if isinstance(ddf_ml_fix, pd.DataFrame) and not ddf_ml_fix.empty:
+            try:
+                ddf_ml_fix['game_id'] = ddf_ml_fix['game_id'].astype(str)
+            except Exception:
+                pass
+            for rec in ddf_ml_fix.to_dict(orient='records'):
+                gid = str(rec.get('game_id') or '').strip()
+                if (not gid) or (gid in existing_ml_ids):
+                    continue
+                seed = _normalize_recommendation_item(dict(ml_seed_map.get(gid) or {}))
+                home_nm = _recommendation_text(seed.get('home_team') or rec.get('home_team') or rec.get('home_team_name'))
+                away_nm = _recommendation_text(seed.get('away_team') or rec.get('away_team') or rec.get('away_team_name'))
+                pm = _as_float(seed.get('pred_margin'))
+                if pm is None:
+                    pm = _as_float(rec.get('pred_margin'))
+                selection_txt = _recommendation_text(seed.get('selection'))
+                if not selection_txt:
+                    selection_txt = home_nm if (pm is None or pm >= 0) else away_nm
+                price_v = _as_float(seed.get('price'))
+                if price_v is None:
+                    price_v = _as_float(seed.get('line_value'))
+                edge_v = _as_float(seed.get('edge'))
+                if edge_v is None and pm is not None:
+                    edge_v = float(max(0.0, min(2.0, abs(pm) / 6.0)))
+                item = {
+                    'type': 'ML',
+                    'code': 'ML',
+                    'rec_code': 'ML',
+                    'rec_type': 'Moneyline',
+                    'type_label': 'Moneyline',
+                    'market': 'h2h',
+                    'period': _recommendation_text(seed.get('period')).lower() or 'full_game',
+                    'book': _recommendation_text(seed.get('book')),
+                    'bet': f"{selection_txt} ML" if selection_txt else None,
+                    'bet_label': f"{selection_txt} ML" if selection_txt else None,
+                    'selection': selection_txt or None,
+                    'line': None,
+                    'line_value': seed.get('line_value'),
+                    'price': price_v,
+                    'edge': edge_v,
+                    'pred_margin': pm,
+                    'pred_total': _as_float(seed.get('pred_total')) if seed else _as_float(rec.get('pred_total')),
+                    'game_id': gid,
+                    'date': target_date or rec.get('date'),
+                    'display_date': rec.get('display_date') or target_date,
+                    'home_team': home_nm,
+                    'away_team': away_nm,
+                    'start_time': rec.get('start_time') or seed.get('start_time'),
+                    'start_time_iso': rec.get('start_time_iso') or seed.get('start_time_iso'),
+                    'start_time_local': rec.get('start_time_local') or seed.get('start_time_local'),
+                    'start_tz_abbr': rec.get('start_tz_abbr') or seed.get('start_tz_abbr'),
+                    'pick': _recommendation_text(seed.get('pick')) or (f"{selection_txt} ML" if selection_txt else None),
+                }
+                rows.append(item)
+                existing_ml_ids.add(gid)
     except Exception:
         pass
 
@@ -34396,6 +34879,11 @@ def api_recommendations():
             rr.update(_recommendation_priority_payload(rr, matchup_present=matchup_present))
             prioritized_rows.append(rr)
         rows = sorted(prioritized_rows, key=_recommendation_priority_sort_key, reverse=True)
+    except Exception:
+        pass
+
+    try:
+        rows = _dedupe_recommendation_rows(rows)
     except Exception:
         pass
 
@@ -34604,22 +35092,34 @@ def api_recommendations():
             # Require EV_units >= 0.02 per 1 unit risk.
             if code == 'ML':
                 price_v = _sf(rr.get('price'))
-                if price_v is None:
-                    continue
-                if price_v < 0 and abs(price_v) > 200.0:
-                    continue
-                if price_v > 180.0:
-                    continue
                 p_win = _sf(rr.get('prob'))
                 if p_win is None:
                     p_win = _sf(rr.get('p_win'))
                 if p_win is None:
-                    continue
-                ev_units = _expected_units_per_1_risk(p_win, price_v)
-                if ev_units is None or float(ev_units) < 0.02:
-                    continue
-                rr['ev_units'] = float(ev_units)
-                rr['edge'] = float(ev_units)
+                    pm = _sf(rr.get('pred_margin'))
+                    if pm is not None:
+                        try:
+                            p_win = float(max(0.0, min(1.0, 0.5 + (0.5 * np.tanh(pm / 6.0)))))
+                            rr['prob'] = p_win
+                        except Exception:
+                            p_win = None
+                if price_v is None:
+                    if p_win is None:
+                        continue
+                    rr['edge'] = float(abs(p_win - 0.5))
+                    rr['abs_edge'] = float(abs(rr['edge']))
+                else:
+                    if price_v < 0 and abs(price_v) > 200.0:
+                        continue
+                    if price_v > 180.0:
+                        continue
+                    if p_win is None:
+                        continue
+                    ev_units = _expected_units_per_1_risk(p_win, price_v)
+                    if ev_units is None or float(ev_units) < 0.02:
+                        continue
+                    rr['ev_units'] = float(ev_units)
+                    rr['edge'] = float(ev_units)
 
             # Maintain abs_edge when possible (many consumers sort by it)
             ev = _sf(rr.get('edge'))

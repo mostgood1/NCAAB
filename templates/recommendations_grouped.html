@@ -329,7 +329,8 @@
             </thead>
             <tbody>
               {% for it in g.recs %}
-              {% if ((it.code or '')|upper|trim) != 'OTHER' and ((it.type or '')|upper|trim) != 'OTHER' %}
+              {% set rec_code = (it.code or it.rec_code or it.type or '')|upper|trim %}
+              {% if rec_code in ['OU', 'ATS', 'ML'] %}
               <tr>
                 <td><span class="pill {{ it.code|e }}" title="{{ it.market }}">{{ it.type }}</span></td>
                 <td>{{ it.book or '' }}</td>
