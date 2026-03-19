@@ -27,6 +27,11 @@
     .chip.ml{background:#12324e22;border-color:#1d4d75;color:#bfe2ff}
     .chip.ou{background:#5e2a0a22;border-color:#a55c21;color:#ffd8ad}
     .chip.ats{background:#1f3f2a22;border-color:#2b5a3a;color:#bfeecb}
+    .whyCopy{color:var(--text);font-size:13px;line-height:1.45}
+    .reasonCopy{color:var(--muted);font-size:12px;line-height:1.4}
+    .priorityPills{display:flex;flex-wrap:wrap;gap:6px}
+    .priorityPill{display:inline-block;background:#0f1730;border:1px solid #2a3a63;border-radius:999px;padding:2px 8px;font-size:11px;color:#d7e0f7}
+    .priorityPill.main{background:#19324a;border-color:#2f5d84;color:#d7eeff}
     .best-play{display:grid;grid-template-columns:2fr 1fr;gap:12px}
     table{width:100%; border-collapse:collapse}
     th,td{border-bottom:1px solid var(--pill-br); padding:8px 6px; font-size:13px; vertical-align:top}
@@ -102,7 +107,26 @@
             <div>
               <div><span class="chip {{ code }}">{{ best.rec_code }}</span> <strong>{{ best.display_pick }}</strong></div>
               <div class="meta mt8">{{ best.matchup }}{% if best.start_time_local %} | {{ best.start_time_local }}{% endif %}</div>
-              <div class="meta mt8">{{ (best.reasons or [])|join(', ') }}</div>
+              {% if best.basketball_summary %}
+                <div class="whyCopy mt8">{{ best.basketball_summary }}</div>
+              {% endif %}
+              <div class="priorityPills mt8">
+                {% if best.recommendation_priority_score is defined and best.recommendation_priority_score is not none %}
+                  <span class="priorityPill main">Overall {{ '%.0f' % best.recommendation_priority_score }}</span>
+                {% endif %}
+                {% if best.basketball_priority_score is defined and best.basketball_priority_score is not none %}
+                  <span class="priorityPill">B {{ '%.0f' % best.basketball_priority_score }}</span>
+                {% endif %}
+                {% if best.sim_support_score is defined and best.sim_support_score is not none %}
+                  <span class="priorityPill">S {{ '%.0f' % best.sim_support_score }}</span>
+                {% endif %}
+                {% if best.value_support_score is defined and best.value_support_score is not none %}
+                  <span class="priorityPill">V {{ '%.0f' % best.value_support_score }}</span>
+                {% endif %}
+              </div>
+              {% if best.model_reasons %}
+                <div class="reasonCopy mt8">{{ best.model_reasons|join(', ') }}</div>
+              {% endif %}
             </div>
             <div class="grid">
               <div class="kpi"><div class="label">Price</div><div class="value">{% if best.price is not none %}{{ '%+.0f' % best.price }}{% else %}-{% endif %}</div></div>
@@ -134,6 +158,7 @@
                   <th class="right">Price</th>
                   <th class="right">P(win)</th>
                   <th class="right">Score</th>
+                  <th>Priority</th>
                   <th>Start</th>
                   <th>Reasons</th>
                 </tr>
@@ -148,8 +173,33 @@
                     <td class="right">{% if pick.price is not none %}{{ '%+.0f' % pick.price }}{% else %}-{% endif %}</td>
                     <td class="right">{{ '%.3f' % (pick.p_win or 0.0) }}</td>
                     <td class="right">{{ '%.1f' % (pick.score or 0.0) }}</td>
+                    <td>
+                      <div class="priorityPills">
+                        {% if pick.recommendation_priority_score is defined and pick.recommendation_priority_score is not none %}
+                          <span class="priorityPill main">Overall {{ '%.0f' % pick.recommendation_priority_score }}</span>
+                        {% endif %}
+                        {% if pick.basketball_priority_score is defined and pick.basketball_priority_score is not none %}
+                          <span class="priorityPill">B {{ '%.0f' % pick.basketball_priority_score }}</span>
+                        {% endif %}
+                        {% if pick.sim_support_score is defined and pick.sim_support_score is not none %}
+                          <span class="priorityPill">S {{ '%.0f' % pick.sim_support_score }}</span>
+                        {% endif %}
+                        {% if pick.value_support_score is defined and pick.value_support_score is not none %}
+                          <span class="priorityPill">V {{ '%.0f' % pick.value_support_score }}</span>
+                        {% endif %}
+                      </div>
+                    </td>
                     <td>{{ pick.start_time_local or '' }}</td>
-                    <td class="muted">{{ (pick.reasons or [])|join(', ') }}</td>
+                    <td>
+                      {% if pick.basketball_summary %}
+                        <div class="whyCopy">{{ pick.basketball_summary }}</div>
+                      {% endif %}
+                      {% if pick.model_reasons %}
+                        <div class="reasonCopy mt8">{{ pick.model_reasons|join(', ') }}</div>
+                      {% elif pick.reasons %}
+                        <div class="reasonCopy mt8">{{ pick.reasons|join(', ') }}</div>
+                      {% endif %}
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -169,6 +219,7 @@
                 <div class="kpi"><div class="label">Combined P(win)</div><div class="value">{{ '%.3f' % (parlay.combined_p_win or 0.0) }}</div></div>
                 <div class="kpi"><div class="label">Approx Odds</div><div class="value">{% if parlay.approx_american_odds is not none %}{{ '%+d' % parlay.approx_american_odds }}{% else %}-{% endif %}</div></div>
                 <div class="kpi"><div class="label">EV / 1 Risk</div><div class="value">{{ '%+.2f' % (parlay.expected_units_per_1_risk or 0.0) }}</div></div>
+                <div class="kpi"><div class="label">Priority</div><div class="value">{{ '%.1f' % (parlay.avg_recommendation_priority or 0.0) }}</div></div>
                 <div class="kpi"><div class="label">Min Leg Score</div><div class="value">{{ '%.1f' % (parlay.min_leg_score or 0.0) }}</div></div>
               </div>
               <div class="legs">
@@ -177,7 +228,21 @@
                   <div class="leg">
                     <div><span class="chip {{ code }}">{{ leg.rec_code }}</span> <strong>{{ leg.display_pick }}</strong></div>
                     <div class="meta mt8">{{ leg.matchup }}{% if leg.start_time_local %} | {{ leg.start_time_local }}{% endif %}</div>
+                    {% if leg.basketball_summary %}
+                      <div class="whyCopy mt8">{{ leg.basketball_summary }}</div>
+                    {% endif %}
+                    <div class="priorityPills mt8">
+                      {% if leg.recommendation_priority_score is defined and leg.recommendation_priority_score is not none %}
+                        <span class="priorityPill main">Overall {{ '%.0f' % leg.recommendation_priority_score }}</span>
+                      {% endif %}
+                      {% if leg.basketball_priority_score is defined and leg.basketball_priority_score is not none %}
+                        <span class="priorityPill">B {{ '%.0f' % leg.basketball_priority_score }}</span>
+                      {% endif %}
+                    </div>
                     <div class="meta mt8">Price {% if leg.price is not none %}{{ '%+.0f' % leg.price }}{% else %}-{% endif %} | P(win) {{ '%.3f' % (leg.p_win or 0.0) }} | Score {{ '%.1f' % (leg.score or 0.0) }}</div>
+                    {% if leg.model_reasons %}
+                      <div class="reasonCopy mt8">{{ leg.model_reasons|join(', ') }}</div>
+                    {% endif %}
                   </div>
                 {% endfor %}
               </div>
