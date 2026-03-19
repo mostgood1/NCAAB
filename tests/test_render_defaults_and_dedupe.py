@@ -756,3 +756,151 @@ def test_api_recommendations_normalizes_incomplete_rows_and_grouped_hides_null_a
 	assert "Normalize Away +0.5" not in html
 	assert ">None<" not in html
 	assert ">nan<" not in html.lower()
+
+
+def test_api_recommendations_repairs_synthetic_ats_lines_and_skips_bad_full_game_total_sentence(monkeypatch, tmp_path: Path):
+	app_module = importlib.import_module("app")
+	date_str = "2026-03-23"
+
+	pd.DataFrame(
+		[
+			{
+				"date": date_str,
+				"game_id": "4501",
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"market": "totals",
+				"period": "full_game",
+				"bet": "Under",
+				"selection": "Under",
+				"line": 151.5,
+				"price": -110,
+				"edge": 74.3,
+				"confidence": 0.79,
+				"book": "book_totals",
+				"rec_type": "Totals",
+				"rec_code": "OU",
+				"pred_total": 77.22501716613769,
+				"pred_margin": 24.206571197509767,
+			},
+		]
+	).to_csv(tmp_path / "picks_raw.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4501",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"pred_total": 77.22501716613769,
+				"pred_margin": 24.206571197509767,
+				"market_total": 151.5,
+				"start_time": "2026-03-23T23:10:00Z",
+			},
+		]
+	).to_csv(tmp_path / f"predictions_display_{date_str}.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4501",
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"home_off_rating": 102.0,
+				"away_off_rating": 107.0,
+				"home_def_rating": 94.0,
+				"away_def_rating": 93.0,
+				"pace_game_est": 68.0,
+				"home_ppp_mu": 1.245830359772067,
+				"away_ppp_mu": 1.169375749417494,
+				"home_ppp_allowed_mu": 1.0071233323844564,
+				"away_ppp_allowed_mu": 0.930657496087942,
+				"rest_home": 4.0,
+				"rest_away": 2.0,
+			},
+			{
+				"game_id": "4502",
+				"home_team": "Tempo Median Home",
+				"away_team": "Tempo Median Away",
+				"home_off_rating": 111.0,
+				"away_off_rating": 109.0,
+				"home_def_rating": 101.0,
+				"away_def_rating": 100.0,
+				"pace_game_est": 74.0,
+				"home_ppp_mu": 1.17,
+				"away_ppp_mu": 1.15,
+				"home_ppp_allowed_mu": 1.03,
+				"away_ppp_allowed_mu": 1.02,
+				"rest_home": 2.0,
+				"rest_away": 2.0,
+			},
+		]
+	).to_csv(tmp_path / f"features_{date_str}.csv", index=False)
+
+	(tmp_path / "picks").mkdir()
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4501",
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"ats_side": "home",
+				"closing_spread_home": -3.0,
+				"spread_home": -3.0,
+				"_pred_margin_blend": 24.206571197509767,
+			},
+		]
+	).to_csv(tmp_path / "picks" / f"ats_picks_{date_str}.csv", index=False)
+
+	(tmp_path / "outputs").mkdir()
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4501",
+				"market": "spreads",
+				"period": "full_game",
+				"book": "BetMGM",
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"home_spread": -30.5,
+				"away_spread": 30.5,
+				"home_spread_price": -115.0,
+				"away_spread_price": -105.0,
+				"pair_key": "michiganwolverines::howardbison",
+			},
+		]
+	).to_csv(tmp_path / "outputs" / f"games_with_closing_{date_str}.csv", index=False)
+
+	monkeypatch.setattr(app_module, "OUT", tmp_path)
+	monkeypatch.setattr(app_module.os, "getcwd", lambda: str(tmp_path))
+	app_module.app.testing = True
+
+	with app_module.app.test_client() as client:
+		api_resp = client.get(f"/api/recommendations?date={date_str}")
+
+	assert api_resp.status_code == 200
+	payload = api_resp.get_json() or {}
+	rows = payload.get("data") or payload.get("rows") or []
+
+	ats_row = next(r for r in rows if str(r.get("game_id") or "") == "4501" and str(r.get("code") or r.get("rec_code") or "").upper() == "ATS")
+	ou_row = next(r for r in rows if str(r.get("game_id") or "") == "4501" and str(r.get("code") or r.get("rec_code") or "").upper() == "OU")
+
+	assert float(ats_row.get("line")) == pytest.approx(-30.5)
+	assert ats_row.get("bet_label") == "Michigan Wolverines -30.5"
+	assert float(ats_row.get("price")) == pytest.approx(-115.0)
+	assert ats_row.get("book") == "BetMGM"
+
+	summary = str(ou_row.get("basketball_summary") or "")
+	assert "Tempo projects slower" in summary
+	assert ("Feature-based scoring" in summary) or ("combined scoring environment" in summary)
+	assert "74.3 points below the number" not in summary
+
+	with app_module.app.test_client() as client:
+		page_resp = client.get(f"/recommendations?date={date_str}")
+
+	assert page_resp.status_code == 200
+	html = page_resp.get_data(as_text=True)
+	assert "Michigan Wolverines -30.5" in html
+	assert "Michigan Wolverines -3.0" not in html

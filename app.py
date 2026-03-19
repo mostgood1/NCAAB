@@ -32765,40 +32765,66 @@ def api_recommendations():
             pred_total = _recommendation_matchup_float(row.get('pred_total'))
             combined_ppp = _expected_combined_ppp_from_feature_row(feature_row)
             expected_total = (pace_game * combined_ppp) if (pace_game is not None and combined_ppp is not None) else None
+            period_txt = str(row.get('period') or '').strip().lower()
+            pred_total_untrusted = False
+            if period_txt in ('', 'full_game', 'full', 'game') and pred_total is not None:
+                if (line_val is not None) and (pred_total < max(100.0, line_val * 0.72)):
+                    pred_total_untrusted = True
+                if (not pred_total_untrusted) and (expected_total is not None) and (line_val is not None):
+                    if (abs(pred_total - expected_total) >= 35.0) and ((abs(line_val - expected_total) + 5.0) < abs(line_val - pred_total)):
+                        pred_total_untrusted = True
             reasons = []
+            pace_reason = None
+            if (pace_game is not None) and (pace_median is not None):
+                if pace_game <= (pace_median - 1.5):
+                    pace_reason = f"Tempo projects slower than the slate median at about {pace_game:.1f} possessions."
+                elif pace_game >= (pace_median + 1.5):
+                    pace_reason = f"Tempo projects faster than the slate median at about {pace_game:.1f} possessions."
+                else:
+                    pace_reason = f"Tempo projects near the slate median at about {pace_game:.1f} possessions."
             if is_over:
-                if (pace_game is not None) and (pace_median is not None) and (pace_game >= (pace_median + 1.5)):
-                    reasons.append(f"Tempo projects faster than the slate median at about {pace_game:.1f} possessions.")
+                if pace_reason:
+                    reasons.append(pace_reason)
                 if (combined_ppp is not None) and (combined_ppp_median is not None) and (combined_ppp >= (combined_ppp_median + 0.04)):
                     reasons.append(f"The combined scoring environment is strong at roughly {combined_ppp:.3f} expected PPP.")
                 elif (expected_total is not None) and (line_val is not None) and (expected_total > (line_val + 3.0)):
                     reasons.append(f"Feature-based scoring comes in around {expected_total:.1f}, above the market total.")
-                if (pred_total is not None) and (line_val is not None) and (pred_total > (line_val + 2.0)):
+                if (not pred_total_untrusted) and (pred_total is not None) and (line_val is not None) and (pred_total > (line_val + 2.0)):
                     reasons.append(f"The model total sits {pred_total - line_val:.1f} points above the number.")
+                elif pred_total_untrusted and (expected_total is not None) and (line_val is not None) and len(reasons) < 3:
+                    if expected_total < (line_val - 3.0):
+                        reasons.append(f"Feature-based scoring lands around {expected_total:.1f}, so basketball factors do not naturally reinforce this over.")
+                    else:
+                        reasons.append(f"Feature-based scoring lands around {expected_total:.1f}, keeping the basketball case for this over fairly thin.")
                 score = 0.0
                 if (pace_game is not None) and (pace_median is not None):
                     score += max(0.0, pace_game - pace_median) * 0.8
                 if (combined_ppp is not None) and (combined_ppp_median is not None):
                     score += max(0.0, combined_ppp - combined_ppp_median) * 30.0
-                if (pred_total is not None) and (line_val is not None):
+                if (not pred_total_untrusted) and (pred_total is not None) and (line_val is not None):
                     score += max(0.0, pred_total - line_val) * 0.3
                 if (expected_total is not None) and (line_val is not None):
                     score += max(0.0, expected_total - line_val) * 0.15
             else:
-                if (pace_game is not None) and (pace_median is not None) and (pace_game <= (pace_median - 1.5)):
-                    reasons.append(f"Tempo projects slower than the slate median at about {pace_game:.1f} possessions.")
+                if pace_reason:
+                    reasons.append(pace_reason)
                 if (combined_ppp is not None) and (combined_ppp_median is not None) and (combined_ppp <= (combined_ppp_median - 0.04)):
                     reasons.append(f"The combined scoring environment lands on the lower end of the slate at roughly {combined_ppp:.3f} expected PPP.")
                 elif (expected_total is not None) and (line_val is not None) and (expected_total < (line_val - 3.0)):
                     reasons.append(f"Feature-based scoring lands around {expected_total:.1f}, below the market total.")
-                if (pred_total is not None) and (line_val is not None) and (pred_total < (line_val - 2.0)):
+                if (not pred_total_untrusted) and (pred_total is not None) and (line_val is not None) and (pred_total < (line_val - 2.0)):
                     reasons.append(f"The model total sits {line_val - pred_total:.1f} points below the number.")
+                elif pred_total_untrusted and (expected_total is not None) and (line_val is not None) and len(reasons) < 3:
+                    if expected_total > (line_val + 3.0):
+                        reasons.append(f"Feature-based scoring lands around {expected_total:.1f}, so basketball factors do not naturally support this under.")
+                    else:
+                        reasons.append(f"Feature-based scoring lands around {expected_total:.1f}, so basketball support for this under is fairly limited.")
                 score = 0.0
                 if (pace_game is not None) and (pace_median is not None):
                     score += max(0.0, pace_median - pace_game) * 0.8
                 if (combined_ppp is not None) and (combined_ppp_median is not None):
                     score += max(0.0, combined_ppp_median - combined_ppp) * 30.0
-                if (pred_total is not None) and (line_val is not None):
+                if (not pred_total_untrusted) and (pred_total is not None) and (line_val is not None):
                     score += max(0.0, line_val - pred_total) * 0.3
                 if (expected_total is not None) and (line_val is not None):
                     score += max(0.0, line_val - expected_total) * 0.15
@@ -34096,11 +34122,17 @@ def api_recommendations():
         candidates = []
         if date_q:
             candidates += [
+                _P(os.getcwd()) / 'outputs' / f'align_period_{date_q}_edges.csv',
+                _P(os.getcwd()) / 'outputs' / f'align_period_{date_q}.csv',
                 _P(os.getcwd()) / 'outputs' / f'games_with_last_{date_q}.csv',
                 _P(os.getcwd()) / 'outputs' / f'games_with_odds_{date_q}.csv',
                 _P(os.getcwd()) / 'outputs' / f'games_with_closing_{date_q}.csv',
             ]
         candidates += [
+            _P(os.getcwd()) / 'outputs' / 'align_period_today_edges.csv',
+            _P(os.getcwd()) / 'outputs' / 'align_period_today.csv',
+            _P(os.getcwd()) / 'outputs' / 'align_period_edges.csv',
+            _P(os.getcwd()) / 'outputs' / 'align_period.csv',
             _P(os.getcwd()) / 'outputs' / 'games_with_last_today.csv',
             _P(os.getcwd()) / 'outputs' / 'games_with_odds_today.csv',
             _P(os.getcwd()) / 'outputs' / 'games_with_last.csv',
@@ -34223,6 +34255,7 @@ def api_recommendations():
             line_final = r.get('line')
             price_final = r.get('price')
             book_final = r.get('book')
+            synthetic_market_row = (book_final is None) or (str(book_final).strip() == '')
             # Determine sides
             sel_raw = str(r.get('selection') or r.get('bet') or '').strip().lower()
             is_over = sel_raw.startswith('over') or sel_raw.startswith('o')
@@ -34287,24 +34320,26 @@ def api_recommendations():
             elif code == 'ATS':
                 src = sp_price_map.get(gid) or (sp_price_pair_map.get(pair_key) if pair_key else None)
                 if src is not None:
-                    if (line_final is None or str(line_final).strip()==''):
-                        sel_side = side_spread
-                        key_ln = 'home_spread' if sel_side == 'home' else ('away_spread' if sel_side == 'away' else None)
-                        if key_ln:
-                            v = src.get(key_ln)
-                            if v is not None and not pd.isna(v):
-                                r['line'] = float(v if sel_side=='home' else (0 - v)); line_final = r['line']
-                                if not book_final:
-                                    r['book'] = src.get('book'); book_final = r['book']
-                    if (price_final is None or str(price_final).strip()==''):
-                        sel_side = side_spread
-                        key_pr = 'home_spread_price' if sel_side == 'home' else ('away_spread_price' if sel_side == 'away' else None)
-                        if key_pr:
-                            v = src.get(key_pr)
-                            if v is not None and not pd.isna(v):
-                                r['price'] = float(v); price_final = r['price']
-                                if not book_final:
-                                    r['book'] = src.get('book'); book_final = r['book']
+                    sel_side = side_spread
+                    key_ln = 'home_spread' if sel_side == 'home' else ('away_spread' if sel_side == 'away' else None)
+                    if key_ln and ((line_final is None or str(line_final).strip()=='') or synthetic_market_row):
+                        v = src.get(key_ln)
+                        if v is not None and not pd.isna(v):
+                            r['line'] = float(v if sel_side=='home' else (0 - v)); line_final = r['line']
+                    key_pr = 'home_spread_price' if sel_side == 'home' else ('away_spread_price' if sel_side == 'away' else None)
+                    if key_pr and ((price_final is None or str(price_final).strip()=='') or synthetic_market_row):
+                        v = src.get(key_pr)
+                        if v is not None and not pd.isna(v):
+                            r['price'] = float(v); price_final = r['price']
+                    if synthetic_market_row and src.get('book'):
+                        r['book'] = src.get('book'); book_final = r['book']
+                    if synthetic_market_row:
+                        if src.get('home_spread') is not None and not pd.isna(src.get('home_spread')):
+                            r['home_spread'] = float(src.get('home_spread'))
+                        if src.get('away_spread') is not None and not pd.isna(src.get('away_spread')):
+                            r['away_spread'] = float(src.get('away_spread'))
+                        r['bet_label'] = _label(r)
+                        r['bet'] = r['bet_label']
             elif code == 'ML':
                 src = ml_price_map.get(gid) or (ml_price_pair_map.get(pair_key) if pair_key else None)
                 if src is not None and (price_final is None or str(price_final).strip()==''):
