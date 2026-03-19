@@ -32547,6 +32547,7 @@ def api_recommendations():
             candidates: list[Path] = []
             if date_str:
                 candidates.append(OUT / f"features_{date_str}.csv")
+                candidates.append(OUT / f"live_features_{date_str}.csv")
             candidates.append(OUT / 'features_curr.csv')
             feat_df = pd.DataFrame()
             src_name = None

@@ -143,6 +143,7 @@ $liveSnapshotLinesPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_
 $liveSnapshotEvalSummaryPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_eval_summary_{0}.json" -f $Date)
 $liveSnapshotEvalCsvPath = Join-Path -Path $OutputsDir -ChildPath ("live_snapshot_eval_{0}.csv" -f $Date)
 $liveFeaturesPath = Join-Path -Path $OutputsDir -ChildPath ("live_features_{0}.csv" -f $Date)
+$matchupFeaturesPath = Join-Path -Path $OutputsDir -ChildPath ("features_{0}.csv" -f $Date)
 
 # Live Lens artifacts (optional)
 $liveLensSignalsPath = Join-Path -Path $OutputsDir -ChildPath ("live_lens_signals_{0}.jsonl" -f $Date)
@@ -837,8 +838,16 @@ if (Test-Path -LiteralPath $liveSnapshotEvalCsvPath) {
     Write-Host "[Skip] live_snapshot_eval missing for $Date" -ForegroundColor Yellow
 }
 
+${liveFeaturesUploadPath} = $null
 if (Test-Path -LiteralPath $liveFeaturesPath) {
-    $uLf = Upload-File -Uri "$BaseUrl/api/upload_live_features" -FilePath $liveFeaturesPath -Query @{ date = $Date }
+    ${liveFeaturesUploadPath} = $liveFeaturesPath
+} elseif (Test-Path -LiteralPath $matchupFeaturesPath) {
+    ${liveFeaturesUploadPath} = $matchupFeaturesPath
+    Write-Step "Using matchup features artifact for live_features upload: $(Split-Path -Leaf $matchupFeaturesPath)"
+}
+
+if ($liveFeaturesUploadPath) {
+    $uLf = Upload-File -Uri "$BaseUrl/api/upload_live_features" -FilePath $liveFeaturesUploadPath -Query @{ date = $Date }
     if ($uLf -and ($uLf.status -eq 'skipped')) { Write-Host "[Skip] upload_live_features endpoint unavailable" -ForegroundColor Yellow }
     elseif ($uLf) { Write-Host "[OK] live_features uploaded" -ForegroundColor Green }
 } else {

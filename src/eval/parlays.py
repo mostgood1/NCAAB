@@ -204,6 +204,7 @@ def _load_matchup_context(out_dir: Path, date: str | None) -> dict[str, Any]:
         candidates: list[Path] = []
         if date:
             candidates.append(Path(out_dir) / f"features_{date}.csv")
+            candidates.append(Path(out_dir) / f"live_features_{date}.csv")
         candidates.append(Path(out_dir) / "features_curr.csv")
 
         feat_df = pd.DataFrame()
