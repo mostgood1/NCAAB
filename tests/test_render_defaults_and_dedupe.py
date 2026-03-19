@@ -854,7 +854,8 @@ def test_api_recommendations_repairs_synthetic_ats_lines_and_skips_bad_full_game
 		]
 	).to_csv(tmp_path / "picks" / f"ats_picks_{date_str}.csv", index=False)
 
-	(tmp_path / "outputs").mkdir()
+	empty_cwd = tmp_path / "cwd_root"
+	empty_cwd.mkdir()
 	pd.DataFrame(
 		[
 			{
@@ -871,10 +872,10 @@ def test_api_recommendations_repairs_synthetic_ats_lines_and_skips_bad_full_game
 				"pair_key": "michiganwolverines::howardbison",
 			},
 		]
-	).to_csv(tmp_path / "outputs" / f"games_with_closing_{date_str}.csv", index=False)
+	).to_csv(tmp_path / f"align_period_{date_str}_edges.csv", index=False)
 
 	monkeypatch.setattr(app_module, "OUT", tmp_path)
-	monkeypatch.setattr(app_module.os, "getcwd", lambda: str(tmp_path))
+	monkeypatch.setattr(app_module.os, "getcwd", lambda: str(empty_cwd))
 	app_module.app.testing = True
 
 	with app_module.app.test_client() as client:

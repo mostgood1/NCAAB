@@ -34119,25 +34119,44 @@ def api_recommendations():
         odds_df = pd.DataFrame()
         date_q = (request.args.get('date') or '').strip()
         from pathlib import Path as _P
+        base_output_dirs = []
+        try:
+            base_output_dirs.append(_P(OUT))
+        except Exception:
+            pass
+        base_output_dirs.append(_P(os.getcwd()) / 'outputs')
+        seen_base_dirs: set[str] = set()
+        unique_base_dirs: list[_P] = []
+        for base_dir in base_output_dirs:
+            try:
+                base_key = str(base_dir)
+            except Exception:
+                continue
+            if base_key in seen_base_dirs:
+                continue
+            seen_base_dirs.add(base_key)
+            unique_base_dirs.append(base_dir)
         candidates = []
         if date_q:
+            for base_dir in unique_base_dirs:
+                candidates += [
+                    base_dir / f'align_period_{date_q}_edges.csv',
+                    base_dir / f'align_period_{date_q}.csv',
+                    base_dir / f'games_with_last_{date_q}.csv',
+                    base_dir / f'games_with_odds_{date_q}.csv',
+                    base_dir / f'games_with_closing_{date_q}.csv',
+                ]
+        for base_dir in unique_base_dirs:
             candidates += [
-                _P(os.getcwd()) / 'outputs' / f'align_period_{date_q}_edges.csv',
-                _P(os.getcwd()) / 'outputs' / f'align_period_{date_q}.csv',
-                _P(os.getcwd()) / 'outputs' / f'games_with_last_{date_q}.csv',
-                _P(os.getcwd()) / 'outputs' / f'games_with_odds_{date_q}.csv',
-                _P(os.getcwd()) / 'outputs' / f'games_with_closing_{date_q}.csv',
+                base_dir / 'align_period_today_edges.csv',
+                base_dir / 'align_period_today.csv',
+                base_dir / 'align_period_edges.csv',
+                base_dir / 'align_period.csv',
+                base_dir / 'games_with_last_today.csv',
+                base_dir / 'games_with_odds_today.csv',
+                base_dir / 'games_with_last.csv',
+                base_dir / 'games_with_closing.csv',
             ]
-        candidates += [
-            _P(os.getcwd()) / 'outputs' / 'align_period_today_edges.csv',
-            _P(os.getcwd()) / 'outputs' / 'align_period_today.csv',
-            _P(os.getcwd()) / 'outputs' / 'align_period_edges.csv',
-            _P(os.getcwd()) / 'outputs' / 'align_period.csv',
-            _P(os.getcwd()) / 'outputs' / 'games_with_last_today.csv',
-            _P(os.getcwd()) / 'outputs' / 'games_with_odds_today.csv',
-            _P(os.getcwd()) / 'outputs' / 'games_with_last.csv',
-            _P(os.getcwd()) / 'outputs' / 'games_with_closing.csv',
-        ]
         for p in candidates:
             try:
                 if p.exists():
@@ -34378,7 +34397,7 @@ def api_recommendations():
         if diag_rows_api:
             df_diag = pd.DataFrame(diag_rows_api)
             df_diag['ts'] = pd.Timestamp.utcnow().isoformat()
-            p_out = _P(os.getcwd()) / 'outputs' / 'display_backfill_summary.csv'
+            p_out = _P(OUT) / 'display_backfill_summary.csv'
             try:
                 if p_out.exists():
                     df_diag.to_csv(p_out, mode='a', index=False, header=False)
