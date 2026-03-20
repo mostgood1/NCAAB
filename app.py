@@ -32973,13 +32973,18 @@ def api_recommendations():
             pass
         # Normalize rec_code/rec_type if missing
         def _infer_type(mkt: str, bet: str) -> tuple[str,str]:
-            m = (mkt or '').lower(); b = (bet or '').lower()
-            if any(x in m for x in ('total','over/under','ou')) or b.startswith('over') or b.startswith('under') or b.startswith('o') or b.startswith('u'):
-                return ('OU','Totals')
+            m = (mkt or '').lower()
+            b = (bet or '').lower().strip()
+            is_short_total_token = (
+                (b.startswith('o') or b.startswith('u'))
+                and ((len(b) == 1) or b[1].isspace() or b[1].isdigit())
+            )
+            if any(x in m for x in ('moneyline','h2h','ml')) or ('moneyline' in b or b.endswith(' ml')):
+                return ('ML','Moneyline')
             if any(x in m for x in ('spread','ats')) or ('spread' in b):
                 return ('ATS','Spread')
-            if any(x in m for x in ('moneyline','ml')) or ('moneyline' in b or b.endswith(' ml')):
-                return ('ML','Moneyline')
+            if any(x in m for x in ('total','over/under','ou')) or b.startswith('over') or b.startswith('under') or is_short_total_token:
+                return ('OU','Totals')
             return ('Other', 'Other')
 
         def _recommendation_missing(val: Any) -> bool:
@@ -33041,6 +33046,40 @@ def api_recommendations():
                 return s
             except Exception:
                 return ''
+
+        def _selection_team_side(row: dict[str, Any], selection_text: Any) -> str | None:
+            try:
+                sel = _recommendation_text(selection_text).lower()
+                if not sel:
+                    return None
+                home_name = _recommendation_text(row.get('home_team') or row.get('home_team_name')).lower()
+                away_name = _recommendation_text(row.get('away_team') or row.get('away_team_name')).lower()
+                if sel in ('home', 'h'):
+                    return 'home'
+                if sel in ('away', 'a'):
+                    return 'away'
+                if home_name and (sel == home_name or sel.startswith(home_name)):
+                    return 'home'
+                if away_name and (sel == away_name or sel.startswith(away_name)):
+                    return 'away'
+            except Exception:
+                return None
+            return None
+
+        def _ml_pred_margin_from_predicted_value(row: dict[str, Any], selection_text: Any) -> float | None:
+            try:
+                predicted_value = row.get('predicted_value')
+                if predicted_value is None:
+                    return None
+                predicted_margin = float(str(predicted_value).strip())
+                if not np.isfinite(predicted_margin):
+                    return None
+                side = _selection_team_side(row, selection_text)
+                if side == 'away':
+                    return float(-predicted_margin)
+                return float(predicted_margin)
+            except Exception:
+                return None
 
         def _normalize_recommendation_item(item: dict[str, Any]) -> dict[str, Any]:
             row = dict(item)
@@ -33109,6 +33148,11 @@ def api_recommendations():
             if not selection_txt:
                 selection_txt = _seed_selection(code_txt, pick_txt or label_txt or bet_txt, bet_txt or pick_txt or label_txt)
             row['selection'] = selection_txt or None
+
+            if code_txt == 'ML' and _numeric(row.get('pred_margin')) is None:
+                pred_margin_num = _ml_pred_margin_from_predicted_value(row, selection_txt)
+                if pred_margin_num is not None:
+                    row['pred_margin'] = pred_margin_num
 
             if code_txt == 'ML':
                 if not row.get('bet') and selection_txt:
@@ -34559,6 +34603,31 @@ def api_recommendations():
         if not selection_txt:
             selection_txt = _seed_selection(code_txt, pick_txt or label_txt or bet_txt, bet_txt or pick_txt or label_txt)
         row['selection'] = selection_txt or None
+
+        if code_txt == 'ML' and _as_float(row.get('pred_margin')) is None:
+            try:
+                predicted_value = row.get('predicted_value')
+                if predicted_value is not None:
+                    predicted_margin = float(str(predicted_value).strip())
+                    if np.isfinite(predicted_margin):
+                        sel_side = None
+                        try:
+                            sel_norm = _recommendation_text(selection_txt).lower()
+                            home_name = _recommendation_text(row.get('home_team') or row.get('home_team_name')).lower()
+                            away_name = _recommendation_text(row.get('away_team') or row.get('away_team_name')).lower()
+                            if sel_norm in ('home', 'h'):
+                                sel_side = 'home'
+                            elif sel_norm in ('away', 'a'):
+                                sel_side = 'away'
+                            elif home_name and (sel_norm == home_name or sel_norm.startswith(home_name)):
+                                sel_side = 'home'
+                            elif away_name and (sel_norm == away_name or sel_norm.startswith(away_name)):
+                                sel_side = 'away'
+                        except Exception:
+                            sel_side = None
+                        row['pred_margin'] = float(-predicted_margin if sel_side == 'away' else predicted_margin)
+            except Exception:
+                pass
 
         if code_txt == 'ML':
             if not row.get('bet') and selection_txt:
