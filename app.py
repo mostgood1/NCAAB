@@ -32426,9 +32426,12 @@ def api_recommendations():
         if code == 'ATS':
             side_team = None
             if sel_raw:
-                if 'home' in sel_raw or sel_raw == normalize_name(str(home)):
+                sel_key = normalize_name(sel_raw)
+                home_key = normalize_name(str(home)) if home else ''
+                away_key = normalize_name(str(away)) if away else ''
+                if 'home' in sel_raw or (home_key and sel_key.startswith(home_key)):
                     side_team = home
-                elif 'away' in sel_raw or sel_raw == normalize_name(str(away)):
+                elif 'away' in sel_raw or (away_key and sel_key.startswith(away_key)):
                     side_team = away
             if not side_team:
                 try:
@@ -32468,9 +32471,12 @@ def api_recommendations():
         if code == 'ML':
             side_team = None
             if sel_raw:
-                if 'home' in sel_raw or sel_raw == normalize_name(str(home)):
+                sel_key = normalize_name(sel_raw)
+                home_key = normalize_name(str(home)) if home else ''
+                away_key = normalize_name(str(away)) if away else ''
+                if 'home' in sel_raw or (home_key and sel_key.startswith(home_key)):
                     side_team = home
-                elif 'away' in sel_raw or sel_raw == normalize_name(str(away)):
+                elif 'away' in sel_raw or (away_key and sel_key.startswith(away_key)):
                     side_team = away
             if not side_team:
                 try:
@@ -35210,9 +35216,10 @@ def api_recommendations():
                         if pm is not None:
                             rr['edge'] = float(max(0.0, min(2.0, abs(pm) / 6.0)))
 
-            # Global ML ROI guardrails (applies to /api/recommendations output).
-            # Band: favorites no worse than -200; underdogs no bigger than +180.
-            # Require EV_units >= 0.02 per 1 unit risk.
+            # For the grouped recommendations view, keep ML rows available even
+            # when they fail the stricter best-pick guardrails so every game can
+            # still surface a moneyline angle. The per-game/strip mode remains
+            # the selective path.
             if code == 'ML':
                 price_v = _sf(rr.get('price'))
                 p_win = _sf(rr.get('prob'))
@@ -35232,17 +35239,23 @@ def api_recommendations():
                     rr['edge'] = float(abs(p_win - 0.5))
                     rr['abs_edge'] = float(abs(rr['edge']))
                 else:
-                    if price_v < 0 and abs(price_v) > 200.0:
-                        continue
-                    if price_v > 180.0:
-                        continue
-                    if p_win is None:
-                        continue
-                    ev_units = _expected_units_per_1_risk(p_win, price_v)
-                    if ev_units is None or float(ev_units) < 0.02:
-                        continue
-                    rr['ev_units'] = float(ev_units)
-                    rr['edge'] = float(ev_units)
+                    if p_win is not None:
+                        ev_units = _expected_units_per_1_risk(p_win, price_v)
+                        if ev_units is not None:
+                            rr['ev_units'] = float(ev_units)
+                            rr['edge'] = float(ev_units)
+                    if per_game_q:
+                        if price_v < 0 and abs(price_v) > 200.0:
+                            continue
+                        if price_v > 180.0:
+                            continue
+                        if p_win is None:
+                            continue
+                        ev_units = _expected_units_per_1_risk(p_win, price_v)
+                        if ev_units is None or float(ev_units) < 0.02:
+                            continue
+                        rr['ev_units'] = float(ev_units)
+                        rr['edge'] = float(ev_units)
 
             # Maintain abs_edge when possible (many consumers sort by it)
             ev = _sf(rr.get('edge'))

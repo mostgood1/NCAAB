@@ -1007,3 +1007,92 @@ def test_api_recommendations_keeps_moneyline_rows_for_ohio_style_team_names(monk
 	html = page_resp.get_data(as_text=True)
 	assert "Ohio State Buckeyes ML" in html
 	assert "Over -135.0" not in html
+
+
+def test_api_recommendations_keeps_full_slate_moneyline_rows_even_when_price_is_large(monkeypatch, tmp_path: Path):
+	app_module = importlib.import_module("app")
+	date_str = "2026-03-25"
+
+	pd.DataFrame(
+		[
+			{
+				"date": date_str,
+				"game_id": "4701",
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"market": "moneyline",
+				"period": "full_game",
+				"book": "FanDuel",
+				"pick": "Howard Bison ML",
+				"edge": 53.86479249921995,
+				"line_value": 7000.0,
+				"predicted_value": -24.206571197509767,
+				"fair_price": 3175.5997325553844,
+				"start_time_iso": "2026-03-25T23:10:00Z",
+				"start_time_local": "2026-03-25 19:10",
+				"start_tz_abbr": "EDT",
+			},
+		]
+	).to_csv(tmp_path / "picks_raw.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4701",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"pred_total": 151.5,
+				"pred_margin": 24.206571197509767,
+				"market_total": 151.5,
+				"start_time": "2026-03-25T23:10:00Z",
+				"start_time_iso": "2026-03-25T23:10:00Z",
+				"start_time_local": "2026-03-25 19:10",
+				"start_tz_abbr": "EDT",
+			},
+		]
+	).to_csv(tmp_path / f"predictions_display_{date_str}.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "4701",
+				"home_team": "Michigan Wolverines",
+				"away_team": "Howard Bison",
+				"home_off_rating": 102.0,
+				"away_off_rating": 107.0,
+				"home_def_rating": 94.0,
+				"away_def_rating": 93.0,
+				"pace_game_est": 68.0,
+				"home_ppp_mu": 1.24,
+				"away_ppp_mu": 1.17,
+				"home_ppp_allowed_mu": 1.01,
+				"away_ppp_allowed_mu": 0.93,
+				"rest_home": 4.0,
+				"rest_away": 2.0,
+			},
+		]
+	).to_csv(tmp_path / f"features_{date_str}.csv", index=False)
+
+	monkeypatch.setattr(app_module, "OUT", tmp_path)
+	app_module.app.testing = True
+
+	with app_module.app.test_client() as client:
+		api_resp = client.get(f"/api/recommendations?date={date_str}")
+
+	assert api_resp.status_code == 200
+	payload = api_resp.get_json() or {}
+	rows = payload.get("data") or payload.get("rows") or []
+	ml_rows = [r for r in rows if str(r.get("code") or r.get("rec_code") or "").upper() == "ML"]
+	assert len(ml_rows) == 1
+	assert ml_rows[0].get("bet_label") == "Howard Bison ML"
+	assert float(ml_rows[0].get("price")) == pytest.approx(7000.0)
+
+	with app_module.app.test_client() as client:
+		strip_resp = client.get(f"/api/recommendations?date={date_str}&per_game=1")
+
+	assert strip_resp.status_code == 200
+	strip_payload = strip_resp.get_json() or {}
+	strip_rows = strip_payload.get("data") or strip_payload.get("rows") or []
+	assert not any(str(r.get("code") or r.get("rec_code") or "").upper() == "ML" for r in strip_rows)
