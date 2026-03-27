@@ -907,6 +907,65 @@ def test_api_recommendations_repairs_synthetic_ats_lines_and_skips_bad_full_game
 	assert "Michigan Wolverines -3.0" not in html
 
 
+def test_api_recommendations_repairs_stale_ou_pred_total_from_display_snapshot(monkeypatch, tmp_path: Path):
+	app_module = importlib.import_module("app")
+	date_str = "2026-03-27"
+
+	pd.DataFrame(
+		[
+			{
+				"date": date_str,
+				"game_id": "401856570",
+				"home_team": "Duke Blue Devils",
+				"away_team": "St. John's Red Storm",
+				"market": "totals",
+				"period": "full_game",
+				"bet": "Under",
+				"selection": "Under",
+				"line": 140.5,
+				"price": -110,
+				"edge": 26.8,
+				"book": "book_totals",
+				"rec_type": "Totals",
+				"rec_code": "OU",
+				"predicted_value": 113.69461059570312,
+				"pred_margin": 14.300195693969728,
+			},
+		]
+	).to_csv(tmp_path / "picks_raw.csv", index=False)
+
+	pd.DataFrame(
+		[
+			{
+				"game_id": "401856570",
+				"date": date_str,
+				"display_date": date_str,
+				"home_team": "Duke Blue Devils",
+				"away_team": "St. John's Red Storm",
+				"pred_total": 145.11386882898225,
+				"pred_margin": 4.449255514695086,
+				"market_total": 140.5,
+				"start_time": "2026-03-27T23:10:00Z",
+			},
+		]
+	).to_csv(tmp_path / f"predictions_display_{date_str}.csv", index=False)
+
+	monkeypatch.setattr(app_module, "OUT", tmp_path)
+	app_module.app.testing = True
+
+	with app_module.app.test_client() as client:
+		api_resp = client.get(f"/api/recommendations?date={date_str}")
+
+	assert api_resp.status_code == 200
+	payload = api_resp.get_json() or {}
+	rows = payload.get("data") or []
+	ou_row = next(r for r in rows if str(r.get("game_id") or "") == "401856570" and str(r.get("code") or r.get("rec_code") or "").upper() == "OU")
+
+	assert float(ou_row.get("pred_total")) == pytest.approx(145.11386882898225)
+	assert float(ou_row.get("predicted_value")) == pytest.approx(145.11386882898225)
+	assert float(ou_row.get("line")) == pytest.approx(140.5)
+
+
 def test_api_recommendations_keeps_moneyline_rows_for_ohio_style_team_names(monkeypatch, tmp_path: Path):
 	app_module = importlib.import_module("app")
 	date_str = "2026-03-24"

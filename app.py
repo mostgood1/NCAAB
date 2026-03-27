@@ -32263,6 +32263,64 @@ def api_recommendations():
             picks = _dedupe_recommendation_frame(picks)
     except Exception:
         pass
+    # Repair full-game totals rows from the dated display snapshot when the
+    # persisted picks artifact carries a stale or pre-display pred_total.
+    try:
+        if isinstance(picks, pd.DataFrame) and not picks.empty and date_q:
+            dpath_rep = OUT / f"predictions_display_{date_q}.csv"
+            ddf_rep = _safe_read_csv(dpath_rep) if dpath_rep.exists() else pd.DataFrame()
+            if isinstance(ddf_rep, pd.DataFrame) and not ddf_rep.empty and 'game_id' in ddf_rep.columns:
+                ddf_rep = ddf_rep.copy()
+                ddf_rep['game_id'] = ddf_rep['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+                disp_pred_map = {}
+                disp_total_map = {}
+                if 'pred_total' in ddf_rep.columns:
+                    disp_pred_map = dict(zip(ddf_rep['game_id'], pd.to_numeric(ddf_rep['pred_total'], errors='coerce')))
+                if 'market_total' in ddf_rep.columns:
+                    disp_total_map = dict(zip(ddf_rep['game_id'], pd.to_numeric(ddf_rep['market_total'], errors='coerce')))
+                if 'game_id' in picks.columns:
+                    picks = picks.copy()
+                    picks['game_id'] = picks['game_id'].astype(str).str.replace(r'\.0$','', regex=True)
+                    try:
+                        code_ou_rep = picks.get('rec_code').astype(str).str.upper().eq('OU') if 'rec_code' in picks.columns else pd.Series(False, index=picks.index)
+                    except Exception:
+                        code_ou_rep = pd.Series(False, index=picks.index)
+                    if (~code_ou_rep).all() and 'market' in picks.columns:
+                        try:
+                            code_ou_rep = picks['market'].astype(str).str.lower().str.contains('total')
+                        except Exception:
+                            code_ou_rep = pd.Series(False, index=picks.index)
+                    try:
+                        period_full_rep = picks.get('period').astype(str).str.lower().isin(['full_game','full','game']) if 'period' in picks.columns else pd.Series(True, index=picks.index)
+                    except Exception:
+                        period_full_rep = pd.Series(True, index=picks.index)
+                    repair_mask = code_ou_rep & period_full_rep
+                    if repair_mask.any():
+                        disp_pred_series = picks.loc[repair_mask, 'game_id'].map(disp_pred_map)
+                        old_pred_series = None
+                        if 'pred_total' in picks.columns:
+                            old_pred_series = pd.to_numeric(picks.loc[repair_mask, 'pred_total'], errors='coerce')
+                        elif 'predicted_value' in picks.columns:
+                            old_pred_series = pd.to_numeric(picks.loc[repair_mask, 'predicted_value'], errors='coerce')
+                        if old_pred_series is not None:
+                            replace_mask = disp_pred_series.notna() & (old_pred_series.isna() | ((old_pred_series - disp_pred_series).abs() > 20.0))
+                        else:
+                            replace_mask = disp_pred_series.notna()
+                            picks['pred_total'] = np.nan
+                        if replace_mask.any():
+                            idx_replace = disp_pred_series.index[replace_mask]
+                            picks.loc[idx_replace, 'pred_total'] = disp_pred_series.loc[idx_replace]
+                            if 'predicted_value' in picks.columns:
+                                picks.loc[idx_replace, 'predicted_value'] = disp_pred_series.loc[idx_replace]
+                        if 'line' in picks.columns and disp_total_map:
+                            old_line_series = pd.to_numeric(picks.loc[repair_mask, 'line'], errors='coerce')
+                            disp_line_series = picks.loc[repair_mask, 'game_id'].map(disp_total_map)
+                            line_replace_mask = disp_line_series.notna() & old_line_series.isna()
+                            if line_replace_mask.any():
+                                idx_line_replace = disp_line_series.index[line_replace_mask]
+                                picks.loc[idx_line_replace, 'line'] = disp_line_series.loc[idx_line_replace]
+    except Exception:
+        pass
     # Compute explicit labels for OU/ATS/ML similar to page
     # Build closing totals and name/date maps for robust line fallback in labels
     closing_total_map_api: dict[str, float] = {}
