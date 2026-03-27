@@ -30,6 +30,11 @@ def _sanitize_json_obj_strict(_obj):
     try:
         if _obj is None:
             return None
+        try:
+            if _pd.isna(_obj):
+                return None
+        except Exception:
+            pass
         if isinstance(_obj, (str, bool, int)):
             return _obj
         if isinstance(_obj, float):
@@ -35275,7 +35280,7 @@ def api_recommendations():
     except Exception:
         pass
 
-    _resp = jsonify({"status": "ok", "date": date_q, "rows": len(rows), "data": rows})
+    _resp = jsonify(_sanitize_json_obj_strict({"status": "ok", "date": date_q, "rows": len(rows), "data": rows}))
     try:
         _resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         _resp.headers['Pragma'] = 'no-cache'

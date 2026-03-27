@@ -8439,6 +8439,55 @@ def predict_segmented_cmd(
     print(f"[green]Wrote {len(rows)} segmented predictions to[/green] {out}")
 
 
+def _guard_segmented_total_blend(
+    out_df: pd.DataFrame,
+    feats: pd.DataFrame,
+    *,
+    total_min: float = 95.0,
+    total_max: float = 195.0,
+    max_base_gap: float = 55.0,
+    derived_tolerance: float = 0.25,
+) -> tuple[pd.Series, pd.Series]:
+    bt = pd.to_numeric(out_df.get("pred_total_base"), errors="coerce")
+    st = pd.to_numeric(out_df.get("pred_total_seg"), errors="coerce")
+    wts = pd.to_numeric(out_df.get("blend_weight"), errors="coerce").fillna(0.0)
+
+    derived_total = pd.Series(np.nan, index=out_df.index, dtype=float)
+    if all(c in feats.columns for c in [
+        "home_tempo_rating",
+        "away_tempo_rating",
+        "home_off_rating",
+        "away_off_rating",
+        "home_def_rating",
+        "away_def_rating",
+    ]):
+        tempo_avg = (
+            pd.to_numeric(feats["home_tempo_rating"], errors="coerce")
+            + pd.to_numeric(feats["away_tempo_rating"], errors="coerce")
+        ) / 2.0
+        off_home = pd.to_numeric(feats["home_off_rating"], errors="coerce")
+        off_away = pd.to_numeric(feats["away_off_rating"], errors="coerce")
+        def_home = pd.to_numeric(feats["home_def_rating"], errors="coerce")
+        def_away = pd.to_numeric(feats["away_def_rating"], errors="coerce")
+        exp_home_pp100 = ((off_home + def_away) / 2.0).clip(lower=80.0, upper=130.0)
+        exp_away_pp100 = ((off_away + def_home) / 2.0).clip(lower=80.0, upper=130.0)
+        derived_total = (((exp_home_pp100 + exp_away_pp100) / 100.0) * tempo_avg).clip(lower=total_min, upper=total_max)
+
+    seg_total_rejected = st.notna() & ((st < total_min) | (st > total_max))
+    seg_total_rejected = seg_total_rejected | (bt.notna() & st.notna() & ((bt - st).abs() > max_base_gap))
+    seg_total_rejected = seg_total_rejected | (
+        derived_total.notna()
+        & st.notna()
+        & ((st < ((1.0 - derived_tolerance) * derived_total)) | (st > ((1.0 + derived_tolerance) * derived_total)))
+    )
+
+    out_df["pred_total_seg_rejected"] = seg_total_rejected
+    out_df["pred_total_seg_guardrail"] = derived_total
+    wts = wts.mask(seg_total_rejected, 0.0)
+    out_df["blend_weight"] = wts
+    return st.mask(seg_total_rejected), wts
+
+
 @app.command(name="validate-closing-coverage")
 def validate_closing_coverage(
     games_path: Path = typer.Argument(settings.outputs_dir / "games_all.csv", help="Season games CSV/Parquet (final scores or placeholders)"),
@@ -10000,6 +10049,10 @@ def daily_run(
                     st = pd.to_numeric(out_df["pred_total_seg"], errors="coerce")
                     sm = pd.to_numeric(out_df["pred_margin_seg"], errors="coerce")
                     wts = out_df["blend_weight"].astype(float)
+                    try:
+                        st, wts = _guard_segmented_total_blend(out_df, feats)
+                    except Exception:
+                        out_df["pred_total_seg_rejected"] = False
                     out_df["pred_total_blend"] = bt.where(st.isna(), (1.0 - wts) * bt + wts * st)
                     out_df["pred_margin_blend"] = bm.where(sm.isna(), (1.0 - wts) * bm + wts * sm)
                     # Replace primary columns with blended versions for downstream edge / picks logic

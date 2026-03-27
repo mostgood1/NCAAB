@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
+import pytest
 from pathlib import Path
 from typer.testing import CliRunner
 
 from ncaab_model.cli import app as typer_app
+from ncaab_model.cli import _guard_segmented_total_blend
 
 runner = CliRunner()
 
@@ -69,3 +71,32 @@ def test_train_and_predict_segmented_team(tmp_path: Path):
     assert pred_df["segmented_total"].notna().any(), "No segmented predictions computed; check models loading"
     # Basic sanity: totals within plausible range
     assert pred_df["pred_total"].between(80, 250).all(), "Predicted totals out of expected bounds"
+
+
+def test_guard_segmented_total_blend_rejects_implausible_segment_total():
+    out_df = pd.DataFrame(
+        {
+            "pred_total_base": [158.2, 145.0],
+            "pred_total_seg": [34.1, 143.5],
+            "blend_weight": [0.6, 0.4],
+        }
+    )
+    feats = pd.DataFrame(
+        {
+            "home_tempo_rating": [70.0, 69.0],
+            "away_tempo_rating": [71.0, 70.0],
+            "home_off_rating": [112.0, 108.0],
+            "away_off_rating": [110.0, 107.0],
+            "home_def_rating": [98.0, 101.0],
+            "away_def_rating": [99.0, 100.0],
+        }
+    )
+
+    guarded_seg, guarded_wts = _guard_segmented_total_blend(out_df, feats)
+
+    assert pd.isna(guarded_seg.iloc[0])
+    assert guarded_wts.iloc[0] == 0.0
+    assert bool(out_df.loc[0, "pred_total_seg_rejected"]) is True
+    assert guarded_seg.iloc[1] == pytest.approx(143.5)
+    assert guarded_wts.iloc[1] == pytest.approx(0.4)
+    assert bool(out_df.loc[1, "pred_total_seg_rejected"]) is False

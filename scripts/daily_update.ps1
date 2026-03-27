@@ -2403,13 +2403,28 @@ print({'path': str(games_path), 'rows': len(df2)})
   } catch {
     Write-Warning "normalize_start_fields.py failed: $($_)"
   }
-  # Ensure predictions_display_<date>.csv exists for snapshot-first UI parity
-  Write-Section '6a.post.i) Persist display snapshot for today if missing'
+  # Refresh predictions_display_<date>.csv from the canonical app postprocess step
+  # so dated snapshots do not stay stale after daily-run rewrites upstream artifacts.
+  Write-Section '6a.post.i) Refresh display snapshot for today'
   try {
     $displaySnap = Join-Path $OutDir ("predictions_display_" + $todayIso + ".csv")
     $enrichedPred = Join-Path $OutDir ("predictions_unified_enriched_" + $todayIso + ".csv")
-    if (-not (Test-Path $displaySnap)) {
-      if (Test-Path $enrichedPred) {
+    $refreshed = $false
+    try {
+      $pyPostprocess = @"
+import app
+ok = bool(app._postprocess_enriched_file('${todayIso}'))
+print({'date': '${todayIso}', 'postprocess_ok': ok})
+raise SystemExit(0 if ok else 1)
+"@
+      & $VenvPython -c $pyPostprocess
+      if ($LASTEXITCODE -eq 0 -and (Test-Path $displaySnap)) {
+        $refreshed = $true
+      }
+    } catch {
+      Write-Warning "display postprocess refresh failed: $($_)"
+    }
+    if ((-not $refreshed) -and (Test-Path $enrichedPred)) {
         $pyPersist = @"
 import pandas as pd
 from pathlib import Path
@@ -2439,14 +2454,11 @@ if 'date' in df.columns:
 df.to_csv(dis, index=False)
 print({'path': str(dis), 'rows': len(df)})
 "@
-        & $VenvPython -c $pyPersist
-      } else {
-        Write-Warning "Enriched predictions not found at $enrichedPred; cannot persist display snapshot."
-      }
-    } else {
-      Write-Host "Display snapshot already present -> $displaySnap" -ForegroundColor DarkGray
+      & $VenvPython -c $pyPersist
+    } elseif (-not $refreshed) {
+      Write-Warning "Enriched predictions not found at $enrichedPred; cannot refresh display snapshot."
     }
-  } catch { Write-Warning "Persisting display snapshot failed: $($_)" }
+  } catch { Write-Warning "Refreshing display snapshot failed: $($_)" }
   try {
     $pyCheck = @"
 import pandas as pd, sys
