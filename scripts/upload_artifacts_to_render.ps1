@@ -525,12 +525,13 @@ try {
     }
 } catch {}
 
-# If local display has fewer rows than edges, regenerate display from edges to publish all game cards
+# Only rebuild display from edges when the local display snapshot is actually missing/empty.
+# A valid per-game display CSV will naturally have far fewer rows than the per-market edges file.
 try {
     $edgesRowsLocal = Get-CsvRowCount -Path $edgesPath
     $localDispRowsPre = Get-CsvRowCount -Path $displayToUpload
-    if ($edgesRowsLocal -gt 0 -and ($localDispRowsPre -lt $edgesRowsLocal)) {
-        Write-Step ("Local display has {0} rows < edges {1}; rebuilding from edges" -f $localDispRowsPre, $edgesRowsLocal)
+    if ($edgesRowsLocal -gt 0 -and $localDispRowsPre -le 0) {
+        Write-Step ("Local display has {0} rows; rebuilding from edges fallback" -f $localDispRowsPre)
         $repoRoot = (Resolve-Path "$PSScriptRoot/..").Path
         $pyExe = Join-Path $repoRoot ".venv/Scripts/python.exe"
         $genScript = Join-Path $PSScriptRoot "generate_display_from_edges.py"
