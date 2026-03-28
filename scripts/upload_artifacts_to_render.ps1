@@ -274,6 +274,35 @@ function Get-CsvRowCount {
     }
 }
 
+function Refresh-DisplaySnapshot {
+    param(
+        [string]$Date,
+        [string]$RepoRoot,
+        [string]$DisplayCsv
+    )
+    if (-not $Date -or -not $RepoRoot) { return $false }
+    try {
+        $pyExe = Join-Path $RepoRoot ".venv/Scripts/python.exe"
+        $cmd = @"
+import app
+ok = bool(app._postprocess_enriched_file('${Date}'))
+print({'date': '${Date}', 'postprocess_ok': ok})
+raise SystemExit(0 if ok else 1)
+"@
+        if (Test-Path -LiteralPath $pyExe) {
+            & $pyExe -c $cmd | Out-Null
+        } else {
+            python -c $cmd | Out-Null
+        }
+        if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $DisplayCsv) -and ((Get-CsvRowCount -Path $DisplayCsv) -gt 0)) {
+            return $true
+        }
+    } catch {
+        Write-Host ("[Warn] display refresh failed before upload: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
+    }
+    return $false
+}
+
 # Create a sanitized display CSV by removing placeholder rows (AWAY/HOME teams) and synthetic/odds ids
 function Sanitize-DisplayCsv {
     param([string]$Path)
@@ -490,6 +519,14 @@ if ($oddsRows -gt 0) {
 } else {
     Write-Host "[Skip] odds_history missing or empty for $Date" -ForegroundColor Yellow
 }
+
+$repoRootForDisplay = $null
+try { $repoRootForDisplay = (Resolve-Path "$PSScriptRoot/..").Path } catch { $repoRootForDisplay = $null }
+try {
+    if ($displayPath -and (Test-Path -LiteralPath $displayPath)) {
+        $null = Refresh-DisplaySnapshot -Date $Date -RepoRoot $repoRootForDisplay -DisplayCsv $displayPath
+    }
+} catch {}
 
 $sanitizedDisplayPath = Sanitize-DisplayCsv -Path $displayPath
 if ($sanitizedDisplayPath) {
